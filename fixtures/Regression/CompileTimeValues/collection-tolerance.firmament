@@ -1,0 +1,12 @@
+Model CollectionRequirement {
+    units: mm
+    Record MountSpec { center: Point2 diameter: Length }
+    Static mounts: MountSpec[] = [
+        MountSpec { center: Point2(0mm, 0mm) diameter: 8mm tol 0.1mm }
+    ]
+    Template<spec: MountSpec> Drill {
+        Hole<Shaft> Mount { on: +Z center: spec.center diameter: spec.diameter end: ThroughAll }
+    }
+    Box Body { size: [40mm, 30mm, 8mm] }
+    Modify Body { Pattern Mounts Over mounts { Drill<Current> } }
+}

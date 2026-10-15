@@ -1,5 +1,9 @@
 # Firmament typed tolerances and language roles
 
+Follow-up: [compile-time value binding](FIRMAMENT-COMPILE-TIME-VALUES.md)
+extends the qualified lane through Record, Template and Feature inputs.
+The original pass boundaries below remain its historical qualification record.
+
 ## Contract
 
 `Static drillDiameter: Length = 8mm tol +0.10mm -0.05mm` is an immutable

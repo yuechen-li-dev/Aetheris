@@ -188,16 +188,57 @@ operand's allowance; supply a new explicit `tol` when the result is a new
 requirement. There is no inferred interval propagation or tolerance-stack
 certification in Model scalar arithmetic.
 
+Typed requirements also travel through Record data, Template parameters and
+Feature parameters or local aliases. This complete example uses the same
+requirement for construction and explicit inspection:
+
+```firmament
+Record BoreSpec { diameter: Length }
+Static production: BoreSpec { diameter: 8mm tol +0.10mm -0.05mm }
+
+Template<spec: BoreSpec> Model PlateFamily {
+  units: mm
+  Feature Drill(spec: BoreSpec) -> Hole<Shaft> {
+    let inspection: Length = spec.diameter
+    return Hole<Shaft> {
+      on: +Z
+      center: Point2(0mm, 0mm)
+      diameter: inspection
+      end: ThroughAll
+    }
+  }
+  Box Body { size: [40mm, 30mm, 8mm] }
+  Modify Body { Feature Mount = Drill(spec: spec) }
+  Pmi { HoleDiameter MountSize { target: Mount dimension: spec.diameter } }
+}
+Model ProductionPlate = PlateFamily<spec: production>
+```
+
+Record field initializers may declare `tol`; Record field types remain `Length`
+or `Angle`. Passing either a scalar field or the whole typed Record preserves
+its requirement. Nested Records, checked `with` overrides, scalar Template
+defaults, nested specialization and Feature-local aliases follow the same
+rule. Feature locals stay local; the enclosing model selects its visible
+Static or Record requirement for PMI. Record data must be finite and acyclic;
+the current nesting limit is 128. A replacement field without `tol` replaces
+the requirement with an
+untoleranced value. Template `Require` conditions check nominal values; they
+do not certify a tolerance stack. Validation reports expose requirement origins
+and binding steps; internal transport identifiers are compiler details.
+
 Scalar Static values belong directly to the Model or its source module and
-currently feed direct primitive and Modify fields. The existing shorthand
+feed direct primitive and Modify fields. Direct Record member references are
+also admitted in these fields and `Pmi dimension:`. The existing shorthand
 `Static width = 40mm` infers Length; an annotation makes engineering intent
 clearer. Profile/Compose recipes and
 other domain frontends retain their typed Template inputs; they do not acquire
 general scalar environments from this feature. Unsupported scalar consumers
 in the qualified construction, Sweep and wire lanes reject; this pass does not
-qualify arbitrary scalar environments in other domains. Inline field
+qualify arbitrary scalar environments in other domains. Inline geometry-field
 annotations such as `diameter: 8mm tol 0.1mm` reject; give
-the requirement a name. Angle allowances can be bound and inspected, but native
+the requirement a named Static or Record field. Toleranced Table cells and
+collection elements are not qualified by the Record/Template/Feature lane.
+Angle allowances can be bound and inspected, but native
 Model angular PMI export is not yet admitted. See [PMI](pmi.md) for projection
 targets and export limits.
 

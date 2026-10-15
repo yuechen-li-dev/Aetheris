@@ -38,7 +38,11 @@ public sealed record FirmamentV2LetRecordField(string Name, FirmamentV2Primitive
     public FirmamentV2LiteralValue LiteralValue => ValueExpression is FirmamentV2LiteralExpression literal ? literal.Value : throw new InvalidOperationException("Record field value is not a literal.");
 }
 public sealed record FirmamentV2BoundExpression(FirmamentV2PrimitiveType InferredType, FirmamentV2LiteralValue Value, IReadOnlySet<string> Dependencies, FirmamentV2SourceSpan SourceSpan, FirmamentV2Tolerance? AliasTolerance = null, bool UsesTolerancedValueInArithmetic = false);
-public sealed record FirmamentV2BoundLet(string Name, FirmamentV2PrimitiveType Type, FirmamentV2LiteralValue Value, FirmamentV2SourceSpan SourceSpan, FirmamentV2BoundExpression? Expression = null, IReadOnlySet<string>? Dependencies = null, FirmamentV2Tolerance? Tolerance = null);
+public sealed record FirmamentV2ValueOrigin(string SourceFile, FirmamentV2SourceSpan SourceSpan, string Binding, string? LocationNote = null);
+public sealed record FirmamentV2BoundLet(string Name, FirmamentV2PrimitiveType Type, FirmamentV2LiteralValue Value, FirmamentV2SourceSpan SourceSpan, FirmamentV2BoundExpression? Expression = null, IReadOnlySet<string>? Dependencies = null, FirmamentV2Tolerance? Tolerance = null)
+{
+    public IReadOnlyList<FirmamentV2ValueOrigin> Origins { get; init; } = [];
+}
 public sealed record FirmamentV2BoundLetRecord(string Name, IReadOnlyDictionary<string, FirmamentV2BoundLet> Fields, FirmamentV2SourceSpan SourceSpan);
 
 public sealed record FirmamentV2ConceptApplication(string FamilyName, string ConceptName, FirmamentV2SourceSpan SourceSpan);
@@ -260,7 +264,10 @@ public sealed record FirmamentV2PmiBlock(IReadOnlyList<FirmamentV2PmiRecord> Rec
 public sealed record FirmamentV2PmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyDictionary<string, FirmamentV2PmiField> Fields, FirmamentV2SourceSpan SourceSpan, FirmamentV2BoundPmiRecord? Bound = null, FirmamentV2PmiProjection? Projection = null);
 public sealed record FirmamentV2PmiField(string Name, string Source, FirmamentV2SourceSpan SourceSpan, FirmamentV2ValueExpression? ValueExpression = null);
 public sealed record FirmamentV2BoundPmiBlock(IReadOnlyList<FirmamentV2BoundPmiRecord> Datums, IReadOnlyList<FirmamentV2BoundPmiRecord> Dimensions, IReadOnlyList<FirmamentV2BoundPmiRecord> Controls, IReadOnlyList<string> Diagnostics);
-public sealed record FirmamentV2BoundPmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyList<string> Targets, FirmamentV2LiteralValue? DimensionValue, FirmamentV2Tolerance? DimensionTolerance, FirmamentV2LiteralValue? ControlTolerance, IReadOnlyList<string> DatumRefs, FirmamentV2SourceSpan SourceSpan, string? ProjectionSource = null, FirmamentV2HoleWallSelector? HoleWallTarget = null);
+public sealed record FirmamentV2BoundPmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyList<string> Targets, FirmamentV2LiteralValue? DimensionValue, FirmamentV2Tolerance? DimensionTolerance, FirmamentV2LiteralValue? ControlTolerance, IReadOnlyList<string> DatumRefs, FirmamentV2SourceSpan SourceSpan, string? ProjectionSource = null, FirmamentV2HoleWallSelector? HoleWallTarget = null)
+{
+    public IReadOnlyList<FirmamentV2ValueOrigin> DimensionOrigins { get; init; } = [];
+}
 /// <summary>Reusable, validated dimensional intent. Only equality of a semantic feature property
 /// to a length expectation is admitted in Preview 1.</summary>
 public sealed record FirmamentV2SemanticConstraint(string Id, string Subject, string Property, FirmamentV2LiteralValue NominalValue, FirmamentV2Tolerance? Tolerance, bool ValidationSucceeded, FirmamentV2SourceSpan SourceSpan, string ExpectedProvenance);

@@ -364,10 +364,12 @@ public static partial class FirmamentV2Parser
             var original = FirmamentSyntaxParser.Parse(originalSource);
             var unchanged = result.DiagnosticSource is not null && string.Equals(result.DiagnosticSource,
                 MaskCommentTrivia(FirmamentSourceSpelling.Normalize(FirmamentFrontendSchemas.Select(originalSource).Source)), StringComparison.Ordinal);
-            result = result with { SyntaxDiagnostics = original.Diagnostics.Count > 0 ? original.Diagnostics
-                : unchanged ? result.SyntaxDiagnostics
-                : result.SyntaxDiagnostics.Select(d => d with { SourceSpan = null, Line = null, Column = null,
-                    LocationNote = "The error occurs after expansion; original-source provenance is unavailable." }).ToArray() };
+            var located = result.SyntaxDiagnostics.Where(d => d.IsOriginalSource).ToArray();
+            var expanded = result.SyntaxDiagnostics.Where(d => !d.IsOriginalSource).ToArray();
+            result = result with { SyntaxDiagnostics = unchanged ? result.SyntaxDiagnostics
+                : located.Concat(expanded.Length > 0 && original.Diagnostics.Count > 0 ? original.Diagnostics
+                    : expanded.Select(d => d with { SourceSpan = null, Line = null, Column = null,
+                        LocationNote = "The error occurs after expansion; original-source provenance is unavailable." })).ToArray() };
         }
         var hasErrors = result.Diagnostics.Any(IsFatalDiagnosticCode);
         return result with
@@ -392,6 +394,7 @@ public static partial class FirmamentV2Parser
             || leading[0].Text == "{" && leading[1].Shape == "string"))
             return FirmamentV2ParseResult.Failure([], FirmamentV2ParseDisposition.NotRecognized) with { ParserRoute = "LegacySerialization" };
         sourceText = FirmamentSourceSpelling.Normalize(sourceText);
+        var valueSource = MaskCommentTrivia(sourceText);
         sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
         var diagnostics = new List<string> { "firmament-v2-parser-invoked" };
         var source = MaskCommentTrivia(sourceText);
@@ -434,26 +437,31 @@ public static partial class FirmamentV2Parser
         // Modern Template specialization owns typed Record binding.  Run it while
         // Record and scalar Static declarations still exist, then let canonical
         // static authoring erase those compile-time declarations before AIR.
-        var templateExpansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
-        if (templateExpansion is null)
+        var compileTime = new FirmamentCompileTimeValues(valueSource);
+        var templateExpansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics, compileTime);
+        if (templateExpansion is null || compileTime.Diagnostics.Any(d => d.Severity is "error" or "fatal"))
         {
             diagnostics.Add("firmament-v2-parse-failed");
             return FirmamentV2ParseResult.Failure(
                 diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray(),
-                v2AdmissionCandidate ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.NotRecognized);
+                v2AdmissionCandidate ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.NotRecognized)
+                with { SyntaxDiagnostics = compileTime.Diagnostics,
+                    OwnsUnifiedAdmission = compileTime.Diagnostics.Any(d => d.Severity is "error" or "fatal") };
         }
         source = templateExpansion.Source;
+        compileTime.BindExpandedScalars(source, diagnostics);
 
         // Feature is Firmament's bounded function-like abstraction. It is expanded once,
         // after typed Template specialization and before static pattern lowering, so every command consumes the
         // same concrete semantic declarations and no geometry callback can bypass AIR.
-        var featureExpansion = FirmamentV2FeatureExpansion.Expand(source, diagnostics);
-        if (featureExpansion is null)
+        var featureExpansion = FirmamentV2FeatureExpansion.Expand(source, diagnostics, compileTime);
+        if (featureExpansion is null || compileTime.Diagnostics.Any(d => d.Severity is "error" or "fatal"))
         {
             diagnostics.Add("firmament-v2-parse-failed");
             return FirmamentV2ParseResult.Failure(
                 diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray(),
-                FirmamentV2ParseDisposition.RecognizedInvalid);
+                FirmamentV2ParseDisposition.RecognizedInvalid) with { SyntaxDiagnostics = compileTime.Diagnostics,
+                    OwnsUnifiedAdmission = compileTime.Diagnostics.Any(d => d.Severity is "error" or "fatal") };
         }
         source = featureExpansion.Source;
 
@@ -547,7 +555,7 @@ public static partial class FirmamentV2Parser
             if (!syntax.IsSuccess)
                 return FirmamentV2ParseResult.Failure(diagnostics.Concat(syntax.Diagnostics.Select(d => d.Code)).ToArray(), FirmamentV2ParseDisposition.RecognizedInvalid)
                     with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true, SyntaxDiagnostics = syntax.Diagnostics };
-            var parsed = Recognized(BindMechanicalModel(syntax.Document, modelSyntax, source, diagnostics, sourceDirectory, templateExpansion.Instantiations))
+            var parsed = Recognized(BindMechanicalModel(syntax.Document, modelSyntax, source, diagnostics, sourceDirectory, templateExpansion.Instantiations, compileTime))
                 with { DiagnosticSource = source };
             if (parsed.Document is null) return parsed with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true };
             if (domainDeclarations.Any(d => d.Type.Name.Text == "Plateau"))
@@ -716,7 +724,7 @@ public static partial class FirmamentV2Parser
         return lets;
     }
 
-    private static bool TryParseLetType(string text, out FirmamentV2PrimitiveType type)
+    internal static bool TryParseLetType(string text, out FirmamentV2PrimitiveType type)
     {
         type = text switch
         {
@@ -824,9 +832,10 @@ public static partial class FirmamentV2Parser
     private static IReadOnlyList<FirmamentV2BoundLetRecord> BindLetRecords(IReadOnlyList<FirmamentV2LetRecordDeclaration> records) =>
         records.Select(r => new FirmamentV2BoundLetRecord(r.Name, r.Fields.Where(f => f.ValueExpression is FirmamentV2LiteralExpression).Select(f => new FirmamentV2BoundLet(f.Name, f.DeclaredType, f.LiteralValue, f.SourceSpan, new FirmamentV2BoundExpression(f.DeclaredType, f.LiteralValue, new HashSet<string>(StringComparer.Ordinal), f.SourceSpan, f.Tolerance), new HashSet<string>(StringComparer.Ordinal), f.Tolerance)).ToDictionary(f => f.Name, StringComparer.Ordinal), r.SourceSpan)).ToArray();
 
-    private static IReadOnlyList<FirmamentV2BoundLet> BindLets(IReadOnlyList<FirmamentV2LetDeclaration> lets, IReadOnlyList<FirmamentV2BoundLetRecord> records, IEnumerable<string> solidNames, List<string> diagnostics)
+    private static IReadOnlyList<FirmamentV2BoundLet> BindLets(IReadOnlyList<FirmamentV2LetDeclaration> lets, IReadOnlyList<FirmamentV2BoundLetRecord> records, IEnumerable<string> solidNames, List<string> diagnostics,
+        List<FirmamentV2ValidationDiagnostic>? located = null)
     {
-        var binder = new ExpressionBinder(lets, records, solidNames, diagnostics);
+        var binder = new ExpressionBinder(lets, records, solidNames, diagnostics, located);
         return binder.BindLets();
     }
 
@@ -900,8 +909,10 @@ public static partial class FirmamentV2Parser
         private readonly Dictionary<string, FirmamentV2LetDeclaration> _letMap;
         private readonly Dictionary<string, FirmamentV2BoundLet> _bound = new(StringComparer.Ordinal);
         private readonly HashSet<string> _visiting = new(StringComparer.Ordinal);
-        public ExpressionBinder(IReadOnlyList<FirmamentV2LetDeclaration> lets, IReadOnlyList<FirmamentV2BoundLetRecord> records, IEnumerable<string> solidNames, List<string> diagnostics)
-        { _lets = lets; _records = records.ToDictionary(r => r.Name, StringComparer.Ordinal); _solidNames = new(solidNames, StringComparer.Ordinal); _diagnostics = diagnostics; _letMap = lets.ToDictionary(l => l.Name, StringComparer.Ordinal); }
+        private readonly List<FirmamentV2ValidationDiagnostic>? _located;
+        public ExpressionBinder(IReadOnlyList<FirmamentV2LetDeclaration> lets, IReadOnlyList<FirmamentV2BoundLetRecord> records, IEnumerable<string> solidNames, List<string> diagnostics,
+            List<FirmamentV2ValidationDiagnostic>? located = null)
+        { _lets = lets; _records = records.ToDictionary(r => r.Name, StringComparer.Ordinal); _solidNames = new(solidNames, StringComparer.Ordinal); _diagnostics = diagnostics; _letMap = lets.ToDictionary(l => l.Name, StringComparer.Ordinal); _located = located; }
         public IReadOnlyList<FirmamentV2BoundLet> BindLets() { foreach (var l in _lets) Bind(l.Name); return _lets.Where(l => _bound.ContainsKey(l.Name)).Select(l => _bound[l.Name]).ToArray(); }
         private FirmamentV2BoundLet? Bind(string name)
         {
@@ -911,7 +922,13 @@ public static partial class FirmamentV2Parser
             var expr = Eval(let.ValueExpression);
             _visiting.Remove(name);
             if (expr is null) return null;
-            if (expr.InferredType != let.DeclaredType) { _diagnostics.Add(ExpressionTypeMismatch); _diagnostics.Add(LetTypeMismatch); return null; }
+            if (expr.InferredType != let.DeclaredType)
+            {
+                _diagnostics.Add(ExpressionTypeMismatch); _diagnostics.Add(LetTypeMismatch);
+                _located?.Add(new(ExpressionTypeMismatch, "error", $"Compile-time value '{let.Name}' requires {let.DeclaredType}, but its expression has type {expr.InferredType}.", Target: let.Name)
+                    { SourceSpan = let.SourceSpan, Stage = "Binding" });
+                return null;
+            }
             var tolerance = let.Tolerance ?? expr.AliasTolerance;
             if (tolerance is null && expr.UsesTolerancedValueInArithmetic) _diagnostics.Add(ToleranceDroppedThroughArithmetic);
             return _bound[name] = new FirmamentV2BoundLet(let.Name, let.DeclaredType, expr.Value, let.SourceSpan, expr, expr.Dependencies, tolerance);
@@ -2504,7 +2521,12 @@ public static partial class FirmamentV2Parser
         { var d=Field(r,"datum"); if (d is null || !datums.Contains(d)) diagnostics.Add(PmiUnknownDatum); else datumRefs.Add(d); }
         if (r.Kind == FirmamentV2PmiKind.HoleDiameter && Field(r,"datum") is string datum)
         { if (!datums.Contains(datum)) diagnostics.Add(PmiUnknownDatum); else datumRefs.Add(datum); }
-        bound=new(r.Kind,r.Name,targets,dim,dimTol,ctlTol,datumRefs,r.SourceSpan, ProjectionSource: Field(r,"dimension"), HoleWallTarget: wallTarget);
+        var dimensionSource = Field(r, "dimension");
+        var dimensionBinding = dimensionSource is null ? null : ResolveBoundLet(dimensionSource, lets, records);
+        bound=new(r.Kind,r.Name,targets,dim,dimTol,ctlTol,datumRefs,r.SourceSpan,
+            ProjectionSource: dimensionBinding?.Origins.Any(o => o.Binding == dimensionSource) == true ? dimensionSource
+                : dimensionBinding?.Origins.FirstOrDefault()?.Binding ?? dimensionSource, HoleWallTarget: wallTarget)
+            { DimensionOrigins = dimensionBinding?.Origins ?? [] };
         return !diagnostics.Any(x => (x.StartsWith("firmament-v2-pmi-", StringComparison.Ordinal) && x is not PmiUnsupported)
             || x.StartsWith("firmament-v2-hole-wall-", StringComparison.Ordinal));
     }

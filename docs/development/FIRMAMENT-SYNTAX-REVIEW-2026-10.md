@@ -1,5 +1,13 @@
 # Firmament syntax review — 2026-10-14
 
+Compile-time binding follow-up:
+[implementation and qualification](../release/FIRMAMENT-COMPILE-TIME-VALUES.md)
+extends S17 with typed Record members, Template/Feature inputs, defaults and
+aliases sharing the scalar binder and retaining requirements/provenance. It
+also repairs Template value substitution of labels and shadowed Feature
+parameters. This does not close every expression position, numeric-policy
+seam, Pattern binder or domain grammar listed below.
+
 Implementation follow-up: the [directive/casing pass](../release/FIRMAMENT-DIRECTIVES-AND-CASING.md)
 repairs S01 (symmetry fields), S02 (Profile/mirror links), S14 and S15.
 It also repairs S13's dense mirror/override witness; specialized semicolon rules

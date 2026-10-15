@@ -12,7 +12,7 @@ public static partial class FirmamentV2Parser
     // Static scalars share the existing typed dependency binder and tolerance IR.
     // Only syntax is projected here; there is no text substitution or second evaluator.
     private static StaticValueBinding BindStaticValues(DocumentSyntax syntax, DeclarationSyntax model, string source,
-        List<string> diagnostics)
+        List<string> diagnostics, IReadOnlyList<FirmamentV2BoundLet>? inputs = null)
     {
         var declarations = new List<FirmamentV2LetDeclaration>();
         var located = new List<FirmamentV2ValidationDiagnostic>();
@@ -38,6 +38,7 @@ public static partial class FirmamentV2Parser
             UnarySyntax u => InferType(u.Operand, visiting),
             SequenceSyntax { Kind: SequenceKind.Tuple, Items.Count: 1 } g => InferType(g.Items[0].Value, visiting),
             ReferenceSyntax r when visiting.Count < 128 && visiting.Add(r.Name.Text) => InferReference(r.Name.Text, visiting),
+            MemberSyntax m when FirmamentSyntaxValues.Reference(m) is { } member && visiting.Count < 128 && visiting.Add(member) => InferReference(member, visiting),
             BinarySyntax b when InferType(b.Left, new(visiting, StringComparer.Ordinal)) is { } l
                 && InferType(b.Right, new(visiting, StringComparer.Ordinal)) is { } r => ExpressionBinder.ResultType(l,
                     b.Operator switch { BinaryOperator.Add => "+", BinaryOperator.Subtract => "-", BinaryOperator.Multiply => "*", BinaryOperator.Divide => "/", _ => "" }, r),
@@ -46,7 +47,7 @@ public static partial class FirmamentV2Parser
         FirmamentV2PrimitiveType? InferReference(string name, HashSet<string> visiting)
         {
             var matches = statics.Where(d => d.Name?.Text == name).ToArray();
-            if (matches.Length != 1) return null;
+            if (matches.Length != 1) return inputs?.FirstOrDefault(v => v.Name == name)?.Type;
             var d = matches[0];
             return d.Annotation is null ? InferType(d.Initializer, visiting)
                 : FirmamentSyntaxValues.Reference(d.Annotation) is { } annotation && TryParseLetType(annotation, out var t) ? t : null;
@@ -97,7 +98,16 @@ public static partial class FirmamentV2Parser
         }
 
         var before = diagnostics.Count;
-        var values = BindLets(declarations, [], [], diagnostics);
+        var imported = (inputs ?? []).Where(v => declarations.All(d => d.Name != v.Name)).ToArray();
+        // A value already checked by this compilation's specialization environment is
+        // an input, not a second evaluation (and must not emit duplicate drop warnings).
+        var checkedDeclarations = declarations.Select(d => inputs?.FirstOrDefault(v => v.Name == d.Name && v.Type == d.DeclaredType) is { } value
+            ? d with { ValueExpression = new FirmamentV2LiteralExpression(value.Value), Tolerance = value.Tolerance } : d);
+        var values = BindLets(checkedDeclarations.Concat(imported.Select(v => new FirmamentV2LetDeclaration(v.Name, v.Type,
+            new FirmamentV2LiteralExpression(v.Value), v.SourceSpan, v.Tolerance))).ToArray(), [], [], diagnostics, located)
+            .Select(v => inputs?.FirstOrDefault(i => i.Name == v.Name) is { } input
+                ? v with { Origins = input.Origins, Expression = input.Expression, Dependencies = input.Dependencies }
+                : v with { Origins = v.Dependencies?.SelectMany(n => inputs?.FirstOrDefault(i => i.Name == n)?.Origins ?? []).Distinct().ToArray() ?? [] }).ToArray();
         foreach (var value in values.Where(v => v.Value.NumericValue is { } n && !double.IsFinite(n)))
             Error("firmament-v2-static-scalar-nonfinite", $"Compile-time value '{value.Name}' is not finite.", value.SourceSpan, value.Name);
         foreach (var value in values.Where(v => v.Type == FirmamentV2PrimitiveType.Int && v.Value.NumericValue is { } n && (n < int.MinValue || n > int.MaxValue)))
@@ -119,11 +129,12 @@ public static partial class FirmamentV2Parser
                 _ => "Compile-time scalar binding failed: " + code
             }, Target: model.Name?.Text) { SourceFile = syntax.SourceFile,
                 SourceSpan = code == ExpressionUnknownSymbol && unresolved.Length == 1 ? unresolved[0].Span : model.Span,
-                LocationNote = code == ExpressionUnknownSymbol && unresolved.Length == 1 ? null : "Dependency binding reports the enclosing Model scope." });
+                LocationNote = code == ExpressionUnknownSymbol && unresolved.Length == 1 ? null : "Dependency binding reports the enclosing compile-time scope." });
         }
         var map = values.ToDictionary(v => v.Name, StringComparer.Ordinal);
         ExpressionSyntax Nominal(ExpressionSyntax e) => e switch
         {
+            MemberSyntax m when FirmamentSyntaxValues.Reference(m) is { } name && map.TryGetValue(name, out var value) => Literal(value, e.Span),
             ReferenceSyntax r when map.TryGetValue(r.Name.Text, out var value) => Literal(value, e.Span),
             BinarySyntax b => b with { Left = Nominal(b.Left), Right = Nominal(b.Right) },
             UnarySyntax u => u with { Operand = Nominal(u.Operand) },
@@ -152,6 +163,7 @@ public static partial class FirmamentV2Parser
         FirmamentV2ValueExpression? ValueExpression(ExpressionSyntax e, FirmamentV2PrimitiveType expected)
         {
             var text = source.Substring(e.Span.Start, e.Span.Length);
+            if (e is MemberSyntax m && FirmamentSyntaxValues.Reference(m) is { } member) return new FirmamentV2IdentifierReferenceExpression(member, text);
             if (e is ReferenceSyntax r) return new FirmamentV2IdentifierReferenceExpression(r.Name.Text, text);
             if (e is SequenceSyntax { Kind: SequenceKind.Tuple, Items.Count: 1 } group) return ValueExpression(group.Items[0].Value, expected);
             if (e is BinarySyntax b)
@@ -184,6 +196,19 @@ public static partial class FirmamentV2Parser
         }
     }
 
+    // Template/Feature scalar arguments use precisely the same dimensional graph binder as Static.
+    // The caller owns scope and supplies AST declarations and already checked input values.
+    internal static (IReadOnlyList<FirmamentV2BoundLet> Values, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics)
+        BindCompileTimeScalars(IReadOnlyList<DeclarationSyntax> declarations, string source, string sourceFile,
+            List<string> diagnostics, IReadOnlyList<FirmamentV2BoundLet>? inputs = null)
+    {
+        var span = new FirmamentV2SourceSpan(0, source.Length);
+        var model = new DeclarationSyntax(new(new("Model", span), [], span), new("CompileTime", span), [], [],
+            null, null, [], null, new(declarations, span) { Delimited = false }, false, span);
+        var binding = BindStaticValues(new(sourceFile, [model], [], span), model, source, diagnostics, inputs);
+        return (binding.Values, binding.Diagnostics);
+    }
+
     private static ExpressionSyntax Literal(FirmamentV2BoundLet value, FirmamentV2SourceSpan span)
     {
         ExpressionSyntax literal = new LiteralSyntax(value.Type switch
@@ -210,20 +235,24 @@ public static partial class FirmamentV2Parser
             if (!record.Fields.TryGetValue("dimension", out var dimension)) continue;
             var value = values.FirstOrDefault(v => v.Name == dimension.Source);
             if (value?.Tolerance is null) continue; // Existing PMI type/admission errors remain authoritative.
+            var requirement = value.Origins.FirstOrDefault();
+            var displayName = requirement?.Binding ?? value.Name;
             void Error(string code, string message)
             {
                 diagnostics.Add(code);
-                result.Add(new(code, "error", message, "dimension", record.Name) { SourceSpan = record.SourceSpan, Stage = "Binding" });
+                result.Add(new(code, "error", message, "dimension", record.Name) { SourceSpan = requirement?.SourceSpan ?? record.SourceSpan,
+                    IsOriginalSource = requirement is not null, Stage = "Binding",
+                    LocationNote = requirement is null ? null : "Location identifies the original projected requirement." });
             }
             if (record.Fields.Keys.Any(k => k is "value" or "diameter" or "tolerance"))
-                Error("firmament-v2-pmi-typed-dimension-override", $"PMI '{record.Name}' projects '{value.Name}'; do not override its nominal value or tolerance. Declare a separate typed requirement instead.");
+                Error("firmament-v2-pmi-typed-dimension-override", $"PMI '{record.Name}' projects '{displayName}'; do not override its nominal value or tolerance. Declare a separate typed requirement instead.");
             var resolved = bound?.Dimensions.FirstOrDefault(d => d.Name == record.Name);
             var holeName = resolved?.HoleWallTarget?.HoleName ?? resolved?.Targets.FirstOrDefault();
             var hole = modifies.SelectMany(m => m.SemanticHoles).FirstOrDefault(h => h.Name == holeName);
             if (hole is null || value.Value.NumericValue is not { } nominal) continue;
             var delta = hole.ShaftDiameter - nominal;
             if (delta > value.Tolerance.Plus + 1e-9 || -delta > value.Tolerance.Minus + 1e-9)
-                Error("firmament-v2-pmi-typed-dimension-unsatisfied", $"Hole '{hole.Name}' has diameter {hole.ShaftDiameter:R}mm, outside '{value.Name}' ({nominal:R}mm +{value.Tolerance.Plus:R}mm -{value.Tolerance.Minus:R}mm).");
+                Error("firmament-v2-pmi-typed-dimension-unsatisfied", $"Hole '{hole.Name}' has diameter {hole.ShaftDiameter:R}mm, outside '{displayName}' ({nominal:R}mm +{value.Tolerance.Plus:R}mm -{value.Tolerance.Minus:R}mm).");
         }
         return result;
     }

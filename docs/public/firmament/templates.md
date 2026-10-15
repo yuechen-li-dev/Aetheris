@@ -59,10 +59,17 @@ primitive Model scalar Static lane does not yet bind standalone enum-valued
 constants; that is a binder-consolidation task, not a reason to replace choices
 with Set.
 
-Model scalar `Static` bindings can carry [typed tolerances](pmi.md#project-a-compile-time-tolerance).
-They do not implicitly extend Template argument evaluation, Record field
-initialization or every domain's scalar environment. A Template's declared
-parameter type and its owning binder still determine admitted values.
+Scalar `Static` bindings and typed Record fields can carry
+[typed tolerances](pmi.md#project-a-compile-time-tolerance). Scalar or whole-Record
+Template arguments preserve nominal value, dimensional type, allowance and
+original-source provenance through nested specialization. Checked `with`
+overrides replace individual requirements. Scalar defaults use the same typed
+value binder. Features can accept either the scalar field or the whole typed
+Record; direct local aliases retain the allowance. Arithmetic retains the
+documented nominal-only policy and warns when it drops an allowance.
+This does not grant arbitrary scalar environments to every material domain or
+implement tolerance-stack arithmetic. See the complete
+[Record/Template/Feature example](syntax.md#typed-tolerances-and-pmi).
 
 Value parameters use `Name: Type`. Defaults use `Name: Type = Value`. A real semantic/type parameter is explicit:
 

@@ -23,6 +23,7 @@ public sealed record FirmamentV2ValidationReport(
 public sealed record FirmamentV2ValidationSummary(int LetCount, int TolerancedLetCount, int ConceptCount, int ValidConceptCount, int PmiRecordCount, int ExportSupportedPmiCount, int ExportDeferredPmiCount, int PmiObligationCount, int SatisfiedPmiObligationCount, int MissingPmiObligationCount, int FatalDiagnosticCount, int WarningDiagnosticCount);
 public sealed record FirmamentV2ValidationDiagnostic(string Code, string Severity, string Message, string? FieldName = null, string? Target = null)
 {
+    [System.Text.Json.Serialization.JsonIgnore] public bool IsOriginalSource { get; init; }
     public string? SourceFile { get; init; }
     public FirmamentV2SourceSpan? SourceSpan { get; init; }
     public string? LocationNote { get; init; }
@@ -32,12 +33,18 @@ public sealed record FirmamentV2ValidationDiagnostic(string Code, string Severit
     public int? Column { get; init; }
 }
 public sealed record FirmamentV2ValidationExportSupport(int SupportedPmiCount, int DeferredPmiCount, IReadOnlyDictionary<string, string> Matrix);
-public sealed record FirmamentV2ValidationLet(string Name, string Type, string Nominal, FirmamentV2ValidationTolerance? Tolerance, string Source, IReadOnlyList<string> Dependencies, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);
+public sealed record FirmamentV2ValidationLet(string Name, string Type, string Nominal, FirmamentV2ValidationTolerance? Tolerance, string Source, IReadOnlyList<string> Dependencies, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics)
+{
+    public IReadOnlyList<FirmamentV2ValueOrigin> Origins { get; init; } = [];
+}
 public sealed record FirmamentV2ValidationTolerance(string Kind, string Plus, string Minus);
 public sealed record FirmamentV2ValidationConceptRuntimeValidation(string Provider, string Status, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);
 public sealed record FirmamentV2ValidationConcept(string Kind, string? Name, string Family, string Concept, string Status, string DfmStatus, IReadOnlyList<FirmamentV2ValidationConceptField> Fields, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics, FirmamentV2ValidationConceptRuntimeValidation? RuntimeValidation = null);
 public sealed record FirmamentV2ValidationConceptField(string Name, string Type, bool HasTolerance, string Source);
-public sealed record FirmamentV2ValidationPmiRecord(string Kind, string Name, string Status, string ExportSupport, string? Target, IReadOnlyList<string> Targets, IReadOnlyList<string> DatumRefs, FirmamentV2ValidationDimension? Dimension, string? Reason, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics, string? ProjectionSource = null, string? SourceConstraintKind = null, string? SourceSubject = null, string? ValidationStatus = null, string? Provenance = null);
+public sealed record FirmamentV2ValidationPmiRecord(string Kind, string Name, string Status, string ExportSupport, string? Target, IReadOnlyList<string> Targets, IReadOnlyList<string> DatumRefs, FirmamentV2ValidationDimension? Dimension, string? Reason, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics, string? ProjectionSource = null, string? SourceConstraintKind = null, string? SourceSubject = null, string? ValidationStatus = null, string? Provenance = null)
+{
+    public IReadOnlyList<FirmamentV2ValueOrigin> DimensionOrigins { get; init; } = [];
+}
 public sealed record FirmamentV2ValidationDimension(string Nominal, FirmamentV2ValidationTolerance? Tolerance);
 public sealed record FirmamentV2ValidationConceptPmiObligation(string Kind, string SourceConcept, string? SourceName, string? Target, string? ExpectedDimensionField, string Status, string Severity, string? MatchedPmi = null, string? DiagnosticCode = null);
 
@@ -68,9 +75,9 @@ public static class FirmamentV2ValidationReportBuilder
         var fatalCount = diagnostics.Count(diagnostic => diagnostic.Severity is "fatal" or "error");
         var warningCount = diagnostics.Count(diagnostic => diagnostic.Severity == "warning");
         var document = parse.Document;
-        var lets = document is null ? [] : BuildLets(document);
+        IReadOnlyList<FirmamentV2ValidationLet> lets = document is null ? [] : BuildLets(document).Select(l => l with { Origins = l.Origins.Select(o => o.SourceFile == "inline" ? o with { SourceFile = source } : o).ToArray() }).ToArray();
         var concepts = document is null ? [] : BuildConcepts(document, runtimeValidation, conceptCatalog);
-        var pmi = document is null ? [] : BuildPmi(document, diagnostics);
+        IReadOnlyList<FirmamentV2ValidationPmiRecord> pmi = document is null ? [] : BuildPmi(document, diagnostics).Select(p => p with { DimensionOrigins = p.DimensionOrigins.Select(o => o.SourceFile == "inline" ? o with { SourceFile = source } : o).ToArray() }).ToArray();
         var conceptPmiEvaluation = document is null
             ? new FirmamentV2ConceptPmiObligationEvaluation([], [])
             : BuildConceptPmiObligations(document, runtimeValidation);
@@ -138,7 +145,7 @@ public static class FirmamentV2ValidationReportBuilder
         boundLet.Dependencies is null ? [] : boundLet.Dependencies.Order(StringComparer.Ordinal).ToArray();
 
     private static FirmamentV2ValidationLet Let(string name, FirmamentV2BoundLet boundLet, string source) =>
-        new(name, TypeName(boundLet.Type), FormatValue(boundLet.Value), ToTolerance(boundLet.Tolerance), source, Dependencies(boundLet), []);
+        new(name, TypeName(boundLet.Type), FormatValue(boundLet.Value), ToTolerance(boundLet.Tolerance), source, Dependencies(boundLet), []) { Origins = boundLet.Origins };
 
     private static IReadOnlyList<FirmamentV2ValidationConcept> BuildConcepts(
         FirmamentV2Document document,
@@ -243,11 +250,11 @@ public static class FirmamentV2ValidationReportBuilder
                 Dimension(boundRecord),
                 exportSupport == "deferred" ? FirmamentBuildAndExport.V2PmiExportRejection(record.Kind, record.Name, boundRecord)?.Message : null,
                 itemDiagnostics,
-                record.Projection?.SourceRequireId,
+                record.Projection?.SourceRequireId ?? boundRecord?.ProjectionSource,
                 constraint is null ? null : "dimensional-equality",
                 constraint is null ? null : constraint.Subject + "." + constraint.Property,
                 constraint is null ? null : constraint.ValidationSucceeded ? "succeeded" : "failed",
-                constraint?.ExpectedProvenance);
+                constraint?.ExpectedProvenance) { DimensionOrigins = boundRecord?.DimensionOrigins ?? [] };
         }).ToArray();
     }
 

@@ -23,7 +23,7 @@ public static partial class FirmamentV2Parser
     /// follows declared material bodies; unused construction data cannot select a grammar.</summary>
     private static FirmamentV2ParseResult BindMechanicalModel(DocumentSyntax syntax, DeclarationSyntax model,
         string source, List<string> diagnostics, string? sourceDirectory,
-        IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations)
+        IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations, FirmamentCompileTimeValues? compileTime = null)
     {
         if (model.Body is null || model.Name is null) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
         if (model.Clauses.Count > 0 || model.Type.Arguments.Count > 0)
@@ -35,7 +35,7 @@ public static partial class FirmamentV2Parser
             return ParseConceptModelingDocument(source, diagnostics, templateInstantiations);
         }
         var outerStatements = syntax.Statements.Where(s => !ReferenceEquals(s, model)).ToArray();
-        var staticValues = BindStaticValues(syntax, model, source, diagnostics);
+        var staticValues = BindStaticValues(syntax, model, source, diagnostics, compileTime?.MaterialInputs(source));
         model = staticValues.Model;
         BindMechanicalScope(outerStatements.Where(s => s is not DeclarationSyntax { Type.Name.Text: "Static" }).ToArray(), diagnostics);
         BindMechanicalScope(model.Body!.Statements.Where(s => s is not DeclarationSyntax { Type.Name.Text: "Static" }).ToArray(), diagnostics);
@@ -134,12 +134,13 @@ public static partial class FirmamentV2Parser
         ValidateCanonicalSelectionSources(bodyText, selections, [], diagnostics);
         var (pmi, pmiBlock, boundPmi) = ParsePmi(source, solids, modifies, recognized, staticValues.Values, [], diagnostics);
         var pmiDiagnostics = ValidateStaticPmi(pmiBlock, boundPmi, modifies, staticValues.Values, diagnostics);
-        var locatedDiagnostics = staticValues.Diagnostics.Concat(pmiDiagnostics).ToArray();
+        var locatedDiagnostics = (compileTime?.Diagnostics ?? []).Concat(staticValues.Diagnostics).Concat(pmiDiagnostics).ToArray();
         if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed)
             with { SyntaxDiagnostics = locatedDiagnostics };
         return FirmamentV2ParseResult.Success(new(model.Name!.Text, "mm", solids.Values.ToArray(), modifies,
             Pmi: pmi, RecognizedRegions: recognized, Replacements: replacements, PmiBlock: pmiBlock, BoundPmi: boundPmi, Selections: selections,
-            Lets: staticValues.Declarations, BoundLets: staticValues.Values),
+            Lets: staticValues.Declarations, BoundLets: staticValues.Values,
+            TemplateInstantiations: templateInstantiations is { Count: > 0 } ? templateInstantiations : null),
             diagnostics.Append("firmament-v2-unified-canonical-parsed").Append("firmament-v2-parse-succeeded").Distinct(StringComparer.Ordinal).Order().ToArray())
             with { SyntaxDiagnostics = locatedDiagnostics };
     }

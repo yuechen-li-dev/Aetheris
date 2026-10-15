@@ -40,7 +40,7 @@ internal static class FirmamentV2FeatureExpansion
         IReadOnlyList<FirmamentV2FeatureInvocation> Invocations,
         FirmamentV2FeatureExpansionMetrics Metrics);
 
-    public static Result? Expand(string source, List<string> diagnostics)
+    public static Result? Expand(string source, List<string> diagnostics, FirmamentCompileTimeValues? scalars = null)
     {
         var declarations = ParseDeclarations(source, diagnostics);
         var byName = declarations.ToDictionary(item => item.Name, StringComparer.Ordinal);
@@ -61,7 +61,7 @@ internal static class FirmamentV2FeatureExpansion
         string ExpandCall(Declaration declaration, string argumentText, FirmamentV2SourceSpan span,
             IReadOnlyList<string> stack, bool patternContext, string? resultName = null)
         {
-            var bound = Bind(declaration, argumentText, span.Start, diagnostics, source);
+            var bound = Bind(declaration, argumentText, span.Start, diagnostics, source, scalars);
             if (bound is null) return string.Empty;
             var invocationOrdinal = ordinal++;
             var environment = new Dictionary<string, string>(bound, StringComparer.Ordinal);
@@ -73,12 +73,15 @@ internal static class FirmamentV2FeatureExpansion
                     return string.Empty;
                 }
                 var expression = Substitute(local.Expression, environment);
-                if (!TypeMatches(expression, local.Type))
+                if (scalars?.IsScalar(local.Type) == true && scalars.TryTransfer(expression, local.Type,
+                        $"Feature {declaration.Name}.{local.Name}", span, diagnostics, out var checkedValue))
+                    environment[local.Name] = NormalizeExpression(checkedValue, local.Type);
+                else if (!TypeMatches(expression, local.Type))
                 {
                     diagnostics.Add(LocalType + $":{declaration.Name}:{local.Name}:expected-{local.Type}:actual-{DescribeType(expression)}");
                     return string.Empty;
                 }
-                environment[local.Name] = NormalizeExpression(expression, local.Type);
+                else environment[local.Name] = NormalizeExpression(expression, local.Type);
             }
 
             var construction = Substitute(declaration.Construction, environment);
@@ -252,7 +255,8 @@ internal static class FirmamentV2FeatureExpansion
         return result.ToImmutable();
     }
 
-    private static ImmutableDictionary<string, string>? Bind(Declaration declaration, string argumentText, int offset, List<string> diagnostics, string source)
+    private static ImmutableDictionary<string, string>? Bind(Declaration declaration, string argumentText, int offset, List<string> diagnostics, string source,
+        FirmamentCompileTimeValues? scalars = null)
     {
         var supplied = new Dictionary<string, string>(StringComparer.Ordinal); var position = 0;
         foreach (var (raw, _) in SplitTopLevel(argumentText))
@@ -276,8 +280,19 @@ internal static class FirmamentV2FeatureExpansion
         foreach (var parameter in declaration.Parameters)
             if (supplied.TryGetValue(parameter.Name, out var expression))
             {
+                if (scalars?.IsRecordType(parameter.Type) == true)
+                {
+                    if (!scalars.TryRecordTransfer(expression, parameter.Type, $"Feature {declaration.Name}.{parameter.Name}",
+                            declaration.Span, diagnostics, out var fields))
+                        diagnostics.Add(ArgumentType + $":{declaration.Name}:{parameter.Name}:expected-{parameter.Type}:actual-{expression}:at-{offset}");
+                    else foreach (var field in fields) supplied[parameter.Name + "." + field.Key] = field.Value;
+                    continue;
+                }
                 if (parameter.Type == "Point2") expression = ResolvePointArgument(source, expression);
-                if (!TypeMatches(expression, parameter.Type))
+                if (scalars?.IsScalar(parameter.Type) == true && scalars.TryTransfer(expression, parameter.Type,
+                        $"Feature {declaration.Name}.{parameter.Name}", declaration.Span, diagnostics, out var checkedValue))
+                    supplied[parameter.Name] = NormalizeExpression(checkedValue, parameter.Type);
+                else if (!TypeMatches(expression, parameter.Type))
                     diagnostics.Add(ArgumentType + $":{declaration.Name}:{parameter.Name}:expected-{parameter.Type}:actual-{DescribeType(expression)}:at-{offset}");
                 else supplied[parameter.Name] = NormalizeExpression(expression, parameter.Type);
             }
@@ -324,11 +339,7 @@ internal static class FirmamentV2FeatureExpansion
     }
 
     private static string Substitute(string expression, IReadOnlyDictionary<string, string> values)
-    {
-        foreach (var pair in values.OrderByDescending(item => item.Key.Length))
-            expression = Regex.Replace(expression, $@"\b{Regex.Escape(pair.Key)}\b(?!\s*:)", _ => pair.Value, RegexOptions.CultureInvariant);
-        return expression;
-    }
+        => FirmamentValueSubstitution.Apply(expression, values);
 
     private static bool TypeMatches(string expression, string type)
     {

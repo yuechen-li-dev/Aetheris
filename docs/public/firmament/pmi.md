@@ -31,11 +31,18 @@ Model TypedHole {
 
 The exported diameter is nominally 8 mm with upper allowance +0.10 mm and lower
 allowance −0.05 mm. `tol 0.1mm` supplies equal allowances on both sides. The
-typed value and allowance survive direct aliases; normal geometry uses only
+typed value and allowance survive Static aliases, Record members, Template
+specialization and Feature parameter/local bindings; normal geometry uses only
 the nominal. Unprojected values generate no PMI. `dimension:` requires a
 toleranced Length; Angle values can be checked at compile time but are not a
 HoleDiameter target and do not grant angular PMI export. The scalar admission
 scope and arithmetic policy are in [syntax](syntax.md#typed-tolerances-and-pmi).
+The complete [Record/Template/Feature witness](../../../fixtures/Canonical/PMI/record-template-feature-tolerance.firmament)
+projects the original Record requirement after using it in a named Hole recipe.
+Validation JSON includes the authored projection source and structured
+`dimensionOrigins`; those receipts describe binding provenance, not additional
+PMI annotations. AP242 continues to carry the admitted nominal, allowances and
+geometric association through the existing semantic exporter.
 
 HoleDiameter projection exports a size requirement attached to the hole wall.
 A Datum may be exported separately. A `datum:`/`DatumRefs:` relationship on a

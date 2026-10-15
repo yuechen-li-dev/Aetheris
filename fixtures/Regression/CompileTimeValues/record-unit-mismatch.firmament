@@ -1,0 +1,11 @@
+Record BoreSpec { diameter: Length }
+Static production: BoreSpec { diameter: 8mm tol 0.1deg }
+Template<spec: BoreSpec> Model PlateFamily {
+    units: mm
+    Box Body { size: [40mm, 30mm, 8mm] }
+    Modify Body {
+        Hole<Shaft> Mount { on: +Z center: Point2(0mm, 0mm) diameter: spec.diameter end: ThroughAll }
+    }
+    Pmi { HoleDiameter MountSize { target: Mount dimension: spec.diameter } }
+}
+Model InvalidProduct = PlateFamily<spec: production>

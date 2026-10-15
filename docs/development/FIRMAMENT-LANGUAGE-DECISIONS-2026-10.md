@@ -1,12 +1,23 @@
 # October 2026 Firmament language decision register
 
+Compile-time value-binding amendment:
+[qualification report](../release/FIRMAMENT-COMPILE-TIME-VALUES.md) carries
+typed Record requirements through scalar/whole-Record Template and Feature
+parameters, defaults, nested specialization and local aliases into admitted
+geometry and explicit PMI. It adds original requirement/binding receipts and
+repairs value substitution of labels/shadowed locals under #1–#4, #8, #9 and
+#19. The shared scalar graph remains authoritative; full scoped AST expansion,
+all-domain expression consolidation, enum Static and total Match checking are
+not declared complete. This supersedes the earlier Record/Template propagation
+deferral only for the report's qualified lane.
+
 Typed-tolerance amendment: [qualification report](../release/FIRMAMENT-TYPED-TOLERANCES.md)
 adds typed scalar Static requirements to unified mechanical admission, retains
 nominal geometry, and explicitly projects selected Length requirements through
 native PMI to AP242. Diagnostic severity and original-source-span preservation
 gain coverage under #1–#4. Path spelling is reconciled under #17; Semantic,
 Region, Enum/Match and Set roles are now distinguished in the authoring guide.
-Template/Record/domain-wide tolerance propagation remains a technical follow-up,
+At that pass, Template/Record/domain-wide tolerance propagation remained a technical follow-up,
 not a completed semantic consolidation or an implicit change to units doctrine.
 
 Directive/casing follow-up: [implementation and qualification](../release/FIRMAMENT-DIRECTIVES-AND-CASING.md)

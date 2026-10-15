@@ -309,6 +309,13 @@ public static class ProfileAuthoringParser
         if (applySpans) ApplyGeometricSpans(source, points, guides, diagnostics, addGuides: true);
     }
 
+    internal static IReadOnlyList<string> ValidateConstructionGuides(string source)
+    {
+        var diagnostics = new List<string>();
+        AddOrdinaryGuides(source, new(StringComparer.Ordinal), new(StringComparer.Ordinal), diagnostics, applySpans: false);
+        return diagnostics;
+    }
+
     private static IEnumerable<DeclarationSyntax> SourceDeclarations(IEnumerable<StatementSyntax> statements)
     {
         foreach (var d in statements.OfType<DeclarationSyntax>())

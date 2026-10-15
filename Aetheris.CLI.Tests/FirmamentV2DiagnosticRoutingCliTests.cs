@@ -21,9 +21,9 @@ public sealed class FirmamentV2DiagnosticRoutingCliTests
         var buildMessages = build.RootElement.GetProperty("diagnostics").EnumerateArray().Select(diagnostic => diagnostic.GetProperty("message").GetString()).ToArray();
         var validationDiagnostics = validate.RootElement.GetProperty("firmamentV2Validation").GetProperty("diagnostics").EnumerateArray().ToArray();
 
-        Assert.Contains("HoleLocalCenterInvalid", buildMessages);
+        Assert.Contains(buildMessages, message => message!.Contains("does not provide 'BracketFrame'", StringComparison.Ordinal));
         Assert.Contains("firmament-concept-missing-member:BracketConcept.RequiredExpose", buildMessages);
-        Assert.Contains(validationDiagnostics, diagnostic => diagnostic.GetProperty("code").GetString() == "HoleLocalCenterInvalid" && diagnostic.GetProperty("severity").GetString() == "fatal");
+        Assert.Contains(validationDiagnostics, diagnostic => diagnostic.GetProperty("code").GetString() == "firmament-concept-structural-conformance-failed" && diagnostic.GetProperty("severity").GetString() == "error");
         Assert.Contains(validationDiagnostics, diagnostic => diagnostic.GetProperty("code").GetString() == "firmament-concept-missing-member:BracketConcept.RequiredExpose" && diagnostic.GetProperty("severity").GetString() == "fatal");
         Assert.DoesNotContain(buildMessages, message => message!.Contains("FIRM-PARSE-0001", StringComparison.Ordinal) || message.Contains("canonical TOON-style text", StringComparison.Ordinal));
     }

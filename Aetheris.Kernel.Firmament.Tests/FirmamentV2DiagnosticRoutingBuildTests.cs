@@ -10,7 +10,7 @@ public sealed class FirmamentV2DiagnosticRoutingBuildTests
         var result = FirmamentBuildAndExport.Run(FixturePath());
 
         Assert.False(result.IsSuccess);
-        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message == FirmamentV2Parser.HoleConstructionPlaneCenterMissing);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.StartsWith("firmament-concept-structural-conformance-failed", StringComparison.Ordinal));
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.StartsWith("firmament-concept-missing-member:", StringComparison.Ordinal));
         Assert.DoesNotContain(result.Diagnostics, diagnostic => diagnostic.Message.Contains("FIRM-PARSE-0001", StringComparison.Ordinal));
         Assert.DoesNotContain(result.Diagnostics, diagnostic => diagnostic.Message.Contains("canonical TOON-style text", StringComparison.Ordinal));

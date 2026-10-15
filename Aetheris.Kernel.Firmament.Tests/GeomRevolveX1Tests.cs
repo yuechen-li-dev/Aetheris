@@ -57,7 +57,9 @@ public sealed class GeomRevolveX1Tests
         var expanded = ClosedBoundary2Authoring.Expand(Sphere, diagnostics);
         Assert.NotNull(expanded);
         Assert.Empty(diagnostics);
-        Assert.DoesNotContain(expanded.Boundaries, boundary => boundary.Name == "Meridian");
+        // Concept-prefixed guides now share the plain shape's inspection metadata.
+        // This does not create a full-circle Profile or materialize the guide.
+        Assert.Contains(expanded.Boundaries, boundary => boundary.Name == "Meridian" && boundary.ShapeType == "Circle2");
 
         var profile = ProfileAuthoringParser.ResolveNamedProfile(expanded.Source, "SphereSection", out var profileDiagnostics);
         Assert.NotNull(profile);

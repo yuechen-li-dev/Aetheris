@@ -1,0 +1,9 @@
+Model TrianglePlate {
+  units: mm
+  Triangle2<Explicit> boundary {
+    a: [0mm,0mm]; b: [30mm,0mm]; c: [0mm,10mm]
+    rotation: 90deg
+  }
+  Profile outline { Loop Outer { boundary |> TraceLoop } }
+  Extrude Body { profile: outline; from: 0mm; to: 5mm }
+}

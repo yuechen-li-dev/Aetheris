@@ -42,6 +42,10 @@ public static partial class FirmamentV2Parser
         if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed)
             with { SyntaxDiagnostics = staticValues.Diagnostics };
         var declarations = MechanicalDeclarations(model.Body.Statements).ToArray();
+        // Non-materialized guides are still authored intent. Validate them through
+        // their ordinary owner even when no Profile happens to consume them.
+        diagnostics.AddRange(ProfileAuthoringParser.ValidateConstructionGuides(source));
+        if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
         var primitives = declarations.Where(IsPrimitiveDeclaration).ToArray();
         var constructions = declarations.Where(d => d.Type.Name.Text is "Compose" or "Extrude").ToArray();
         var materialConstruction = constructions.Length > 0;

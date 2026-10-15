@@ -1,5 +1,26 @@
 # October 2026 Firmament language decision register
 
+Concept/2D amendment (2026-10-14):
+[production qualification](../release/FIRMAMENT-CONCEPTS-AND-2D.md) adds named
+scalar predicates and record-shaped labeled requirement bundles. Structural
+Concepts compose named contracts and check actual semantic members. Plain 2D
+shape names are canonical; Concept-prefixed closed families share their existing
+geometry owner. Nonzero rotation of explicit Triangle2/Polygon2 now rejects
+instead of disappearing. These decisions extend #1–#4, #9 and #23 within the
+qualified mechanical lane; the original 24 recommendations and other domain
+dispositions below remain in force.
+
+| Decision | Disposition | Boundary |
+| --- | --- | --- |
+| Named predicates and labeled Boolean bundles | Implemented in production AST admission | Compile-time scalar parameters; Require applies a check. A bundle groups requirements, not data. |
+| Structural contract composition | Implemented in production AST admission | Named `: A && B` composition, inherited type conflicts/cycles rejected; no material class inheritance or new namespaces. |
+| Claimed Concept Struct conformance | Checked through the existing semantic value resolver | Unknown/missing/wrong members reject even without material use; underlying binding diagnostics survive. |
+| 2D spelling consistency | Plain shape declarations preferred; legitimate Concept prefixes preserved | Same existing curve/Profile/AIR/BRep/STEP owners and fields; no new 2D solver or Boolean engine. |
+| Explicit-shape rotation | Reject nonzero rotation, preserve zero rotation | Author rotated points or use Curve2 placement; do not silently change previously emitted coordinates. |
+| Predicate casing | PascalCase names/types; camelCase parameters and labels recommended | User symbols retain case. Published structural member names retain their existing identity. |
+| Whole Record/shape/frame/selector predicate inputs | Deferred to X2 semantic consolidation | Their value owners are not yet one shared expression environment; no string-based substitute is added. |
+| Legacy dimensional Require / projected PMI | Existing owner preserved | Its block form is not reinterpreted as a Boolean bundle. |
+
 Compile-time value-binding amendment:
 [qualification report](../release/FIRMAMENT-COMPILE-TIME-VALUES.md) carries
 typed Record requirements through scalar/whole-Record Template and Feature

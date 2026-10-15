@@ -116,9 +116,9 @@ internal static class FirmamentV2TemplateExpansion
             .ToArray();
 
     private static IReadOnlyList<HostConstraint> ParseRequires(string body) =>
-        Regex.Matches(body, @"\bRequire\s+(?<name>[A-Za-z_]\w*)\s*=>\s*(?<expression>[^\r\n}]+)", RegexOptions.CultureInvariant)
-            .Cast<Match>()
-            .Select(match => new HostConstraint(match.Groups["name"].Value, match.Groups["expression"].Value.Trim()))
+        FirmamentSyntaxParser.Parse(body).Document.Statements.OfType<DeclarationSyntax>()
+            .Where(d => d.Type.Name.Text == "Require" && d.Name is not null && d.Initializer is not null && d.Body is null)
+            .Select(d => new HostConstraint(d.Name!.Text, body.Substring(d.Initializer!.Span.Start, d.Initializer.Span.Length)))
             .ToArray();
 
     internal static IReadOnlyList<HostRecord> InspectRecords(string source, List<string> diagnostics) =>
@@ -223,7 +223,7 @@ internal static class FirmamentV2TemplateExpansion
 
         if (!ValidateRecordMembers(template.Body, bound, diagnostics)) return null;
         if (!EvaluateRequires(Substitute(template.Body, bound), application.InstanceName,
-                DisplaySignature(template), diagnostics, out var requireResults)) return null;
+                DisplaySignature(template), diagnostics, out var requireResults, source)) return null;
         var body = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches);
         if (body is null) return null;
         body = Substitute(body, bound);
@@ -322,6 +322,10 @@ internal static class FirmamentV2TemplateExpansion
         var tables = ParseStaticTables(source, recordTypes, enums, diagnostics);
         var staticRecords = ParseStaticRecords(source, recordTypes, enums, tables, diagnostics, scalars);
         scalars?.SetRecords(recordTypes, staticRecords);
+        var concepts = new FirmamentConcepts(source, scalars);
+        diagnostics.AddRange(concepts.Diagnostics.Select(d => d.Code + ": " + d.Message));
+        scalars?.AddConceptDiagnostics(concepts.Diagnostics, producerSource: source);
+        if (HasErrors(diagnostics)) return null;
         var changes = declarations.Select(d => (d.SourceSpan.Start, d.SourceSpan.Length, Text: string.Empty)).ToList();
         var instantiations = new List<ConceptIrTemplateInstantiation>();
         foreach (var application in applications)
@@ -333,7 +337,7 @@ internal static class FirmamentV2TemplateExpansion
             var specialization = new TemplateSpecializationIr(template, application, bound, Identity(template, application, bound, scalars), GeneratedPaths(template.Body, application.InstanceName));
             if (!ValidateRecordMembers(template.Body, bound, diagnostics)) continue;
             if (!EvaluateRequires(Substitute(template.Body, bound, scalars), application.InstanceName,
-                    DisplaySignature(template), diagnostics, out var requireResults)) continue;
+                    DisplaySignature(template), diagnostics, out var requireResults, source, scalars)) continue;
             var body = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches);
             if (body is null) continue;
             body = Substitute(body, bound);
@@ -447,6 +451,9 @@ internal static class FirmamentV2TemplateExpansion
         FirmamentCompileTimeValues? scalars = null)
     {
         var supplied = application.Arguments.ToDictionary(a => a.Name, a => a.Expression, StringComparer.Ordinal);
+        var concepts = new FirmamentConcepts(source, scalars);
+        diagnostics.AddRange(concepts.Diagnostics.Select(d => d.Code + ": " + d.Message));
+        scalars?.AddConceptDiagnostics(concepts.Diagnostics, producerSource: source);
         var expectedSignature = DisplaySignature(template);
         foreach (var unknown in supplied.Keys.Where(name => template.Parameters.All(p => p.Name != name))) diagnostics.Add(UnknownArgument + ":" + unknown + ":expected-signature:" + expectedSignature);
         var types = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.Ordinal); var values = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.Ordinal);
@@ -475,8 +482,18 @@ internal static class FirmamentV2TemplateExpansion
             if (parameter is TemplateTypeParameterIr type)
             {
                 if (!supplied.TryGetValue(type.Name, out var value)) { diagnostics.Add(MissingArgument + ":" + type.Name + ":expected-signature:" + expectedSignature); continue; }
-                if (!ConceptExists(type.ConstraintConcept, source)) diagnostics.Add(UnknownConstraint + ":" + type.ConstraintConcept);
-                else if (!Satisfies(value, type.ConstraintConcept, source)) diagnostics.Add(ConstraintFailure + $":{type.Name}:{value}:{type.ConstraintConcept}:expected-signature:{expectedSignature}");
+                if (!concepts.HasContract(type.ConstraintConcept)) diagnostics.Add(UnknownConstraint + ":" + type.ConstraintConcept);
+                else if (!concepts.Satisfies(value, type.ConstraintConcept))
+                {
+                    diagnostics.AddRange(concepts.BindingDiagnostics);
+                    diagnostics.Add(ConstraintFailure + $":{type.Name}:{value}:{type.ConstraintConcept}:expected-signature:{expectedSignature}");
+                    var members = concepts.Contracts.Single(c => c.Name == type.ConstraintConcept).Members.Values;
+                    var diagnostic = new FirmamentV2ValidationDiagnostic("firmament-concept-structural-conformance-failed", "error",
+                        $"Type '{value}' does not provide Concept '{type.ConstraintConcept}'. Required semantic members: {string.Join(", ", members.Select(m => m.Name + ": " + m.Type))}. A claimed contract must also match the Concept Struct's actual members.", type.Name, value)
+                        { SourceSpan = type.SourceSpan, Stage = "Concept binding", LocationNote = "Location identifies the Template type parameter whose supplied type failed conformance." };
+                    diagnostics.Add(diagnostic.Code + ": " + diagnostic.Message);
+                    scalars?.AddConceptDiagnostics([diagnostic], producerSource: source);
+                }
                 types[type.Name] = value;
             }
             else
@@ -766,14 +783,6 @@ internal static class FirmamentV2TemplateExpansion
         }
         return result;
     }
-    private static bool ConceptExists(string concept, string source) => Regex.IsMatch(source, $@"\bConcept\s+{Regex.Escape(concept)}\s*\{{", RegexOptions.CultureInvariant);
-    private static bool Satisfies(string type, string concept, string source)
-    {
-        if (type != "Box") return Regex.IsMatch(source, $@"\bConcept\s+Struct\s+{Regex.Escape(type)}\s*:\s*{Regex.Escape(concept)}\s*\{{", RegexOptions.CultureInvariant);
-        var definition = Regex.Match(source, $@"\bConcept\s+{Regex.Escape(concept)}\s*\{{(?<body>.*?)\}}", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-        var capabilities = new Dictionary<string, string>(StringComparer.Ordinal) { ["Bounds"] = "Box3", ["TopPlane"] = "Plane", ["CenterAxis"] = "Axis" };
-        return definition.Success && Regex.Matches(definition.Groups["body"].Value, @"(?m)^\s*(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<kind>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant).Cast<Match>().All(m => capabilities.TryGetValue(m.Groups["name"].Value, out var actual) && actual == m.Groups["kind"].Value);
-    }
     private static string Substitute(string body, BoundTemplateArguments bound, FirmamentCompileTimeValues? nominalScalars = null)
     {
         var values = bound.TypeArguments.Concat(bound.ValueArguments)
@@ -836,30 +845,35 @@ internal static class FirmamentV2TemplateExpansion
         if (end < 0 || end > enclosingClose) end = enclosingClose;
         return body[start..end].Trim();
     }
-    private static bool EvaluateRequires(string body, string instance, string signature, List<string> diagnostics, out IReadOnlyDictionary<string, string> results)
+    private static bool EvaluateRequires(string body, string instance, string signature, List<string> diagnostics,
+        out IReadOnlyDictionary<string, string> results, string moduleSource, FirmamentCompileTimeValues? scalars = null)
     {
         var evidence = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (Match require in Regex.Matches(body, @"\bRequire\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*=>\s*(?<expr>[^\r\n}]+)", RegexOptions.CultureInvariant))
+        var concepts = new FirmamentConcepts(moduleSource, scalars);
+        var templateName = signature.Split('<')[0];
+        var original = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(moduleSource).Document)
+            .FirstOrDefault(d => d.Name?.Text == templateName && d.Modifiers.Any(m => m.Name.Text == "Template"));
+        foreach (var require in FirmamentSyntaxParser.Parse(body).Document.Statements.OfType<DeclarationSyntax>()
+            .Where(d => d.Type.Name.Text == "Require" && d.Body is null))
         {
-            var name = require.Groups["name"].Value; var expression = require.Groups["expr"].Value.Trim();
-            if (!TryBool(expression, out var value)) { diagnostics.Add(RequireNonBool + ":" + name + ":template-signature:" + signature); evidence[name] = "Invalid:" + expression; }
-            else if (!value) { diagnostics.Add(RequireFailed + $":{instance}.{name}:{expression}:template-signature:{signature}"); evidence[name] = "Failed:" + expression; }
+            var name = require.Name?.Text ?? "<unnamed>";
+            var expression = require.Initializer is null ? "" : body.Substring(require.Initializer.Span.Start, require.Initializer.Span.Length);
+            var location = original?.Body?.Statements.OfType<DeclarationSyntax>().FirstOrDefault(d => d.Type.Name.Text == "Require" && d.Name?.Text == name)?.Span;
+            if (require.Initializer is null || require.Body is not null || require.Parameters.Count > 0)
+                diagnostics.Add(RequireNonBool + ":" + name + ":template-signature:" + signature);
+            else if (!concepts.Check(require.Initializer, instance + "." + name, location))
+            {
+                var failed = concepts.Diagnostics.LastOrDefault()?.Code == "firmament-concept-requirement-failed";
+                diagnostics.Add(failed ? RequireFailed + $":{instance}.{name}:{expression}:template-signature:{signature}"
+                    : RequireNonBool + ":" + name + ":template-signature:" + signature);
+                evidence[name] = (failed ? "Failed:" : "Invalid:") + expression;
+            }
             else evidence[name] = "Passed:" + expression;
         }
+        diagnostics.AddRange(concepts.Diagnostics.Select(d => d.Code + ": " + d.Message));
+        scalars?.AddConceptDiagnostics(concepts.Diagnostics, producerSource: moduleSource);
         results = evidence;
         return !HasErrors(diagnostics);
-    }
-    private static bool TryBool(string expression, out bool result)
-    {
-        result = true;
-        foreach (var clause in expression.Split("&&", StringSplitOptions.TrimEntries))
-        {
-            var m = Regex.Match(clause, @"^(?<a>[-+]?[0-9]+(?:\.[0-9]+)?)(?<u>mm|deg)?\s*(?<op>>=|<=|>|<|==)\s*(?<b>[-+]?[0-9]+(?:\.[0-9]+)?)(?<u2>mm|deg)?$", RegexOptions.CultureInvariant);
-            if (!m.Success || m.Groups["u"].Value != m.Groups["u2"].Value) return false;
-            var a = double.Parse(m.Groups["a"].Value, CultureInfo.InvariantCulture); var b = double.Parse(m.Groups["b"].Value, CultureInfo.InvariantCulture);
-            result &= m.Groups["op"].Value switch { ">" => a > b, "<" => a < b, ">=" => a >= b, "<=" => a <= b, _ => a == b };
-        }
-        return true;
     }
     private static void DetectTemplateCycles(IEnumerable<TemplateDeclarationIr> templates, IReadOnlyDictionary<string, TemplateDeclarationIr> byName, List<string> diagnostics)
     {
@@ -890,7 +904,13 @@ internal static class FirmamentV2TemplateExpansion
         _ => parameter.Name,
     })) + ">";
     private static ImmutableArray<string> GeneratedPaths(string body, string instance) => Regex.Matches(body, @"\b(?:Concept\s+Struct|Box|Modify|EdgeFinish)\s+(?<n>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant).Select(m => instance + "::" + m.Groups["n"].Value).Distinct().ToImmutableArray();
-    private static string RemoveRequires(string body) => Regex.Replace(body, @"(?m)^\s*Require\s+[A-Za-z_][A-Za-z0-9_]*\s*=>\s*[^\r\n}]+\s*$", string.Empty);
+    private static string RemoveRequires(string body)
+    {
+        var spans = FirmamentSyntaxParser.Parse(body).Document.Statements.OfType<DeclarationSyntax>()
+            .Where(d => d.Type.Name.Text == "Require" && d.Body is null).Select(d => d.Span).OrderByDescending(s => s.Start);
+        foreach (var span in spans) body = body.Remove(span.Start, span.Length);
+        return body;
+    }
     private static string LiftPmi(string body, out string withoutPmi)
     {
         var blocks = new List<(int Start, int Length, string Text)>();
@@ -932,7 +952,7 @@ internal static class FirmamentV2TemplateExpansion
             if (bound is null) continue;
             if (!ValidateRecordMembers(template.Body, bound, diagnostics)) continue;
             if (!EvaluateRequires(Substitute(template.Body, bound, scalars), application.InstanceName,
-                    DisplaySignature(template), diagnostics, out var requireResults)) continue;
+                    DisplaySignature(template), diagnostics, out var requireResults, moduleSource, scalars)) continue;
             var specializedBody = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches);
             if (specializedBody is null) continue;
             specializedBody = Substitute(specializedBody, bound);

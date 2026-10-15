@@ -450,7 +450,6 @@ public static partial class FirmamentV2Parser
         }
         source = templateExpansion.Source;
         compileTime.BindExpandedScalars(source, diagnostics);
-
         // Feature is Firmament's bounded function-like abstraction. It is expanded once,
         // after typed Template specialization and before static pattern lowering, so every command consumes the
         // same concrete semantic declarations and no geometry callback can bypass AIR.
@@ -474,17 +473,38 @@ public static partial class FirmamentV2Parser
             return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray(), FirmamentV2ParseDisposition.RecognizedInvalid);
         }
         source = specializedBoundaries.Source;
-        polygonExpansion = new(source, polygonExpansion.Boundaries.Concat(specializedBoundaries.Boundaries)
+        polygonExpansion = new(source, polygonExpansion.Boundaries.Concat(specializedBoundaries.Boundaries
+                .Where(boundary => !polygonExpansion.GeneratedDeclarationNames.Contains(boundary.Name, StringComparer.Ordinal)))
             .DistinctBy(boundary => boundary.Name, StringComparer.Ordinal).ToArray());
 
-        var canonicalStaticExpansion = CanonicalStaticAuthoring.Expand(source, diagnostics);
+        var canonicalStaticExpansion = CanonicalStaticAuthoring.Expand(source, diagnostics, compileTime);
         if (canonicalStaticExpansion is null)
         {
             diagnostics.Add("firmament-v2-parse-failed");
             return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray(),
-                v2AdmissionCandidate ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.NotRecognized);
+                v2AdmissionCandidate ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.NotRecognized)
+                with { SyntaxDiagnostics = compileTime.Diagnostics, OwnsUnifiedAdmission = compileTime.Diagnostics.Any(d => d.Severity is "error" or "fatal") };
         }
         source = canonicalStaticExpansion.Source;
+        var concepts = new FirmamentConcepts(source, compileTime);
+        concepts.ValidateClaims();
+        if (concepts.Diagnostics.Count > 0)
+        {
+            diagnostics.AddRange(concepts.BindingDiagnostics);
+            diagnostics.AddRange(concepts.Diagnostics.Select(d => d.Code + ": " + d.Message));
+            return FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").ToArray()) with
+            {
+                OwnsUnifiedAdmission = true, ParserRoute = "UnifiedConceptBinding",
+                SyntaxDiagnostics = concepts.Diagnostics.Select(d =>
+                {
+                    var original = d.Target is { } name ? compileTime.OriginalDeclaration("Struct", name, "Concept") : null;
+                    var unchanged = source == valueSource;
+                    return d with { SourceSpan = original ?? (unchanged ? d.SourceSpan : null), IsOriginalSource = original is not null || unchanged,
+                        LocationNote = original is not null ? "Location identifies the original Concept Struct declaration; conformance uses specialized values."
+                            : unchanged ? d.LocationNote : "Conformance failed after expansion; original-source provenance is unavailable." };
+                }).ToArray()
+            };
+        }
         v2AdmissionCandidate |= IsV2AdmissionCandidate(source);
 
         var syntax = FirmamentSyntaxParser.Parse(source);
@@ -1231,13 +1251,9 @@ public static partial class FirmamentV2Parser
         static string TextValue(string value) => value.Length >= 2 && value[0] == '"' && value[^1] == '"' ? value[1..^1] : value;
         var instanceName = materialized.Groups["name"].Value; var conceptName = materialized.Groups["concept"].Value;
         var conceptSpan = new FirmamentV2SourceSpan(materialized.Index, 0);
-        var conceptHeader = Regex.Match(source, $@"\bConcept\s+{Regex.Escape(conceptName)}\s*\{{", RegexOptions.CultureInvariant);
-        var conceptOpen = conceptHeader.Success ? source.IndexOf('{', conceptHeader.Index) : -1;
-        var conceptClose = conceptOpen >= 0 ? FindMatchingBrace(source, conceptOpen) : -1;
-        if (conceptClose < 0) { diagnostics.Add(ConceptUnknownConcept); return false; }
-        var requirements = Regex.Matches(source[(conceptOpen + 1)..conceptClose], @"(?m)^\s*(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\s*$", RegexOptions.CultureInvariant)
-            .Cast<Match>().ToDictionary(match => match.Groups["name"].Value,
-                match => new ConceptIrMemberRequirement(match.Groups["name"].Value, new(match.Groups["type"].Value), conceptSpan), StringComparer.Ordinal);
+        var definition = new FirmamentConcepts(source).Contracts.SingleOrDefault(d => d.Name == conceptName);
+        if (definition is null) { diagnostics.Add(ConceptUnknownConcept); return false; }
+        var requirements = definition.Members;
         var materializedOpen = source.IndexOf('{', materialized.Index); var materializedClose = FindMatchingBrace(source, materializedOpen);
         var materializedBody = source[(materializedOpen + 1)..materializedClose];
         var expose = Regex.Match(materializedBody, @"\bExpose\s*\{(?<body>.*?)\}", RegexOptions.Singleline | RegexOptions.CultureInvariant);

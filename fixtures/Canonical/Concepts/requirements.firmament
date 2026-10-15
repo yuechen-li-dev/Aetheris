@@ -1,0 +1,13 @@
+Concept Positive(value: Length) => value > 0mm
+Concept PlateRequirements(width: Length, height: Length) {
+  positiveWidth: Positive(width)
+  positiveHeight: Positive(height)
+  aspect: width >= height
+}
+
+Template<width: Length, height: Length> Model Plate {
+  units: mm
+  Require dimensions => PlateRequirements(width, height)
+  Box Body { size: [width, height, 5mm] }
+}
+Model Product = Plate<width: 40mm, height: 20mm>

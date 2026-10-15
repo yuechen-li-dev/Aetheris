@@ -6,7 +6,7 @@
 // implementation: parser-backed
 // expected: invalid
 // expected-stage: parsed
-// expected-diagnostic: HoleLocalCenterInvalid
+// expected-diagnostic: firmament-concept-missing-member:BracketConcept.RequiredExpose
 // notes: V2-recognized Concept/Struct source with a malformed construction-plane hole and omitted Concept members.
 Concept BracketFrame {
     Bounds: Box3

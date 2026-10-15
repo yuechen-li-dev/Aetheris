@@ -16,6 +16,7 @@ internal static class ClosedBoundary2Authoring
     private const double Tol = 1e-9;
     internal sealed record Result(string Source, IReadOnlyList<FirmamentV2ClosedBoundary2Decl> Boundaries)
     {
+        internal IReadOnlyList<string> GeneratedDeclarationNames { get; init; } = [];
         public IReadOnlyList<FirmamentV2Polygon2Decl> Polygons => Boundaries.Where(x => x.ShapeType == "Polygon2")
             .Select(x => new FirmamentV2Polygon2Decl(x.Name, x.Variant!, x.CenterX, x.CenterY,
                 x.Dimensions.GetValueOrDefault("DiagonalX"), x.Dimensions.GetValueOrDefault("DiagonalY"),
@@ -53,10 +54,12 @@ internal static class ClosedBoundary2Authoring
             // ProfileGuide is an established authoring annotation emitted by the
             // static geometry expander; it does not request a material operation.
             fields.Word("Role");
+            var beforeBinding = diagnostics.Count;
             var shape = Bind(source, declaration, fields, diagnostics);
             // Unbound template/record expressions remain with their specialization
             // owner. Successful shape binding must consume every authored field.
             if (shape is not null) { fields.Complete(); shapes.Add(shape); }
+            else if (diagnostics.Count == beforeBinding) fields.Complete(); // Deferred values cannot hide unknown fields/header intent.
         }
         if (diagnostics.Any(FirmamentV2Parser.IsFatalDiagnosticCode)) return null;
         var changes = new List<(int Start, int Length, string Text)>();
@@ -94,12 +97,16 @@ internal static class ClosedBoundary2Authoring
         }
         if (diagnostics.Any(x => x.StartsWith(Prefix, StringComparison.Ordinal))) return null;
         foreach (var change in changes.OrderByDescending(x => x.Start)) source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
-        return new(source, shapes.Select(x => x.Declaration).ToArray());
+        return new(source, shapes.Select(x => x.Declaration).ToArray())
+        {
+            GeneratedDeclarationNames = shapes.Where(s => s.LoweredSource is not null)
+                .SelectMany(s => s.MemberMap.Values).Distinct(StringComparer.Ordinal).ToArray()
+        };
     }
 
     private static IEnumerable<DeclarationSyntax> BoundaryDeclarations(DocumentSyntax syntax) =>
         FirmamentSyntaxTraversal.Declarations(syntax)
-            .Where(d => d.Name is not null && d.Body is not null && !d.Modifiers.Any(m => m.Name.Text == "Concept")
+            .Where(d => d.Name is not null && d.Body is not null && d.Modifiers.All(m => m.Name.Text == "Concept")
                 && d.Type.Name.Text is "Rect2" or "Square2" or "Circle2" or "Ellipse2" or "Slot2" or "RoundedRect2" or "SmoothRoundedRect2" or "Triangle2" or "Polygon2" or "RegularPolygon2");
 
     private static Shape? Bind(string source, DeclarationSyntax declaration, FirmamentSyntaxFields body, List<string> diagnostics)
@@ -111,10 +118,14 @@ internal static class ClosedBoundary2Authoring
         var variant = declaration.Type.Arguments.FirstOrDefault()?.Value is { } argument
             ? FirmamentSyntaxValues.Reference(argument) ?? (argument as LiteralSyntax)?.Raw : null;
         var rotation = Angle(body, "Rotation", 0d, out var rotationOk); if (!rotationOk) return Invalid(name, "invalid-rotation", diagnostics);
+        if (variant == "Explicit" && type is "Triangle2" or "Polygon2" && Math.Abs(rotation) > Tol)
+            return Invalid(name, "rotation-unsupported: Explicit boundaries use authored coordinates; rotate the points or place a derived Profile with Curve2", diagnostics);
         var span = declaration.Span;
         if (type == "Rect2")
         {
-            if (!Point(body, "Center", out var c) || !Vector(body, "Size", out var size)) return null; // legacy/template Rect2 is bound after static specialization
+            var hasCenter = Point(body, "Center", out var c);
+            var hasSize = Vector(body, "Size", out var size);
+            if (!hasCenter || !hasSize) return null; // legacy/static values are resolved by their existing owner
             if (!Positive(size.X, size.Y)) return Invalid(name, "invalid-dimensions", diagnostics);
             return Math.Abs(rotation) <= Tol ? ExistingRect(name, c, size.X, size.Y, span)
                 : Linear(name, type, null, c, rotation, Rectangle(c, size.X, size.Y, rotation), ["BottomLeft", "BottomRight", "TopRight", "TopLeft"], ["Bottom", "Right", "Top", "Left"], span, new Dictionary<string, double> { ["Width"] = size.X, ["Height"] = size.Y });
@@ -171,8 +182,8 @@ internal static class ClosedBoundary2Authoring
     private static Shape? Circle(string source, string name, FirmamentSyntaxFields body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
     {
         var inline = Point(body, "Center", out var c); var centerRef = Identifier(body, "Center");
-        if (!inline && (centerRef is null || !ResolvePoint(source, centerRef, out c))) return null; // legacy/template Circle2 remains on its existing binder path
         var hasRadius = Length(body, "Radius", out var radius); var hasDiameter = Length(body, "Diameter", out var diameter);
+        if (!inline && (centerRef is null || !ResolvePoint(source, centerRef, out c))) return null; // named/static centers retain their existing binder
         if (hasRadius == hasDiameter || (radius = hasRadius ? radius : diameter / 2) <= 0) return Invalid(name, "invalid-dimensions", diagnostics);
         var lowered = inline || hasDiameter ? $"Point2 {name}_Center {{ Position: [{N(c.X)}, {N(c.Y)}] }}\nConcept Circle2 {name}_Curve {{ Center: {name}_Center; Radius: {N(radius)} }}" : null;
         var guide = lowered is null ? name : name + "_Curve"; var map = new Dictionary<string, string>(StringComparer.Ordinal) { ["Center"] = inline || hasDiameter ? name + "_Center" : centerRef!, ["Boundary"] = guide };

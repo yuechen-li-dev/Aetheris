@@ -5,6 +5,8 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 public static partial class FirmamentV2Parser
 {
+    internal static FirmamentV2PrimitiveType? CompileTimeArithmeticType(FirmamentV2PrimitiveType left, string op, FirmamentV2PrimitiveType right) =>
+        ExpressionBinder.ResultType(left, op, right);
     private sealed record StaticValueBinding(DeclarationSyntax Model,
         IReadOnlyList<FirmamentV2LetDeclaration> Declarations, IReadOnlyList<FirmamentV2BoundLet> Values,
         IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);

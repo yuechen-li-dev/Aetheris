@@ -1,0 +1,8 @@
+Model GuidePlate {
+  units: mm
+  Concept Struct layout on XY {
+    Concept Slot2 boundary { center: [0mm, 0mm]; length: 40mm; width: 12mm }
+  }
+  Profile outline using layout { Loop Outer { boundary |> TraceLoop } }
+  Extrude Body { profile: outline; from: 0mm; to: 5mm }
+}

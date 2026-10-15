@@ -1,5 +1,17 @@
 # Firmament syntax review — 2026-10-14
 
+Concept/2D follow-up:
+[implementation and qualification](../release/FIRMAMENT-CONCEPTS-AND-2D.md)
+reconciles S16's vocabulary in production. Concept names a requirement: a
+structural contract, scalar Boolean predicate or labeled requirement bundle.
+Concept Struct supplies non-materialized construction. Plain shape names are
+preferred; the compatibility Concept prefix shares closed-shape binding rather
+than selecting a different interpretation. Definitions, conformance claims and
+applied checks are distinguished in the rewritten syntax reference. Unconsumed
+guides still bind, and explicit boundary rotation can no longer disappear.
+Record/shape predicate parameters, namespaces and complete AST expansion remain
+separate semantic/frontend work. Historical findings below are preserved.
+
 Compile-time binding follow-up:
 [implementation and qualification](../release/FIRMAMENT-COMPILE-TIME-VALUES.md)
 extends S17 with typed Record members, Template/Feature inputs, defaults and

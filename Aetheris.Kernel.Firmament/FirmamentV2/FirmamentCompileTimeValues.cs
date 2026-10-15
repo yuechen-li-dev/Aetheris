@@ -23,6 +23,34 @@ internal sealed class FirmamentCompileTimeValues(string source)
 
     internal IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics => diagnostics;
 
+    internal void AddConceptDiagnostics(IEnumerable<FirmamentV2ValidationDiagnostic> reported, bool original = true, string? producerSource = null)
+    {
+        var producer = producerSource is not null && producerSource != source ? FirmamentSyntaxParser.Parse(producerSource).Document : null;
+        foreach (var diagnostic in reported)
+        {
+            if (producer is null) { diagnostics.Add(diagnostic with { IsOriginalSource = original }); continue; }
+            var owner = FirmamentSyntaxTraversal.Declarations(producer).Where(d => d.Name is not null
+                    && (d.Type.Name.Text is "Concept" or "Require" || d.Modifiers.Any(m => m.Name.Text == "Template"))
+                    && diagnostic.SourceSpan is { } span && d.Span.Start <= span.Start && d.Span.Start + d.Span.Length >= span.Start + span.Length)
+                .OrderBy(d => d.Span.Length).FirstOrDefault();
+            var anchor = owner is null ? null : OriginalDeclaration(owner.Type.Name.Text, owner.Name!.Text);
+            diagnostics.Add(diagnostic with { SourceSpan = anchor, IsOriginalSource = anchor is not null,
+                LocationNote = anchor is null ? "Binding failed after expansion; original-source provenance is unavailable."
+                    : "Location identifies the original enclosing declaration; the check evaluated expanded values." });
+        }
+    }
+
+    private DocumentSyntax? originalSyntax;
+    internal FirmamentV2SourceSpan? OriginalRequirement(string name) => OriginalDeclaration("Require", name);
+
+    internal FirmamentV2SourceSpan? OriginalDeclaration(string type, string name, string? modifier = null)
+    {
+        originalSyntax ??= FirmamentSyntaxParser.Parse(source).Document;
+        var matches = FirmamentSyntaxTraversal.Declarations(originalSyntax)
+            .Where(d => d.Type.Name.Text == type && d.Name?.Text == name && (modifier is null || d.Modifiers.Any(m => m.Name.Text == modifier))).ToArray();
+        return matches.Length == 1 ? matches[0].Span : null;
+    }
+
     internal void BindExpandedScalars(string expanded, List<string> codes)
     {
         var declarations = Scope(FirmamentSyntaxParser.Parse(expanded).Document.Statements)
@@ -268,6 +296,7 @@ internal sealed class FirmamentCompileTimeValues(string source)
     }
 
     internal bool Contains(string expression) => values.ContainsKey(expression.Trim());
+    internal bool TryValue(string expression, out FirmamentV2BoundLet value) => values.TryGetValue(expression.Trim(), out value!);
 
     internal void RecordError(string record, string field, string code, string message)
     {

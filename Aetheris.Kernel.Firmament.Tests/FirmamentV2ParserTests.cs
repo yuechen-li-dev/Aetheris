@@ -927,7 +927,7 @@ model BadPmiDiameter {
 
         Assert.False(result.IsSuccess);
         Assert.Equal(FirmamentV2ParseDisposition.RecognizedInvalid, result.Disposition);
-        Assert.Contains(FirmamentV2Parser.HoleConstructionPlaneCenterMissing, result.Diagnostics);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.StartsWith("firmament-concept-structural-conformance-failed", StringComparison.Ordinal));
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.StartsWith("firmament-concept-missing-member:", StringComparison.Ordinal));
     }
 

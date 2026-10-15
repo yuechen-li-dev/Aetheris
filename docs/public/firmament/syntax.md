@@ -60,7 +60,7 @@ mutation or general-purpose computation.
 | `Model` | An enclosing engineering artifact and its construction. |
 | `Struct` | Named construction that may be specialized and used by a consuming artifact. |
 | `Concept Struct` | Non-materialized construction data: points, guides, frames and semantic members. |
-| `Concept` | A semantic contract, or a domain-qualified construction value such as `Concept Path`. |
+| `Concept` | A compile-time requirement: a structural contract, a Boolean predicate, or a labeled bundle of predicates. |
 | `Profile` | Named planar boundaries consumed by an extrusion or another feature. |
 | `Feature` | A reusable recipe returning one typed semantic result. |
 | `Template` | Typed compile-time specialization of a declared product or bounded feature recipe. |
@@ -244,8 +244,76 @@ targets and export limits.
 
 ### Contracts, semantic interfaces and construction geometry
 
-`Concept` describes what a construction must provide. `Concept Struct` supplies
-non-materialized design geometry or an implementation of that contract.
+`Concept` names a requirement. A structural Concept describes the members a
+construction must provide. A predicate Concept checks compile-time values and
+returns Bool. A record-shaped requirement bundle names several Boolean checks;
+every field must pass. A bundle is not a data Record and does not store geometry.
+
+**Complete file — reusable requirements applied before geometry:**
+
+```firmament
+Concept Positive(value: Length) => value > 0mm
+
+Concept PlateRequirements(width: Length, height: Length) {
+  positiveWidth: Positive(width)
+  positiveHeight: Positive(height)
+  aspect: width >= height
+}
+
+Template<width: Length, height: Length> Model Plate {
+  units: mm
+  Require dimensions => PlateRequirements(width, height)
+  Box Body { size: [width, height, 5mm] }
+}
+Model Product = Plate<width: 40mm, height: 20mm>
+```
+
+`Require` applies a requirement. It also works directly in a mechanical Model
+with literal or checked scalar Static inputs. Defining a Concept alone imposes
+no check: `Concept AlwaysFalse => false` is a legal definition, but a Require
+that applies it fails. Definitions are type-checked even when unapplied.
+Predicate parameters are scalar Length, Angle, Int, Float, Bool or String;
+positional and named calls are admitted. Pass Record scalar members as arguments.
+Concepts do not introduce runtime functions, implicit unit conversion, Record
+parameters, arbitrary geometry queries or a general constraint solver. Toleranced
+inputs are checked at their nominal values; this is not an interval proof.
+
+Bundles can call other bundles. Their labels identify a failed check, avoiding
+long chains of `&&`. `&&`, `||`, `!`, comparisons and dimensional arithmetic
+remain available; all operands must resolve and type-check, including an operand
+whose Boolean result would not affect the answer. Bare zero-argument predicates
+can be referenced by name or called with `()`.
+
+**Fragment — structural contracts, used by an existing conformance consumer:**
+
+```firmament
+Concept Bounded { Bounds: Box3 }
+Concept Planar { TopPlane: Plane }
+Concept PlateContract : Bounded && Planar { }
+```
+
+The composed contract requires both typed members. Use its name in
+`type T satisfies PlateContract` or `Concept Struct Design: PlateContract`.
+Conformance checks typed members; a structural Concept is not a Boolean value.
+Composition permits identical inherited requirements and rejects conflicting
+member types, duplicate own members, missing contracts and cycles. Claims on
+Concept Struct retain the existing closed published-member signature: additional
+members require a larger composed contract. Built-in type constraints check the
+required capabilities of that type. This pass does not introduce private members
+or general trait/type inheritance.
+
+Contract member names are user-owned symbols: `Bounds` is not silently renamed to
+`bounds`. Current part compilation resolves Concept names within the expanded
+part; this does not introduce namespaces or nested class-style type scopes.
+
+`Concept Struct` supplies non-materialized design geometry or an implementation
+of a structural contract. Its historical `Concept` prefix does not apply a
+Boolean predicate. Inside a planar layout, prefer plain `Rect2`, `Circle2` and
+the other geometry declarations. Compatibility forms such as
+`Concept Circle2 circle { ... }` and `Concept Slot2 slot { ... }` bind through
+the same shape owner, with the same fields, placement restrictions and geometry.
+They are construction values, not declarations of new requirement types.
+
 `Semantic Name { ... }`, usually published through `Expose` or attached to an
 Assembly occurrence, groups engineering references that consumers can name.
 For example, a mount interface can publish a `DatumFrame` and a toleranced
@@ -354,6 +422,29 @@ variants include `Rhombus`, `Parallelogram`, `Trapezoid` and `Explicit`. Explici
 references a named point set; it does not introduce inline arbitrary vertex-array
 syntax. `RegularPolygon2<N>` uses a bounded vertex count. These are built-in
 shape parameters, not user-extensible generic types.
+
+| 2D construction family | Main fields / meaning |
+| --- | --- |
+| `Point2`, `Line2`, `CubicBezier2` | `position`; named `from`/`to`; named endpoints plus `control1`/`control2`. Open guides create no material. |
+| `Rect2`, `Square2` | `center`, `size`; rectangle size is two full lengths, square size is one length. |
+| `Circle2` | `center` and exactly one of `radius` or `diameter`. |
+| `Ellipse2` | `center`, `axisLengths` (two full axis lengths); `axes` is an admitted alias. |
+| `Slot2` | `center`, `length`, `width`; length includes both semicircular ends and must be at least width. |
+| `RoundedRect2` | `center`, `size`, `radius`. |
+| `SmoothRoundedRect2` | `center`, `size`, `cornerExtent`; polynomial corners, not circular fillets. |
+| `Triangle2<...>` | `Equilateral`, `Isosceles`, `Right` or `Explicit`, each with its own dimension fields. |
+| `Polygon2<...>`, `RegularPolygon2<N>` | Named polygon variants or a bounded regular polygon. |
+
+The closed families admit the compatibility `Concept` prefix. Parametric variants
+admit `rotation` in degrees; a rotation is redundant for a circle. Explicit
+Triangle2 and Polygon2 variants use authored points directly and reject nonzero
+rotation. Rotate those points or place a derived Profile with Curve2 instead.
+These remain planar guides: trace a Profile
+and give it a material consumer to obtain a solid. Layout `on XY` is admitted;
+an unsupported `on XZ` does not silently change the plane. These forms do not
+promise arbitrary 2D Boolean operations, implicit sketch solving, or first-class
+shape arguments to predicate Concepts. See [boundary details](boundaries.md)
+for variant fields and exact curve families.
 
 **Fragment — layout and Profile declarations inside a Model:**
 

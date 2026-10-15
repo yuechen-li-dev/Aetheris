@@ -188,7 +188,6 @@ internal static class ConceptIrResolver
     public const string SelectedBranchEvaluationFailure = "firmament-static-match-selected-branch-evaluation-failure";
     public const string InvalidEnumName = "firmament-static-enum-invalid-pascal-case";
 
-    private static readonly Regex ConceptHeader = new(@"\bConcept\s+(?!Struct\b)(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex ConceptStructHeader = new(@"\bConcept\s+Struct\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*(?<concept>[A-Za-z_][A-Za-z0-9_]*))?\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex MaterializedHeader = new(@"\b(?<kind>Struct|Model)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*(?<concept>[A-Za-z_][A-Za-z0-9_]*))?\s*(?<units>mm\s*)?\{", RegexOptions.CultureInvariant);
     private static readonly Regex EnumHeader = new(@"\bEnum\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
@@ -636,30 +635,19 @@ internal static class ConceptIrResolver
 
     private static IReadOnlyDictionary<string, ParsedConceptMember> ParseConceptMembers(string body, int bodyOffset, List<string> diagnostics)
     {
-        var starts = new List<(int Index, Match Match)>();
-        var depth = 0;
-        for (var lineStart = 0; lineStart < body.Length;)
-        {
-            var lineEnd = body.IndexOf('\n', lineStart); if (lineEnd < 0) lineEnd = body.Length;
-            var line = body[lineStart..lineEnd];
-            if (depth == 0)
-            {
-                var match = Regex.Match(line, @"^\s*(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<rest>.*?)\s*$", RegexOptions.CultureInvariant);
-                if (match.Success) starts.Add((lineStart, match));
-            }
-            depth += line.Count(c => c == '{') - line.Count(c => c == '}');
-            lineStart = lineEnd == body.Length ? body.Length : lineEnd + 1;
-        }
+        var syntax = FirmamentSyntaxParser.Parse(body);
+        diagnostics.AddRange(syntax.Diagnostics.Select(d => d.Code + ": " + d.Message));
         var result = new Dictionary<string, ParsedConceptMember>(StringComparer.Ordinal);
-        for (var i = 0; i < starts.Count; i++)
+        // This resolver owns semantic value fields. Layout declarations in the same
+        // Concept Struct belong to the profile/point/derived-frame binders.
+        foreach (var field in syntax.Document.Statements.OfType<FieldSyntax>())
         {
-            var (start, match) = starts[i]; var end = i + 1 < starts.Count ? starts[i + 1].Index : body.Length;
-            var colon = body.IndexOf(':', start, end - start); var raw = body[(colon + 1)..end].Trim();
-            var assignment = Regex.Match(raw, @"^(?<type>[A-Za-z_][A-Za-z0-9_]*(?:\[\])?)\s*=\s*(?<expression>.*)$", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-            var declaredType = assignment.Success ? assignment.Groups["type"].Value : null;
-            var expression = assignment.Success ? assignment.Groups["expression"].Value.Trim() : raw;
-            var name = match.Groups["name"].Value;
-            if (!result.TryAdd(name, new(name, declaredType, expression, new(bodyOffset + start, end - start)))) diagnostics.Add($"{DuplicateDeclaration}:{name}");
+            var value = field.Value;
+            var declaredType = value is TypedValueSyntax typed ? body.Substring(typed.Type.Span.Start, typed.Type.Span.Length) : null;
+            if (value is TypedValueSyntax assignment) value = assignment.Value;
+            var expression = body.Substring(value.Span.Start, value.Span.Length);
+            if (!result.TryAdd(field.Name.Text, new(field.Name.Text, declaredType, expression,
+                    new(bodyOffset + field.Span.Start, field.Span.Length)))) diagnostics.Add($"{DuplicateDeclaration}:{field.Name.Text}");
         }
         return result;
     }
@@ -712,24 +700,25 @@ internal static class ConceptIrResolver
 
     private static IReadOnlyList<ConceptIrDefinition> ParseDefinitions(string source, List<string> diagnostics)
     {
-        var result = new List<ConceptIrDefinition>();
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (Match match in ConceptHeader.Matches(source))
-        {
-            var open = source.IndexOf('{', match.Index); var close = FindMatchingBrace(source, open);
-            if (close < 0) { diagnostics.Add(InvalidSpatialDerivation); continue; }
-            var name = match.Groups["name"].Value;
-            if (!names.Add(name)) { diagnostics.Add(DuplicateDeclaration); continue; }
-            var members = new Dictionary<string, ConceptIrMemberRequirement>(StringComparer.Ordinal);
-            var body = source[(open + 1)..close];
-            foreach (Match field in Regex.Matches(body, @"(?m)^\s*(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<type>[A-Za-z_][A-Za-z0-9_]*)(?<array>\[\])?\s*$", RegexOptions.CultureInvariant))
-            {
-                var memberName = field.Groups["name"].Value;
-                if (!members.TryAdd(memberName, new(memberName, new(field.Groups["type"].Value, field.Groups["array"].Success), new(open + 1 + field.Index, field.Length)))) diagnostics.Add(DuplicateDeclaration);
-            }
-            result.Add(new(name, members, new(match.Index, close - match.Index + 1)));
-        }
-        return result;
+        var concepts = new FirmamentConcepts(source);
+        diagnostics.AddRange(concepts.Diagnostics.Select(d => d.Code + ": " + d.Message));
+        return concepts.Contracts;
+    }
+
+    internal static bool ProvidesContract(string source, DeclarationSyntax declaration, ConceptIrDefinition contract,
+        out IReadOnlyList<string> reported)
+    {
+        reported = [];
+        if (declaration.Body is null || declaration.Body.Statements.Any(s => s is not FieldSyntax))
+        { reported = ["firmament-concept-structural-member-form-unsupported"]; return false; }
+        var diagnostics = new List<string>();
+        var selections = new List<ConceptIrStaticSelection>();
+        var span = declaration.Body.ContentSpan;
+        var members = ResolveMembers(declaration.Name!.Text, source.Substring(span.Start, span.Length), span.Start,
+            "", ParseEnums(source, diagnostics), selections, diagnostics);
+        ValidateConformance(declaration.Name.Text, [contract.Name], members, [contract], diagnostics);
+        reported = diagnostics;
+        return diagnostics.Count == 0;
     }
 
     private static IReadOnlyDictionary<string, ConceptIrValue> ResolveMembers(

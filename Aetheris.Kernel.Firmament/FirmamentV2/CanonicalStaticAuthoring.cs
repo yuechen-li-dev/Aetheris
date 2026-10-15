@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
@@ -105,7 +106,7 @@ internal static class CanonicalStaticAuthoring
         return mapping;
     }
 
-    public static Result? Expand(string source, List<string> diagnostics)
+    public static Result? Expand(string source, List<string> diagnostics, FirmamentCompileTimeValues? scalars = null)
     {
         var points = ConceptPointAuthoring.Expand(source, diagnostics);
         if (points is null) return null;
@@ -117,9 +118,10 @@ internal static class CanonicalStaticAuthoring
         if (symmetry is null) return null;
         source = symmetry.Source;
         var canonicalRoot = Regex.IsMatch(source, @"^\s*Model\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant);
+        var booleanRequires = FirmamentConcepts.Requirements(FirmamentSyntaxParser.Parse(source).Document).ToArray();
         var staticDeclaration = Regex.IsMatch(source, @"\b(?:Record|Static|Template\s*(?:<|[A-Za-z_]\w*\s*\()|Pattern\s+\w+\s+Over)\b", RegexOptions.CultureInvariant)
             || symmetry.Mirrors.Count > 0 || symmetry.RadialPatterns.Count > 0 || linear.Patterns.Count > 0 || linear.Axes.Count > 0;
-        if (!staticDeclaration && !(canonicalRoot && Regex.IsMatch(source, @"\b(?:Require\s+[A-Za-z_]\w*\s*(?:=>|\{)|Pmi\s*\{[\s\S]*?\bFrom\s*:)", RegexOptions.CultureInvariant))) {
+        if (!staticDeclaration && booleanRequires.Length == 0 && !(canonicalRoot && Regex.IsMatch(source, @"\b(?:Require\s+[A-Za-z_]\w*\s*(?:=>|\{)|Pmi\s*\{[\s\S]*?\bFrom\s*:)", RegexOptions.CultureInvariant))) {
             source = points.Math.Normalize(source, diagnostics);
             return diagnostics.Any(d => d.StartsWith(ConceptPointAuthoring.Prefix, StringComparison.Ordinal)) ? null : new(source, null);
         }
@@ -337,13 +339,31 @@ internal static class CanonicalStaticAuthoring
             if (declaration is not null) changes.Add((invocation.Index, invocation.Length, declaration));
         }
 
-        foreach (Match require in Regex.Matches(source, @"\bRequire\s+(?<name>[A-Za-z_]\w*)\s*=>\s*(?<expr>[^\r\n}]+)", RegexOptions.CultureInvariant))
+        foreach (var (require, admittedScope) in booleanRequires)
         {
-            var expression = require.Groups["expr"].Value.Trim();
-            if (!TryRequire(expression, out var value)) { diagnostics.Add(Prefix + "require-non-bool:" + require.Groups["name"].Value); continue; }
-            requires.Add(new(require.Groups["name"].Value, expression, value, new(require.Index, require.Length)));
-            if (!value) diagnostics.Add(Prefix + "require-failed:" + require.Groups["name"].Value + ":" + expression);
-            changes.Add((require.Index, require.Length, string.Empty));
+            var name = require.Name?.Text ?? "<unnamed>";
+            if (!admittedScope)
+            {
+                const string code = "firmament-concept-requirement-scope-unsupported";
+                const string message = "Place a Boolean Require in the Model/module or a construction Struct, not inside a primitive or feature field block.";
+                diagnostics.Add(Prefix + "require-invalid-scope:" + name);
+                diagnostics.Add(code + ": " + message);
+                var original = scalars?.OriginalRequirement(name);
+                scalars?.AddConceptDiagnostics([new(code, "error", message) { SourceSpan = original, Stage = "Concept binding" }], original: original is not null);
+                continue;
+            }
+            if (require.Initializer is null || require.Name is null || require.Parameters.Count > 0 || require.Annotation is not null
+                || require.Modifiers.Count > 0 || require.Type.Arguments.Count > 0 || require.Clauses.Count > 0 || require.ResultType is not null)
+            { diagnostics.Add(Prefix + "require-non-bool:" + name); continue; }
+            var expression = source.Substring(require.Initializer.Span.Start, require.Initializer.Span.Length);
+            var concepts = new FirmamentConcepts(source, scalars);
+            var location = scalars?.OriginalRequirement(name);
+            var value = concepts.Check(require.Initializer, name, location);
+            diagnostics.AddRange(concepts.Diagnostics.Select(d => d.Code + ": " + d.Message));
+            scalars?.AddConceptDiagnostics(concepts.Diagnostics, original: location is not null);
+            requires.Add(new(name, expression, value, require.Span));
+            if (!value) diagnostics.Add(Prefix + "require-failed:" + name + ":" + expression);
+            changes.Add((require.Span.Start, require.Span.Length, string.Empty));
         }
         var semanticConstraints = new List<FirmamentV2SemanticConstraint>();
         foreach (Match header in Regex.Matches(source, @"\bRequire\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
@@ -605,13 +625,6 @@ internal static class CanonicalStaticAuthoring
             }
         }
         return result;
-    }
-    private static bool TryRequire(string expression, out bool value)
-    {
-        value = false; var m = Regex.Match(expression, @"^(?<a>[-+]?\d+(?:\.\d+)?)(?<u>mm|deg)?\s*(?<op>>=|<=|==|>|<)\s*(?<b>[-+]?\d+(?:\.\d+)?)(?<v>mm|deg)?$", RegexOptions.CultureInvariant);
-        if (!m.Success || m.Groups["u"].Value != m.Groups["v"].Value) return false;
-        var a = double.Parse(m.Groups["a"].Value, CultureInfo.InvariantCulture); var b = double.Parse(m.Groups["b"].Value, CultureInfo.InvariantCulture);
-        value = m.Groups["op"].Value switch { ">" => a > b, ">=" => a >= b, "<" => a < b, "<=" => a <= b, "==" => a == b, _ => false }; return true;
     }
     private static int MatchPair(string text, int open, char left, char right) { var depth = 0; for (var i = open; i < text.Length; i++) { if (text[i] == left) depth++; else if (text[i] == right && --depth == 0) return i; } return -1; }
 }

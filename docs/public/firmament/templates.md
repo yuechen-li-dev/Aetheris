@@ -129,11 +129,29 @@ The coherent flow is: Records, Static values, and Tables define finite data; `wi
 
 ## Concepts and Require
 
-A language `Concept` is a compile-time structural semantic contract. `Concept Struct` is a non-materialized typed semantic value. This differs from Forge C# runtime concept descriptors, even though both carry engineering semantics.
+A language `Concept` names a compile-time requirement. Structural Concepts specify
+typed members and can compose other contracts. Predicate Concepts return Bool;
+record-shaped requirement bundles label several predicates and require every
+field to pass. `Concept Struct` is a non-materialized construction value that can
+provide a structural contract. These differ from Forge C# runtime concept
+descriptors, even though both carry engineering semantics.
 
 Parameter types own structural and dimensional checking. Records own grouped data shape. Concepts own semantic conformance. `Require Name => BooleanExpression` owns specialization-specific admissibility. A failed `Require` stops specialization before geometry materialization and records the named check in specialization provenance.
 
-`Require` is finite: comparisons and bounded boolean combinations over specialized data are supported. It is not a runtime script or a general constraint solver.
+Use `Require dimensions => PlateRequirements(width, height)` to apply a predicate
+or bundle after argument binding. The same Boolean requirement syntax works in a
+native mechanical Model. Comparisons, bounded Boolean combinations and dimensional
+arithmetic use the shared AST; unapplied definitions are checked for type errors.
+See the complete [requirement and bundle example](syntax.md#contracts-semantic-interfaces-and-construction-geometry).
+This is not a runtime script or a general constraint solver. Scalar inputs retain
+their dimensional type; tolerances contribute nominal values rather than an
+interval proof. Record fields can supply scalar arguments; whole Record and shape
+predicate parameters are not admitted.
+
+The established `Require Name { Actual: ... Expected: ... Tolerance: ... }` is a
+different, domain-owned dimensional constraint used by projected PMI. It retains
+its existing checking and projection path; it is not reinterpreted as a predicate
+bundle. See [PMI](pmi.md).
 
 ## DFM policy families
 

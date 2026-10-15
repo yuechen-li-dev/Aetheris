@@ -11,7 +11,11 @@ public enum PlacementStatus { Anchored, Resolved, Underconstrained, Overconstrai
 public enum PlacementAuthority { MateDerived, ImportedOccurrence, LegacyExplicit, AuthoredFrame }
 public enum MechanicalInterfaceFamily { Custom, Fixed, Axial, Revolute, Prismatic, Gear }
 
-public sealed record AssemblyDiagnostic(string Code, string Message, AssemblyDiagnosticSeverity Severity = AssemblyDiagnosticSeverity.Error);
+public sealed record AssemblyDiagnostic(string Code, string Message, AssemblyDiagnosticSeverity Severity = AssemblyDiagnosticSeverity.Error)
+{
+    public SemanticSourceSpan? SourceSpan { get; init; }
+    public string? LocationNote { get; init; }
+}
 public sealed record AssemblyPath(IReadOnlyList<string> Segments)
 {
     public override string ToString() => string.Join(".", Segments);

@@ -1,4 +1,4 @@
-+Model JudgedBlendHousing {
+Model JudgedBlendHousing {
   Units: mm
 
   BodyState Base {

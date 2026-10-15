@@ -1,4 +1,4 @@
-+Model SculptBranchVariants {
+Model SculptBranchVariants {
   Units: mm
 
   BodyState Base {

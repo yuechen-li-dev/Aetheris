@@ -1,4 +1,4 @@
-+Model SculptedHousing {
+Model SculptedHousing {
   Units: mm
 
   BodyState Base {

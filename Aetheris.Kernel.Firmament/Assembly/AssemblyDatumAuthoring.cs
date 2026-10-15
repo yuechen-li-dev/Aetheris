@@ -119,19 +119,6 @@ internal static class AssemblyDatumAuthoring
         return result;
     }
 
-    internal static AssemblyDatumContract ParseContract(string fields, List<AssemblyDiagnostic> diagnostics)
-    {
-        var datum = Field(fields, "Datum", diagnostics);
-        var members = Regex.Match(fields, @"\bMembers\s*:\s*\[(?<v>[^]]*)\]\s*;?");
-        if (Regex.Matches(fields, @"\bMembers\s*:").Count != 1) diagnostics.Add(new("assembly-datum-members-invalid", "Requires exactly one Members field."));
-        if (!members.Success) diagnostics.Add(new("assembly-datum-members-missing", "Datum Fixed Interface requires Members."));
-        var paths = members.Groups["v"].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        if (paths.Length == 0 || paths.Distinct(StringComparer.Ordinal).Count() != paths.Length || paths.Any(p => !Regex.IsMatch(p, @"^\w+(?:\.\w+)+$")))
-            diagnostics.Add(new("assembly-datum-members-invalid", "Members must be a nonempty unique list of semantic port paths."));
-        CheckFields(fields, ["Datum", "Members"], diagnostics);
-        return new(datum, paths);
-    }
-
     internal static AssemblyMemberSource Bind(string body, AssemblyMemberSource root,
         IReadOnlyList<AssemblyLayoutDatum> layout, IReadOnlyList<InterfaceDefinition> interfaces,
         List<AssemblyDiagnostic> diagnostics, out IReadOnlyList<AssemblyFrameTransformSource> frames,

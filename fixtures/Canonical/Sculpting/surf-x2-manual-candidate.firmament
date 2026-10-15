@@ -1,4 +1,4 @@
-+Model ManualEligibleBlendCandidate {
+Model ManualEligibleBlendCandidate {
   Units: mm
   BodyState Base {
     Size: [100mm, 80mm, 20mm]

@@ -34,6 +34,24 @@ The Assembly profile admits this bounded matrix:
 
 These are compiler-owned families, not user-defined generics. Atomic assembly relations remain the existing `AxisCoincident`, `AxisAligned`, `PlaneCoincident`, `PointCoincident`, `OffsetAlongAxis`, and `FrameCoincident` kinds. A typed family expands into those relations before the ordinary Assembly compiler runs.
 
+Prefer a reusable typed contract plus a named Mate application. For example,
+`Interface<Fixed> Install { }` declares the relationship requirements, and
+`Mate BracketMount: Install { A: Machine.Frame.Mount; B: Machine.Bracket.Mount; }`
+applies them inside an Assembly. The compiler supplies the family's roles and
+lowering; authors do not need to restate `Role A requires ...` or `Lower ...`.
+Named Mate assignments use the declared role spelling, conventionally `A` and `B`.
+Compact inline applications also retain the historical `a`/`b` slot aliases;
+this does not case-fold user-defined role identities. Built-in options such as
+`gap`, `clocking` and `orientation` use camelCase; their historical PascalCase
+aliases remain admitted. Unknown fields and statements, duplicate assignments,
+invalid option units and unresolved roles reject with diagnostics.
+
+Inline typed Interface applications shown below remain supported. Historical
+custom Role/Lower/Fit/Allow clauses now share structural AST admission and lower
+to the existing relationship IR. They are compatibility and specialist contract
+forms, not the introductory authoring style. `Interface<Custom>` remains the
+explicit atomic escape hatch; X1 does not replace the placement solver.
+
 For `Fixed`, `Revolute`, and `Prismatic`, the preferred port is one `Semantic` value with a `DatumFrame`. `A` names the parent occurrence and `B` names the child. The two frame origins coincide at state zero; Z is the rotation or translation axis, and X fixes the angular reference. The compiler derives the zero transform directly. `Revolute` accepts angle state in degrees, `Prismatic` accepts position state in millimetres, and omitted state means zero. The compiled `AssemblyIr.Joints` and pure `AssemblyKinematics.Evaluate(ir, state)` expose the relationship, DOF, frames, and posed occurrence transforms. Changing state keeps part definitions and BReps shared. A cycle or multiple movable interfaces driving the same child is rejected.
 
 ```firmament

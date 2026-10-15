@@ -14,8 +14,13 @@ public static class FirmamentSyntaxTraversal
             FieldSyntax f => Expressions(f.Value),
             ExpressionStatementSyntax e => Expressions(e.Value),
             ReturnSyntax r => Expressions(r.Value),
+            InterfaceRelationSyntax r => Expressions(r.First).Concat(Expressions(r.Second)).Concat(r.Option is null ? [] : Expressions(r.Option)),
+            InterfaceFitSyntax f => Expressions(f.Shaft).Concat(Expressions(f.Bore)),
+            InterfacePolicySyntax p => p.Values.SelectMany(v => Expressions(v.Value)),
+            ReplacementSyntax r => Expressions(r.Target),
             DeclarationSyntax d => (d.Annotation is null ? [] : Expressions(d.Annotation))
                 .Concat(d.Initializer is null ? [] : Expressions(d.Initializer))
+                .Concat(d.Target is null ? [] : Expressions(d.Target))
                 .Concat(d.Clauses.SelectMany(c => Expressions(c.Value))),
             _ => []
         });
@@ -38,6 +43,8 @@ public static class FirmamentSyntaxTraversal
             WithSyntax w => [w.Target],
             TraceSyntax t => new[] { t.Source, t.From, t.To }.OfType<ExpressionSyntax>(),
             TypedValueSyntax t => [t.Type, t.Value],
+            ProvenanceSyntax p => [p.Value, p.Source],
+            TypeParameterSyntax p => p.Constraint is null ? [] : [p.Constraint],
             ObjectSyntax o => o.Type is null ? [] : [o.Type],
             FrameSyntax f => new[] { f.Origin }.Concat(f.Axes.Select(a => a.Value)),
             MemberSetSyntax m => new[] { m.Target }.Concat(m.Members.Select(a => a.Value)),
@@ -70,6 +77,7 @@ public static class FirmamentSyntaxTraversal
         ExpressionStatementSyntax e => ExpressionBodies(e.Value),
         ReturnSyntax r => ExpressionBodies(r.Value),
         MappingSyntax m => [m.Value],
+        ReplacementSyntax r => [r.Replacement],
         _ => []
     };
 
@@ -90,6 +98,7 @@ public static class FirmamentSyntaxTraversal
         AliasSyntax a => ExpressionBodies(a.Value),
         TraceSyntax t => ExpressionBodies(t.Source).Concat(t.From is null ? [] : ExpressionBodies(t.From)).Concat(t.To is null ? [] : ExpressionBodies(t.To)),
         TypedValueSyntax t => ExpressionBodies(t.Type).Concat(ExpressionBodies(t.Value)),
+        ProvenanceSyntax p => ExpressionBodies(p.Value),
         MatchSyntax m => ExpressionBodies(m.Scrutinee).Concat(m.Arms.SelectMany(a => ExpressionBodies(a.Pattern).Concat(ExpressionBodies(a.Value)))),
         MemberSetSyntax m => ExpressionBodies(m.Target).Concat(m.Members.SelectMany(a => ExpressionBodies(a.Value))),
         _ => []

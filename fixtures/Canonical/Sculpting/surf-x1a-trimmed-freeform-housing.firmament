@@ -1,4 +1,4 @@
-+Model TrimmedFreeformControllerCover {
+Model TrimmedFreeformControllerCover {
   Units: mm
 
   SurfacePatch CrownPatchX1a {

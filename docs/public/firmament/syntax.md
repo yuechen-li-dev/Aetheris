@@ -682,10 +682,36 @@ Do not invent `schema Assembly` or wrap arbitrary domain declarations in a Model
 Assembly occurrence trees use `<Assembly>` / `<Part>` tags as well as brace
 bodies. Tree nesting does not create a Mate. Inclusion is owned by the consuming
 project/domain; `include` is **not** a universal mechanical preprocessor.
+
 Standalone part compilation rejects an unresolved include explicitly, even if
 the named file exists. Use a documented Assembly/project loader to resolve file
 dependencies before part compilation. The shipped `Use Profile.Modifications`
 import retains its existing library owner. Other unconsumed directives reject.
+
+For relationships, declare a reusable typed contract and apply it with a named
+Mate. The family owns its capability requirements and ordinary lowering:
+
+```firmament
+Interface<Fixed> Installation { }
+// Inside the consuming Assembly:
+Mate InstallBracket: Installation {
+    A: Machine.Frame.Mount;
+    B: Machine.Bracket.Mount;
+}
+```
+
+`Semantic Mount` publishes the mating port on each occurrence; it is not another
+material body. Here `Fixed` expects datum-frame-capable ports. `A` and `B` are
+role symbols, not camelCase built-in field names. Named Mate assignments use the
+declared role spelling. Compact inline typed applications retain their historical
+`a`/`b` aliases for the predefined `A`/`B` slots. A Mate applies
+the contract at compile time; it is not a runtime function call. Inline
+`Interface<Fixed> Name { A: ...; B: ...; }` remains admitted shorthand. Old custom
+`Role ... requires ...` and `Lower ...` clauses remain bounded compatibility,
+parsed into the same AST and relationship IR. New ordinary relationships should
+use the typed families; use `Interface<Custom>` only when explicit atomic
+relations are necessary. Unknown clauses, duplicate assignments and unresolved
+roles reject rather than disappearing. See [Assemblies](assemblies.md).
 
 ## Reading older source
 

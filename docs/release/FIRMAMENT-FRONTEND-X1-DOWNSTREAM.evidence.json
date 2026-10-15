@@ -1,0 +1,67 @@
+{
+  "Invalid/FEA/ExperimentalShell/singular-map.firmament": {
+    "classification": "RejectedAtSolveStage",
+    "reason": "Analysis compilation succeeds at the explicitly reported AnalysisCompiledNotSolved level. The ordinary fea execution rejects the inconsistent cylindrical map with thinwall-map-singular. This is a solve/map negative, not a syntax failure.",
+    "command": "dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll fea fixtures/Invalid/FEA/ExperimentalShell/singular-map.firmament --out-dir artifacts/local/firmament-x1-closeout/singular-map --json",
+    "exitCode": 1,
+    "diagnostics": [
+      {
+        "code": "thinwall-map-singular",
+        "severity": "Error",
+        "message": "Cylindrical master S span must equal radius times angle (0.15707963267948966 m); got 0.16 m."
+      }
+    ],
+    "sourceSha256": "A1C922DC74CB102CE47F7696A8F52AB82B2DA6973CD61E52F2EF298C8325F2EB",
+    "witnessPassed": true
+  },
+  "Invalid/SheetMetal/tray-dfm-violation.firmament": {
+    "classification": "AdmittedGeometryWithDfmFindings",
+    "reason": "The fixture explicitly requests geometry that compiles and a DFM repair finding. sheetmetal inspect succeeds and reports Warning with insufficient corner relief; a manufacturing warning does not make the frontend source invalid.",
+    "command": "dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll sheetmetal inspect fixtures/Invalid/SheetMetal/tray-dfm-violation.firmament --json",
+    "exitCode": 0,
+    "dfmOverall": "Warning",
+    "findings": [
+      {
+        "ruleId": "sheetmetal-dfm-corner-resolution",
+        "status": "Warning",
+        "message": "'corner-Front-Right' has insufficient or missing relief geometry.",
+        "subjectId": "corner-Front-Right",
+        "measured": 1,
+        "required": 2.7,
+        "suggestedFix": "Increase relief-Front-Right width to at least 1.2 mm and depth to at least 2.7 mm."
+      }
+    ],
+    "sourceSha256": "035B7CDA274FF49DC23E3223F8EFE44F100E26A4CF208327D74759312AB11EB8",
+    "witnessPassed": true
+  },
+  "Invalid/Pipeline/traceloop-non-loop.firmament": {
+    "classification": "MisfiledPositiveFixture",
+    "reason": "Despite the historical filename, the actual source traces a closed Rect2 into an outer loop and extrudes it. Real build and STEP reimport confirm a valid enclosed six-face solid with the requested bounds. Rejecting it would reject legitimate geometry.",
+    "commands": [
+      "dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll build fixtures/Invalid/Pipeline/traceloop-non-loop.firmament --output artifacts/local/firmament-x1-closeout/misfiled-positive.step --json",
+      "dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll analyze artifacts/local/firmament-x1-closeout/misfiled-positive.step --json"
+    ],
+    "exitCodes": [
+      0,
+      0
+    ],
+    "bodyCount": 1,
+    "faceCount": 6,
+    "boundsMm": {
+      "min": {
+        "x": -5,
+        "y": -2,
+        "z": 0
+      },
+      "max": {
+        "x": 5,
+        "y": 2,
+        "z": 1
+      }
+    },
+    "structuralAssessment": "enclosed-manifold",
+    "stepSha256": "CC536B201711D265AB53ECB6BC50262F5FF577FD9FC2745B6B53ACB8FC1672E2",
+    "sourceSha256": "1BC08FBE89A39A14A46E13AC25D2FDC5C75962F2759E8FB0951213C69526C169",
+    "witnessPassed": true
+  }
+}

@@ -1,4 +1,4 @@
-+Model SculptPreserveInterface {
+Model SculptPreserveInterface {
   Units: mm
 
   BodyState Base {

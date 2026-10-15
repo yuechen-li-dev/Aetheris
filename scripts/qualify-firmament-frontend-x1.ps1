@@ -5,8 +5,8 @@ $repo = Split-Path $PSScriptRoot -Parent
 Push-Location $repo
 try {
     New-Item -ItemType Directory -Force $OutputDirectory | Out-Null
-    dotnet $cli frontend-shadow --corpus fixtures --output-dir (Join-Path $OutputDirectory 'corpus')
-    if ($LASTEXITCODE -ne 0) { throw 'Shadow corpus collection did not complete.' }
+    dotnet $cli frontend-shadow --corpus fixtures --production --output-dir (Join-Path $OutputDirectory 'corpus')
+    if ($LASTEXITCODE -ne 0) { throw 'Structural/domain-owner corpus collection did not complete.' }
     $witnesses = @(
         'Regression/FrontendX0/unknown-compose-statement.firmament',
         'Regression/FrontendX0/unknown-boundary-field.firmament',

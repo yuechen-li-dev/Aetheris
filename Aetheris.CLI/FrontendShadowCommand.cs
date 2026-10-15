@@ -25,13 +25,14 @@ internal static class FrontendShadowCommand
         if (args.Length == 0 || args[0] is "--help" or "-h")
         {
             stdout.WriteLine("Usage: aetheris frontend-shadow <file> [--json] [--ast] [--validate] [--benchmark]");
-            stdout.WriteLine("       aetheris frontend-shadow --corpus <directory> [--output-dir <directory>]");
+            stdout.WriteLine("       aetheris frontend-shadow --corpus <directory> [--production] [--output-dir <directory>]");
+            stdout.WriteLine("--production collects structural syntax and domain-specific production outcomes; completion does not grant engineering admission.");
             stdout.WriteLine("Developer syntax evidence. Structural success alone does not grant engineering admission; normal mechanical validation uses the unified AST binder.");
             return args.Length == 0 ? 1 : 0;
         }
         var corpus = args[0] == "--corpus";
         var input = corpus && args.Length > 1 ? args[1] : args[0];
-        var json = false; var ast = false; var validate = false; var benchmark = false;
+        var json = false; var ast = false; var validate = false; var benchmark = false; var production = false;
         var output = Path.Combine("artifacts", "local", "frontend-x1", "corpus");
         for (var i = corpus ? 2 : 1; i < args.Length; i++)
         {
@@ -41,6 +42,7 @@ internal static class FrontendShadowCommand
                 case "--ast": ast = true; break;
                 case "--validate": validate = true; break;
                 case "--benchmark": benchmark = true; break;
+                case "--production" when corpus: production = true; break;
                 case "--output-dir" when i + 1 < args.Length: output = args[++i]; break;
                 default: stderr.WriteLine($"Unknown or incomplete shadow option '{args[i]}'."); return 1;
             }
@@ -48,6 +50,7 @@ internal static class FrontendShadowCommand
         if (corpus)
         {
             if (!Directory.Exists(input)) { stderr.WriteLine($"Corpus directory not found: {input}"); return 1; }
+            if (production) return FrontendCorpusQualification.Run(input, output, stdout);
             if (ast || validate || benchmark) { stderr.WriteLine("Use --ast/--validate/--benchmark on individual files; corpus collection compares the generic production projection only."); return 1; }
             var files = Directory.EnumerateFiles(input, "*", SearchOption.AllDirectories)
                 .Where(p => Path.GetExtension(p) is ".firmament" or ".firmfixture" or ".firmasm").Order(StringComparer.Ordinal).ToArray();

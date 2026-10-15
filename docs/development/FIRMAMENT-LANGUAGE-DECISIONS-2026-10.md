@@ -169,3 +169,33 @@ remain intact; this amendment records only implemented changes.
 | Casing / syntax reconciliation | Prefer PascalCase constructs/types, camelCase built-in fields, lowercase using/as links and preserved engineering symbols. Shared parsing, Profile binding, formatting and language-service token classification admit as. The syntax reference is reorganized and examples updated in place. | User-defined names and published members are not globally folded or renamed. Legacy aliases remain only as bounded compatibility; this is not a promise to perpetuate every V1-to-V2 grammar detail. |
 | Invalid selector override fixture | Still invalid, now with a precise firmament-syntax-statement at @ rather than a later record-binding error. | Original failing source remains unchanged; fixture diagnostic metadata follows its migrated owner. |
 | All other recommendations | Prior disposition retained. | No kernel, units doctrine, runtime model, general computation or new shadow-only milestone is introduced. |
+
+## X1 closeout amendment — Assembly contract admission
+
+The preferred relationship syntax is a reusable `Interface<Family>` declaration
+plus a named `Mate` application. Family requirements and normal atomic lowering
+are compiler owned. Inline typed Interface applications remain admitted.
+Historical Role/Lower/Fit/Allow clauses bind shared AST nodes into the existing
+Interface/Assembly IR; they are bounded compatibility and specialist contracts,
+not a second preferred introductory syntax. Custom atomic relationships remain
+explicitly available through `Interface<Custom>`.
+
+This closes the identified canonical Role-requirement structural gap and adds
+closed checking of the migrated contract and role-assignment bodies. It does not
+claim a new Assembly solver, universal AST expansion, a single evaluator across
+all domains, or complete include/expansion source maps. Source locations in
+expanded Assembly scopes are labeled as such. The closeout report and corpus
+ledger record qualification separately from these language decisions.
+
+Named Mate assignments retain their declared role spelling. Compact inline typed
+applications retain the existing `a`/`b` aliases for predefined `A`/`B` slots;
+these are documented compatibility aliases, not global case folding. New examples
+use `A`/`B`. Built-in contract options consume camelCase and their existing
+PascalCase aliases through shared field matching.
+
+The [X1 closeout](../release/FIRMAMENT-FRONTEND-X1-CLOSEOUT.md) qualifies all
+327 canonical sources structurally, classifies the complete 1,266-source corpus,
+and records 4,943 passing full-suite tests plus 26 byte-identical STEP baselines.
+This closes the structural migration gate, not X2 semantic consolidation or the
+remaining domain source adapters. The nine explicit canonical admission limits
+and downstream-only negative expectations remain visible in the closeout ledger.

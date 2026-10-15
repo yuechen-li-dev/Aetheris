@@ -1,4 +1,4 @@
-+Model ControllerCover {
+Model ControllerCover {
   Units: mm
 
   BodyState Base {

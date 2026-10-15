@@ -88,8 +88,8 @@ public sealed class FirmamentV2FeatureFunctionTests
     [Theory]
     [InlineData("return Hole<Shaft> { On: +Z Center: Center Diameter: 6mm End: ThroughAll }", "firmament-feature-return-type:Broken")]
     [InlineData("let x: Length = 1mm", "firmament-feature-missing-return:Broken")]
-    [InlineData("if true return Hole<Counterbore> { }", "firmament-feature-control-flow-unsupported:if")]
-    [InlineData("for Item return Hole<Counterbore> { }", "firmament-feature-control-flow-unsupported:for")]
+    [InlineData("if true return Hole<Counterbore> { }", "firmament-syntax-control-flow-unsupported")]
+    [InlineData("for Item return Hole<Counterbore> { }", "firmament-syntax-control-flow-unsupported")]
     public void Feature_RejectsWrongReturnMissingReturnAndGeneralControlFlow(string body, string diagnostic)
     {
         var parse = FirmamentV2Parser.Parse($$"""

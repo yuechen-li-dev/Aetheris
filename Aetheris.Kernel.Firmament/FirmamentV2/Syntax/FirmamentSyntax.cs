@@ -6,7 +6,7 @@ public enum SyntaxTokenKind { Identifier, Number, String, Punctuation, Whitespac
 public sealed record SyntaxToken(SyntaxTokenKind Kind, string Text, FirmamentV2SourceSpan Span);
 public enum DirectiveKind { Schema, Include, Use }
 public enum ClauseKind { On, Using, Over, From, Key }
-public enum LiteralKind { Number, String, Boolean }
+public enum LiteralKind { Number, String, Boolean, Version, EntityReference }
 public enum SequenceKind { List, Tuple }
 public enum UnaryOperator { Positive, Negative, Not, Reverse }
 public enum BinaryOperator { Pipeline, Direction, Or, And, Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual, Add, Subtract, Multiply, Divide, Remainder, Power }
@@ -20,6 +20,12 @@ public enum BinaryOperator { Pipeline, Direction, Or, And, Equal, NotEqual, Less
 [JsonDerivedType(typeof(ExpressionStatementSyntax), "expressionStatement")]
 [JsonDerivedType(typeof(ReturnSyntax), "return")]
 [JsonDerivedType(typeof(MappingSyntax), "mapping")]
+[JsonDerivedType(typeof(RoleRequirementSyntax), "roleRequirement")]
+[JsonDerivedType(typeof(InterfaceRelationSyntax), "interfaceRelation")]
+[JsonDerivedType(typeof(InterfaceFitSyntax), "interfaceFit")]
+[JsonDerivedType(typeof(InterfaceMotionSyntax), "interfaceMotion")]
+[JsonDerivedType(typeof(InterfacePolicySyntax), "interfacePolicy")]
+[JsonDerivedType(typeof(ReplacementSyntax), "replacement")]
 public abstract record StatementSyntax(FirmamentV2SourceSpan Span);
 public sealed record IdentifierSyntax(string Text, FirmamentV2SourceSpan Span);
 public sealed record ArgumentSyntax(IdentifierSyntax? Name, ExpressionSyntax Value, ExpressionSyntax? Default, FirmamentV2SourceSpan Span);
@@ -34,12 +40,23 @@ public sealed record BlockSyntax(IReadOnlyList<StatementSyntax> Statements, Firm
 public sealed record DeclarationSyntax(TypeSyntax Type, IdentifierSyntax? Name, IReadOnlyList<TypeSyntax> Modifiers,
     IReadOnlyList<ArgumentSyntax> Parameters, ExpressionSyntax? Annotation, ExpressionSyntax? ResultType,
     IReadOnlyList<ClauseSyntax> Clauses, ExpressionSyntax? Initializer, BlockSyntax? Body, bool Occurrence,
-    FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+    FirmamentV2SourceSpan Span) : StatementSyntax(Span)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ExpressionSyntax? Target { get; init; }
+}
 public sealed record FieldSyntax(IdentifierSyntax Name, ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
 public sealed record DirectiveSyntax(DirectiveKind Kind, ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
 public sealed record ExpressionStatementSyntax(ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
 public sealed record ReturnSyntax(ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
 public sealed record MappingSyntax(IdentifierSyntax Key, StatementSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+public sealed record RoleRequirementSyntax(IdentifierSyntax Name, IReadOnlyList<IdentifierSyntax> Capabilities, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+public sealed record InterfaceRelationSyntax(IdentifierSyntax Kind, ExpressionSyntax First, ExpressionSyntax Second,
+    ExpressionSyntax? Option, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+public sealed record InterfaceFitSyntax(ExpressionSyntax Shaft, ExpressionSyntax Bore, bool PerSide, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+public sealed record InterfaceMotionSyntax(IdentifierSyntax Kind, IdentifierSyntax Axis, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+public sealed record InterfacePolicySyntax(IdentifierSyntax Kind, IReadOnlyList<ArgumentSyntax> Values, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+public sealed record ReplacementSyntax(ExpressionSyntax Target, DeclarationSyntax Replacement, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "node")]
 [JsonDerivedType(typeof(ReferenceSyntax), "reference")]
@@ -59,11 +76,15 @@ public sealed record MappingSyntax(IdentifierSyntax Key, StatementSyntax Value, 
 [JsonDerivedType(typeof(TraceSyntax), "trace")]
 [JsonDerivedType(typeof(MemberSetSyntax), "memberSet")]
 [JsonDerivedType(typeof(TypedValueSyntax), "typedValue")]
+[JsonDerivedType(typeof(ProvenanceSyntax), "provenance")]
+[JsonDerivedType(typeof(TypeParameterSyntax), "typeParameter")]
 [JsonDerivedType(typeof(MatchSyntax), "match")]
 [JsonDerivedType(typeof(ToleranceSyntax), "tolerance")]
 public abstract record ExpressionSyntax(FirmamentV2SourceSpan Span);
 public sealed record ReferenceSyntax(IdentifierSyntax Name, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record LiteralSyntax(LiteralKind Kind, string Raw, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record ProvenanceSyntax(ExpressionSyntax Value, LiteralSyntax Source, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record TypeParameterSyntax(IdentifierSyntax Name, ExpressionSyntax? Constraint, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record QuantitySyntax(ExpressionSyntax Value, IdentifierSyntax Unit, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record UnarySyntax(UnaryOperator Operator, ExpressionSyntax Operand, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record BinarySyntax(ExpressionSyntax Left, BinaryOperator Operator, ExpressionSyntax Right, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);

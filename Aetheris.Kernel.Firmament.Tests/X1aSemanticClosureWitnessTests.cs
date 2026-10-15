@@ -13,7 +13,7 @@ public sealed class X1aSemanticClosureWitnessTests
         Assert.Empty(diagnostics);
         Assert.Equal(["Standard.Products.Mechanical.MountingPlate"], resolution!.Declarations);
         var parse = FirmamentV2Parser.Parse(resolution.Source);
-        Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
+        Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics.Concat(parse.SyntaxDiagnostics.Select(d => $"{d.Line}:{d.Column} {d.Message}"))));
         var policy = Assert.Single(parse.Document!.TemplateInstantiations!).RecordArguments!["P"];
         Assert.Equal("120mm", policy.Members["Width"]);
         Assert.Contains("derivedFrom:StandardMountingPlate", policy.Provenance, StringComparison.Ordinal);
@@ -56,7 +56,7 @@ public sealed class X1aSemanticClosureWitnessTests
         Assert.NotNull(expansion);
         Assert.Empty(diagnostics);
         var parse = FirmamentV2Parser.Parse(expansion!.ExpandedSource);
-        Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
+        Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics.Concat(parse.SyntaxDiagnostics.Select(d => $"{d.Line}:{d.Column} {d.Message}"))));
         var pattern = Assert.Single(parse.Document!.StaticAuthoring!.Patterns);
         Assert.Equal("BoltPattern", pattern.Name);
         Assert.Equal("FlangeBolt", pattern.Template);

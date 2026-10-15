@@ -1,0 +1,17 @@
+// A reusable typed contract; named Mate applications own occurrence placement.
+Template<W: Length> Struct Block {
+    Box Body { Size: [W, 10mm, 10mm] }
+}
+Interface<Fixed> Install { }
+Assembly Pair {
+    <Assembly Pair>
+        <Part Fixed = Block<W: 10mm>>
+            Semantic Mount { DatumFrame Frame = [10,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+        </Part>
+        <Part Moving = Block<W: 10mm>>
+            Semantic Mount { DatumFrame Frame = [-5,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+        </Part>
+    </Assembly>
+    Anchor: Pair.Fixed.Mount;
+    Mate Installation: Install { A: Pair.Fixed.Mount; B: Pair.Moving.Mount; }
+}

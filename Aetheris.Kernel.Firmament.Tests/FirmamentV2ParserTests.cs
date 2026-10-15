@@ -1212,7 +1212,7 @@ model:
     [InlineData("let bad: float = 1.0 / 0.0", FirmamentV2Parser.ExpressionDivisionByZero)]
     [InlineData("let badLength: length = 6.0mm / 0", FirmamentV2Parser.ExpressionDivisionByZero)]
     [InlineData("let a: length = b + 1.0mm\nlet b: length = a + 1.0mm", FirmamentV2Parser.ExpressionCycle)]
-    [InlineData("let x: length = if true { 1.0mm } else { 2.0mm }", FirmamentV2Parser.ExpressionUnsupported)]
+    [InlineData("let x: length = if true { 1.0mm } else { 2.0mm }", "firmament-syntax-control-flow-unsupported")]
     [InlineData("let x: length = foo(1.0mm)", FirmamentV2Parser.ExpressionUnsupported)]
     public void FirmamentV2Parser_LetArithmeticExpressions_InvalidCasesAreDiagnostics(string letSource, string expectedDiagnostic)
     {

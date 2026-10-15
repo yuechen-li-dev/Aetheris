@@ -27,10 +27,15 @@ public static class FirmamentFrontendSchemas
     public static FirmamentFrontendSelection Select(string source)
     {
         ArgumentNullException.ThrowIfNull(source);
-        if (!source.Contains("schema", StringComparison.Ordinal)) return new(null, source, []);
+        if (!source.Contains("schema", StringComparison.Ordinal) && !FirmamentV2Parser.IsV2AdmissionCandidate(source)) return new(null, source, []);
         var syntax = FirmamentSyntaxParser.Parse(source);
         if (syntax.Diagnostics.FirstOrDefault(d => d.Code == "firmament-schema-malformed") is { SourceSpan: { } malformedSpan } malformed)
             return Reject(malformed.Code, malformed.Message, malformedSpan);
+        // All recognized V2 documents share structural admission before a domain
+        // reader can discard unconsumed source. Serialized V1 keeps its explicit
+        // boundary; structural parsing does not perform domain capability checks.
+        if (!syntax.IsSuccess && FirmamentV2Parser.IsV2AdmissionCandidate(source))
+            return new(null, source, syntax.Diagnostics.Select(d => d.Code).ToArray()) { LocatedDiagnostics = syntax.Diagnostics };
         var declarations = FirmamentSyntaxTraversal.Statements(syntax.Document).OfType<DirectiveSyntax>()
             .Where(d => d.Kind == DirectiveKind.Schema).ToArray();
         if (declarations.Length == 0) return new(null, source, []);

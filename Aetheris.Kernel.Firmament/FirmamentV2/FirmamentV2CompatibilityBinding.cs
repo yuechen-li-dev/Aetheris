@@ -22,6 +22,9 @@ public static partial class FirmamentV2Parser
                 // whole-document AST admission until their remaining grammar moves.
                 case DeclarationSyntax { Type.Name.Text: "let" or "template" or "pmi" or "Pmi" or "recognize" or "replace" or "manufacturing" or "feature" or "region" or "fill" }:
                     core = false; break;
+                case ReplacementSyntax:
+                case DeclarationSyntax declaration when declaration.Modifiers.Any(m => m.Name.Text == "manufacturing"):
+                    core = false; break; // same existing extension owner, now structurally represented
                 case FieldSyntax field: diagnostics.Add($"{CanonicalFieldUnknown}:Model:{field.Name.Text}"); break;
                 default: diagnostics.Add($"{CanonicalDeclarationUnknown}:Model:{(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}"); break;
             }

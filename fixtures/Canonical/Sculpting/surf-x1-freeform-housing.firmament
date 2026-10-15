@@ -1,4 +1,4 @@
-+Model FreeformControllerCover {
+Model FreeformControllerCover {
   Units: mm
 
   SurfacePatch CrownPatch {

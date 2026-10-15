@@ -679,11 +679,13 @@ public static partial class FirmamentV2Parser
             ? result
             : result with { Document = result.Document with { Polygons = expansion.Polygons, Boundaries = expansion.Boundaries } };
 
-    private static bool IsV2AdmissionCandidate(string source)
+    internal static bool IsV2AdmissionCandidate(string source)
     {
         // Classification is independent of whether a declaration is well formed.
         // Serialization-shaped V1 uses `model:` / `firmament:` instead.
         var tokens = FirmamentLanguageAnalysisService.Lex(source).Where(token => token.Shape != "comment").ToArray();
+        if (tokens.Length >= 2 && (tokens[0].Text is "firmament" or "model" && tokens[1].Text == ":"
+            || tokens[0].Text == "{" && tokens[1].Shape == "string")) return false;
         for (var index = 0; index < tokens.Length; index++)
             if (tokens[index].Shape == "identifier"
                 && tokens[index].Text is "Model" or "model" or "Struct" or "Assembly" or "Scene" or "Concept" or "Interface" or "Template" or "template" or "Pattern" or "Profile" or "Panel"

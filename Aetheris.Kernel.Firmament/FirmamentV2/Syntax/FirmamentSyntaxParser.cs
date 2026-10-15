@@ -84,6 +84,15 @@ public static class FirmamentSyntaxParser
         private StatementSyntax StatementCore()
         {
             var start = Current.Span.Start;
+            RejectGeneralControlFlow();
+            if (contexts.TryPeek(out var context) && context.StartsWith("Interface ", StringComparison.Ordinal)
+                && (Current.Text is "Role" or "Lower" or "Fit" or "Allow" or "ClearancePolicy" or "Variation"
+                    || Is("Mate") && Peek(2).Text != ":")) return InterfaceClause();
+            if (Take("replace"))
+            {
+                var target = Expression(allowObject: false); Expect("with");
+                return new ReplacementSyntax(target, Declaration(occurrence: false), Span(start));
+            }
             if (Is("<") && Peek(1).Kind == SyntaxTokenKind.Identifier) return Declaration(occurrence: true);
             if (Current.Kind == SyntaxTokenKind.Identifier)
             {
@@ -97,7 +106,10 @@ public static class FirmamentSyntaxParser
                 if (Pair("=", ">", offset: 1))
                 {
                     var key = Identifier(); Expect("="); Expect(">");
-                    return new MappingSyntax(key, Statement(), Span(start));
+                    var valueStart = Current.Span.Start;
+                    var value = Current.Kind == SyntaxTokenKind.Identifier || Is("<") ? Statement()
+                        : new ExpressionStatementSyntax(Expression(), Span(valueStart));
+                    return new MappingSyntax(key, value, Span(start));
                 }
                 // The historical unit header has the same field meaning as units: mm.
                 if (Is("units") && Peek(1).Kind == SyntaxTokenKind.Identifier)
@@ -156,7 +168,7 @@ public static class FirmamentSyntaxParser
             while ((type.Name.Text is "Template" or "Concept" or "Construction" or "Radial" or "Linear" or "Mirror" or "Mirrored" or "Semantic"
                 && Current.Kind == SyntaxTokenKind.Identifier && (Peek(1).Kind == SyntaxTokenKind.Identifier || Peek(1).Text == "<"))
                 || type.Name.Text == "Static" && Is("Table")
-                || type.Name.Text is "Assert" or "Analysis" && Current.Kind == SyntaxTokenKind.Identifier)
+                || type.Name.Text is "Assert" or "Analysis" or "Extend" or "Comptime" or "proposes" or "manufacturing" && Current.Kind == SyntaxTokenKind.Identifier)
             {
                 modifiers.Add(type); type = Type();
             }
@@ -164,13 +176,30 @@ public static class FirmamentSyntaxParser
             // Lowercase from was already a legal authored name. It becomes a link
             // only after the declaration name, never a newly reserved identifier.
             if (Current.Kind == SyntaxTokenKind.Identifier && !LineBreak && (Current.Text == "from" || !IsClause(Current.Text))) name = Identifier();
+            ExpressionSyntax? target = null;
+            if (type.Name.Text is "CornerProfile" or "EdgeProfile" && name is not null)
+            {
+                target = new ReferenceSyntax(name, name.Span);
+                while (Take(".")) target = new MemberSyntax(target, Identifier(), Span(name.Span.Start));
+                name = null; // a target path, not a newly declared dotted identifier
+            }
+            // Drawing review identifiers historically allow hyphen-separated words.
+            if (type.Name.Text is "Review" or "Issue" or "Proposal" or "Resolution" && name is not null)
+                while (Take("-"))
+                {
+                    var token = Current;
+                    if (token.Kind is not (SyntaxTokenKind.Identifier or SyntaxTokenKind.Number))
+                        throw Fail("firmament-syntax-identifier", "Expected a review identifier segment after '-'.");
+                    at++; var suffix = new IdentifierSyntax(token.Text, token.Span);
+                    name = new(name.Text + "-" + suffix.Text, new(name.Span.Start, (suffix.Span.Start + suffix.Span.Length) - name.Span.Start));
+                }
             // Historical `Model Name mm` is a unit-bearing header. Admit it in
             // this grammar and bind its implicit file body, rather than selecting
             // an EdgeFinish-specific whole-document parser.
             IdentifierSyntax? headerUnit = null;
             if (type.Name.Text is "Model" or "Struct" && name is not null && Current.Kind == SyntaxTokenKind.Identifier
                 && !LineBreak && !IsClause(Current.Text)) headerUnit = Identifier();
-            var parameters = Take("(") ? Arguments(")") : [];
+            var parameters = Take("(") ? Arguments(")", declarationParameters: true) : [];
             if (type.Name.Text == "Replace" && Take("."))
             {
                 var member = Identifier();
@@ -225,7 +254,8 @@ public static class FirmamentSyntaxParser
                 var bodyStart = Current.Span.Start;
                 body = new(Statements(null), new(bodyStart, source.Length - bodyStart)) { Delimited = false };
             }
-            else if (initializer is null && !End && !LineBreak && !Is(";") && !Is("}"))
+            else if (initializer is null && !End && !LineBreak && !Is(";") && !Is("}")
+                && !(type.Name.Text == "concept" && annotation is not null && Is("concept")))
                 throw Fail("firmament-syntax-declaration-tail", $"Unexpected '{Current.Text}' after {type.Name.Text} {name?.Text}; expected a body, initializer or separator.");
             if (headerUnit is not null)
             {
@@ -233,7 +263,7 @@ public static class FirmamentSyntaxParser
                 var field = new FieldSyntax(new("Units", headerUnit.Span), unit, headerUnit.Span);
                 body = body is null ? new([field], headerUnit.Span) : body with { Statements = new StatementSyntax[] { field }.Concat(body.Statements).ToArray() };
             }
-            return new(type, name, modifiers.ToArray(), parameters, annotation, result, clauses.ToArray(), initializer, body, occurrence, Span(start));
+            return new(type, name, modifiers.ToArray(), parameters, annotation, result, clauses.ToArray(), initializer, body, occurrence, Span(start)) { Target = target };
         }
 
         private TypeSyntax Type()
@@ -241,6 +271,51 @@ public static class FirmamentSyntaxParser
             var name = Identifier();
             var args = Take("<") ? Arguments(">") : [];
             return new(name, args, Span(name.Span.Start));
+        }
+
+        private StatementSyntax InterfaceClause()
+        {
+            var start = Current.Span.Start;
+            var keyword = Identifier();
+            StatementSyntax statement;
+            if (keyword.Text == "Role")
+            {
+                var name = Identifier(); Expect("requires");
+                var capabilities = new List<IdentifierSyntax> { Identifier() };
+                while (Take(",")) capabilities.Add(Identifier());
+                statement = new RoleRequirementSyntax(name, capabilities.ToArray(), Span(start));
+            }
+            else if (keyword.Text is "Lower" or "Mate")
+            {
+                var kind = Identifier(); var first = EndpointReference(); var second = EndpointReference();
+                var option = Is(";") || Is("}") || End || LineBreak ? null : Expression(allowObject: false);
+                statement = new InterfaceRelationSyntax(kind, first, second, option, Span(start));
+            }
+            else if (keyword.Text == "Fit")
+            {
+                var shaft = EndpointReference(); Expect("inside"); var bore = EndpointReference();
+                var perSide = Take("per"); if (perSide) { Expect("-"); Expect("side"); }
+                statement = new InterfaceFitSyntax(shaft, bore, perSide, Span(start));
+            }
+            else if (keyword.Text == "Allow")
+            {
+                var kind = Identifier(); Expect(":"); var axis = Identifier();
+                while (Take("-")) { var tail = Identifier(); axis = new(axis.Text + "-" + tail.Text, Span(axis.Span.Start)); }
+                statement = new InterfaceMotionSyntax(kind, axis, Span(start));
+            }
+            else
+            {
+                var values = new List<ArgumentSyntax>();
+                while (!End && !Is(";") && !Is("}") && !LineBreak)
+                {
+                    var name = Identifier(); var value = Expression(allowObject: false);
+                    values.Add(new(name, value, null, new(name.Span.Start, (value.Span.Start + value.Span.Length) - name.Span.Start)));
+                }
+                statement = new InterfacePolicySyntax(keyword, values.ToArray(), Span(start));
+            }
+            if (!End && !Is(";") && !Is("}") && !LineBreak)
+                throw Fail("firmament-syntax-interface-clause", $"Unexpected '{Current.Text}' in Interface {keyword.Text} clause.");
+            return statement;
         }
 
         private BlockSyntax Block(bool enumValues = false, string? context = null)
@@ -272,6 +347,7 @@ public static class FirmamentSyntaxParser
 
         private ExpressionSyntax Expression(int minimum = 0, bool allowObject = true, bool stopGreater = false)
         {
+            RejectGeneralControlFlow();
             Enter();
             try
             {
@@ -286,6 +362,15 @@ public static class FirmamentSyntaxParser
                 {
                     var t = Current; at++;
                     left = new LiteralSyntax(t.Kind == SyntaxTokenKind.String ? LiteralKind.String : t.Kind == SyntaxTokenKind.Number ? LiteralKind.Number : LiteralKind.Boolean, t.Text, t.Span);
+                    if (t.Kind == SyntaxTokenKind.Number && Current.Kind == SyntaxTokenKind.Number && Current.Text.StartsWith('.')
+                        && (t.Span.Start + t.Span.Length) == Current.Span.Start && t.Text.Count(c => c == '.') == 1)
+                    { at++; left = new LiteralSyntax(LiteralKind.Version, source[start..(Previous.Span.Start + Previous.Span.Length)], Span(start)); }
+                }
+                else if (Take("#"))
+                {
+                    if (Current.Kind != SyntaxTokenKind.Number || Current.Text.Any(c => !char.IsAsciiDigit(c)))
+                        throw Fail("firmament-syntax-entity-reference", "Expected a numeric STEP entity identifier after '#'.");
+                    at++; left = new LiteralSyntax(LiteralKind.EntityReference, source[start..(Previous.Span.Start + Previous.Span.Length)], Span(start));
                 }
                 else if (Take("Match"))
                 {
@@ -337,11 +422,13 @@ public static class FirmamentSyntaxParser
                         left = new ToleranceSyntax(left, plus, minus, Span(toleranceStart), Span(start));
                         continue;
                     }
-                    if (Take("As") || Take("as")) { left = new AliasSyntax(left, Identifier(), Span(start)); continue; }
+                    if (Current.Text is "As" or "as" && Peek(1).Text != ":") { at++; left = new AliasSyntax(left, Identifier(), Span(start)); continue; }
                     if (Current.Text is "From" or "from" or "To" or "to" && Peek(1).Text != ":")
                     {
                         ExpressionSyntax? from = null, to = null;
-                        if (Take("From") || Take("from")) from = EndpointReference();
+                        if (Take("From") || Take("from")) from = Current.Kind == SyntaxTokenKind.String ? Expression(80, allowObject: false) : EndpointReference();
+                        if (from is LiteralSyntax { Kind: LiteralKind.String } provenance)
+                        { left = new ProvenanceSyntax(left, provenance, Span(start)); continue; }
                         if (Take("To") || Take("to")) to = EndpointReference();
                         left = new TraceSyntax(left, from, to, Span(start)); continue;
                     }
@@ -400,18 +487,30 @@ public static class FirmamentSyntaxParser
             finally { depth--; }
         }
 
-        private IReadOnlyList<ArgumentSyntax> Arguments(string close)
+        private IReadOnlyList<ArgumentSyntax> Arguments(string close, bool declarationParameters = false)
         {
             var args = new List<ArgumentSyntax>();
             while (!End && !Is(close))
             {
                 var start = Current.Span.Start;
                 IdentifierSyntax? name = null;
+                if (close == ">" && Is("type") && Peek(1).Kind == SyntaxTokenKind.Identifier)
+                {
+                    at++; name = Identifier();
+                    var constraint = Take("satisfies") ? Expression(allowObject: false, stopGreater: true) : null;
+                    var parameter = new TypeParameterSyntax(name, constraint, Span(start));
+                    args.Add(new(name, parameter, null, Span(start)));
+                    if (!Take(",")) break;
+                    continue;
+                }
                 if (Current.Kind == SyntaxTokenKind.Identifier && Peek(1).Text == ":") { name = Identifier(); Expect(":"); }
                 var value = Expression(stopGreater: close == ">");
+                if (declarationParameters && name is null && value is ReferenceSyntax && Current.Kind == SyntaxTokenKind.Identifier)
+                    name = Identifier(); // historical Template(Type parameter), same typed parameter node
                 ExpressionSyntax? fallback = Take("=") ? Expression(stopGreater: close == ">") : null;
                 args.Add(new(name, value, fallback, Span(start)));
-                if (!Take(",") && !(close == "]" && !Is(close) && (LineBreak || value is ObjectSyntax { Name: not null }))) break;
+                if (!Take(",") && !(close == "]" && !Is(close) && (LineBreak || value is ObjectSyntax { Name: not null }
+                    || value is ObjectSyntax && Current.Kind == SyntaxTokenKind.Identifier && Peek(1).Text == "{"))) break;
             }
             Expect(close); return args.ToArray();
         }
@@ -438,6 +537,11 @@ public static class FirmamentSyntaxParser
         }
 
         private static bool IsClause(string text) => TryClause(text, out _);
+        private void RejectGeneralControlFlow()
+        {
+            if (Current.Text is "if" or "else" or "for" or "while" && (Peek(1).Kind == SyntaxTokenKind.Identifier || Peek(1).Text == "{"))
+                throw Fail("firmament-syntax-control-flow-unsupported", $"General control flow '{Current.Text}' is not admitted; use finite Pattern expansion or compile-time Match where supported.");
+        }
         private ExpressionSyntax EndpointReference()
         {
             var name = Identifier();

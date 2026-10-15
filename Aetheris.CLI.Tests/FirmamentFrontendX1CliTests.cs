@@ -5,6 +5,54 @@ namespace Aetheris.CLI.Tests;
 public sealed class FirmamentFrontendX1CliTests
 {
     [Fact]
+    public void CorpusUsesAssemblyAuthorityAndRetainsNegativeSyntaxEvidence()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "aetheris-corpus-x1-" + Guid.NewGuid().ToString("N"));
+        var input = Path.Combine(directory, "sources"); var output = Path.Combine(directory, "evidence");
+        Directory.CreateDirectory(input);
+        try
+        {
+            File.Copy(Fixture("Regression/FrontendX1/assembly-modern-contract.firmament"), Path.Combine(input, "pair.FIRMAMENT"));
+            File.Copy(Fixture("Regression/FrontendX1/sculpt-leading-plus.invalid.firmament"), Path.Combine(input, "sculpt.invalid.firmament"));
+            Assert.Equal(0, CliRunner.Run(["frontend-shadow", "--corpus", input, "--production", "--output-dir", output], new StringWriter(), new StringWriter()));
+            using var report = JsonDocument.Parse(File.ReadAllText(Path.Combine(output, "report.json")));
+            Assert.Equal(2, report.RootElement.GetProperty("sourceCount").GetInt32());
+            var rows = report.RootElement.GetProperty("entries").EnumerateArray().ToArray();
+            var assembly = Assert.Single(rows, e => e.GetProperty("owner").GetString() == "Assembly");
+            Assert.Equal(0, assembly.GetProperty("productionExit").GetInt32());
+            Assert.True(assembly.GetProperty("structuralSuccess").GetBoolean());
+            Assert.Equal("NegativeFixtureRejected", Assert.Single(rows, e => e.GetProperty("source").GetString()!.Contains("sculpt")).GetProperty("classification").GetString());
+            Assert.All(File.ReadLines(Path.Combine(output, "entries.jsonl")), line =>
+            {
+                using var row = JsonDocument.Parse(line);
+                Assert.False(string.IsNullOrWhiteSpace(row.RootElement.GetProperty("sha256").GetString()));
+            });
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public void SculptingCannotDiscardInvalidSourceBeforeItsModel()
+    {
+        var source = Fixture("Regression/FrontendX1/sculpt-leading-plus.invalid.firmament");
+        var validation = new StringWriter();
+        Assert.Equal(1, CliRunner.Run(["validate", source, "--json"], validation, new StringWriter()));
+        using var json = JsonDocument.Parse(validation.ToString());
+        var diagnostics = json.RootElement.GetProperty("firmamentV2Validation").GetProperty("diagnostics");
+        Assert.Contains(diagnostics.EnumerateArray(), d => d.GetProperty("code").GetString() == "firmament-syntax-statement"
+            && d.GetProperty("line").GetInt32() == 1 && d.GetProperty("column").GetInt32() == 1);
+        var directory = Path.Combine(Path.GetTempPath(), "aetheris-x1-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var output = Path.Combine(directory, "rejected.step");
+            Assert.Equal(1, CliRunner.Run(["build", source, "--output", output, "--json"], new StringWriter(), new StringWriter()));
+            Assert.False(File.Exists(output));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
     public void Explain_ProductionRejectsStructurallyRecognizedUnsupportedIntent()
     {
         var stdout = new StringWriter();

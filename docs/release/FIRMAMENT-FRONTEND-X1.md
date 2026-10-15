@@ -1,6 +1,6 @@
 # FIRMAMENT-FRONTEND-X1 — unified structural parser, shadow qualification
 
-Historical foundation report: subsequent [production mechanical migration](FIRMAMENT-MECHANICAL-FRONTEND-MIGRATION.md) supersedes the production-status statements below.
+Historical foundation report: the [final X1 closeout](FIRMAMENT-FRONTEND-X1-CLOSEOUT.md) is the current gate assessment. The [previous reviewer handoff](FIRMAMENT-FRONTEND-X1-REVIEW-HANDOFF.md) records the intervening blockers. Subsequent [production mechanical migration](FIRMAMENT-MECHANICAL-FRONTEND-MIGRATION.md) supersedes the production-status statements below. The corpus counts below are historical.
 
 Date: 2026-10-14. Verdict: **Meaningful progression; not Accepted.**
 

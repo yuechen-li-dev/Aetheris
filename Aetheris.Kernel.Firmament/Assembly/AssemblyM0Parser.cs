@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Numerics;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
@@ -24,7 +25,7 @@ public sealed class AssemblyM0Parser
         var source = LoadSourceGraph(fullPath, allowedRoot, [], dependencies, loadDiagnostics);
         if (source is null) return new(null, loadDiagnostics, 0);
         var parsed = Parse(source, fullPath);
-        var diagnostics = loadDiagnostics.Concat(parsed.Diagnostics).ToArray();
+        var diagnostics = loadDiagnostics.Concat(GraphDiagnostics(parsed.Diagnostics, fullPath, dependencies.Count)).ToArray();
         return new(parsed.Source is null ? null : parsed.Source with { SourceDependencies = dependencies.Concat(parsed.Source.SourceDependencies ?? []).DistinctBy(d => d.Path).ToArray() }, diagnostics, parsed.ElapsedMilliseconds);
     }
 
@@ -37,8 +38,13 @@ public sealed class AssemblyM0Parser
         if (source is null) return new(null, diagnostics, 0);
         var parsed = Parse(source, project.RootDocument, project);
         return new(parsed.Source is null ? null : parsed.Source with { SourceDependencies = dependencies.Concat(parsed.Source.SourceDependencies ?? []).DistinctBy(d => d.Path).ToArray() },
-            [.. diagnostics, .. parsed.Diagnostics], parsed.ElapsedMilliseconds);
+            [.. diagnostics, .. GraphDiagnostics(parsed.Diagnostics, project.RootDocument, dependencies.Count)], parsed.ElapsedMilliseconds);
     }
+
+    private static IEnumerable<AssemblyDiagnostic> GraphDiagnostics(IEnumerable<AssemblyDiagnostic> diagnostics, string root, int documents)
+        => documents <= 1 ? diagnostics : diagnostics.Select(d => d.SourceSpan is { } span && span.Source == root
+            ? d with { SourceSpan = span with { Source = root + "#expanded-includes" },
+                LocationNote = "Location is in the expanded include graph; original included-file mapping is unavailable." } : d);
 
     private static string? LoadProjectSource(string path, FirmamentProjectSnapshot project,
         IReadOnlyList<string> stack, List<AssemblySourceDependencyIr> dependencies, List<AssemblyDiagnostic> diagnostics)
@@ -101,9 +107,13 @@ public sealed class AssemblyM0Parser
 
     public ParseResult Parse(string input, string sourceIdentity = "<memory>", FirmamentProjectSnapshot? project = null)
     {
-        input = FirmamentSourceSpelling.Normalize(input);
         var watch = Stopwatch.StartNew();
         var diagnostics = new List<AssemblyDiagnostic>();
+        var syntax = FirmamentSyntaxParser.Parse(input, sourceIdentity);
+        if (!syntax.IsSuccess)
+            return new(null, syntax.Diagnostics.Select(d => new AssemblyDiagnostic(d.Code, d.Message)
+                { SourceSpan = d.SourceSpan is { } span ? new(sourceIdentity, span.Start, span.Length) : null }).ToArray(), watch.Elapsed.TotalMilliseconds);
+        input = FirmamentSourceSpelling.Normalize(input);
         var blankcommentsPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.blank-comments");
         var source = Regex.Replace(input, "\"(?:\\\\.|[^\"\\\\])*\"|//[^\\r\\n]*", m => m.Value.StartsWith('"') ? m.Value : new string(' ',m.Length));
         blankcommentsPhase.Dispose();
@@ -261,58 +271,48 @@ public sealed class AssemblyM0Parser
     private static IReadOnlyList<InterfaceDefinition> ParseInterfaces(string source, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
     {
         var result = new List<InterfaceDefinition>();
-        foreach (Match header in Regex.Matches(source, @"\bInterface(?:\s*<\s*(?<family>Custom|Fixed|Axial|Revolute|Prismatic|Gear)\s*>)?\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
+        var syntax = FirmamentSyntaxParser.Parse(source, sourceIdentity);
+        foreach (var declaration in FirmamentSyntaxEvidence.Declarations(syntax.Document).Where(d => d.Type.Name.Text == "Interface"))
         {
-            var body = BalancedBody(source, header.Index + header.Length - 1, diagnostics, "Interface");
-            if (body is null) continue;
-            var name = header.Groups["name"].Value;
-            if (Regex.IsMatch(body, @"\bDatum\s*:"))
+            if (declaration.Name is null || declaration.Body is null)
+            { diagnostics.Add(AssemblyInterfaceSyntax.Diagnostic("assembly-interface-malformed", "Interface requires a name and body.", sourceIdentity, declaration.Span)); continue; }
+            var name = declaration.Name.Text;
+            var explicitFamily = declaration.Type.Span.Length > declaration.Type.Name.Span.Length;
+            if (!AssemblyInterfaceSyntax.HasContractHeader(declaration))
+            { diagnostics.Add(AssemblyInterfaceSyntax.Diagnostic("assembly-interface-header-unsupported", "Interface admits a name, optional compiler-owned family and body; placement clauses and other header annotations are not supported.", sourceIdentity, declaration.Span)); continue; }
+            var familyName = declaration.Type.Arguments.Count == 1 && declaration.Type.Arguments[0].Value is ReferenceSyntax reference
+                ? reference.Name.Text : "Custom";
+            if (!Enum.TryParse<MechanicalInterfaceFamily>(familyName, out var family) || !Enum.IsDefined(family)
+                || explicitFamily && (declaration.Type.Arguments.Count != 1 || declaration.Type.Arguments[0] is not { Name: null, Default: null, Value: ReferenceSyntax }))
+            { diagnostics.Add(AssemblyInterfaceSyntax.Diagnostic("assembly-interface-family-invalid",
+                $"Invalid Interface family header '{source.Substring(declaration.Type.Span.Start, declaration.Type.Span.Length)}'; expected Custom, Fixed, Axial, Revolute, Prismatic or Gear.", sourceIdentity, declaration.Type.Span)); continue; }
+            foreach (var error in syntax.Diagnostics.Where(d => d.Severity is "error" or "fatal"
+                && d.SourceSpan is { } location && location.Start >= declaration.Span.Start && location.Start < declaration.Span.Start + declaration.Span.Length))
+                diagnostics.Add(new(error.Code, error.Message) { SourceSpan = new(sourceIdentity, error.SourceSpan!.Start, error.SourceSpan.Length) });
+            if (declaration.Body.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Datum")))
             {
-                var datumFamily = header.Groups["family"].Value == "Revolute" ? MechanicalInterfaceFamily.Revolute : MechanicalInterfaceFamily.Fixed;
-                if (header.Groups["family"].Value is not ("Fixed" or "Revolute")) diagnostics.Add(new("assembly-datum-family-invalid", "Datum contracts require Interface<Fixed> or Interface<Revolute>."));
-                var contract = AssemblyDatumAuthoring.ParseContract(body, diagnostics);
+                var datumFamily = family == MechanicalInterfaceFamily.Revolute ? MechanicalInterfaceFamily.Revolute : MechanicalInterfaceFamily.Fixed;
+                if (family is not (MechanicalInterfaceFamily.Fixed or MechanicalInterfaceFamily.Revolute)) diagnostics.Add(new("assembly-datum-family-invalid", "Datum contracts require Interface<Fixed> or Interface<Revolute>."));
+                var contract = AssemblyInterfaceSyntax.BindDatumContract(declaration, sourceIdentity, diagnostics);
                 if (datumFamily == MechanicalInterfaceFamily.Revolute && contract.Members.Count != 1)
                     diagnostics.Add(new("assembly-axis-revolute-member-count", "A datum Revolute contract requires exactly one moving occurrence."));
                 if (result.Any(i => i.Name == name)) diagnostics.Add(new("assembly-interface-duplicate-name", $"Interface '{name}' is duplicated."));
                 else result.Add(new("interface:" + name, name, [], [], Family: datumFamily, DatumContract: contract));
                 continue;
             }
-            var family = header.Groups["family"].Success ? Enum.Parse<MechanicalInterfaceFamily>(header.Groups["family"].Value) : MechanicalInterfaceFamily.Custom;
-            var roles = Regex.Matches(body, @"\bRole\s+(?<name>[A-Za-z_]\w*)\s+requires\s+(?<caps>[A-Za-z, ]+)\s*;", RegexOptions.CultureInvariant)
-                .Select(m => new InterfaceRoleDefinition(m.Groups["name"].Value,
-                    m.Groups["caps"].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))).ToArray();
-            var requirements = Regex.Matches(body, @"\bLower\s+(?<kind>AxisCoincident|AxisAligned|PlaneCoincident|PointCoincident|OffsetAlongAxis)\s+(?<a>[A-Za-z_]\w*)\.(?<am>[A-Za-z_]\w*)\s+(?<b>[A-Za-z_]\w*)\.(?<bm>[A-Za-z_]\w*)(?:\s+(?<offset>[-+]?\d+(?:\.\d+)?)mm)?\s*;", RegexOptions.CultureInvariant)
-                .Select(m => new InterfaceRequirementDefinition(Enum.Parse<PlacementConstraintKind>(m.Groups["kind"].Value),
-                    m.Groups["a"].Value, m.Groups["am"].Value, m.Groups["b"].Value, m.Groups["bm"].Value,
-                    m.Groups["offset"].Success ? Number(m.Groups["offset"].Value) : 0)).ToArray();
-            var frameRequirements = Regex.Matches(body, @"\bLower\s+FrameCoincident\s+(?<a>[A-Za-z_]\w*)(?:\.(?<am>[A-Za-z_]\w*))?\s+(?<b>[A-Za-z_]\w*)(?:\.(?<bm>[A-Za-z_]\w*))?(?:\s+(?<orientation>SameDirection|OpposedDirection))?\s*;", RegexOptions.CultureInvariant)
-                .Select(m => new InterfaceRequirementDefinition(PlacementConstraintKind.FrameCoincident,
-                    m.Groups["a"].Value, m.Groups["am"].Success ? m.Groups["am"].Value : ".",
-                    m.Groups["b"].Value, m.Groups["bm"].Success ? m.Groups["bm"].Value : ".", 0,
-                    m.Groups["orientation"].Success ? Enum.Parse<DatumOrientationRelation>(m.Groups["orientation"].Value) : DatumOrientationRelation.SameDirection));
-            requirements = requirements.Concat(frameRequirements).ToArray();
-            var atomicRequirements = Regex.Matches(body, @"\bMate\s+(?<kind>AxisCoincident|AxisAligned|PlaneCoincident|PointCoincident|OffsetAlongAxis|FrameCoincident)\s+(?<a>A|B)\.(?<am>[A-Za-z_]\w*)\s+(?<b>A|B)\.(?<bm>[A-Za-z_]\w*)(?:\s+(?<offset>[-+]?\d+(?:\.\d+)?)mm)?\s*;", RegexOptions.CultureInvariant)
-                .Select(m => new InterfaceRequirementDefinition(Enum.Parse<PlacementConstraintKind>(m.Groups["kind"].Value),
-                    m.Groups["a"].Value, m.Groups["am"].Value, m.Groups["b"].Value, m.Groups["bm"].Value,
-                    m.Groups["offset"].Success ? Number(m.Groups["offset"].Value) : 0)).ToArray();
-            requirements = requirements.Concat(atomicRequirements).ToArray();
+            var roles = declaration.Body.Statements.OfType<RoleRequirementSyntax>()
+                .Select(r => new InterfaceRoleDefinition(r.Name.Text, r.Capabilities.Select(c => c.Text).ToArray())).ToArray();
+            var requirements = AssemblyInterfaceSyntax.BindRelations(declaration, sourceIdentity, diagnostics);
             if (family is MechanicalInterfaceFamily.Fixed or MechanicalInterfaceFamily.Prismatic
                 && requirements.Length > 0
                 && (requirements.Length != 1 || requirements[0].Kind != PlacementConstraintKind.FrameCoincident))
                 diagnostics.Add(new("assembly-interface-invalid-contract-lowering",
                     $"Interface<{family}> '{name}' requires one frame relationship; authored geometric Lower/Mate relations cannot replace its typed contract."));
-            var fitMatch = Regex.Match(body, @"\bFit\s+(?<a>[A-Za-z_]\w*)\.(?<am>[A-Za-z_]\w*)\s+inside\s+(?<b>[A-Za-z_]\w*)\.(?<bm>[A-Za-z_]\w*)(?:\s+(?<perSide>per-side))?\s*;", RegexOptions.CultureInvariant);
-            var policyMatch = Regex.Match(body, @"\bClearancePolicy\s+Minimum\s+(?<min>[-+]?\d+(?:\.\d+)?)mm\s+Maximum\s+(?<max>[-+]?\d+(?:\.\d+)?)mm\s*;", RegexOptions.CultureInvariant);
-            var variationMatch = Regex.Match(body, @"\bVariation\s+Linear\s+(?<linear>\d+(?:\.\d+)?)mm\s+Thickness\s+(?<thickness>\d+(?:\.\d+)?)mm\s+BendAngle\s+(?<angle>\d+(?:\.\d+)?)deg\s+BendLocation\s+(?<location>\d+(?:\.\d+)?)mm\s+Coating\s+(?<coating>\d+(?:\.\d+)?)mm\s+CoatingTolerance\s+(?<coatingTol>\d+(?:\.\d+)?)mm\s+Engagement\s+(?<engagement>\d+(?:\.\d+)?)mm\s*;", RegexOptions.CultureInvariant);
-            var policy = policyMatch.Success ? new InterfaceClearancePolicyDefinition(Number(policyMatch.Groups["min"].Value), Number(policyMatch.Groups["max"].Value)) : null;
-            var variation = variationMatch.Success ? new ManufacturingVariationDefinition(Number(variationMatch.Groups["linear"].Value), Number(variationMatch.Groups["thickness"].Value),
-                Number(variationMatch.Groups["angle"].Value), Number(variationMatch.Groups["location"].Value), Number(variationMatch.Groups["coating"].Value),
-                Number(variationMatch.Groups["coatingTol"].Value), Number(variationMatch.Groups["engagement"].Value)) : null;
-            InterfaceFitDefinition? fit = fitMatch.Success ? new(fitMatch.Groups["a"].Value, fitMatch.Groups["am"].Value, fitMatch.Groups["b"].Value, fitMatch.Groups["bm"].Value,
-                fitMatch.Groups["perSide"].Success ? .5d : 1d, policy, variation) : null;
-            var free = Regex.Matches(body, @"\bAllow\s+(?<kind>rotation|translation):(?<axis>[A-Za-z-]+)\s*;", RegexOptions.CultureInvariant)
-                .Select(m => m.Groups["kind"].Value + ":" + m.Groups["axis"].Value).ToArray();
-            if (header.Groups["family"].Success && roles.Length == 0)
+            var fit = AssemblyInterfaceSyntax.BindFit(declaration, sourceIdentity, diagnostics);
+            var free = declaration.Body.Statements.OfType<InterfaceMotionSyntax>()
+                .Select(m => m.Kind.Text + ":" + m.Axis.Text).ToArray();
+            AssemblyInterfaceSyntax.CheckContract(declaration, roles, requirements, sourceIdentity, diagnostics);
+            if (explicitFamily && roles.Length == 0)
             {
                 var capabilities = family switch
                 {
@@ -325,7 +325,7 @@ public sealed class AssemblyM0Parser
                 };
                 roles = [new("A", capabilities), new("B", capabilities)];
             }
-            if (header.Groups["family"].Success && requirements.Length == 0)
+            if (explicitFamily && requirements.Length == 0)
             {
                 requirements = family switch
                 {
@@ -336,7 +336,7 @@ public sealed class AssemblyM0Parser
                     _ => []
                 };
             }
-            if (header.Groups["family"].Success && free.Length == 0)
+            if (explicitFamily && free.Length == 0)
                 free = family switch
                 {
                     MechanicalInterfaceFamily.Axial => ["translation:along-axis", "rotation:about-axis"],
@@ -344,49 +344,13 @@ public sealed class AssemblyM0Parser
                     MechanicalInterfaceFamily.Prismatic => ["translation:along-axis"],
                     _ => []
                 };
-            var predicates = Regex.Matches(body, @"\bRequire\s+(?<name>[A-Za-z_]\w*)\s*=>\s*(?<left>[-+]?\d+(?:\.\d+)?)mm\s*(?<op>>=|<=|>|<|==)\s*(?<right>[-+]?\d+(?:\.\d+)?)mm\s*;", RegexOptions.CultureInvariant)
-                .Select(m =>
-                {
-                    var left = Number(m.Groups["left"].Value); var right = Number(m.Groups["right"].Value); var op = m.Groups["op"].Value;
-                    var passed = op switch { ">" => left > right, "<" => left < right, ">=" => left >= right, "<=" => left <= right, "==" => Math.Abs(left - right) <= 1e-12, _ => false };
-                    return new InterfacePredicateRequirementDefinition(m.Groups["name"].Value, $"{left:R}mm {op} {right:R}mm", passed);
-                }).ToArray();
-            var continuity = Regex.Match(body,@"\bContinuity\s*:\s*(?<value>G0|G1)\s*;",RegexOptions.CultureInvariant);
-            var correspondence = Regex.Match(body,@"\bCorrespondence\s*:\s*(?<value>OppositeDirections|SameDirection)\s*;",RegexOptions.CultureInvariant);
-            var gap = Regex.Match(body,@"\bGapTolerance\s*:\s*(?<value>[-+]?[0-9.]+)mm\s*;",RegexOptions.CultureInvariant);
+            var predicates = AssemblyInterfaceSyntax.BindPredicates(declaration, sourceIdentity, diagnostics);
+            var options = AssemblyInterfaceSyntax.BindOptions(declaration, family, sourceIdentity, diagnostics);
             if (roles.Length == 0) diagnostics.Add(new("assembly-interface-no-roles", $"Interface '{name}' must define at least one Role or use a compiler-owned typed family."));
             if (result.Any(item => item.Name == name)) { diagnostics.Add(new("assembly-interface-duplicate-name", $"Interface '{name}' is declared more than once.")); continue; }
-            var gearOptions = family == MechanicalInterfaceFamily.Gear
-                ? new GearInterfaceOptions(OptionalAngle(body, "ShaftAngle"), OptionalAngle(body, "EngagementPhase"), OptionalIdentifier(body, "AllowedDirection"))
-                : null;
-            FixedSeatingOptions? seating = null;
-            if (Regex.IsMatch(body,@"\b(?:Gap|Clocking|Orientation)\s*:"))
-            {
-                double Scalar(string field,string unit)
-                {
-                    var values=Regex.Matches(body,$@"\b{field}\s*:\s*(?<value>[^;}}\r\n]+)\s*;?");
-                    if (values.Count==0) return 0;
-                    var value=values[0].Groups["value"].Value.Trim();
-                    if (values.Count>1 || !value.EndsWith(unit,StringComparison.Ordinal)
-                        || !double.TryParse(value[..^Math.Min(unit.Length,value.Length)],NumberStyles.Float,CultureInfo.InvariantCulture,out var number) || !double.IsFinite(number))
-                    { diagnostics.Add(new("assembly-interface-invalid-seating",$"Interface '{name}' requires one finite {field} in {unit}.")); return 0; }
-                    return number;
-                }
-                var gapValue=Scalar("Gap","mm"); var clocking=Scalar("Clocking","deg");
-                var orientationFields=Regex.Matches(body,@"\bOrientation\s*:\s*(?<value>[^;}\r\n]+)");
-                var orientationText=orientationFields.Count==0 ? "SameDirection" : orientationFields[0].Groups["value"].Value.Trim();
-                if (orientationFields.Count>1 || !Enum.TryParse<DatumOrientationRelation>(orientationText,out var orientationValue)
-                    || !Enum.IsDefined(orientationValue))
-                    diagnostics.Add(new("assembly-interface-invalid-seating",$"Interface '{name}' has invalid Orientation '{orientationText}'."));
-                var orientation=orientationText=="OpposedDirection" ? DatumOrientationRelation.OpposedDirection : DatumOrientationRelation.SameDirection;
-                if (family!=MechanicalInterfaceFamily.Fixed)
-                    diagnostics.Add(new("assembly-interface-seating-family-unsupported","Gap/Clocking/Orientation seating fields are admitted only on Interface<Fixed>."));
-                seating=new(gapValue,clocking,orientation);
-            }
-            result.Add(new($"interface:{name}", name, roles, requirements, fit, free, SemanticSourceSpan.Generated(sourceIdentity),
-                continuity.Success?continuity.Groups["value"].Value:null,
-                correspondence.Success?correspondence.Groups["value"].Value:"OppositeDirections",
-                gap.Success?Number(gap.Groups["value"].Value):1e-6, family, header.Groups["family"].Success, predicates, gearOptions, seating));
+            result.Add(new($"interface:{name}", name, roles, requirements, fit, free,
+                new SemanticSourceSpan(sourceIdentity + "#expanded-assembly-scope", declaration.Span.Start, declaration.Span.Length),
+                options.Continuity, options.Correspondence, options.GapTolerance, family, explicitFamily, predicates, options.Gear, options.Seating));
         }
         return result.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
     }
@@ -825,18 +789,6 @@ public sealed class AssemblyM0Parser
             new(sourceIdentity, gear.SourceSpan.Start, gear.SourceSpan.Length), exposedName: "Gear");
     }
 
-    private static double? OptionalAngle(string body, string name)
-    {
-        var match = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[-+]?\d+(?:\.\d+)?)deg\s*;?", RegexOptions.CultureInvariant);
-        return match.Success ? Number(match.Groups["value"].Value) : null;
-    }
-
-    private static string? OptionalIdentifier(string body, string name)
-    {
-        var match = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[A-Za-z_]\w*)\s*;?", RegexOptions.CultureInvariant);
-        return match.Success ? match.Groups["value"].Value : null;
-    }
-
     internal static IEnumerable<SemanticValue> ParseSemantics(string body, string definition, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
     {
         foreach (Match header in Regex.Matches(body, @"\bSemantic\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
@@ -902,25 +854,7 @@ public sealed class AssemblyM0Parser
     }
 
     private static IReadOnlyList<MateSource> ParseMates(string body, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
-    {
-        var result = new List<MateSource>();
-        foreach (Match header in Regex.Matches(body, @"\bMate\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<interface>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
-        {
-            var block = BalancedBody(body, header.Index + header.Length - 1, diagnostics, "Mate"); if (block is null) continue;
-            if (Regex.IsMatch(block, @"\bMember\s*:")) continue;
-            var roles = Regex.Matches(block, @"\b(?<role>[A-Za-z_]\w*)\s*:\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant)
-                .Select(m => new MateRoleAssignment(m.Groups["role"].Value, AssemblyPath.Parse(m.Groups["path"].Value))).ToArray();
-            result.Add(new(header.Groups["name"].Value, header.Groups["interface"].Value, roles, SemanticSourceSpan.Generated(sourceIdentity)));
-        }
-        foreach (Match header in Regex.Matches(body, @"\bInterface\s*<\s*(?<family>Custom|Fixed|Axial|Revolute|Prismatic|Gear)\s*>\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
-        {
-            var block = BalancedBody(body, header.Index + header.Length - 1, diagnostics, "typed Interface"); if (block is null || Regex.IsMatch(block, @"\bRole\s+", RegexOptions.CultureInvariant)) continue;
-            var roles = Regex.Matches(block, @"\b(?<role>A|B)\s*:\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant)
-                .Select(m => new MateRoleAssignment(m.Groups["role"].Value, AssemblyPath.Parse(m.Groups["path"].Value))).ToArray();
-            if (roles.Length > 0) result.Add(new(header.Groups["name"].Value, header.Groups["name"].Value, roles, SemanticSourceSpan.Generated(sourceIdentity)));
-        }
-        return result;
-    }
+        => AssemblyInterfaceSyntax.BindMates(body, sourceIdentity, diagnostics);
 
     private static IReadOnlyList<DimensionalRelationSource> ParseRelations(string body, List<AssemblyDiagnostic> diagnostics) =>
         Regex.Matches(body, @"\bRelation\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<from>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*->\s*(?<to>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*=\s*(?<nom>[-+]?\d+(?:\.\d+)?)mm(?:\s+tol\s+(?:(?<bil>\d+(?:\.\d+)?)mm|\+(?<plus>\d+(?:\.\d+)?)mm\s+-(?<minus>\d+(?:\.\d+)?)mm))?\s+from\s+""(?<provenance>[^""]+)""\s*;", RegexOptions.CultureInvariant)

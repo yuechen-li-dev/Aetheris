@@ -93,7 +93,8 @@ public sealed class ConceptPointAuthoringTests
         var result = new AssemblyM0Parser().Parse(Source.Replace(from, to));
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, d => d.Code == "assembly-pattern-invalid"
-            && d.Message.Contains("firmament-concept-points-", StringComparison.Ordinal));
+            && d.Message.Contains("firmament-concept-points-", StringComparison.Ordinal)
+            || d.Code.StartsWith("firmament-syntax-", StringComparison.Ordinal) && d.SourceSpan is { Length: > 0 });
     }
 
     [Fact]

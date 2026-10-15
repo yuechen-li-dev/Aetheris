@@ -2428,25 +2428,53 @@ Model CanonicalPanel {
         {
             var wireSource = ExpandSweepInspectionSource(validationSource, out var expansionDiagnostics);
             var authored = wireSource is null ? null : WireFormAuthoring.Parse(wireSource);
-            var diagnostics = expansionDiagnostics.Concat(authored is null ? [] : authored.IsSuccess ? WireFormBRepMaterializer.Validate(authored.Value) : authored.Diagnostics.Select(item => item.Message)).ToArray();
-            var valid = authored?.IsSuccess == true && diagnostics.Length == 0;
-            var payload = new { source = sourcePath, status = valid ? "valid" : "invalid", domain = "WireForm",
+            var wireFailures = expansionDiagnostics.Concat(authored is null ? [] : authored.IsSuccess ? WireFormBRepMaterializer.Validate(authored.Value) : authored.Diagnostics.Select(item => item.Message)).ToList();
+            var valid = authored?.IsSuccess == true && wireFailures.Count == 0;
+            if (valid && !parseOnly)
+            {
+                var compilation = FirmamentBuildAndExport.CompileSource(validationSource, Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
+                valid = compilation.IsSuccess;
+                if (!valid) wireFailures.AddRange(compilation.Diagnostics.Select(d => d.Message));
+            }
+            var diagnostics = wireFailures.Select(message => FirmamentBuildAdmissionValidation.Present(new KernelDiagnostic(
+                KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, "Firmament.WireForm"), sourcePath, validationSource)).ToArray();
+            var payload = new { source = sourcePath, status = valid ? (parseOnly ? "parsed-not-built" : "valid") : "invalid", domain = "WireForm",
+                validationLevel = valid ? (parseOnly ? "ParsedNotBuilt" : "Built") : "BuildRejected",
                 summary = new { fatalDiagnosticCount = diagnostics.Length, warningDiagnosticCount = 0, operationCount = authored?.IsSuccess == true ? authored.Value.Operations.Count : 0 }, diagnostics };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
-            else stdout.WriteLine($"Firmament V2 WireForm validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+            else
+            {
+                stdout.WriteLine($"Firmament V2 WireForm validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+                foreach (var diagnostic in diagnostics)
+                    stdout.WriteLine($"{diagnostic.SourceFile}:{diagnostic.Line}:{diagnostic.Column} {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}");
+            }
             return valid ? 0 : 1;
         }
         if (CircularSweepAuthoring.IsSweepSource(validationSource))
         {
             var sweepSource = ExpandSweepInspectionSource(validationSource, out var sweepExpansionDiagnostics);
             var authored = sweepSource is null ? null : CircularSweepAuthoring.Parse(sweepSource);
-            var sweepDiagnostics = sweepExpansionDiagnostics.Concat(authored is null ? [] : authored.IsSuccess ? CircularSweepBRepMaterializer.Validate(authored.Value) : authored.Diagnostics.Select(item => item.Message)).ToArray();
-            var valid = authored?.IsSuccess == true && sweepDiagnostics.Length == 0;
-            var payload = new { source = sourcePath, status = valid ? "valid" : "invalid", domain = "CircularSweep",
+            var sweepFailures = sweepExpansionDiagnostics.Concat(authored is null ? [] : authored.IsSuccess ? CircularSweepBRepMaterializer.Validate(authored.Value) : authored.Diagnostics.Select(item => item.Message)).ToList();
+            var valid = authored?.IsSuccess == true && sweepFailures.Count == 0;
+            if (valid && !parseOnly)
+            {
+                var compilation = FirmamentBuildAndExport.CompileSource(validationSource, Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
+                valid = compilation.IsSuccess;
+                if (!valid) sweepFailures.AddRange(compilation.Diagnostics.Select(d => d.Message));
+            }
+            var sweepDiagnostics = sweepFailures.Select(message => FirmamentBuildAdmissionValidation.Present(new KernelDiagnostic(
+                KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, "Firmament.Sweep"), sourcePath, validationSource)).ToArray();
+            var payload = new { source = sourcePath, status = valid ? (parseOnly ? "parsed-not-built" : "valid") : "invalid", domain = "CircularSweep",
+                validationLevel = valid ? (parseOnly ? "ParsedNotBuilt" : "Built") : "BuildRejected", parserRoute = "UnifiedSweep",
                 summary = new { fatalDiagnosticCount = sweepDiagnostics.Length, warningDiagnosticCount = 0,
                     segmentCount = authored?.IsSuccess == true ? authored.Value.Path.Segments.Count : 0 }, diagnostics = sweepDiagnostics };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
-            else stdout.WriteLine($"Firmament V2 Circular Sweep validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+            else
+            {
+                stdout.WriteLine($"Firmament V2 Circular Sweep validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+                foreach (var diagnostic in sweepDiagnostics)
+                    stdout.WriteLine($"{diagnostic.SourceFile}:{diagnostic.Line}:{diagnostic.Column} {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}");
+            }
             return valid ? 0 : 1;
         }
         if(SheetMetalFirmament.LooksLikeSheetMetal(validationSource))

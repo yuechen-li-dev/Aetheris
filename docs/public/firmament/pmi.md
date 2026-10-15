@@ -2,7 +2,57 @@
 
 Firmament concepts and explicit PMI lower into the semantic engineering model, STEP AP242 product-definition entities, and Cadmata's semantic presentation. PMI records are measurable requirements; annotations are engineer-authored notes. Camera or label orientation is presentation state, not the requirement.
 
-Preview 3's native Model export supports `Datum` plane records and toleranced `HoleDiameter` records. The diameter record targets a named shaft hole; on a counterbore it means the shaft `Diameter`, not `CounterboreDiameter`. Other parsed PMI kinds may be reported as deferred and cannot be silently omitted by a successful build.
+Native Model export supports `Datum` plane records and `HoleDiameter` records, including typed dimensional tolerances. The diameter record targets a named shaft hole; on a counterbore it means the shaft `diameter`, not `counterboreDiameter`. Other parsed PMI kinds may be reported as deferred and cannot be silently omitted by a successful build.
+
+## Project a compile-time tolerance
+
+Declare a requirement once, use its nominal value for construction, and select
+it explicitly with `dimension:` in PMI. The complete witness is
+[`typed-tolerance.firmament`](../../../fixtures/Canonical/PMI/typed-tolerance.firmament):
+
+```firmament
+Model TypedHole {
+  units: mm
+  Static drillDiameter: Length = 8mm tol +0.10mm -0.05mm
+  Box Body { size: [40mm, 30mm, 8mm] }
+  Modify Body {
+    Hole<Shaft> Mount {
+      on: +Z
+      center: Point2(0mm, 0mm)
+      diameter: drillDiameter
+      end: ThroughAll
+    }
+  }
+  Pmi {
+    HoleDiameter MountSize { target: Mount dimension: drillDiameter }
+  }
+}
+```
+
+The exported diameter is nominally 8 mm with upper allowance +0.10 mm and lower
+allowance −0.05 mm. `tol 0.1mm` supplies equal allowances on both sides. The
+typed value and allowance survive direct aliases; normal geometry uses only
+the nominal. Unprojected values generate no PMI. `dimension:` requires a
+toleranced Length; Angle values can be checked at compile time but are not a
+HoleDiameter target and do not grant angular PMI export. The scalar admission
+scope and arithmetic policy are in [syntax](syntax.md#typed-tolerances-and-pmi).
+
+HoleDiameter projection exports a size requirement attached to the hole wall.
+A Datum may be exported separately. A `datum:`/`DatumRefs:` relationship on a
+size record rejects normal compilation for every spelling, including legacy
+literal records: native size export cannot preserve that association.
+Parse-only analysis can bind it, but identifies the record as export-deferred
+at `ParsedNotBuilt`. Datum-referenced geometric controls need a separately
+qualified PMI capability. The shipped examples request independent datums and
+size dimensions; they no longer request a relationship that was never emitted.
+
+This is semantic product-definition PMI, recovered by `aetheris analyze`;
+graphical dimension-label placement is separate. Explicit `value:` and
+`tolerance: PlusMinus(upper, lower)` remain supported compatibility forms.
+Existing `Require`-based `from:` / `as:` projections continue to mean a checked
+semantic constraint, rather than an implicit export of all Static values.
+
+## Targets and inspection
 
 For a simple `Hole<Shaft>` constructed in a Box, `face(H.Wall)` names the stable wall output of Hole `H`. It is a semantic role selector, independent of the current BRep face number. `HoleDiameter` accepts it as a target:
 
@@ -27,7 +77,7 @@ aetheris analyze artifacts/pmi.step --json
 
 The build's `pmiExportEvidence` and the analyzer's `semanticPmi` are independent public evidence surfaces. Supported validate records and inspected AP242 records must agree at the semantic-record level; one record may lower to several STEP entities.
 
-Pattern-generated geometry may coexist with PMI, but Preview 3 does not publish a stable selector for individual generated pattern instances or quantity/repeated-feature PMI authoring.
+Pattern-generated geometry may coexist with PMI, but the native lane does not yet publish a stable selector for individual generated pattern instances or quantity/repeated-feature PMI authoring.
 
 ## Assembly release records and design notes
 

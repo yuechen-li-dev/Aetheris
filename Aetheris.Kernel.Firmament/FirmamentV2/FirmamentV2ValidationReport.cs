@@ -62,10 +62,10 @@ public static class FirmamentV2ValidationReportBuilder
             .Distinct()
             .ToArray();
 
-        if (!parse.IsSuccess && diagnostics.All(diagnostic => diagnostic.Severity != "fatal"))
+        if (!parse.IsSuccess && diagnostics.All(diagnostic => diagnostic.Severity is not ("fatal" or "error")))
             diagnostics = [.. diagnostics, ToParserDiagnostic("firmament-v2-parse-failed")];
 
-        var fatalCount = diagnostics.Count(diagnostic => diagnostic.Severity == "fatal");
+        var fatalCount = diagnostics.Count(diagnostic => diagnostic.Severity is "fatal" or "error");
         var warningCount = diagnostics.Count(diagnostic => diagnostic.Severity == "warning");
         var document = parse.Document;
         var lets = document is null ? [] : BuildLets(document);
@@ -79,7 +79,7 @@ public static class FirmamentV2ValidationReportBuilder
             .Distinct()
             .Select(diagnostic => FirmamentBuildAdmissionValidation.Locate(diagnostic, sourceText ?? parse.OriginalSource, source))
             .ToArray();
-        fatalCount = diagnostics.Count(diagnostic => diagnostic.Severity == "fatal");
+        fatalCount = diagnostics.Count(diagnostic => diagnostic.Severity is "fatal" or "error");
         warningCount = diagnostics.Count(diagnostic => diagnostic.Severity == "warning");
         var supported = pmi.Count(record => record.ExportSupport is "supported" or "supported-when-target-resolves");
         var deferred = pmi.Count(record => record.ExportSupport == "deferred");
@@ -225,7 +225,7 @@ public static class FirmamentV2ValidationReportBuilder
             var itemDiagnostics = boundRecord is null
                 ? diagnostics.Where(diagnostic => diagnostic.Code.StartsWith("firmament-v2-pmi-", StringComparison.Ordinal)).ToArray()
                 : [];
-            var status = itemDiagnostics.Any(diagnostic => diagnostic.Severity == "fatal")
+            var status = itemDiagnostics.Any(diagnostic => diagnostic.Severity is "fatal" or "error")
                 ? "invalid"
                 : exportSupport == "deferred"
                     ? "export-deferred"
@@ -241,7 +241,7 @@ public static class FirmamentV2ValidationReportBuilder
                 boundRecord?.Targets ?? [],
                 boundRecord?.DatumRefs ?? [],
                 Dimension(boundRecord),
-                exportSupport == "deferred" ? DeferredReason(record.Kind) : null,
+                exportSupport == "deferred" ? FirmamentBuildAndExport.V2PmiExportRejection(record.Kind, record.Name, boundRecord)?.Message : null,
                 itemDiagnostics,
                 record.Projection?.SourceRequireId,
                 constraint is null ? null : "dimensional-equality",
@@ -378,14 +378,9 @@ public static class FirmamentV2ValidationReportBuilder
     private static string? Field(FirmamentV2PmiRecord record, string name) =>
         record.Fields.TryGetValue(name, out var field) ? field.Source : null;
 
-    private static string ExportSupport(FirmamentV2PmiKind kind, FirmamentV2BoundPmiRecord? boundRecord) => kind switch
-    {
-        FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter => boundRecord is null ? "supported-when-target-resolves" : "supported",
-        _ => "deferred"
-    };
-
-    private static string DeferredReason(FirmamentV2PmiKind kind) =>
-        $"AP242 lowering for {KindName(kind)} is not implemented in Phase 1 P1.";
+    private static string ExportSupport(FirmamentV2PmiKind kind, FirmamentV2BoundPmiRecord? boundRecord) =>
+        FirmamentBuildAndExport.V2PmiExportRejection(kind, boundRecord?.Name ?? "unbound", boundRecord) is not null
+            ? "deferred" : boundRecord is null ? "supported-when-target-resolves" : "supported";
 
     private static readonly IReadOnlyDictionary<string, string> ExportMatrix = new Dictionary<string, string>(StringComparer.Ordinal)
     {

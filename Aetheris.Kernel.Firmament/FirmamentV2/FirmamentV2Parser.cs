@@ -362,7 +362,10 @@ public static partial class FirmamentV2Parser
         if (result.SyntaxDiagnostics.Count > 0)
         {
             var original = FirmamentSyntaxParser.Parse(originalSource);
+            var unchanged = result.DiagnosticSource is not null && string.Equals(result.DiagnosticSource,
+                MaskCommentTrivia(FirmamentSourceSpelling.Normalize(FirmamentFrontendSchemas.Select(originalSource).Source)), StringComparison.Ordinal);
             result = result with { SyntaxDiagnostics = original.Diagnostics.Count > 0 ? original.Diagnostics
+                : unchanged ? result.SyntaxDiagnostics
                 : result.SyntaxDiagnostics.Select(d => d with { SourceSpan = null, Line = null, Column = null,
                     LocationNote = "The error occurs after expansion; original-source provenance is unavailable." }).ToArray() };
         }
@@ -391,7 +394,7 @@ public static partial class FirmamentV2Parser
         sourceText = FirmamentSourceSpelling.Normalize(sourceText);
         sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
         var diagnostics = new List<string> { "firmament-v2-parser-invoked" };
-        var source = StripLineComments(sourceText);
+        var source = MaskCommentTrivia(sourceText);
         var authoredSyntax = FirmamentSyntaxParser.Parse(source);
         if (MechanicalDeclarations(authoredSyntax.Document.Statements).Any(d => d.Type.Name.Text is "SectionChain" or "Loft"
             && !d.Modifiers.Any(m => m.Name.Text == "Template")))
@@ -544,7 +547,8 @@ public static partial class FirmamentV2Parser
             if (!syntax.IsSuccess)
                 return FirmamentV2ParseResult.Failure(diagnostics.Concat(syntax.Diagnostics.Select(d => d.Code)).ToArray(), FirmamentV2ParseDisposition.RecognizedInvalid)
                     with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true, SyntaxDiagnostics = syntax.Diagnostics };
-            var parsed = Recognized(BindMechanicalModel(syntax.Document, modelSyntax, source, diagnostics, sourceDirectory, templateExpansion.Instantiations));
+            var parsed = Recognized(BindMechanicalModel(syntax.Document, modelSyntax, source, diagnostics, sourceDirectory, templateExpansion.Instantiations))
+                with { DiagnosticSource = source };
             if (parsed.Document is null) return parsed with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true };
             if (domainDeclarations.Any(d => d.Type.Name.Text == "Plateau"))
             {
@@ -716,15 +720,15 @@ public static partial class FirmamentV2Parser
     {
         type = text switch
         {
-            "int" => FirmamentV2PrimitiveType.Int,
-            "float" => FirmamentV2PrimitiveType.Float,
-            "length" => FirmamentV2PrimitiveType.Length,
-            "angle" => FirmamentV2PrimitiveType.Angle,
-            "string" => FirmamentV2PrimitiveType.String,
-            "bool" => FirmamentV2PrimitiveType.Bool,
+            "int" or "Int" => FirmamentV2PrimitiveType.Int,
+            "float" or "Float" => FirmamentV2PrimitiveType.Float,
+            "length" or "Length" => FirmamentV2PrimitiveType.Length,
+            "angle" or "Angle" => FirmamentV2PrimitiveType.Angle,
+            "string" or "String" => FirmamentV2PrimitiveType.String,
+            "bool" or "Bool" => FirmamentV2PrimitiveType.Bool,
             _ => default
         };
-        return text is "int" or "float" or "length" or "angle" or "string" or "bool";
+        return text is "int" or "float" or "length" or "angle" or "string" or "bool" or "Int" or "Float" or "Length" or "Angle" or "String" or "Bool";
     }
 
     private static FirmamentV2ValueExpression? ParseLetValueExpression(FirmamentV2PrimitiveType type, string literal, List<string> diagnostics)
@@ -944,7 +948,7 @@ public static partial class FirmamentV2Parser
             return new(type.Value, val, new HashSet<string>(l.Dependencies.Concat(r.Dependencies), StringComparer.Ordinal), new(0, b.Source.Length), null, l.AliasTolerance is not null || r.AliasTolerance is not null || l.UsesTolerancedValueInArithmetic || r.UsesTolerancedValueInArithmetic);
         }
         private static bool IsZero(FirmamentV2LiteralValue v) => v.NumericValue is double d && d == 0d;
-        private static FirmamentV2PrimitiveType? ResultType(FirmamentV2PrimitiveType a, string op, FirmamentV2PrimitiveType b) => op switch
+        internal static FirmamentV2PrimitiveType? ResultType(FirmamentV2PrimitiveType a, string op, FirmamentV2PrimitiveType b) => op switch
         {
             "+" or "-" when a == b && a is FirmamentV2PrimitiveType.Int or FirmamentV2PrimitiveType.Float or FirmamentV2PrimitiveType.Length or FirmamentV2PrimitiveType.Angle => a,
             "+" or "-" when IsNumeric(a) && IsNumeric(b) => FirmamentV2PrimitiveType.Float,
@@ -2491,6 +2495,7 @@ public static partial class FirmamentV2Parser
             else if (Field(r,"diameter") is string legacy && TryParsePmiLength(NormalizePmiLengthLiteral(legacy), diagnostics, out var legacyLit)) dim=legacyLit;
             if (Field(r,"tolerance") is string t && TryParseToleranceLiteral(NormalizePmiLengthLiteral(t), diagnostics, out var tol)) dimTol=tol;
             if (dim is null) { diagnostics.Add(PmiDiameterInvalid); return false; }
+            if (r.Kind == FirmamentV2PmiKind.HoleDiameter && dim.NumericValue is <= 0) { diagnostics.Add(PmiDiameterInvalid); return false; }
             if (dimTol is null && Field(r,"diameter") is null && Field(r,"value") is null) { diagnostics.Add(PmiDimensionMissingTolerance); return false; }
         }
         if (r.Kind is FirmamentV2PmiKind.Flatness or FirmamentV2PmiKind.Parallel or FirmamentV2PmiKind.Perpendicular or FirmamentV2PmiKind.Coplanar)
@@ -2499,7 +2504,7 @@ public static partial class FirmamentV2Parser
         { var d=Field(r,"datum"); if (d is null || !datums.Contains(d)) diagnostics.Add(PmiUnknownDatum); else datumRefs.Add(d); }
         if (r.Kind == FirmamentV2PmiKind.HoleDiameter && Field(r,"datum") is string datum)
         { if (!datums.Contains(datum)) diagnostics.Add(PmiUnknownDatum); else datumRefs.Add(datum); }
-        bound=new(r.Kind,r.Name,targets,dim,dimTol,ctlTol,datumRefs,r.SourceSpan, HoleWallTarget: wallTarget);
+        bound=new(r.Kind,r.Name,targets,dim,dimTol,ctlTol,datumRefs,r.SourceSpan, ProjectionSource: Field(r,"dimension"), HoleWallTarget: wallTarget);
         return !diagnostics.Any(x => (x.StartsWith("firmament-v2-pmi-", StringComparison.Ordinal) && x is not PmiUnsupported)
             || x.StartsWith("firmament-v2-hole-wall-", StringComparison.Ordinal));
     }
@@ -2598,9 +2603,15 @@ public static partial class FirmamentV2Parser
         return expanded is not null;
     }
 
-    private static string StripLineComments(string sourceText) => string.Join('\n', sourceText.Split('\n').Select(line =>
+    private static string MaskCommentTrivia(string sourceText)
     {
-        var index = line.IndexOf("//", StringComparison.Ordinal);
-        return index >= 0 ? line[..index] : line;
-    }));
+        // Legacy semantic readers still need trivia erased. Use the shared lexer,
+        // preserving offsets and quoted // text; do not erase malformed tokens.
+        var text = sourceText.ToCharArray();
+        foreach (var comment in FirmamentLanguageAnalysisService.Lex(sourceText, lossless: true)
+            .Where(t => t.Shape == "comment" && t.Error is null))
+            for (var i = comment.Start; i < comment.Start + comment.Length; i++)
+                if (text[i] is not ('\r' or '\n')) text[i] = ' ';
+        return new(text);
+    }
 }

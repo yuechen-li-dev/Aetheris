@@ -17,7 +17,6 @@ Model A3MountingPlate {
             Target: MountNorthWest
             Value: 8mm
             Tolerance: PlusMinus(0.10mm, 0.00mm)
-            DatumRefs: [A]
         }
     }
 }

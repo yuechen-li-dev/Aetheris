@@ -321,6 +321,7 @@ public sealed record FirmamentV2ParseResult(
     /// <summary>Debug metadata, assigned where the existing parser route is selected.</summary>
     public string? ParserRoute { get; init; }
     public IReadOnlyList<FirmamentV2ValidationDiagnostic> SyntaxDiagnostics { get; init; } = [];
+    internal string? DiagnosticSource { get; init; }
     internal string? OriginalSource { get; init; }
     // Bound engineering inputs are retained for execution; a successful AST admission
     // cannot be replaced by a different whole-document parser in the build path.

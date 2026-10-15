@@ -61,7 +61,6 @@ Model ProfileComposeLBracketCounterborePmi {
             Target: CounterboredMount
             Value: 8mm
             Tolerance: PlusMinus(0.05mm, 0.02mm)
-            DatumRefs: [A]
         }
     }
 }

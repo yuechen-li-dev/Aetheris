@@ -1,7 +1,5 @@
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
@@ -11,6 +9,7 @@ using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Kernel.StandardLibrary.Materials;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
@@ -40,34 +39,50 @@ public sealed record CircularSweepBuildResult(
 /// <summary>Parser/binder for the public Sweep declaration. Path geometry remains owned by Concept Path.</summary>
 public static class CircularSweepAuthoring
 {
-    private static readonly Regex Declaration = new(@"\bSweep\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
-
-    public static bool IsSweepSource(string source) => Declaration.IsMatch(source);
+    public static bool IsSweepSource(string source) => FirmamentV2Parser.MechanicalDeclarations(
+        FirmamentSyntaxParser.Parse(source).Document.Statements).Any(d => d.Type.Name.Text == "Sweep");
 
     public static KernelResult<CircularSweepFeatureAir> Parse(string source)
     {
         ArgumentNullException.ThrowIfNull(source);
-        var declaration = Declaration.Match(source);
-        if (!declaration.Success) return Failure("firmament-sweep-declaration-missing", "No Sweep declaration was found.");
-        var close = MatchingBrace(source, source.IndexOf('{', declaration.Index));
-        if (close < 0) return Failure("firmament-sweep-declaration-malformed", $"Sweep '{declaration.Groups["name"].Value}' has no closing brace.");
-        var body = source[(source.IndexOf('{', declaration.Index) + 1)..close];
-        var name = declaration.Groups["name"].Value;
-        var pathName = Property(body, "Path");
+        source = FirmamentSourceSpelling.Normalize(source);
+        var syntax = FirmamentSyntaxParser.Parse(source);
+        if (!syntax.IsSuccess) return Failure(syntax.Diagnostics[0].Code, syntax.Diagnostics[0].Message);
+        var diagnostics = new List<string>();
+        FirmamentV2Parser.BindMaterialDomainScope(syntax.Document, "Sweep", diagnostics);
+        if (diagnostics.Count > 0) return Failure(diagnostics[0].Split(':')[0], string.Join("; ", diagnostics));
+        var declarations = FirmamentV2Parser.MechanicalDeclarations(syntax.Document.Statements).ToArray();
+        var sweeps = declarations.Where(d => d.Type.Name.Text == "Sweep").ToArray();
+        if (sweeps.Length == 0) return Failure("firmament-sweep-declaration-missing", "No Sweep declaration was found.");
+        if (sweeps.Length != 1) return Failure("firmament-sweep-multiple-material-owners", "Use one Sweep per part; use Assembly for separate parts.");
+        if (declarations.Any(d => d.Type.Name.Text == "Pmi"))
+            return Failure("firmament-sweep-pmi-unsupported", "Sweep does not yet admit semantic PMI export; a Pmi block cannot be ignored.");
+        var declaration = sweeps[0];
+        if (declaration.Name is null || declaration.Body is null) return Failure("firmament-sweep-declaration-malformed", "Sweep requires a name and body.");
+        var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+        var name = declaration.Name.Text;
+        var pathName = fields.Word("Path");
+        var diameterValue = fields.Take("Diameter");
+        var materialValue = fields.Take("Material");
+        var gapValue = fields.Take("MinimumGap");
+        fields.Complete();
+        if (diagnostics.Count > 0) return Failure(diagnostics[0].Split(':')[0], string.Join("; ", diagnostics));
         if (pathName is null) return Failure("firmament-sweep-path-missing", $"Sweep '{name}' requires Path.");
-        var pathHeader = Regex.Match(source, $@"\bConcept\s+Path\s+{Regex.Escape(pathName)}(?:\s+On\s+(?<plane>[A-Za-z_]\w*))?\s*\{{", RegexOptions.CultureInvariant);
-        if (pathHeader.Success && pathHeader.Groups["plane"].Success && !string.Equals(pathHeader.Groups["plane"].Value, "XY", StringComparison.Ordinal))
-            return Failure("firmament-sweep-path-nonplanar", $"Sweep path '{pathName}' uses plane '{pathHeader.Groups["plane"].Value}'; X0 admits planar XY Concept Paths only.");
-        if (pathHeader.Success)
+        var pathDeclaration = FirmamentSyntaxTraversal.Declarations(syntax.Document).FirstOrDefault(d => d.Type.Name.Text == "Path" && d.Name?.Text == pathName);
+        var plane = pathDeclaration?.Clauses.FirstOrDefault(c => c.Kind == ClauseKind.On);
+        if (plane is not null && FirmamentSyntaxValues.Reference(plane.Value) != "XY")
+            return Failure("firmament-sweep-path-nonplanar", $"Sweep path '{pathName}' uses an unsupported frame; this consumer admits planar XY Paths only.");
+        if (pathDeclaration?.Body is { } pathBody)
         {
-            var pathOpen = source.IndexOf('{', pathHeader.Index); var pathClose = MatchingBrace(source, pathOpen);
-            if (pathClose > pathOpen && Regex.IsMatch(source[(pathOpen + 1)..pathClose], @"\b(?:Line|Arc)\s+[A-Za-z_]\w*\s*\{[^}]*\bFrom\s*:\s*Point2\s*\(", RegexOptions.CultureInvariant))
+            if (pathBody.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text is "Line" or "Arc")
+                .Any(d => d.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "From")
+                    && f.Value is CallSyntax { Target: ReferenceSyntax { Name.Text: "Point2" } }) == true))
                 return Failure("firmament-sweep-path-disconnected", $"Sweep path '{pathName}' contains an explicit segment origin; Concept Path segments must continue from the preceding endpoint.");
         }
-        var diameterText = Property(body, "Diameter");
-        if (!TryMillimeters(diameterText, out var diameter) || diameter <= 0d)
+        if (!FirmamentSyntaxValues.TryMeasure(diameterValue, "mm", out var diameter) || diameter <= 0d)
             return Failure("firmament-sweep-section-invalid", $"Sweep '{name}' Diameter must be a finite length greater than zero.");
-        var materialReference = (Property(body, "Material") ?? "Standard.Materials.StainlessSteel.304_Annealed").Trim('"');
+        var materialReference = materialValue is null ? "Standard.Materials.StainlessSteel.304_Annealed" : FirmamentSyntaxValues.Reference(materialValue);
+        if (materialReference is null) return Failure("firmament-sweep-material-unresolved", $"Sweep '{name}' Material must be a material reference or string.");
         var path = ProfileAuthoringParser.ResolveConceptPath(source, pathName, out var pathDiagnostics);
         if (path is null || pathDiagnostics.Count > 0)
             return Failure(pathDiagnostics.Count == 0 ? "firmament-sweep-path-unresolved" : pathDiagnostics[0],
@@ -76,40 +91,14 @@ public static class CircularSweepAuthoring
         if (!resolution.IsSuccess || resolution.Material is null)
             return Failure("firmament-sweep-material-unresolved", resolution.Message ?? $"Material '{materialReference}' could not be resolved.");
         double? minimumGap = null;
-        var gapText = Property(body, "MinimumGap");
-        if (gapText is not null)
+        if (gapValue is not null)
         {
-            if (!TryMillimeters(gapText, out var gap) || gap < 0d)
+            if (!FirmamentSyntaxValues.TryMeasure(gapValue, "mm", out var gap) || gap < 0d)
                 return Failure("firmament-sweep-minimum-gap-invalid", $"Sweep '{name}' MinimumGap must be a finite non-negative length.");
             minimumGap = gap;
         }
         return KernelResult<CircularSweepFeatureAir>.Success(new(name, path, diameter, materialReference,
             resolution.Material, minimumGap, [path.StableId, "CircularSection", "PlanarXY", "ConstantSection"]));
-    }
-
-    private static string? Property(string body, string name)
-    {
-        var match = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[^;\r\n}}]+)", RegexOptions.CultureInvariant);
-        return match.Success ? match.Groups["value"].Value.Trim() : null;
-    }
-
-    private static bool TryMillimeters(string? text, out double value)
-    {
-        value = default;
-        if (text is null) return false;
-        var match = Regex.Match(text, @"^(?<value>[-+.\deE]+)mm$", RegexOptions.CultureInvariant);
-        return match.Success && double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
-    }
-
-    private static int MatchingBrace(string source, int open)
-    {
-        var depth = 0;
-        for (var i = open; i >= 0 && i < source.Length; i++)
-        {
-            if (source[i] == '{') depth++;
-            else if (source[i] == '}' && --depth == 0) return i;
-        }
-        return -1;
     }
 
     private static string PathMessage(string diagnostic)

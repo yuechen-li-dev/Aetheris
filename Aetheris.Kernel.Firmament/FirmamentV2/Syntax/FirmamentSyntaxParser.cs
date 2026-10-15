@@ -325,6 +325,18 @@ public static class FirmamentSyntaxParser
                 while (!End)
                 {
                     if (++suffixCount > MaxDepth) throw Fail("firmament-syntax-depth", $"Expression chain exceeds the bounded parser limit of {MaxDepth}.");
+                    // tol binds below arithmetic: (nominal expression) tol allowance.
+                    // A leading + selects the two-sided +upper -lower spelling.
+                    if (minimum <= 5 && Take("tol"))
+                    {
+                        var toleranceStart = Previous.Span.Start;
+                        var plus = Expression(80, allowObject: false);
+                        ExpressionSyntax? minus = null;
+                        if (plus is UnarySyntax { Operator: UnaryOperator.Positive } && Take("-"))
+                            minus = Expression(80, allowObject: false);
+                        left = new ToleranceSyntax(left, plus, minus, Span(toleranceStart), Span(start));
+                        continue;
+                    }
                     if (Take("As") || Take("as")) { left = new AliasSyntax(left, Identifier(), Span(start)); continue; }
                     if (Current.Text is "From" or "from" or "To" or "to" && Peek(1).Text != ":")
                     {

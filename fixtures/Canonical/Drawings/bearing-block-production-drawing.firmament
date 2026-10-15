@@ -35,7 +35,6 @@ Model BearingBlock {
         HoleDiameter MountDiameter {
             From: MountDiameterConstraint
             As: HoleDiameter
-            DatumRefs: [A]
         }
     }
 

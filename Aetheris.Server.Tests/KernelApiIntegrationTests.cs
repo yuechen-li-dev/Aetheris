@@ -1166,7 +1166,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.Contains("8", pmi.Metadata["nominal"]);
         Assert.Contains("0.05", pmi.Metadata["tolerancePlus"]);
         Assert.Contains("0.02", pmi.Metadata["toleranceMinus"]);
-        Assert.Equal("A", pmi.Metadata["datumRefs"]);
+        Assert.Empty(pmi.Metadata["datumRefs"]);
     }
 
     private static string GetRepositoryPath(string relativePath)

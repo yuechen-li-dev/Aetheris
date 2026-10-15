@@ -20,8 +20,8 @@ public sealed record FirmamentLanguageFormat(string Document, string Revision, s
 public static class FirmamentLanguageAnalysisService
 {
     internal sealed record Lexeme(int Start, int Length, string Text, string Shape, string? Error = null);
-    private static readonly HashSet<string> Keywords = ["Model", "Units", "Modify", "WireForm", "Construction", "Use", "schema", "Let", "Static", "With", "with", "Expose", "Include", "Subassembly", "Assembly", "Part", "Template", "Function", "Record", "Pattern", "Over", "Using", "As", "as", "Output"];
-    private static readonly HashSet<string> DeclarationKinds = ["Model", "Struct", "Subassembly", "Assembly", "Template", "Profile", "Static", "Record", "Function", "Pattern", "Section", "SectionChain", "FrameTransform", "Points"];
+    private static readonly HashSet<string> Keywords = ["Model", "Units", "Modify", "WireForm", "Construction", "Use", "schema", "Let", "Static", "With", "with", "Expose", "Include", "Subassembly", "Assembly", "Part", "Template", "Function", "Record", "Pattern", "Over", "Using", "As", "as", "Output", "tol"];
+    private static readonly HashSet<string> DeclarationKinds = ["Model", "Struct", "Subassembly", "Assembly", "Template", "Profile", "Static", "Record", "Function", "Pattern", "Section", "SectionChain", "FrameTransform", "Points", "Path", "Semantic", "Enum"];
     private static readonly HashSet<string> Types = ["Length", "Angle", "Float", "Int", "Bool", "Box3", "Plane", "Point2", "Point3"];
     private static readonly HashSet<string> Choices = FirmamentSemanticSchemas.All
         .SelectMany(construct => construct.Fields).SelectMany(field => field.Choices).ToHashSet(StringComparer.Ordinal);
@@ -67,11 +67,11 @@ public static class FirmamentLanguageAnalysisService
         if (lexemes.Any(t => t.Shape == "identifier" && t.Text is "Template" or "Subassembly" or "Appearance" or "Material"))
             return new(document, revision, tokens, [new("information", "firmament-language-project-context-required", "Declaration modules are validated in their consuming project.", 0, 0)]);
         var parse = FirmamentV2Parser.Parse(source);
-        var failures = parse.Diagnostics.Where(item => FirmamentV2Parser.IsFatalDiagnosticCode(item) ||
+        var failures = parse.Diagnostics.Where(item => FirmamentV2Parser.IsFatalDiagnosticCode(item) || parse.SyntaxDiagnostics.Any(d => d.Code == item && d.Severity == "warning") ||
             item == "firmament-v2-parse-failed").Distinct(StringComparer.Ordinal).ToArray();
         if (failures.Length > 1) failures = failures.Where(item => item != "firmament-v2-parse-failed").ToArray();
         var diagnostics = failures.Select(item => parse.SyntaxDiagnostics.FirstOrDefault(d => d.Code == item) is { SourceSpan: { } span } located
-            ? new FirmamentLanguageDiagnostic("error", located.Code, located.Message, span.Start, span.Length)
+            ? new FirmamentLanguageDiagnostic(located.Severity == "warning" ? "warning" : "error", located.Code, located.Message, span.Start, span.Length)
             : LocateDiagnostic(source, lexemes, item)).ToArray();
         return new(document, revision, tokens, diagnostics);
     }

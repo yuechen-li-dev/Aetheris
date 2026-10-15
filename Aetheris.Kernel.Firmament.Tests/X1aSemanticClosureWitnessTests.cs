@@ -124,7 +124,6 @@ public sealed class X1aSemanticClosureWitnessTests
                             Target: InnerHole
                             Value: 6mm
                             Tolerance: PlusMinus(0.05mm, 0.02mm)
-                            DatumRefs: [A]
                         }
                     }
                 }
@@ -142,6 +141,10 @@ public sealed class X1aSemanticClosureWitnessTests
         Assert.True(inspection.Success, string.Join(Environment.NewLine, inspection.Diagnostics));
         Assert.Equal(1, inspection.DatumCount);
         Assert.Equal(1, inspection.DimensionCount);
+        var unsupported = FirmamentBuildAndExport.CompileSource(source.Replace(
+            "Tolerance: PlusMinus(0.05mm, 0.02mm)", "Tolerance: PlusMinus(0.05mm, 0.02mm) DatumRefs: [A]", StringComparison.Ordinal));
+        Assert.False(unsupported.IsSuccess);
+        Assert.Contains(unsupported.Diagnostics, d => d.Message.Contains("pmi-datum-reference-export-unsupported", StringComparison.Ordinal));
     }
 
     private static string Fixture(string relative) => Path.GetFullPath(Path.Combine(

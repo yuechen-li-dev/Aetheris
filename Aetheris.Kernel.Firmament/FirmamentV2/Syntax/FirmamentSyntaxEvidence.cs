@@ -30,6 +30,7 @@ public static class FirmamentSyntaxEvidence
         if (node is JsonObject obj)
         {
             obj.Remove("Span");
+            obj.Remove("ToleranceSpan");
             foreach (var property in obj) RemoveSpans(property.Value);
         }
         else if (node is JsonArray array) foreach (var item in array) RemoveSpans(item);

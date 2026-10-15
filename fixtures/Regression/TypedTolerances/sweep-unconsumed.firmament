@@ -1,0 +1,10 @@
+Model SweepRequirement {
+    units: mm
+    Static diameterRequirement: Length = 1mm tol 0.1mm
+    Path Centerline {
+        start: Point2(0mm, 0mm)
+        heading: 0deg
+        Line Lead { length: 20mm }
+    }
+    Sweep Wire { path: Centerline diameter: 1mm }
+}

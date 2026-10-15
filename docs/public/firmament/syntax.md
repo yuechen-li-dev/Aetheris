@@ -65,6 +65,10 @@ mutation or general-purpose computation.
 | `Feature` | A reusable recipe returning one typed semantic result. |
 | `Template` | Typed compile-time specialization of a declared product or bounded feature recipe. |
 | `Record` / `Static` | A data shape / an immutable compile-time binding. A Record is not a body. |
+| `Enum` / `Match` | A finite choice type / compile-time selection of one result. |
+| `Set<T>` | All named entries of type T, available together for finite repetition. |
+| `Semantic` | A named engineering interface containing published datums, axes, points or dimensions. |
+| `Path` | An ordered construction chain, open or closed; it creates no material. `Concept Path` is a compatibility spelling. |
 | `Pattern` | Finite repetition of admitted construction over a declared source. |
 | `Assembly` / `Scene` | Product occurrences and relations / spatial presentation. |
 
@@ -147,6 +151,103 @@ domain. `Static` and Feature-local `let` are scoped compile-time facilities;
 there is no general `let`-anywhere rule. Scalar `Function` recipes are described
 in [points and functions](concept-points-and-functions.md).
 
+### Typed tolerances and PMI
+
+A tolerance is a compile-time requirement attached to a dimensional value:
+
+```firmament
+Model TolerancedPlate {
+  units: mm
+  Static drillDiameter: Length = 8mm tol +0.10mm -0.05mm
+  Box Body { size: [40mm, 30mm, 8mm] }
+  Modify Body {
+    Hole<Shaft> Mount {
+      on: +Z
+      center: Point2(0mm, 0mm)
+      diameter: drillDiameter
+      end: ThroughAll
+    }
+  }
+  Pmi {
+    HoleDiameter MountSize { target: Mount dimension: drillDiameter }
+  }
+}
+```
+
+`tol 0.1mm` means ±0.1 mm. `tol +0.10mm -0.05mm` means upper and lower
+allowance magnitudes of 0.10 and 0.05 mm. Both must be finite, nonnegative and
+have the value's dimensional unit. `Length` uses mm and `Angle` uses deg in this
+scalar lane; tolerances on Int, Float, Bool or String reject. `tol` applies to
+the whole initializer, after arithmetic. Zero allowances are permitted.
+
+Geometry consumes the nominal value. `Pmi` explicitly projects the requirement
+into AP242; declaring a tolerance alone emits no manufacturing annotation and
+does not loosen kernel geometry tolerances. A direct Static alias preserves
+the allowance. Arithmetic produces a nominal value and warns if it drops an
+operand's allowance; supply a new explicit `tol` when the result is a new
+requirement. There is no inferred interval propagation or tolerance-stack
+certification in Model scalar arithmetic.
+
+Scalar Static values belong directly to the Model or its source module and
+currently feed direct primitive and Modify fields. The existing shorthand
+`Static width = 40mm` infers Length; an annotation makes engineering intent
+clearer. Profile/Compose recipes and
+other domain frontends retain their typed Template inputs; they do not acquire
+general scalar environments from this feature. Unsupported scalar consumers
+in the qualified construction, Sweep and wire lanes reject; this pass does not
+qualify arbitrary scalar environments in other domains. Inline field
+annotations such as `diameter: 8mm tol 0.1mm` reject; give
+the requirement a name. Angle allowances can be bound and inspected, but native
+Model angular PMI export is not yet admitted. See [PMI](pmi.md) for projection
+targets and export limits.
+
+### Contracts, semantic interfaces and construction geometry
+
+`Concept` describes what a construction must provide. `Concept Struct` supplies
+non-materialized design geometry or an implementation of that contract.
+`Semantic Name { ... }`, usually published through `Expose` or attached to an
+Assembly occurrence, groups engineering references that consumers can name.
+For example, a mount interface can publish a `DatumFrame` and a toleranced
+`Dimension`. It is not a second body, a free-form metadata bag, or a command to
+recognize arbitrary BRep faces. Published values retain their types and source
+identity. [Assembly authoring](assembly-authoring-foundation.md) explains the
+interface and placement rules. PMI selects requirements for export; Semantic
+alone does not export every member as PMI.
+
+Use `Path` for ordered guides and `Profile` for a closed planar material
+boundary. Both `Path Name { ... }` and the older `Concept Path Name { ... }`
+resolve through the same owner, with identical endpoints, segment identities
+and geometry. A path can remain open for a Sweep; a Profile made from it must
+satisfy the Profile's closure rules. Path does not imply a solid or a spatial
+volume.
+
+`Region` is not a general replacement for Struct, Profile or Semantic. Current
+mechanical compatibility syntax has the bounded lowercase
+`region sideHole on face(+X) { cut Cylinder { ... } }` operation inside
+`modify`; it is not a general native `Region` declaration. Prefer `Hole<Shaft>`
+for new hole construction. `Recognize` names a verified region of existing
+geometry. Sheet Metal's named planar regions and FEA's `Region:` selection
+fields are domain-owned uses of the word, with separate types and admission
+rules. See [Sheet Metal](sheet-metal.md) and [FEA](fea.md).
+
+### Choices versus collections
+
+`Enum` and `Match` remain useful; `Set<T>` does not supersede them:
+
+| Intent | Form | Compile-time meaning |
+| --- | --- | --- |
+| Choose Compact or Standard | `Enum SizeChoice { Compact Standard }` | Define alternatives; a typed parameter holds one case. |
+| Compute a value for the selected case | `Match choice { Compact => 1mm Standard => 2mm }` | Select one arm in an admitted Template/static expression position. |
+| Construct every mount | `Static mounts: Set<Point2> { ... }` and `Pattern` | Bind all entries; expand the recipe for each named entry. |
+
+Enum cases are tags, not coordinates or a collection of feature instances.
+Match is not a runtime branch or a general statement executor. Pattern repeats
+construction; it does not choose an enum case. Match support is bounded by its
+consumer: the Template binder supports typed choices, while Model scalar Static
+initializers currently admit literals, aliases and arithmetic. Do not infer
+general Match support from its presence in the syntax tree. See
+[Templates](templates.md) and the Pattern examples below.
+
 ## Constructing from a layout
 
 Use a `Concept Struct` for design geometry, trace its named guides into a
@@ -184,7 +285,7 @@ orientation, falling back to a connectable direction after the opening stage.
 
 `boundary |> TraceLoop` copies a whole closed guide and normalizes winding for
 the target loop. Supported families include Rect2, Square2, RoundedRect2,
-Polygon2, RegularPolygon2, closed Concept Paths, Circle2 and Ellipse2. A full
+Polygon2, RegularPolygon2, closed Paths, Circle2 and Ellipse2. A full
 circle or ellipse retains a single boundary segment; its traced identity derives
 from the guide name, allowing distinct inner/outer guides.
 
@@ -203,7 +304,7 @@ guide from startPoint to endPoint as selectedEdge
 After the opening stage, `guide to endPoint` uses the preceding endpoint as its
 start. Endpoints must be named points on the guide. Circular spans use the same
 form; `Reverse` selects the opposite traversal. `|>` is not a general map, filter,
-arithmetic or function-composition operator. A Concept Path may remain open;
+arithmetic or function-composition operator. A Path may remain open;
 a material Profile must satisfy its boundary rules.
 
 Closed boundaries should express their engineering shape. Use Rect2 for a

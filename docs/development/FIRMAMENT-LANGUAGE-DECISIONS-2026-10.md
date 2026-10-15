@@ -1,5 +1,14 @@
 # October 2026 Firmament language decision register
 
+Typed-tolerance amendment: [qualification report](../release/FIRMAMENT-TYPED-TOLERANCES.md)
+adds typed scalar Static requirements to unified mechanical admission, retains
+nominal geometry, and explicitly projects selected Length requirements through
+native PMI to AP242. Diagnostic severity and original-source-span preservation
+gain coverage under #1–#4. Path spelling is reconciled under #17; Semantic,
+Region, Enum/Match and Set roles are now distinguished in the authoring guide.
+Template/Record/domain-wide tolerance propagation remains a technical follow-up,
+not a completed semantic consolidation or an implicit change to units doctrine.
+
 Directive/casing follow-up: [implementation and qualification](../release/FIRMAMENT-DIRECTIVES-AND-CASING.md)
 closes the syntax review's ignored-include and schema-formatting witnesses.
 Recommendations #1–#4 gain directive admission and located structured CLI errors;

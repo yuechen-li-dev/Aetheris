@@ -82,7 +82,7 @@ public static class ProfileAuthoringParser
     {
         var syntax = FirmamentSyntaxParser.Parse(source).Document;
         var allowed = FirmamentSyntaxTraversal.Declarations(syntax).Where(d => d.Type.Name.Text == "Profile"
-            || d.Type.Name.Text == "Path" && d.Modifiers.Any(m => m.Name.Text == "Concept"))
+            || d.Type.Name.Text == "Path")
             .Select(d => d.Body?.Span).OfType<FirmamentV2SourceSpan>().ToArray();
         return FirmamentSyntaxTraversal.Expressions(syntax).OfType<BinarySyntax>().Where(e => e.Operator == BinaryOperator.Pipeline)
             .Where(e => !allowed.Any(span => e.Span.Start >= span.Start && e.Span.Start + e.Span.Length <= span.Start + span.Length))
@@ -433,13 +433,20 @@ public static class ProfileAuthoringParser
     private static IReadOnlyDictionary<string, BoundPath> BindPaths(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics)
     {
         var result = new Dictionary<string, BoundPath>(StringComparer.Ordinal);
-        foreach (var block in FindBlocks(source, @"\bConcept\s+Path\s+(?<name>[A-Za-z_]\w*)\s*\{"))
+        foreach (var declaration in SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements)
+            .Where(d => d.Type.Name.Text == "Path"))
         {
-            var name = block.Match.Groups["name"].Value;
+            var name = declaration.Name?.Text ?? "<unnamed>";
+            if (declaration.Name is null || declaration.Body is null || declaration.Modifiers.Any(m => m.Name.Text != "Concept")
+                || declaration.Type.Arguments.Count > 0 || declaration.Parameters.Count > 0 || declaration.Annotation is not null
+                || declaration.Initializer is not null || declaration.ResultType is not null || declaration.Clauses.Count > 0)
+            { diagnostics.Add($"concept-path-header-invalid:{name}"); continue; }
+            var content = declaration.Body.ContentSpan;
+            var pathBody = source.Substring(content.Start, content.Length);
             if (!result.TryAdd(name, default!)) { diagnostics.Add($"concept-path-duplicate:{name}"); continue; }
-            if (block.Body.Contains("|>", StringComparison.Ordinal))
+            if (pathBody.Contains("|>", StringComparison.Ordinal))
             {
-                var pipelinePath = BindPathPipeline(name, block.Body, points, guides, diagnostics);
+                var pipelinePath = BindPathPipeline(name, pathBody, points, guides, diagnostics);
                 if (pipelinePath is not null)
                 {
                     result[name] = pipelinePath;
@@ -452,16 +459,16 @@ public static class ProfileAuthoringParser
                 }
                 continue;
             }
-            var startMatch = Regex.Match(block.Body, @"\bStart\s*:\s*Point2\s*\(\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*\)", RegexOptions.CultureInvariant);
+            var startMatch = Regex.Match(pathBody, @"\bStart\s*:\s*Point2\s*\(\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*\)", RegexOptions.CultureInvariant);
             if (!startMatch.Success || !TryNumber(startMatch.Groups["x"].Value, out var sx) || !TryNumber(startMatch.Groups["y"].Value, out var sy)) { diagnostics.Add($"concept-path-start-invalid:{name}"); continue; }
             var heading = 0d;
-            var headingMatch = Regex.Match(block.Body, @"\bHeading\s*:\s*(?<value>[-+.\deE]+)deg", RegexOptions.CultureInvariant);
+            var headingMatch = Regex.Match(pathBody, @"\bHeading\s*:\s*(?<value>[-+.\deE]+)deg", RegexOptions.CultureInvariant);
             if (headingMatch.Success && (!TryNumber(headingMatch.Groups["value"].Value, out heading) || !double.IsFinite(heading))) { diagnostics.Add($"concept-path-heading-invalid:{name}"); continue; }
             var path = new BoundPath(name, (sx, sy), heading, []);
             if (points.ContainsKey($"{name}.Start") || guides.ContainsKey(name)) { diagnostics.Add($"concept-path-name-collision:{name}"); continue; }
             points[$"{name}.Start"] = path.Start;
             var current = path.Start;
-            foreach (var step in FindPathSteps(block.Body))
+            foreach (var step in FindPathSteps(pathBody))
             {
                 if (path.Steps.Any(x => x.Name == step.Name)) { diagnostics.Add($"concept-path-duplicate-step:{name}:{step.Name}"); continue; }
                 var guideName = $"{name}.{step.Name}";
@@ -998,7 +1005,7 @@ public static class ProfileAuthoringParser
 
     private static string MaskRecognizedProfileDeclarations(string body)
     {
-        var declarationPattern = @"\b(?:(?:Concept\s+)?(?:Point2|Line2|Rect2|Square2|Circle2|Ellipse2|Ellipse2Guide|Slot2|RoundedRect2|SmoothRoundedRect2)|(?:Triangle2|Polygon2|RegularPolygon2)\s*<[^>]+>|Concept\s+Path)\s+[A-Za-z_]\w*\s*\{";
+        var declarationPattern = @"\b(?:(?:Concept\s+)?(?:Point2|Line2|Rect2|Square2|Circle2|Ellipse2|Ellipse2Guide|Slot2|RoundedRect2|SmoothRoundedRect2|Path)|(?:Triangle2|Polygon2|RegularPolygon2)\s*<[^>]+>)\s+[A-Za-z_]\w*\s*\{";
         var blocks = FindBlocks(body, declarationPattern).OrderByDescending(block => block.Match.Index).ToArray();
         var characters = body.ToCharArray();
         foreach (var block in blocks)

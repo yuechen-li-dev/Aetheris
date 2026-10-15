@@ -20,7 +20,6 @@ Model ProjectedPmiMount {
         HoleDiameter MountDiameterCallout {
             From: MountDiameterConstraint
             As: HoleDiameter
-            DatumRefs: [A]
         }
     }
 }

@@ -1,0 +1,16 @@
+// Typed manufacturing requirements are compile-time values. Geometry uses nominal values.
+Model TolerancedPlate {
+    units: mm
+    Static plateWidth: Length = 40mm tol 0.1mm
+    Static drillDiameter: Length = 8mm tol +0.10mm -0.05mm
+    Static inspectionDiameter: Length = drillDiameter
+    Static draft: Angle = 3deg tol 0.5deg
+    Box Body { size: [plateWidth, 30mm, 8mm] }
+    Modify Body {
+        Hole<Shaft> Mount { on: +Z center: Point2(0mm, 0mm) diameter: drillDiameter end: ThroughAll }
+    }
+    Pmi {
+        Datum A { target: face(+Z) }
+        HoleDiameter MountSize { target: Mount dimension: inspectionDiameter }
+    }
+}

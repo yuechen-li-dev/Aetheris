@@ -13,7 +13,7 @@ public static class FirmamentBuildAdmissionValidation
         var compilation = FirmamentBuildAndExport.CompileSource(source, sourceDirectory);
         var diagnostics = report.Diagnostics.Concat(compilation.Diagnostics.Select(diagnostic =>
             Present(diagnostic, report.Source, source))).Distinct().ToArray();
-        var fatal = diagnostics.Count(diagnostic => diagnostic.Severity == "fatal");
+        var fatal = diagnostics.Count(diagnostic => diagnostic.Severity is "fatal" or "error");
         return report with
         {
             Status = !compilation.IsSuccess || fatal > 0 ? "invalid" : report.Status,
@@ -34,10 +34,10 @@ public static class FirmamentBuildAdmissionValidation
             ? diagnostic.Message[..separator]
             : diagnostic.Message.All(character => char.IsLetterOrDigit(character) || character is '-' or '_' or '.')
                 ? diagnostic.Message : diagnostic.Code.ToString();
-        if (source is not null && (code.StartsWith("firmament-schema-", StringComparison.Ordinal) || code.StartsWith("firmament-v2-directive-", StringComparison.Ordinal)))
+        if (source is not null)
         {
             var original = FirmamentV2Parser.Parse(source).SyntaxDiagnostics.FirstOrDefault(d => d.Code == code || d.Code.StartsWith(code + ":", StringComparison.Ordinal));
-            if (original is not null) return original with { SourceFile = sourceFile };
+            if (original is not null) return Locate(original, source, sourceFile);
         }
         if (source is not null && code.StartsWith("firmament-syntax-", StringComparison.Ordinal))
         {
@@ -61,7 +61,14 @@ public static class FirmamentBuildAdmissionValidation
     public static FirmamentV2ValidationDiagnostic Locate(
         FirmamentV2ValidationDiagnostic diagnostic, string? source, string sourceFile)
     {
-        if (diagnostic.SourceSpan is not null) return diagnostic with { SourceFile = sourceFile };
+        if (diagnostic.SourceSpan is { } span)
+        {
+            if (source is null) return diagnostic with { SourceFile = sourceFile };
+            var sourceLine = 1; var sourceColumn = 1;
+            for (var index = 0; index < Math.Min(span.Start, source.Length); index++)
+                if (source[index] == '\n') { sourceLine++; sourceColumn = 1; } else sourceColumn++;
+            return diagnostic with { SourceFile = sourceFile, Line = sourceLine, Column = sourceColumn };
+        }
         if (source is null) return diagnostic with { SourceFile = sourceFile, LocationNote = "Original source is unavailable." };
         var tokens = FirmamentLanguageAnalysisService.Lex(source).Where(token => token.Shape != "comment").ToArray();
         // Only these parser-owned diagnostics identify a specific original token.

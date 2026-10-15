@@ -2650,17 +2650,23 @@ public static class FirmamentBuildAndExport
 
     private static KernelResult<bool> ValidateV2PmiExportSupport(FirmamentV2Document document)
     {
-        var unsupported = document.PmiBlock?.Records.Where(r => r.Kind is not (FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter)).ToArray() ?? [];
-        if (unsupported.Length == 0)
-        {
-            return KernelResult<bool>.Success(true);
-        }
+        var bound = (document.BoundPmi?.Datums ?? []).Concat(document.BoundPmi?.Dimensions ?? [])
+            .Concat(document.BoundPmi?.Controls ?? []).ToDictionary(r => r.Name, StringComparer.Ordinal);
+        var unsupported = (document.PmiBlock?.Records ?? []).Select(r => V2PmiExportRejection(r.Kind, r.Name, bound.GetValueOrDefault(r.Name)))
+            .OfType<KernelDiagnostic>().ToArray();
+        return unsupported.Length == 0 ? KernelResult<bool>.Success(true) : KernelResult<bool>.Failure(unsupported);
+    }
 
-        return KernelResult<bool>.Failure(unsupported.Select(r => new Kernel.Core.Diagnostics.KernelDiagnostic(
-            Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
-            Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
-            $"firmament-v2-pmi-export-deferred: AP242 export for PMI record '{r.Name}' ({r.Kind.ToString().ToLowerInvariant()}) is deferred in V2 Phase 1 P2; supported export records are datum and diameter.",
-            "FirmamentV2.PmiExport")).ToArray());
+    // The validation report and the actual exporter consult this same admission
+    // owner. A supported record kind does not imply every requested field exports.
+    internal static KernelDiagnostic? V2PmiExportRejection(FirmamentV2PmiKind kind, string name, FirmamentV2BoundPmiRecord? bound)
+    {
+        var message = kind is not (FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter)
+            ? $"firmament-v2-pmi-export-deferred: AP242 export for PMI record '{name}' ({kind.ToString().ToLowerInvariant()}) is deferred; supported export records are datum and diameter."
+            : kind == FirmamentV2PmiKind.HoleDiameter && bound?.DatumRefs.Count > 0
+                ? $"firmament-v2-pmi-datum-reference-export-unsupported: HoleDiameter '{name}' requests datum references that native size export cannot preserve. Export Datum separately; datum-referenced geometric controls require a qualified PMI capability."
+                : null;
+        return message is null ? null : new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, "FirmamentV2.PmiExport");
     }
 
     private static IReadOnlyList<Step242SemanticPmi> BuildV2SemanticPmi(

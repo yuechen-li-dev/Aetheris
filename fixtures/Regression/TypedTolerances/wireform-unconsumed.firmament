@@ -1,0 +1,9 @@
+Model WireRequirement {
+    units: mm
+    Static diameterRequirement: Length = 1mm tol 0.1mm
+    WireForm Wire {
+        diameter: 1mm
+        StartFrame { origin: [0mm,0mm,0mm] tangent: [1,0,0] up: [0,0,1] }
+        Straight Lead { length: 20mm }
+    }
+}

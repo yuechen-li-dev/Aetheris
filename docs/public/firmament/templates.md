@@ -43,6 +43,27 @@ The older `Template MountHole(MountSpec spec)` and `MountHole(Current)` spelling
 
 ## Parameters
 
+`Enum` defines mutually exclusive parameter choices; `Match` computes the value
+for the selected choice during specialization. `Set<T>` instead contains all
+of its named entries at once, for iteration with Pattern. These constructs
+have different jobs and remain supported. See the working
+[`table-driven-mounting-plate.firmament`](../../../fixtures/Canonical/Templates/table-driven-mounting-plate.firmament)
+for enum-valued Record data, and [Writing Firmament](syntax.md#choices-versus-collections)
+for their language roles and bounded Match admission. An enum declaration does
+not itself generate one body per case.
+Each specialization must resolve a matching arm. This pass does not add a
+whole-enum exhaustiveness guarantee for unselected alternatives across all
+existing Match consumers.
+Enum values are admitted in typed Template parameters and Record fields. The
+primitive Model scalar Static lane does not yet bind standalone enum-valued
+constants; that is a binder-consolidation task, not a reason to replace choices
+with Set.
+
+Model scalar `Static` bindings can carry [typed tolerances](pmi.md#project-a-compile-time-tolerance).
+They do not implicitly extend Template argument evaluation, Record field
+initialization or every domain's scalar environment. A Template's declared
+parameter type and its owning binder still determine admitted values.
+
 Value parameters use `Name: Type`. Defaults use `Name: Type = Value`. A real semantic/type parameter is explicit:
 
 ```text

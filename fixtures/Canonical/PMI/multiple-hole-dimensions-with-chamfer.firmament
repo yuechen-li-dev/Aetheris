@@ -12,13 +12,11 @@ Model MountingPlate {
             Target: MountLeft
             Value: 8mm
             Tolerance: PlusMinus(0.10mm, 0.00mm)
-            DatumRefs: [A]
         }
         HoleDiameter MountRightDiameter {
             Target: MountRight
             Value: 8mm
             Tolerance: PlusMinus(0.10mm, 0.00mm)
-            DatumRefs: [A]
         }
     }
 }

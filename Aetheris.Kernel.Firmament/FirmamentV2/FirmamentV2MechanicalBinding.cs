@@ -29,25 +29,37 @@ public static partial class FirmamentV2Parser
         if (model.Clauses.Count > 0 || model.Type.Arguments.Count > 0)
             return CanonicalFailure(diagnostics, "firmament-v2-mechanical-root-header-unsupported: Use the admitted Model/Struct header and declare placement in its owning construct.");
         if (model.Annotation is not null)
+        {
+            if (syntax.Statements.Concat(model.Body.Statements).OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text == "Static"))
+                return CanonicalFailure(diagnostics, "firmament-v2-static-scalar-consumer-unsupported: Concept-valued material construction requires its existing typed Template inputs.");
             return ParseConceptModelingDocument(source, diagnostics, templateInstantiations);
-        BindMechanicalScope(syntax.Statements.Where(s => !ReferenceEquals(s, model)).ToArray(), diagnostics);
-        BindMechanicalScope(model.Body.Statements, diagnostics);
-        if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
+        }
+        var outerStatements = syntax.Statements.Where(s => !ReferenceEquals(s, model)).ToArray();
+        var staticValues = BindStaticValues(syntax, model, source, diagnostics);
+        model = staticValues.Model;
+        BindMechanicalScope(outerStatements.Where(s => s is not DeclarationSyntax { Type.Name.Text: "Static" }).ToArray(), diagnostics);
+        BindMechanicalScope(model.Body!.Statements.Where(s => s is not DeclarationSyntax { Type.Name.Text: "Static" }).ToArray(), diagnostics);
+        if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed)
+            with { SyntaxDiagnostics = staticValues.Diagnostics };
         var declarations = MechanicalDeclarations(model.Body.Statements).ToArray();
         var primitives = declarations.Where(IsPrimitiveDeclaration).ToArray();
         var constructions = declarations.Where(d => d.Type.Name.Text is "Compose" or "Extrude").ToArray();
         var materialConstruction = constructions.Length > 0;
-        if (constructions.Length > 1 && constructions.All(d => d.Type.Name.Text == "Extrude") && primitives.Length == 0)
-            return BindMechanicalExtrusionStack(model, constructions, source, diagnostics);
-        if (constructions.Length > 1 || materialConstruction && primitives.Length > 0)
-            return CanonicalFailure(diagnostics, "firmament-v2-mechanical-material-owners-unsupported: Use one material body per mechanical document; use Assembly for separate parts.");
         // Concept-valued stock retains its existing semantic resolver. Its actual
         // declarations do not change the grammar of neighbouring nodes.
         var semanticStock = declarations.Any(d => d.Type.Name.Text == "Modify" && d.Body?.Statements.OfType<DeclarationSyntax>().Any(f => f.Type.Name.Text == "Pattern") == true)
             || declarations.Any(d => d.Type.Name.Text == "Struct" && d.Annotation is not null)
             || declarations.Where(d => d.Type.Name.Text == "Modify").SelectMany(d => d.Body?.Statements.OfType<DeclarationSyntax>() ?? [])
                 .Any(d => d.Type.Name.Text == "Hole" && d.Body?.Statements.OfType<FieldSyntax>().Any(f => f.Name.Text == "From" || f.Name.Text == "On" && FirmamentSyntaxValues.Reference(f.Value) is not ("+X" or "-X" or "+Y" or "-Y" or "+Z" or "-Z")) == true);
-        if (materialConstruction || semanticStock || primitives.Any(d => d.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Bounds")) == true))
+        var constructionConsumer = materialConstruction || semanticStock || primitives.Any(d => d.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Bounds")) == true);
+        if (staticValues.Values.Count > 0 && constructionConsumer)
+            return CanonicalFailure(diagnostics,
+                "firmament-v2-static-scalar-consumer-unsupported: Model Static scalars currently bind direct primitive and Modify fields; parameterize construction recipes with Template instead.");
+        if (constructions.Length > 1 && constructions.All(d => d.Type.Name.Text == "Extrude") && primitives.Length == 0)
+            return BindMechanicalExtrusionStack(model, constructions, source, diagnostics);
+        if (constructions.Length > 1 || materialConstruction && primitives.Length > 0)
+            return CanonicalFailure(diagnostics, "firmament-v2-mechanical-material-owners-unsupported: Use one material body per mechanical document; use Assembly for separate parts.");
+        if (constructionConsumer)
             return BindMechanicalConstruction(source, model, diagnostics, templateInstantiations);
 
         var units = model.Body.Statements.OfType<FieldSyntax>().Where(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Units")).ToArray();
@@ -56,6 +68,11 @@ public static partial class FirmamentV2Parser
         {
             _ = ProfileAuthoringParser.ResolveNamedProfile(source, profile.Name!.Text, out var profileDiagnostics);
             diagnostics.AddRange(profileDiagnostics);
+        }
+        foreach (var path in declarations.Where(d => d.Type.Name.Text == "Path" && d.Name is not null))
+        {
+            _ = ProfileAuthoringParser.ResolveConceptPath(source, path.Name!.Text, out var pathDiagnostics);
+            diagnostics.AddRange(pathDiagnostics);
         }
         var solids = new Dictionary<string, FirmamentV2SolidBinding>(StringComparer.Ordinal);
         foreach (var declaration in primitives)
@@ -115,11 +132,16 @@ public static partial class FirmamentV2Parser
         var replacements = ParseCanonicalReplacements(bodyText, solids, recognized, diagnostics);
         var selections = ParseCanonicalSelections(bodyText, model.Body.Span.Start + 1, diagnostics);
         ValidateCanonicalSelectionSources(bodyText, selections, [], diagnostics);
-        var (pmi, pmiBlock, boundPmi) = ParsePmi(source, solids, modifies, recognized, [], [], diagnostics);
-        if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
-        return FirmamentV2ParseResult.Success(new(model.Name.Text, "mm", solids.Values.ToArray(), modifies,
-            Pmi: pmi, RecognizedRegions: recognized, Replacements: replacements, PmiBlock: pmiBlock, BoundPmi: boundPmi, Selections: selections),
-            diagnostics.Append("firmament-v2-unified-canonical-parsed").Append("firmament-v2-parse-succeeded").Distinct(StringComparer.Ordinal).Order().ToArray());
+        var (pmi, pmiBlock, boundPmi) = ParsePmi(source, solids, modifies, recognized, staticValues.Values, [], diagnostics);
+        var pmiDiagnostics = ValidateStaticPmi(pmiBlock, boundPmi, modifies, staticValues.Values, diagnostics);
+        var locatedDiagnostics = staticValues.Diagnostics.Concat(pmiDiagnostics).ToArray();
+        if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed)
+            with { SyntaxDiagnostics = locatedDiagnostics };
+        return FirmamentV2ParseResult.Success(new(model.Name!.Text, "mm", solids.Values.ToArray(), modifies,
+            Pmi: pmi, RecognizedRegions: recognized, Replacements: replacements, PmiBlock: pmiBlock, BoundPmi: boundPmi, Selections: selections,
+            Lets: staticValues.Declarations, BoundLets: staticValues.Values),
+            diagnostics.Append("firmament-v2-unified-canonical-parsed").Append("firmament-v2-parse-succeeded").Distinct(StringComparer.Ordinal).Order().ToArray())
+            with { SyntaxDiagnostics = locatedDiagnostics };
     }
 
     // Multiple explicit extrusions are material requests, not alternative parser
@@ -354,7 +376,7 @@ public static partial class FirmamentV2Parser
         Bind(syntax.Statements);
     }
 
-    private static void BindMechanicalScope(IReadOnlyList<StatementSyntax> statements, List<string> diagnostics)
+    internal static void BindMechanicalScope(IReadOnlyList<StatementSyntax> statements, List<string> diagnostics)
     {
         foreach (var statement in statements)
         {
@@ -377,13 +399,15 @@ public static partial class FirmamentV2Parser
             if (declaration.Modifiers.Any(m => m.Name.Text == "Assert")) continue;
             switch (declaration.Type.Name.Text)
             {
+                case "Static":
+                    diagnostics.Add("firmament-v2-static-scalar-consumer-unsupported: This scope does not bind scalar Static values; use the owning domain's typed Template inputs."); break;
                 case "Struct" when declaration.Annotation is not null: break;
                 case "Struct" when !declaration.Modifiers.Any(m => m.Name.Text == "Concept"):
                     BindMechanicalScope(declaration.Body?.Statements ?? [], diagnostics); break;
                 case "Box" or "Cylinder" or "Cone" or "Sphere" or "Torus" or "RoundedBox" or "Frustum" or "StandardPart" or "ExactCoaxialPart":
                 case "Plane" or "Axis" or "Axis2" or "Point2" or "Line2" or "CubicBezier2" or "Rect2" or "Square2" or "Triangle2" or "Polygon2" or "RegularPolygon2" or "Circle2" or "Ellipse2" or "Ellipse2Guide" or "Slot2" or "RoundedRect2" or "SmoothRoundedRect2" or "Path":
                 case "Plateau" or "Concept" or "Struct" or "Profile" or "Span" or "Compose" or "Boss" or "Pocket" or "AddOffset" or "RemoveOffset" or "EdgeFinish" or "Extrude":
-                case "Enum" or "Expose" or "Record" or "Static" or "Template" or "template" or "Feature" or "ProfileDelta" or "Selection" or "InlineStep" or "Recognize" or "Replace" or "Pmi" or "Modify" or "Match" or "Require" or "Assert" or "Thread":
+                case "Enum" or "Expose" or "Record" or "Template" or "template" or "Feature" or "ProfileDelta" or "Selection" or "InlineStep" or "Recognize" or "Replace" or "Pmi" or "Modify" or "Match" or "Require" or "Assert" or "Thread":
                     break;
                 case "Solid": diagnostics.Add(CanonicalConstructNotYetSupported + ":Solid"); break;
                 default: diagnostics.Add(CanonicalDeclarationUnrecognized); diagnostics.Add($"{CanonicalDeclarationUnknown}:{declaration.Type.Name.Text}"); break;

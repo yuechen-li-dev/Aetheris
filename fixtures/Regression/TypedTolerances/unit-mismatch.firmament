@@ -1,0 +1,5 @@
+Model UnitMismatch {
+    units: mm
+    Static drillDiameter: Length = 8mm tol 0.1deg
+    Box Body { size: [40mm, 30mm, 8mm] }
+}

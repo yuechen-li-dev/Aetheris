@@ -5,6 +5,14 @@ repairs S01 (symmetry fields), S02 (Profile/mirror links), S14 and S15.
 It also repairs S13's dense mirror/override witness; specialized semicolon rules
 elsewhere are unchanged. Original observations below remain pre-repair evidence.
 
+Typed-tolerance follow-up: [implementation and qualification](../release/FIRMAMENT-TYPED-TOLERANCES.md)
+adds AST-owned dimensional Static values and explicit native PMI projection.
+It clarifies S16/S17's value/interface roles: Semantic publishes typed
+engineering interfaces, Path is a non-materialized ordered guide, and
+Enum/Match choose while Set/Pattern enumerate. Bare Path and Concept Path now
+share the same owner. This does not close the wider expression-position or
+domain-grammar differences recorded below.
+
 ## Purpose and boundary
 
 This review accompanies the rewrite of [Writing Firmament](../public/firmament/syntax.md).

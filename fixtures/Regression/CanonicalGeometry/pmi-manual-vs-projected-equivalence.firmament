@@ -8,7 +8,7 @@ Model ManualProjectedEquivalence {
     Require ProjectedDiameter { Actual: ProjectedMount.Diameter Expected: 8mm Tolerance: PlusMinus(0.05mm, 0.02mm) }
     Pmi {
         Datum A { Target: face(+Z) }
-        HoleDiameter ManualCallout { Target: ManualMount Value: 8mm Tolerance: PlusMinus(0.05mm, 0.02mm) DatumRefs: [A] }
-        HoleDiameter ProjectedCallout { From: ProjectedDiameter As: HoleDiameter DatumRefs: [A] }
+        HoleDiameter ManualCallout { Target: ManualMount Value: 8mm Tolerance: PlusMinus(0.05mm, 0.02mm) }
+        HoleDiameter ProjectedCallout { From: ProjectedDiameter As: HoleDiameter }
     }
 }

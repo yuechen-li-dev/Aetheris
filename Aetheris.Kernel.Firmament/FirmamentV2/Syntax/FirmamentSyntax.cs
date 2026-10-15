@@ -60,6 +60,7 @@ public sealed record MappingSyntax(IdentifierSyntax Key, StatementSyntax Value, 
 [JsonDerivedType(typeof(MemberSetSyntax), "memberSet")]
 [JsonDerivedType(typeof(TypedValueSyntax), "typedValue")]
 [JsonDerivedType(typeof(MatchSyntax), "match")]
+[JsonDerivedType(typeof(ToleranceSyntax), "tolerance")]
 public abstract record ExpressionSyntax(FirmamentV2SourceSpan Span);
 public sealed record ReferenceSyntax(IdentifierSyntax Name, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record LiteralSyntax(LiteralKind Kind, string Raw, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
@@ -84,6 +85,9 @@ public sealed record MemberSetSyntax(ExpressionSyntax Target, IReadOnlyList<Argu
 public sealed record TypedValueSyntax(ExpressionSyntax Type, ExpressionSyntax Value, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record MatchArmSyntax(ExpressionSyntax Pattern, ExpressionSyntax Value, FirmamentV2SourceSpan Span);
 public sealed record MatchSyntax(ExpressionSyntax Scrutinee, IReadOnlyList<MatchArmSyntax> Arms, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+/// <summary>Compile-time dimensional requirement; it never changes nominal geometry.</summary>
+public sealed record ToleranceSyntax(ExpressionSyntax Nominal, ExpressionSyntax Plus, ExpressionSyntax? Minus,
+    FirmamentV2SourceSpan ToleranceSpan, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record DocumentSyntax(string SourceFile, IReadOnlyList<StatementSyntax> Statements,
     IReadOnlyList<SyntaxToken> Tokens, FirmamentV2SourceSpan Span);
 public sealed record SyntaxParseResult(DocumentSyntax Document, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics)

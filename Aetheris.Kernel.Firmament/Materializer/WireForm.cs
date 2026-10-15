@@ -142,6 +142,12 @@ public static class WireFormAuthoring
         ArgumentNullException.ThrowIfNull(source);
         source = FirmamentV2.FirmamentSourceSpelling.Normalize(source);
         if (WireRouteAuthoring.IsSource(source)) return WireRouteAuthoring.Parse(source);
+        var syntax = FirmamentV2.Syntax.FirmamentSyntaxParser.Parse(source);
+        var scopeDiagnostics = new List<string>();
+        FirmamentV2.FirmamentV2Parser.BindMechanicalScope(FirmamentV2.Syntax.FirmamentSyntaxTraversal.Declarations(syntax.Document)
+            .Where(d => d.Type.Name.Text == "Static").Cast<FirmamentV2.Syntax.StatementSyntax>().ToArray(), scopeDiagnostics);
+        if (scopeDiagnostics.Count > 0)
+            return Fail(scopeDiagnostics[0].Split(':')[0], string.Join("; ", scopeDiagnostics));
         var declaration = Declaration.Match(source);
         if (!declaration.Success) return Fail("wireform-declaration-missing", "No WireForm declaration was found.");
         var open = source.IndexOf('{', declaration.Index);

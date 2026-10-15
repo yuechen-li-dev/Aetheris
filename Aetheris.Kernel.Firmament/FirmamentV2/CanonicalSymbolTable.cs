@@ -22,7 +22,8 @@ public enum FirmamentV2CanonicalSymbolKind
     Hole,
     Slot,
     Selection,
-    Body
+    Body,
+    StaticValue
 }
 
 public sealed record FirmamentV2CanonicalSymbol(
@@ -98,6 +99,7 @@ internal static class FirmamentV2CanonicalSymbolBinder
             foreach (var require in staticAuthoring.Requires) Add(require.Name, FirmamentV2CanonicalSymbolKind.Require, require.SourceSpan);
         }
 
+        foreach (var value in document.Lets ?? []) Add(value.Name, FirmamentV2CanonicalSymbolKind.StaticValue, value.SourceSpan);
         foreach (var profile in document.Profiles ?? []) Add(profile.Name, FirmamentV2CanonicalSymbolKind.Profile, profile.SourceSpan);
         foreach (var polygon in document.Polygons ?? []) Add(polygon.Name, FirmamentV2CanonicalSymbolKind.Polygon2, polygon.SourceSpan);
         foreach (var boundary in (document.Boundaries ?? []).Where(x => x.ShapeType != "Polygon2")) Add(boundary.Name, FirmamentV2CanonicalSymbolKind.ClosedBoundary2, boundary.SourceSpan);

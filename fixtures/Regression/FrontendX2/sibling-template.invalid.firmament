@@ -1,0 +1,9 @@
+// Template names are private to their lexical declaration scope.
+Model Other {
+    Template<> Struct Family {
+        Box stock { size: [10mm, 20mm, 6mm] }
+    }
+}
+Model Plate {
+    Struct product = Family<>
+}

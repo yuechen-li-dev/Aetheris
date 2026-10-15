@@ -18,12 +18,20 @@ public static class FirmamentSyntaxTraversal
             InterfaceFitSyntax f => Expressions(f.Shaft).Concat(Expressions(f.Bore)),
             InterfacePolicySyntax p => p.Values.SelectMany(v => Expressions(v.Value)),
             ReplacementSyntax r => Expressions(r.Target),
-            DeclarationSyntax d => (d.Annotation is null ? [] : Expressions(d.Annotation))
+            DirectiveSyntax d => Expressions(d.Value),
+            DeclarationSyntax d => Arguments(d.Type.Arguments)
+                .Concat(d.Modifiers.SelectMany(m => Arguments(m.Arguments)))
+                .Concat(Arguments(d.Parameters))
+                .Concat(d.ResultType is null ? [] : Expressions(d.ResultType))
+                .Concat(d.Annotation is null ? [] : Expressions(d.Annotation))
                 .Concat(d.Initializer is null ? [] : Expressions(d.Initializer))
                 .Concat(d.Target is null ? [] : Expressions(d.Target))
                 .Concat(d.Clauses.SelectMany(c => Expressions(c.Value))),
             _ => []
         });
+
+    private static IEnumerable<ExpressionSyntax> Arguments(IEnumerable<ArgumentSyntax> arguments) =>
+        arguments.SelectMany(a => Expressions(a.Value).Concat(a.Default is null ? [] : Expressions(a.Default)));
 
     public static IEnumerable<ExpressionSyntax> Expressions(ExpressionSyntax expression)
     {
@@ -35,9 +43,9 @@ public static class FirmamentSyntaxTraversal
             UnarySyntax u => [u.Operand],
             QuantitySyntax q => [q.Value],
             ToleranceSyntax t => new[] { t.Nominal, t.Plus, t.Minus }.OfType<ExpressionSyntax>(),
-            SequenceSyntax s => s.Items.Select(a => a.Value),
-            CallSyntax c => new[] { c.Target }.Concat(c.Arguments.Select(a => a.Value)),
-            SpecializationSyntax s => new[] { s.Target }.Concat(s.Arguments.Select(a => a.Value)),
+            SequenceSyntax s => s.Items.SelectMany(a => new[] { a.Value, a.Default }.OfType<ExpressionSyntax>()),
+            CallSyntax c => new[] { c.Target }.Concat(c.Arguments.SelectMany(a => new[] { a.Value, a.Default }.OfType<ExpressionSyntax>())),
+            SpecializationSyntax s => new[] { s.Target }.Concat(s.Arguments.SelectMany(a => new[] { a.Value, a.Default }.OfType<ExpressionSyntax>())),
             MemberSyntax m => [m.Target],
             IndexSyntax i => i.Index is null ? [i.Target] : [i.Target, i.Index],
             WithSyntax w => [w.Target],

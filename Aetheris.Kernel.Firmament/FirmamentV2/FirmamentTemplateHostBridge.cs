@@ -1,3 +1,5 @@
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
+
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 /// <summary>Stable compiler metadata consumed by Forge and generated host bindings.</summary>
@@ -109,6 +111,12 @@ public static class FirmamentTemplateHostBridge
     {
         ArgumentNullException.ThrowIfNull(moduleSource);
         var collected = new List<string>();
+        var dataBinding = new FirmamentDataBinding(moduleSource);
+        collected.AddRange(dataBinding.Diagnostics.Select(d => d.Code + ": " + d.Message));
+        moduleSource = dataBinding.Source;
+        var export = new FirmamentTemplateSyntax(moduleSource, collected);
+        var position = dataBinding.OriginalSpan(new(export.ExportPosition, 0)).Start;
+        bool Visible(string space, string identity) => dataBinding.ResolveIdentity(space, dataBinding.DisplayName(identity), position) == identity;
         var templates = FirmamentV2TemplateExpansion.Inspect(moduleSource, collected)
             .Select(template => new FirmamentTemplateMetadata(
                 template.Name,
@@ -116,23 +124,26 @@ public static class FirmamentTemplateHostBridge
                 template.Parameters.Select(parameter => new FirmamentTemplateParameterMetadata(
                     parameter.Name,
                     parameter.Kind == "Type" ? FirmamentTemplateParameterKind.Type : FirmamentTemplateParameterKind.Value,
-                    parameter.TypeName,
-                    parameter.DefaultExpression,
+                    dataBinding.DisplayName(parameter.TypeName),
+                    parameter.DefaultExpression is null ? null : dataBinding.DisplayName(parameter.DefaultExpression),
                     parameter.ConstraintConcept)).ToArray(),
                 template.Constraints.Select(constraint => new FirmamentTemplateConstraintMetadata(
                     constraint.Name,
                     constraint.Expression)).ToArray()))
             .ToArray();
         var records = FirmamentV2TemplateExpansion.InspectRecords(moduleSource, collected)
-            .Select(record => new FirmamentTemplateRecordMetadata(record.Name,
-                record.Fields.Select(field => new FirmamentTemplateRecordFieldMetadata(field.Key, field.Value)).ToArray()))
+            .Where(record => Visible("type", record.Name))
+            .Select(record => new FirmamentTemplateRecordMetadata(dataBinding.DisplayName(record.Name),
+                record.Fields.Select(field => new FirmamentTemplateRecordFieldMetadata(field.Key, dataBinding.DisplayName(field.Value))).ToArray()))
             .ToArray();
         var enums = FirmamentV2TemplateExpansion.InspectEnums(moduleSource)
-            .Select(item => new FirmamentTemplateEnumMetadata(item.Key, item.Value.ToArray()))
+            .Where(item => Visible("type", item.Key))
+            .Select(item => new FirmamentTemplateEnumMetadata(dataBinding.DisplayName(item.Key), item.Value.ToArray()))
             .ToArray();
         var staticRecords = FirmamentV2TemplateExpansion.InspectStaticRecords(moduleSource, collected)
+            .Where(record => Visible("value", record.Name))
             .Select(record => new FirmamentTemplateStaticRecordMetadata(
-                record.Name, record.TypeName, record.Fields, record.Provenance))
+                dataBinding.DisplayName(record.Name), dataBinding.DisplayName(record.TypeName), record.Fields, record.Provenance))
             .ToArray();
         diagnostics = collected.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         return new(templates, records, enums, staticRecords);

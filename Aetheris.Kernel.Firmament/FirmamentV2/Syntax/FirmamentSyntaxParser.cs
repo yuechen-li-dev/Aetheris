@@ -168,9 +168,9 @@ public static class FirmamentSyntaxParser
             while ((type.Name.Text is "Template" or "Concept" or "Construction" or "Radial" or "Linear" or "Mirror" or "Mirrored" or "Semantic"
                 && Current.Kind == SyntaxTokenKind.Identifier && (Peek(1).Kind == SyntaxTokenKind.Identifier || Peek(1).Text == "<"))
                 || type.Name.Text == "Static" && Is("Table")
-                || type.Name.Text is "Assert" or "Analysis" or "Extend" or "Comptime" or "proposes" or "manufacturing" && Current.Kind == SyntaxTokenKind.Identifier)
+                || type.Name.Text is "Assert" or "Analysis" or "analysis" or "Construct" or "Extend" or "Comptime" or "proposes" or "manufacturing" && Current.Kind == SyntaxTokenKind.Identifier)
             {
-                modifiers.Add(type); type = Type();
+                modifiers.Add(type); type = Type(qualified: type.Name.Text == "Construct");
             }
             IdentifierSyntax? name = null;
             // Lowercase from was already a legal authored name. It becomes a link
@@ -199,7 +199,8 @@ public static class FirmamentSyntaxParser
             IdentifierSyntax? headerUnit = null;
             if (type.Name.Text is "Model" or "Struct" && name is not null && Current.Kind == SyntaxTokenKind.Identifier
                 && !LineBreak && !IsClause(Current.Text)) headerUnit = Identifier();
-            var parameters = Take("(") ? Arguments(")", declarationParameters: true) : [];
+            var hasParameterList = Take("(");
+            var parameters = hasParameterList ? Arguments(")", declarationParameters: true) : [];
             if (type.Name.Text == "Replace" && Take("."))
             {
                 var member = Identifier();
@@ -263,12 +264,18 @@ public static class FirmamentSyntaxParser
                 var field = new FieldSyntax(new("Units", headerUnit.Span), unit, headerUnit.Span);
                 body = body is null ? new([field], headerUnit.Span) : body with { Statements = new StatementSyntax[] { field }.Concat(body.Statements).ToArray() };
             }
-            return new(type, name, modifiers.ToArray(), parameters, annotation, result, clauses.ToArray(), initializer, body, occurrence, Span(start)) { Target = target };
+            return new(type, name, modifiers.ToArray(), parameters, annotation, result, clauses.ToArray(), initializer, body, occurrence, Span(start)) { Target = target, HasParameterList = hasParameterList };
         }
 
-        private TypeSyntax Type()
+        private TypeSyntax Type(bool qualified = false)
         {
             var name = Identifier();
+            if (qualified)
+                while (Take("."))
+                {
+                    var segment = Identifier();
+                    name = new(name.Text + "." + segment.Text, new(name.Span.Start, segment.Span.Start + segment.Span.Length - name.Span.Start));
+                }
             var args = Take("<") ? Arguments(">") : [];
             return new(name, args, Span(name.Span.Start));
         }
@@ -474,9 +481,9 @@ public static class FirmamentSyntaxParser
                     { left = new ObjectSyntax(left, Block(), Span(start)); continue; }
                     if (allowObject && Take("with")) { left = new WithSyntax(left, Block(), Span(start)); continue; }
                     if (Current.Kind == SyntaxTokenKind.Identifier && !LineBreak &&
-                        (Current.Text is "mm" or "cm" or "m" or "deg" or "rad"
+                        (Current.Text is "mm" or "cm" or "m" or "deg" or "rad" or "N" or "kN" or "MN" or "Pa" or "kPa" or "MPa" or "GPa"
                             || left is LiteralSyntax { Kind: LiteralKind.Number } && Current.Span.Start == left.Span.Start + left.Span.Length)
-                        && left is LiteralSyntax or SequenceSyntax)
+                        && left is LiteralSyntax or SequenceSyntax or ReferenceSyntax)
                     { left = new QuantitySyntax(left, Identifier(), Span(start)); continue; }
                     if (!Operator(out var binary, out var precedence, out var width) || precedence < minimum || stopGreater && Is(">")) break;
                     at += width;

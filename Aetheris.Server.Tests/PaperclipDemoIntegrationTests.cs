@@ -16,7 +16,7 @@ public sealed class PaperclipDemoIntegrationTests : IClassFixture<WebApplication
     {
         var response = await _client.PostAsJsonAsync("/api/v1/demos/maximum-paperclips",
             new PaperclipDemoRequest(1, 17.25, 16.1, 5, 3, "Standard.Materials.StainlessSteel.304_Annealed"));
-        response.EnsureSuccessStatusCode();
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
 
         var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<PaperclipDemoResponse>>();
         Assert.NotNull(envelope?.Data);

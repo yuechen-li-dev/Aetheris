@@ -873,9 +873,9 @@ public static class PrismaticProfileCompositionParser
         var normal = plane.Groups["normal"].Value.Split(',');
         var up = plane.Groups["up"].Success ? plane.Groups["up"].Value.Split(',').Select(v => v.Trim()).ToArray() : new[] { "0", "1", "0" };
         if (!up.SequenceEqual(new[] { "0", "1", "0" }) || origin.Length != 3 || normal.Length != 3
-            || !FirmamentV2FeatureExpansion.TryEvaluateScalar(origin[0], out var x, out var xu) || xu != "mm" || Math.Abs(x) > 1e-9
-            || !FirmamentV2FeatureExpansion.TryEvaluateScalar(origin[1], out var y, out var yu) || yu != "mm" || Math.Abs(y) > 1e-9
-            || !FirmamentV2FeatureExpansion.TryEvaluateScalar(origin[2], out var z, out var zu) || zu != "mm"
+            || !FirmamentNumericEvaluation.TryEvaluateScalar(origin[0], out var x, out var xu) || xu != "mm" || Math.Abs(x) > 1e-9
+            || !FirmamentNumericEvaluation.TryEvaluateScalar(origin[1], out var y, out var yu) || yu != "mm" || Math.Abs(y) > 1e-9
+            || !FirmamentNumericEvaluation.TryEvaluateScalar(origin[2], out var z, out var zu) || zu != "mm"
             || !double.TryParse(normal[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var nx) || nx != 0
             || !double.TryParse(normal[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var ny) || ny != 0
             || !double.TryParse(normal[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var nz) || nz != 1)

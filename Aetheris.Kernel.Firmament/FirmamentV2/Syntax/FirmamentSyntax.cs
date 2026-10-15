@@ -28,7 +28,13 @@ public enum BinaryOperator { Pipeline, Direction, Or, And, Equal, NotEqual, Less
 [JsonDerivedType(typeof(ReplacementSyntax), "replacement")]
 public abstract record StatementSyntax(FirmamentV2SourceSpan Span);
 public sealed record IdentifierSyntax(string Text, FirmamentV2SourceSpan Span);
-public sealed record ArgumentSyntax(IdentifierSyntax? Name, ExpressionSyntax Value, ExpressionSyntax? Default, FirmamentV2SourceSpan Span);
+public sealed record ArgumentSyntax(IdentifierSyntax? Name, ExpressionSyntax Value, ExpressionSyntax? Default, FirmamentV2SourceSpan Span)
+{
+    // Retain the authored value boundary when a binder replaces Value. Transport
+    // serializers can preserve identity-bearing application spelling without
+    // interpreting the source or guessing the extent of an expression.
+    [JsonIgnore] public FirmamentV2SourceSpan AuthoredValueSpan { get; init; } = Value.Span;
+}
 public sealed record TypeSyntax(IdentifierSyntax Name, IReadOnlyList<ArgumentSyntax> Arguments, FirmamentV2SourceSpan Span);
 public sealed record ClauseSyntax(ClauseKind Kind, ExpressionSyntax Value, FirmamentV2SourceSpan Span);
 public sealed record BlockSyntax(IReadOnlyList<StatementSyntax> Statements, FirmamentV2SourceSpan Span)
@@ -44,6 +50,7 @@ public sealed record DeclarationSyntax(TypeSyntax Type, IdentifierSyntax? Name, 
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ExpressionSyntax? Target { get; init; }
+    [JsonIgnore] public bool HasParameterList { get; init; }
 }
 public sealed record FieldSyntax(IdentifierSyntax Name, ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
 public sealed record DirectiveSyntax(DirectiveKind Kind, ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);

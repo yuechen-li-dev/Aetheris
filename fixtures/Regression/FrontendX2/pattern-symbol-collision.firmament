@@ -1,0 +1,19 @@
+schema Mechanical
+Model MountingPlate {
+    units: mm
+    Static points: Set<Point2> {
+        left => Point2(-10mm, 0mm)
+        right => Point2(10mm, 0mm)
+    }
+    Box stock { size: [40mm, 24mm, 6mm] }
+    Modify stock {
+        Pattern holes over points {
+            Diameter => Hole<Shaft> Diameter {
+                on: +Z
+                center: Diameter
+                diameter: 6mm
+                end: ThroughAll
+            }
+        }
+    }
+}

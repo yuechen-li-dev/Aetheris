@@ -1,0 +1,25 @@
+// Compatibility surface witness. Panel admission succeeds; the existing
+// panel-only STEP materialization capability remains a separate limitation.
+Model RadianSurface {
+    units: mm
+    Panel patch {
+        surface: RuledSurface {
+            boundaryA: Arc {
+                center: [0mm, 0mm, 0mm]
+                normal: [0, 0, 1]
+                radius: 10mm
+                referenceAxis: [1, 0, 0]
+                startAngle: 0.25rad
+                sweepAngle: 0.5rad
+            }
+            boundaryB: Arc {
+                center: [0mm, 0mm, 5mm]
+                normal: [0, 0, 1]
+                radius: 10mm
+                referenceAxis: [1, 0, 0]
+                startAngle: 0.25rad
+                sweepAngle: 0.5rad
+            }
+        }
+    }
+}

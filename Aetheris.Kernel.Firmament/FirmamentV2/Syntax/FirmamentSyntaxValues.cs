@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 /// <summary>Literal and bounded dimensional binding over syntax. This preserves the
@@ -19,41 +17,9 @@ internal static class FirmamentSyntaxValues
     public static bool TryMeasure(ExpressionSyntax? expression, string unit, out double value, string? implicitUnit = null)
     {
         value = double.NaN;
-        if (!Evaluate(expression, unit, out var result, out var dimension) || dimension != (unit.Length == 0 ? 0 : 1) && !(dimension == 0 && unit == implicitUnit)) return false;
-        value = result; return double.IsFinite(value);
-    }
-
-    private static bool Evaluate(ExpressionSyntax? expression, string unit, out double value, out int dimension)
-    {
-        value = double.NaN; dimension = 0;
-        switch (expression)
-        {
-            case LiteralSyntax { Kind: LiteralKind.Number } literal:
-                return double.TryParse(literal.Raw, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
-            case QuantitySyntax quantity when quantity.Unit.Text == unit:
-                if (!Evaluate(quantity.Value, unit, out value, out dimension) || dimension != 0) return false;
-                dimension = 1; return true;
-            case UnarySyntax { Operator: UnaryOperator.Positive or UnaryOperator.Negative } unary:
-                if (!Evaluate(unary.Operand, unit, out value, out dimension)) return false;
-                if (unary.Operator == UnaryOperator.Negative) value = -value;
-                return true;
-            case SequenceSyntax { Kind: SequenceKind.Tuple, Items.Count: 1 } group:
-                return Evaluate(group.Items[0].Value, unit, out value, out dimension);
-            case BinarySyntax binary:
-                if (!Evaluate(binary.Left, unit, out var left, out var ld) || !Evaluate(binary.Right, unit, out var right, out var rd)) return false;
-                switch (binary.Operator)
-                {
-                    case BinaryOperator.Add or BinaryOperator.Subtract when ld == rd:
-                        dimension = ld; value = binary.Operator == BinaryOperator.Add ? left + right : left - right; break;
-                    case BinaryOperator.Multiply:
-                        dimension = ld + rd; value = left * right; break;
-                    case BinaryOperator.Divide when Math.Abs(right) > double.Epsilon:
-                        dimension = ld - rd; value = left / right; break;
-                    default: return false;
-                }
-                return dimension is >= 0 and <= 1 && double.IsFinite(value);
-            default: return false;
-        }
+        if (!FirmamentNumericEvaluation.TryEvaluate(expression, out var result)
+            || result.Unit != unit && !(result.Unit.Length == 0 && unit == implicitUnit)) return false;
+        value = result.Number; return true;
     }
 
     public static bool Vector(ExpressionSyntax? expression, string unit, out double[] values, string? implicitUnit = null)
@@ -77,6 +43,12 @@ internal static class FirmamentSyntaxValues
         }
         values = result; return true;
     }
+    internal static List<(string Text, int Start)> Components(string text)
+    {
+        var parsed = FirmamentSyntaxParser.ParseExpression("[" + text + "]");
+        return parsed.Expression is SequenceSyntax s ? s.Items.Select(a => (text.Substring(a.Value.Span.Start - 1, a.Value.Span.Length), a.Value.Span.Start - 1)).ToList() : [];
+    }
+
 }
 
 /// <summary>Each semantic owner consumes its actual fields, then closes its scope.

@@ -22,6 +22,17 @@ The complete build-qualified version is [`generic-mounting-plate.firmament`](../
 
 The explicit output keyword is significant: current Templates specialize `Struct`, `Model`, `Concept Struct`, `Panel`, `SheetMetal`, `Profile`, or `ProfileDelta` declarations. It is not inferred from the body.
 
+Product Template names have lexical scope. A Model-local definition shadows a
+document definition, sibling scopes remain private, and duplicate names in one
+scope reject. Nested applications resolve where the Template was defined.
+Host metadata and host invocation expose document-level product Templates, or
+Templates in the single Model used as a module container by existing libraries.
+They do not merge private definitions from sibling Models.
+Record, Static and Table declarations now use the same lexical ownership. A local
+Record shadows its enclosing name while retaining a distinct nominal type;
+sibling-private data is invisible. Defaults resolve in the definition scope and
+explicit arguments in the caller scope. The geometry operations remain unchanged.
+
 A finite feature Template used by `Pattern ... Over` has the same generic visual form:
 
 ```text

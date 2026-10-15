@@ -23,7 +23,8 @@ public static class PaperclipDemoEndpoints
                 ["InnerBendRadius"] = Mm(request.InnerBendRadius),
                 ["Material"] = System.Text.Json.JsonSerializer.Serialize(request.Material ?? "Standard.Materials.StainlessSteel.304_Annealed"),
             };
-            var expansion = FirmamentTemplateHostBridge.Expand(PaperclipTemplateLibrary.Source, "PaperclipTemplate", "InteractivePaperclip",
+            var module = StandardProductTemplateLibrary.GetTemplateSource("PaperclipTemplate", "PaperclipPolicy");
+            var expansion = FirmamentTemplateHostBridge.Expand(module, "PaperclipTemplate", "InteractivePaperclip",
                 new Dictionary<string, FirmamentHostArgument>(StringComparer.Ordinal) { ["P"] = new(string.Empty, "PaperclipPolicy", fields) }, out var diagnostics);
             if (expansion is null) return ApiMappings.BadRequestFromMessage(string.Join("; ", diagnostics), "maximum-paperclips.bind");
             var compiled = FirmamentBuildAndExport.CompileSource(expansion.ExpandedSource);

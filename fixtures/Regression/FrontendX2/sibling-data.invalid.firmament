@@ -1,0 +1,8 @@
+Model Other {
+    Static secret: Length = 30mm
+}
+Model Plate {
+    units: mm
+    Static width: Length = secret
+    Box stock { size: [width, 20mm, 6mm] }
+}

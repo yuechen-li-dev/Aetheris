@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Semantics;
@@ -184,7 +185,7 @@ internal static class AssemblyPublishedPorts
                 var components = match.Groups["origin"].Value.Split(',');
                 var values = new double[3];
                 if (components.Length != 3 || components.Where((component, index) =>
-                        !FirmamentV2FeatureExpansion.TryEvaluateScalar(component.Trim(), out values[index], out var unit)
+                        !FirmamentNumericEvaluation.TryEvaluateScalar(component.Trim(), out values[index], out var unit)
                         || (unit != "mm" && !(unit.Length == 0 && double.TryParse(component.Trim(), NumberStyles.Float,
                             CultureInfo.InvariantCulture, out _))) || !double.IsFinite(values[index])).Any())
                 {

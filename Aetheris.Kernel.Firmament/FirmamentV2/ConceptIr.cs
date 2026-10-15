@@ -135,7 +135,11 @@ public sealed record ConceptIrTemplateInstantiation(
     string Status = "ExpandedBeforeFeatureAir",
     IReadOnlyDictionary<string, string>? SelectedMatchArms = null,
     IReadOnlyDictionary<string, ConceptIrTemplateRecordArgument>? RecordArguments = null,
-    IReadOnlyDictionary<string, string>? RequireResults = null);
+    IReadOnlyDictionary<string, string>? RequireResults = null)
+{
+    public string? DefinitionScope { get; init; }
+    public string? BindingScope { get; init; }
+}
 public sealed record ConceptIrDocument(
     IReadOnlyList<ConceptIrDefinition> Concepts,
     IReadOnlyList<ConceptIrStructInstance> Structs,
@@ -500,7 +504,11 @@ internal static class ConceptIrResolver
             for (var index = 0; index < points.Points.Count; index++)
             {
                 var generatedName = pattern.Groups["name"].Value + "_" + index.ToString(CultureInfo.InvariantCulture);
-                var concreteBody = Regex.Replace(featureBody, $@"\b{Regex.Escape(item)}\b", source + "[" + index.ToString(CultureInfo.InvariantCulture) + "]");
+                var featureSyntax = FirmamentSyntaxParser.Parse(featureBody);
+                var element = FirmamentSyntaxParser.ParseExpression(source + "[" + index.ToString(CultureInfo.InvariantCulture) + "]").Expression;
+                if (!featureSyntax.IsSuccess || element is null) { diagnostics.Add("firmament-pattern-element-type-mismatch"); continue; }
+                var substitution = new FirmamentSyntaxSubstitution(new Dictionary<string, ExpressionSyntax>(StringComparer.Ordinal) { [item] = element });
+                var concreteBody = FirmamentSyntaxWriter.Statements(featureSyntax.Document.Statements.Select(substitution.Statement));
                 var concrete = $"hole<Shaft> {generatedName} {{{concreteBody}}}";
                 var one = ParseConceptHoles(concrete, bodyOffset + open + featureOpen, boxName, bounds, instances, materializedName, bindings, diagnostics);
                 if (one.Count != 1) continue;
@@ -862,7 +870,7 @@ internal static class ConceptIrResolver
             {
                 return false;
             }
-            var components = FirmamentV2FeatureExpansion.SplitTopLevel(match.Groups["values"].Value);
+            var components = FirmamentSyntaxValues.Components(match.Groups["values"].Value);
             if (components.Count != 3)
             {
                 return false;
@@ -870,7 +878,7 @@ internal static class ConceptIrResolver
             var values = new double[3];
             for (int index = 0; index < components.Count; index++)
             {
-                if (!FirmamentV2FeatureExpansion.TryEvaluateScalar(components[index].Text, out values[index], out string unit)
+                if (!FirmamentNumericEvaluation.TryEvaluateScalar(components[index].Text, out values[index], out string unit)
                     || !double.IsFinite(values[index]) || (unit != "" && (name != "Origin" || unit != "mm")))
                 {
                     return false;

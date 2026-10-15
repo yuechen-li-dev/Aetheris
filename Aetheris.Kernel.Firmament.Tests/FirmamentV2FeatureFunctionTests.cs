@@ -163,8 +163,8 @@ public sealed class FirmamentV2FeatureFunctionTests
     [InlineData("wrong-return-type.firmament", "firmament-feature-return-type")]
     [InlineData("direct-recursion.firmament", "firmament-feature-recursion")]
     [InlineData("indirect-recursion.firmament", "firmament-feature-recursion")]
-    [InlineData("unsupported-conditional.firmament", "firmament-feature-control-flow-unsupported")]
-    [InlineData("unsupported-loop.firmament", "firmament-feature-control-flow-unsupported")]
+    [InlineData("unsupported-conditional.firmament", "firmament-syntax-control-flow-unsupported")]
+    [InlineData("unsupported-loop.firmament", "firmament-syntax-control-flow-unsupported")]
     public void InvalidFeatureFixtures_ProduceSpecificTypedDiagnostics(string file, string diagnostic)
     {
         var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,

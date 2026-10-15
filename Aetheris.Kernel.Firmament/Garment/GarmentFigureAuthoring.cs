@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Humanoid;
@@ -151,7 +152,7 @@ internal static class GarmentFigureAuthoring
 
     private static double Length(string text)
     {
-        if (!FirmamentV2FeatureExpansion.TryEvaluateScalar(text, out double value, out string unit) || unit != "mm")
+        if (!FirmamentNumericEvaluation.TryEvaluateScalar(text, out double value, out string unit) || unit != "mm")
         {
             GarmentAuthoring.Fail("garment-fit-unit-invalid", "Section height must be a Length: " + text);
         }

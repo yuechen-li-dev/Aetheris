@@ -161,6 +161,10 @@ public sealed class FirmamentCompileTimeValueBindingTests
         Assert.True(parsed.IsSuccess, string.Join("\n", parsed.Diagnostics));
         Assert.Contains(parsed.Document!.BoundLets!, v => v.Origins.Any(o => o.Binding == "Template PlateFamily.spec.diameter")
             && v.Origins.Any(o => o.Binding == "Feature Drill.spec.diameter") && v.Tolerance?.Plus == 0.1);
+        var arguments = Assert.Single(parsed.Document.FeatureInvocations!).Arguments;
+        Assert.Contains("spec", arguments.Keys);
+        Assert.Contains("spec.diameter", arguments.Keys);
+        Assert.Contains("spec.width", arguments.Keys);
         Assert.True(FirmamentBuildAndExport.CompileSource(source, null).IsSuccess);
         var wrongType = source.Replace("Feature Drill(spec: BoreSpec)", "Record OtherSpec { diameter: Length }\nFeature Drill(spec: OtherSpec)");
         Assert.False(FirmamentBuildAndExport.CompileSource(wrongType, null).IsSuccess);
@@ -308,6 +312,9 @@ public sealed class FirmamentCompileTimeValueBindingTests
         Assert.True(parsed.IsSuccess, string.Join("\n", parsed.Diagnostics));
         Assert.Contains(parsed.Document!.BoundLets!, v => v.Origins.Any(o => o.Binding == "Template PlateFamily.spec.bore.diameter")
             && v.Origins.Any(o => o.Binding == "Feature Drill.spec.bore.diameter") && v.Tolerance?.Plus == 0.10);
+        var arguments = Assert.Single(parsed.Document.FeatureInvocations!).Arguments;
+        Assert.Contains("spec.bore.diameter", arguments.Keys);
+        Assert.Contains("spec.bore.width", arguments.Keys);
         Assert.True(FirmamentBuildAndExport.CompileSource(source, null).IsSuccess);
     }
 }

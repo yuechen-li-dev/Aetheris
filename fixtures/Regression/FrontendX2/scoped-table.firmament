@@ -1,0 +1,14 @@
+Record Spec { width: Length }
+Static Table choices: Spec { width: [10mm] }
+Static selected: Spec = choices[0]
+Model ScopedTable {
+    units: mm
+    Record Spec { width: Length thickness: Length }
+    Static width: Length = 30mm
+    Static Table choices: Spec {
+        width: [width]
+        thickness: [6mm]
+    }
+    Static selected: Spec = choices[0]
+    Box stock { size: [selected.width, 20mm, selected.thickness] }
+}

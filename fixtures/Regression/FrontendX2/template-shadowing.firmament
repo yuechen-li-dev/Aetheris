@@ -1,0 +1,11 @@
+// Model-local Family shadows the document Template; product must be 30 x 20 x 6 mm.
+Template<width: Length = 10mm> Struct Family {
+    Box stock { size: [width, 20mm, 6mm] }
+}
+Model LocalFamily {
+    units: mm
+    Template<width: Length = 30mm> Struct Family {
+        Box stock { size: [width, 20mm, 6mm] }
+    }
+    Struct product = Family<>
+}

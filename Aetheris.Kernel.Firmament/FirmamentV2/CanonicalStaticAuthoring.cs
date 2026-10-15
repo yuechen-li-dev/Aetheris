@@ -4,8 +4,9 @@ using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
-/// <summary>Small, bounded canonical static frontend. It normalizes records, arrays, templates,
-/// patterns, and Require into erased concrete declarations before the material frontend runs.</summary>
+/// <summary>Finite static authoring owner. Pattern headers/mappings and finite feature
+/// Template output bind AST nodes; the remaining Record/Set catalog and source adapters
+/// are explicit migration boundaries before domain AIR.</summary>
 internal static class CanonicalStaticAuthoring
 {
     internal const string Prefix = "firmament-v2-static-";
@@ -16,26 +17,29 @@ internal static class CanonicalStaticAuthoring
     /// <summary>Assembly consumes the same checked Record/Set values, but yields product-tree declarations.</summary>
     internal static Result? ExpandAssemblyPatterns(string source, List<string> diagnostics, bool spatial = false)
     {
+        var binding = new FirmamentDataBinding(source);
+        diagnostics.AddRange(binding.Diagnostics.Select(d => d.Code + ": " + d.Message));
+        if (binding.Diagnostics.Count > 0) return null;
+        source = binding.Source;
         var points = ConceptPointAuthoring.Expand(source, diagnostics);
         if (points is null) return null;
         source = points.Source;
         var sites = AssemblySiteAuthoring.Expand(source, diagnostics);
         if (sites is null) return null;
         source = sites.Source;
-        var headers = Regex.Matches(source,@"\bPattern\s+(?<name>[A-Za-z_]\w*)\s+Over\s+(?<set>[A-Za-z_]\w*)\s*\{").Cast<Match>()
-            .Where(h => Regex.IsMatch(source[(h.Index+h.Length)..],@"^\s*[A-Za-z_]\w*\s*=>\s*<(?:Part|Assembly)\b")).ToArray();
+        var syntax = FirmamentSyntaxParser.Parse(source);
+        var headers = FirmamentSyntaxTraversal.Declarations(syntax.Document)
+            .Where(d => d.Type.Name.Text == "Pattern" && d.Clauses.Any(c => c.Kind == ClauseKind.Over)
+                && d.Body?.Statements.FirstOrDefault() is MappingSyntax { Value: DeclarationSyntax { Occurrence: true, Type.Name.Text: "Part" or "Assembly" } }).ToArray();
         if (headers.Length == 0)
         {
             source = points.Math.Normalize(source, diagnostics);
             return diagnostics.Count > 0 ? null : new(source, points.Points.Count == 0 ? null : new([],[],[],[],[], ConceptPoints: points.Points));
         }
         var catalog = source.Select(c => c is '\r' or '\n' ? c : ' ').ToArray();
-        foreach (Match header in Regex.Matches(source,@"\b(?:Record\s+[A-Za-z_]\w*|Static\s+[A-Za-z_]\w*\s*:\s*Set\s*<\s*[A-Za-z_]\w*\s*>)\s*\{"))
-        {
-            var open=source.IndexOf('{',header.Index); var close=MatchPair(source,open,'{','}');
-            if (close<0) { diagnostics.Add(Prefix+"assembly-pattern-catalog-malformed"); return null; }
-            source.CopyTo(header.Index,catalog,header.Index,close-header.Index+1);
-        }
+        foreach (var declaration in FirmamentSyntaxTraversal.Declarations(syntax.Document)
+            .Where(d => d.Type.Name.Text == "Record" || d.Type.Name.Text == "Static" && d.Annotation is SpecializationSyntax { Target: ReferenceSyntax { Name.Text: "Set" } }))
+            source.CopyTo(declaration.Span.Start, catalog, declaration.Span.Start, declaration.Span.Length);
         var catalogSource = new string(catalog);
         if (spatial)
         {
@@ -55,27 +59,36 @@ internal static class CanonicalStaticAuthoring
         var patterns=new List<FirmamentV2CanonicalPatternDecl>(); var names=new HashSet<string>(); var total=0;
         foreach (var header in headers)
         {
-            var name=header.Groups["name"].Value; var open=source.IndexOf('{',header.Index); var close=MatchPair(source,open,'{','}');
-            if (!names.Add(name)) { diagnostics.Add(Prefix+"assembly-pattern-duplicate:"+name); continue; }
-            if (close<0 || !sets.TryGetValue(header.Groups["set"].Value,out var set)) { diagnostics.Add(Prefix+"pattern-source-invalid:"+name); continue; }
-            var body=source[(open+1)..close].Trim();
-            var arrow=Regex.Match(body,@"^(?<binder>[A-Za-z_]\w*)\s*=>\s*(?<mapping>[\s\S]+)$");
-            if (!arrow.Success || !Regex.IsMatch(arrow.Groups["mapping"].Value,@"^\s*<(?:Part|Assembly)\b") || Regex.IsMatch(body,@"\bPattern\s+"))
-            { diagnostics.Add(Prefix+"assembly-pattern-body-invalid:"+name); continue; }
+            var name = header.Name?.Text ?? "<unnamed>";
+            if (!names.Add(name)) { diagnostics.Add(Prefix + "assembly-pattern-duplicate:" + name); continue; }
+            var sourceName = header.Clauses.Count == 1 ? FirmamentSyntaxValues.Reference(header.Clauses[0].Value) : null;
+            if (sourceName is null || !sets.TryGetValue(sourceName, out var set))
+            { diagnostics.Add(Prefix + "pattern-source-invalid:" + name); continue; }
+            var mapping = (MappingSyntax)header.Body!.Statements[0];
+            var mappedStatements = new[] { mapping.Value }.Concat(header.Body.Statements.Skip(1)).ToArray();
+            if (mappedStatements.Any(s => s is not DeclarationSyntax { Occurrence: true, Type.Name.Text: "Part" or "Assembly" })
+                || header.Parameters.Count > 0 || header.Modifiers.Count > 0 || header.Initializer is not null || header.Annotation is not null || header.ResultType is not null
+                || header.Type.Span.Length > header.Type.Name.Span.Length || header.Occurrence || header.HasParameterList)
+            { diagnostics.Add(Prefix + "assembly-pattern-body-invalid:" + name); continue; }
             total+=set.Entries.Count;
             if (set.Entries.Count>MaxPatternExpansion || total>4096) { diagnostics.Add(Prefix+"pattern-expansion-limit:"+name); continue; }
             var output=new List<string>(); var associations=new List<FirmamentV2PatternAssociation>();
             const string identity="Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];";
             foreach (var entry in set.Entries)
             {
-                var mapping=SubstituteSetMapping(arrow.Groups["mapping"].Value,arrow.Groups["binder"].Value,entry);
-                if (Regex.IsMatch(mapping,$@"\b{Regex.Escape(arrow.Groups["binder"].Value)}\."))
-                { diagnostics.Add(Prefix+"assembly-pattern-member-unresolved:"+name+"."+entry.Name); continue; }
-                output.Add(spatial ? $"<Group {entry.Name}>\n{mapping}\n</Group>" : $"<Assembly {entry.Name}> {identity}\n{mapping}\n</Assembly>");
+                var substitution = BindSetElement(mapping.Key.Text, entry, diagnostics);
+                if (substitution is null) continue;
+                var bound = mappedStatements.Select(substitution.Statement).ToArray();
+                var mappedText = FirmamentSyntaxWriter.Statements(bound, source);
+                var mappedSyntax = new DocumentSyntax("expanded-pattern", bound, [], header.Span);
+                if (FirmamentSyntaxTraversal.Expressions(mappedSyntax).OfType<MemberSyntax>()
+                    .Any(m => FirmamentSyntaxValues.Reference(m.Target) == mapping.Key.Text))
+                { diagnostics.Add(Prefix + "assembly-pattern-member-unresolved:" + name + "." + entry.Name); continue; }
+                output.Add(spatial ? $"<Group {entry.Name}>\n{mappedText}\n</Group>" : $"<Assembly {entry.Name}> {identity}\n{mappedText}\n</Assembly>");
                 associations.Add(new(name+"."+entry.Name,set.Name,entry.Name,entry.Value,entry.SourceOrder,entry.Provenance));
             }
-            changes.Add((header.Index,close-header.Index+1,spatial ? $"<Group {name}>\n{string.Join(Environment.NewLine,output)}\n</Group>" : $"<Assembly {name}> {identity}\n{string.Join(Environment.NewLine,output)}\n</Assembly>"));
-            patterns.Add(new(name,set.Name,"Assembly",set.Entries.Count,associations.Select(a=>a.GeneratedId).ToArray(),new(header.Index,close-header.Index+1),associations,
+            changes.Add((header.Span.Start,header.Span.Length,spatial ? $"<Group {name}>\n{string.Join(Environment.NewLine,output)}\n</Group>" : $"<Assembly {name}> {identity}\n{string.Join(Environment.NewLine,output)}\n</Assembly>"));
+            patterns.Add(new(name,set.Name,"Assembly",set.Entries.Count,associations.Select(a=>a.GeneratedId).ToArray(),header.Span,associations,
                 sites.Recipes.GetValueOrDefault(set.Name)));
         }
         foreach (var change in changes.OrderByDescending(c=>c.Start)) source=source.Remove(change.Start,change.Length).Insert(change.Start,change.Text);
@@ -86,28 +99,45 @@ internal static class CanonicalStaticAuthoring
         return diagnostics.Count > 0 ? null : new(source,data.Document with { Patterns=patterns, ConceptPoints=points.Points });
     }
 
-    private static string SubstituteSetMapping(string mapping,string binder,FirmamentV2StaticSetEntry entry)
+    private static FirmamentSyntaxSubstitution? BindSetElement(string binder, FirmamentV2StaticSetEntry entry, List<string> diagnostics)
     {
+        var values = new Dictionary<string, ExpressionSyntax>(StringComparer.Ordinal);
+        bool Add(string name, string value)
+        {
+            var parsed = FirmamentSyntaxParser.ParseExpression(value);
+            if (parsed.Expression is null || parsed.Diagnostics.Count > 0)
+            { diagnostics.Add(Prefix + "pattern-value-invalid:" + entry.Name + ":" + name); return false; }
+            values[name] = parsed.Expression; return true;
+        }
         if (entry.RecordFields is not null)
+        {
             foreach (var field in entry.RecordFields)
-                mapping=Regex.Replace(mapping,$@"\b{Regex.Escape(binder)}\s*\.\s*{Regex.Escape(field.Key)}\b",field.Value,RegexOptions.CultureInvariant);
+                if (!Add(binder + "." + field.Key, field.Value)) return null;
+        }
         else
         {
-            var point = Regex.Match(entry.Value, @"^Point(?<dim>[23])\((?<values>[^()]+)\)$");
-            if (point.Success)
+            if (!Add(binder, entry.Value)) return null;
+            if (values[binder] is CallSyntax { Target: ReferenceSyntax { Name.Text: "Point2" or "Point3" } } point)
             {
-                var coordinates = point.Groups["values"].Value.Split(',', StringSplitOptions.TrimEntries);
-                for (var i = 0; i < coordinates.Length; i++)
-                    mapping = Regex.Replace(mapping, $@"\b{Regex.Escape(binder)}(?:\s*\.\s*Position)?\s*\.\s*{"XYZ"[i]}\b", coordinates[i]);
-                mapping = Regex.Replace(mapping, $@"\b{Regex.Escape(binder)}\s*\.\s*Position\b", entry.Value);
+                for (var i = 0; i < point.Arguments.Count; i++)
+                {
+                    values[binder + "." + "XYZ"[i]] = point.Arguments[i].Value;
+                    values[binder + ".Position." + "XYZ"[i]] = point.Arguments[i].Value;
+                }
+                values[binder + ".Position"] = point;
             }
-            mapping=Regex.Replace(mapping,$@"\b{Regex.Escape(binder)}\b",entry.Value,RegexOptions.CultureInvariant);
         }
-        return mapping;
+        return new(values);
     }
 
     public static Result? Expand(string source, List<string> diagnostics, FirmamentCompileTimeValues? scalars = null)
     {
+        var binding = new FirmamentDataBinding(source);
+        diagnostics.AddRange(binding.Diagnostics.Select(d => scalars is null ? d.Code + ": " + d.Message : d.Code));
+        scalars?.AddExpansionDiagnostics(binding.Diagnostics);
+        if (binding.Diagnostics.Count > 0) return null;
+        scalars?.UseDataBinding(binding);
+        source = binding.Source;
         var points = ConceptPointAuthoring.Expand(source, diagnostics);
         if (points is null) return null;
         source = points.Source;
@@ -144,16 +174,13 @@ internal static class CanonicalStaticAuthoring
             if (close >= 0) changes.Add((header.Index, close - header.Index + 1, string.Empty));
         }
 
-        foreach (Match header in Regex.Matches(source, @"\bRecord\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
+        var catalog = FirmamentV2TemplateExpansion.ReadDataCatalog(source, diagnostics, scalars);
+        foreach (var record in catalog.Types.Values)
         {
-            var close = MatchPair(source, source.IndexOf('{', header.Index), '{', '}');
-            if (close < 0) { diagnostics.Add(Prefix + "record-malformed"); continue; }
-            var name = header.Groups["name"].Value; if (!names.Add(name)) { diagnostics.Add(FirmamentV2Parser.DuplicateName + ":Record:" + name); continue; }
-            var fields = Regex.Matches(source[(source.IndexOf('{', header.Index) + 1)..close], @"\b(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)", RegexOptions.CultureInvariant)
-                .Cast<Match>().ToDictionary(m => m.Groups["name"].Value, m => m.Groups["type"].Value, StringComparer.Ordinal);
-            if (fields.Count == 0) diagnostics.Add(Prefix + "record-empty:" + name);
-            recordTypes.Add(new(name, fields, new(header.Index, close - header.Index + 1)));
-            changes.Add((header.Index, close - header.Index + 1, string.Empty));
+            if (record.Fields.Count == 0) diagnostics.Add(Prefix + "record-empty:" + record.Name);
+            recordTypes.Add(new(record.Name, record.Fields, record.SourceSpan));
+            changes.Add((record.SourceSpan.Start, record.SourceSpan.Length, string.Empty));
+            names.Add(record.Name);
         }
         var recordByName = recordTypes.ToDictionary(x => x.Name, StringComparer.Ordinal);
 
@@ -178,42 +205,17 @@ internal static class CanonicalStaticAuthoring
         // Tables share Record typing with Static values, but intentionally preserve their
         // columnar spelling for source inspection. The template binder has already checked
         // cells and lookups before this phase erases the compile-time declaration.
-        foreach (Match header in Regex.Matches(source, @"\bStatic\s+Table\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)(?:\s+Key\s*:\s*(?<key>[A-Za-z_]\w*))?\s*\{", RegexOptions.CultureInvariant))
+        foreach (var table in catalog.Tables.Values)
         {
-            var open = source.IndexOf('{', header.Index); var close = MatchPair(source, open, '{', '}');
-            if (close < 0) { diagnostics.Add(Prefix + "table-malformed:" + header.Groups["name"].Value); continue; }
-            var columns = TableColumns(source, open + 1, close);
-            var rowCount = columns.Count == 0 ? 0 : columns.First().Value.Count;
-            tables.Add(new(header.Groups["name"].Value, header.Groups["type"].Value, header.Groups["key"].Success ? header.Groups["key"].Value : null, columns, rowCount, new(header.Index, close - header.Index + 1)));
-            changes.Add((header.Index, close - header.Index + 1, string.Empty));
+            var columns = table.Columns.ToDictionary(c => c.Key, c => (IReadOnlyList<string>)c.Value, StringComparer.Ordinal);
+            tables.Add(new(table.Name, table.RowType, table.KeyField, columns, columns.Count == 0 ? 0 : columns.First().Value.Count, table.SourceSpan));
+            changes.Add((table.SourceSpan.Start, table.SourceSpan.Length, string.Empty));
         }
-
-        foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)(?:\s*=\s*(?<literal>[A-Za-z_]\w*))?\s*\{", RegexOptions.CultureInvariant))
+        foreach (var record in catalog.Records.Values)
         {
-            var open = source.IndexOf('{', header.Index); var close = MatchPair(source, open, '{', '}');
-            var name = header.Groups["name"].Value; var type = header.Groups["type"].Value; var literalType = header.Groups["literal"].Success ? header.Groups["literal"].Value : type;
-            if (close < 0 || !recordByName.TryGetValue(type, out var record)) { diagnostics.Add(Prefix + "record-type-invalid:" + name); continue; }
-            if (!string.Equals(type, literalType, StringComparison.Ordinal)) { diagnostics.Add(Prefix + "record-literal-type-mismatch:" + name); continue; }
-            if (!names.Add(name)) { diagnostics.Add(FirmamentV2Parser.DuplicateName + ":Static:" + name); continue; }
-            var values = Fields(source[(open + 1)..close]);
-            var missing = record.Fields.Keys.Where(field => !values.ContainsKey(field)).ToArray();
-            var extra = values.Keys.Where(field => !record.Fields.ContainsKey(field)).ToArray();
-            if (missing.Length > 0) diagnostics.Add(Prefix + "record-missing-field:" + name + ":" + string.Join(",", missing));
-            if (extra.Length > 0) diagnostics.Add(Prefix + "record-extra-field:" + name + ":" + string.Join(",", extra));
-            staticRecords.Add(new(name, type, values, new(header.Index, close - header.Index + 1)));
-            changes.Add((header.Index, close - header.Index + 1, string.Empty));
+            staticRecords.Add(new(record.Name, record.TypeName, record.Fields, record.SourceSpan));
+            changes.Add((record.SourceSpan.Start, record.SourceSpan.Length, string.Empty));
         }
-
-        // `with` and Table row selection are compile-time Record expressions. Their actual
-        // member maps are owned by the common template binder; this phase retains no runtime
-        // representation and simply ensures source is erased before material parsing.
-        foreach (Match declaration in Regex.Matches(source, @"\bStatic\s+[A-Za-z_]\w*\s*(?::\s*[A-Za-z_]\w*)?\s*=\s*[A-Za-z_]\w*\s+with\s*\{", RegexOptions.CultureInvariant))
-        {
-            var open = source.IndexOf('{', declaration.Index); var close = MatchPair(source, open, '{', '}');
-            if (close >= 0) changes.Add((declaration.Index, close - declaration.Index + 1, string.Empty));
-        }
-        foreach (Match declaration in Regex.Matches(source, @"\bStatic\s+[A-Za-z_]\w*\s*(?::\s*[A-Za-z_]\w*)?\s*=\s*[A-Za-z_]\w*\s*\[[^\]]+\]", RegexOptions.CultureInvariant))
-            changes.Add((declaration.Index, declaration.Length, string.Empty));
 
         foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\[\]\s*=\s*\[", RegexOptions.CultureInvariant))
         {
@@ -288,37 +290,42 @@ internal static class CanonicalStaticAuthoring
             }
         }
 
-        foreach (Match pattern in Regex.Matches(source, @"\bPattern\s+(?<name>[A-Za-z_]\w*)\s+Over\s+(?<array>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
+        var patternSyntax = FirmamentSyntaxParser.Parse(source);
+        foreach (var pattern in FirmamentSyntaxTraversal.Declarations(patternSyntax.Document)
+            .Where(d => d.Type.Name.Text == "Pattern" && d.Clauses.Any(c => c.Kind == ClauseKind.Over)))
         {
-            var open = source.IndexOf('{', pattern.Index); var close = MatchPair(source, open, '{', '}');
-            var sourceName = pattern.Groups["array"].Value;
-            if (close >= 0 && setByName.TryGetValue(sourceName, out var set))
+            var patternName = pattern.Name?.Text ?? "<unnamed>";
+            var sourceName = pattern.Clauses.Count == 1 ? FirmamentSyntaxValues.Reference(pattern.Clauses[0].Value) : null;
+            if (pattern.Body is null || sourceName is null || pattern.Name is null || pattern.Parameters.Count > 0 || pattern.Annotation is not null
+                || pattern.Initializer is not null || pattern.ResultType is not null || pattern.Type.Span.Length > pattern.Type.Name.Span.Length || pattern.Modifiers.Count > 0 || pattern.Occurrence || pattern.HasParameterList)
+            { diagnostics.Add(Prefix + "pattern-source-invalid:" + patternName); continue; }
+            if (setByName.TryGetValue(sourceName, out var set))
             {
-                ExpandSetPattern(source, pattern, open, close, set, templateByName, changes, patterns, diagnostics);
+                ExpandSetPattern(pattern, set, templateByName, changes, patterns, diagnostics);
                 continue;
             }
-            if (close < 0 || !arrayByName.TryGetValue(sourceName, out var array)) { diagnostics.Add(Prefix + "pattern-source-invalid:" + pattern.Groups["name"].Value); continue; }
-            var invocation = Regex.Match(source[(open + 1)..close], @"^(?:\s)*(?<template>[A-Za-z_]\w*)\s*(?:<\s*Current\s*>|\(\s*Current\s*\))\s*$", RegexOptions.CultureInvariant);
-            if (!invocation.Success || !templateByName.TryGetValue(invocation.Groups["template"].Value, out var template) || template.Type != array.ElementType) { diagnostics.Add(Prefix + "pattern-body-invalid:" + pattern.Groups["name"].Value); continue; }
+            if (!arrayByName.TryGetValue(sourceName, out var array))
+            { diagnostics.Add(Prefix + "pattern-source-invalid:" + patternName); continue; }
+            var invocation = pattern.Body.Statements.Count == 1 ? TemplateInvocation(pattern.Body.Statements[0]) : null;
+            if (invocation is null || !templateByName.TryGetValue(invocation, out var template) || template.Type != array.ElementType)
+            { diagnostics.Add(Prefix + "pattern-body-invalid:" + patternName); continue; }
+            if (array.Elements.Count > MaxPatternExpansion)
+            { diagnostics.Add(Prefix + "pattern-expansion-limit:" + patternName); continue; }
             var generated = new List<string>(); var output = new List<string>();
             for (var index = 0; index < array.Elements.Count; index++)
             {
-                var id = pattern.Groups["name"].Value + "[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+                var id = patternName + "[" + index.ToString(CultureInfo.InvariantCulture) + "]";
                 var declaration = Instantiate(template, array.Elements[index], id, true, diagnostics);
                 if (declaration is not null) { output.Add(declaration); generated.Add(id); }
             }
-            patterns.Add(new(pattern.Groups["name"].Value, array.Name, template.Name, generated.Count, generated, new(pattern.Index, close - pattern.Index + 1)));
-            changes.Add((pattern.Index, close - pattern.Index + 1, string.Join(Environment.NewLine, output)));
-            // PMI may target a semantic Pattern instance. Resolve that declaration identity
-            // through the same deterministic materialization map used for generated features.
-            for (var index = 0; index < generated.Count; index++)
+            patterns.Add(new(patternName, array.Name, template.Name, generated.Count, generated, pattern.Span));
+            changes.Add((pattern.Span.Start, pattern.Span.Length, string.Join(Environment.NewLine, output)));
+            foreach (var target in FirmamentSyntaxTraversal.Statements(patternSyntax.Document).OfType<FieldSyntax>()
+                .Where(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Target")))
             {
-                var semanticId = generated[index];
-                var materializedId = semanticId.Replace("[", "_", StringComparison.Ordinal).Replace("]", string.Empty, StringComparison.Ordinal);
-                foreach (Match target in Regex.Matches(source,
-                             $@"\bTarget\s*:\s*(?<id>{Regex.Escape(semanticId)})\b",
-                             RegexOptions.CultureInvariant))
-                    changes.Add((target.Groups["id"].Index, target.Groups["id"].Length, materializedId));
+                var id = FirmamentSyntaxWriter.Expression(target.Value);
+                if (generated.Contains(id, StringComparer.Ordinal))
+                    changes.Add((target.Value.Span.Start, target.Value.Span.Length, id.Replace("[", "_", StringComparison.Ordinal).Replace("]", "", StringComparison.Ordinal)));
             }
         }
 
@@ -439,54 +446,59 @@ internal static class CanonicalStaticAuthoring
         return result;
     }
 
-    private static void ExpandSetPattern(string source, Match pattern, int open, int close, FirmamentV2StaticSetDecl set,
+    private static string? TemplateInvocation(StatementSyntax statement)
+    {
+        var expression = (statement as ExpressionStatementSyntax)?.Value;
+        var (target, args) = expression switch
+        {
+            CallSyntax call => (call.Target as ReferenceSyntax, call.Arguments),
+            SpecializationSyntax specialization => (specialization.Target as ReferenceSyntax, specialization.Arguments),
+            _ => ((ReferenceSyntax?)null, (IReadOnlyList<ArgumentSyntax>)[])
+        };
+        return target is not null && args.Count == 1 && args[0].Name is null && args[0].Value is ReferenceSyntax { Name.Text: "Current" }
+            ? target.Name.Text : null;
+    }
+
+    private static void ExpandSetPattern(DeclarationSyntax pattern, FirmamentV2StaticSetDecl set,
         IReadOnlyDictionary<string, Template> templates, List<(int Start, int Length, string Text)> changes,
         List<FirmamentV2CanonicalPatternDecl> patterns, List<string> diagnostics)
     {
-        var patternName = pattern.Groups["name"].Value;
+        var patternName = pattern.Name!.Text;
         if (set.Entries.Count > MaxPatternExpansion) { diagnostics.Add(Prefix + "pattern-expansion-limit:" + patternName + ":" + set.Entries.Count); return; }
-        var body = source[(open + 1)..close].Trim();
-        var arrow = Regex.Match(body, @"^(?<binder>[A-Za-z_]\w*)\s*=>\s*(?<mapping>[\s\S]+)$", RegexOptions.CultureInvariant);
-        if (!arrow.Success) { diagnostics.Add(Prefix + "pattern-body-invalid:" + patternName); return; }
-        var binder = arrow.Groups["binder"].Value; var mapping = arrow.Groups["mapping"].Value.Trim();
+        if (pattern.Body!.Statements.Count != 1 || pattern.Body.Statements[0] is not MappingSyntax mapping)
+        { diagnostics.Add(Prefix + "pattern-body-invalid:" + patternName); return; }
         var output = new List<string>(); var generated = new List<string>(); var associations = new List<FirmamentV2PatternAssociation>();
+        var invocation = TemplateInvocation(mapping.Value);
         foreach (var entry in set.Entries)
         {
             var semanticId = patternName + "." + entry.Name;
             var materializedId = patternName + "_" + entry.Name;
-            string? declaration;
-            var templateCall = Regex.Match(mapping, @"^(?<template>[A-Za-z_]\w*)\s*(?:<\s*Current\s*>|\(\s*Current\s*\))$", RegexOptions.CultureInvariant);
-            if (templateCall.Success && templates.TryGetValue(templateCall.Groups["template"].Value, out var template) && entry.RecordFields is not null && template.Type == set.ElementType)
-                declaration = Instantiate(template, entry.RecordFields, materializedId, true, diagnostics);
+            string? text;
+            if (invocation is not null && templates.TryGetValue(invocation, out var template) && entry.RecordFields is not null && template.Type == set.ElementType)
+                text = Instantiate(template, entry.RecordFields, materializedId, true, diagnostics);
             else
             {
-                declaration = mapping;
-                declaration = SubstituteSetMapping(declaration,binder,entry);
-                if (Regex.IsMatch(declaration, @"^Section\s+[A-Za-z_]\w*\s*\{"))
+                if (mapping.Value is not DeclarationSyntax declaration || declaration.Body is null || declaration.Name is null
+                    || declaration.Type.Name.Text is not ("Hole" or "Slot" or "Boss" or "Pocket" or "EdgeFinish" or "Panel" or "Section"))
+                { diagnostics.Add(Prefix + "pattern-body-invalid:" + patternName); return; }
+                var substitution = BindSetElement(mapping.Key.Text, entry, diagnostics);
+                if (substitution is null) continue;
+                var bound = (DeclarationSyntax)substitution.Statement(declaration);
+                bound = bound with { Name = bound.Name! with { Text = materializedId } };
+                if (bound.Type.Name.Text != "Section")
                 {
-                    var sectionOpen = declaration.IndexOf('{');
-                    var sectionClose = MatchPair(declaration, sectionOpen, '{', '}');
-                    if (sectionClose != declaration.Length - 1 || Regex.Matches(declaration, @"\b(?:Pattern|Section)\s+", RegexOptions.CultureInvariant).Count != 1)
-                    { diagnostics.Add(Prefix + "pattern-body-invalid:" + patternName); return; }
-                    var sectionName = Regex.Match(declaration, @"^Section\s+(?<name>[A-Za-z_]\w*)").Groups["name"];
-                    declaration = declaration.Remove(sectionName.Index, sectionName.Length).Insert(sectionName.Index, materializedId);
-                    output.Add(declaration); generated.Add(semanticId);
-                    associations.Add(new(semanticId, set.Name, entry.Name, entry.Value, entry.SourceOrder, entry.Provenance));
-                    continue;
+                    var value = FirmamentSyntaxParser.ParseExpression(semanticId).Expression!;
+                    bound = bound with { Body = bound.Body! with { Statements = new StatementSyntax[] { new FieldSyntax(new("PatternIdentity", pattern.Span), value, pattern.Span) }.Concat(bound.Body.Statements).ToArray() } };
                 }
-                var construction = Regex.Match(declaration, @"\b(?:Hole\s*<\s*(?:Shaft|Counterbore|Countersink)\s*>|Slot\s*<\s*(?:Capsule|RoundedRectangle)\s*>|Boss|Pocket|EdgeFinish|Panel)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
-                if (!construction.Success) { diagnostics.Add(Prefix + "pattern-body-invalid:" + patternName); return; }
-                declaration = declaration.Remove(construction.Groups["name"].Index, construction.Groups["name"].Length).Insert(construction.Groups["name"].Index, materializedId);
-                var openingBrace = declaration.IndexOf('{', construction.Index);
-                declaration = declaration.Insert(openingBrace + 1, " PatternIdentity: " + semanticId + " ");
+                text = FirmamentSyntaxWriter.Statement(bound);
             }
-            if (declaration is null) continue;
-            output.Add(declaration); generated.Add(semanticId);
+            if (text is null) continue;
+            output.Add(text); generated.Add(semanticId);
             associations.Add(new(semanticId, set.Name, entry.Name, entry.Value, entry.SourceOrder, entry.Provenance));
         }
-        patterns.Add(new(patternName, set.Name, Regex.Match(mapping, @"^[A-Za-z_]\w*").Value, generated.Count, generated,
-            new(pattern.Index, close - pattern.Index + 1), associations));
-        changes.Add((pattern.Index, close - pattern.Index + 1, string.Join(Environment.NewLine, output)));
+        patterns.Add(new(patternName, set.Name, invocation ?? (mapping.Value as DeclarationSyntax)?.Type.Name.Text ?? "mapping",
+            generated.Count, generated, pattern.Span, associations));
+        changes.Add((pattern.Span.Start, pattern.Span.Length, string.Join(Environment.NewLine, output)));
     }
 
     private static bool IsSupportedSetElementType(string type, IReadOnlyDictionary<string, FirmamentV2RecordTypeDecl> records) =>
@@ -551,36 +563,27 @@ internal static class CanonicalStaticAuthoring
 
     private static string? Instantiate(Template template, IReadOnlyDictionary<string, string> values, string id, bool patterned, List<string> diagnostics)
     {
-        var declaration = Regex.Match(template.Body, @"\b(?<kind>Hole\s*<\s*(?:Shaft|Counterbore)\s*>|Slot\s*<\s*(?:Capsule|RoundedRectangle)\s*>|Profile|StandardPart)\s+(?<name>[A-Za-z_]\w*)(?<tail>\s+Using\s+[A-Za-z_]\w*)?\s*\{", RegexOptions.CultureInvariant);
-        if (!declaration.Success) { diagnostics.Add(Prefix + "template-output-unsupported:" + template.Name); return null; }
-        var kind = declaration.Groups["kind"].Value;
-        if (patterned && string.Equals(kind, "Profile", StringComparison.Ordinal))
+        var syntax = FirmamentSyntaxParser.Parse(template.Body);
+        if (!syntax.IsSuccess || syntax.Document.Statements.Count != 1 || syntax.Document.Statements[0] is not DeclarationSyntax declaration
+            || declaration.Body is null || declaration.Name is null || declaration.Type.Name.Text is not ("Hole" or "Slot" or "Profile" or "StandardPart"))
+        { diagnostics.Add(Prefix + "template-output-unsupported:" + template.Name); return null; }
+        if (patterned && declaration.Type.Name.Text == "Profile")
+        { diagnostics.Add(Prefix + "pattern-output-unsupported:Profile"); return null; }
+        var bound = new Dictionary<string, ExpressionSyntax>(StringComparer.Ordinal);
+        foreach (var value in values)
         {
-            diagnostics.Add(Prefix + "pattern-output-unsupported:Profile");
-            return null;
+            var parsed = FirmamentSyntaxParser.ParseExpression(value.Value);
+            if (parsed.Expression is null || parsed.Diagnostics.Count > 0)
+            { diagnostics.Add(Prefix + "template-value-invalid:" + template.Name + ":" + value.Key); return null; }
+            bound[template.Parameter + "." + value.Key] = parsed.Expression;
         }
-        var open = template.Body.IndexOf('{', declaration.Index); var close = MatchPair(template.Body, open, '{', '}');
-        if (close < 0) { diagnostics.Add(Prefix + "template-output-unsupported:" + template.Name); return null; }
-        var body = template.Body[(open + 1)..close];
-        foreach (var value in values) body = Regex.Replace(body, $@"\b{Regex.Escape(template.Parameter)}\.{Regex.Escape(value.Key)}\b", value.Value);
-        var outputName = string.Equals(kind, "Profile", StringComparison.Ordinal)
-            ? declaration.Groups["name"].Value
-            : id.Replace("[", "_", StringComparison.Ordinal).Replace("]", string.Empty, StringComparison.Ordinal);
-        return $"{kind} {outputName}{declaration.Groups["tail"].Value} {{{body}}}";
+        declaration = (DeclarationSyntax)new FirmamentSyntaxSubstitution(bound).Statement(declaration);
+        if (declaration.Type.Name.Text != "Profile") declaration = declaration with
+        { Name = declaration.Name! with { Text = id.Replace("[", "_", StringComparison.Ordinal).Replace("]", "", StringComparison.Ordinal) } };
+        return FirmamentSyntaxWriter.Statement(declaration);
     }
     private static Dictionary<string, string> Fields(string body) => Regex.Matches(body, "\\b(?<name>[A-Za-z_]\\w*)\\s*:\\s*(?<value>\"[^\"]*\"|(?:Point2|Point3|Vector2|PlusMinus)\\s*\\([^)]*\\)|\\d+\\.\\d+\\.\\d+|\\d{4}-\\d{2}-\\d{2}|[A-Za-z_]\\w*|[-+]?\\d+(?:\\.\\d+)?(?:mm|deg)?)", RegexOptions.CultureInvariant)
         .Cast<Match>().ToDictionary(m => m.Groups["name"].Value, m => m.Groups["value"].Value, StringComparer.Ordinal);
-    private static IReadOnlyDictionary<string, IReadOnlyList<string>> TableColumns(string source, int start, int end)
-    {
-        var columns = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
-        foreach (Match column in Regex.Matches(source[start..end], @"\b(?<name>[A-Za-z_]\w*)\s*:\s*\[", RegexOptions.CultureInvariant))
-        {
-            var open = start + column.Index + column.Value.LastIndexOf('['); var close = MatchPair(source, open, '[', ']');
-            if (close < 0 || close > end) continue;
-            columns[column.Groups["name"].Value] = Regex.Matches(source[(open + 1)..close], "\"[^\"]*\"|[-+]?\\d+(?:\\.\\d+)?(?:mm|deg)?|[A-Za-z_]\\w*", RegexOptions.CultureInvariant).Cast<Match>().Select(match => match.Value).ToArray();
-        }
-        return columns;
-    }
     private static Dictionary<string, string> RequireFields(string body) => Regex.Matches(body, @"(?<name>[A-Za-z_]\w*)\s*:\s*(?<value>.*?)(?=\s+[A-Za-z_]\w*\s*:|$)", RegexOptions.CultureInvariant | RegexOptions.Singleline)
         .Cast<Match>().ToDictionary(m => m.Groups["name"].Value, m => m.Groups["value"].Value.Trim(), StringComparer.Ordinal);
     private static bool TrySubject(string text, out string subject, out string property)

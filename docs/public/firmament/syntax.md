@@ -138,7 +138,10 @@ Follow the consuming guide; there is no uniform statement-termination rule yet.
 Write dimensions explicitly in new mechanical source: `8mm`, `90deg`,
 `Point2(12mm, -4mm)`. Use bare numbers for dimensionless counts and vector
 components. `units: mm` belongs in an ordinary mechanical Model; it does not
-make dimensions optional in every native field.
+make dimensions optional in every native field. Existing Panel arc boundary
+angles also admit `rad`; this does not make radians a universal alias in every
+Angle field. Mixed degree/radian arithmetic requires an explicit owning-domain
+conversion rather than silently adding the raw numbers.
 
 Points and lists overlap without being universal aliases. The direct Hole above
 requires `Point2(...)`; a Rect2's `center` accepts `[x, y]`. A semantic Grid may
@@ -519,6 +522,19 @@ defaults. A body may contain typed immutable `let` derivations and admitted
 private construction, followed by one terminal `return`. Calls may delegate to
 another Feature with the same result type; recursion is rejected.
 
+Feature names resolve lexically. A Feature declared inside a Model shadows an
+enclosing Feature with the same name; a Feature inside another Struct is not
+visible outside that Struct. Two definitions in the same scope are an error.
+Calls delegated by a Feature resolve in its definition's scope. A Feature and
+a construction Profile may share a name because calls and construction references
+have different roles.
+
+Defaults may use other typed parameters, including dimensional arithmetic;
+cyclic defaults are errors. Expansion is finite: at most 64 nested calls or
+default dependencies, 4,096 invocations, 65,536 expanded declarations and 4 MiB
+of generated construction per Feature expansion phase. Exceeding a limit rejects
+the program; it never yields a partially generated part.
+
 Return kinds include Hole variants, Boss, Pocket, EdgeFinish and Profile. A
 definition does not grant those results new support in an unsupported consumer.
 Feature-local Profile construction is also used by Garment; WireForm, Sweep and
@@ -578,6 +594,11 @@ These are context-specific forms, not interchangeable spellings of one loop.
 A named Feature invocation may use `Feature result = Recipe(...)`; it differs
 from a Feature definition and from a Pattern.
 
+In the admitted Set and semantic point Patterns, an iteration symbol substitutes
+value references. It does not rename field labels, declaration names, string
+contents or a similarly spelled identifier. Generated instance identities still
+come from the Pattern and its keys or ordered elements.
+
 ### Template: specialize a product
 
 **Complete file — one sized member of a product family:**
@@ -598,6 +619,14 @@ specialization admissibility. Typed Record values may carry a configuration;
 `Static` binds them and `with` derives checked immutable values. A separate
 finite feature-Template form is used by record-array Patterns.
 
+Product Template names resolve in their lexical scope. A Model-local Template
+can shadow a document Template; a sibling Model's private Template is invisible.
+Nested applications resolve from the Template definition, so a caller-local
+Template does not capture them. Duplicate Template names in the same scope
+reject. Host discovery and invocation expose document-level product Templates;
+existing single-Model module containers also export their immediate Templates.
+Application headers cannot silently discard placement or other clauses.
+
 `<...>` therefore means several things: a built-in Hole variant, a Set element
 type, or Template parameters/arguments. It does not make every construct a
 general generic. See [Templates](templates.md) for constraints, finite Tables,
@@ -606,6 +635,43 @@ supported argument types and compatibility forms.
 Feature, Template and Pattern describe deterministic finite construction. They
 do not add mutable state, exceptions, arbitrary recursion, `for`/`while`, or
 general `if`/`else` control flow. Use domain-specific forms only where admitted.
+
+### Compile-time data scope
+
+Record schemas, Static values and Static Tables belong to their lexical scope.
+A local declaration shadows the same name in an enclosing scope; sibling scopes
+remain private. Record types are nominal: declaring another `Record Spec` does
+not make values of the outer Spec instances of the local Spec. Both field names
+and user symbols retain their authored casing.
+
+```firmament
+Record Spec { width: Length }
+Static outer: Spec = Spec { width: 10mm }
+Model Plate {
+  units: mm
+  Record Spec { width: Length thickness: Length }
+  Static Table choices: Spec {
+    width: [30mm]
+    thickness: [6mm]
+  }
+  Static selected: Spec = choices[0]
+  Box stock { size: [selected.width, 20mm, selected.thickness] }
+}
+```
+
+The local Table uses the local schema. The unused outer value keeps its own
+schema and does not acquire a `thickness` requirement. Table rows, checked `with`
+derivations and Record aliases use the same typed data binding as literal
+Records. Product Template defaults resolve where the Template is defined;
+explicit arguments resolve at the invocation. Specialized data is admitted before
+Feature arguments. Unknown fields, inaccessible names, duplicate declarations,
+cycles and unsupported data-header clauses reject.
+
+Typed tolerances on Record/scalar values retain their requirement provenance
+through specialization, geometry and explicit Pmi. Table/collection tolerance
+propagation remains unsupported and rejects; a Table is not a way to bypass that
+boundary. See [the scoped Record witness](../../../fixtures/Regression/FrontendX2/record-shadowing.firmament)
+and [explicit scoped PMI](../../../fixtures/Regression/FrontendX2/scoped-record-pmi.firmament).
 
 ## Mirror and radial symmetry
 
@@ -748,3 +814,13 @@ preserves the original authoring audit and later migration dispositions.
 Use [supported features](../reference/supported-features.md) for capability
 boundaries and the linked domain guides for detailed syntax. Proposals and
 migration reports explain design/history; they do not grant source admission.
+
+Feature, product Template, Record, Static and Table names use lexical lookup.
+Same-named Records in different scopes are distinct nominal types, even when their
+fields match. Values resolve in their declaration scope; callers bind explicit
+arguments in the caller scope. Duplicate names in one namespace/scope reject,
+and sibling-private data cannot be referenced. Complete include/Template
+expansion source maps remain unfinished. `validate --json --explain` exposes
+the implemented Feature and Template owners, lexical scopes, bound arguments and
+available definition/use receipts, plus compile-time data symbol scopes and
+identities, with these limits stated.

@@ -70,7 +70,8 @@ public sealed class FunctionalPickupTests
         Assert.Empty(diagnostics);
         Assert.Contains("Profile Pad__Section", expansion.Source);
         Assert.Contains("Profile Pad__Call1__Section", expansion.Source);
-        Assert.Contains("Boss  Pad ", expansion.Source);
+        Assert.Contains(Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FirmamentSyntaxTraversal.Declarations(expansion.Document!),
+            d => d.Type.Name.Text == "Boss" && d.Name?.Text == "Pad");
     }
 
     [Theory]

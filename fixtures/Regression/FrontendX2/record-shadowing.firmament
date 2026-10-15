@@ -1,0 +1,12 @@
+// The outer Spec(width) and local Spec(width, thickness) retain distinct lexical identities.
+Record Spec { width: Length }
+Static outerSpec: Spec = Spec { width: 10mm }
+Model LocalRecord {
+    units: mm
+    Record Spec { width: Length thickness: Length }
+    Static localSpec: Spec = Spec { width: 30mm thickness: 6mm }
+    Template<spec: Spec = localSpec> Struct Family {
+        Box stock { size: [spec.width, 20mm, spec.thickness] }
+    }
+    Struct product = Family<>
+}

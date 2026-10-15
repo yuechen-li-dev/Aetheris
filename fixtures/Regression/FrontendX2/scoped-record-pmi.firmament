@@ -1,0 +1,26 @@
+// These outer names must not capture the local engineering requirement.
+Record BoreSpec { unused: Length }
+Static standardBore: BoreSpec = BoreSpec { unused: 100mm }
+Model ScopedRequirements {
+    units: mm
+    Record BoreSpec { diameter: Length width: Length }
+    Static standardBore: BoreSpec = BoreSpec {
+        diameter: 8mm tol +0.10mm -0.05mm
+        width: 40mm
+    }
+    Template<spec: BoreSpec> Struct Family {
+        Feature Drill(diameter: Length) -> Hole<Shaft> {
+            let inspection: Length = diameter
+            return Hole<Shaft> {
+                on: +Z
+                center: Point2(0mm, 0mm)
+                diameter: inspection
+                end: ThroughAll
+            }
+        }
+        Box Body { size: [spec.width, 30mm, 8mm] }
+        Modify Body { Feature Mount = Drill(diameter: spec.diameter) }
+        Pmi { HoleDiameter MountSize { target: Mount dimension: spec.diameter } }
+    }
+    Struct product = Family<spec: standardBore>
+}

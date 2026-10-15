@@ -1760,6 +1760,10 @@ Model CanonicalPanel {
                 invocation.ExpandedSemanticKind,
                 invocation.GeneratedByFeature,
                 invocation.ResultIdentity,
+                invocation.BindingScope,
+                invocation.DefinitionOrigin,
+                invocation.InvocationOrigin,
+                invocation.ExpansionChain,
                 invocation.Status
             }).ToArray() ?? [],
             featureExpansion = document?.FeatureExpansion,
@@ -2519,11 +2523,32 @@ Model CanonicalPanel {
             if (report.Status != "invalid") report = report with { Status = "parsed-not-built" };
         }
         else report = FirmamentBuildAdmissionValidation.Admit(report, authoredValidationSource, Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
-        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = report }, JsonOptions));
+        if (json && explain) stdout.WriteLine(JsonSerializer.Serialize(new
+        {
+            firmamentV2Validation = report,
+            frontendSemantics = new
+            {
+                featureOwner = "UnifiedAstFeature",
+                featureExpansion = parse.Document?.FeatureExpansion,
+                featureDefinitions = parse.Document?.FeatureDefinitions,
+                featureInvocations = parse.Document?.FeatureInvocations,
+                patternOwner = "CanonicalStaticAuthoring (AST mapping; source catalog adapter)",
+                patterns = parse.Document?.StaticAuthoring?.Patterns,
+                templateOwner = "UnifiedAstTemplate (lexical binding; Record/Match/body source adapters)",
+                templateInstantiations = parse.Document?.TemplateInstantiations,
+                dataOwner = "UnifiedAstData (lexical identities; shared typed catalog)",
+                dataBindings = parse.Document?.DataBindings,
+                sourceProvenance = "Original Feature definition/use anchors where retained; complete include/Template maps pending",
+                rejectionStage = report.Diagnostics.FirstOrDefault(d => d.Severity is "error" or "fatal")?.Stage
+            }
+        }, JsonOptions));
+        else if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = report }, JsonOptions));
         else stdout.WriteLine($"Firmament V2 validation: {report.Status} ({report.Summary.FatalDiagnosticCount} fatal, {report.Summary.WarningDiagnosticCount} warning)");
         if (!json)
         {
             if (explain) stdout.WriteLine($"Language: {report.LanguageVersion}; parser route: {report.ParserRoute ?? "Expansion/Unselected"}; admission: {report.ValidationLevel}; templates: {parse.Document?.TemplateInstantiations?.Count ?? 0}; solids: {parse.Document?.Solids.Count ?? 0}");
+            if (explain && parse.Document?.FeatureExpansion is { } expansion)
+                stdout.WriteLine($"Feature owner: UnifiedAstFeature; definitions: {expansion.DefinitionCount}; invocations: {expansion.InvocationCount}; expanded declarations: {expansion.ExpandedSemanticNodeCount}");
             foreach (var diagnostic in report.Diagnostics)
                 stderr.WriteLine($"{sourcePath}({diagnostic.Line},{diagnostic.Column}): {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}");
         }

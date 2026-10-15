@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Math;
@@ -48,7 +49,7 @@ internal static class AssemblyFrameAuthoring
                 var text = values[i];
                 if (lengths)
                 {
-                    if (!FirmamentV2FeatureExpansion.TryEvaluateScalar(text,out result[i],out var unit) || unit != "mm" || !double.IsFinite(result[i]))
+                    if (!FirmamentNumericEvaluation.TryEvaluateScalar(text,out result[i],out var unit) || unit != "mm" || !double.IsFinite(result[i]))
                         diagnostics.Add(new("assembly-frame-invalid-unit", $"Frame '{name}' translation components require finite mm length expressions."));
                     continue;
                 }

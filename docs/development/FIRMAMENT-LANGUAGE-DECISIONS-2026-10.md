@@ -1,5 +1,20 @@
 # October 2026 Firmament language decision register
 
+X2 production binding amendment (2026-10-15):
+[current semantic migration report](../release/FIRMAMENT-FRONTEND-X2.md) migrates
+Feature definitions/calls, private construction renaming and defaults to lexical
+AST binding. Shared numeric AST evaluation replaces Feature's private arithmetic
+parser and the separate syntax-field arithmetic implementation. Static scalar
+binding and Concept arithmetic share the numerical operator/type policy. Keyed
+Set, record-array and Assembly/Scene occurrence Pattern headers/mappings use AST
+nodes; semantic point Pattern references no longer replace field labels.
+Product Template lookup and Record/Static/Table lexical data ownership now use
+the AST. The shared typed data catalog replaces independent canonical readers.
+Set/array collections, Template body transport, several domain readers and complete
+include/expansion provenance remain unfinished. X2 is **Meaningful progression**,
+not Accepted; the original findings/rationale and all 24 recommendations below
+remain tracked.
+
 Concept/2D amendment (2026-10-14):
 [production qualification](../release/FIRMAMENT-CONCEPTS-AND-2D.md) adds named
 scalar predicates and record-shaped labeled requirement bundles. Structural
@@ -199,3 +214,78 @@ and records 4,943 passing full-suite tests plus 26 byte-identical STEP baselines
 This closes the structural migration gate, not X2 semantic consolidation or the
 remaining domain source adapters. The nine explicit canonical admission limits
 and downstream-only negative expectations remain visible in the closeout ledger.
+
+
+## X2 current owner and handoff matrix
+
+This supplements the original recommendation/rationale table; it does not replace
+its history. “Retained” means the existing admitted semantics remain, not that the
+complete language surface is reconciled. X2 remains Meaningful progression.
+
+| # | Current implementation / semantic owner | Compatibility impact | X3 decision / X4 evidence still needed |
+| --- | --- | --- | --- |
+| 1 | Shared production admission; Feature/Template/data binding failures reach validate/build | Existing valid sources retained; lexical sibling capture rejects | X4 repeat all twelve sources through both commands. |
+| 2 | Shared V2 disposition/severity and explicit serialized V1 boundary retained | Feature fatal severity retained; shared syntax owns control-flow rejection | X4 ensure every failure remains V2 and actionable. |
+| 3 | Mechanical AST field/statement owners; Feature/Pattern bodies and Record/Table fields consumed | Labels cannot be rewritten as iteration references; other domains still pending | Complete domain source consumption in X2, then X4 omission witnesses. |
+| 4 | Compiler diagnostic records; original Feature definition/use anchors added | Existing codes/severity/report retained; explain adds receipts | Complete module/Template maps in X2; X4 diagnostic repair effort. |
+| 5 | Existing placement/frame admission retained | No new plane fallback or kernel placement behavior | X4 asymmetric XZ and attachment witnesses. |
+| 6 | Existing document summary/Pocket capability messages retained | No semantic change | X4 check model identity and through-cut guidance. |
+| 7 | X1 lexer/recursive-descent AST remains structural authority | No replacement parser or new dispatch | X3 root/scope teaching; X4 documented first-try paths. |
+| 8 | Feature AST expansion, Template lexical lookup, scoped data identities and Pattern mapping hygiene migrated | Stable names/keys retained; product Template body/value adapters remain X2 | Finish module/Template AST handoff before X3 syntax changes. |
+| 9 | Shared numeric AST evaluator/type policy used by fields, scalar graph, Feature and Concept arithmetic | Units preserved; Record/Static/Table scope and nominal schemas migrated; collection/domain value ownership remains partial | Finish typed value consolidation in X2; X4 arithmetic in ordinary parts. |
+| 10 | Existing point/vector owners retained; Feature components use shared numeric AST values | Both established point spellings retained where admitted | X3 choose canonical literal and alias policy; X4 point ergonomics. |
+| 11 | Existing Hole/EdgeFinish variant owners retained | No new generic EdgeFinish form | X3 reconcile variants; X4 exact repair diagnostic. |
+| 12 | Set/array/occurrence AST mappings; semantic point substitution fixed | Human spellings unchanged; radial/mirror/linear owners still separate | X3 unify surface forms after remaining X2 semantics; X4 Pattern authoring. |
+| 13 | Existing Compose and materializer authority retained | ThroughCut versus Pocket unchanged | X3 termination vocabulary; X4 enclosure/slot tasks. |
+| 14 | Existing document/domain root contracts retained | No new optional-root rule | X3 decide and document root policy; X4 wrapping stability. |
+| 15 | Public syntax updated for actual Feature and product Template scope/defaults | No speculative syntax published as admitted | X4 repeat complete public examples and original corpus. |
+| 16 | Existing separators retained; serializer meets Assembly adapter requirements | No broad terminator grammar change | X3 reconcile separators, including Grid derivation friction. |
+| 17 | Existing spelling metadata/AST normalization retained | Pascal/camel aliases preserved; user symbols retain case | X3 remaining owner exceptions and PMI spelling; X4 examples. |
+| 18 | Existing one-off geometry owners retained | No deletion based on frequency | X3 justify library/construct boundaries after semantic qualification. |
+| 19 | Feature defaults plus Record/Static/Table references use lexical AST identities and the common typed catalog | No general Let or runtime variables | Finish lexical value ownership in X2; X3 surface choice; X4 parameterization effort. |
+| 20 | Existing named outline/profile construction retained | No new inline polygon/revolve grammar | X3 vertex-list policy; X4 L-bracket/revolve friction. |
+| 21 | Existing typed face/selection owners retained | No global face alias expansion | X2 typed selector binding; X3 canonical spelling; X4 selection repairs. |
+| 22 | Existing inspect and validate --explain expose Feature/Template scopes/arguments; validate also exposes data identities and available origins | Ordinary report shape unchanged; developer metadata additive | Complete Template/Pattern/module explanation in X2; X4 diagnosis usefulness. |
+| 23 | AST remains incomplete as an authoritative semantic grammar generator | No aspirational grammar publication | Finish source owner migration, then X3 generated reference and X4 doc qualification. |
+| 24 | Existing kernel/material/capability owners retained | No Fillet+Hole, shell or general plane implementation | Separate engineering capability work; X4 accurate unsupported diagnostics. |
+
+
+### X2 continuation: lexical product Templates
+
+Product Template declarations, parameters, applications and dependency edges now
+come from the shared AST. Local shadowing, sibling privacy and definition-scope
+nested lookup are qualified through production compilation. Host exports retain
+document and single-Model module-container compatibility. Qualified Construct
+capability names and historical lowercase analysis headers have explicit shared
+parser productions. Existing unique-name specialization identities are preserved.
+
+Recommendations 3, 4, 8, 15, 19 and 22 advance with closed application headers,
+source-located lookup errors, lexical receipts and the promoted Family witness.
+At that pass they remained partial for scoped Record/Static/Table binding,
+complete module maps and source-based body/domain lowerers. The following data
+continuation closes the demonstrated schema-capture defect; module maps and
+remaining body/domain adapters stay open. No syntax or kernel-policy decision is
+waiting for the user. All 24 original dispositions/rationales above remain tracked.
+
+
+### X2 continuation: scoped Record, Static and Table data
+
+Record/type and Static/Table value references bind lexical AST identities before
+typed evaluation. Same-named Records in different scopes remain nominally
+distinct. Same-scope duplicates and sibling-private references reject; parameter
+and mapping binders protect their own names. Existing unambiguous spellings,
+field keys and Table key labels are retained. Internal collision identities are
+compiler metadata, not new authoring syntax.
+
+The Record/Table/with/row/alias catalog is shared by specialization and canonical
+static erasure. Its declarations and field values come from the shared AST;
+ordinary scalar evaluation still belongs to the existing typed graph. Table row
+leaves and nested typed aliases enter that graph rather than a second evaluator.
+The former Spec schema-capture witness is promoted to a positive geometry test.
+A scoped requirement witness checks explicit AP242 PMI and authored tolerance
+provenance. Recommendations 3, 4, 8, 9, 15, 19 and 22 advance accordingly.
+
+Complete include-file/module provenance and remaining collection/domain source
+adapters remain X2 work. No general Let, runtime scripting, new units doctrine or
+geometry capability was introduced. All 24 original recommendations and rationale
+remain in the register above; no syntax policy decision is awaiting the user.

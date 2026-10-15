@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Numerics;
@@ -412,7 +413,7 @@ public static class GarmentAuthoring
 
     private static float Scalar(string value)
     {
-        if (!FirmamentV2FeatureExpansion.TryEvaluateScalar(value, out double evaluated, out string unit) || unit.Length != 0)
+        if (!FirmamentNumericEvaluation.TryEvaluateScalar(value, out double evaluated, out string unit) || unit.Length != 0)
         {
             Fail("garment-scalar-invalid", "Expected a dimensionless scalar: " + value);
         }
@@ -426,7 +427,7 @@ public static class GarmentAuthoring
 
     private static float Length(string value)
     {
-        if (FirmamentV2FeatureExpansion.TryEvaluateScalar(value, out double evaluated, out string unit) && unit == "mm")
+        if (FirmamentNumericEvaluation.TryEvaluateScalar(value, out double evaluated, out string unit) && unit == "mm")
         {
             if (!double.IsFinite(evaluated) || !float.IsFinite((float)evaluated))
             {

@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Humanoid;
@@ -277,7 +278,7 @@ public static class HumanoidPoseAuthoring
 
     private static double Angle(string text)
     {
-        if (!FirmamentV2FeatureExpansion.TryEvaluateScalar(text, out double value, out string unit)
+        if (!FirmamentNumericEvaluation.TryEvaluateScalar(text, out double value, out string unit)
             || unit != "deg" || !double.IsFinite(value))
         {
             Fail("humanoid-pose-angle", "Anatomical angles require finite degree-valued expressions: " + text);

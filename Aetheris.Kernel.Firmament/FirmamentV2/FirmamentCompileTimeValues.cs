@@ -19,9 +19,25 @@ internal sealed class FirmamentCompileTimeValues(string source)
     private int nextIdentity;
     private IReadOnlyDictionary<string, TemplateRecordTypeIr> recordTypes = new Dictionary<string, TemplateRecordTypeIr>();
     private readonly Dictionary<string, TemplateStaticRecordIr> recordValues = new(StringComparer.Ordinal);
-    private readonly IReadOnlyDictionary<string, FirmamentV2SourceSpan> originalScopes = OriginalScopes(source);
+    private IReadOnlyDictionary<string, FirmamentV2SourceSpan> originalScopes = OriginalScopes(source);
+    private FirmamentDataBinding? dataBinding;
+
+    internal void UseDataBinding(FirmamentDataBinding binding)
+    {
+        dataBinding ??= binding;
+        if (!binding.IsChanged) return;
+        dataBinding = binding;
+        source = binding.Source;
+        originalSyntax = null;
+        originalScopes = OriginalScopes(source).ToDictionary(p => p.Key, p => binding.OriginalSpan(p.Value), StringComparer.Ordinal);
+        identifiers.UnionWith(FirmamentLanguageAnalysisService.Lex(source).Where(t => t.Shape == "identifier").Select(t => t.Text));
+    }
 
     internal IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics => diagnostics;
+    internal IReadOnlyList<FirmamentV2DataSymbolBinding> DataBindings => dataBinding?.Symbols.Select(s =>
+        new FirmamentV2DataSymbolBinding(s.Name, s.Declaration.Type.Name.Text, s.Scope, s.Identity, s.Declaration.Span)).ToArray() ?? [];
+
+    internal void AddExpansionDiagnostics(IEnumerable<FirmamentV2ValidationDiagnostic> reported) => diagnostics.AddRange(reported);
 
     internal void AddConceptDiagnostics(IEnumerable<FirmamentV2ValidationDiagnostic> reported, bool original = true, string? producerSource = null)
     {
@@ -48,7 +64,7 @@ internal sealed class FirmamentCompileTimeValues(string source)
         originalSyntax ??= FirmamentSyntaxParser.Parse(source).Document;
         var matches = FirmamentSyntaxTraversal.Declarations(originalSyntax)
             .Where(d => d.Type.Name.Text == type && d.Name?.Text == name && (modifier is null || d.Modifiers.Any(m => m.Name.Text == modifier))).ToArray();
-        return matches.Length == 1 ? matches[0].Span : null;
+        return matches.Length == 1 ? dataBinding?.OriginalSpan(matches[0].Span) ?? matches[0].Span : null;
     }
 
     internal void BindExpandedScalars(string expanded, List<string> codes)
@@ -151,7 +167,8 @@ internal sealed class FirmamentCompileTimeValues(string source)
             }
         if (definitions.Count == 0) return;
         var bound = FirmamentV2Parser.BindCompileTimeScalars(definitions.Select(p => p.Value with { Name = new(p.Key, p.Value.Name!.Span) }).ToArray(), source, "inline", codes);
-        diagnostics.AddRange(bound.Diagnostics.Select(d => d with { IsOriginalSource = true }));
+        diagnostics.AddRange(bound.Diagnostics.Select(d => d with { IsOriginalSource = true,
+            SourceSpan = d.SourceSpan is { } span ? dataBinding?.OriginalSpan(span) ?? span : null }));
         foreach (var value in bound.Values)
         {
             var definition = definitions[value.Name];
@@ -162,7 +179,8 @@ internal sealed class FirmamentCompileTimeValues(string source)
             if (definition.Name.Text != value.Name) origins.Add(new("inline", definition.Span, value.Name));
             if (definition.Initializer is ToleranceSyntax)
                 origins = origins.OrderByDescending(o => o.Binding == definition.Name.Text).ToList();
-            values[value.Name] = value with { Origins = origins.Distinct().ToArray() };
+            values[value.Name] = value with { Origins = origins.Distinct().Select(o => dataBinding is null ? o
+                : o with { SourceSpan = dataBinding.OriginalSpan(o.SourceSpan), Binding = dataBinding.DisplayName(o.Binding) }).ToArray() };
         }
         void Add(string name, DeclarationSyntax declaration) => definitions[name] = declaration;
     }
@@ -248,6 +266,50 @@ internal sealed class FirmamentCompileTimeValues(string source)
     {
         recordTypes = types;
         foreach (var record in records) recordValues[record.Key] = record.Value;
+        // Table rows and aliases may not have authored scalar field declarations.
+        // Admit their leaves through the same typed graph used by literal Records.
+        foreach (var record in records.Values)
+        {
+            if (!types.ContainsKey(record.TypeName)) continue;
+            var flattenCodes = new List<string>();
+            var leaves = FirmamentV2TemplateExpansion.FlattenRecordFields(record, types, recordValues, flattenCodes);
+            foreach (var field in leaves)
+            {
+                var name = record.Name + "." + field.Key;
+                var type = RecordFieldType(record.TypeName, field.Key);
+                if (values.ContainsKey(name) || type is null || !IsScalar(type)) continue;
+                if (values.TryGetValue(field.Value, out var existing)) { values[name] = existing with { Name = name }; continue; }
+                var parsed = FirmamentSyntaxParser.ParseExpression(field.Value);
+                if (parsed.Expression is not { } expression || parsed.Diagnostics.Any(d => d.Severity is "error" or "fatal") || LegacyWideInteger(type, field.Value)) continue;
+                var codes = new List<string>();
+                var bound = FirmamentV2Parser.BindCompileTimeScalars([Scalar(name, type, expression, expression.Span)],
+                    field.Value, "inline", codes, values.Values.ToArray());
+                var span = OriginalDeclaration("Static", record.Name);
+                diagnostics.AddRange(bound.Diagnostics.Select(d => d with { SourceSpan = span, IsOriginalSource = span is not null,
+                    LocationNote = "Location identifies the enclosing Static value selected from Record/Table data." }));
+                if (bound.Values.FirstOrDefault(v => v.Name == name) is { } value)
+                    values[name] = value with { SourceSpan = span ?? record.SourceSpan,
+                        Origins = [new("inline", span ?? record.SourceSpan, DisplayDataName(name), record.Provenance)] };
+            }
+        }
+    }
+
+    internal string DisplayDataName(string name)
+    {
+        var dot = name.IndexOf('.');
+        return dot < 0 ? dataBinding?.DisplayName(name) ?? name
+            : (dataBinding?.DisplayName(name[..dot]) ?? name[..dot]) + name[dot..];
+    }
+
+    private string? RecordFieldType(string type, string path)
+    {
+        string? fieldType = null;
+        foreach (var part in path.Split('.'))
+        {
+            if (!recordTypes.TryGetValue(type, out var schema) || !schema.Fields.TryGetValue(part, out fieldType)) return null;
+            type = fieldType;
+        }
+        return fieldType;
     }
 
     internal bool IsRecordType(string type) => recordTypes.ContainsKey(type);
@@ -280,13 +342,7 @@ internal sealed class FirmamentCompileTimeValues(string source)
         }
         foreach (var field in result.ToArray())
         {
-            var schema = recordTypes[type];
-            string? fieldType = null;
-            foreach (var part in field.Key.Split('.'))
-            {
-                if (!schema.Fields.TryGetValue(part, out fieldType)) break;
-                if (recordTypes.TryGetValue(fieldType, out var nested)) schema = nested;
-            }
+            var fieldType = RecordFieldType(type, field.Key);
             if (fieldType is not null && IsScalar(fieldType)
                 && TryTransfer(field.Value, fieldType, binding + "." + field.Key, span, codes, out var transported))
                 result[field.Key] = transported;
@@ -353,7 +409,7 @@ internal sealed class FirmamentCompileTimeValues(string source)
         {
             if (d.Modifiers.Any(m => m.Name.Text is "Template" or "Concept") || d.Type.Name.Text is "Feature" or "Template") continue;
             yield return d;
-            if (d.Type.Name.Text == "Model" && d.Body is not null)
+            if (d.Type.Name.Text is not ("Record" or "Static" or "Enum" or "Table") && d.Body is not null)
                 foreach (var child in Scope(d.Body.Statements)) yield return child;
         }
     }

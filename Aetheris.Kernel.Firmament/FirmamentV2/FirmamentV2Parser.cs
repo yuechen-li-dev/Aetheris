@@ -393,6 +393,7 @@ public static partial class FirmamentV2Parser
         if (leading.Length == 2 && (leading[0].Text is "firmament" or "model" && leading[1].Text == ":"
             || leading[0].Text == "{" && leading[1].Shape == "string"))
             return FirmamentV2ParseResult.Failure([], FirmamentV2ParseDisposition.NotRecognized) with { ParserRoute = "LegacySerialization" };
+        var authoredSourceText = sourceText;
         sourceText = FirmamentSourceSpelling.Normalize(sourceText);
         var valueSource = MaskCommentTrivia(sourceText);
         sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
@@ -438,7 +439,7 @@ public static partial class FirmamentV2Parser
         // Record and scalar Static declarations still exist, then let canonical
         // static authoring erase those compile-time declarations before AIR.
         var compileTime = new FirmamentCompileTimeValues(valueSource);
-        var templateExpansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics, compileTime);
+        var templateExpansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics, compileTime, authoredSourceText);
         if (templateExpansion is null || compileTime.Diagnostics.Any(d => d.Severity is "error" or "fatal"))
         {
             diagnostics.Add("firmament-v2-parse-failed");
@@ -453,7 +454,7 @@ public static partial class FirmamentV2Parser
         // Feature is Firmament's bounded function-like abstraction. It is expanded once,
         // after typed Template specialization and before static pattern lowering, so every command consumes the
         // same concrete semantic declarations and no geometry callback can bypass AIR.
-        var featureExpansion = FirmamentV2FeatureExpansion.Expand(source, diagnostics, compileTime);
+        var featureExpansion = FirmamentV2FeatureExpansion.Expand(source, diagnostics, compileTime, authoredSourceText);
         if (featureExpansion is null || compileTime.Diagnostics.Any(d => d.Severity is "error" or "fatal"))
         {
             diagnostics.Add("firmament-v2-parse-failed");
@@ -589,14 +590,14 @@ public static partial class FirmamentV2Parser
             if (standaloneConstruction) parsed = parsed with { Document = parsed.Document with { ModelName = parsed.BoundProfile?.Name ?? parsed.BoundComposition?.Feature?.Name ?? parsed.Document.ModelName } };
             return WithFeatureMetadata(
                 AttachVolumeAssertionsAndSymbols(WithPolygonMetadata(parsed, polygonExpansion), source, canonicalStaticExpansion.Document, diagnostics),
-                featureExpansion) with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true, BoundSchema = FirmamentFrontendSchema.Mechanical, BoundSource = parsed.BoundSource ?? source };
+                featureExpansion, compileTime) with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true, BoundSchema = FirmamentFrontendSchema.Mechanical, BoundSource = parsed.BoundSource ?? source };
         }
 
         if (syntax.Document.Statements.OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text is "Model" or "Struct" or "Concept"
             || d.Modifiers.Any(m => m.Name.Text == "Concept")))
             return Recognized(WithFeatureMetadata(
                 AttachVolumeAssertionsAndSymbols(WithPolygonMetadata(ParseConceptModelingDocument(RemoveCanonicalVolumeAssertions(source), diagnostics, templateExpansion.Instantiations), polygonExpansion), source, canonicalStaticExpansion.Document, diagnostics),
-                featureExpansion)) with { ParserRoute = "ConceptModeling" };
+                featureExpansion, compileTime)) with { ParserRoute = "ConceptModeling" };
 
         if (ContainsRawBackendId(source)) diagnostics.Add(RawBackendIdReferenceForbidden);
         if (ContainsUnsupportedConstruct(source)) diagnostics.Add(UnsupportedConstruct);
@@ -659,7 +660,8 @@ public static partial class FirmamentV2Parser
 
     private static FirmamentV2ParseResult WithFeatureMetadata(
         FirmamentV2ParseResult result,
-        FirmamentV2FeatureExpansion.Result expansion) =>
+        FirmamentV2FeatureExpansion.Result expansion,
+        FirmamentCompileTimeValues? values = null) =>
         result.Document is null
             ? result
             : result with
@@ -668,7 +670,8 @@ public static partial class FirmamentV2Parser
                 {
                     FeatureDefinitions = expansion.Definitions,
                     FeatureInvocations = expansion.Invocations,
-                    FeatureExpansion = expansion.Metrics
+                    FeatureExpansion = expansion.Metrics,
+                    DataBindings = values?.DataBindings ?? []
                 }
             };
 
@@ -987,24 +990,15 @@ public static partial class FirmamentV2Parser
             return new(type.Value, val, new HashSet<string>(l.Dependencies.Concat(r.Dependencies), StringComparer.Ordinal), new(0, b.Source.Length), null, l.AliasTolerance is not null || r.AliasTolerance is not null || l.UsesTolerancedValueInArithmetic || r.UsesTolerancedValueInArithmetic);
         }
         private static bool IsZero(FirmamentV2LiteralValue v) => v.NumericValue is double d && d == 0d;
-        internal static FirmamentV2PrimitiveType? ResultType(FirmamentV2PrimitiveType a, string op, FirmamentV2PrimitiveType b) => op switch
-        {
-            "+" or "-" when a == b && a is FirmamentV2PrimitiveType.Int or FirmamentV2PrimitiveType.Float or FirmamentV2PrimitiveType.Length or FirmamentV2PrimitiveType.Angle => a,
-            "+" or "-" when IsNumeric(a) && IsNumeric(b) => FirmamentV2PrimitiveType.Float,
-            "*" when IsNumeric(a) && IsNumeric(b) => a == FirmamentV2PrimitiveType.Int && b == FirmamentV2PrimitiveType.Int ? FirmamentV2PrimitiveType.Int : FirmamentV2PrimitiveType.Float,
-            "*" when IsDim(a) && IsNumeric(b) => a,
-            "*" when IsNumeric(a) && IsDim(b) => b,
-            "/" when IsNumeric(a) && IsNumeric(b) => FirmamentV2PrimitiveType.Float,
-            "/" when IsDim(a) && IsNumeric(b) => a,
-            "/" when IsDim(a) && a == b => FirmamentV2PrimitiveType.Float,
-            _ => null
-        };
-        private static bool IsNumeric(FirmamentV2PrimitiveType t) => t is FirmamentV2PrimitiveType.Int or FirmamentV2PrimitiveType.Float;
-        private static bool IsDim(FirmamentV2PrimitiveType t) => t is FirmamentV2PrimitiveType.Length or FirmamentV2PrimitiveType.Angle;
+        internal static FirmamentV2PrimitiveType? ResultType(FirmamentV2PrimitiveType a, string op, FirmamentV2PrimitiveType b) =>
+            FirmamentNumericEvaluation.ResultType(a, op, b);
         private static FirmamentV2LiteralValue Compute(FirmamentV2PrimitiveType type, FirmamentV2LiteralValue l, string op, FirmamentV2LiteralValue r, string raw)
         {
             var a = Convert.ToDouble(l.NumericValue, CultureInfo.InvariantCulture); var b = Convert.ToDouble(r.NumericValue, CultureInfo.InvariantCulture);
-            var d = op switch { "+" => a + b, "-" => a - b, "*" => a * b, "/" => a / b, _ => 0 };
+            var operation = op switch { "+" => BinaryOperator.Add, "-" => BinaryOperator.Subtract, "*" => BinaryOperator.Multiply, "/" => BinaryOperator.Divide, _ => throw new InvalidOperationException("Unbound arithmetic operator.") };
+            if (!FirmamentNumericEvaluation.TryBinary(new(a, l.Unit ?? ""), operation, new(b, r.Unit ?? ""), out var computed))
+                return new(type, double.NaN, double.NaN, Raw: raw);
+            var d = computed.Number;
             object value = type == FirmamentV2PrimitiveType.Int ? (object)(int)d : d;
             return new(type, value, d, type == FirmamentV2PrimitiveType.Length ? "mm" : type == FirmamentV2PrimitiveType.Angle ? "deg" : null, raw);
         }

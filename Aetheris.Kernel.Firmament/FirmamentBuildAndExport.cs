@@ -282,6 +282,13 @@ public static class FirmamentBuildAndExport
             if (!v2Parse.IsSuccess) return V2ParseFailure(v2Parse);
             materializerSource = v2Parse.BoundSource!;
         }
+        else if (v2Parse.Disposition == FirmamentV2ParseDisposition.NotRecognized)
+        {
+            // The explicit versioned V1 reader below owns compatibility. Do not
+            // interpret serialized data as a second V2 expansion input. The later
+            // allowV1Compatibility/version checks remain mandatory.
+            materializerSource = sourceText;
+        }
         else
         {
             var staticDiagnostics = new List<string>();

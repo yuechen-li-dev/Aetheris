@@ -1,0 +1,9 @@
+schema Mechanical
+Struct Other {
+    Feature Local() -> Hole<Shaft> { return Hole<Shaft> { diameter: 9mm } }
+}
+Model Plate {
+    units: mm
+    Box stock { size: [20mm, 20mm, 5mm] }
+    Modify stock { Local() }
+}

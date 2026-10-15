@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Math;
@@ -316,7 +317,7 @@ public static class SceneAuthoring
         // dimension-checked scalar evaluator. No separate Scene arithmetic engine.
         var expression = Regex.Replace(value, @"(?<![\w.])(?<n>(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)m\b", m =>
             (double.Parse(m.Groups["n"].Value,CultureInfo.InvariantCulture)*1000).ToString("R",CultureInfo.InvariantCulture)+"mm");
-        if (!FirmamentV2FeatureExpansion.TryEvaluateScalar(expression,out var n,out var unit) || unit != "mm" || !double.IsFinite(n))
+        if (!FirmamentNumericEvaluation.TryEvaluateScalar(expression,out var n,out var unit) || unit != "mm" || !double.IsFinite(n))
             Fail("scene-length-unit-required", $"Expected a finite length expression with m or mm suffix, got '{value}'.");
         return n;
     }

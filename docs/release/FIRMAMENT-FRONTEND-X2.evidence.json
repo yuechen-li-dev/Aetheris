@@ -1,0 +1,1231 @@
+{
+  "schemaVersion": 1,
+  "implementationBase": "e6468b03c6bd4a6b2bfd40329de1381c16968512",
+  "verdict": "Meaningful progression",
+  "acceptedX2": false,
+  "baselineLedger": {
+    "path": "docs/release/FIRMAMENT-FRONTEND-X1-CLOSEOUT.evidence.json",
+    "sha256": "9AE7B4820FCE6F855DE457548BF753BBF3DF26F5A25215E0C3947C388C294228",
+    "sourceCount": 1266
+  },
+  "corpus": {
+    "schemaVersion": 1,
+    "sourceCount": 1276,
+    "canonicalSourceCount": 327,
+    "canonicalStructurallyParsed": 327,
+    "structurallyParsed": 912,
+    "standaloneProductionAccepted": 510,
+    "inventorySha256": "3FE41317FF888DC74EB9A1FF6A95761E4950B7F88301976B5EB4BC8960F24CF0",
+    "unresolvedMismatchCount": 0,
+    "universalSemanticParityQualified": false,
+    "classifications": {
+      "Admitted": 493,
+      "AdmittedGeometryWithDfmFindings": 1,
+      "AdmittedInConsumerContext": 34,
+      "DeclarationModuleRequiresConsumer": 5,
+      "ExpectedNegativeRejection": 285,
+      "ExperimentalAdmitted": 9,
+      "ExperimentalRejected": 31,
+      "LegacySerializationAdmitted": 5,
+      "LegacySerializationRejected": 324,
+      "MalformedOrUnsupportedSourceRejected": 6,
+      "MisfiledPositiveFixture": 1,
+      "RejectedAtSolveStage": 1,
+      "SourceAdmissionRejected": 81
+    },
+    "canonicalClassifications": {
+      "Admitted": 285,
+      "AdmittedInConsumerContext": 33,
+      "SourceAdmissionRejected": 9
+    }
+  },
+  "inheritedSourceVerification": {
+    "sourcesCompared": 1266,
+    "sourceHashOwnerAdmissionDifferences": [],
+    "meaning": "All inherited source hashes, structural outcomes, production owners/levels/exits and fingerprints compared to the pre-X2 collection. Any measured differences are listed explicitly; universal semantic parity is not claimed.",
+    "classificationDifferences": [],
+    "syntaxFingerprintDifferences": [
+      {
+        "source": "Speculative/RecordDerivation/valid/material-with-property-variant-v2.valid.firmfixture",
+        "differences": {
+          "syntaxFingerprint": {
+            "before": "4CC3D552D61DD8A936D8B45E292BEC219509B43BDFD3152A166A57FF55416891",
+            "after": "60DABFD429EC0B6ABAC34EE9A695DE4163D5191D2780C0D5A2D542536F0492F9"
+          }
+        },
+        "reviewedDisposition": "Spaced GPa literals are represented as quantities; speculative material/density syntax remains rejected with unchanged source, owner, admission and classification."
+      }
+    ],
+    "diagnosticFamilyDifferences": [
+      {
+        "source": "Invalid/Feature/unsupported-conditional.firmament",
+        "before": [
+          "firmament-feature-body-unsupported",
+          "firmament-feature-control-flow-unsupported",
+          "firmament-v2-parse-failed"
+        ],
+        "after": [
+          "firmament-syntax-control-flow-unsupported",
+          "firmament-v2-parse-failed"
+        ]
+      },
+      {
+        "source": "Invalid/Feature/unsupported-loop.firmament",
+        "before": [
+          "firmament-feature-body-unsupported",
+          "firmament-feature-control-flow-unsupported",
+          "firmament-v2-parse-failed"
+        ],
+        "after": [
+          "firmament-syntax-control-flow-unsupported",
+          "firmament-v2-parse-failed"
+        ]
+      },
+      {
+        "source": "Regression/FrontendX1/nested-generics.firmament",
+        "before": [
+          "firmament-template-invalid-parameter-name",
+          "firmament-v2-parse-failed"
+        ],
+        "after": [
+          "firmament-template-invalid-parameter-name",
+          "firmament-template-not-found",
+          "firmament-v2-parse-failed"
+        ],
+        "reviewedDisposition": "Structural-only X1 witness remains semantically rejected: unsupported nested Set parameter T and undeclared Product are reported separately."
+      }
+    ],
+    "diagnosticCodeDifferences": [
+      {
+        "source": "Invalid/Feature/indirect-recursion.firmament",
+        "differences": {
+          "productionDiagnosticCodes": {
+            "before": [
+              "firmament-feature-recursion:A:B:A",
+              "firmament-feature-recursion:B:A:B",
+              "firmament-v2-parse-failed"
+            ],
+            "after": [
+              "firmament-feature-recursion:A:B:A",
+              "firmament-v2-parse-failed"
+            ]
+          }
+        }
+      },
+      {
+        "source": "Invalid/Feature/unsupported-conditional.firmament",
+        "differences": {
+          "productionDiagnosticCodes": {
+            "before": [
+              "firmament-feature-body-unsupported:Broken",
+              "firmament-feature-control-flow-unsupported:if",
+              "firmament-v2-parse-failed"
+            ],
+            "after": [
+              "firmament-syntax-control-flow-unsupported",
+              "firmament-v2-parse-failed"
+            ]
+          }
+        }
+      },
+      {
+        "source": "Invalid/Feature/unsupported-loop.firmament",
+        "differences": {
+          "productionDiagnosticCodes": {
+            "before": [
+              "firmament-feature-body-unsupported:Broken",
+              "firmament-feature-control-flow-unsupported:for",
+              "firmament-v2-parse-failed"
+            ],
+            "after": [
+              "firmament-syntax-control-flow-unsupported",
+              "firmament-v2-parse-failed"
+            ]
+          }
+        }
+      },
+      {
+        "source": "Invalid/Feature/wrong-argument-type.firmament",
+        "differences": {
+          "productionDiagnosticCodes": {
+            "before": [
+              "firmament-feature-argument-type:MountHole:Center:expected-Point2:actual-Length:at-213",
+              "firmament-v2-parse-failed"
+            ],
+            "after": [
+              "firmament-feature-argument-type:MountHole:Center:expected-Point2",
+              "firmament-v2-parse-failed"
+            ]
+          }
+        }
+      },
+      {
+        "source": "Invalid/Feature/wrong-return-type.firmament",
+        "differences": {
+          "productionDiagnosticCodes": {
+            "before": [
+              "firmament-feature-return-type:Broken:expected-Hole<Counterbore>:actual-Hole<Shaft>",
+              "firmament-v2-parse-failed"
+            ],
+            "after": [
+              "firmament-feature-return-type:Broken:expected-Hole<Counterbore>",
+              "firmament-v2-parse-failed"
+            ]
+          }
+        }
+      },
+      {
+        "source": "Regression/FrontendX1/nested-generics.firmament",
+        "differences": {
+          "productionDiagnosticCodes": {
+            "before": [
+              "firmament-template-invalid-parameter-name:T: Set<Set<Point2>>",
+              "firmament-v2-parse-failed"
+            ],
+            "after": [
+              "firmament-template-invalid-parameter-name:T",
+              "firmament-template-not-found:Product",
+              "firmament-v2-parse-failed"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "sourceAdditions": [
+    {
+      "source": "Regression/FrontendX2/panel-radians.firmament",
+      "sha256": "24339C2B8CD72F8DD48A643E2E06965E34DF3F97A2293F8D1D9B7B224211DEE2",
+      "structuralSuccess": true,
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 1,
+      "classification": "SourceAdmissionRejected",
+      "productionDiagnosticCodes": [
+        "firmament-panel-only-step-materialization-unsupported"
+      ],
+      "expansionOwner": "PreviouslyQualifiedX2Owner",
+      "provenanceStatus": "AvailableAuthoredAnchors_CompleteIncludeExpansionMapsPending"
+    },
+    {
+      "source": "Regression/FrontendX2/pattern-symbol-collision.firmament",
+      "sha256": "526AEB3BA9CC466B1686C484C9B45A310048ABE8F05A57A4025D5F99491FD0E3",
+      "structuralSuccess": true,
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 0,
+      "classification": "Admitted",
+      "productionDiagnosticCodes": [],
+      "expansionOwner": "PreviouslyQualifiedX2Owner",
+      "provenanceStatus": "AvailableAuthoredAnchors_CompleteIncludeExpansionMapsPending"
+    },
+    {
+      "source": "Regression/FrontendX2/record-shadowing.firmament",
+      "sha256": "F2A221AF5F2AA873758CD2299215F9DA4E40CA2FD578DCC08618A4C36A9B4C9D",
+      "structuralSuccess": true,
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 0,
+      "classification": "Admitted",
+      "productionDiagnosticCodes": [],
+      "expansionOwner": "UnifiedAstScopedData",
+      "provenanceStatus": "AvailableAuthoredAnchors_CompleteIncludeExpansionMapsPending"
+    },
+    {
+      "source": "Regression/FrontendX2/scoped-drill.firmament",
+      "sha256": "E9E7611398FA7A12504F3713A405D2AC931D244659D3C470B4E4A770EF2D23EB",
+      "structuralSuccess": true,
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 0,
+      "classification": "Admitted",
+      "productionDiagnosticCodes": [],
+      "expansionOwner": "PreviouslyQualifiedX2Owner",
+      "provenanceStatus": "AvailableAuthoredAnchors_CompleteIncludeExpansionMapsPending"
+    },
+    {
+      "source": "Regression/FrontendX2/scoped-record-pmi.firmament",
+      "sha256": "11AF24E14B595F714939CB389E9AD82207EADEE68BE28E4035E4CC12F13FDDA2",
+      "structuralSuccess": true,
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 0,
+      "classification": "Admitted",
+      "productionDiagnosticCodes": [],
+      "expansionOwner": "UnifiedAstScopedData",
+      "provenanceStatus": "AvailableAuthoredAnchors_CompleteIncludeExpansionMapsPending"
+    },
+    {
+      "source": "Regression/FrontendX2/scoped-table.firmament",
+      "sha256": "099403730BB31221D936BA23842FE5709416791A649B729C9603EB11815852D3",
+      "structuralSuccess": true,
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 0,
+      "classification": "Admitted",
+      "productionDiagnosticCodes": [],
+      "expansionOwner": "UnifiedAstScopedData",
+      "provenanceStatus": "AvailableAuthoredAnchors_CompleteIncludeExpansionMapsPending"
+    },
+    {
+      "source": "Regression/FrontendX2/sibling-data.invalid.firmament",
+      "sha256": "2584C8449E345361DCBDE8D8DD1BEB1907602E3E3767A9F6B1A2C8B731F0FA0B",
+      "structuralSuccess": true,
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 1,
+      "classification": "ExpectedNegativeRejection",
+      "productionDiagnosticCodes": [
+        "firmament-binding-name-not-visible:secret",
+        "firmament-v2-parse-failed"
+      ],
+      "expansionOwner": "UnifiedAstScopedData",
+      "provenanceStatus": "AvailableAuthoredAnchors_CompleteIncludeExpansionMapsPending"
+    },
+    {
+      "source": "Regression/FrontendX2/sibling-feature.invalid.firmament",
+      "sha256": "77F9E13949E472FDDE6F2229C5E55281698DDE69B71C72C5BB7F5F3182D7E26C",
+      "structuralSuccess": true,
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 1,
+      "classification": "ExpectedNegativeRejection",
+      "productionDiagnosticCodes": [
+        "firmament-feature-unknown:Local",
+        "firmament-v2-parse-failed"
+      ],
+      "expansionOwner": "PreviouslyQualifiedX2Owner",
+      "provenanceStatus": "AvailableAuthoredAnchors_CompleteIncludeExpansionMapsPending"
+    },
+    {
+      "source": "Regression/FrontendX2/sibling-template.invalid.firmament",
+      "sha256": "8C50B7AE867AF1BFAEA76F6ED05FD82752ECF388350F134DF30C6891BB15CA37",
+      "structuralSuccess": true,
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 1,
+      "classification": "ExpectedNegativeRejection",
+      "productionDiagnosticCodes": [
+        "firmament-template-not-found:Family",
+        "firmament-v2-parse-failed"
+      ],
+      "expansionOwner": "PreviouslyQualifiedX2Owner",
+      "provenanceStatus": "AvailableAuthoredAnchors_CompleteIncludeExpansionMapsPending"
+    },
+    {
+      "source": "Regression/FrontendX2/template-shadowing.firmament",
+      "sha256": "4B9BCF681615E0B92CACC2B803885BCF638C0629AEFECF078E582EA5DD033E14",
+      "structuralSuccess": true,
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 0,
+      "classification": "Admitted",
+      "productionDiagnosticCodes": [],
+      "expansionOwner": "PreviouslyQualifiedX2Owner",
+      "provenanceStatus": "AvailableAuthoredAnchors_CompleteIncludeExpansionMapsPending"
+    }
+  ],
+  "tests": {
+    "failed": 0,
+    "passed": 5018,
+    "skipped": 0,
+    "total": 5018,
+    "executingAssemblies": 20
+  },
+  "stepComparisons": 26,
+  "stepByteIdentical": 26,
+  "geometryParity": [
+    {
+      "source": "fixtures/Canonical/Symmetry/radial-bolt-circle.firmament",
+      "sourceSha256": "19DAA47DC20CA092A6DDA1CC49AF0B74E7E016F5E4A143AA4C00B7230B81C3CE",
+      "expectedSha256": "4B4F8FD69D10E73BB403F1538C6FC13995F895E4C1C17E0605A3E4A008E5356E",
+      "actualSha256": "4B4F8FD69D10E73BB403F1538C6FC13995F895E4C1C17E0605A3E4A008E5356E",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/partial-radial-pattern.firmament",
+      "sourceSha256": "258427029AA0882653801833109AD9FE04542C7448DE1D126291215FC016DE7D",
+      "expectedSha256": "7D708B30209B6A03010D9C647F762E453C705BC8F656882BE4F18785B2F08D87",
+      "actualSha256": "7D708B30209B6A03010D9C647F762E453C705BC8F656882BE4F18785B2F08D87",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-revolve.firmament",
+      "sourceSha256": "B955033028F838A3A3D7D265BD4EB04A9AAD89E83D95D5EA1C640ECB0953FA6C",
+      "expectedSha256": "C44AE2A5B6CFC978AFB24041F0B5C43A4554161FE5880FC6E2D59ADB1B7CAB4A",
+      "actualSha256": "C44AE2A5B6CFC978AFB24041F0B5C43A4554161FE5880FC6E2D59ADB1B7CAB4A",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-profile.firmament",
+      "sourceSha256": "1F41E7EBE426306205E01226C36410261798418C385E5E284BD0A4216CAF98BF",
+      "expectedSha256": "30D1F927A7295A5B553453BA2D6E936564140839E4497B0C5B46A1682A18F6A1",
+      "actualSha256": "30D1F927A7295A5B553453BA2D6E936564140839E4497B0C5B46A1682A18F6A1",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-hole.firmament",
+      "sourceSha256": "39B62FB47C0C42BDF7CD3DE7FCA2E78E785BCD693412FC052628F470F3261EB0",
+      "expectedSha256": "4A0DA2E67DA153B38DD7E6389CB329B4BBB6939FEC88541936DF705F49BE62FE",
+      "actualSha256": "4A0DA2E67DA153B38DD7E6389CB329B4BBB6939FEC88541936DF705F49BE62FE",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-feature-with-override.firmament",
+      "sourceSha256": "DEBDCE6974743DCBCED725B9FF6B8ED833EF64DBE69A4B94256515E6CDF24B4E",
+      "expectedSha256": "052F9FC96919130FA11D2FDE5BEF302BCBE42BA6441A61F7164D43E25EAF8FBB",
+      "actualSha256": "052F9FC96919130FA11D2FDE5BEF302BCBE42BA6441A61F7164D43E25EAF8FBB",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Regression/FrontendMigration/preferred-profile-links.firmament",
+      "sourceSha256": "41ACDC508CDB714BC0409C864708FD968BB812A83E4FD406B7AA0818670C6C4B",
+      "expectedSha256": "E43449262ECDD3DD05EFB73DB821D2E09226637EC1FB1EAF73E07821CD46AA57",
+      "actualSha256": "E43449262ECDD3DD05EFB73DB821D2E09226637EC1FB1EAF73E07821CD46AA57",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Features/Holes/through-hole.firmament",
+      "sourceSha256": "38E8188DB1BB7C75406570BBCEC9A09DAFA9D4D33A0EDEB746A6C04A973B265C",
+      "expectedSha256": "5999F127E5A1477E5825AFA656DCEB7F89241D8F85312B0E6BCD793639A0F548",
+      "actualSha256": "5999F127E5A1477E5825AFA656DCEB7F89241D8F85312B0E6BCD793639A0F548",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Templates/generic-mounting-plate.firmament",
+      "sourceSha256": "91B69697F5E777438F688FA2D1F0330FEF5C430D064FCA0A7FFF886252567C92",
+      "expectedSha256": "B0FF1D05D82135A3630C5E165C09B6C2C467B3FAF98A0825A9AF86B2E1CE76A3",
+      "actualSha256": "B0FF1D05D82135A3630C5E165C09B6C2C467B3FAF98A0825A9AF86B2E1CE76A3",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Set/pattern-feature-map.firmament",
+      "sourceSha256": "7BF1BA1E508CAE2548EC429724A895F2E50FFDAD057084F17B506C4362A34E40",
+      "expectedSha256": "08D4EA1F1336C06A380E30806C02AEE3F08535CAD1592929470EBD64B9882FC2",
+      "actualSha256": "08D4EA1F1336C06A380E30806C02AEE3F08535CAD1592929470EBD64B9882FC2",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/PMI/hole-diameter-and-datum.firmament",
+      "sourceSha256": "B105A5535F53189938CBA6C9E8644FC9D8C6683F8BB97B04167FA48C411ABBFD",
+      "expectedSha256": "9F2F24975267BF425D16A2ECDF863F4A94C0FAD172C932F9868BBB836BD46F5D",
+      "actualSha256": "9F2F24975267BF425D16A2ECDF863F4A94C0FAD172C932F9868BBB836BD46F5D",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/PMI/typed-tolerance.firmament",
+      "sourceSha256": "7C928F862D443904E87EAD137DB7D55E4D69E03A12F918F3319ECED947245EC9",
+      "expectedSha256": "098B515124D46220AAB85F6DBE1568E6B5969FEB55B537BA91AD3DDA587509A5",
+      "actualSha256": "098B515124D46220AAB85F6DBE1568E6B5969FEB55B537BA91AD3DDA587509A5",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/PMI/record-template-feature-tolerance.firmament",
+      "sourceSha256": "6F88543F7E0D544F460709EE85521620101DCB053CF3C5C7C90F05A96CA63B8D",
+      "expectedSha256": "300023D4A6CC156F9224F4937F990926523372C8BF0AB11D8C15851FA256BB18",
+      "actualSha256": "300023D4A6CC156F9224F4937F990926523372C8BF0AB11D8C15851FA256BB18",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/AssemblyInterfaces/executable-machine.firmament",
+      "sourceSha256": "9CEDEDC63C8EEF28A51F58E0E1E0D85E70104C9014C94508C44F1E9320B42F72",
+      "expectedSha256": "912FCCCDF607E0EB9437423BEA0D2E6EB74D9BEDE4D4758D9DF6BF5364C66391",
+      "actualSha256": "912FCCCDF607E0EB9437423BEA0D2E6EB74D9BEDE4D4758D9DF6BF5364C66391",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Assembly/template-block-pair.firmament",
+      "sourceSha256": "3530A14F1156C588EA5747EE65B338162AEC803243FBBB379D7C11D5265EF211",
+      "expectedSha256": "17E1DABEA787334BE13DA18E9771B69927CE46D754CA35783693C2FD76847B24",
+      "actualSha256": "17E1DABEA787334BE13DA18E9771B69927CE46D754CA35783693C2FD76847B24",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Assembly/coil-on-stem.firmament",
+      "sourceSha256": "056E6354C85B0E54AC6B4E1B79C1E9ED5CBE7A97648748F1C55923B76C85E485",
+      "expectedSha256": "9C21BE66AA885DF21DE349169C4E3D14282C2384E661372EC4034E627A5E0A1A",
+      "actualSha256": "9C21BE66AA885DF21DE349169C4E3D14282C2384E661372EC4034E627A5E0A1A",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm",
+      "sourceSha256": "10C11DD2FA4361C87D14E22D318348CE18BE0925119496184E846A603B1CA2DB",
+      "expectedSha256": "469E42D07EC1BB3FFDB88D5B0149DA50C21F39631EDC7441C2B3DCF11C41681C",
+      "actualSha256": "469E42D07EC1BB3FFDB88D5B0149DA50C21F39631EDC7441C2B3DCF11C41681C",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-branch-variants.firmament",
+      "sourceSha256": "CEFCA8936656C4947A5D434FD75EF6AA23B94D8A3DBB808B340DD376842B9240",
+      "expectedSha256": "DDC7B5C388058035E1B6A5FC8D5AC6701FBA3057508448EF00351312D766EF07",
+      "actualSha256": "DDC7B5C388058035E1B6A5FC8D5AC6701FBA3057508448EF00351312D766EF07",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-offset-region.firmament",
+      "sourceSha256": "2FB5300A60902B01916B7D2D0C72A83156E365674BA0A5F249BC5D0B7EF00EE7",
+      "expectedSha256": "EB310460850C1153C5C1813F2863DCD16595755359E8545558140BBA5F632F05",
+      "actualSha256": "EB310460850C1153C5C1813F2863DCD16595755359E8545558140BBA5F632F05",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-preserve-interface.firmament",
+      "sourceSha256": "C2310DAB5E3F591E1260EDA82852F53EE7842B284914D030231C15DA72D50AF4",
+      "expectedSha256": "67D5F7D6316FA53F63CEE95C08F45AFEC71E2AA2B89060A41F7F88D29319AD79",
+      "actualSha256": "67D5F7D6316FA53F63CEE95C08F45AFEC71E2AA2B89060A41F7F88D29319AD79",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpted-housing.firmament",
+      "sourceSha256": "CD6647031A073A140C93CE7DBC14C08D801B84C24F0C15816D3C446464CF1D48",
+      "expectedSha256": "27136BC65CACE501B84E6EC81BCC186F1F48262ABB2CC9F76D2208951092396F",
+      "actualSha256": "27136BC65CACE501B84E6EC81BCC186F1F48262ABB2CC9F76D2208951092396F",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x1-freeform-housing.firmament",
+      "sourceSha256": "36CCD4855AC3F8574854AA2499CB7B5BFFE4A892852AE9DDC452714962457B38",
+      "expectedSha256": "F509AA95D3B223F876790A755DF0052900E07598A1CB8266D63EA2408EF2DB07",
+      "actualSha256": "F509AA95D3B223F876790A755DF0052900E07598A1CB8266D63EA2408EF2DB07",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x1a-trimmed-freeform-housing.firmament",
+      "sourceSha256": "990DC7389DBCB4E330B2A316AF4946297B5CA8F13C5BD9A693497792852ABD46",
+      "expectedSha256": "5717FD937D9FE93EACF3B49190BB967028C574121AE8850F2D82EA8FC7C1B9B4",
+      "actualSha256": "5717FD937D9FE93EACF3B49190BB967028C574121AE8850F2D82EA8FC7C1B9B4",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-g1-blend.firmament",
+      "sourceSha256": "1BB2EE58823B87D5CF65D227CC7163D36D92E670B43D33B8D6A9DCDB9F6288F9",
+      "expectedSha256": "73C2D486D3CED015EBEFA984C41063C54D86BF81E5A575179CA9098EBE23EF22",
+      "actualSha256": "73C2D486D3CED015EBEFA984C41063C54D86BF81E5A575179CA9098EBE23EF22",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-judged-housing.firmament",
+      "sourceSha256": "96BEDCA540DD454F27DA530E9B58E3E4C3DA21F4AEE0CA5422E56372D32EDE8C",
+      "expectedSha256": "0BC71E45EE37D7B523063A59E5060610048FBE7DAC227D82CB24B4A8186FDB2A",
+      "actualSha256": "0BC71E45EE37D7B523063A59E5060610048FBE7DAC227D82CB24B4A8186FDB2A",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-manual-candidate.firmament",
+      "sourceSha256": "CFBA24141D578B8049C61FA491B5978D40E873DA149373D287F5DB5488F40056",
+      "expectedSha256": "1B32DB8AFF518EAA86ADBEC212047641B48C5CCD9F57736F9C807D897AFA70B2",
+      "actualSha256": "1B32DB8AFF518EAA86ADBEC212047641B48C5CCD9F57736F9C807D897AFA70B2",
+      "exitCode": 0,
+      "byteIdentical": true
+    }
+  ],
+  "dogfood": [
+    {
+      "source": "fixtures/Regression/FrontendX2/scoped-drill.firmament",
+      "sourceSha256": "E9E7611398FA7A12504F3713A405D2AC931D244659D3C470B4E4A770EF2D23EB",
+      "validationExit": 0,
+      "buildExit": 0,
+      "artifactExists": true,
+      "expectedAccepted": true,
+      "physicalWitness": {
+        "bodyCount": 1,
+        "shellCount": 1,
+        "faceCount": 7,
+        "edgeCount": 15,
+        "vertexCount": 12,
+        "boundingBox": {
+          "min": {
+            "x": -15,
+            "y": -10,
+            "z": 0
+          },
+          "max": {
+            "x": 15,
+            "y": 10,
+            "z": 8
+          }
+        },
+        "structuralAssessment": "enclosed-manifold",
+        "lengthUnit": "mm"
+      }
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/pattern-symbol-collision.firmament",
+      "sourceSha256": "526AEB3BA9CC466B1686C484C9B45A310048ABE8F05A57A4025D5F99491FD0E3",
+      "validationExit": 0,
+      "buildExit": 0,
+      "artifactExists": true,
+      "expectedAccepted": true,
+      "physicalWitness": {
+        "bodyCount": 1,
+        "shellCount": 1,
+        "faceCount": 8,
+        "edgeCount": 18,
+        "vertexCount": 16,
+        "boundingBox": {
+          "min": {
+            "x": -20,
+            "y": -12,
+            "z": 0
+          },
+          "max": {
+            "x": 20,
+            "y": 12,
+            "z": 6
+          }
+        },
+        "structuralAssessment": "enclosed-manifold",
+        "lengthUnit": "mm"
+      }
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/sibling-feature.invalid.firmament",
+      "sourceSha256": "77F9E13949E472FDDE6F2229C5E55281698DDE69B71C72C5BB7F5F3182D7E26C",
+      "validationExit": 1,
+      "buildExit": 1,
+      "artifactExists": false,
+      "expectedAccepted": false
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/template-shadowing.firmament",
+      "sourceSha256": "4B9BCF681615E0B92CACC2B803885BCF638C0629AEFECF078E582EA5DD033E14",
+      "validationExit": 0,
+      "buildExit": 0,
+      "artifactExists": true,
+      "expectedAccepted": true,
+      "physicalWitness": {
+        "bodyCount": 1,
+        "shellCount": 1,
+        "faceCount": 6,
+        "edgeCount": 12,
+        "vertexCount": 8,
+        "boundingBox": {
+          "min": {
+            "x": -15,
+            "y": -10,
+            "z": 0
+          },
+          "max": {
+            "x": 15,
+            "y": 10,
+            "z": 6
+          }
+        },
+        "structuralAssessment": "enclosed-manifold",
+        "lengthUnit": "mm"
+      }
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/sibling-template.invalid.firmament",
+      "sourceSha256": "8C50B7AE867AF1BFAEA76F6ED05FD82752ECF388350F134DF30C6891BB15CA37",
+      "validationExit": 1,
+      "buildExit": 1,
+      "artifactExists": false,
+      "expectedAccepted": false
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/record-shadowing.firmament",
+      "sourceSha256": "F2A221AF5F2AA873758CD2299215F9DA4E40CA2FD578DCC08618A4C36A9B4C9D",
+      "validationExit": 0,
+      "buildExit": 0,
+      "artifactExists": true,
+      "expectedAccepted": true,
+      "physicalWitness": {
+        "bodyCount": 1,
+        "shellCount": 1,
+        "faceCount": 6,
+        "edgeCount": 12,
+        "vertexCount": 8,
+        "boundingBox": {
+          "min": {
+            "x": -15,
+            "y": -10,
+            "z": 0
+          },
+          "max": {
+            "x": 15,
+            "y": 10,
+            "z": 6
+          }
+        },
+        "structuralAssessment": "enclosed-manifold",
+        "lengthUnit": "mm"
+      }
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/scoped-record-pmi.firmament",
+      "sourceSha256": "11AF24E14B595F714939CB389E9AD82207EADEE68BE28E4035E4CC12F13FDDA2",
+      "validationExit": 0,
+      "buildExit": 0,
+      "artifactExists": true,
+      "expectedAccepted": true,
+      "physicalWitness": {
+        "bodyCount": 1,
+        "shellCount": 1,
+        "faceCount": 7,
+        "edgeCount": 15,
+        "vertexCount": 12,
+        "boundingBox": {
+          "min": {
+            "x": -20,
+            "y": -15,
+            "z": 0
+          },
+          "max": {
+            "x": 20,
+            "y": 15,
+            "z": 8
+          }
+        },
+        "structuralAssessment": "enclosed-manifold",
+        "lengthUnit": "mm"
+      }
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/scoped-table.firmament",
+      "sourceSha256": "099403730BB31221D936BA23842FE5709416791A649B729C9603EB11815852D3",
+      "validationExit": 0,
+      "buildExit": 0,
+      "artifactExists": true,
+      "expectedAccepted": true,
+      "physicalWitness": {
+        "bodyCount": 1,
+        "shellCount": 1,
+        "faceCount": 6,
+        "edgeCount": 12,
+        "vertexCount": 8,
+        "boundingBox": {
+          "min": {
+            "x": -15,
+            "y": -10,
+            "z": 0
+          },
+          "max": {
+            "x": 15,
+            "y": 10,
+            "z": 6
+          }
+        },
+        "structuralAssessment": "enclosed-manifold",
+        "lengthUnit": "mm"
+      }
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/sibling-data.invalid.firmament",
+      "sourceSha256": "2584C8449E345361DCBDE8D8DD1BEB1907602E3E3767A9F6B1A2C8B731F0FA0B",
+      "validationExit": 1,
+      "buildExit": 1,
+      "artifactExists": false,
+      "expectedAccepted": false
+    }
+  ],
+  "performance": [
+    {
+      "name": "small-mechanical",
+      "source": "fixtures/Regression/FrontendX2/scoped-drill.firmament",
+      "owner": "validate",
+      "commandMilliseconds": 512.0336,
+      "exitCode": 0,
+      "measurement": "End-to-end CLI including process startup; Assembly requests two retained-session compiles",
+      "phaseTimingQualification": "Not a complete lex/bind/expand/lower phase benchmark"
+    },
+    {
+      "name": "template-record",
+      "source": "fixtures/Canonical/Templates/table-driven-mounting-plate.firmament",
+      "owner": "validate",
+      "commandMilliseconds": 450.1476,
+      "exitCode": 0,
+      "measurement": "End-to-end CLI including process startup; Assembly requests two retained-session compiles",
+      "phaseTimingQualification": "Not a complete lex/bind/expand/lower phase benchmark"
+    },
+    {
+      "name": "keyed-pattern",
+      "source": "fixtures/Canonical/Set/pattern-feature-map.firmament",
+      "owner": "validate",
+      "commandMilliseconds": 546.2391,
+      "exitCode": 0,
+      "measurement": "End-to-end CLI including process startup; Assembly requests two retained-session compiles",
+      "phaseTimingQualification": "Not a complete lex/bind/expand/lower phase benchmark"
+    },
+    {
+      "name": "guitar",
+      "source": "fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm",
+      "owner": "assembly",
+      "commandMilliseconds": 10384.4752,
+      "exitCode": 0,
+      "measurement": "End-to-end CLI including process startup; Assembly requests two retained-session compiles",
+      "phaseTimingQualification": "Not a complete lex/bind/expand/lower phase benchmark"
+    },
+    {
+      "name": "assembly",
+      "source": "fixtures/Regression/FrontendX1/assembly-modern-contract.firmament",
+      "owner": "assembly",
+      "commandMilliseconds": 595.0742,
+      "exitCode": 0,
+      "measurement": "End-to-end CLI including process startup; Assembly requests two retained-session compiles",
+      "phaseTimingQualification": "Not a complete lex/bind/expand/lower phase benchmark"
+    },
+    {
+      "name": "house",
+      "source": "fixtures/Canonical/Scene/WarmModernHouse/house.firmament",
+      "owner": "scene",
+      "commandMilliseconds": 2274.1356,
+      "exitCode": 0,
+      "measurement": "End-to-end CLI including process startup; Assembly requests two retained-session compiles",
+      "phaseTimingQualification": "Not a complete lex/bind/expand/lower phase benchmark"
+    }
+  ],
+  "provenanceQualification": "Scoped Record/scalar tolerance and explicit AP242 PMI retain authored requirement anchors; module/include and complete generated-source maps remain unqualified.",
+  "runtimeSnapshot": {
+    "remainingHosts": 0,
+    "freePhysicalMemoryGiB": 13.19,
+    "freeDiskGiB": 91.82,
+    "qualification": "Post-run snapshot; no long-duration soak claim",
+    "taskOwnedHostsReaped": 0,
+    "measuredAtUtc": "2026-10-15T16:42:08.7728994Z"
+  },
+  "surfaceCompatibilityWitness": {
+    "source": "fixtures/Regression/FrontendX2/panel-radians.firmament",
+    "semanticAdmission": "Panel AIR admitted and sampled by FirmamentFrontendX2Tests.ExistingPanelRadianAdmissionPreservesSurfaceCoordinates",
+    "startPointMm": [
+      "10*cos(0.25)",
+      "10*sin(0.25)",
+      0
+    ],
+    "endPointMm": [
+      "10*cos(0.75)",
+      "10*sin(0.75)",
+      5
+    ],
+    "solidBuild": "Explicit existing panel-only STEP materialization rejection"
+  },
+  "retainedCompilations": {
+    "guitar": [
+      {
+        "index": 0,
+        "elapsedMilliseconds": 9330.4041,
+        "success": true,
+        "reusedDefinitions": 0,
+        "rebuiltDefinitions": 56,
+        "domainPhaseMeasurements": {
+          "parseMilliseconds": 1218.6151,
+          "bindMilliseconds": 3.9119,
+          "mateValidationMilliseconds": 0.7047,
+          "placementMilliseconds": 2.2181,
+          "dimensionalGraphMilliseconds": 0.2918,
+          "toleranceAnalysisMilliseconds": 0.1929,
+          "definitionMaterializationMilliseconds": 6274.746,
+          "geometryExecutionMilliseconds": 1804.9446,
+          "routeBindingMilliseconds": 12.6791
+        }
+      },
+      {
+        "index": 1,
+        "elapsedMilliseconds": 106.8128,
+        "success": true,
+        "reusedDefinitions": 56,
+        "rebuiltDefinitions": 0,
+        "domainPhaseMeasurements": {
+          "parseMilliseconds": 62.2165,
+          "bindMilliseconds": 1.066,
+          "mateValidationMilliseconds": 0.1963,
+          "placementMilliseconds": 0.9371,
+          "dimensionalGraphMilliseconds": 0.0885,
+          "toleranceAnalysisMilliseconds": 0.0562,
+          "definitionMaterializationMilliseconds": 3.3194,
+          "geometryExecutionMilliseconds": 28.1709,
+          "routeBindingMilliseconds": 3.3562
+        }
+      }
+    ],
+    "assembly": [
+      {
+        "index": 0,
+        "elapsedMilliseconds": 447.1969,
+        "success": true,
+        "reusedDefinitions": 0,
+        "rebuiltDefinitions": 1,
+        "domainPhaseMeasurements": {
+          "parseMilliseconds": 58.9015,
+          "bindMilliseconds": 8.2055,
+          "mateValidationMilliseconds": 4.5347,
+          "placementMilliseconds": 11.8434,
+          "dimensionalGraphMilliseconds": 1.4081,
+          "toleranceAnalysisMilliseconds": 1.4955,
+          "definitionMaterializationMilliseconds": 323.5362,
+          "geometryExecutionMilliseconds": 24.4896,
+          "routeBindingMilliseconds": 0.8273
+        }
+      },
+      {
+        "index": 1,
+        "elapsedMilliseconds": 2.5054,
+        "success": true,
+        "reusedDefinitions": 1,
+        "rebuiltDefinitions": 0,
+        "domainPhaseMeasurements": {
+          "parseMilliseconds": 1.3847,
+          "bindMilliseconds": 0.0772,
+          "mateValidationMilliseconds": 0.053,
+          "placementMilliseconds": 0.1376,
+          "dimensionalGraphMilliseconds": 0.0182,
+          "toleranceAnalysisMilliseconds": 0.006,
+          "definitionMaterializationMilliseconds": 0.1733,
+          "geometryExecutionMilliseconds": 0.2286,
+          "routeBindingMilliseconds": 0.0043
+        }
+      }
+    ]
+  },
+  "buildWarnings": 19,
+  "focusedTests": 117,
+  "templateContinuation": {
+    "status": "ProductionAstLexicalLookup",
+    "priorSourceCount": 1271,
+    "commonSourcesCompared": 1270,
+    "sourceChanges": [
+      {
+        "source": "Speculative/RecordDerivation/valid/material-with-property-variant-v2.valid.firmfixture",
+        "differences": {
+          "syntaxFingerprint": {
+            "before": "4CC3D552D61DD8A936D8B45E292BEC219509B43BDFD3152A166A57FF55416891",
+            "after": "60DABFD429EC0B6ABAC34EE9A695DE4163D5191D2780C0D5A2D542536F0492F9"
+          }
+        },
+        "reviewedDisposition": "Spaced GPa literals are represented as quantities; speculative material/density syntax remains rejected with unchanged source, owner, admission and classification."
+      }
+    ],
+    "diagnosticCodeChanges": [
+      {
+        "source": "Regression/FrontendX1/nested-generics.firmament",
+        "differences": {
+          "productionDiagnosticCodes": {
+            "before": [
+              "firmament-template-invalid-parameter-name:T: Set<Set<Point2>>",
+              "firmament-v2-parse-failed"
+            ],
+            "after": [
+              "firmament-template-invalid-parameter-name:T",
+              "firmament-template-not-found:Product",
+              "firmament-v2-parse-failed"
+            ]
+          }
+        }
+      }
+    ],
+    "promotedWitness": {
+      "before": "fixtures/Regression/FrontendX2/template-shadowing.pending.firmament",
+      "after": "fixtures/Regression/FrontendX2/template-shadowing.firmament",
+      "qualification": "Normal validate/build admit the local 30mm family; component tests compare byte-identical concrete STEP."
+    },
+    "nextBlocker": {
+      "source": "fixtures/Regression/FrontendX2/record-shadowing.pending.firmament",
+      "observedCode": "firmament-template-record-missing-field:outerSpec:thickness",
+      "cause": "The global Record catalog applies the local Spec schema to the unrelated outerSpec declaration.",
+      "status": "Closed by dataContinuation; historical reproduction retained."
+    },
+    "requiredFastLane": {
+      "failed": 0,
+      "passed": 1068,
+      "skipped": 0,
+      "total": 1068,
+      "executingAssemblies": 1
+    },
+    "hostCompatibility": "Document exports and existing single-Model module containers; qualified Construct capability names, lowercase analysis headers and parameterized force quantities have explicit AST productions."
+  },
+  "implementationSourceAndBinaryHashes": [
+    {
+      "path": "Aetheris.CLI.Tests/FirmamentFrontendX2CliTests.cs",
+      "sha256": "29B1C274E153A8A7DB2E3BC5DC67795A59A80A22119FC087FB78B19C04C9A3CE"
+    },
+    {
+      "path": "Aetheris.CLI/CliRunner.cs",
+      "sha256": "6CBA72D0D3DB19815D47D659C3B12ECC9C059F0870F5CB7F3FB9879E87A3C8DC"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament.Tests/FirmamentCompileTimeValueBindingTests.cs",
+      "sha256": "6E48CC163D6DC3CB32ACD9022A403CF098B808E4D15C838576B52B414B4C0CF9"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament.Tests/FirmamentFrontendX2Tests.cs",
+      "sha256": "DBEE665D7A2142965BDC912516D08B1CEBE4B9F9BE43FB5E0489B1ACC8DC295D"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament.Tests/FirmamentScopedDataBindingTests.cs",
+      "sha256": "79CFE314A4BC0D89FE1DA45B7B47A852117B01D216E0A1AB5DA0A7E28E9BE375"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament.Tests/FirmamentV2FeatureFunctionTests.cs",
+      "sha256": "8182F99414C6F49E4DA13A944BED93B237AAC510D5FD366FA387D8F499B3E20F"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament.Tests/FunctionalPickupTests.cs",
+      "sha256": "3451F0CDC63095771661B1CE8DCD1F42E9AE0A1000F8D4B592FF11DAE7BB6CBB"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Assembly/AssemblyFrameAuthoring.cs",
+      "sha256": "0C4887F2DAF89B771A357B56D75387B92C48FC2CC43A7EFFA5905F009236BA3D"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Assembly/AssemblyPublishedPorts.cs",
+      "sha256": "CFE2D863BCA611220335E57D7C488BBAB085FF5E79689D285DE2F6E233EA278D"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentBuildAndExport.cs",
+      "sha256": "423ECE1CB4B29B2AEFACE30B1F0AEB38C235BB018E4CE4B1C7E8F19B75199D42"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/CanonicalStaticAuthoring.cs",
+      "sha256": "967F0ED04B6DC1EC09F889978281AEC9BA3DB707C795985EFD8E4B7BC96E497C"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/ConceptIr.cs",
+      "sha256": "A414D12C0F63505D31AF10F150A68EDCEE33FF0F546F4245EBAD369BA35C9C94"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/ConceptPointAuthoring.cs",
+      "sha256": "B2908B4F63F027285565321FF65725632EDAF69C4285945F6E1DD874FCF7D3B8"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/FirmamentCompileTimeValues.cs",
+      "sha256": "D90FE887D905490C804304A6ED396D6A274DA1A2E7AD60FB247D105D4D40C06D"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/FirmamentTemplateHostBridge.cs",
+      "sha256": "C0302C5C05CA326BDB7D99BCD1651D815FCF03EE7E02424635F710667A05C1A0"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/FirmamentV2Ast.cs",
+      "sha256": "77CA511CE2A8DA7A78CF14882B27C0FD86BE51E4B144BF88BB5E023862CB9885"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/FirmamentV2FeatureExpansion.cs",
+      "sha256": "9933973C206F62061E393BE2C52A59CDCBA92EDF8A780F6DF04D235503A70A0B"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/FirmamentV2Parser.cs",
+      "sha256": "114B4F82ACC99843B1EC0C3D08EE9B61EF0FE369CB556CE3F008B48C2AB69940"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/FirmamentV2TemplateExpansion.cs",
+      "sha256": "B8F126AC0097F3299AB930FB8359CAEA4F960AE5ED7E6D249F59503DFAB54DC5"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/LinearFeatureAuthoring.cs",
+      "sha256": "B65BF34783463FA913DA6C5FFB66D8F93CC90CC70879FDF716AF68AEEA0EEDBB"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentBindingScope.cs",
+      "sha256": "BA6B1119B6C3D3F35D0AE5F566C0AE30C489093E3E56CFA9BB1BAF62843E034F"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentDataBinding.cs",
+      "sha256": "3911D82ECADC192B671869B055104C1ADFB193BB408C0B40CED09D1D009F70B2"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentNumericEvaluation.cs",
+      "sha256": "4291026F543ECA6C0B2A06FEEDF2D2F6A2B48DFEE9EA4ADB9CA75AEE32BCEC8C"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntax.cs",
+      "sha256": "2ADDDD88A6CC673842E9904EA696C7100507BFADDEB4466388F15504E5A7BEB6"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntaxOrigins.cs",
+      "sha256": "A74A7D12D02FB94D73F14D70278D0AFAADD5A06229CE2CD37915AF2263459EE3"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntaxParser.cs",
+      "sha256": "2C9E108D51A190BF23B9FA7BB7C5F5B323B56FBC1B8696C2E3D37132B8244688"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntaxRewriter.cs",
+      "sha256": "DD4B7F759B12E92CBD387FE9BA796764DA9B2B8087F61BCFDCC6DEE0E05DDD40"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntaxTraversal.cs",
+      "sha256": "5035A669E603A131446246B39BCA0C52FE11C40756EAE45CD7AF9ECD678060EF"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntaxValues.cs",
+      "sha256": "72541944ADF221D5C0DD29A6AAB0685B0C1A500E8AAEC4DE3ECE48672FB3707B"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntaxWriter.cs",
+      "sha256": "9A68F9156EAB06FF1A9BD05CB8D10F362218D2562F8D8214DB183DB7E709089E"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentTemplateSyntax.cs",
+      "sha256": "1988ED3074AABAA71FC23743C0469284A22C902904CCAC865A7C514D2593EC88"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Garment/GarmentAuthoring.cs",
+      "sha256": "19EEAED5EF83B97A6C13A5A18820DF6F05C00D9CBDC76755F23649188CE0D82B"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Garment/GarmentFigureAuthoring.cs",
+      "sha256": "0313064C0692C5B2D5F4B1A727D76F911DEA4E77F5237AA56261EBF2F478C69C"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Humanoid/HumanoidPoseAuthoring.cs",
+      "sha256": "B08994903676E07C947A13412AB17C7C6592571040228B353824C9CA351E5255"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Materializer/PrismaticProfileComposition.cs",
+      "sha256": "D582F2B969B8DFA9A1F5DFFD325AB522C7A90477EC0850B01D39C67300F361E9"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Scene/SceneAuthoring.cs",
+      "sha256": "EB776ADE721646AD4AC5BA032B3C8E9779780968368B5A99AD89E22E8CF34436"
+    },
+    {
+      "path": "Aetheris.Server.Tests/PaperclipDemoIntegrationTests.cs",
+      "sha256": "736E7BCA4C5908E02297EFD90DB1B03AD7DD268662C0EDC9C68754B147CD6CEA"
+    },
+    {
+      "path": "Aetheris.Server/Api/PaperclipDemoEndpoints.cs",
+      "sha256": "EC3BF6E850820E76CFA36484563365FB606D53CC94E6B4C0966D6D1D153A411C"
+    },
+    {
+      "path": "Aetheris.CLI/bin/Release/net10.0/aetheris.dll",
+      "sha256": "77B87FB5A8F77C8511DCC8F5F1596CC6277263EBF51059A6B68FA29E80FD1D23"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/bin/Release/net10.0/Aetheris.Kernel.Firmament.dll",
+      "sha256": "A900E68BB8483E42CAE1EC350E3219D93234D713910118C613CD1320C486A197"
+    }
+  ],
+  "dataContinuation": {
+    "status": "ProductionAstScopedData",
+    "requestedPassVerdict": "Success",
+    "commonSourcesCompared": 1272,
+    "sourceDeltas": [],
+    "classificationOrDiagnosticDeltas": [],
+    "reviewedDispositions": [
+      {
+        "kind": "PromotedReproduction",
+        "before": {
+          "source": "Regression/FrontendX2/record-shadowing.pending.firmament",
+          "sha256": "513CA4D8DF88F1BACD17A30E1CE9FA8A5D9FFE0BEDCD34259253214CF446BE78",
+          "structuralSuccess": true,
+          "syntaxFingerprint": "4AD527B468B427A2DA148C373924C29A4D956B1B51556D51995312F44921BD76",
+          "owner": "ValidateDomainDispatch",
+          "productionLevel": "OwnerReported",
+          "productionExit": 1,
+          "classification": "SourceAdmissionRejected",
+          "standaloneProductionExit": 1,
+          "productionDiagnosticCodes": [
+            "firmament-template-record-missing-field:outerSpec:thickness",
+            "firmament-v2-parse-failed"
+          ]
+        },
+        "after": {
+          "source": "Regression/FrontendX2/record-shadowing.firmament",
+          "sha256": "F2A221AF5F2AA873758CD2299215F9DA4E40CA2FD578DCC08618A4C36A9B4C9D",
+          "structuralSuccess": true,
+          "syntaxFingerprint": "4AD527B468B427A2DA148C373924C29A4D956B1B51556D51995312F44921BD76",
+          "owner": "ValidateDomainDispatch",
+          "productionLevel": "OwnerReported",
+          "classification": "Admitted",
+          "productionDiagnosticCodes": [],
+          "standaloneProductionExit": 0
+        },
+        "reason": "The preserved Spec schema-capture program now binds the outer value to the outer schema and the local product to the local schema. Only its explanatory comment changed; component/native STEP equals the concrete 30 x 20 x 6 mm product."
+      },
+      {
+        "kind": "AddedWitness",
+        "after": {
+          "source": "Regression/FrontendX2/scoped-record-pmi.firmament",
+          "sha256": "11AF24E14B595F714939CB389E9AD82207EADEE68BE28E4035E4CC12F13FDDA2",
+          "structuralSuccess": true,
+          "syntaxFingerprint": "FD4B777C595CE9E1C07EEC7F46FAAD7D0EDA3993C01F5991F4FFB42FE62C83EE",
+          "owner": "ValidateDomainDispatch",
+          "productionLevel": "OwnerReported",
+          "classification": "Admitted",
+          "productionDiagnosticCodes": [],
+          "standaloneProductionExit": 0
+        },
+        "reason": "Positive: same-named outer/local Record and Static declarations retain the local 8mm tolerance, through Template/Feature into AP242 plus 0.10/minus 0.05 and authored requirement span."
+      },
+      {
+        "kind": "AddedWitness",
+        "after": {
+          "source": "Regression/FrontendX2/scoped-table.firmament",
+          "sha256": "099403730BB31221D936BA23842FE5709416791A649B729C9603EB11815852D3",
+          "structuralSuccess": true,
+          "syntaxFingerprint": "299FC325A081430B7066C600ED094759AB24D2F2193A35699406ABE4505FD4C0",
+          "owner": "ValidateDomainDispatch",
+          "productionLevel": "OwnerReported",
+          "classification": "Admitted",
+          "productionDiagnosticCodes": [],
+          "standaloneProductionExit": 0
+        },
+        "reason": "Positive: root and local schema/Table/value names bind separately; the checked local row produces 30 x 20 x 6 mm geometry."
+      },
+      {
+        "kind": "AddedWitness",
+        "after": {
+          "source": "Regression/FrontendX2/sibling-data.invalid.firmament",
+          "sha256": "2584C8449E345361DCBDE8D8DD1BEB1907602E3E3767A9F6B1A2C8B731F0FA0B",
+          "structuralSuccess": true,
+          "syntaxFingerprint": "948272C43EAD3460A73D594811FF2644AFBBAD77F5C3E68A33FDFEFD845472B3",
+          "owner": "ValidateDomainDispatch",
+          "productionLevel": "OwnerReported",
+          "classification": "ExpectedNegativeRejection",
+          "productionDiagnosticCodes": [
+            "firmament-binding-name-not-visible:secret",
+            "firmament-v2-parse-failed"
+          ],
+          "standaloneProductionExit": 1
+        },
+        "reason": "Negative: a sibling-private scalar cannot leak into a consumer. Both validate/build reject at the authored reference and no STEP is produced."
+      }
+    ],
+    "promotedWitness": {
+      "before": "fixtures/Regression/FrontendX2/record-shadowing.pending.firmament",
+      "after": "fixtures/Regression/FrontendX2/record-shadowing.firmament"
+    },
+    "remainingX2": "Complete module/include original-source provenance; remaining collection, expansion and domain source adapters.",
+    "sourceBoundary": "AST-resolved symbol identities; only collisions lower private identifiers at the existing source boundary. No regex reference substitution or new expression engine.",
+    "fastLane": {
+      "failed": 0,
+      "passed": 1068,
+      "skipped": 0,
+      "total": 1068,
+      "executingAssemblies": 1
+    },
+    "focusedCliTests": {
+      "failed": 0,
+      "passed": 4,
+      "skipped": 0,
+      "total": 4,
+      "executingAssemblies": 1
+    }
+  },
+  "documentationTests": 13
+}

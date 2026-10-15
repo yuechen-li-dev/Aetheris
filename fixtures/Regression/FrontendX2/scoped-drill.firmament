@@ -1,0 +1,12 @@
+schema Mechanical
+Feature Drill(diameter: Length = 2mm) -> Hole<Shaft> {
+    return Hole<Shaft> { on: +Z center: Point2(0mm, 0mm) diameter: diameter end: ThroughAll }
+}
+Model ScopedPlate {
+    units: mm
+    Feature Drill(diameter: Length = nominal * 2, nominal: Length = 3mm) -> Hole<Shaft> {
+        return Hole<Shaft> { on: +Z center: Point2(0mm, 0mm) diameter: diameter end: ThroughAll }
+    }
+    Box stock { size: [30mm, 20mm, 8mm] }
+    Modify stock { Drill() }
+}

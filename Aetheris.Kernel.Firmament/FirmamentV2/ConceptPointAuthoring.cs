@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -42,7 +43,7 @@ internal static class ConceptPointAuthoring
             {
                 var variables=function.Parameters.ToDictionary(p=>p.Name,p=>(1d,Unit(p.Type)),StringComparer.Ordinal);
                 var dependencies = Regex.Matches(function.Body,@"\b(?<name>[A-Za-z_]\w*)\s*\(").Select(m=>m.Groups["name"].Value).ToArray();
-                if (!FirmamentV2FeatureExpansion.TryEvaluateScalar(function.Body,variables,(name,args)=>Call(name,args,true,[]),true,out _,out var unit)
+                if (!FirmamentNumericEvaluation.TryEvaluateScalar(function.Body,variables,(name,args)=>Call(name,args,true,[]),true,out _,out var unit)
                     || unit!=Unit(function.ReturnType)) diagnostics.Add(Prefix+"function-body-invalid:"+function.Name);
                 bool Cycle(string name,HashSet<string> visiting)
                 {
@@ -70,7 +71,7 @@ internal static class ConceptPointAuthoring
                     if(args[i].Unit!=Unit(function.Parameters[i].Type) || (!typeOnly && function.Parameters[i].Type=="Int" && !ValidInt(args[i].Value))) throw new FormatException();
                 if(typeOnly) return (1,Unit(function.ReturnType));
                 var variables=function.Parameters.Select((p,i)=>(p.Name,args[i])).ToDictionary(p=>p.Name,p=>p.Item2,StringComparer.Ordinal);
-                if(!FirmamentV2FeatureExpansion.TryEvaluateScalar(function.Body,variables,(n,a)=>Call(n,a,false,active),false,out var value,out var unit)
+                if(!FirmamentNumericEvaluation.TryEvaluateScalar(function.Body,variables,(n,a)=>Call(n,a,false,active),false,out var value,out var unit)
                     || unit!=Unit(function.ReturnType) || (function.ReturnType=="Int" && !ValidInt(value))) throw new FormatException();
                 return (value,unit);
             }
@@ -80,7 +81,7 @@ internal static class ConceptPointAuthoring
         internal bool Evaluate(string expression,IReadOnlyDictionary<string,(double Value,string Unit)> variables,out double value,out string unit)
         {
             _remainingCalls = 10000;
-            return FirmamentV2FeatureExpansion.TryEvaluateScalar(expression,variables,(n,a)=>Call(n,a,false,[]),false,out value,out unit);
+            return FirmamentNumericEvaluation.TryEvaluateScalar(expression,variables,(n,a)=>Call(n,a,false,[]),false,out value,out unit);
         }
 
         // Only scalar consumer fields are normalized. No source code is executed.

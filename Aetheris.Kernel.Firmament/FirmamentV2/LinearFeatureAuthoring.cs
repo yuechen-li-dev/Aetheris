@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Firmament.Materializer;
@@ -24,10 +25,10 @@ internal static class LinearFeatureAuthoring
             var origin = Regex.Match(fields, @"\bOrigin\s*:\s*\[(?<x>[^,]+),(?<y>[^]]+)\]");
             var vector = Regex.Match(fields, @"\bDirection\s*:\s*\[(?<x>[^,]+),(?<y>[^]]+)\]");
             if (!origin.Success || !vector.Success
-                || !FirmamentV2FeatureExpansion.TryEvaluateScalar(origin.Groups["x"].Value, out var x, out var xu) || xu != "mm"
-                || !FirmamentV2FeatureExpansion.TryEvaluateScalar(origin.Groups["y"].Value, out var y, out var yu) || yu != "mm"
-                || !FirmamentV2FeatureExpansion.TryEvaluateScalar(vector.Groups["x"].Value, out var vx, out var vxu) || vxu.Length != 0
-                || !FirmamentV2FeatureExpansion.TryEvaluateScalar(vector.Groups["y"].Value, out var vy, out var vyu) || vyu.Length != 0
+                || !FirmamentNumericEvaluation.TryEvaluateScalar(origin.Groups["x"].Value, out var x, out var xu) || xu != "mm"
+                || !FirmamentNumericEvaluation.TryEvaluateScalar(origin.Groups["y"].Value, out var y, out var yu) || yu != "mm"
+                || !FirmamentNumericEvaluation.TryEvaluateScalar(vector.Groups["x"].Value, out var vx, out var vxu) || vxu.Length != 0
+                || !FirmamentNumericEvaluation.TryEvaluateScalar(vector.Groups["y"].Value, out var vy, out var vyu) || vyu.Length != 0
                 || !double.IsFinite(vx * vx + vy * vy) || vx * vx + vy * vy < 1e-24)
             { Error("axis-invalid", identity); continue; }
             var norm = Math.Sqrt(vx * vx + vy * vy);
@@ -50,7 +51,7 @@ internal static class LinearFeatureAuthoring
             var seed = Field(body, "Source"); var direction = Field(body, "Direction");
             if (!int.TryParse(Field(body, "Count"), out var count) || count is < 1 or > 1024)
             { Error("count-invalid", name); continue; }
-            if (!FirmamentV2FeatureExpansion.TryEvaluateScalar(Field(body, "Spacing"), out var spacing, out var unit) || unit != "mm" || spacing <= 0)
+            if (!FirmamentNumericEvaluation.TryEvaluateScalar(Field(body, "Spacing"), out var spacing, out var unit) || unit != "mm" || spacing <= 0)
             { Error("spacing-invalid", name); continue; }
             if (direction.EndsWith(".Direction", StringComparison.Ordinal))
             {

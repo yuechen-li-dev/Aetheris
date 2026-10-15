@@ -1,14 +1,11 @@
 using System.Collections.Immutable;
 using System.Globalization;
-using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
-/// <summary>
-/// Bounded, pure expansion for Firmament's function-like Feature declarations.
-/// Feature bodies contain immutable local derivations/construction declarations and one
-/// terminal return. Expansion produces ordinary semantic declarations before Feature AIR.
-/// </summary>
+/// <summary>Scoped, finite AST specialization of pure terminal-return Features.
+/// Source serialization is the boundary to domain adapters not yet migrated to AST inputs.</summary>
 internal static class FirmamentV2FeatureExpansion
 {
     internal const string Prefix = "firmament-feature-";
@@ -28,470 +25,336 @@ internal static class FirmamentV2FeatureExpansion
     internal const string LocalType = Prefix + "local-type";
     internal const string LocalDuplicate = Prefix + "local-duplicate";
     internal const string UnsupportedBody = Prefix + "body-unsupported";
+    internal const int MaximumDepth = 64;
+    internal const int MaximumInvocations = 4096;
+    internal const int MaximumOutputCharacters = 4 * 1024 * 1024;
 
-    private sealed record Parameter(string Name, string Type, string? DefaultExpression, FirmamentV2SourceSpan Span);
-    private sealed record Declaration(string Name, ImmutableArray<Parameter> Parameters, string ReturnTypeName,
-        string ReturnExpression, ImmutableArray<Local> Locals, string Construction, ImmutableArray<string> ConstructionNames, FirmamentV2SourceSpan Span);
-    private sealed record Local(string Name, string Type, string Expression);
-
-    internal sealed record Result(
-        string Source,
-        IReadOnlyList<FirmamentV2FeatureDefinition> Definitions,
-        IReadOnlyList<FirmamentV2FeatureInvocation> Invocations,
-        FirmamentV2FeatureExpansionMetrics Metrics);
-
-    public static Result? Expand(string source, List<string> diagnostics, FirmamentCompileTimeValues? scalars = null)
+    private sealed record Definition(DeclarationSyntax Syntax, FirmamentBindingScope Scope, string ResultType,
+        ReturnSyntax Return, IReadOnlyList<DeclarationSyntax> Locals, IReadOnlyList<DeclarationSyntax> Construction);
+    internal sealed record Result(string Source, IReadOnlyList<FirmamentV2FeatureDefinition> Definitions,
+        IReadOnlyList<FirmamentV2FeatureInvocation> Invocations, FirmamentV2FeatureExpansionMetrics Metrics)
     {
-        var declarations = ParseDeclarations(source, diagnostics);
-        var byName = declarations.ToDictionary(item => item.Name, StringComparer.Ordinal);
-        DetectCycles(declarations, byName, diagnostics);
-        if (declarations.Length > 0)
+        internal DocumentSyntax? Document { get; init; }
+        internal IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics { get; init; } = [];
+    }
+
+    internal static Result? Expand(string source, List<string> diagnostics, FirmamentCompileTimeValues? scalars = null,
+        string? originalSource = null)
+    {
+        var parsed = FirmamentSyntaxParser.Parse(source);
+        var declarations = FirmamentSyntaxTraversal.Declarations(parsed.Document)
+            .Where(d => d.Type.Name.Text == "Feature" && d.ResultType is not null).ToArray();
+        if (declarations.Length == 0) return new(source, [], [], new(0, 0, 0, "BoundedSourceOrder")) { Document = parsed.Document };
+        var located = new List<FirmamentV2ValidationDiagnostic>();
+        var original = FirmamentSyntaxParser.Parse(originalSource ?? source).Document;
+        var origins = new FirmamentSyntaxOrigins(original, parsed.Document);
+        FirmamentV2SourceSpan? OriginalDefinition(DeclarationSyntax d)
         {
-            foreach (Match possibleCall in Regex.Matches(source, @"(?m)^\s*(?<name>[A-Za-z_]\w*)\s*\(", RegexOptions.CultureInvariant))
+            if (originalSource is null || originalSource == source) return d.Span;
+            return origins.Find(d.Span);
+        }
+        void Error(string code, string message, FirmamentV2SourceSpan span, DeclarationSyntax? definition = null)
+        {
+            diagnostics.Add(code);
+            var invocation = origins.Find(span);
+            var anchor = invocation ?? (definition is null ? null : OriginalDefinition(definition));
+            var unchanged = originalSource is null || originalSource == source;
+            located.Add(new(code, "fatal", message, Target: definition?.Name?.Text)
             {
-                if (declarations.Any(item => possibleCall.Index >= item.Span.Start && possibleCall.Index < item.Span.Start + item.Span.Length)) continue;
-                var name = possibleCall.Groups["name"].Value;
-                if (!byName.ContainsKey(name)) diagnostics.Add(Unknown + ":" + name);
+                SourceFile = unchanged || anchor is not null ? "inline" : "inline#pre-feature-expansion",
+                SourceSpan = unchanged ? span : anchor ?? span, IsOriginalSource = unchanged || anchor is not null, Stage = "Feature binding",
+                LocationNote = anchor is not null && !unchanged ? invocation is not null ? "Location identifies the original Feature use." : "Location identifies the original Feature definition; its invocation is in expanded source."
+                    : unchanged ? null : "Location is in the input to Feature expansion; original-file mapping is unavailable."
+            });
+        }
+        Result? Failure()
+        {
+            scalars?.AddExpansionDiagnostics(located);
+            return null;
+        }
+        bool Failed() => located.Count > 0 || diagnostics.Any(d => d.StartsWith(Prefix, StringComparison.Ordinal));
+        if (!parsed.IsSuccess)
+        {
+            foreach (var d in parsed.Diagnostics) { diagnostics.Add(d.Code); located.Add(d); }
+            return Failure();
+        }
+        var scopes = new Dictionary<DeclarationSyntax, FirmamentBindingScope>(ReferenceEqualityComparer.Instance);
+        var bodies = new Dictionary<BlockSyntax, FirmamentBindingScope>(ReferenceEqualityComparer.Instance);
+        var definitions = new Dictionary<DeclarationSyntax, Definition>(ReferenceEqualityComparer.Instance);
+        var root = new FirmamentBindingScope(null, "document");
+        void Collect(IReadOnlyList<StatementSyntax> statements, FirmamentBindingScope scope)
+        {
+            foreach (var mapping in statements.OfType<MappingSyntax>()) Collect([mapping.Value], scope);
+            foreach (var d in statements.OfType<DeclarationSyntax>())
+            {
+                scopes[d] = scope;
+                var kind = d.Type.Name.Text == "Feature" && d.ResultType is not null ? "Feature" : d.Type.Name.Text;
+                if (d.Name is not null && !scope.Declare(kind, d) && kind == "Feature")
+                    Error(DuplicateName + ":" + d.Name.Text, $"Duplicate Feature '{d.Name.Text}' in {scope.Identity}.", d.Span, d);
+            }
+            foreach (var d in statements.OfType<DeclarationSyntax>().Where(d => d.Body is not null))
+            {
+                var child = new FirmamentBindingScope(scope, scope.Identity + "/" + d.Type.Name.Text + " " + d.Name?.Text);
+                bodies[d.Body!] = child; Collect(d.Body!.Statements, child);
             }
         }
-        if (HasErrors(diagnostics)) return null;
-
-        var invocations = new List<FirmamentV2FeatureInvocation>();
-        var ordinal = 0;
-        string ExpandCall(Declaration declaration, string argumentText, FirmamentV2SourceSpan span,
-            IReadOnlyList<string> stack, bool patternContext, string? resultName = null)
+        Collect(parsed.Document.Statements, root);
+        foreach (var d in declarations)
         {
-            var bound = Bind(declaration, argumentText, span.Start, diagnostics, source, scalars);
-            if (bound is null) return string.Empty;
+            var name = d.Name?.Text ?? "<unnamed>"; var resultType = TypeName(d.ResultType!);
+            if (!AllowedResult(resultType)) Error(ReturnType + $":{name}:unsupported-{resultType}", $"Feature '{name}' cannot return {resultType}; expected a supported Hole variant, Boss, Pocket, EdgeFinish or Profile.", d.Span, d);
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var p in d.Parameters)
+                if (p.Name is null || p.Value is not ReferenceSyntax)
+                    Error(InvalidParameter + ":" + name, $"Feature '{name}' expects named typed parameters.", p.Span, d);
+                else if (!names.Add(p.Name.Text)) Error(DuplicateParameter + $":{name}:{p.Name.Text}", $"Duplicate parameter '{p.Name.Text}' in Feature '{name}'.", p.Span, d);
+            if (d.Body is null || d.Name is null || d.Annotation is not null || d.Clauses.Count > 0 || d.Modifiers.Count > 0 || d.Initializer is not null
+                || d.Type.Span.Length > d.Type.Name.Span.Length || d.Occurrence || d.Target is not null || !d.HasParameterList)
+            { Error(UnsupportedBody + ":" + name, $"Feature '{name}' expects a non-generic name(parameters) definition, a body and terminal return; header placement and initialization clauses are not admitted.", d.Span, d); continue; }
+            var returns = d.Body.Statements.OfType<ReturnSyntax>().ToArray();
+            if (returns.Length != 1)
+            { Error((returns.Length == 0 ? MissingReturn : MultipleReturns) + ":" + name, $"Feature '{name}' must have exactly one terminal return.", d.Span, d); continue; }
+            if (!ReferenceEquals(returns[0], d.Body.Statements.Last()))
+                Error(UnsupportedBody + ":" + name + ":return-must-be-terminal", $"Feature '{name}' has statements after its return.", returns[0].Span, d);
+            var locals = new List<DeclarationSyntax>(); var construction = new List<DeclarationSyntax>();
+            foreach (var statement in d.Body.Statements.Where(s => s is not ReturnSyntax))
+            {
+                if (statement is DeclarationSyntax { Type.Name.Text: "let", Name: not null, Annotation: ReferenceSyntax, Initializer: not null, Body: null,
+                    Parameters.Count: 0, Modifiers.Count: 0, Clauses.Count: 0, ResultType: null, Occurrence: false, HasParameterList: false } local
+                    && local.Type.Span.Length == local.Type.Name.Span.Length) locals.Add(local);
+                else if (statement is DeclarationSyntax { Body: not null, Name: not null, HasParameterList: false } c && c.Type.Name.Text is "Point2" or "Line2" or "CubicBezier2" or "Circle2" or "RoundedRect2" or "Rect2" or "Profile") construction.Add(c);
+                else { Error(UnsupportedBody + ":" + name, $"Unsupported statement in Feature '{name}'; use typed immutable let values and admitted private construction before return.", statement.Span, d); continue; }
+                var localName = ((DeclarationSyntax)statement).Name!.Text;
+                if (!names.Add(localName)) Error(LocalDuplicate + $":{name}:{localName}", $"Duplicate local name '{localName}' in Feature '{name}'.", statement.Span, d);
+            }
+            definitions[d] = new(d, scopes[d], resultType, returns[0], locals, construction);
+        }
+        foreach (var definition in definitions.Values)
+        {
+            var returned = definition.Return.Value;
+            if (returned is ObjectSyntax { Name: not null })
+                Error(UnsupportedBody + ":" + definition.Syntax.Name!.Text + ":named-return", "A return constructor is unnamed. Name its consuming invocation with Feature name = Recipe(arguments).", returned.Span, definition.Syntax);
+            else if (returned is CallSyntax { Target: ReferenceSyntax call })
+            {
+                if (definition.Scope.Resolve("Feature", call.Name.Text) is not { } target || !definitions.TryGetValue(target, out var nested))
+                    Error(Unknown + ":" + call.Name.Text, $"Feature '{call.Name.Text}' is not visible from definition '{definition.Syntax.Name!.Text}'.", returned.Span, definition.Syntax);
+                else if (!SameType(definition.ResultType, nested.ResultType))
+                    Error(ReturnType + $":{definition.Syntax.Name!.Text}:expected-{definition.ResultType}:actual-{nested.ResultType}", "Delegated Feature result does not match the declared return type.", returned.Span, definition.Syntax);
+            }
+            else if (returned is not ObjectSyntax { Type: not null, Name: null } obj || !SameType(definition.ResultType, TypeName(obj.Type)))
+                Error(ReturnType + $":{definition.Syntax.Name!.Text}:expected-{definition.ResultType}", $"Feature '{definition.Syntax.Name!.Text}' must return {definition.ResultType} construction or a Feature with that result type.", returned.Span, definition.Syntax);
+        }
+        var checkedDefinitions = new HashSet<DeclarationSyntax>(ReferenceEqualityComparer.Instance);
+        void CheckCycles(Definition definition, List<Definition> stack)
+        {
+            if (stack.Contains(definition))
+            { Error(Recursion + ":" + string.Join(":", stack.SkipWhile(d => d != definition).Append(definition).Select(d => d.Syntax.Name!.Text)), "Feature calls contain a recursive dependency. Use a finite, acyclic recipe.", definition.Return.Span, definition.Syntax); return; }
+            if (stack.Count >= MaximumDepth)
+            { Error(Prefix + "depth-limit", $"Feature specialization exceeds depth {MaximumDepth}.", definition.Syntax.Span, definition.Syntax); return; }
+            if (!checkedDefinitions.Add(definition.Syntax)) return;
+            if (definition.Return.Value is CallSyntax { Target: ReferenceSyntax r }
+                && definition.Scope.Resolve("Feature", r.Name.Text) is { } target && definitions.TryGetValue(target, out var nested)) CheckCycles(nested, [.. stack, definition]);
+        }
+        foreach (var definition in definitions.Values) CheckCycles(definition, []);
+        if (Failed()) return Failure();
+        var invocations = new List<FirmamentV2FeatureInvocation>(); var ordinal = 0;
+        long emittedCharacters = 0;
+        var emittedDeclarations = 0;
+        var changes = new List<(FirmamentV2SourceSpan Span, string Text)>();
+        var replacements = new Dictionary<StatementSyntax, IReadOnlyList<StatementSyntax>>(ReferenceEqualityComparer.Instance);
+
+        IReadOnlyList<StatementSyntax> ExpandCall(Definition definition, CallSyntax call, FirmamentBindingScope callScope,
+            IReadOnlyList<Definition> stack, bool pattern, string? resultName = null)
+        {
+            if (stack.Contains(definition)) { Error(Recursion + ":" + string.Join(":", stack.Append(definition).Select(d => d.Syntax.Name!.Text)), "Recursive Feature invocation is not admitted.", call.Span, definition.Syntax); return []; }
+            if (stack.Count >= MaximumDepth || ordinal >= MaximumInvocations)
+            { Error(Prefix + "expansion-limit", $"Feature expansion is limited to depth {MaximumDepth} and {MaximumInvocations} invocations; no output was truncated.", call.Span, definition.Syntax); return []; }
             var invocationOrdinal = ordinal++;
-            var environment = new Dictionary<string, string>(bound, StringComparer.Ordinal);
-            foreach (var local in declaration.Locals)
+            var environment = new Dictionary<string, ExpressionSyntax>(StringComparer.Ordinal);
+            var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
+            var supplied = new Dictionary<string, ExpressionSyntax>(StringComparer.Ordinal); var position = 0;
+            foreach (var arg in call.Arguments)
             {
-                if (environment.ContainsKey(local.Name))
-                {
-                    diagnostics.Add(LocalDuplicate + $":{declaration.Name}:{local.Name}");
-                    return string.Empty;
-                }
-                var expression = Substitute(local.Expression, environment);
-                if (scalars?.IsScalar(local.Type) == true && scalars.TryTransfer(expression, local.Type,
-                        $"Feature {declaration.Name}.{local.Name}", span, diagnostics, out var checkedValue))
-                    environment[local.Name] = NormalizeExpression(checkedValue, local.Type);
-                else if (!TypeMatches(expression, local.Type))
-                {
-                    diagnostics.Add(LocalType + $":{declaration.Name}:{local.Name}:expected-{local.Type}:actual-{DescribeType(expression)}");
-                    return string.Empty;
-                }
-                else environment[local.Name] = NormalizeExpression(expression, local.Type);
+                var name = arg.Name?.Text ?? (position < definition.Syntax.Parameters.Count ? definition.Syntax.Parameters[position++].Name!.Text : null);
+                if (name is null) { Error(ArgumentCount + ":" + definition.Syntax.Name!.Text, "Too many positional Feature arguments.", arg.Span, definition.Syntax); continue; }
+                if (!definition.Syntax.Parameters.Any(p => p.Name?.Text == name)) { Error(UnknownArgument + $":{definition.Syntax.Name!.Text}:{name}", $"Unknown Feature argument '{name}'.", arg.Span, definition.Syntax); continue; }
+                if (!supplied.TryAdd(name, arg.Value)) Error(DuplicateArgument + $":{definition.Syntax.Name!.Text}:{name}", $"Duplicate Feature argument '{name}'.", arg.Span, definition.Syntax);
             }
-
-            var construction = Substitute(declaration.Construction, environment);
-            var returned = Substitute(declaration.ReturnExpression, environment).Trim();
-            var prefix = resultName is null ? declaration.Name + "__" + invocationOrdinal.ToString(CultureInfo.InvariantCulture)
-                : stack.Count == 1 ? resultName : resultName + "__Call" + invocationOrdinal.ToString(CultureInfo.InvariantCulture);
-            foreach (var localName in declaration.ConstructionNames)
+            bool BindValue(ExpressionSyntax expression, string type, string name, FirmamentV2SourceSpan span, out ExpressionSyntax bound)
             {
-                var generated = prefix + "__" + localName;
-                construction = Regex.Replace(construction, $@"\b{Regex.Escape(localName)}\b(?!\s*:)", generated);
-                returned = Regex.Replace(returned, $@"\b{Regex.Escape(localName)}\b(?!\s*:)", generated);
+                bound = expression; var text = FirmamentSyntaxWriter.Expression(expression);
+                if (scalars?.IsRecordType(type) == true)
+                {
+                    if (!scalars.TryRecordTransfer(text, type, $"Feature {definition.Syntax.Name!.Text}.{name}", call.Span, diagnostics, out var fields))
+                    { Error(ArgumentType + $":{definition.Syntax.Name!.Text}:{name}:expected-{type}", $"Feature input '{name}' requires Record {type}.", span, definition.Syntax); return false; }
+                    foreach (var field in fields)
+                    {
+                        environment[name + "." + field.Key] = ParseValue(field.Value);
+                        bindings[name + "." + field.Key] = field.Value;
+                    }
+                    return true;
+                }
+                if (scalars?.IsScalar(type) == true && scalars.TryTransfer(text, type, $"Feature {definition.Syntax.Name!.Text}.{name}", call.Span, diagnostics, out var transferred))
+                { bound = ParseValue(transferred); return true; }
+                if (!Matches(expression, type))
+                { Error(ArgumentType + $":{definition.Syntax.Name!.Text}:{name}:expected-{type}", $"Feature input '{name}' requires {type}; supplied {text}.", span, definition.Syntax); return false; }
+                bound = Normalize(expression, type); return true;
             }
-            var nested = Regex.Match(returned, @"^(?<name>[A-Za-z_]\w*)\s*\((?<args>[\s\S]*)\)$", RegexOptions.CultureInvariant);
-            string expanded;
-            string expandedKind;
-            if (nested.Success && byName.TryGetValue(nested.Groups["name"].Value, out var nestedDeclaration))
+            var resolving = new HashSet<string>(StringComparer.Ordinal);
+            void BindParameter(ArgumentSyntax p)
             {
-                if (stack.Contains(nestedDeclaration.Name, StringComparer.Ordinal))
+                var name = p.Name!.Text;
+                if (environment.ContainsKey(name)) return;
+                if (resolving.Count >= MaximumDepth)
+                { Error(Prefix + "default-depth-limit:" + name, $"Feature defaults exceed dependency depth {MaximumDepth}.", p.Span, definition.Syntax); return; }
+                if (!resolving.Add(name)) { Error(Prefix + "default-cycle:" + name, $"Feature default for '{name}' contains a dependency cycle.", p.Span, definition.Syntax); return; }
+                var explicitArgument = supplied.TryGetValue(name, out var value);
+                if (!explicitArgument)
                 {
-                    diagnostics.Add(Recursion + ":" + string.Join(":", stack.Append(nestedDeclaration.Name)));
-                    return string.Empty;
+                    if (p.Default is null) { Error(ArgumentCount + $":{definition.Syntax.Name!.Text}:missing-{name}", $"Missing required Feature argument '{name}'.", call.Span, definition.Syntax); resolving.Remove(name); return; }
+                    foreach (var dependency in FirmamentSyntaxTraversal.Expressions(p.Default).OfType<ReferenceSyntax>())
+                        if (definition.Syntax.Parameters.FirstOrDefault(x => x.Name!.Text == dependency.Name.Text) is { } other) BindParameter(other);
+                    value = new FirmamentSyntaxSubstitution(environment).Expression(p.Default);
                 }
-                if (!SameType(declaration.ReturnTypeName, nestedDeclaration.ReturnTypeName))
-                {
-                    diagnostics.Add(ReturnType + $":{declaration.Name}:expected-{declaration.ReturnTypeName}:actual-{nestedDeclaration.ReturnTypeName}");
-                    return string.Empty;
-                }
-                expanded = ExpandCall(nestedDeclaration, nested.Groups["args"].Value, span,
-                    stack.Append(nestedDeclaration.Name).ToArray(), patternContext, resultName);
-                expandedKind = nestedDeclaration.ReturnTypeName;
+                var type = TypeName(p.Value);
+                if (type is "Point2" or "Point3") value = ResolvePoint(value!, explicitArgument ? callScope : definition.Scope);
+                if (BindValue(value!, type, name, p.Span, out var bound)) { environment[name] = bound; bindings[name] = FirmamentSyntaxWriter.Expression(bound); }
+                resolving.Remove(name);
             }
-            else
+            foreach (var p in definition.Syntax.Parameters) BindParameter(p);
+            foreach (var local in definition.Locals)
             {
-                var constructor = Regex.Match(returned,
-                    @"^(?<kind>Hole\s*<\s*(?:Shaft|Counterbore|Countersink)\s*>|Boss|Pocket|EdgeFinish|Profile)\s*\{",
-                    RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-                if (!constructor.Success)
-                {
-                    diagnostics.Add(UnsupportedBody + ":" + declaration.Name);
-                    return string.Empty;
-                }
-                var constructorOpen = returned.IndexOf('{', constructor.Index);
-                var constructorClose = Matching(returned, constructorOpen, '{', '}');
-                if (constructorClose < 0 || !string.IsNullOrWhiteSpace(returned[(constructorClose + 1)..]))
-                {
-                    diagnostics.Add(UnsupportedBody + ":" + declaration.Name + ":return-must-be-terminal");
-                    return string.Empty;
-                }
-                expandedKind = Regex.Replace(constructor.Groups["kind"].Value, @"\s+", string.Empty, RegexOptions.CultureInvariant);
-                if (!SameType(declaration.ReturnTypeName, expandedKind))
-                {
-                    diagnostics.Add(ReturnType + $":{declaration.Name}:expected-{declaration.ReturnTypeName}:actual-{expandedKind}");
-                    return string.Empty;
-                }
-                var generatedName = resultName ?? (patternContext
-                    ? PatternItemName(returned, declaration.Name, invocationOrdinal)
-                    : declaration.Name + "__" + invocationOrdinal.ToString(CultureInfo.InvariantCulture));
-                expanded = returned.Insert(constructor.Index + constructor.Length - 1, " " + generatedName + " ");
+                var expression = new FirmamentSyntaxSubstitution(environment).Expression(local.Initializer!); var type = TypeName(local.Annotation!);
+                if (BindValue(expression, type, local.Name!.Text, local.Span, out var bound)) environment[local.Name.Text] = bound;
+                else Error(LocalType + $":{definition.Syntax.Name!.Text}:{local.Name.Text}:expected-{type}", $"Feature local '{local.Name.Text}' requires {type}.", local.Span, definition.Syntax);
             }
-
-            invocations.Add(new(declaration.Name, invocationOrdinal, declaration.ReturnTypeName,
-                bound, span, expandedKind, "ExpandedBeforeFeatureAir", resultName));
-            return construction + "\n" + expanded;
+            if (Failed()) return [];
+            var prefix = resultName is null ? definition.Syntax.Name!.Text + "__" + invocationOrdinal.ToString(CultureInfo.InvariantCulture)
+                : stack.Count == 0 ? resultName : resultName + "__Call" + invocationOrdinal.ToString(CultureInfo.InvariantCulture);
+            var renames = definition.Construction.ToDictionary(d => d.Name!.Text, d => prefix + "__" + d.Name!.Text, StringComparer.Ordinal);
+            var transform = new FirmamentSyntaxSubstitution(environment, renames);
+            var output = definition.Construction.Select(transform.Statement).ToList(); var returned = transform.Expression(definition.Return.Value);
+            if (returned is CallSyntax { Target: ReferenceSyntax nestedName } nestedCall
+                && definition.Scope.Resolve("Feature", nestedName.Name.Text) is { } nestedSyntax && definitions.TryGetValue(nestedSyntax, out var nested))
+            {
+                if (!SameType(definition.ResultType, nested.ResultType)) Error(ReturnType + $":{definition.Syntax.Name!.Text}:expected-{definition.ResultType}:actual-{nested.ResultType}", "Delegated Feature result does not match the declared return type.", definition.Return.Span, definition.Syntax);
+                else output.AddRange(ExpandCall(nested, nestedCall, definition.Scope, stack.Append(definition).ToArray(), pattern, resultName));
+            }
+            else if (returned is ObjectSyntax { Type: not null, Name: null } obj && SameType(definition.ResultType, TypeName(obj.Type)))
+            {
+                var generated = resultName ?? (pattern ? PatternItemName(obj, definition.Syntax.Name!.Text, invocationOrdinal) : definition.Syntax.Name!.Text + "__" + invocationOrdinal.ToString(CultureInfo.InvariantCulture));
+                output.Add(new DeclarationSyntax(ToType(obj.Type), new(generated, call.Span), [], [], null, null, [], null, obj.Body, false, definition.Return.Span));
+            }
+            else Error(ReturnType + $":{definition.Syntax.Name!.Text}:expected-{definition.ResultType}", $"Feature '{definition.Syntax.Name!.Text}' must return {definition.ResultType} construction or a Feature with that result type.", definition.Return.Span, definition.Syntax);
+            invocations.Add(new(definition.Syntax.Name!.Text, invocationOrdinal, definition.ResultType, bindings.ToImmutableDictionary(StringComparer.Ordinal), call.Span, definition.ResultType, "ExpandedBeforeFeatureAir", resultName)
+            {
+                BindingScope = definition.Scope.Identity,
+                DefinitionOrigin = new(OriginalDefinition(definition.Syntax) is null ? "inline#pre-feature-expansion" : "inline", OriginalDefinition(definition.Syntax) ?? definition.Syntax.Span, definition.Syntax.Name.Text,
+                    OriginalDefinition(definition.Syntax) is null ? "Definition is in expanded input; original-file mapping unavailable." : null),
+                InvocationOrigin = new(origins.Find(call.Span) is null ? "inline#pre-feature-expansion" : "inline", origins.Find(call.Span) ?? call.Span, definition.Syntax.Name.Text,
+                    origins.Find(call.Span) is null ? "Invocation offsets refer to the AST input of Feature expansion; original include/Template mapping is not yet available." : null),
+                ExpansionChain = stack.Select(d => d.Syntax.Name!.Text).Append(definition.Syntax.Name.Text).ToArray()
+            });
+            // Account only this invocation's own nodes; delegated nodes were already
+            // charged by their owner. Reject before retaining another large expansion.
+            foreach (var node in output.Take(definition.Construction.Count).Concat(returned is ObjectSyntax ? output.TakeLast(1) : []))
+            {
+                emittedCharacters += FirmamentSyntaxWriter.Statement(node).Length;
+                emittedDeclarations += FirmamentSyntaxTraversal.Declarations(node).Count();
+                if (emittedCharacters > MaximumOutputCharacters || emittedDeclarations > 65536)
+                { Error(Prefix + "output-limit", "Feature expansion exceeds 4 MiB or 65,536 declarations; no construction was truncated.", call.Span, definition.Syntax); return []; }
+            }
+            return output;
         }
-
-        var changes = declarations.Select(item => (item.Span.Start, item.Span.Length, Text: string.Empty)).ToList();
-        var callSites = declarations.SelectMany(declaration =>
+        void Visit(IReadOnlyList<StatementSyntax> statements, FirmamentBindingScope scope, bool pattern)
         {
-            var callRegex = new Regex($@"\b{Regex.Escape(declaration.Name)}\s*\(", RegexOptions.CultureInvariant);
-            return callRegex.Matches(source).Cast<Match>()
-                .Where(call => !declarations.Any(item => call.Index >= item.Span.Start && call.Index < item.Span.Start + item.Span.Length))
-                .Select(call => (Declaration: declaration, Call: call));
-        }).OrderBy(item => item.Call.Index).ToArray();
-        foreach (var site in callSites)
-        {
-            var open = source.IndexOf('(', site.Call.Index); var close = Matching(source, open, '(', ')');
-            if (close < 0) { diagnostics.Add(ArgumentCount + ":" + site.Declaration.Name); continue; }
-            var span = new FirmamentV2SourceSpan(site.Call.Index, close - site.Call.Index + 1);
-            var named = Regex.Match(source[..site.Call.Index], @"\bFeature\s+(?<name>[A-Za-z_]\w*)\s*=\s*$");
-            var patternContext = IsInsideBlock(source, site.Call.Index, "Pattern");
-            var expansion = ExpandCall(site.Declaration, source[(open + 1)..close], span, [site.Declaration.Name], patternContext, named.Success ? named.Groups["name"].Value : null);
-            if (expansion.Length > 0) changes.Add((named.Success ? named.Index : span.Start, close - (named.Success ? named.Index : span.Start) + 1, expansion));
+            foreach (var statement in statements)
+            {
+                if (statement is DeclarationSyntax d && definitions.ContainsKey(d)) { changes.Add((d.Span, "")); replacements[d] = []; continue; }
+                var call = statement switch { ExpressionStatementSyntax { Value: CallSyntax c } => c,
+                    DeclarationSyntax { Type.Name.Text: "Feature", Initializer: CallSyntax c, ResultType: null } => c, _ => null };
+                if (call?.Target is ReferenceSyntax target)
+                {
+                    if (statement is DeclarationSyntax named && (named.Name is null || named.HasParameterList || named.Type.Span.Length > named.Type.Name.Span.Length
+                        || named.Modifiers.Count > 0 || named.Clauses.Count > 0 || named.Annotation is not null || named.Body is not null || named.Occurrence))
+                    { Error(UnsupportedBody + ":invocation-header", "A named invocation is Feature name = Recipe(arguments), without parameter, type, placement or body clauses.", named.Span); continue; }
+                    if (scope.Resolve("Feature", target.Name.Text) is { } declaration && definitions.TryGetValue(declaration, out var definition))
+                    {
+                        var nodes = ExpandCall(definition, call, scope, [], pattern, (statement as DeclarationSyntax)?.Name?.Text);
+                        changes.Add((statement.Span, FirmamentSyntaxWriter.Statements(nodes))); replacements[statement] = nodes;
+                    }
+                    else Error(Unknown + ":" + target.Name.Text, $"Feature '{target.Name.Text}' is not visible in {scope.Identity}.", call.Span);
+                }
+                // Static mappings contain values (Point2 constructors, for example),
+                // not statements invoking a Feature. Their owner binds those values.
+                else if (statement is DeclarationSyntax { Type.Name.Text: "Static" or "Table" or "Record" or "Enum" }) continue;
+                else if (statement is DeclarationSyntax { Body: not null } owner) Visit(owner.Body.Statements, bodies[owner.Body], pattern || owner.Type.Name.Text == "Pattern");
+                else if (statement is MappingSyntax mapping) Visit([mapping.Value], scope, true);
+            }
         }
-        if (HasErrors(diagnostics)) return null;
-        foreach (var change in changes.OrderByDescending(item => item.Start))
-            source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
-
-        var definitions = declarations.Select(item => new FirmamentV2FeatureDefinition(item.Name,
-            item.Parameters.Select(parameter => new FirmamentV2FeatureParameter(parameter.Name, parameter.Type, parameter.DefaultExpression)).ToArray(),
-            item.ReturnTypeName, item.Span, "FileLocal", "PureTerminalReturn")).ToArray();
-        var orderedInvocations = invocations.OrderBy(item => item.Ordinal).ToArray();
-        return new(source, definitions, orderedInvocations,
-            new(definitions.Length, invocations.Count, invocations.Count, "BoundedSourceOrder"));
+        Visit(parsed.Document.Statements, root, false);
+        if (Failed()) return Failure();
+        if (source.Length + changes.Sum(c => (long)c.Text.Length - c.Span.Length) > MaximumOutputCharacters)
+        { Error(Prefix + "output-limit", $"Feature output exceeds {MaximumOutputCharacters} characters; no construction was truncated.", parsed.Document.Span); return Failure(); }
+        var projected = new ExpansionProjection(replacements).Rewrite(parsed.Document);
+        foreach (var change in changes.OrderByDescending(c => c.Span.Start)) source = source.Remove(change.Span.Start, change.Span.Length).Insert(change.Span.Start, change.Text);
+        var summaries = definitions.Values.Select(d => new FirmamentV2FeatureDefinition(d.Syntax.Name!.Text,
+            d.Syntax.Parameters.Select(p => new FirmamentV2FeatureParameter(p.Name!.Text, TypeName(p.Value), p.Default is null ? null : FirmamentSyntaxWriter.Expression(p.Default))).ToArray(),
+            d.ResultType, d.Syntax.Span, d.Scope.Identity, "PureTerminalReturn")).ToArray();
+        return new(source, summaries, invocations.OrderBy(i => i.Ordinal).ToArray(), new(summaries.Length, invocations.Count, emittedDeclarations, "BoundedSourceOrder")) { Document = projected, Diagnostics = located };
     }
 
-    private static ImmutableArray<Declaration> ParseDeclarations(string source, List<string> diagnostics)
+    private sealed class ExpansionProjection(IReadOnlyDictionary<StatementSyntax, IReadOnlyList<StatementSyntax>> replacements) : FirmamentSyntaxRewriter
     {
-        var result = ImmutableArray.CreateBuilder<Declaration>();
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (Match header in Regex.Matches(source,
-                     @"\bFeature\s+(?<name>[A-Za-z_]\w*)\s*\([^()]*\)\s*->\s*(?<return>[A-Za-z_]\w*(?:\s*<\s*[A-Za-z_]\w*\s*>)?)\s*\{",
-                     RegexOptions.CultureInvariant))
-        {
-            var returnType = NormalizeType(header.Groups["return"].Value);
-            if (!Regex.IsMatch(returnType, @"^(?:Hole<(?:Shaft|Counterbore|Countersink)>|Boss|Pocket|EdgeFinish|Profile)$", RegexOptions.CultureInvariant))
-                diagnostics.Add(ReturnType + $":{header.Groups["name"].Value}:unsupported-{returnType}");
-        }
-        foreach (Match header in Regex.Matches(source,
-                     @"\bFeature\s+(?<name>[A-Za-z_]\w*)\s*\((?<parameters>[^()]*)\)\s*->\s*(?<return>Hole\s*<\s*[A-Za-z_]\w*\s*>|Boss|Pocket|EdgeFinish|Profile)\s*\{",
-                     RegexOptions.CultureInvariant))
-        {
-            var open = source.IndexOf('{', header.Index); var close = Matching(source, open, '{', '}');
-            var name = header.Groups["name"].Value;
-            if (close < 0) { diagnostics.Add(MissingReturn + ":" + name); continue; }
-            if (!names.Add(name)) { diagnostics.Add(DuplicateName + ":" + name); continue; }
-            var parameters = ParseParameters(header.Groups["parameters"].Value, header.Groups["parameters"].Index, name, diagnostics);
-            var body = source[(open + 1)..close];
-            foreach (Match keyword in Regex.Matches(body, @"\b(if|else|while|for|foreach|switch|match|goto|throw|try|catch|var)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-                diagnostics.Add(ControlFlowUnsupported + ":" + keyword.Value.ToLowerInvariant());
-            var returns = Regex.Matches(body, @"\breturn\b", RegexOptions.CultureInvariant);
-            if (returns.Count == 0) { diagnostics.Add(MissingReturn + ":" + name); continue; }
-            if (returns.Count != 1) { diagnostics.Add(MultipleReturns + ":" + name); continue; }
-            var returnMatch = returns[0];
-            var returnExpression = body[(returnMatch.Index + returnMatch.Length)..].Trim();
-            if (returnExpression.EndsWith(';')) returnExpression = returnExpression[..^1].TrimEnd();
-            var beforeReturn = body[..returnMatch.Index];
-            var locals = ImmutableArray.CreateBuilder<Local>();
-            var consumed = new List<(int Start, int Length)>();
-            foreach (Match local in Regex.Matches(beforeReturn,
-                         @"\blet\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\s*=\s*(?<expression>[^;\r\n]+)\s*;?",
-                         RegexOptions.CultureInvariant))
-            {
-                locals.Add(new(local.Groups["name"].Value, local.Groups["type"].Value, local.Groups["expression"].Value.Trim()));
-                consumed.Add((local.Index, local.Length));
-            }
-            var constructionNames = ImmutableArray.CreateBuilder<string>();
-            var constructions = new List<string>();
-            foreach (Match local in Regex.Matches(beforeReturn, @"\b(?:Point2|Line2|CubicBezier2|Circle2|RoundedRect2|Rect2|Profile)\s+(?<name>[A-Za-z_]\w*)\s*\{"))
-            {
-                var localClose = Matching(beforeReturn, beforeReturn.IndexOf('{', local.Index), '{', '}');
-                if (localClose < 0) { diagnostics.Add(UnsupportedBody + ":" + name); continue; }
-                var localName = local.Groups["name"].Value;
-                if (constructionNames.Contains(localName) || parameters.Any(p => p.Name == localName) || locals.Any(l => l.Name == localName))
-                    diagnostics.Add(LocalDuplicate + $":{name}:{localName}");
-                constructionNames.Add(localName);
-                constructions.Add(beforeReturn[local.Index..(localClose + 1)]);
-                consumed.Add((local.Index, localClose - local.Index + 1));
-            }
-            var residue = beforeReturn;
-            foreach (var item in consumed.OrderByDescending(item => item.Start)) residue = residue.Remove(item.Start, item.Length);
-            if (!string.IsNullOrWhiteSpace(residue)) diagnostics.Add(UnsupportedBody + ":" + name);
-            result.Add(new(name, parameters, NormalizeType(header.Groups["return"].Value),
-                returnExpression, locals.ToImmutable(), string.Join("\n", constructions), constructionNames.ToImmutable(), new(header.Index, close - header.Index + 1)));
-        }
-        return result.ToImmutable();
+        internal DocumentSyntax Rewrite(DocumentSyntax document) => document with { Statements = Project(document.Statements) };
+        private StatementSyntax[] Project(IReadOnlyList<StatementSyntax> statements) => statements.SelectMany(s => replacements.TryGetValue(s, out var r) ? r : [Statement(s)]).ToArray();
+        internal override BlockSyntax Block(BlockSyntax block) => block with { Statements = Project(block.Statements) };
+        internal override StatementSyntax Statement(StatementSyntax statement) => statement is MappingSyntax m && replacements.TryGetValue(m.Value, out var nodes) && nodes.Count == 1
+            ? m with { Value = nodes[0] } : base.Statement(statement);
     }
-
-    private static ImmutableArray<Parameter> ParseParameters(string text, int offset, string feature, List<string> diagnostics)
+    private static TypeSyntax ToType(ExpressionSyntax e) => e switch
     {
-        var result = ImmutableArray.CreateBuilder<Parameter>(); var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var (raw, start) in SplitTopLevel(text))
+        ReferenceSyntax r => new(r.Name, [], r.Span),
+        SpecializationSyntax { Target: ReferenceSyntax r } s => new(r.Name, s.Arguments, s.Span),
+        _ => throw new InvalidOperationException("A checked Feature return must have a constructor type.")
+    };
+    private static string TypeName(ExpressionSyntax e) => FirmamentSyntaxWriter.Expression(e).Replace(" ", "", StringComparison.Ordinal);
+    private static bool SameType(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+    private static bool AllowedResult(string type) => type is "Hole<Shaft>" or "Hole<Counterbore>" or "Hole<Countersink>" or "Boss" or "Pocket" or "EdgeFinish" or "Profile";
+    private static ExpressionSyntax ParseValue(string source) => FirmamentSyntaxParser.ParseExpression(source).Expression ?? throw new InvalidOperationException("A checked compile-time value did not serialize as a Firmament expression.");
+    private static ExpressionSyntax ResolvePoint(ExpressionSyntax expression, FirmamentBindingScope scope)
+    {
+        DeclarationSyntax? point = expression switch
         {
-            var match = Regex.Match(raw.Trim(), @"^(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)(?:\s*=\s*(?<default>.+))?$", RegexOptions.CultureInvariant);
-            if (!match.Success) { diagnostics.Add(InvalidParameter + ":" + feature + ":" + raw.Trim()); continue; }
-            var name = match.Groups["name"].Value;
-            if (!names.Add(name)) { diagnostics.Add(DuplicateParameter + ":" + feature + ":" + name); continue; }
-            result.Add(new(name, match.Groups["type"].Value,
-                match.Groups["default"].Success ? match.Groups["default"].Value.Trim() : null,
-                new(offset + start, raw.Length)));
-        }
-        return result.ToImmutable();
+            ReferenceSyntax r => scope.Resolve("Point2", r.Name.Text) ?? scope.Resolve("Point3", r.Name.Text),
+            MemberSyntax { Target: ReferenceSyntax owner } member when scope.Resolve("Struct", owner.Name.Text)?.Body is { } body
+                => body.Statements.OfType<DeclarationSyntax>().FirstOrDefault(d => d.Name?.Text == member.Member.Text && d.Type.Name.Text is "Point2" or "Point3"),
+            _ => null
+        };
+        if (point?.Body?.Statements.OfType<FieldSyntax>().FirstOrDefault(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Position"))?.Value is not SequenceSyntax position) return expression;
+        return new CallSyntax(new ReferenceSyntax(point.Type.Name, point.Type.Span), position.Items, expression.Span);
     }
-
-    private static ImmutableDictionary<string, string>? Bind(Declaration declaration, string argumentText, int offset, List<string> diagnostics, string source,
-        FirmamentCompileTimeValues? scalars = null)
+    private static bool Matches(ExpressionSyntax e, string type)
     {
-        var supplied = new Dictionary<string, string>(StringComparer.Ordinal); var position = 0;
-        foreach (var (raw, _) in SplitTopLevel(argumentText))
-        {
-            var colon = TopLevelColon(raw); string name; string expression;
-            if (colon >= 0) { name = raw[..colon].Trim(); expression = raw[(colon + 1)..].Trim(); }
-            else
-            {
-                if (position >= declaration.Parameters.Length) { diagnostics.Add(ArgumentCount + ":" + declaration.Name); continue; }
-                name = declaration.Parameters[position++].Name; expression = raw.Trim();
-            }
-            if (!declaration.Parameters.Any(parameter => parameter.Name == name)) { diagnostics.Add(UnknownArgument + $":{declaration.Name}:{name}"); continue; }
-            if (!supplied.TryAdd(name, expression)) diagnostics.Add(DuplicateArgument + $":{declaration.Name}:{name}");
-        }
-        foreach (var parameter in declaration.Parameters)
-            if (!supplied.ContainsKey(parameter.Name))
-            {
-                if (parameter.DefaultExpression is null) diagnostics.Add(ArgumentCount + $":{declaration.Name}:missing-{parameter.Name}");
-                else supplied[parameter.Name] = Substitute(parameter.DefaultExpression, supplied);
-            }
-        foreach (var parameter in declaration.Parameters)
-            if (supplied.TryGetValue(parameter.Name, out var expression))
-            {
-                if (scalars?.IsRecordType(parameter.Type) == true)
-                {
-                    if (!scalars.TryRecordTransfer(expression, parameter.Type, $"Feature {declaration.Name}.{parameter.Name}",
-                            declaration.Span, diagnostics, out var fields))
-                        diagnostics.Add(ArgumentType + $":{declaration.Name}:{parameter.Name}:expected-{parameter.Type}:actual-{expression}:at-{offset}");
-                    else foreach (var field in fields) supplied[parameter.Name + "." + field.Key] = field.Value;
-                    continue;
-                }
-                if (parameter.Type == "Point2") expression = ResolvePointArgument(source, expression);
-                if (scalars?.IsScalar(parameter.Type) == true && scalars.TryTransfer(expression, parameter.Type,
-                        $"Feature {declaration.Name}.{parameter.Name}", declaration.Span, diagnostics, out var checkedValue))
-                    supplied[parameter.Name] = NormalizeExpression(checkedValue, parameter.Type);
-                else if (!TypeMatches(expression, parameter.Type))
-                    diagnostics.Add(ArgumentType + $":{declaration.Name}:{parameter.Name}:expected-{parameter.Type}:actual-{DescribeType(expression)}:at-{offset}");
-                else supplied[parameter.Name] = NormalizeExpression(expression, parameter.Type);
-            }
-        return HasErrors(diagnostics) ? null : supplied.ToImmutableDictionary(StringComparer.Ordinal);
-    }
-
-    private static string ResolvePointArgument(string source, string expression)
-    {
-        var reference = expression.Trim().Split('.');
-        if (reference.Length is < 1 or > 2 || reference.Any(r => !Regex.IsMatch(r, @"^[A-Za-z_]\w*$"))) return expression;
-        var scope = source;
-        if (reference.Length == 2)
-        {
-            var owner = Regex.Match(source, $@"\bConcept\s+Struct\s+{Regex.Escape(reference[0])}\s+On\s+XY\s*\{{");
-            var close = owner.Success ? Matching(source, source.IndexOf('{', owner.Index), '{', '}') : -1;
-            if (close < 0) return expression;
-            scope = source[owner.Index..(close + 1)];
-        }
-        var point = Regex.Match(scope, $@"\bPoint2\s+{Regex.Escape(reference[^1])}\s*\{{\s*Position\s*:\s*\[(?<value>[^]]+)\]");
-        if (!point.Success) return expression;
-        var values = point.Groups["value"].Value.Split(',');
-        if (values.Length != 2 || !TryEvaluateScalar(values[0], out var x, out var xu) || xu != "mm"
-            || !TryEvaluateScalar(values[1], out var y, out var yu) || yu != "mm") return expression;
-        return $"Point2({x.ToString("R", CultureInfo.InvariantCulture)}mm,{y.ToString("R", CultureInfo.InvariantCulture)}mm)";
-    }
-
-    private static void DetectCycles(IEnumerable<Declaration> declarations, IReadOnlyDictionary<string, Declaration> byName, List<string> diagnostics)
-    {
-        foreach (var declaration in declarations)
-        {
-            var stack = new List<string>(); var complete = new HashSet<string>(StringComparer.Ordinal);
-            bool Visit(string name)
-            {
-                var at = stack.IndexOf(name);
-                if (at >= 0) { diagnostics.Add(Recursion + ":" + string.Join(":", stack.Skip(at).Append(name))); return true; }
-                if (!complete.Add(name)) return false;
-                stack.Add(name);
-                foreach (var target in byName.Keys.Where(candidate => Regex.IsMatch(byName[name].ReturnExpression, $@"^\s*{Regex.Escape(candidate)}\s*\(", RegexOptions.CultureInvariant)))
-                    if (Visit(target)) return true;
-                stack.RemoveAt(stack.Count - 1); return false;
-            }
-            _ = Visit(declaration.Name);
-        }
-    }
-
-    private static string Substitute(string expression, IReadOnlyDictionary<string, string> values)
-        => FirmamentValueSubstitution.Apply(expression, values);
-
-    private static bool TypeMatches(string expression, string type)
-    {
-        expression = expression.Trim(); type = NormalizeType(type);
         if (type is "FaceId" or "EdgeId" or "Body") return false;
-        if (type == "Length") return TryEvaluateScalar(expression, out _, out var unit) && unit == "mm";
-        if (type == "Angle") return TryEvaluateScalar(expression, out _, out var unit) && unit == "deg";
-        if (type == "Int") return TryEvaluateScalar(expression, out var integer, out var intUnit) && intUnit.Length == 0 && integer == Math.Truncate(integer);
-        if (type == "Float") return TryEvaluateScalar(expression, out _, out var floatUnit) && floatUnit.Length == 0;
-        if (type == "Bool") return bool.TryParse(expression, out _);
-        if (type is "Point2" or "Point3")
-        {
-            var arity = type == "Point2" ? 2 : 3;
-            var match = Regex.Match(expression, @"^(?:Point[23]\s*\()?\s*\[?(?<body>[^\]\)]+)\]?\s*\)?$", RegexOptions.CultureInvariant);
-            return (match.Success && SplitTopLevel(match.Groups["body"].Value).Count == arity
-                    && SplitTopLevel(match.Groups["body"].Value).All(item => TypeMatches(item.Text, "Length")))
-                || Regex.IsMatch(expression, @"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?(?:\[\d+\])?$", RegexOptions.CultureInvariant);
-        }
-        // Semantic references and Concept-bound values retain their typed spelling for the owning frontend.
-        return Regex.IsMatch(expression, @"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?(?:\[\d+\])?$", RegexOptions.CultureInvariant);
+        if (type is "Length" or "Angle" or "Int" or "Float") return FirmamentNumericEvaluation.TryEvaluate(e, out var n)
+            && n.Unit == (type == "Length" ? "mm" : type == "Angle" ? "deg" : "") && (type != "Int" || n.Number == Math.Truncate(n.Number));
+        if (type == "Bool") return e is LiteralSyntax { Kind: LiteralKind.Boolean };
+        if (type == "String") return e is LiteralSyntax { Kind: LiteralKind.String };
+        if (type is "Point2" or "Point3") return FirmamentSyntaxValues.Vector(e, "mm", out var components) && components.Length == (type == "Point2" ? 2 : 3) || e is ReferenceSyntax or MemberSyntax or IndexSyntax;
+        return e is ReferenceSyntax or MemberSyntax or IndexSyntax;
     }
+    private static ExpressionSyntax Normalize(ExpressionSyntax e, string type)
+    {
+        if (type is "Length" or "Angle" or "Int" or "Float" && FirmamentNumericEvaluation.TryEvaluate(e, out var n)) return ParseValue(n.Number.ToString("R", CultureInfo.InvariantCulture) + n.Unit);
+        if (type is "Point2" or "Point3" && FirmamentSyntaxValues.Vector(e, "mm", out var components))
+        {
+            var args = components.Select(n => new ArgumentSyntax(null, ParseValue(n.ToString("R", CultureInfo.InvariantCulture) + "mm"), null, e.Span)).ToArray();
+            return e is CallSyntax c ? c with { Arguments = args } : new SequenceSyntax(SequenceKind.List, args, e.Span);
+        }
+        return e;
+    }
+    private static string PatternItemName(ObjectSyntax obj, string feature, int ordinal) => obj.Body.Statements.OfType<FieldSyntax>()
+        .FirstOrDefault(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Center"))?.Value is ReferenceSyntax r ? r.Name.Text : feature + "__" + ordinal.ToString(CultureInfo.InvariantCulture);
 
-    private static string NormalizeExpression(string expression, string type)
-    {
-        if (NormalizeType(type) is "Length" or "Angle" && TryEvaluateScalar(expression, out var value, out var unit))
-            return value.ToString("R", CultureInfo.InvariantCulture) + unit;
-        if (NormalizeType(type) is "Int" or "Float" && TryEvaluateScalar(expression, out value, out unit) && unit.Length == 0)
-            return value.ToString("R", CultureInfo.InvariantCulture);
-        if (NormalizeType(type) is "Point2" or "Point3")
-        {
-            var match = Regex.Match(expression.Trim(), @"^(?<prefix>Point[23]\s*\()?\s*(?<open>\[)?(?<body>[^\]\)]+)(?:\])?\s*(?:\))?$", RegexOptions.CultureInvariant);
-            if (match.Success)
-            {
-                var values = SplitTopLevel(match.Groups["body"].Value)
-                    .Select(item => TryEvaluateScalar(item.Text, out var component, out var componentUnit)
-                        ? component.ToString("R", CultureInfo.InvariantCulture) + componentUnit
-                        : item.Text.Trim()).ToArray();
-                if (match.Groups["prefix"].Success) return NormalizeType(type) + "(" + string.Join(", ", values) + ")";
-                if (match.Groups["open"].Success) return "[" + string.Join(", ", values) + "]";
-            }
-        }
-        return expression.Trim();
-    }
-
-    internal static bool TryEvaluateScalar(string expression, out double value, out string unit)
-    {
-        var parser = new ScalarParser(expression); return parser.TryParse(out value, out unit);
-    }
-
-    internal static bool TryEvaluateScalar(string expression, IReadOnlyDictionary<string, (double Value, string Unit)> variables,
-        Func<string, IReadOnlyList<(double Value, string Unit)>, (double Value, string Unit)> functions,
-        bool typeOnly, out double value, out string unit)
-        => new ScalarParser(expression, variables, functions, typeOnly).TryParse(out value, out unit);
-
-    private sealed class ScalarParser(string text,
-        IReadOnlyDictionary<string, (double Value, string Unit)>? variables = null,
-        Func<string, IReadOnlyList<(double Value, string Unit)>, (double Value, string Unit)>? functions = null,
-        bool typeOnly = false)
-    {
-        private int _at;
-        private int _depth;
-        public bool TryParse(out double value, out string unit)
-        {
-            try { if (text.Length > 8192) throw new FormatException(); var result = Add(); White(); if (_at != text.Length || (!typeOnly && !double.IsFinite(result.Value))) throw new FormatException(); value = result.Value; unit = result.Unit; return true; }
-            catch { value = 0; unit = string.Empty; return false; }
-        }
-        private (double Value, string Unit) Add()
-        {
-            var left = Multiply();
-            while (true) { White(); if (!Take('+') && !Take('-')) return left; var op = text[_at - 1]; var right = Multiply(); if (left.Unit != right.Unit) throw new FormatException(); left = (op == '+' ? left.Value + right.Value : left.Value - right.Value, left.Unit); }
-        }
-        private (double Value, string Unit) Multiply()
-        {
-            var left = Atom();
-            while (true)
-            {
-                White(); if (!Take('*') && !Take('/')) return left; var op = text[_at - 1]; var right = Atom();
-                if (op == '*') { if (left.Unit.Length > 0 && right.Unit.Length > 0) throw new FormatException(); left = (left.Value * right.Value, left.Unit.Length > 0 ? left.Unit : right.Unit); }
-                else { if ((!typeOnly && right.Value == 0) || (right.Unit.Length > 0 && right.Unit != left.Unit)) throw new FormatException(); left = (typeOnly ? 1 : left.Value / right.Value, right.Unit.Length > 0 ? string.Empty : left.Unit); }
-            }
-        }
-        private (double Value, string Unit) Atom()
-        {
-            if (++_depth > 128) throw new FormatException();
-            try { return AtomCore(); }
-            finally { _depth--; }
-        }
-        private (double Value, string Unit) AtomCore()
-        {
-            White(); if (Take('+')) return Atom(); if (Take('-')) { var negative = Atom(); return (-negative.Value, negative.Unit); }
-            if (Take('(')) { var value = Add(); White(); if (!Take(')')) throw new FormatException(); return value; }
-            if (_at < text.Length && (char.IsLetter(text[_at]) || text[_at] == '_'))
-            {
-                var begin = _at++;
-                while (_at < text.Length && (char.IsLetterOrDigit(text[_at]) || text[_at] == '_')) _at++;
-                var name = text[begin.._at]; White();
-                if (!Take('(')) return variables is not null && variables.TryGetValue(name, out var variable) ? variable : throw new FormatException();
-                var arguments = new List<(double Value, string Unit)>(); White();
-                if (!Take(')'))
-                {
-                    do { arguments.Add(Add()); White(); } while (Take(','));
-                    if (!Take(')')) throw new FormatException();
-                }
-                if (name == "Pow" && arguments.Count == 2 && arguments.All(a => a.Unit.Length == 0))
-                    return (typeOnly ? 1 : Math.Pow(arguments[0].Value, arguments[1].Value), string.Empty);
-                return functions?.Invoke(name, arguments) ?? throw new FormatException();
-            }
-            var start = _at;
-            while (_at < text.Length && (char.IsDigit(text[_at]) || text[_at] == '.')) _at++;
-            if (_at < text.Length && text[_at] is 'e' or 'E')
-            { _at++; if (_at < text.Length && text[_at] is '+' or '-') _at++; while (_at < text.Length && char.IsDigit(text[_at])) _at++; }
-            if (start == _at || !double.TryParse(text[start.._at], NumberStyles.Float, CultureInfo.InvariantCulture, out var number)) throw new FormatException();
-            var unit = text.AsSpan(_at).StartsWith("mm") ? "mm" : text.AsSpan(_at).StartsWith("deg") ? "deg" : string.Empty; _at += unit.Length; return (number, unit);
-        }
-        private void White() { while (_at < text.Length && char.IsWhiteSpace(text[_at])) _at++; }
-        private bool Take(char token) { if (_at >= text.Length || text[_at] != token) return false; _at++; return true; }
-    }
-
-    private static string DescribeType(string expression)
-    {
-        foreach (var type in new[] { "Length", "Angle", "Int", "Float", "Bool", "Point2", "Point3" }) if (TypeMatches(expression, type)) return type;
-        return "Unknown";
-    }
-    private static string NormalizeType(string type) => Regex.Replace(type, @"\s+", string.Empty, RegexOptions.CultureInvariant);
-    private static bool SameType(string left, string right) => string.Equals(NormalizeType(left), NormalizeType(right), StringComparison.OrdinalIgnoreCase);
-    private static bool HasErrors(IEnumerable<string> diagnostics) => diagnostics.Any(item => item.StartsWith(Prefix, StringComparison.Ordinal));
-    private static string PatternItemName(string returned, string feature, int ordinal)
-    {
-        var center = Regex.Match(returned, @"\bCenter\s*:\s*(?<item>[A-Za-z_]\w*)\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-        return center.Success ? center.Groups["item"].Value : feature + "__" + ordinal.ToString(CultureInfo.InvariantCulture);
-    }
-    private static int TopLevelColon(string text)
-    {
-        var round = 0; var square = 0; var curly = 0;
-        for (var i = 0; i < text.Length; i++) { switch (text[i]) { case '(': round++; break; case ')': round--; break; case '[': square++; break; case ']': square--; break; case '{': curly++; break; case '}': curly--; break; case ':' when round == 0 && square == 0 && curly == 0: return i; } }
-        return -1;
-    }
-    internal static List<(string Text, int Start)> SplitTopLevel(string text)
-    {
-        var result = new List<(string, int)>(); var start = 0; var round = 0; var square = 0; var curly = 0;
-        for (var i = 0; i < text.Length; i++)
-        {
-            switch (text[i]) { case '(': round++; break; case ')': round--; break; case '[': square++; break; case ']': square--; break; case '{': curly++; break; case '}': curly--; break; case ',' when round == 0 && square == 0 && curly == 0: result.Add((text[start..i], start)); start = i + 1; break; }
-        }
-        if (!string.IsNullOrWhiteSpace(text[start..])) result.Add((text[start..], start));
-        return result;
-    }
-    private static int Matching(string source, int open, char begin, char end) { var depth = 0; for (var i = open; i < source.Length; i++) { if (source[i] == begin) depth++; else if (source[i] == end && --depth == 0) return i; } return -1; }
-    private static bool IsInsideBlock(string source, int index, string kind)
-    {
-        foreach (Match header in Regex.Matches(source, $@"\b{Regex.Escape(kind)}\s+[A-Za-z_]\w*\s*\{{", RegexOptions.CultureInvariant))
-        { var open = source.IndexOf('{', header.Index); var close = Matching(source, open, '{', '}'); if (header.Index < index && index < close) return true; }
-        return false;
-    }
 }

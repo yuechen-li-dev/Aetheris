@@ -55,3 +55,10 @@ test('public language edit sends operations with the source revision through run
   assert.deepEqual(edit.nodes, ['M']);
   assert.deepEqual(requests, [{ operation: 'languageEdit', source: 'Model M { Units: mm }', operations, sourceName: 'm.firmament', sourceRevision: 'r3' }]);
 });
+
+test('public language palette asks the runtime for the catalog', async () => {
+  const requests = [];
+  const cad = new Aetheris({ request: async request => { requests.push(request); return { version: 'firmament-palette/1', items: [] }; } });
+  assert.equal((await cad.language.palette()).version, 'firmament-palette/1');
+  assert.deepEqual(requests, [{ operation: 'languagePalette' }]);
+});

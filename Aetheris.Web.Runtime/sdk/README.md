@@ -75,8 +75,16 @@ or `first`), `removeDeclaration` (warns about uses that stop resolving),
 files are not renamed) and `moveDeclaration` (among its siblings). Each edit is
 a splice placed by the syntax tree, so comments and layout elsewhere are kept,
 and an edit whose result adds a syntax error is refused with an
-`edit-*` error code. Whether the edited model builds is still the compiler's
+`edit-*` error code. `insertDeclaration` also takes a declaration as `source`
+text, with `name` replacing its declared name; `insertFeature` (`node`, `source`,
+`name`) puts a feature in the body's `Modify`, opening one after the body when
+there is none. Whether the edited model builds is still the compiler's
 decision.
+
+`cad.language.palette()` lists what a visual editor can add
+(`firmament-palette/1`): bodies (`placement: 'model'`) and features on a body
+(`placement: 'feature'`), each a declaration `source` with starting values.
+Every item is proven to build by the kernel's tests.
 
 Production AOT preserves the semantic provenance record metadata used by the
 reflection JSON bridge. Package generation clears its owned AOT publish output

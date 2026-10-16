@@ -58,6 +58,7 @@ public static partial class Program
                 "languageAnalyze" => LanguageAnalyze(request),
                 "languageOutline" => LanguageOutline(request),
                 "languageEdit" => LanguageEdit(request),
+                "languagePalette" => FirmamentLanguagePaletteService.Palette(),
                 "languageHover" => LanguageHover(request),
                 "languageDefinition" => LanguageDefinition(request),
                 "languageFormat" => LanguageFormat(request),
@@ -270,7 +271,8 @@ public static partial class Program
         string? SourceRevision = null, int? Offset = null, string? ConstructSemanticId = null,
         string? FieldId = null, FirmamentProjectedValue? FieldValue = null, int? BuildRevision = null,
         bool Performance = false, IReadOnlyDictionary<string, string>? ProjectDocuments = null, string? ProjectRoot = null,
-        int? Bridge = null, IReadOnlyList<FirmamentLanguageEditOperation>? Operations = null);
+        int? Bridge = null, string? Motion = null, double? TimeSeconds = null, bool PreserveEndpoint = false,
+        IReadOnlyList<FirmamentLanguageEditOperation>? Operations = null);
 
     /// <summary>
     /// BUILD-PERF-M3 response bridge (request <c>bridge: 1</c>, sent by the SDK). Large numeric arrays

@@ -88,6 +88,7 @@ export class Aetheris {
         sourceName: options.sourceName, sourceRevision: options.sourceRevision, projectDocuments: options.projectDocuments, projectRoot: options.projectRoot }),
       outline: (source, options = {}) => this.transport.request({ operation: 'languageOutline', source,
         sourceName: options.sourceName, sourceRevision: options.sourceRevision, projectDocuments: options.projectDocuments, projectRoot: options.projectRoot }),
+      palette: () => this.transport.request({ operation: 'languagePalette' }),
       edit: (source, operations, options = {}) => this.transport.request({ operation: 'languageEdit', source, operations,
         sourceName: options.sourceName, sourceRevision: options.sourceRevision }),
       hover: (source, offset, options = {}) => this.transport.request({ operation: 'languageHover', source, offset,

@@ -6,7 +6,7 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 /// <summary>One structural edit, addressed by outline node ids (<see cref="FirmamentLanguageOutlineService"/>).
 /// <c>Kind</c> is <c>setField</c>, <c>removeField</c>, <c>insertDeclaration</c>, <c>removeDeclaration</c>,
-/// <c>renameDeclaration</c> or <c>moveDeclaration</c>.</summary>
+/// <c>renameDeclaration</c>, <c>moveDeclaration</c> or <c>insertFeature</c>.</summary>
 public sealed record FirmamentLanguageEditOperation(string Kind)
 {
     /// <summary>The declaration edited, removed, renamed or moved.</summary>
@@ -22,6 +22,9 @@ public sealed record FirmamentLanguageEditOperation(string Kind)
     /// <summary>renameDeclaration: the new name.</summary>
     public string? Name { get; init; }
     public FirmamentDeclarationSpec? Declaration { get; init; }
+    /// <summary>insertDeclaration and insertFeature: one declaration as source text, used instead of
+    /// <see cref="Declaration"/>. With <see cref="Name"/> its declared name is replaced.</summary>
+    public string? Source { get; init; }
 }
 
 /// <summary>A declaration to write: <c>Modifiers Kind&lt;Variant&gt; Name { Field: Value ... }</c>.</summary>
@@ -74,6 +77,7 @@ public static class FirmamentLanguageEditService
                 "removeDeclaration" => RemoveDeclaration(text, before, operation, document, warnings),
                 "renameDeclaration" => RenameDeclaration(text, before, operation, document, warnings),
                 "moveDeclaration" => MoveDeclaration(text, before, operation),
+                "insertFeature" => InsertFeature(text, before, operation),
                 _ => throw new FirmamentLanguageEditException("edit-unknown-operation", $"Unknown edit operation '{operation.Kind}'.")
             };
             var after = Parse(next);
@@ -114,13 +118,14 @@ public static class FirmamentLanguageEditService
 
     private static (string, string?) InsertDeclaration(string text, SyntaxParseResult parse, FirmamentLanguageEditOperation op)
     {
-        var spec = op.Declaration ?? throw new FirmamentLanguageEditException("edit-input-required", "insertDeclaration requires a declaration.");
+        if (op.Declaration is null && op.Source is null)
+            throw new FirmamentLanguageEditException("edit-input-required", "insertDeclaration requires a declaration or its source.");
         var declarations = FirmamentLanguageOutlineService.Declarations(parse);
         DeclarationSyntax? parent = null;
         if (op.Parent is not null) parent = Find(parse, op.Parent).Syntax;
         var siblings = Siblings(declarations, op.Parent);
         var indent = parent is null ? "" : ChildIndent(text, parent);
-        var snippet = Write(spec, indent, Unit(text));
+        var snippet = op.Declaration is { } spec ? Write(spec, indent, Unit(text)) : FromSource(op.Source!, op.Name, indent);
         CheckSnippet(snippet);
         var anchor = Anchor(declarations, siblings, op);
         int at;
@@ -140,6 +145,26 @@ public static class FirmamentLanguageEditService
         var start = at + inserted.IndexOf(snippet.TrimStart(), StringComparison.Ordinal);
         var created = FirmamentLanguageOutlineService.Declarations(Parse(next)).FirstOrDefault(d => d.Syntax.Span.Start == start);
         return (next, created.Id);
+    }
+
+    /// <summary>A feature goes into the <c>Modify</c> of its body: the last one already written for
+    /// that body among its siblings, or a new one placed right after the body.</summary>
+    private static (string, string?) InsertFeature(string text, SyntaxParseResult parse, FirmamentLanguageEditOperation op)
+    {
+        var (id, body) = Find(parse, op.Node);
+        if (op.Source is null) throw new FirmamentLanguageEditException("edit-input-required", "insertFeature requires the feature source.");
+        if (body.Name is not { } bodyName || FirmamentLanguageOutlineService.NameIsUse(body))
+            throw new FirmamentLanguageEditException("edit-not-a-body", $"{id} is not a named body that a feature can modify.");
+        var declarations = FirmamentLanguageOutlineService.Declarations(parse);
+        var parentId = declarations.First(d => d.Id == id).ParentId;
+        var modify = Siblings(declarations, parentId)
+            .LastOrDefault(s => s.Syntax.Type.Name.Text is "Modify" or "modify" && s.Syntax.Name?.Text == bodyName.Text);
+        if (modify.Syntax is not null)
+            return InsertDeclaration(text, parse, new("insertDeclaration") { Parent = modify.Id, Source = op.Source, Name = op.Name });
+        var (opened, modifyId) = InsertDeclaration(text, parse,
+            new("insertDeclaration") { Parent = parentId, After = id, Source = $"Modify {bodyName.Text} {{\n}}" });
+        if (modifyId is null) throw new FirmamentLanguageEditException("edit-unparseable", $"A Modify for {bodyName.Text} could not be opened.");
+        return InsertDeclaration(opened, Parse(opened), new("insertDeclaration") { Parent = modifyId, Source = op.Source, Name = op.Name });
     }
 
     private static (string, string?) RemoveDeclaration(string text, SyntaxParseResult parse, FirmamentLanguageEditOperation op,
@@ -415,6 +440,30 @@ public static class FirmamentLanguageEditService
         var line = indent + head + (fields.Length == 0 ? " {}" : " { " + string.Join(" ", fields) + " }");
         if (line.Length <= 100) return line;
         return indent + head + " {\n" + string.Join("\n", fields.Select(f => indent + unit + f)) + "\n" + indent + "}";
+    }
+
+    /// <summary>Declaration source placed at <paramref name="indent"/>, its own relative indentation
+    /// kept, its declared name replaced when <paramref name="name"/> is given.</summary>
+    private static string FromSource(string source, string? name, string indent)
+    {
+        var text = source.Replace("\r\n", "\n").Trim();
+        var parse = Parse(text);
+        if (!parse.IsSuccess || parse.Document.Statements.Count != 1 || parse.Document.Statements[0] is not DeclarationSyntax declaration)
+            throw new FirmamentLanguageEditException("edit-invalid-declaration",
+                $"The declaration does not parse on its own: {Errors(parse).FirstOrDefault() ?? "expected one declaration"}");
+        if (name is not null)
+        {
+            RequireIdentifier(name, "name");
+            if (declaration.Name is not { } declared)
+                throw new FirmamentLanguageEditException("edit-unnamed", "The declaration has no name to replace.");
+            text = Replace(text, declared.Span.Start, declared.Span.Length, name);
+        }
+        var lines = text.Split('\n');
+        var common = lines.Skip(1).Where(l => l.Trim().Length > 0).Select(l => l.Length - l.TrimStart().Length).DefaultIfEmpty(0).Min();
+        // The closing brace sits at the first line's level: keep the rest relative to it.
+        var closing = lines.Length > 1 ? lines[^1].Length - lines[^1].TrimStart().Length : 0;
+        var strip = Math.Min(common, closing);
+        return string.Join("\n", lines.Select((l, i) => i == 0 ? indent + l : l.Trim().Length == 0 ? "" : indent + l[Math.Min(strip, l.Length - l.TrimStart().Length)..]));
     }
 
     private static void CheckSnippet(string snippet)

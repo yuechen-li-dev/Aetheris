@@ -1,0 +1,58 @@
+// Millimetre dimensions from the same typed specification as the mechanism.
+Record EngineDimensions {
+  crankRadius: Length
+  cylinderSpacing: Length
+  crankcaseFloor: Length
+  camHeight: Length
+  deckHeight: Length
+  sleeveSeatHeight: Length
+  rodLength: Length
+  rodHeight: Length
+  rodCenter: Length
+  pistonRadius: Length
+  skirtInnerRadius: Length
+  sleeveOuterRadius: Length
+  boreRadius: Length
+  sleeveMin: Length
+  sleeveMax: Length
+  webHeight: Length
+  webCenter: Length
+  journalMin: Length
+  journalMax: Length
+  headWidth: Length
+  compressedPitch: Length
+  supportHeight: Length
+  supportCenter: Length
+  caseMin: Length
+  caseMax: Length
+}
+Static d: EngineDimensions = EngineDimensions {
+  crankRadius: 44mm
+  cylinderSpacing: 110mm
+  crankcaseFloor: -85.849859110708522mm
+  camHeight: 312mm
+  deckHeight: 232mm
+  sleeveSeatHeight: 173.5mm
+  rodLength: 145mm
+  rodHeight: 193mm
+  rodCenter: 72.5mm
+  pistonRadius: 44.700000000000003mm
+  skirtInnerRadius: 40.700000000000003mm
+  sleeveOuterRadius: 51mm
+  boreRadius: 45mm
+  sleeveMin: -58.5mm
+  sleeveMax: 58.5mm
+  webHeight: 104mm
+  webCenter: 22mm
+  journalMin: -27mm
+  journalMax: 27mm
+  headWidth: 102mm
+  compressedPitch: 4.5mm
+  supportHeight: 121.84985911070852mm
+  supportCenter: -24.924929555354261mm
+  caseMin: -228mm
+  caseMax: 228mm
+}
+Record SpringDimensions { pitch: Length }
+Static freeCoil: SpringDimensions = SpringDimensions { pitch: 6mm }
+Static compressedCoil: SpringDimensions = SpringDimensions { pitch: 4.5mm }

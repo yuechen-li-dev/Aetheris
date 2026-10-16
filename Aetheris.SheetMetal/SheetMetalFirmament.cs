@@ -41,9 +41,10 @@ public static class SheetMetalFirmament
         return Compile(File.ReadAllText(full),full);
     }
 
-    public static SheetMetalAuthoringResult Compile(string source,string sourcePath="authored.firmament")
+    // Resolve the domain's schemas before any shared Record/Template admission,
+    // including assemblies that defer SheetMetal body materialization.
+    public static string ResolveImports(string source)
     {
-        ArgumentNullException.ThrowIfNull(source);
         if(Regex.IsMatch(source,@"\bUse\s+Profile\.Modifications\s*;",RegexOptions.CultureInvariant))
         {
             source=Regex.Replace(source,@"\bUse\s+Profile\.Modifications\s*;",string.Empty,RegexOptions.CultureInvariant);
@@ -54,6 +55,13 @@ public static class SheetMetalFirmament
             source=Regex.Replace(source,@"\bUse\s+SheetMetal\.ProductFamilies\s*;",string.Empty,RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
             source=SheetMetalTemplateLibrary.Source+Environment.NewLine+source;
         }
+        return source;
+    }
+
+    public static SheetMetalAuthoringResult Compile(string source,string sourcePath="authored.firmament")
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        source = ResolveImports(source);
         IReadOnlyList<ConceptIrTemplateInstantiation> instantiations=[];
         if(Regex.IsMatch(source,@"\bTemplate\s*<",RegexOptions.CultureInvariant))
         {

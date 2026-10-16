@@ -6,7 +6,7 @@ Assembly or Scene easier to organize. Neither form has a one- or two-part limit.
 
 Firmament's importable module kinds are Part, Subassembly, Assembly and Scene.
 Inventory references inside occurrence Patterns bind before expansion.
-An Inventory member is a reference to a concrete definition. Adding it to a catalog
+An Inventory member is a reference to an exported definition or admitted typed family. Adding it to a catalog
 does not place geometry or establish a Mate; occurrences and relationships do that.
 
 ## A typed catalog
@@ -92,10 +92,22 @@ excluded from the selected Part's engineering compilation. Supporting Records,
 Statics, Features, Templates and Concept scaffolding remain in their owning module.
 Identical export or Record names in different imported modules do not collide.
 
-The first pass imports concrete modules. Specialize a Template in its defining
-module and export that concrete result, rather than passing caller values across
-the Inventory boundary. This preserves definition-scope binding and prevents a
-caller value from being captured by an unrelated private Static of the same name.
+Part and Subassembly entries can reference typed Template exports. Supply named
+arguments at the occurrence, for example `<Assembly Cylinder = Units.cylinder<config: config>>`.
+The common Template/Record binder checks the values against the definition's
+signature. The definition keeps its own private Records, Statics, Inventory and
+supporting declarations. Caller data does not replace that environment. A missing
+specialization or an unknown argument rejects. Imported Part Templates currently
+admit scalar/enum parameters; bind Record/type arguments in their defining module
+or a typed Subassembly. The compiler rejects that unsupported boundary explicitly
+rather than capturing a same-named private Record. Assembly and Scene Template imports
+remain outside this bounded extension; export concrete products of those kinds.
+Caller-defined type arguments also require specialization in the defining module.
+
+`with` derives immutable Record values. It does not edit a module or mutate an
+occurrence. A keyed `Set<CylinderConfig>` can contain `standardCylinder with { ... }`
+entries and feed one Assembly Pattern. See [the V8 source](../../../fixtures/Canonical/EditableV8/engine.firmasm)
+and its [single Cylinder definition](../../../fixtures/Canonical/EditableV8/assemblies/cylinder.firmament).
 
 `include "parts/bolt";` remains admitted, including the established explicit
 `.firmament` spelling. Includes share declarations in the consuming module. The

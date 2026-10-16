@@ -4,7 +4,13 @@ $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 if (!$Output) { $Output = Join-Path $repo 'artifacts/local/demos/editable-v8' }
 $Output = [IO.Path]::GetFullPath($Output)
-$arguments = @('run', '--project', "$PSScriptRoot/Aetheris.EditableV8.csproj", '-c', 'Release', '--', $Output)
+$previousNodeReuse = $env:MSBUILDDISABLENODEREUSE
+try {
+    $env:MSBUILDDISABLENODEREUSE = '1'
+    & dotnet build "$PSScriptRoot/Aetheris.EditableV8.csproj" -c Release -m:1 -nr:false -p:UseSharedCompilation=false
+    if ($LASTEXITCODE) { throw 'Engine build failed.' }
+} finally { $env:MSBUILDDISABLENODEREUSE = $previousNodeReuse }
+$arguments = @("$PSScriptRoot/bin/Release/net10.0/Aetheris.EditableV8.dll", $Output)
 if ($Spec) { $arguments += [IO.Path]::GetFullPath($Spec) }
 & dotnet @arguments
 if ($LASTEXITCODE) { throw 'Engine generation failed.' }

@@ -40,6 +40,7 @@ internal sealed class FirmamentSyntaxOrigins(DocumentSyntax original, DocumentSy
                 }
                 if (statement is ExpressionStatementSyntax { Value: CallSyntax c }) result[identity + "/invocation"] = c.Span;
                 if (statement is MappingSyntax m) Scope([m.Value], identity);
+                if (statement is StatementBlockSyntax b) Scope(b.Body.Statements, identity);
             }
         }
         Scope(syntax.Statements, "document"); return result;

@@ -21,6 +21,17 @@ internal static class CanonicalStaticAuthoring
         diagnostics.AddRange(binding.Diagnostics.Select(d => d.Code + ": " + d.Message));
         if (binding.Diagnostics.Count > 0) return null;
         source = binding.Source;
+        // Assembly frames consume the same checked Record leaves as mechanical
+        // geometry. Alpha-bound identities preserve lexical scope; the existing
+        // substitution owner transports their nominal values to domain readers.
+        var scalars = new FirmamentCompileTimeValues(source);
+        scalars.UseDataBinding(binding);
+        _ = FirmamentV2TemplateExpansion.ReadDataCatalog(source, diagnostics, scalars, initialize: true);
+        if (diagnostics.Count > 0) return null;
+        var inputs = scalars.MaterialInputs(source);
+        if (inputs.Any(v => v.Tolerance is not null))
+        { diagnostics.Add(Prefix + "assembly-tolerance-consumer-unsupported: Assembly frame values cannot project a manufacturing tolerance; use the owning Part and explicit PMI."); return null; }
+        source = FirmamentValueSubstitution.Apply(source, inputs.ToDictionary(v => v.Name, v => scalars.NominalExpression(v.Name), StringComparer.Ordinal));
         var points = ConceptPointAuthoring.Expand(source, diagnostics);
         if (points is null) return null;
         source = points.Source;
@@ -29,8 +40,7 @@ internal static class CanonicalStaticAuthoring
         source = sites.Source;
         var syntax = FirmamentSyntaxParser.Parse(source);
         var headers = FirmamentSyntaxTraversal.Declarations(syntax.Document)
-            .Where(d => d.Type.Name.Text == "Pattern" && d.Clauses.Any(c => c.Kind == ClauseKind.Over)
-                && d.Body?.Statements.FirstOrDefault() is MappingSyntax { Value: DeclarationSyntax { Occurrence: true, Type.Name.Text: "Part" or "Assembly" } }).ToArray();
+            .Where(d => d.Type.Name.Text == "Pattern" && d.Clauses.Any(c => c.Kind == ClauseKind.Over)).ToArray();
         if (headers.Length == 0)
         {
             source = points.Math.Normalize(source, diagnostics);
@@ -38,7 +48,7 @@ internal static class CanonicalStaticAuthoring
         }
         var catalog = source.Select(c => c is '\r' or '\n' ? c : ' ').ToArray();
         foreach (var declaration in FirmamentSyntaxTraversal.Declarations(syntax.Document)
-            .Where(d => d.Type.Name.Text == "Record" || d.Type.Name.Text == "Static" && d.Annotation is SpecializationSyntax { Target: ReferenceSyntax { Name.Text: "Set" } }))
+            .Where(d => d.Type.Name.Text is "Record" or "Static" || d.Type.Name.Text == "Table" && d.Modifiers.Any(m => m.Name.Text == "Static")))
             source.CopyTo(declaration.Span.Start, catalog, declaration.Span.Start, declaration.Span.Length);
         var catalogSource = new string(catalog);
         if (spatial)
@@ -56,6 +66,8 @@ internal static class CanonicalStaticAuthoring
         if (data?.Document is null || diagnostics.Count>0) return null;
         var sets=(data.Document.Sets ?? []).ToDictionary(s=>s.Name,StringComparer.Ordinal);
         var changes=new List<(int Start,int Length,string Text)>();
+        var hoisted = new List<string>();
+        var occupied = syntax.Document.Tokens.Where(t => t.Kind == SyntaxTokenKind.Identifier).Select(t => t.Text).ToHashSet(StringComparer.Ordinal);
         var patterns=new List<FirmamentV2CanonicalPatternDecl>(); var names=new HashSet<string>(); var total=0;
         foreach (var header in headers)
         {
@@ -64,11 +76,17 @@ internal static class CanonicalStaticAuthoring
             var sourceName = header.Clauses.Count == 1 ? FirmamentSyntaxValues.Reference(header.Clauses[0].Value) : null;
             if (sourceName is null || !sets.TryGetValue(sourceName, out var set))
             { diagnostics.Add(Prefix + "pattern-source-invalid:" + name); continue; }
-            var mapping = (MappingSyntax)header.Body!.Statements[0];
-            var mappedStatements = new[] { mapping.Value }.Concat(header.Body.Statements.Skip(1)).ToArray();
-            if (mappedStatements.Any(s => s is not DeclarationSyntax { Occurrence: true, Type.Name.Text: "Part" or "Assembly" })
+            if (header.Body?.Statements.FirstOrDefault() is not MappingSyntax mapping)
+            { diagnostics.Add(Prefix + "assembly-pattern-body-invalid:" + name); continue; }
+            var mappedStatements = (mapping.Value is StatementBlockSyntax block ? block.Body.Statements : [mapping.Value]).Concat(header.Body.Statements.Skip(1)).ToArray();
+            if (mappedStatements.Any(s => s is not DeclarationSyntax d || !(d.Occurrence && d.Type.Name.Text is "Part" or "Assembly"
+                    || !d.Occurrence && (d.Type.Name.Text is "Interface" or "Mate" || d.Type.Name.Text == "Struct" && d.Modifiers.Any(m => m.Name.Text == "Concept"))))
                 || header.Parameters.Count > 0 || header.Modifiers.Count > 0 || header.Initializer is not null || header.Annotation is not null || header.ResultType is not null
                 || header.Type.Span.Length > header.Type.Name.Span.Length || header.Occurrence || header.HasParameterList)
+            { diagnostics.Add(Prefix + "assembly-pattern-body-invalid:" + name); continue; }
+            if (mappedStatements.OfType<DeclarationSyntax>().Where(d => d.Name is not null).GroupBy(d => d.Name!.Text).Any(g => g.Count() > 1))
+            { diagnostics.Add(Prefix + "assembly-pattern-duplicate-declaration:" + name); continue; }
+            if (mapping.Value is not StatementBlockSyntax && mappedStatements.OfType<DeclarationSyntax>().Any(d => !d.Occurrence))
             { diagnostics.Add(Prefix + "assembly-pattern-body-invalid:" + name); continue; }
             total+=set.Entries.Count;
             if (set.Entries.Count>MaxPatternExpansion || total>4096) { diagnostics.Add(Prefix+"pattern-expansion-limit:"+name); continue; }
@@ -79,6 +97,29 @@ internal static class CanonicalStaticAuthoring
                 var substitution = BindSetElement(mapping.Key.Text, entry, diagnostics);
                 if (substitution is null) continue;
                 var bound = mappedStatements.Select(substitution.Statement).ToArray();
+                if (mapping.Value is StatementBlockSyntax)
+                {
+                    string PrivateName(string local)
+                    {
+                        var identity = name + "\0" + entry.Name + "\0" + local;
+                        var stem = "__Pattern_" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity)))[..20] + "_" + local;
+                        var candidate = stem; var suffix = 0;
+                        while (!occupied.Add(candidate)) candidate = stem + "_" + ++suffix;
+                        return candidate;
+                    }
+                    var renames = bound.OfType<DeclarationSyntax>().Where(d => !d.Occurrence && d.Name is not null)
+                        .ToDictionary(d => d.Name!.Text, d => PrivateName(d.Name!.Text), StringComparer.Ordinal);
+                    var parent = OccurrenceOwner(syntax.Document.Statements, header, []);
+                    if (parent is null || parent.Count == 0)
+                    { diagnostics.Add(Prefix + "assembly-pattern-owner-required:" + name); continue; }
+                    var paths = bound.OfType<DeclarationSyntax>().Where(d => d.Occurrence && d.Name is not null)
+                        .ToDictionary(d => d.Name!.Text, d => FirmamentSyntaxParser.ParseExpression(string.Join(".", parent.Append(name).Append(entry.Name).Append(d.Name!.Text))).Expression!, StringComparer.Ordinal);
+                    var scope = new FirmamentSyntaxSubstitution(paths, renames);
+                    bound = bound.Select(scope.Statement).ToArray();
+                    foreach (var declaration in bound.OfType<DeclarationSyntax>().Where(d => !d.Occurrence && d.Type.Name.Text is "Struct" or "Interface"))
+                        hoisted.Add(FirmamentSyntaxWriter.Statement(declaration));
+                    bound = bound.Where(d => d is not DeclarationSyntax { Occurrence: false, Type.Name.Text: "Struct" or "Interface" }).ToArray();
+                }
                 var mappedText = FirmamentSyntaxWriter.Statements(bound, source);
                 var mappedSyntax = new DocumentSyntax("expanded-pattern", bound, [], header.Span);
                 if (FirmamentSyntaxTraversal.Expressions(mappedSyntax).OfType<MemberSyntax>()
@@ -92,11 +133,23 @@ internal static class CanonicalStaticAuthoring
                 sites.Recipes.GetValueOrDefault(set.Name)));
         }
         foreach (var change in changes.OrderByDescending(c=>c.Start)) source=source.Remove(change.Start,change.Length).Insert(change.Start,change.Text);
+        source += "\n" + string.Join("\n", hoisted);
         source = points.Math.Normalize(source, diagnostics);
         var conceptualSets = points.Points.ToDictionary(p => ConceptPointAuthoring.SetName(p.Name), p => p);
         patterns = patterns.Select(pattern => conceptualSets.TryGetValue(pattern.Source, out var collection)
             ? pattern with { Source = collection.Name, Associations = pattern.Associations?.Select(a => a with { SourceSet = collection.Name }).ToArray() } : pattern).ToList();
         return diagnostics.Count > 0 ? null : new(source,data.Document with { Patterns=patterns, ConceptPoints=points.Points });
+    }
+
+    private static IReadOnlyList<string>? OccurrenceOwner(IReadOnlyList<StatementSyntax> statements, DeclarationSyntax target, IReadOnlyList<string> path)
+    {
+        foreach (var statement in statements.OfType<DeclarationSyntax>())
+        {
+            if (ReferenceEquals(statement, target)) return path;
+            if (statement.Body is not null && OccurrenceOwner(statement.Body.Statements, target,
+                statement.Occurrence && statement.Name is not null ? path.Append(statement.Name.Text).ToArray() : path) is { } owner) return owner;
+        }
+        return null;
     }
 
     private static FirmamentSyntaxSubstitution? BindSetElement(string binder, FirmamentV2StaticSetEntry entry, List<string> diagnostics)
@@ -111,6 +164,7 @@ internal static class CanonicalStaticAuthoring
         }
         if (entry.RecordFields is not null)
         {
+            if (!Add(binder, entry.Value)) return null;
             foreach (var field in entry.RecordFields)
                 if (!Add(binder + "." + field.Key, field.Value)) return null;
         }
@@ -410,38 +464,28 @@ internal static class CanonicalStaticAuthoring
     private static IReadOnlyList<FirmamentV2StaticSetEntry> ParseSetEntries(string source, int start, int end, string setName, string elementType,
         IReadOnlyDictionary<string, FirmamentV2RecordTypeDecl> recordTypes, List<string> diagnostics)
     {
-        var body = source[start..end];
-        var headers = Regex.Matches(body, @"(?<![A-Za-z0-9_])(?<name>[A-Za-z_]\w*)\s*=>", RegexOptions.CultureInvariant).Cast<Match>().ToArray();
-        if (FirmamentLanguageAnalysisService.Lex(headers.Length == 0 ? body : body[..headers[0].Index])
-            .Any(token => token.Shape != "comment"))
+        var parsed = FirmamentSyntaxParser.Parse(source[start..end]);
+        var result = new List<FirmamentV2StaticSetEntry>();
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        if (!parsed.IsSuccess) { diagnostics.Add(Prefix + "set-entry-malformed:" + setName); return result; }
+        foreach (var statement in parsed.Document.Statements)
         {
-            diagnostics.Add(Prefix + "set-entry-malformed:" + setName + ":use-name-arrow-value");
-        }
-        var result = new List<FirmamentV2StaticSetEntry>(); var names = new HashSet<string>(StringComparer.Ordinal);
-        for (var index = 0; index < headers.Length; index++)
-        {
-            var header = headers[index]; var entryName = header.Groups["name"].Value;
-            var valueStart = header.Index + header.Length; var valueEnd = index + 1 < headers.Length ? headers[index + 1].Index : body.Length;
-            var value = body[valueStart..valueEnd].Trim().TrimEnd(',', ';').Trim();
-            var span = new FirmamentV2SourceSpan(start + header.Index, valueEnd - header.Index);
+            if (statement is not MappingSyntax mapping)
+            { diagnostics.Add(Prefix + "set-entry-malformed:" + setName + ":use-name-arrow-value"); continue; }
+            var entryName = mapping.Key.Text;
             if (!names.Add(entryName)) { diagnostics.Add(Prefix + "set-duplicate-entry:" + setName + ":" + entryName); continue; }
+            var value = source.Substring(start + mapping.Value.Span.Start, mapping.Value.Span.Length).Trim().TrimEnd(';');
+            var span = new FirmamentV2SourceSpan(start + mapping.Span.Start, mapping.Span.Length);
             IReadOnlyDictionary<string, string>? fields = null;
-            if (recordTypes.TryGetValue(elementType, out var record))
+            if (recordTypes.ContainsKey(elementType))
             {
-                var literal = Regex.Match(value, $@"^{Regex.Escape(elementType)}\s*\{{(?<body>[\s\S]*)\}}$", RegexOptions.CultureInvariant);
-                if (!literal.Success) { diagnostics.Add(Prefix + "set-entry-type-mismatch:" + setName + ":" + entryName + ":expected-" + elementType); continue; }
-                fields = Fields(literal.Groups["body"].Value);
-                var missing = record.Fields.Keys.Where(field => !fields.ContainsKey(field)).ToArray();
-                var extra = fields.Keys.Where(field => !record.Fields.ContainsKey(field)).ToArray();
-                if (missing.Length > 0) diagnostics.Add(Prefix + "record-missing-field:" + setName + "." + entryName + ":" + string.Join(",", missing));
-                if (extra.Length > 0) diagnostics.Add(Prefix + "record-extra-field:" + setName + "." + entryName + ":" + string.Join(",", extra));
-                foreach (var field in fields)
-                    if (record.Fields.TryGetValue(field.Key, out var fieldType) && !ValueMatchesType(field.Value, fieldType))
-                        diagnostics.Add(Prefix + "set-entry-field-type-mismatch:" + setName + ":" + entryName + ":" + field.Key + ":expected-" + fieldType);
+                fields = FirmamentV2TemplateExpansion.BindRecordExpression(source, elementType, value,
+                    "__SetValue_" + setName + "_" + entryName, diagnostics);
+                if (fields is null) continue;
             }
             else if (!ValueMatchesType(value, elementType))
             { diagnostics.Add(Prefix + "set-entry-type-mismatch:" + setName + ":" + entryName + ":expected-" + elementType); continue; }
-            result.Add(new(entryName, value, index, span, fields));
+            result.Add(new(entryName, value, result.Count, span, fields));
         }
         return result;
     }

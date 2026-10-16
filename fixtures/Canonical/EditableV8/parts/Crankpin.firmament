@@ -1,0 +1,10 @@
+include "../design";
+include "../construction";
+
+Struct Crankpin {
+  Struct Stock = DiscStock<r: 22mm, zmin: -13mm, zmax: 13mm>
+
+  Expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; Dimension Diameter = 44mm; } }
+
+
+}

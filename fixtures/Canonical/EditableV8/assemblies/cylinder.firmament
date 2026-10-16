@@ -1,0 +1,74 @@
+include "../design";
+include "../cylinder-config";
+include "../interfaces";
+Inventory Record Parts {
+  connectingRod: Part = Firmament("../parts/ConnectingRod").ConnectingRod
+  pistonCrown: Part = Firmament("../parts/PistonCrown").PistonCrown
+  pistonSkirt: Part = Firmament("../parts/PistonSkirt").PistonSkirt
+  pistonLug: Part = Firmament("../parts/PistonLug").PistonLug
+  wristPin: Part = Firmament("../parts/WristPin").WristPin
+  cylinderSleeve: Part = Firmament("../parts/CylinderSleeve").CylinderSleeve
+  cylinderHead: Part = Firmament("../parts/CylinderHead").CylinderHead
+  intakeValve: Part = Firmament("../parts/IntakeValve").IntakeValve
+  exhaustValve: Part = Firmament("../parts/ExhaustValve").ExhaustValve
+  valveStem: Part = Firmament("../parts/ValveStem").ValveStem
+  springRetainer: Part = Firmament("../parts/SpringRetainer").SpringRetainer
+  valveSpring: Part = Firmament("../parts/ParameterizedValveSpring").ValveSpring
+}
+
+Template<config: CylinderConfig>
+Subassembly CylinderUnit {
+  // Layout owns local geometry intent; the parent installs this unit once.
+  Concept Struct Layout {
+    Axis Rod { origin: [config.rest.rodX,config.rest.rodY,0mm]; direction: [0,0,1]; reference: [config.rest.rodCos,-config.rest.rodSin,0]; }
+    Axis PistonPin { origin: [0mm,config.rest.pistonY,0mm]; direction: [0,0,1]; reference: [1,0,0]; }
+    Axis Bore { origin: [0mm,0mm,0mm]; direction: [0,1,0]; reference: [1,0,0]; }
+    Axis Intake { origin: [0mm,0mm,-20mm]; direction: [0,1,0]; reference: [1,0,0]; }
+    Axis Exhaust { origin: [0mm,0mm,20mm]; direction: [0,1,0]; reference: [1,0,0]; }
+  }
+  <Assembly CylinderUnit>
+    <Part Rod = Parts.connectingRod></Part>
+    <Part Piston = Parts.pistonCrown></Part>
+    <Part PistonSkirt = Parts.pistonSkirt></Part>
+    <Part PistonLugA = Parts.pistonLug></Part>
+    <Part PistonLugB = Parts.pistonLug></Part>
+    <Part WristPin = Parts.wristPin></Part>
+    <Part Cylinder = Parts.cylinderSleeve></Part>
+    <Part Head = Parts.cylinderHead></Part>
+    <Part IntakeValve = Parts.intakeValve></Part>
+    <Part IntakeStem = Parts.valveStem></Part>
+    <Part IntakeRetainer = Parts.springRetainer></Part>
+    <Part IntakeSpring = Parts.valveSpring<pitch: config.rest.intakePitch>></Part>
+    <Part ExhaustValve = Parts.exhaustValve></Part>
+    <Part ExhaustStem = Parts.valveStem></Part>
+    <Part ExhaustRetainer = Parts.springRetainer></Part>
+    <Part ExhaustSpring = Parts.valveSpring<pitch: config.rest.exhaustPitch>></Part>
+    Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  </Assembly>
+  Interface<Fixed> RodStack { datum: Layout.Rod; members: [CylinderUnit.Rod.BigEnd]; }
+  Mate SeatRod: RodStack { member: CylinderUnit.Rod.BigEnd; at: 0mm; clocking: 0deg; }
+  Interface<Fixed> PistonPinStack { datum: Layout.PistonPin; members: [CylinderUnit.PistonLugA.Mount, CylinderUnit.PistonLugB.Mount, CylinderUnit.WristPin.Mount]; }
+  Mate SeatPistonLugA: PistonPinStack { member: CylinderUnit.PistonLugA.Mount; at: -16mm; clocking: 0deg; }
+  Mate SeatPistonLugB: PistonPinStack { member: CylinderUnit.PistonLugB.Mount; at: 16mm; clocking: 0deg; }
+  Mate SeatWristPin: PistonPinStack { member: CylinderUnit.WristPin.Mount; at: 0mm; clocking: 0deg; }
+  Interface<Fixed> BoreStack { datum: Layout.Bore; members: [CylinderUnit.Piston.Mount, CylinderUnit.PistonSkirt.Mount, CylinderUnit.Cylinder.Mount, CylinderUnit.Head.Mount]; }
+  Mate SeatPiston: BoreStack { member: CylinderUnit.Piston.Mount; at: config.rest.pistonY + 32.5mm; clocking: 0deg; }
+  Mate SeatPistonSkirt: BoreStack { member: CylinderUnit.PistonSkirt.Mount; at: config.rest.pistonY + 12.5mm; clocking: 0deg; }
+  Mate SeatCylinder: BoreStack { member: CylinderUnit.Cylinder.Mount; at: d.sleeveSeatHeight; clocking: 0deg; }
+  Mate SeatHead: BoreStack { member: CylinderUnit.Head.Mount; at: d.deckHeight + 13mm; clocking: 0deg; }
+  Interface<Fixed> IntakeStack { datum: Layout.Intake; members: [CylinderUnit.IntakeValve.Mount, CylinderUnit.IntakeStem.Mount, CylinderUnit.IntakeRetainer.Mount, CylinderUnit.IntakeSpring.Winding]; }
+  Mate SeatIntakeValve: IntakeStack { member: CylinderUnit.IntakeValve.Mount; at: d.deckHeight + 6mm - config.rest.intakeLift; clocking: 0deg; }
+  Mate SeatIntakeStem: IntakeStack { member: CylinderUnit.IntakeStem.Mount; at: d.deckHeight + 38mm - config.rest.intakeLift; clocking: 0deg; }
+  Mate SeatIntakeRetainer: IntakeStack { member: CylinderUnit.IntakeRetainer.Mount; at: d.deckHeight + 58.5mm - config.rest.intakeLift; clocking: 0deg; }
+  Mate SeatIntakeSpring: IntakeStack { member: CylinderUnit.IntakeSpring.Winding; at: d.deckHeight + 20mm; clocking: 0deg; }
+  Interface<Fixed> ExhaustStack { datum: Layout.Exhaust; members: [CylinderUnit.ExhaustValve.Mount, CylinderUnit.ExhaustStem.Mount, CylinderUnit.ExhaustRetainer.Mount, CylinderUnit.ExhaustSpring.Winding]; }
+  Mate SeatExhaustValve: ExhaustStack { member: CylinderUnit.ExhaustValve.Mount; at: d.deckHeight + 6mm - config.rest.exhaustLift; clocking: 0deg; }
+  Mate SeatExhaustStem: ExhaustStack { member: CylinderUnit.ExhaustStem.Mount; at: d.deckHeight + 38mm - config.rest.exhaustLift; clocking: 0deg; }
+  Mate SeatExhaustRetainer: ExhaustStack { member: CylinderUnit.ExhaustRetainer.Mount; at: d.deckHeight + 58.5mm - config.rest.exhaustLift; clocking: 0deg; }
+  Mate SeatExhaustSpring: ExhaustStack { member: CylinderUnit.ExhaustSpring.Winding; at: d.deckHeight + 20mm; clocking: 0deg; }
+  Mate WristFit: PinBoreFit { Pin: CylinderUnit.WristPin.Mount; Bore: CylinderUnit.Rod.SmallEnd; }
+  Mate IntakeSpringFit: SpringStemFit { Spring: CylinderUnit.IntakeSpring.Winding; Stem: CylinderUnit.IntakeStem.Mount; }
+  Mate ExhaustSpringFit: SpringStemFit { Spring: CylinderUnit.ExhaustSpring.Winding; Stem: CylinderUnit.ExhaustStem.Mount; }
+  anchor: CylinderUnit;
+  expose { Semantic RodBore = Rod.BigEnd; }
+}

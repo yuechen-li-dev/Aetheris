@@ -1,0 +1,36 @@
+include "../interfaces";
+include "../design";
+
+Inventory Record Parts {
+  mainSupport: Part = Firmament("../parts/MainSupport").MainSupport
+  crankcaseRail: Part = Firmament("../parts/CrankcaseRail").CrankcaseRail
+}
+
+// Local coordinates belong to this reusable unit; the engine places it once.
+Subassembly Crankcase {
+  <Assembly Crankcase>
+    <Part MainSupport1 = Parts.mainSupport>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(0 - 0.5) * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part MainSupport2 = Parts.mainSupport>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(1 - 0.5) * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part MainSupport3 = Parts.mainSupport>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(2 - 0.5) * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part MainSupport4 = Parts.mainSupport>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(3 - 0.5) * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part MainSupport5 = Parts.mainSupport>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(4 - 0.5) * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part CrankcaseRailA = Parts.crankcaseRail>
+      Placement { from: Origin; to: World; translateLocal: [-26mm,d.crankcaseFloor - 8mm,1.5 * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part CrankcaseRailB = Parts.crankcaseRail>
+      Placement { from: Origin; to: World; translateLocal: [26mm,d.crankcaseFloor - 8mm,1.5 * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  </Assembly>
+  Anchor: Crankcase;
+}

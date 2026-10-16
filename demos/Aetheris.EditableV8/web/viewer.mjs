@@ -51,7 +51,7 @@ async function load(label) {
   $('dimensions').innerHTML=[['Bore',`${s.bore.toFixed(0)} mm`],['Stroke',`${s.stroke.toFixed(0)} mm`],['Connecting rod',`${s.rodLength.toFixed(0)} mm`],['Crank radius',`${s.crankRadius.toFixed(0)} mm`]].map(([a,b])=>`<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
   $('variant-title').innerHTML=label==='baseline'?'V8—A <span>BASELINE</span>':'V8—B <span>REVISED</span>';
   for(const name of ['baseline','revised']) $(name).classList.toggle('active',name===label);
-  $('source-link').href=`${label}.firmament`;
+  $('source-link').href=`${label}/engine.firmasm`;
   $('proof').textContent=`${validation.samples.toLocaleString()} samples · PASS`;
   $('proof-detail').textContent=`Rod closure < ${validation.rodClosureMm.toExponential(1)} mm. ${packet.definitions.length} shared definitions. ${objects.size} part occurrences.`;
   $('cylinder').innerHTML=manifest.cylinders.map(c=>`<option value="${c.number}" ${c.number===selected?'selected':''}>CYLINDER ${c.number}</option>`).join('');

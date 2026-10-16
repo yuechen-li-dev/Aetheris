@@ -173,7 +173,7 @@ internal sealed class FirmamentModuleGraph
                     var actual = declaration.Type.Name.Text;
                     if (!(kind.Name.Text == "Part" ? actual is "Model" or "Struct" or "Part" : actual == kind.Name.Text))
                     { Error("firmament-inventory-kind-mismatch", $"'{locator}.{export}' is {actual}, but '{field.Name.Text}' requires {kind.Name.Text}.", origin); continue; }
-                    if (declaration.Modifiers.Any(m => m.Name.Text == "Template"))
+                    if (declaration.Modifiers.Any(m => m.Name.Text == "Template") && actual is not ("Subassembly" or "Struct" or "Model" or "Part"))
                     { Error("firmament-inventory-specialization-required", "Specialize this Template in its defining module and export its concrete Part, Subassembly, Assembly or Scene result.", origin); continue; }
                 }
                 var identity = "__Module_" + Hash(IdentityPath(path) + "\0" + kind.Name.Text + "\0" + export)[..20];
@@ -221,8 +221,18 @@ internal sealed class FirmamentModuleGraph
                         Error("firmament-inventory-member-unresolved", $"Inventory '{owner.Name.Text}' has no member '{member.Member.Text}'.", At(module, member.Span));
                     else if (!(declaration.Type.Name.Text == "Assembly" ? reference.Kind is "Assembly" or "Subassembly" : declaration.Type.Name.Text == reference.Kind))
                         Error("firmament-inventory-kind-mismatch", $"A {declaration.Type.Name.Text} occurrence cannot use {reference.Kind} '{owner.Name.Text}.{member.Member.Text}'.", At(module, target.Span));
-                    else if (initializer is SpecializationSyntax)
-                        Error("firmament-inventory-specialization-required", "Inventory entries reference concrete modules. Specialize Templates in the defining module before exporting them.", At(module, initializer.Span));
+                    else if (initializer is SpecializationSyntax && reference.Export?.Modifiers.Where(m => m.Name.Text == "Template")
+                        .SelectMany(m => m.Arguments).Any(a => a.Value is TypeParameterSyntax) == true)
+                        Error("firmament-inventory-type-argument-unsupported", "Imported Templates currently accept compile-time values, not caller-defined types. Specialize type parameters in the defining module and export a concrete product.", At(module, initializer.Span));
+                    else if (initializer is SpecializationSyntax && reference.Kind == "Part" && reference.Export is { } partExport
+                        && partExport.Modifiers.Where(m => m.Name.Text == "Template").SelectMany(m => m.Arguments).Any(a =>
+                            a.Value is ReferenceSyntax parameterType && Exports(reference.Module!)
+                                .Any(d => d.Type.Name.Text == "Record" && d.Name?.Text == parameterType.Name.Text)))
+                        Error("firmament-inventory-part-record-argument-unsupported", "Imported Part Templates currently admit scalar/enum parameters. Bind Record/type parameters inside their defining module or a typed Subassembly; caller Records are never resolved against private module values.", At(module, initializer.Span));
+                    else if (initializer is SpecializationSyntax && reference.Export?.Type.Name.Text is not ("Subassembly" or "Struct" or "Model" or "Part"))
+                        Error("firmament-inventory-specialization-required", "This module kind does not yet admit imported Template specialization.", At(module, initializer.Span));
+                    else if (initializer is not SpecializationSyntax && reference.Export?.Modifiers.Any(m => m.Name.Text == "Template") == true)
+                        Error("firmament-inventory-specialization-required", "This Template export requires named typed arguments at its occurrence.", At(module, initializer.Span));
                     else module.Edits.Add(new(target.Span, reference.Identity));
                 }
             }
@@ -237,7 +247,7 @@ internal sealed class FirmamentModuleGraph
         foreach (var mapping in statements.OfType<MappingSyntax>())
         {
             var bodyScope=new Scope(scope); bodyScope.Values.Add(mapping.Key.Text);
-            Bind(module,[mapping.Value],bodyScope);
+            Bind(module,mapping.Value is StatementBlockSyntax block ? block.Body.Statements : [mapping.Value],bodyScope);
         }
     }
     private SemanticSourceSpan DeclarationOrigin(DeclarationSyntax declaration)
@@ -308,7 +318,7 @@ internal sealed class FirmamentModuleGraph
                 foreach (var d in node.Syntax.Statements.OfType<DeclarationSyntax>().Where(d => d != selected && !IsInventory(d)
                     && !d.Modifiers.Any(m => m.Name.Text is "Template" or "Concept") && d.Type.Name.Text is "Model" or "Struct" or "Part" or "Assembly" or "Subassembly" or "Scene"))
                     edits.Add(new(d.Span, Blank(node.Text, d.Span)));
-                if (node.Syntax.Statements.Contains(selected) && assemblyRoot && selected.Type.Name.Text == "Subassembly") edits.Add(new(selected.Type.Name.Span, "Assembly"));
+                if (node.Syntax.Statements.Contains(selected) && assemblyRoot && selected.Type.Name.Text == "Subassembly" && !selected.Modifiers.Any(m => m.Name.Text == "Template")) edits.Add(new(selected.Type.Name.Span, "Assembly"));
                 if (node.Syntax.Statements.Contains(selected) && selected.Type.Name.Text == "Part") edits.Add(new(selected.Type.Name.Span, "Struct"));
             }
             var cursor = 0;
@@ -337,14 +347,46 @@ internal sealed class FirmamentModuleGraph
         references.TryAdd(identity, reference); return reference;
     }
 
-    internal AssemblyM0Parser.ParseResult ParseAssembly(Reference reference)
+    internal AssemblyM0Parser.ParseResult ParseAssembly(Reference reference, string? use = null, string? callerSource = null)
     {
         var projection = ProjectSource(reference.Module!, reference.Export, assemblyRoot: true);
+        if (reference.Export!.Modifiers.Any(m => m.Name.Text == "Template"))
+        {
+            var codes = new List<string>();
+            var application = FirmamentSyntaxParser.ParseExpression(use ?? reference.Identity).Expression as SpecializationSyntax;
+            if (application is null)
+                return new(null, [new("firmament-template-missing-required-argument", $"Subassembly '{reference.Definition}' requires its typed Template arguments.") { SourceSpan = reference.Origin }], 0);
+            var arguments = new Dictionary<string, FirmamentV2TemplateExpansion.HostArgument>(StringComparer.Ordinal);
+            var signature = FirmamentV2TemplateExpansion.Inspect(projection.Text, codes).SingleOrDefault(t => t.Name == reference.Definition);
+            foreach (var argument in application.Arguments)
+            {
+                var name = argument.Name?.Text ?? "";
+                if (arguments.ContainsKey(name)) { codes.Add(FirmamentV2TemplateExpansion.DuplicateArgument + ":" + name); continue; }
+                var expression = FirmamentSyntaxWriter.Expression(argument.Value);
+                var parameter = signature?.Parameters.SingleOrDefault(p => p.Name == name);
+                var records = FirmamentV2TemplateExpansion.InspectRecords(projection.Text, codes);
+                var isRecord = records.Any(r => r.Name == parameter?.TypeName);
+                var fields = isRecord ? FirmamentV2TemplateExpansion.BindRecordExpression(callerSource ?? "", parameter!.TypeName,
+                    expression, "__ModuleArgument_" + name, codes, hostView: true) : null;
+                arguments[name] = new(expression, isRecord ? parameter!.TypeName : null, fields);
+            }
+            var specialized = codes.Count == 0 ? FirmamentV2TemplateExpansion.ExpandHostInvocation(projection.Text,
+                reference.Definition, reference.Definition, arguments, codes) : null;
+            if (specialized is null || codes.Count > 0)
+                return new(null, codes.Select(code => new AssemblyDiagnostic(code.Split(':')[0], code) { SourceSpan = reference.Origin }).ToArray(), 0);
+            var concrete = specialized.Source;
+            var declaration = FirmamentSyntaxParser.Parse(concrete).Document.Statements.OfType<DeclarationSyntax>()
+                .Single(d => d.Name?.Text == reference.Definition && d.Type.Name.Text == "Subassembly");
+            concrete = concrete.Remove(declaration.Type.Name.Span.Start, declaration.Type.Name.Span.Length).Insert(declaration.Type.Name.Span.Start, "Assembly");
+            // Expanded offsets cannot be mapped exactly. Preserve the declaration's
+            // honest enclosing origin rather than pretending generated spans are authored.
+            projection = new(concrete, [new(0, concrete.Length, reference.DeclarationOrigin, false)], reference.Path);
+        }
         return new AssemblyM0Parser().ParseBound(projection.Text, reference.Path, this, reference.Module!, projection, reference.Export);
     }
     internal AssemblyMemberSource QualifyParts(Module module, AssemblyMemberSource root) => root with
     {
-        DefinitionIdentity = root.Kind == AssemblyInstanceKind.Part ? LocalPart(module, root.DefinitionIdentity).Identity : root.DefinitionIdentity,
+        DefinitionIdentity = root.Kind == AssemblyInstanceKind.Part ? LocalPart(module, root.DefinitionIdentity).Identity + (root.DefinitionIdentity.Contains('<') ? root.DefinitionIdentity[root.DefinitionIdentity.IndexOf('<')..] : "") : root.DefinitionIdentity,
         Children = root.Children.Select(child => QualifyParts(module, child)).ToArray()
     };
     internal IReadOnlyList<SemanticValue> Ports(Reference reference, string use, List<AssemblyDiagnostic> diagnostics,
@@ -355,7 +397,7 @@ internal sealed class FirmamentModuleGraph
         var identity = PartIdentity(reference, use);
         return reference.Export is null || reference.Export.Modifiers.Any(m => m.Name.Text == "Template")
             ? AssemblyPublishedPorts.BindAuthored(identity, projection.Text, reference.Path, diagnostics, Project, [], cache)
-            : AssemblyPublishedPorts.Read(projection.Text, reference.Definition, use, reference.Path, diagnostics);
+            : AssemblyPublishedPorts.Read(projection.Text, reference.Definition, use, reference.Path, diagnostics, includeWinding: true);
     }
     internal string PartIdentity(Reference reference, string use)
     {

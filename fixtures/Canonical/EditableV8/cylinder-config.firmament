@@ -1,0 +1,37 @@
+// Typed installation and immutable scalar rest-state input. Motion laws remain separate.
+Record CylinderRest {
+  rodX: Length
+  rodY: Length
+  rodSin: Float
+  rodCos: Float
+  pistonY: Length
+  intakeLift: Length
+  exhaustLift: Length
+  intakePitch: Length
+  exhaustPitch: Length
+}
+Record CylinderConfig {
+  bankSin: Float
+  bankCos: Float
+  z: Length
+  journal: ProfilePath
+  rest: CylinderRest
+}
+Static standardRest: CylinderRest = CylinderRest {
+  rodX: 0mm
+  rodY: 0mm
+  rodSin: 0
+  rodCos: 1
+  pistonY: 0mm
+  intakeLift: 0mm
+  exhaustLift: 0mm
+  intakePitch: 6mm
+  exhaustPitch: 6mm
+}
+Static standardCylinder: CylinderConfig = CylinderConfig {
+  bankSin: 0
+  bankCos: 1
+  z: 0mm
+  journal: EditableV8.Crankshaft.Pin1
+  rest: standardRest
+}

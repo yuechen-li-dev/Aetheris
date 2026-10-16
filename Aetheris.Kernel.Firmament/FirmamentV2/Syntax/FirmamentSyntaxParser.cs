@@ -107,7 +107,9 @@ public static class FirmamentSyntaxParser
                 {
                     var key = Identifier(); Expect("="); Expect(">");
                     var valueStart = Current.Span.Start;
-                    var value = Current.Kind == SyntaxTokenKind.Identifier || Is("<") ? Statement()
+                    var value = Is("{") ? new StatementBlockSyntax(Block(context: "Pattern mapping"), Span(valueStart))
+                        : Peek(1).Text == "with" ? new ExpressionStatementSyntax(Expression(), Span(valueStart))
+                        : Current.Kind == SyntaxTokenKind.Identifier || Is("<") ? Statement()
                         : new ExpressionStatementSyntax(Expression(), Span(valueStart));
                     return new MappingSyntax(key, value, Span(start));
                 }

@@ -109,6 +109,7 @@ internal sealed class FirmamentTemplateSyntax
             }
             foreach (var statement in statements)
             {
+                if (statement is StatementBlockSyntax block) { Visit(block.Body.Statements, scope, owner); continue; }
                 if (statement is MappingSyntax mapping)
                 {
                     Visit([mapping.Value], new(scope, scope.Identity + "/mapping " + mapping.Key.Text), owner);
@@ -173,7 +174,7 @@ internal sealed class FirmamentTemplateSyntax
     private static string? Kind(DeclarationSyntax declaration) => declaration.Type.Name.Text switch
     {
         "Struct" when declaration.Modifiers.Any(m => m.Name.Text == "Concept") => "Concept Struct",
-        "Struct" or "Model" or "Panel" or "SheetMetal" or "ProfileDelta" or "Profile" => declaration.Type.Name.Text,
+        "Struct" or "Model" or "Panel" or "SheetMetal" or "ProfileDelta" or "Profile" or "Subassembly" => declaration.Type.Name.Text,
         _ => null,
     };
 }

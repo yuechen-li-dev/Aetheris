@@ -1,0 +1,9 @@
+Inventory Record Products {
+  engine: Assembly = Firmament("engine").EditableV8
+}
+Scene EngineStudy {
+  units: mm
+  <Assembly Engine = Products.engine>
+    Placement { from: Origin; to: World; }
+  </Assembly>
+}

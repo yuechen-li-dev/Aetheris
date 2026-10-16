@@ -1,0 +1,13 @@
+include "../design";
+include "../construction";
+
+Struct ConnectingRod {
+  Struct Stock = RodStock<l: d.rodLength, h: d.rodHeight, c: d.rodCenter>
+
+  Expose { Semantic BigEnd { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; Dimension Diameter = 44.4mm; }
+    Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; Dimension Diameter = 44.4mm; }
+    Semantic SmallEnd { Axis Axis = [0mm,d.rodLength,0mm] -> [0,0,1]; DatumFrame Frame = [0mm,d.rodLength,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; Dimension Diameter = 16.4mm; }
+  }
+
+
+}

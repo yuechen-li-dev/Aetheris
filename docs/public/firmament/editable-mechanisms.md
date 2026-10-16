@@ -1,6 +1,38 @@
 # Editable mechanisms and assembly display meshes
 
-The editable V8 demo is a bounded consumer of ordinary Firmament templates, semantic datum frames, interfaces, the executable assembly pipeline, and an analytical slider-crank API. Geometry and mechanism dimensions originate in C# authoring and generated Firmament. The browser consumes the resulting artifacts.
+The editable V8 is an authored Firmament project: reusable Parts, one typed
+Cylinder Subassembly, a keyed assembly Pattern, and a static Scene. C# supplies
+engineering dimensions and a small scalar rest configuration for each cylinder
+from the existing analytical mechanism. The browser consumes compiler artifacts
+and the bounded slider-crank evaluator.
+
+## Read and edit the project
+
+Start at [engine.firmasm](../../../fixtures/Canonical/EditableV8/engine.firmasm).
+One Inventory entry imports [CylinderUnit](../../../fixtures/Canonical/EditableV8/assemblies/cylinder.firmament).
+The engine's `Pattern Cylinders over cylinderConfigs` creates eight keyed units
+and their installation/rod-journal relationships. The four-cylinder witness uses
+the same definition with a smaller configuration Set.
+
+- `parts/` owns engineering geometry and publishes mounting/bore/dimensional ports.
+  The parameterized spring shares identical pitches and distinguishes the actually
+  compressed geometry.
+- `assemblies/cylinder.firmament` owns local Concept axes, Fixed stack interfaces,
+  seating Mates and local pin/spring fits. The parent installs the complete unit
+  through `Mount` and checks its published `RodBore` against the crankshaft's real
+  published pin. There are no copied virtual journal-diameter datums.
+- `design.firmament` owns checked dimension Records. `cylinder-config.firmament`
+  defines the rest-state input contract. `rest-configurations.firmament` contains
+  keyed immutable `with` derivations: bank orientation, station, rod/piston state,
+  valve lift, spring pitch and actual journal endpoint.
+- Crankshaft, crankcase and cam banks use scalar layout expressions. The project
+  contains no per-Part matrix or pose tables.
+
+Edit a Part, Concept layout or unit directly and inspect the consuming root with
+Aetheris.CLI. The paired demo workflow refreshes dimension/rest input data from
+`V8Spec`; it does not synthesize the product tree or geometry. Moving membership
+changes still require matching motion bindings and reject if a Part is missing or
+unbound. Motion laws and animation syntax are a separate design pass.
 
 ## Build and revise
 
@@ -23,23 +55,35 @@ Pass its path with `-Spec`. Property names are case sensitive. Omitted values us
 
 The admitted scalar envelope is bore 80–100 mm, stroke 70–100 mm, rod length 135–170 mm, exactly 90° bank angle, spacing at least bore + 16 mm, and lift 1–10 mm. Passing these scalar bounds does not guarantee geometric clearance: the subsequent sweep can reject combinations with `engine-sweep-failed`. Nonfinite or out-of-range dimensions fail with `engine-spec-outside-admitted-envelope`.
 
-The runner exports a single-cylinder stage A, a valve-equipped stage B, a four-cylinder bank stage C, and baseline/revised V8s. `<variant>.firmament` is an independently compilable dimensioned source artifact. Shared definitions include piston crowns/skirts, rods, sleeves, crank webs, journals, heads, valves and WireForm springs. `<variant>.assembly.json` records actual interface fits, placement authority and world-space residuals. `<variant>.motion.json` records the input and derived dimensions, cylinder bank/phase membership, stable occurrence bindings and solved rest matrices. `<variant>.validation.json` reports the 1° sweep. `<variant>.samples.json` and `browser-parity.json` qualify the same evaluator used by the viewer.
+The runner exports a single-cylinder stage A, a valve-equipped stage B, a four-cylinder bank stage C, and baseline/revised V8s. `<variant>/engine.firmasm` (or `bank.firmasm`, `stage-a.firmasm`, `stage-b.firmasm`) is an independently compilable project root with its complete module dependencies beside it. Shared definitions include piston crowns/skirts, rods, sleeves, crank webs, journals, heads, valves and WireForm springs. `<variant>.assembly.json` records actual interface fits, placement authority and world-space residuals. `<variant>.motion.json` records the input and derived dimensions, cylinder bank/phase membership, stable occurrence bindings and solved rest matrices. `<variant>.validation.json` reports the 1° sweep. `<variant>.samples.json` and `browser-parity.json` qualify the same evaluator used by the viewer.
 
 ## Interfaces and geometry
 
-Each physical occurrence exposes a datum frame. `RegisteredSeat` registers frames; `JournalBoreSeat` also checks a 44 mm journal inside a 44.4 mm rod bore; `WristPinSeat` checks a 16 mm pin inside a 16.4 mm bore. The crank main journal anchors the assembly. Rods register to crankpins, pins to rods, pistons to pins, sleeves to supports, and valve parts to their head/stem seats. Firmament solves the indexed rest assembly and validates the resulting materialized frames. The motion manifest uses these solved transforms, rather than exporting an unrelated placement list.
+Concrete Parts publish their own mounting and bore ports. Local Concept axes and
+`Interface<Fixed>` seating place each unit's Parts. The engine places each complete
+unit once through its public mount. Dimensional-only `JournalFit`, `PinBoreFit`
+and `SpringStemFit` check actual component endpoints without adding another
+placement driver: 44 mm journals inside 44.4 mm rod bores, 16 mm pins inside
+16.4 mm bores, and 8 mm stems inside the WireForm-derived coil clear diameter.
+The engine origin retains the former first-main-journal anchor.
 
-`SpringOnStem` constrains the actual `AxisCoil` winding axis to the valve-stem axis, registers its seating frame, and checks the stem diameter against the coil's clear diameter. Firmament exposes `Winding.Axis`, `Winding.Frame` and `Winding.ClearDiameter` directly from the WireForm compiler; a wire's starting tangent is not its coil axis. `<variant>.spring-validation.json` sweeps all 16 springs for coaxiality and fixed-seat drift at 1° intervals. Spring display deformation follows this solved axis, even when it is tilted relative to the source-local Z axis.
+The spring's seating member is its real `Winding` endpoint. Firmament publishes
+`Winding.Axis`, `Winding.Frame` and `Winding.ClearDiameter` directly from WireForm
+AIR. Its starting tangent is not its coil axis. `<variant>.spring-validation.json`
+sweeps all 16 springs for coaxiality and fixed-seat drift at 1 degree intervals.
+Display deformation follows that compiler-derived axis, including a tilted axis.
 
-These interfaces qualify a rest configuration. They do not implement general dynamic mates or a constraint-based mechanism solver. The demo's typed author computes seat frames from mechanical dimensions, and the prescribed mechanism drives the subsequent motion.
+These relationships qualify a rest configuration. They do not implement general
+dynamic mates. The motion manifest binds the resulting compiler occurrence IDs
+and solved transforms, and the existing prescribed mechanism drives motion.
 
 `AssemblyDisplayMeshExporter.Export(AssemblyM1CompilationResult, DisplayTessellationOptions?)` emits `aetheris/assembly-display-mesh/1`: millimetre local meshes with positions, outward normals and triangle indices, shared definition IDs, and individually identified occurrences with world transforms and parent IDs. Matrices use the existing row-vector convention, with translation at indices 12–14. Three.js can consume the array directly because its column-major representation expresses the equivalent column-vector transform. Failed definitions, missing faces, invalid indices and unresolved transforms fail instead of being omitted.
 
 The CLI exposes the same exporter:
 
 ```powershell
-dotnet run --project Aetheris.CLI -c Release -- mesh artifacts/local/demos/editable-v8/baseline.firmament --format assembly-json --output artifacts/local/demos/editable-v8/cli.mesh.json --json
-dotnet run --project Aetheris.CLI -c Release -- asm inspect artifacts/local/demos/editable-v8/baseline.firmament --json
+dotnet run --project Aetheris.CLI -c Release -- mesh artifacts/local/demos/editable-v8/baseline/engine.firmasm --format assembly-json --output artifacts/local/demos/editable-v8/cli.mesh.json --json
+dotnet run --project Aetheris.CLI -c Release -- asm inspect artifacts/local/demos/editable-v8/baseline/engine.firmasm --json
 ```
 
 Use a packaged `aetheris` executable with the same arguments outside a checkout. `mesh --format assembly-json` accepts executable `.firmament` and `.firmasm` assemblies; it preserves definition sharing and assembly occurrence identity. STEP export remains on the existing `asm export-ap242` path; inspect its `--help` for options.
@@ -57,3 +101,24 @@ The V8 uses cross-plane crankpin phases 45°, 135°, 315°, 225°, banks at ±45
 Every baseline and revised cylinder is swept through 0–720° inclusive at 1° increments. Checks cover rod closure, piston-axis alignment, crank radius, ignition at TDC, parallel piston/head/valve clearance planes, a conservative rod envelope clipped against its sleeve, rod/case floor, swept crank-web envelope/floor, and axial rod/rod/web/support slabs. The report explicitly names this scope. It does not certify all-part interference, physical cam contact, spring stress, gas flow, combustion, torque, pressure or FEA. RPM controls visual playback only.
 
 Browser geometry for engine parts is exclusively exported Aetheris geometry. The floor, lighting and UI are presentation elements. No browser hand placement or independent engine primitive reconstruction is required when changing the specification.
+
+
+## Source and identity during the module migration
+
+The refactor intentionally introduces hierarchical occurrence paths such as
+`EditableV8.Cylinders.C1.Cylinder.Piston` and `EditableV8.Crankshaft.Crankpin1`. Motion binds
+these full paths, not the final path segment, so an Assembly and one of its Parts
+can share a descriptive name without ambiguity. Baseline and revised projects
+keep the same hierarchy and occurrence IDs. Old flat IDs are not retained as a
+second identity scheme.
+
+The Scene is a static rest-pose projection. Its placement does not add mechanical
+joints or carry the demo's runtime motion evaluator. For static interchange:
+
+```powershell
+dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll validate fixtures/Canonical/EditableV8/engine.firmasm --json
+
+dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll asm export-ap242 fixtures/Canonical/EditableV8/engine.firmasm --out artifacts/local/demos/editable-v8/engine.step --json
+
+dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll scene export-glb fixtures/Canonical/EditableV8/scene.firmament artifacts/local/demos/editable-v8/engine.glb --json
+```

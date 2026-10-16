@@ -249,7 +249,7 @@ public static class WireFormAuthoring
 
     internal static string? Property(string body, string name)
     {
-        var match = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>\[[^\]]+\]|[^;\r\n}}]+)", RegexOptions.CultureInvariant);
+        var match = Regex.Match(body, $@"\b(?:{Regex.Escape(name)}|{Regex.Escape(FirmamentSourceSpelling.PreferredField(name))})\s*:\s*(?<value>\[[^\]]+\]|[^;\r\n}}]+)", RegexOptions.CultureInvariant);
         return match.Success ? match.Groups["value"].Value.Trim() : null;
     }
     internal static bool TryLength(string? text, out double value)
@@ -484,6 +484,12 @@ public static class WireFormBRepMaterializer
 
 public static class WireFormReportFactory
 {
+    internal static FirmamentWireAxisDatum AxisDatum(WireAxisCoilAir coil, double wireDiameterMm) => new(
+        [coil.AxisOrigin.X, coil.AxisOrigin.Y, coil.AxisOrigin.Z],
+        [coil.Axis.X, coil.Axis.Y, coil.Axis.Z],
+        [coil.StartRadial.X, coil.StartRadial.Y, coil.StartRadial.Z],
+        2 * coil.RadiusMm - wireDiameterMm);
+
     public static FirmamentWireFormReport Create(WireFormBuildResult built, string stepSha256, bool reimportedManifold)
     {
         var feature = built.Feature;
@@ -527,11 +533,7 @@ public static class WireFormReportFactory
             operation is WireKnotPathAir knotRms ? knotRms.ApproximationError.RmsMm : null,
             operation is WireKnotPathAir knotT1 ? knotT1.Qualification.ClosestParameter1 : null,
             operation is WireKnotPathAir knotT2 ? knotT2.Qualification.ClosestParameter2 : null,
-            operation is WireAxisCoilAir datum ? new FirmamentWireAxisDatum(
-                [datum.AxisOrigin.X, datum.AxisOrigin.Y, datum.AxisOrigin.Z],
-                [datum.Axis.X, datum.Axis.Y, datum.Axis.Z],
-                [datum.StartRadial.X, datum.StartRadial.Y, datum.StartRadial.Z],
-                2 * datum.RadiusMm - feature.DiameterMm) : null)).ToArray();
+            operation is WireAxisCoilAir datum ? AxisDatum(datum, feature.DiameterMm) : null)).ToArray();
         return new(feature.Name, feature.DiameterMm, feature.Material.Identity.FirmamentPath, feature.Operations.Count,
             feature.Operations.Count(x => x is WireStraightAir), feature.Operations.Count(x => x is WireBendAir),
             feature.TotalStraightLengthMm, feature.TotalBendLengthMm, feature.TotalWireLengthMm, built.VolumeMm3, built.MassKilograms,

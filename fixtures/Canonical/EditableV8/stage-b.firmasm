@@ -1,0 +1,14 @@
+
+Inventory Record Units {
+  stageB: Subassembly = Firmament("assemblies/stage-b").StageB
+}
+
+// Product ownership is separate from the prescribed analytical motion.
+Assembly SliderCrankStageA {
+  <Assembly SliderCrankStageA>
+    <Assembly StageB = Units.stageB>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,35mm]; }
+    </Assembly>
+  </Assembly>
+  Anchor: SliderCrankStageA;
+}

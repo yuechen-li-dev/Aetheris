@@ -132,12 +132,22 @@ public sealed record ManufacturedEnclosureProduct(
 /// </summary>
 public static class EnclosureProductFamilies
 {
+    /// <summary>Prepare this domain's existing library schemas, then use ordinary Assembly M1.</summary>
+    public static AssemblyM1CompilationResult CompileAssemblyFile(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        if (!File.Exists(fullPath)) return new(null,null,[new AssemblyDiagnostic("assembly-include-file-not-found", $"Module '{fullPath}' was not found.")]);
+        var source = SheetMetalFirmament.ResolveImports(File.ReadAllText(fullPath));
+        return new AssemblyM1Pipeline().Compile(source,fullPath,MaterializeAssemblyPart);
+    }
+
     public static ManufacturedEnclosureProduct MakeEnclosureProduct(EnclosureProductSpec spec, string instanceName = "EnclosureProduct")
         => Compile(BuildSource(spec, instanceName), spec, "product:" + instanceName);
 
     public static ManufacturedEnclosureProduct Compile(string source, EnclosureProductSpec spec, string sourceIdentity = "<enclosure-product>")
     {
         Validate(spec);
+        source = SheetMetalFirmament.ResolveImports(source);
         var parts = new Dictionary<string, ManufacturedSheetMetalResult>(StringComparer.Ordinal);
         AssemblyPartMaterialization? Materialize(string identity, string? declarations, string identitySource, IList<AssemblyDiagnostic> diagnostics)
         {
@@ -218,7 +228,7 @@ public static class EnclosureProductFamilies
             "Product.Closure", $"Required lid/body overlap is {spec.LidOverlap:G4} mm.", spec.LidOverlap, double.Epsilon));
         var interference = assembly.Diagnostics.Any(item => item.Code == "assembly-solid-volume-interference");
         findings.Add(new(ProductDfmFindingKind.Assembly, "assembly-dfm-solid-interference", interference ? SheetMetalDfmStatus.Fail : SheetMetalDfmStatus.Pass,
-            "Product.Body↔Product.Lid", interference ? "Exact BRep evidence found positive-volume penetration." : "Exact BRep evidence found no unintended positive-volume penetration."));
+            "Product.Bodyâ†”Product.Lid", interference ? "Exact BRep evidence found positive-volume penetration." : "Exact BRep evidence found no unintended positive-volume penetration."));
         var bodyHole = bodyInstance.SemanticRoot.ExposedMembers["Attachments"].ExposedMembers["HoleA"];
         var lidHole = lidInstance.SemanticRoot.ExposedMembers["Attachments"].ExposedMembers["HoleA"];
         var bodyPoint = (ExactPointBinding)AssemblyWorldQuery.Resolve(assembly.Ir, bodyHole.StableIdentity);
@@ -238,7 +248,7 @@ public static class EnclosureProductFamilies
             .Select(item => new FitToleranceContribution(item.Source, item.SemanticPath, item.WorstCaseClearanceReductionMm)).ToArray();
         var frameSolutions = (assembly.Ir?.DatumMateSolutions ?? []).Concat((assembly.Ir?.AssemblyDefinitions ?? []).SelectMany(definition => definition.LocalDatumMateSolutions ?? [])).ToArray();
         var frameContact = frameSolutions.Length > 0 && frameSolutions.All(item => item.Status == "resolved" && item.ConstrainedDegreesOfFreedom == 6);
-        return new("Product.Closure.Body.LidSeat↔Product.Closure.Lid.BodySeat", fit.NominalClearance, fit.WorstCaseMinimum, fit.WorstCaseMaximum,
+        return new("Product.Closure.Body.LidSeatâ†”Product.Closure.Lid.BodySeat", fit.NominalClearance, fit.WorstCaseMinimum, fit.WorstCaseMaximum,
             fit.MaximumPenetration, 0, null,
             frameContact ? "Intended seating relation certified by coincident semantic DatumFrames; contact area is not certified." : "No certified seating-contact witness.",
             "Nominal positive-volume overlap is checked by BrepSolidInterference. Tolerance penetration is an analytic conservative bound; no arbitrary-BRep Boolean volume is claimed.",

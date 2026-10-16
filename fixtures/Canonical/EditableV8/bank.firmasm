@@ -1,0 +1,43 @@
+include "cylinder-config";
+include "bank-rest-configurations";
+include "interfaces";
+include "design";
+
+Inventory Record Units {
+  cylinder: Subassembly = Firmament("assemblies/cylinder").CylinderUnit
+  crankshaft: Subassembly = Firmament("assemblies/crankshaft").Crankshaft
+  crankcase: Subassembly = Firmament("assemblies/crankcase").Crankcase
+  camRight: Subassembly = Firmament("assemblies/cam-right").CamRight
+  camLeft: Subassembly = Firmament("assemblies/cam-left").CamLeft
+}
+
+Concept Struct EngineLayout {
+  Axis Shaft { origin: [0mm,0mm,d.cylinderSpacing / 2]; direction: [0,0,1]; reference: [1,0,0]; }
+  Axis RightCam { origin: [0.7071067811865475 * d.camHeight,0.7071067811865476 * d.camHeight,2 * d.cylinderSpacing]; direction: [0,0,1]; reference: [1,0,0]; }
+  Axis LeftCam { origin: [-0.7071067811865475 * d.camHeight,0.7071067811865476 * d.camHeight,2 * d.cylinderSpacing]; direction: [0,0,1]; reference: [1,0,0]; }
+}
+// Product ownership is separate from the prescribed analytical motion.
+Assembly EditableV8 {
+  <Assembly EditableV8>
+    Pattern Cylinders over cylinderConfigs {
+      config => {
+        <Assembly Cylinder = Units.cylinder<config: config>></Assembly>
+        Concept Struct Installation {
+          Axis Mount { origin: [0mm,0mm,config.z]; direction: [0,0,1]; reference: [config.bankCos,-config.bankSin,0]; }
+        }
+        Interface<Fixed> CylinderSeat { datum: Installation.Mount; members: [Cylinder.Mount]; }
+        Mate Install: CylinderSeat { member: Cylinder.Mount; at: 0mm; clocking: 0deg; }
+        Mate RodJournal: JournalFit { Journal: config.journal; Bore: Cylinder.RodBore; }
+      }
+    }
+    <Assembly Crankshaft = Units.crankshaft></Assembly>
+    <Assembly Crankcase = Units.crankcase></Assembly>
+    <Assembly CamRight = Units.camRight></Assembly>
+  </Assembly>
+  Interface<Fixed> ShaftLayout { datum: EngineLayout.Shaft; members: [EditableV8.Crankshaft.Mount, EditableV8.Crankcase.Mount]; }
+  Mate InstallCrankshaft: ShaftLayout { member: EditableV8.Crankshaft.Mount; at: 0mm; clocking: 0deg; }
+  Mate InstallCrankcase: ShaftLayout { member: EditableV8.Crankcase.Mount; at: 0mm; clocking: 0deg; }
+  Interface<Fixed> RightCamLayout { datum: EngineLayout.RightCam; members: [EditableV8.CamRight.Mount]; }
+  Mate InstallRightCam: RightCamLayout { member: EditableV8.CamRight.Mount; at: 0mm; clocking: 0deg; }
+  anchor: EditableV8;
+}

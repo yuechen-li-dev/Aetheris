@@ -20,6 +20,7 @@ public enum BinaryOperator { Pipeline, Direction, Or, And, Equal, NotEqual, Less
 [JsonDerivedType(typeof(ExpressionStatementSyntax), "expressionStatement")]
 [JsonDerivedType(typeof(ReturnSyntax), "return")]
 [JsonDerivedType(typeof(MappingSyntax), "mapping")]
+[JsonDerivedType(typeof(StatementBlockSyntax), "statementBlock")]
 [JsonDerivedType(typeof(RoleRequirementSyntax), "roleRequirement")]
 [JsonDerivedType(typeof(InterfaceRelationSyntax), "interfaceRelation")]
 [JsonDerivedType(typeof(InterfaceFitSyntax), "interfaceFit")]
@@ -56,6 +57,7 @@ public sealed record FieldSyntax(IdentifierSyntax Name, ExpressionSyntax Value, 
 public sealed record DirectiveSyntax(DirectiveKind Kind, ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
 public sealed record ExpressionStatementSyntax(ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
 public sealed record ReturnSyntax(ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+public sealed record StatementBlockSyntax(BlockSyntax Body, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
 public sealed record MappingSyntax(IdentifierSyntax Key, StatementSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
 public sealed record RoleRequirementSyntax(IdentifierSyntax Name, IReadOnlyList<IdentifierSyntax> Capabilities, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
 public sealed record InterfaceRelationSyntax(IdentifierSyntax Kind, ExpressionSyntax First, ExpressionSyntax Second,

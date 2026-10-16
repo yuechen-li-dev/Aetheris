@@ -1,0 +1,10 @@
+include "../design";
+include "../construction";
+
+Struct CylinderHead {
+  Struct Stock = TwoBoreStock<w: d.headWidth, h: 70mm, c: 0mm, zmin: -5mm, zmax: 5mm, holeY0: -20mm, holeD0: 8.4mm, holeY1: 20mm, holeD1: 8.4mm>
+
+  Expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+
+
+}

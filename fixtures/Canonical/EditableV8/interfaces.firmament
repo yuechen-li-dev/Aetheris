@@ -1,0 +1,26 @@
+// Specialist fit contracts retained from the qualified rest assembly.
+// Ordinary rigid layout uses Placement; these relationships prove bore fits.
+Interface JournalBoreSeat {
+  Role Moving requires DatumFrameCapable, DimensionalCapable;
+  Role Fixed requires DatumFrameCapable, DimensionalCapable;
+  Lower FrameCoincident Moving Fixed SameDirection;
+  Fit Fixed.Diameter inside Moving.Diameter;
+}
+Interface WristPinSeat {
+  Role Moving requires DatumFrameCapable, DimensionalCapable;
+  Role Fixed requires DatumFrameCapable, DimensionalCapable;
+  Lower FrameCoincident Moving Fixed SameDirection;
+  Fit Moving.Diameter inside Fixed.Diameter;
+}
+Interface SpringOnStem {
+  Role Spring requires AxisCapable, DatumFrameCapable, DimensionalCapable;
+  Role Stem requires AxisCapable, DatumFrameCapable, DimensionalCapable;
+  Lower AxisCoincident Spring.Axis Stem.Axis;
+  Lower FrameCoincident Spring.Frame Stem.Frame SameDirection;
+  Fit Stem.Diameter inside Spring.ClearDiameter;
+}
+
+// Dimensional admission only: Concept-directed seating remains the sole placement authority.
+Interface JournalFit { Role Journal requires DimensionalCapable; Role Bore requires DimensionalCapable; Fit Journal.Diameter inside Bore.Diameter; }
+Interface PinBoreFit { Role Pin requires DimensionalCapable; Role Bore requires DimensionalCapable; Fit Pin.Diameter inside Bore.Diameter; }
+Interface SpringStemFit { Role Spring requires DimensionalCapable; Role Stem requires DimensionalCapable; Fit Stem.Diameter inside Spring.ClearDiameter; }

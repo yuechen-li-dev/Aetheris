@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Semantics;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
 
@@ -213,10 +214,10 @@ internal static class AssemblyDatumAuthoring
                 if (!contract.Members.Contains(member, StringComparer.Ordinal))
                     diagnostics.Add(new("assembly-datum-member-outside-contract", $"'{member}' is not a member of '{definition!.Name}'."));
                 var axisParts = member.Split('.');
-                var child = axisParts.Length == 3 && axisParts[0] == root.Name ? root.Children.FirstOrDefault(c => c.Name == axisParts[1]) : null;
+                var child = EndpointOwner(root, axisParts);
                 if (child is null)
-                { diagnostics.Add(new("assembly-datum-member-scope", "Axis seating requires a direct occurrence's published semantic port.")); continue; }
-                var port = child.ExposedSemantics.FirstOrDefault(p => p.ExposedName == axisParts[2]);
+                { diagnostics.Add(new("assembly-datum-member-scope", "Axis seating requires a visible occurrence's published semantic port.")); continue; }
+                var port = child.ExposedSemantics.FirstOrDefault(p => p.ExposedName == axisParts[^1]);
                 if (!ValidAxisPort(port))
                 { diagnostics.Add(new("assembly-axis-port-invalid", $"'{member}' requires an exact Axis and an aligned seating Frame with origin on the axis.")); continue; }
                 if (!Regex.IsMatch(fields, @"\bAt\s*:")) diagnostics.Add(new("assembly-axis-station-missing", "Axis seating requires At in mm."));
@@ -234,9 +235,9 @@ internal static class AssemblyDatumAuthoring
                 var name = resolvedAxis.Transform.Name + "__" + header.Groups["name"].Value;
                 usedFrames[name] = new(name, "World", [axisTarget[12],axisTarget[13],axisTarget[14]], "Z", 0,
                     [sign*axisTarget[8],sign*axisTarget[9],sign*axisTarget[10]], [sign*axisTarget[4],sign*axisTarget[5],sign*axisTarget[6]], axis.Transform.SourceSpan);
-                var placement = new AssemblyFramePlacementSource(axisParts[2] + ".Frame", new(name, name + ".Frame", [0,0,0], "Z", 0), definition!.Family, header.Groups["name"].Value,
+                var placement = new AssemblyFramePlacementSource(axisParts[^1] + ".Frame", new(name, name + ".Frame", [0,0,0], "Z", 0), definition!.Family, header.Groups["name"].Value,
                     new(definition.Name, contract.Datum, member, station, clocking, Enum.TryParse<DatumOrientationRelation>(axisOrientation, out var relation) ? relation : DatumOrientationRelation.SameDirection));
-                var axisOccurrence = root.Name + "." + child.Name;
+                var axisOccurrence = string.Join(".", axisParts[..^1]);
                 if (seats.ContainsKey(axisOccurrence) || !axisSeats.TryAdd(axisOccurrence, (member, definition.Name, contract.Datum, placement)))
                     diagnostics.Add(new("assembly-placement-authority-conflict", $"'{axisOccurrence}' has multiple datum Mates."));
                 continue;
@@ -274,9 +275,9 @@ internal static class AssemblyDatumAuthoring
             }
             targetSpec = targetSpec with { Name = targetSpec.Name + "__" + header.Groups["name"].Value };
             usedFrames[targetSpec.Name] = targetSpec;
-            var seat = new AssemblyDatumSeat(header.Groups["type"].Value, contract.Datum, parts[2] + ".Frame",
+            var seat = new AssemblyDatumSeat(header.Groups["type"].Value, contract.Datum, parts[^1] + ".Frame",
                 datum.Transform.Translation.ToArray(), datum.Transform.Normal!.ToArray(), support);
-            if (axisSeats.ContainsKey(occurrence) || !seats.TryAdd(occurrence, (seat, new(parts[2] + ".Frame", new(header.Groups["name"].Value,
+            if (axisSeats.ContainsKey(occurrence) || !seats.TryAdd(occurrence, (seat, new(parts[^1] + ".Frame", new(header.Groups["name"].Value,
                 targetSpec.Name + ".Frame", [0,0,0], "Z", 0)))))
                 diagnostics.Add(new("assembly-placement-authority-conflict", $"'{occurrence}' has multiple datum-directed Mates."));
         }
@@ -286,9 +287,10 @@ internal static class AssemblyDatumAuthoring
             if (!seats.Any(p => p.Value.Seat.Interface == definition.Name && p.Key + "." + p.Value.Seat.Port[..^6] == member)
                 && !axisSeats.Any(p => p.Value.Interface == definition.Name && p.Value.Member == member))
                 diagnostics.Add(new("assembly-datum-member-unseated", $"Contract member '{member}' requires one datum Mate."));
-        var children = root.Children.Select(child =>
+        AssemblyMemberSource Apply(AssemblyMemberSource child, string path)
         {
-            if (axisSeats.TryGetValue(root.Name + "." + child.Name, out var axisSeating))
+            child = child with { Children = child.Children.Select(c => Apply(c, path + "." + c.Name)).ToArray() };
+            if (axisSeats.TryGetValue(path, out var axisSeating))
             {
                 if (child.FramePlacement is not null || child.ExplicitTransform is not null)
                     diagnostics.Add(new("assembly-placement-authority-conflict", $"'{root.Name}.{child.Name}' has authored Placement and axis Mate."));
@@ -296,27 +298,27 @@ internal static class AssemblyDatumAuthoring
                     Provenance = [.. child.Provenance ?? [], new("concept-axis-seating", axisSeating.Datum, axisSeating.Interface),
                         new("concept-axis-member", axisSeating.Member, axisSeating.Placement.MateName!)] };
             }
-            if (!seats.TryGetValue(root.Name + "." + child.Name, out var seating)) return child;
+            if (!seats.TryGetValue(path, out var seating)) return child;
             if (child.FramePlacement is not null || child.ExplicitTransform is not null)
                 diagnostics.Add(new("assembly-placement-authority-conflict", $"'{root.Name}.{child.Name}' has authored Placement and datum Mate."));
             return child with { FramePlacement = seating.Placement, DatumSeat = seating.Seat,
                 PlacementAuthority = PlacementAuthority.AuthoredFrame,
                 Provenance = [.. child.Provenance ?? [], new("concept-datum-seating", seating.Seat.Datum, seating.Seat.Interface),
                     new("concept-datum-derivation", layout.First(d => d.Identity == seating.Seat.Datum).Transform.From, seating.Seat.Datum)] };
-        }).ToArray();
+        }
         frames = usedFrames.Values.ToArray();
-        return root with { Children = children };
+        return Apply(root, root.Name);
     }
 
     internal static IReadOnlyList<AssemblyAxisSeatEvidence> ValidateAxisSeats(AssemblySource source, AssemblyIr ir,
         List<AssemblyDiagnostic> diagnostics)
     {
         var result = new List<AssemblyAxisSeatEvidence>();
-        foreach (var child in source.Root.Children.Where(c => c.FramePlacement?.AxisSeat is not null))
+        foreach (var (child,path) in Walk(source.Root, source.Root.Name).Where(p => p.Member.FramePlacement?.AxisSeat is not null))
         {
             var placement = child.FramePlacement!;
             var seat = placement.AxisSeat!;
-            var instance = ir.Instances.Single(i => i.Path.ToString() == source.Root.Name + "." + child.Name);
+            var instance = ir.Instances.Single(i => i.Path.ToString() == path);
             var joint = ir.Joints?.SingleOrDefault(j => j.Name == placement.MateName);
             if (joint is null || instance.ResolvedTransform is null) continue; // Existing placement diagnostics own unresolved input.
             if (!AssemblyM0Compiler.TryResolve(AssemblyPath.Parse(seat.Member + ".Axis"), ir.Instances, out var axisReference)) continue;
@@ -339,6 +341,27 @@ internal static class AssemblyDatumAuthoring
         return result;
     }
 
+    private static AssemblyMemberSource? EndpointOwner(AssemblyMemberSource root, string[] path)
+    {
+        if (path.Length < 3 || path[0] != root.Name) return null;
+        var owner = root;
+        foreach (var name in path.Skip(1).SkipLast(1))
+        {
+            if (owner != root && owner.IsEncapsulatedDefinition) return null;
+            var next = owner.Children.FirstOrDefault(c => c.Name == name);
+            if (next is null) return null;
+            owner = next;
+        }
+        return owner;
+    }
+    private static IEnumerable<(AssemblyMemberSource Member, string Path)> Walk(AssemblyMemberSource member, string path)
+    {
+        yield return (member,path);
+        if (member.IsEncapsulatedDefinition) yield break;
+        foreach (var child in member.Children)
+            foreach (var descendant in Walk(child, path + "." + child.Name)) yield return descendant;
+    }
+
     private static bool ValidAxisPort(SemanticValue? port)
     {
         if (port is null || !port.ExposedMembers.TryGetValue("Axis", out var a) || !a.TryBinding<ExactAxisBinding>(out var axis)
@@ -359,12 +382,13 @@ internal static class AssemblyDatumAuthoring
 
     private static double Measure(string fields, string name, string unit, List<AssemblyDiagnostic> diagnostics)
     {
-        var matches = Regex.Matches(fields, $@"\b{name}\s*:\s*(?<v>[-+0-9.eE]+){unit}\s*;?");
-        if (!Regex.IsMatch(fields, $@"\b{name}\s*:")) return 0;
-        if (matches.Count != 1 || Regex.Matches(fields, $@"\b{name}\s*:").Count != 1
-            || !double.TryParse(matches[0].Groups["v"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result) || !double.IsFinite(result))
+        var parsed = FirmamentSyntaxParser.Parse(fields);
+        var operands = parsed.Document.Statements.OfType<FieldSyntax>().Where(f => f.Name.Text == name).ToArray();
+        if (operands.Length == 0) return 0;
+        if (operands.Length != 1 || !FirmamentNumericEvaluation.TryEvaluate(operands[0].Value, out var result)
+            || result.Unit != unit || !double.IsFinite(result.Number))
         { diagnostics.Add(new("assembly-datum-measure-invalid", $"'{name}' requires one finite value in {unit}.")); return 0; }
-        return result;
+        return result.Number;
     }
 
     private static string Field(string fields, string name, List<AssemblyDiagnostic> diagnostics)
@@ -395,18 +419,18 @@ internal static class AssemblyDatumAuthoring
         if (parts.Length != count) { diagnostics.Add(new("assembly-datum-vector-invalid", $"'{name}' requires {count} components.")); return values; }
         for (var i = 0; i < count; i++)
         {
-            var text = parts[i];
-            if (length && text.EndsWith("mm", StringComparison.Ordinal)) text = text[..^2];
-            else if (length) diagnostics.Add(new("assembly-datum-unit-invalid", $"'{name}' requires mm lengths."));
-            if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out values[i]) || !double.IsFinite(values[i]))
-                diagnostics.Add(new("assembly-datum-vector-invalid", $"'{name}' requires finite components."));
+            if (!FirmamentNumericEvaluation.TryEvaluateScalar(parts[i], out values[i], out var unit)
+                || unit != (length ? "mm" : "") || !double.IsFinite(values[i]))
+                diagnostics.Add(new(length ? "assembly-datum-unit-invalid" : "assembly-datum-vector-invalid",
+                    $"'{name}' requires finite {(length ? "mm length" : "dimensionless")} components."));
         }
         return values;
     }
 
     private static void CheckFields(string fields, string[] names, List<AssemblyDiagnostic> diagnostics)
     {
-        var remaining = Regex.Replace(fields, $@"\b(?:{string.Join('|', names)})\s*:\s*(?:\[[^]]*\]|[-+0-9.eE]+(?:mm|deg)|[A-Za-z_]\w*(?:\.\w+)*)\s*;?", "");
-        if (!string.IsNullOrWhiteSpace(remaining.Replace(";", ""))) diagnostics.Add(new("assembly-datum-fields-invalid", $"Unknown or malformed datum fields: {remaining.Trim()}"));
+        var parsed = FirmamentSyntaxParser.Parse(fields);
+        if (!parsed.IsSuccess || parsed.Document.Statements.Any(s => s is not FieldSyntax f || !names.Contains(f.Name.Text)))
+            diagnostics.Add(new("assembly-datum-fields-invalid", "Unknown or malformed datum fields; expected " + string.Join(", ", names) + "."));
     }
 }

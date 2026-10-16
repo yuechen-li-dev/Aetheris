@@ -216,12 +216,26 @@ internal static class FirmamentV2TemplateExpansion
                 }
                 var recordFields = pair.Value.RecordFields.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
                 ValidateSyntheticRecord(recordName, recordDefinition, recordFields, string.Empty);
-                staticRecords[recordName] = new TemplateStaticRecordIr(
-                    recordName,
-                    recordType,
-                    recordFields.ToImmutableDictionary(StringComparer.Ordinal),
-                    new FirmamentV2SourceSpan(source.Length, 0),
-                    "ForgeHostRecord");
+                // Reify the checked host view as ordinary nested Records. Whole
+                // nested values can then forward through the same Template binder;
+                // a flattened type marker is never mistaken for a Static name.
+                void AddRecord(string name, TemplateRecordTypeIr schema, string prefix)
+                {
+                    var fields = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.Ordinal);
+                    foreach (var field in schema.Fields)
+                    {
+                        var path = prefix + field.Key;
+                        if (!recordFields.TryGetValue(path, out var value)) continue;
+                        if (recordTypes.TryGetValue(field.Value, out var nested))
+                        {
+                            value = name + "_" + field.Key;
+                            AddRecord(value, nested, path + ".");
+                        }
+                        fields[field.Key] = value;
+                    }
+                    staticRecords[name] = new(name, schema.Name, fields.ToImmutable(), new(source.Length, 0), "HostRecord");
+                }
+                if (!HasErrors(diagnostics)) AddRecord(recordName, recordDefinition, "");
                 expression = recordName;
             }
             arguments.Add(new TemplateArgumentIr(pair.Key, expression, new FirmamentV2SourceSpan(source.Length, 0)));
@@ -560,14 +574,42 @@ internal static class FirmamentV2TemplateExpansion
         return result.ToImmutable();
     }
 
+    internal static IReadOnlyDictionary<string, string>? BindRecordExpression(string source, string type,
+        string expression, string name, List<string> diagnostics, bool hostView = false)
+    {
+        // The synthetic declaration is a transport into the existing Record owner,
+        // not a second schema or expression evaluator. Authored environments remain lexical.
+        var before = diagnostics.Count;
+        var input = source + "\nStatic " + name + ": " + type + " = " + expression + ";";
+        var scalars = new FirmamentCompileTimeValues(input);
+        var catalog = ReadDataCatalog(input, diagnostics, scalars, initialize: true);
+        if (diagnostics.Count > before) return null;
+        if (!catalog.Records.TryGetValue(name, out var record))
+        { diagnostics.Add(UnknownStaticRecord + ":" + name + ":" + type); return null; }
+        if (!scalars.TryRecordTransfer(name, type, name, record.SourceSpan, diagnostics, out var fields)) return null;
+        if (!hostView) return fields;
+        var transported = fields.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+        foreach (var field in fields)
+            if (catalog.Records.TryGetValue(field.Value, out var nested)) transported[field.Key] = nested.TypeName;
+        return transported;
+    }
+
     private static IReadOnlyDictionary<string, ImmutableHashSet<string>> ParseEnums(string source) => Regex.Matches(source, @"\bEnum\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{(?<body>.*?)\}", RegexOptions.Singleline | RegexOptions.CultureInvariant).Cast<Match>().ToDictionary(
         m => m.Groups["name"].Value,
         m => Regex.Matches(m.Groups["body"].Value, @"[A-Za-z_][A-Za-z0-9_]*", RegexOptions.CultureInvariant).Select(v => v.Value).ToImmutableHashSet(StringComparer.Ordinal), StringComparer.Ordinal);
+    private static bool MatchesCoordinates(string value, string type)
+    {
+        if (FirmamentSyntaxParser.ParseExpression(value).Expression is not CallSyntax { Target: ReferenceSyntax target } call
+            || target.Name.Text != type || call.Arguments.Count != (type == "Point3" ? 3 : 2)) return false;
+        return call.Arguments.All(a => a.Name is null && FirmamentNumericEvaluation.TryEvaluate(a.Value, out var coordinate)
+            && coordinate.Unit == (type == "Vector2" ? "" : "mm") && double.IsFinite(coordinate.Number));
+    }
+
     private static bool TypeMatches(string value, string type, IReadOnlyDictionary<string, ImmutableHashSet<string>> enums,
         IReadOnlyDictionary<string, TemplateRecordTypeIr>? recordTypes = null, IReadOnlyDictionary<string, TemplateStaticRecordIr>? staticRecords = null,
         FirmamentCompileTimeValues? scalars = null) => scalars?.Contains(value) == true ? scalars.HasType(value, type) : type switch
     {
-        "Point3" => Regex.IsMatch(value, @"^Point3\(\s*[-+]?\d+(?:\.\d+)?mm\s*,\s*[-+]?\d+(?:\.\d+)?mm\s*,\s*[-+]?\d+(?:\.\d+)?mm\s*\)$"),
+        "Point2" or "Point3" or "Vector2" => MatchesCoordinates(value, type),
         "Length" => Regex.IsMatch(value, @"^[-+]?[0-9]+(?:\.[0-9]+)?mm$", RegexOptions.CultureInvariant),
         "Angle" => Regex.IsMatch(value, @"^[-+]?[0-9]+(?:\.[0-9]+)?deg$", RegexOptions.CultureInvariant),
         "String" => Regex.IsMatch(value, "^\"[^\"]*\"$", RegexOptions.CultureInvariant),

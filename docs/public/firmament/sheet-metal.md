@@ -41,3 +41,14 @@ Flat inspection distinguishes `MaterialArea` from `BoundingArea`. `MaterialArea`
 Sheet Metal holes use `Hole Mount { On: Base; Center: (40mm, 20mm); Diameter: 8mm; }`. Model-domain `Hole<Shaft>` is deliberately rejected here with `sheetmetal-hole-domain-syntax`. `On` targets a named planar semantic region (`Base`, a named flange, or a verified exposed region/path), not `face(+Z)`. Manufacturing PMI likewise uses `DatumFeature A { Target: Base; }` inside `Pmi`, together with a named `Manufacturing` block; Model-domain `Datum`/`face(-Z)` syntax is rejected with `sheetmetal-pmi-domain-syntax`.
 
 The JSON `part.features` count is the number of lowered cuts/openings in `SheetMetalPartIr`; bends are reported separately as `part.bends`. Authoring and imported reconstruction are separate workflows. Commands such as `sheetmetal recognize`, `recover-flat`, and `recover` operate on imported STEP and may be partial; they do not turn arbitrary geometry into authoritative authored intent.
+
+
+### Domain schemas before assembly binding
+
+`Use SheetMetal.ProductFamilies` supplies the family's Record schemas as well as
+its Templates. `EnclosureProductFamilies.Compile` and `SheetMetalFirmament.Compile`
+resolve those imports through the same owner before shared value admission. API
+clients using the low-level Assembly parser directly can call
+`SheetMetalFirmament.ResolveImports(source)` first; the Core parser does not
+invent or duplicate SheetMetal schemas. This preparation does not materialize
+geometry or grant build success.

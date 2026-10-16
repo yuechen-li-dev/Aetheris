@@ -323,9 +323,22 @@ internal static partial class AssemblyDefinitionMaterializer
     private static IEnumerable<SemanticValue> WindingSemantics(FirmamentWireFormReport? wire,
         IReadOnlyList<SemanticProvenance> provenance, string sourceIdentity)
     {
-        foreach (var operation in wire?.Operations ?? [])
+        return WindingSemantics((wire?.Operations ?? []).Where(o => o.AxisDatum is not null)
+            .Select(o => (o.Name, o.StableId, o.AxisDatum!)), provenance, sourceIdentity);
+    }
+
+    internal static IEnumerable<SemanticValue> WindingSemantics(Materializer.WireFormFeatureAir wire,
+        IReadOnlyList<SemanticProvenance> provenance, string sourceIdentity) => WindingSemantics(
+            wire.Operations.OfType<Materializer.WireAxisCoilAir>().Select(o => (o.Name, o.StableId(wire.Name),
+                Materializer.WireFormReportFactory.AxisDatum(o, wire.DiameterMm))), provenance, sourceIdentity);
+
+    private static IEnumerable<SemanticValue> WindingSemantics(
+        IEnumerable<(string Name, string StableId, FirmamentWireAxisDatum AxisDatum)> operations,
+        IReadOnlyList<SemanticProvenance> provenance, string sourceIdentity)
+    {
+        foreach (var operation in operations)
         {
-            if (operation.AxisDatum is not { } datum) continue;
+            var datum = operation.AxisDatum;
             var id = operation.StableId + ":winding-datum";
             var o = datum.Origin; var x = datum.Radial; var z = datum.Direction;
             var y = new Vector3D(z[0], z[1], z[2]).Cross(new(x[0], x[1], x[2]));

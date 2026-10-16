@@ -1,0 +1,11 @@
+// Indexed scalar rest data; no Part transforms.
+Static restC1: CylinderRest = standardRest with { rodX: 0mm; rodY: 44.000000000000007mm; rodSin: 0; rodCos: 1.0000000000000002; pistonY: 189.00000000000003mm; intakeLift: 0mm; exhaustLift: 0mm; intakePitch: 6mm; exhaustPitch: 6mm }
+Static restC3: CylinderRest = standardRest with { rodX: 44mm; rodY: 0.0000000000000035527136788005009mm; rodSin: -0.30344827586206879; rodCos: 0.95284791224850662; pistonY: 138.16294727603349mm; intakeLift: 9mm; exhaustLift: 0mm; intakePitch: 4.5mm; exhaustPitch: 6mm }
+Static restC5: CylinderRest = standardRest with { rodX: -44mm; rodY: -0.000000000000010658141036401503mm; rodSin: 0.30344827586206874; rodCos: 0.95284791224850673; pistonY: 138.16294727603349mm; intakeLift: 0mm; exhaustLift: 0mm; intakePitch: 6mm; exhaustPitch: 6mm }
+Static restC7: CylinderRest = standardRest with { rodX: 0.0000000000000071054273576010019mm; rodY: -44.000000000000007mm; rodSin: 0; rodCos: 1.0000000000000002; pistonY: 101.00000000000003mm; intakeLift: 0mm; exhaustLift: 0mm; intakePitch: 6mm; exhaustPitch: 6mm }
+Static cylinderConfigs: Set<CylinderConfig> {
+  C1 => standardCylinder with { bankSin: 0.70710678118654757; bankCos: 0.70710678118654757; z: 63mm; journal: EditableV8.Crankshaft.Pin1; rest: restC1 }
+  C3 => standardCylinder with { bankSin: 0.70710678118654757; bankCos: 0.70710678118654757; z: 173mm; journal: EditableV8.Crankshaft.Pin2; rest: restC3 }
+  C5 => standardCylinder with { bankSin: 0.70710678118654757; bankCos: 0.70710678118654757; z: 283mm; journal: EditableV8.Crankshaft.Pin3; rest: restC5 }
+  C7 => standardCylinder with { bankSin: 0.70710678118654757; bankCos: 0.70710678118654757; z: 393mm; journal: EditableV8.Crankshaft.Pin4; rest: restC7 }
+}

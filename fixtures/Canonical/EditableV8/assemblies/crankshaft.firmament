@@ -1,0 +1,77 @@
+include "../interfaces";
+include "../design";
+
+Inventory Record Parts {
+  pairedCrankpin: Part = Firmament("../parts/PairedCrankpin").PairedCrankpin
+  crankWeb: Part = Firmament("../parts/CrankWeb").CrankWeb
+  longMainJournal: Part = Firmament("../parts/LongMainJournal").LongMainJournal
+  flywheel: Part = Firmament("../parts/Flywheel").Flywheel
+}
+
+// Local coordinates belong to this reusable unit; the engine places it once.
+Subassembly Crankshaft {
+  <Assembly Crankshaft>
+    <Part Crankpin1 = Parts.pairedCrankpin>
+      Placement { from: Origin; to: World; translateLocal: [0.7071067811865476 * d.crankRadius,0.7071067811865476 * d.crankRadius,0 * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part CrankWeb1A = Parts.crankWeb>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,0 * d.cylinderSpacing - 22mm]; normal: [0,0,1]; up: [0.7071067811865476,0.7071067811865476,0]; }
+    </Part>
+    <Part CrankWeb1B = Parts.crankWeb>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,0 * d.cylinderSpacing + 22mm]; normal: [0,0,1]; up: [0.7071067811865476,0.7071067811865476,0]; }
+    </Part>
+    <Part Crankpin2 = Parts.pairedCrankpin>
+      Placement { from: Origin; to: World; translateLocal: [0.7071067811865476 * d.crankRadius,-0.7071067811865475 * d.crankRadius,1 * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part CrankWeb2A = Parts.crankWeb>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,1 * d.cylinderSpacing - 22mm]; normal: [0,0,1]; up: [0.7071067811865476,-0.7071067811865475,0]; }
+    </Part>
+    <Part CrankWeb2B = Parts.crankWeb>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,1 * d.cylinderSpacing + 22mm]; normal: [0,0,1]; up: [0.7071067811865476,-0.7071067811865475,0]; }
+    </Part>
+    <Part Crankpin3 = Parts.pairedCrankpin>
+      Placement { from: Origin; to: World; translateLocal: [-0.7071067811865477 * d.crankRadius,0.7071067811865474 * d.crankRadius,2 * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part CrankWeb3A = Parts.crankWeb>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,2 * d.cylinderSpacing - 22mm]; normal: [0,0,1]; up: [-0.7071067811865477,0.7071067811865474,0]; }
+    </Part>
+    <Part CrankWeb3B = Parts.crankWeb>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,2 * d.cylinderSpacing + 22mm]; normal: [0,0,1]; up: [-0.7071067811865477,0.7071067811865474,0]; }
+    </Part>
+    <Part Crankpin4 = Parts.pairedCrankpin>
+      Placement { from: Origin; to: World; translateLocal: [-0.7071067811865475 * d.crankRadius,-0.7071067811865477 * d.crankRadius,3 * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part CrankWeb4A = Parts.crankWeb>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,3 * d.cylinderSpacing - 22mm]; normal: [0,0,1]; up: [-0.7071067811865475,-0.7071067811865477,0]; }
+    </Part>
+    <Part CrankWeb4B = Parts.crankWeb>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,3 * d.cylinderSpacing + 22mm]; normal: [0,0,1]; up: [-0.7071067811865475,-0.7071067811865477,0]; }
+    </Part>
+    <Part MainJournal1 = Parts.longMainJournal>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(0 - 0.5) * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part MainJournal2 = Parts.longMainJournal>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(1 - 0.5) * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part MainJournal3 = Parts.longMainJournal>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(2 - 0.5) * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part MainJournal4 = Parts.longMainJournal>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(3 - 0.5) * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part MainJournal5 = Parts.longMainJournal>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(4 - 0.5) * d.cylinderSpacing]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part Flywheel = Parts.flywheel>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,-d.cylinderSpacing + 20mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  </Assembly>
+  expose {
+    Semantic Pin1 = Crankpin1.Mount;
+    Semantic Pin2 = Crankpin2.Mount;
+    Semantic Pin3 = Crankpin3.Mount;
+    Semantic Pin4 = Crankpin4.Mount;
+  }
+  Anchor: Crankshaft;
+}

@@ -64,8 +64,12 @@ public sealed class SheetMetalM6Tests
     [Fact]
     public void MissingProductConceptMember_IsTypedParserDiagnosticBeforeGeometry()
     {
-        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/Compatibility/Firmasm/SheetMetal/network-appliance-product-m7.firmasm"))
-            .Replace("<Part Lid = RemovablePanLid<Spec: Spec.Lid>>", "<Part Cover = RemovablePanLid<Spec: Spec.Lid>>", StringComparison.Ordinal);
+        var source = SheetMetalFirmament.ResolveImports(File.ReadAllText(Path.Combine(Root(), "fixtures/Compatibility/Firmasm/SheetMetal/network-appliance-product-m7.firmasm")));
+        // This low-level parser has no dependency on the SheetMetal module. Supply
+        // the same domain-owned schemas used by the real product entry point.
+        var valid = new AssemblyM0Parser().Parse(source);
+        Assert.True(valid.IsSuccess, string.Join("\n",valid.Diagnostics.Select(d => d.Message)));
+        source = source.Replace("<Part Lid = RemovablePanLid<Spec: Spec.Lid>>", "<Part Cover = RemovablePanLid<Spec: Spec.Lid>>", StringComparison.Ordinal);
         var parsed = new AssemblyM0Parser().Parse(source);
         Assert.False(parsed.IsSuccess);
         Assert.Contains(parsed.Diagnostics, item => item.Code == "assembly-concept-missing-member" && item.Message.Contains("Lid", StringComparison.Ordinal));

@@ -13,6 +13,10 @@ WireForm BentWire {
 }
 ```
 
+Fields accept the canonical camelCase spelling (`diameter`, `material`, `radius`,
+`turns`, `pitch`) and their established PascalCase aliases. Names and domain
+symbols retain their authored case.
+
 `Diameter` and `Material` define the stock. Direct WireForm authoring uses the catalog identity; a typed product policy may carry that identity through a `String` field. `StartFrame` supplies an origin, initial tangent, and perpendicular `Up` reference. A `Straight` advances along the current tangent and preserves the frame. A signed `Bend` rotates the tangent by `Angle` around either the current local `Up` or `Right` axis. Here `Plane` names the current local **plane normal/rotation axis**: `Plane: Up` bends in the tangent/right plane, while `Plane: Right` bends in the tangent/up plane. The frame is transported by the same rigid rotation, avoiding arbitrary spin. Start-frame transformations therefore carry the forming program without global-coordinate bend hacks.
 
 `Radius` is always the **centerline bend radius**. X0 applies a geometric-only minimum-radius rule: `Radius > Diameter / 2`. It does not invent material forming tables. Positive angles follow the right-hand rule about the selected local plane normal; negative angles reverse that normal. X0 admits nonzero angles through ±180°.

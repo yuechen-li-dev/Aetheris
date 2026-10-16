@@ -763,8 +763,9 @@ This fragment requires the named resources. Locators normally omit the extension
 ambiguous matches reject. Place `Components.bracket` through a Part occurrence,
 `Components.drive` through an Assembly occurrence, or a Scene entry through a
 Scene occurrence. The catalog makes definitions available; occurrences determine
-quantity and placement. Entries reference concrete modules; specialize Templates
-in the defining module before exporting their results.
+quantity and placement. Part and Subassembly entries may reference typed Template exports; supply their
+named arguments at the occurrence. Definition-private names remain in the defining
+module. Assembly and Scene entries currently import concrete exports.
 
 Inventory follows lexical scope and retains imported file identity. Existing
 `include` remains the concise, unqualified composition form. See
@@ -850,3 +851,19 @@ expansion source maps remain unfinished. `validate --json --explain` exposes
 the implemented Feature and Template owners, lexical scopes, bound arguments and
 available definition/use receipts, plus compile-time data symbol scopes and
 identities, with these limits stated.
+
+
+### Modular mechanism example
+
+The [editable V8](editable-mechanisms.md) is a complete Inventory/Part/Subassembly/
+Assembly/Scene project. Its construction recipes and product structure are authored
+Firmament; typed Records carry dimensions and scalar rest inputs. One `Template<config:
+CylinderConfig> Subassembly CylinderUnit` is instantiated eight times by keyed
+`Pattern` entries derived with immutable `with`. Pattern mapping blocks admit
+occurrences with local Concept Struct, Interface and Mate declarations; each key
+owns their scope. No per-Part pose tables are required. Assembly
+placements bind scalar Static/Record fields through the same checked value owner.
+Assembly-owned Semantic datums bind in the owning occurrence; concrete WireForm
+winding ports remain available across module boundaries. See the guide for static
+Scene versus prescribed-motion limits and the intentional hierarchical identity
+change from the old generated flat source.

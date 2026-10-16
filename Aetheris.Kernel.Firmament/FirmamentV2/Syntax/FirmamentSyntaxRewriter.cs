@@ -17,6 +17,7 @@ internal class FirmamentSyntaxRewriter
         DirectiveSyntax d => d with { Value = Expression(d.Value) },
         ExpressionStatementSyntax e => e with { Value = Expression(e.Value) },
         ReturnSyntax r => r with { Value = Expression(r.Value) },
+        StatementBlockSyntax b => b with { Body = Block(b.Body) },
         MappingSyntax m => m with { Value = Statement(m.Value) },
         InterfaceRelationSyntax r => r with { First = Expression(r.First), Second = Expression(r.Second), Option = Optional(r.Option) },
         InterfaceFitSyntax f => f with { Shaft = Expression(f.Shaft), Bore = Expression(f.Bore) },

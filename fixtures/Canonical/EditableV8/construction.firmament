@@ -1,0 +1,61 @@
+// Shared geometric construction recipes; concrete Parts select dimensions and publish ports.
+
+Template<r: Length, zmin: Length, zmax: Length> Struct DiscStock {
+  Circle2 Outside { center: [0mm,0mm] radius: r }
+  Profile Section { Loop Outer { Outside |> TraceLoop } }
+  Extrude Body { profile: Section from: zmin to: zmax }
+}
+
+Template<coil: SpringDimensions> Struct CoilStock {
+  WireForm Spring {
+      diameter: 2mm
+      material: Standard.Materials.StainlessSteel.304_Annealed
+      StartFrame { origin: [0mm,0mm,0mm]; tangent: [1,0,0]; up: [0,0,1] }
+      Helix Winding { radius: 9mm; turns: 6; pitch: coil.pitch; handedness: RightHanded; startPhase: 0deg }
+  }
+}
+
+Template<l: Length, h: Length, c: Length> Struct RodStock {
+  Polygon2<Trapezoid> Outside { center: [0mm,c] bottomWidth: 52mm topWidth: 28mm height: h }
+  Profile Section { Loop Outer { Outside |> TraceLoop } }
+  Compose Body {
+      Base Stock { profile: Section from: -6mm to: 6mm role: Stock }
+      Hole<Shaft> BigEnd { on: +Z center: Point2(0mm,0mm) diameter: 44.4mm end: ThroughAll }
+      Hole<Shaft> SmallEnd { on: +Z center: Point2(0mm,l) diameter: 16.4mm end: ThroughAll }
+  }
+}
+
+Template<w: Length, h: Length, c: Length, zmin: Length, zmax: Length> Struct PlateStock {
+  Rect2 Outside { center: [0mm,c] size: [w,h] }
+  Profile Section { Loop Outer { Outside |> TraceLoop } }
+  Compose Body {
+      Base Stock { profile: Section from: zmin to: zmax role: Stock }
+      
+  }
+}
+
+Template<w: Length, h: Length, c: Length, zmin: Length, zmax: Length, holeY0: Length, holeD0: Length, holeY1: Length, holeD1: Length> Struct TwoBoreStock {
+  Rect2 Outside { center: [0mm,c] size: [w,h] }
+  Profile Section { Loop Outer { Outside |> TraceLoop } }
+  Compose Body {
+      Base Stock { profile: Section from: zmin to: zmax role: Stock }
+      Hole<Shaft> Pin0 { on: +Z center: Point2(0mm,holeY0) diameter: holeD0 end: ThroughAll }
+  Hole<Shaft> Pin1 { on: +Z center: Point2(0mm,holeY1) diameter: holeD1 end: ThroughAll }
+  }
+}
+
+Template<rout: Length, rin: Length, zmin: Length, zmax: Length> Struct AnnulusStock {
+  Circle2 Outside { center: [0mm,0mm] radius: rout }
+  Circle2 Inside { center: [0mm,0mm] radius: rin }
+  Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside |> TraceLoop } }
+  Extrude Body { profile: Section from: zmin to: zmax }
+}
+
+Template<w: Length, h: Length, c: Length, zmin: Length, zmax: Length, holeY0: Length, holeD0: Length> Struct OneBoreStock {
+  Rect2 Outside { center: [0mm,c] size: [w,h] }
+  Profile Section { Loop Outer { Outside |> TraceLoop } }
+  Compose Body {
+      Base Stock { profile: Section from: zmin to: zmax role: Stock }
+      Hole<Shaft> Pin0 { on: +Z center: Point2(0mm,holeY0) diameter: holeD0 end: ThroughAll }
+  }
+}

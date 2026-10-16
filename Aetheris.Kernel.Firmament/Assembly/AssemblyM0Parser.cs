@@ -101,9 +101,24 @@ public sealed class AssemblyM0Parser
         var patternsPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.patterns");
         var expandedPatterns = CanonicalStaticAuthoring.ExpandAssemblyPatterns(source,patternDiagnostics);
         patternsPhase.Dispose();
-        foreach (var error in patternDiagnostics) diagnostics.Add(new("assembly-pattern-invalid",error));
-        if (expandedPatterns is null || patternDiagnostics.Count>0) return new(null,diagnostics,watch.Elapsed.TotalMilliseconds);
+        var patternOwner = syntax.Document.Statements.OfType<DeclarationSyntax>()
+            .FirstOrDefault(d => d.Type.Name.Text == "Assembly" && d.Modifiers.Count == 0)?.Name?.Span;
+        foreach (var error in patternDiagnostics) diagnostics.Add(new("assembly-pattern-invalid",error)
+        {
+            SourceSpan = patternOwner is { } patternAnchor ? new(sourceIdentity,patternAnchor.Start,patternAnchor.Length) : null,
+            LocationNote = "Enclosing Assembly declaration; the compile-time value expander did not return an original expression span."
+        });
+        if (expandedPatterns is null || patternDiagnostics.Count>0) return Done(null);
         source = expandedPatterns.Source;
+        var concreteSyntax = FirmamentSyntaxParser.Parse(source).Document;
+        var localLayouts = concreteSyntax.Statements.OfType<DeclarationSyntax>()
+            .Where(d => d.Type.Name.Text == "Assembly" && !d.Modifiers.Any(m => m.Name.Text == "Template"))
+            .SelectMany(d => d.Body?.Statements.OfType<DeclarationSyntax>() ?? [])
+            .Where(d => d.Type.Name.Text == "Struct" && d.Modifiers.Any(m => m.Name.Text == "Concept")).ToArray();
+        var layoutText = localLayouts.Select(d => source.Substring(d.Span.Start, d.Span.Length)).ToArray();
+        foreach (var declaration in localLayouts.OrderByDescending(d => d.Span.Start))
+            source = source.Remove(declaration.Span.Start, declaration.Span.Length).Insert(declaration.Span.Start, new string(' ', declaration.Span.Length));
+        source += "\n" + string.Join("\n", layoutText);
         // Subassembly is a first-class non-parameterized Assembly definition. It
         // lowers through the existing, locally solved definition authority.
         source = Regex.Replace(source, @"\bSubassembly\s+(?<name>[A-Za-z_]\w*)\s*\{",
@@ -164,12 +179,12 @@ public sealed class AssemblyM0Parser
         if (body is null) return Done(null);
         var specializationCache = new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal);
         var treePhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.tree");
-        var tree = ParseTree(body, sourceIdentity, diagnostics, assemblyDefinitions, interfaces, specializationCache, gearAuthorities, Ports, graph);
+        var tree = ParseTree(body, sourceIdentity, diagnostics, assemblyDefinitions, interfaces, specializationCache, gearAuthorities, Ports, graph, source);
         treePhase.Dispose();
         if (tree is null) return Done(null);
         if (exported is not null)
         {
-            tree = tree with { ExposedSemantics = ParseAssemblyExposes(body, tree, sourceIdentity, diagnostics) };
+            tree = tree with { ExposedSemantics = [.. tree.ExposedSemantics, .. ParseAssemblyExposes(body, tree, sourceIdentity, diagnostics)] };
             tree = graph!.QualifyParts(module!, tree);
         }
         var mates = ParseMates(body, sourceIdentity, diagnostics);
@@ -307,7 +322,7 @@ public sealed class AssemblyM0Parser
     {
         public string Name { get; } = name;
         public AssemblyInstanceKind Kind { get; } = kind;
-        public string Definition { get; } = definition;
+        public string Definition { get; set; } = definition;
         public List<MutableNode> Children { get; } = [];
         public List<SemanticValue> Semantics { get; } = [];
         public MutableNode? Parent { get; set; }
@@ -338,13 +353,13 @@ public sealed class AssemblyM0Parser
             if (body is null) continue;
             var close = template.Index + template.Length + body.Length + 1;
             ranges.Add((template.Index, close - template.Index));
-            var root = ParseTree(body, sourceIdentity, diagnostics, result, interfaces, new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), gearAuthorities, publishedPorts, graph);
+            var root = ParseTree(body, sourceIdentity, diagnostics, result, interfaces, new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), gearAuthorities, publishedPorts, graph, source);
             if (root is null) continue;
             root = AssemblyDatumAuthoring.Bind(body, root, layout ?? [], interfaces, diagnostics, out var datumFrames, publishedPorts);
             if (root.Children.Any(c => c.FramePlacement?.JointFamily == MechanicalInterfaceFamily.Revolute))
                 diagnostics.Add(new("assembly-axis-internal-motion-unsupported", "Reusable definitions have rigid solved children. Declare a Revolute mate on the complete occurrence in its owning root assembly."));
             var exposed = ParseAssemblyExposes(body, root, sourceIdentity, diagnostics);
-            root = root with { ExposedSemantics = exposed, IsEncapsulatedDefinition = true };
+            root = root with { ExposedSemantics = [.. root.ExposedSemantics, .. exposed], IsEncapsulatedDefinition = true };
             var name = template.Groups["name"].Value;
             var claimedConcept = template.Groups["concept"].Success ? template.Groups["concept"].Value : null;
             if (result.Any(item => item.Name == name))
@@ -528,7 +543,7 @@ public sealed class AssemblyM0Parser
     private static SemanticValue BindPublicSemantic(SemanticValue exposed, AssemblyIr localIr, string sourceIdentity)
     {
         var internalPath = exposed.Provenance.LastOrDefault(item => item.Stage == "assembly-expose")?.Evidence;
-        if (internalPath is null || !AssemblyM0Compiler.TryResolve(AssemblyPath.Parse(localIr.Name + "." + internalPath), localIr.Instances, out var reference)) return exposed;
+        if (internalPath is null || !AssemblyM0Compiler.TryResolve(AssemblyPath.Parse(localIr.Instances.Single(i => i.ParentStableId is null).Path + "." + internalPath), localIr.Instances, out var reference)) return exposed;
         var bindings = exposed.Bindings.Where(binding => binding is TolerancedDimensionBinding).ToList();
         if (reference!.Value.TryBinding<TypedSemanticAuthorityBinding<GearAir>>(out var gear))
         {
@@ -610,7 +625,7 @@ public sealed class AssemblyM0Parser
         IReadOnlyList<AssemblyDefinitionSource>? definitions = null, IReadOnlyList<InterfaceDefinition>? interfaces = null,
         IDictionary<string, AssemblyMemberSource>? specializationCache = null,
         IReadOnlyDictionary<string, GearAir>? gearAuthorities = null,
-        Func<string, IReadOnlyList<SemanticValue>>? publishedPorts = null, FirmamentModuleGraph? graph = null)
+        Func<string, IReadOnlyList<SemanticValue>>? publishedPorts = null, FirmamentModuleGraph? graph = null, string? bindingSource = null)
     {
         // One bounded generic argument list is admitted in a Part definition. The
         // inner '>' belongs to the Firmament Template application, not the XML-like tag.
@@ -630,21 +645,22 @@ public sealed class AssemblyM0Parser
                     : Regex.Match(rest, @"^(?<name>[A-Za-z_]\w*)\s*=\s*(?<definition>[A-Za-z_]\w*(?:\s*<[^>]*>)?)$");
                 if (!nodeMatch.Success) { diagnostics.Add(new("assembly-tree-invalid-tag", $"Invalid <{kind}> tree tag '{tag.Value}'.")); continue; }
                 var node = new MutableNode(nodeMatch.Groups["name"].Value, kind == "Assembly" ? AssemblyInstanceKind.Assembly : kind == "Panel" ? AssemblyInstanceKind.Panel : AssemblyInstanceKind.Part,
-                    kind == "Assembly" ? (nodeMatch.Groups["definition"].Success ? NormalizeIdentity(nodeMatch.Groups["definition"].Value) : nodeMatch.Groups["name"].Value) : nodeMatch.Groups["definition"].Value);
+                    kind == "Assembly" ? (nodeMatch.Groups["definition"].Success ? (graph?.TryReference(nodeMatch.Groups["definition"].Value, out _) == true ? nodeMatch.Groups["definition"].Value.Trim() : NormalizeIdentity(nodeMatch.Groups["definition"].Value)) : nodeMatch.Groups["name"].Value) : nodeMatch.Groups["definition"].Value);
                 if (kind == "Assembly" && nodeMatch.Groups["definition"].Success)
                 {
                     AssemblyMemberSource? instantiated;
                     if (graph?.TryReference(node.Definition, out var imported) == true)
                     {
-                        var external = graph.ParseAssembly(imported);
+                        var external = graph.ParseAssembly(imported, node.Definition, bindingSource ?? body);
                         diagnostics.AddRange(external.Diagnostics);
                         if (external.Source is { } unit && external.IsSuccess)
                         {
-                            var definition = new AssemblyDefinitionSource(imported.Identity, "__Unit", "__Unit", unit.Root,
+                            var specializedIdentity = node.Definition.Contains('<') ? imported.Identity + "_" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(node.Definition)))[..16] : imported.Identity;
+                            var definition = new AssemblyDefinitionSource(specializedIdentity, "__Unit", "__Unit", unit.Root,
                                 imported.Identity, [new("inventory-module", imported.Path, imported.Definition, imported.Origin)],
                                 unit.Anchor, unit.Mates, unit.DimensionalRelations, unit.StackupAsserts, FrameTransforms: unit.FrameTransforms)
                                 { LocalInterfaces = unit.Interfaces };
-                            instantiated = InstantiateAssemblyDefinition(node.Name, imported.Identity, [definition], unit.Interfaces,
+                            instantiated = InstantiateAssemblyDefinition(node.Name, specializedIdentity, [definition], unit.Interfaces,
                                 specializationCache ?? new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), imported.Path, diagnostics);
                         }
                         else instantiated = null;
@@ -652,6 +668,7 @@ public sealed class AssemblyM0Parser
                     else instantiated = InstantiateAssemblyDefinition(node.Name, node.Definition, definitions ?? [], interfaces ?? [], specializationCache ?? new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), sourceIdentity, diagnostics);
                     if (instantiated is not null)
                     {
+                        node.Definition = instantiated.DefinitionIdentity;
                         node.Children.AddRange(instantiated.Children.Select(ToMutable));
                         node.Semantics.AddRange(instantiated.ExposedSemantics);
                         node.ExplicitTransform = instantiated.ExplicitTransform;
@@ -685,6 +702,18 @@ public sealed class AssemblyM0Parser
                         open.node.Semantics.Add(endpoint);
                         open.node.TypedEndpoint = endpoint;
                     }
+                }
+                if (open.node.Kind == AssemblyInstanceKind.Assembly)
+                {
+                    // Bind only this occurrence's own Semantic declarations.
+                    // Descendant Part ports belong to their Part, never the group.
+                    var own = FirmamentSyntaxParser.Parse(nodeBody).Document.Statements.OfType<DeclarationSyntax>()
+                        .Where(d => d.Type.Name.Text == "Semantic");
+                    foreach (var semantic in own)
+                        open.node.Semantics.AddRange(ParseSemantics(nodeBody.Substring(semantic.Span.Start, semantic.Span.Length),
+                            open.node.Definition, sourceIdentity, diagnostics));
+                    foreach (var duplicate in open.node.Semantics.GroupBy(v => v.ExposedName).Where(g => g.Count() > 1))
+                        diagnostics.Add(new("assembly-semantic-duplicate-name", $"Assembly occurrence '{open.node.Name}' repeats Semantic '{duplicate.Key}'."));
                 }
                 var nestedTag = nodeBody.IndexOf('<');
                 var placementBody = open.node.Kind == AssemblyInstanceKind.Assembly && nestedTag >= 0 ? nodeBody[..nestedTag] : nodeBody;
@@ -765,7 +794,7 @@ public sealed class AssemblyM0Parser
             var bindings = new List<SemanticBinding>();
             foreach (Match axis in Regex.Matches(block, @"\bAxis\s+(?<name>[A-Za-z_]\w*)\s*=\s*\[(?<o>[^]]+)\]\s*->\s*\[(?<d>[^]]+)\]\s*;", RegexOptions.CultureInvariant))
             {
-                var o = Vector(axis.Groups["o"].Value); var d = Vector(axis.Groups["d"].Value);
+                var o = Vector(axis.Groups["o"].Value, lengths: true); var d = Vector(axis.Groups["d"].Value);
                 if (o is null || d is null) { diagnostics.Add(new("assembly-axis-invalid", $"Semantic '{name}' has an invalid Axis.")); continue; }
                 var binding = new ExactAxisBinding(o[0], o[1], o[2], d[0], d[1], d[2], $"definition:{definition}:{name}:{axis.Groups["name"].Value}");
                 members.Add(new SemanticValue(binding.AxisStableId, new("Axis"), [new AxisCapability()], [binding], exposedName: axis.Groups["name"].Value));
@@ -788,7 +817,7 @@ public sealed class AssemblyM0Parser
             }
             foreach (Match frame in Regex.Matches(block, @"\bDatumFrame\s+(?<name>[A-Za-z_]\w*)\s*=\s*\[(?<o>[^]]+)\]\s+x\s*\[(?<x>[^]]+)\]\s+y\s*\[(?<y>[^]]+)\]\s+z\s*\[(?<z>[^]]+)\]\s*;", RegexOptions.CultureInvariant))
             {
-                var o = Vector(frame.Groups["o"].Value); var x = Vector(frame.Groups["x"].Value); var y = Vector(frame.Groups["y"].Value); var z = Vector(frame.Groups["z"].Value);
+                var o = Vector(frame.Groups["o"].Value, lengths: true); var x = Vector(frame.Groups["x"].Value); var y = Vector(frame.Groups["y"].Value); var z = Vector(frame.Groups["z"].Value);
                 if (o is null || x is null || y is null || z is null || !ValidFrame(x, y, z)) { diagnostics.Add(new("assembly-datum-frame-invalid", $"Semantic '{name}' DatumFrame requires a finite orthonormal right-handed X/Y/Z basis.")); continue; }
                 var binding = new ExactDatumFrameBinding(o[0], o[1], o[2], x[0], x[1], x[2], y[0], y[1], y[2], z[0], z[1], z[2], $"definition:{definition}:{name}:{frame.Groups["name"].Value}");
                 members.Add(new SemanticValue(binding.FrameStableId, new("AssemblyDatumFrame"), [new DatumFrameCapability()], [binding], exposedName: frame.Groups["name"].Value));
@@ -855,8 +884,17 @@ public sealed class AssemblyM0Parser
         foreach (var name in names) value = Regex.Replace(value, $@"\b{name}\b[^{{]*\{{(?:[^{{}}]|\{{[^{{}}]*\}})*\}}", string.Empty, RegexOptions.CultureInvariant);
         return value;
     }
-    private static double[]? Vector(string text)
-    { var values = text.Split(',', StringSplitOptions.TrimEntries).Select(x => double.TryParse(x, NumberStyles.Float, CultureInfo.InvariantCulture, out var n) ? n : double.NaN).ToArray(); return values.Length == 3 && values.All(double.IsFinite) ? values : null; }
+    private static double[]? Vector(string text, bool lengths = false)
+    {
+        double Component(string component)
+        {
+            if (!lengths) return double.TryParse(component, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : double.NaN;
+            if (!FirmamentNumericEvaluation.TryEvaluateScalar(component, out var value, out var unit)) return double.NaN;
+            return unit == "mm" || unit.Length == 0 && double.TryParse(component, NumberStyles.Float, CultureInfo.InvariantCulture, out _) ? value : double.NaN;
+        }
+        var values = text.Split(',', StringSplitOptions.TrimEntries).Select(Component).ToArray();
+        return values.Length == 3 && values.All(double.IsFinite) ? values : null;
+    }
     private static bool ValidFrame(double[] x, double[] y, double[] z)
     {
         static double Dot(double[] a, double[] b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];

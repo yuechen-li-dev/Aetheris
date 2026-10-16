@@ -1,0 +1,7 @@
+include "../design";
+include "../construction";
+
+Struct ValveSpring {
+  Struct Stock = CoilStock<coil: freeCoil>
+
+}

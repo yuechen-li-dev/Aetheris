@@ -1,0 +1,10 @@
+// One reusable spring body. Pitch is the actual engineering geometry input.
+Template<pitch: Length> Struct ValveSpring {
+  WireForm Spring {
+    diameter: 2mm
+    material: Standard.Materials.StainlessSteel.304_Annealed
+    StartFrame { origin: [0mm,0mm,0mm]; tangent: [1,0,0]; up: [0,0,1] }
+    Helix Winding { radius: 9mm; turns: 6; pitch: pitch; handedness: RightHanded; startPhase: 0deg }
+  }
+  expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+}

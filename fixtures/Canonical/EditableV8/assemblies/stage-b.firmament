@@ -1,0 +1,86 @@
+include "../interfaces";
+include "../design";
+
+Inventory Record Parts {
+  connectingRod: Part = Firmament("../parts/ConnectingRod").ConnectingRod
+  pistonCrown: Part = Firmament("../parts/PistonCrown").PistonCrown
+  pistonLug: Part = Firmament("../parts/PistonLug").PistonLug
+  wristPin: Part = Firmament("../parts/WristPin").WristPin
+  cylinderSleeve: Part = Firmament("../parts/CylinderSleeve").CylinderSleeve
+  crankpin: Part = Firmament("../parts/Crankpin").Crankpin
+  crankWeb: Part = Firmament("../parts/CrankWeb").CrankWeb
+  mainJournal: Part = Firmament("../parts/MainJournal").MainJournal
+  cylinderHead: Part = Firmament("../parts/CylinderHead").CylinderHead
+  intakeValve: Part = Firmament("../parts/IntakeValve").IntakeValve
+  valveStem: Part = Firmament("../parts/ValveStem").ValveStem
+  springRetainer: Part = Firmament("../parts/SpringRetainer").SpringRetainer
+  valveSpring: Part = Firmament("../parts/ValveSpring").ValveSpring
+  exhaustValve: Part = Firmament("../parts/ExhaustValve").ExhaustValve
+}
+
+// Local coordinates belong to this reusable unit; the engine places it once.
+Subassembly StageB {
+  <Assembly StageB>
+    <Part Rod1 = Parts.connectingRod></Part>
+    <Part Piston1 = Parts.pistonCrown>
+      Placement { from: Origin; to: World; translateLocal: [0mm,d.rodLength + d.crankRadius + 32.5mm,0mm]; normal: [0,1,0]; up: [0,0,-1]; }
+    </Part>
+    <Part PistonLug1A = Parts.pistonLug>
+      Placement { from: Origin; to: World; translateLocal: [0mm,d.rodLength + d.crankRadius,-16mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part PistonLug1B = Parts.pistonLug>
+      Placement { from: Origin; to: World; translateLocal: [0mm,d.rodLength + d.crankRadius,16mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part WristPin1 = Parts.wristPin></Part>
+    <Part Cylinder1 = Parts.cylinderSleeve>
+      Placement { from: Origin; to: World; translateLocal: [0mm,d.sleeveSeatHeight,0mm]; normal: [0,1,0]; up: [0,0,-1]; }
+    </Part>
+    <Part Crankpin1 = Parts.crankpin>
+      Placement { from: Origin; to: World; translateLocal: [0mm,d.crankRadius,0mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part CrankWeb1A = Parts.crankWeb>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,-19mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part CrankWeb1B = Parts.crankWeb>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,19mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part MainJournal1 = Parts.mainJournal>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,-35mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part MainJournal2 = Parts.mainJournal>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,35mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part Head1 = Parts.cylinderHead>
+      Placement { from: Origin; to: World; translateLocal: [0mm,d.deckHeight + 13mm,0mm]; normal: [0,1,0]; up: [0,0,-1]; }
+    </Part>
+    <Part IntakeValve1 = Parts.intakeValve>
+      Placement { from: Origin; to: World; translateLocal: [0mm,d.deckHeight + 6mm,-20mm]; normal: [0,1,0]; up: [0,0,-1]; }
+    </Part>
+    <Part IntakeStem1 = Parts.valveStem>
+      Placement { from: Origin; to: World; translateLocal: [0mm,d.deckHeight + 38mm,-20mm]; normal: [0,1,0]; up: [0,0,-1]; }
+    </Part>
+    <Part IntakeRetainer1 = Parts.springRetainer>
+      Placement { from: Origin; to: World; translateLocal: [0mm,d.deckHeight + 58.5mm,-20mm]; normal: [0,1,0]; up: [0,0,-1]; }
+    </Part>
+    <Part IntakeSpring1 = Parts.valveSpring>
+      Placement { from: Winding.Frame; to: World; translateLocal: [0mm,d.deckHeight + 20mm,-20mm]; normal: [0,1,0]; up: [0,0,-1]; }
+    </Part>
+    <Part ExhaustValve1 = Parts.exhaustValve>
+      Placement { from: Origin; to: World; translateLocal: [0mm,d.deckHeight + 6mm,20mm]; normal: [0,1,0]; up: [0,0,-1]; }
+    </Part>
+    <Part ExhaustStem1 = Parts.valveStem>
+      Placement { from: Origin; to: World; translateLocal: [0mm,d.deckHeight + 38mm,20mm]; normal: [0,1,0]; up: [0,0,-1]; }
+    </Part>
+    <Part ExhaustRetainer1 = Parts.springRetainer>
+      Placement { from: Origin; to: World; translateLocal: [0mm,d.deckHeight + 58.5mm,20mm]; normal: [0,1,0]; up: [0,0,-1]; }
+    </Part>
+    <Part ExhaustSpring1 = Parts.valveSpring>
+      Placement { from: Winding.Frame; to: World; translateLocal: [0mm,d.deckHeight + 20mm,20mm]; normal: [0,1,0]; up: [0,0,-1]; }
+    </Part>
+  </Assembly>
+  Mate InstallRod: JournalBoreSeat { Moving: StageB.Rod1.Mount; Fixed: StageB.Crankpin1.Mount; }
+  Mate InstallPin: WristPinSeat { Moving: StageB.WristPin1.Mount; Fixed: StageB.Rod1.SmallEnd; }
+  Anchor: StageB;
+  Mate InstallIntakeSpring1: SpringStemFit { Spring: StageB.IntakeSpring1.Winding; Stem: StageB.IntakeStem1.Mount; }
+  Mate InstallExhaustSpring1: SpringStemFit { Spring: StageB.ExhaustSpring1.Winding; Stem: StageB.ExhaustStem1.Mount; }
+}

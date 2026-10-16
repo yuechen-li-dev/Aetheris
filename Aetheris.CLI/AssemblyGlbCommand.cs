@@ -63,9 +63,10 @@ internal static class AssemblyGlbCommand
                 }
             }
             var watch = Stopwatch.StartNew();
-            var compilation = Path.GetExtension(source).Equals(".firmasm", StringComparison.OrdinalIgnoreCase)
-                ? new FirmamentAssemblyDocumentCompiler().CompileFile(source).Compilation
-                : new AssemblyM1Pipeline().CompileFile(source, File.ReadAllText(source).Contains("Use SheetMetal.ProductFamilies", StringComparison.Ordinal) ? EnclosureProductFamilies.MaterializeAssemblyPart : null);
+            var usesSheetMetalParts = File.ReadAllText(source).Contains("Use SheetMetal.ProductFamilies", StringComparison.Ordinal);
+            var compilation = usesSheetMetalParts ? EnclosureProductFamilies.CompileAssemblyFile(source)
+                : Path.GetExtension(source).Equals(".firmasm", StringComparison.OrdinalIgnoreCase)
+                    ? new FirmamentAssemblyDocumentCompiler().CompileFile(source).Compilation : new AssemblyM1Pipeline().CompileFile(source);
             if (!compilation.IsSuccess) throw new InvalidOperationException(string.Join("\n", compilation.Diagnostics.Select(d => d.Code + ": " + d.Message)));
             var compilationMilliseconds = watch.Elapsed.TotalMilliseconds; watch.Restart();
             var pose = AssemblyKinematics.Evaluate(compilation.Ir!, state);

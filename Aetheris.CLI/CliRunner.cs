@@ -2369,8 +2369,12 @@ Model CanonicalPanel {
             return GarmentCommand.Run(["inspect", sourcePath, .. (json ? new[] { "--json" } : Array.Empty<string>())], stdout, stderr);
         if (FirmamentLanguageAnalysisService.HasAssemblyRoot(validationSource))
         {
-            var parsedAssembly = parseOnly ? new AssemblyM0Parser().ParseFile(sourcePath) : null;
-            var builtAssembly = parseOnly ? null : new AssemblyM1Pipeline().CompileFile(sourcePath);
+            var sheetMetalAssembly = validationSource.Contains("Use SheetMetal.ProductFamilies", StringComparison.Ordinal);
+            var parsedAssembly = parseOnly ? sheetMetalAssembly
+                ? new AssemblyM0Parser().Parse(SheetMetalFirmament.ResolveImports(validationSource),Path.GetFullPath(sourcePath))
+                : new AssemblyM0Parser().ParseFile(sourcePath) : null;
+            var builtAssembly = parseOnly ? null : sheetMetalAssembly
+                ? EnclosureProductFamilies.CompileAssemblyFile(sourcePath) : new AssemblyM1Pipeline().CompileFile(sourcePath);
             var validAssembly = parsedAssembly?.IsSuccess ?? builtAssembly!.IsSuccess;
             var payload = new { success=validAssembly, domain="Assembly", validationLevel=!validAssembly ? "BuildRejected" : parseOnly ? "ParsedNotBuilt" : "Built",
                 diagnostics=parsedAssembly?.Diagnostics ?? builtAssembly!.Diagnostics };
@@ -4089,9 +4093,9 @@ Model CanonicalPanel {
             assemblyPerformance = document.Compilation.Performance;
             success = document.IsSuccess;
         }
-        else if (usesTemplateInstances || usesGearParts)
+        else if (usesTemplateInstances || usesGearParts || usesSheetMetalParts)
         {
-            var m1 = new AssemblyM1Pipeline().CompileFile(path, usesSheetMetalParts ? EnclosureProductFamilies.MaterializeAssemblyPart : null);
+            var m1 = usesSheetMetalParts ? EnclosureProductFamilies.CompileAssemblyFile(path) : new AssemblyM1Pipeline().CompileFile(path);
             assemblyIr = m1.Ir;
             geometryArtifact = m1.Geometry?.Artifact;
             assemblyDiagnostics = m1.Diagnostics;
@@ -5068,7 +5072,7 @@ Model CanonicalPanel {
         var usesSheetMetalParts = sourceText.Contains("Use SheetMetal.ProductFamilies", StringComparison.Ordinal);
         var compilation = string.Equals(Path.GetExtension(args[0]), ".firmasm", StringComparison.OrdinalIgnoreCase) && !usesSheetMetalParts
             ? new FirmamentAssemblyDocumentCompiler().CompileFile(args[0]).Compilation
-            : new AssemblyM1Pipeline().CompileFile(args[0], usesSheetMetalParts ? EnclosureProductFamilies.MaterializeAssemblyPart : null);
+            : usesSheetMetalParts ? EnclosureProductFamilies.CompileAssemblyFile(args[0]) : new AssemblyM1Pipeline().CompileFile(args[0]);
         var export = AssemblyIrAp242Exporter.Export(compilation);
         if (!export.IsSuccess) { foreach (var diagnostic in export.Diagnostics) stderr.WriteLine($"{diagnostic.Source}: {diagnostic.Message}"); return 1; }
         var fullOutput = Path.GetFullPath(output); Directory.CreateDirectory(Path.GetDirectoryName(fullOutput)!); File.WriteAllText(fullOutput, export.Value);

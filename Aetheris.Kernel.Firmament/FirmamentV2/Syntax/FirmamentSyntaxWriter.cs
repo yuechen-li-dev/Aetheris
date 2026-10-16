@@ -21,6 +21,7 @@ internal sealed class FirmamentSyntaxWriter(string? source = null)
         DirectiveSyntax d => d.Kind.ToString().ToLowerInvariant() + " " + WriteExpression(d.Value),
         ExpressionStatementSyntax e => WriteExpression(e.Value),
         ReturnSyntax r => "return " + WriteExpression(r.Value),
+        StatementBlockSyntax b => WriteBlock(b.Body),
         MappingSyntax m => m.Key.Text + " => " + WriteStatement(m.Value),
         RoleRequirementSyntax r => "Role " + r.Name.Text + " requires " + string.Join(", ", r.Capabilities.Select(c => c.Text)),
         InterfaceRelationSyntax r => "Lower " + r.Kind.Text + " " + WriteExpression(r.First) + " " + WriteExpression(r.Second) + (r.Option is null ? "" : " " + WriteExpression(r.Option)),

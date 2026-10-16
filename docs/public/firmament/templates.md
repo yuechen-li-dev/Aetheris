@@ -20,7 +20,21 @@ Struct StandardPlate = MountingPlate<Width: 80mm, Height: 50mm, Thickness: 8mm>
 
 The complete build-qualified version is [`generic-mounting-plate.firmament`](../../../fixtures/Canonical/Templates/generic-mounting-plate.firmament).
 
-The explicit output keyword is significant: current Templates specialize `Struct`, `Model`, `Concept Struct`, `Panel`, `SheetMetal`, `Profile`, or `ProfileDelta` declarations. It is not inferred from the body.
+The explicit output keyword is significant: current Templates specialize `Struct`, `Model`, `Concept Struct`, `Panel`, `SheetMetal`, `Profile`, `ProfileDelta`, or module-owned `Subassembly` declarations. It is not inferred from the body.
+
+A typed Subassembly export is specialized through an Inventory occurrence:
+
+```firmament
+Template<config: CylinderConfig>
+Subassembly CylinderUnit {
+  // Local Concept layout, Parts, Interfaces, Mates and public ports.
+}
+```
+
+This is a definition fragment. Its consuming project supplies `CylinderConfig`
+and instantiates `Units.cylinder<config: config>` through an Assembly occurrence;
+see [Inventory](inventory.md). The existing one-parameter legacy Assembly Template
+form remains compatible. This pass does not broaden it into a new generic syntax.
 
 Product Template names have lexical scope. A Model-local definition shadows a
 document definition, sibling scopes remain private, and duplicate names in one

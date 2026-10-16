@@ -102,6 +102,7 @@ internal sealed class FirmamentDataBinding
             var ordinals = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (var statement in statements)
             {
+                if (statement is StatementBlockSyntax block) { Collect(block.Body.Statements, scope); continue; }
                 if (statement is MappingSyntax m)
                 {
                     var child = new Scope(scope, scope.Identity + "/mapping " + m.Key.Text); child.Values.Add(m.Key.Text);
@@ -128,6 +129,7 @@ internal sealed class FirmamentDataBinding
             foreach (var statement in statements)
             {
                 var scope = scopes[statement];
+                if (statement is StatementBlockSyntax block) { Rewrite(block.Body.Statements); continue; }
                 if (statement is MappingSyntax m) { Rewrite([m.Value]); continue; }
                 if (statement is FieldSyntax f) { Expression(f.Value, scope, false); continue; }
                 if (statement is ExpressionStatementSyntax e) { Expression(e.Value, scope, false); continue; }

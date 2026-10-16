@@ -6,5 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../Aetheris.Kernel.Firmament/Aetheris.Kernel.Firmament.csproj" />
+    <EmbeddedResource Include="../../fixtures/Canonical/EditableV8/**/*.firmament;../../fixtures/Canonical/EditableV8/**/*.firmasm" LogicalName="EditableV8/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

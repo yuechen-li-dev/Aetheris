@@ -7,29 +7,40 @@ namespace Aetheris.EditableV8;
 
 public sealed record EngineCylinder(int Number, double BankRadians, double CrankpinRadians, double Z, double IgnitionDegrees);
 public sealed record EngineBinding(string Name, string Kind, int Cylinder, string Category, double[] Rest, string? OccurrenceId = null,
-    IReadOnlyList<int>? CylinderMembership = null, EngineSpringAxis? SpringAxis = null);
+    IReadOnlyList<int>? CylinderMembership = null, EngineSpringAxis? SpringAxis = null, string? SourcePath = null, string? DefinitionExport = null);
 public sealed record EngineSpringAxis(double[] LocalOrigin, double[] LocalDirection, string StemOccurrenceId);
 public sealed record EngineMotionManifest(string Schema, V8Spec Spec, int CycleDegrees, double CamRatio,
     int[] FiringOrder, IReadOnlyList<EngineCylinder> Cylinders, IReadOnlyList<EngineBinding> Bindings);
 
 public static class EngineMotion
 {
+    public static IReadOnlyList<InterfaceFitResultIr> Fits(AssemblyIr ir) =>
+        [.. ir.FitResults, .. (ir.AssemblyDefinitions ?? []).SelectMany(d => d.LocalFitResults ?? [])];
+
     public static EngineMotionManifest BindAssembly(EngineMotionManifest motion, AssemblyM1CompilationResult assembly)
     {
         if (!assembly.IsSuccess) throw new ArgumentException("engine-motion-unqualified-assembly");
-        if (assembly.Ir!.FitResults.Any(f => !f.Compatible)) throw new ArgumentException("engine-motion-incompatible-interface-fit");
-        var instances = assembly.Ir!.Instances.ToDictionary(i => i.Path.Segments.Last(), StringComparer.Ordinal);
-        var zShift = instances["MainJournal1"].ResolvedTransform!.Matrix[14] - motion.Bindings.Single(b => b.Name == "MainJournal1").Rest[14];
+        if (Fits(assembly.Ir!).Any(f => !f.Compatible)) throw new ArgumentException("engine-motion-incompatible-interface-fit");
+        var instances = assembly.Ir!.Instances.Where(i => i.Kind == AssemblyInstanceKind.Part).ToDictionary(i => i.Path.ToString(), StringComparer.Ordinal);
+        string PathFor(EngineBinding b) => b.SourcePath ?? assembly.Ir.Name + "." + b.Name;
+        var byName = motion.Bindings.ToDictionary(b => b.Name, b => instances[PathFor(b)], StringComparer.Ordinal);
+        if (byName.Count != instances.Count) throw new InvalidOperationException("engine-motion-unbound-part");
+        var exports = assembly.Ir.InventoryBindings.GroupBy(b => b.DefinitionIdentity)
+            .ToDictionary(g => g.Key, g => g.Select(b => b.Export).Distinct(StringComparer.Ordinal).Single(), StringComparer.Ordinal);
+        foreach (var binding in motion.Bindings.Where(b => b.DefinitionExport is not null))
+            if (exports.GetValueOrDefault(byName[binding.Name].DefinitionIdentity.Split('<')[0]) != binding.DefinitionExport)
+                throw new InvalidOperationException("engine-motion-definition-mismatch:" + binding.Name);
+        var zShift = byName["MainJournal1"].ResolvedTransform!.Matrix[14] - motion.Bindings.Single(b => b.Name == "MainJournal1").Rest[14];
         return motion with {
             Cylinders = motion.Cylinders.Select(c => c with { Z = c.Z + zShift }).ToArray(),
             Bindings = motion.Bindings.Select(b => {
-                var instance = instances[b.Name]; EngineSpringAxis? springAxis = null;
+                var instance = byName[b.Name]; EngineSpringAxis? springAxis = null;
                 if (b.Kind.EndsWith("Spring", StringComparison.Ordinal))
                 {
                     if (!instance.SemanticRoot.ExposedMembers["Winding"].ExposedMembers["Axis"].TryBinding<ExactAxisBinding>(out var axis))
                         throw new InvalidOperationException("engine-spring-axis-missing:" + b.Name);
                     springAxis = new([axis.OriginX, axis.OriginY, axis.OriginZ], [axis.DirectionX, axis.DirectionY, axis.DirectionZ],
-                        instances[b.Name.Replace("Spring", "Stem", StringComparison.Ordinal)].StableId);
+                        byName[b.Name.Replace("Spring", "Stem", StringComparison.Ordinal)].StableId);
                 }
                 return b with { OccurrenceId = instance.StableId, Rest = instance.ResolvedTransform!.Matrix.ToArray(), SpringAxis = springAxis };
             }).ToArray()

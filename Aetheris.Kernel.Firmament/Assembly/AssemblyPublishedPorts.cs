@@ -17,6 +17,7 @@ internal static class AssemblyPublishedPorts
         string sourceIdentity, List<AssemblyDiagnostic> diagnostics, FirmamentProjectSnapshot? project,
         List<AssemblySourceDependencyIr> dependencies, DerivedValueCache<PublishedPortBinding>? cache = null)
     {
+        declarations = FirmamentSourceSpelling.Normalize(declarations);
         var file = Regex.Match(identity, "^(?:SectionChainFile|LoftFile)<\\\"(?<path>[^\\\"]+)\\\">$");
         if (file.Success)
         {
@@ -111,7 +112,7 @@ internal static class AssemblyPublishedPorts
             foreach (var error in errors) diagnostics.Add(new("assembly-port-specialization-failed", error));
             return [];
         }
-        return Read(expansion.ExpandedSource, "__AssemblyPart", identity, sourceIdentity, diagnostics);
+        return Read(expansion.ExpandedSource, "__AssemblyPart", identity, sourceIdentity, diagnostics, includeWinding: true);
     }
     /// <summary>Reuse a binding from an earlier build of the session when its inputs are identical,
     /// replaying its diagnostics. Only bindings the definition cache can copy are kept, and every
@@ -155,14 +156,48 @@ internal static class AssemblyPublishedPorts
     }
 
     internal static IReadOnlyList<SemanticValue> Read(string source,string owner,string identity,
-        string sourceIdentity,List<AssemblyDiagnostic> diagnostics,SectionChain? chain = null)
+        string sourceIdentity,List<AssemblyDiagnostic> diagnostics,SectionChain? chain = null, bool includeWinding = false)
     {
         source = FirmamentSourceSpelling.Normalize(source);
+        var valueErrors = new List<string>();
+        var valuesForPorts = new FirmamentCompileTimeValues(source);
+        _ = FirmamentV2TemplateExpansion.ReadDataCatalog(source, valueErrors, valuesForPorts, initialize: true);
+        if (valueErrors.Count > 0)
+        { diagnostics.AddRange(valueErrors.Select(e => new AssemblyDiagnostic("assembly-port-value-invalid", e))); return []; }
+        source = FirmamentValueSubstitution.Apply(source, valuesForPorts.MaterialInputs(source)
+            .ToDictionary(v => v.Name, v => valuesForPorts.NominalExpression(v.Name), StringComparer.Ordinal));
         var header = Regex.Match(source,$@"\b(?:Struct|Model)\s+{Regex.Escape(owner)}\s*\{{");
         if (!header.Success) return [];
         var body = AssemblyM0Parser.BalancedBody(source,header.Index+header.Length-1,diagnostics,"published part");
         if (body is null) return [];
         var result = new List<SemanticValue>();
+        // Winding ports are typed WireForm facts needed by a reusable unit's local
+        // solve, before M1 builds any bodies. Use the same AIR and datum factory
+        // as the post-build report; no authored copy of a coil axis is required.
+        if (includeWinding && Materializer.WireFormAuthoring.IsWireFormSource(source))
+        {
+            var stripped = Strip(source, diagnostics);
+            var values = new FirmamentCompileTimeValues(stripped);
+            var errors = new List<string>();
+            var expanded = FirmamentV2TemplateExpansion.Expand(stripped, errors, values);
+            if (expanded is null || errors.Count > 0)
+                diagnostics.AddRange(errors.Select(e => new AssemblyDiagnostic("assembly-port-specialization-failed", e)));
+            else if (Materializer.WireFormAuthoring.IsWireFormSource(expanded.Source))
+            {
+                var dataErrors = new List<string>();
+                var concrete = CanonicalStaticAuthoring.Expand(expanded.Source, dataErrors, values);
+                if (concrete is null || dataErrors.Count > 0)
+                { diagnostics.AddRange(dataErrors.Select(e => new AssemblyDiagnostic("assembly-port-specialization-failed", e))); return []; }
+                var nominal = FirmamentValueSubstitution.Apply(concrete.Source, values.MaterialInputs(concrete.Source)
+                    .ToDictionary(v => v.Name, v => values.NominalExpression(v.Name), StringComparer.Ordinal));
+                var wire = Materializer.WireFormAuthoring.Parse(nominal);
+                if (!wire.IsSuccess || wire.Value is null)
+                    diagnostics.AddRange(wire.Diagnostics.Select(d => new AssemblyDiagnostic("assembly-port-wireform-invalid", d.Message)));
+                else result.AddRange(AssemblyDefinitionMaterializer.WindingSemantics(wire.Value,
+                    [new("WireForm-AIR", identity, "definition-owned winding datum", SemanticSourceSpan.Generated(sourceIdentity)),
+                     new("definition-port-publication", identity, "WireForm winding", SemanticSourceSpan.Generated(sourceIdentity))], sourceIdentity));
+            }
+        }
         foreach (Match expose in Regex.Matches(body,@"\bExpose\s*\{"))
         {
             var ports = AssemblyM0Parser.BalancedBody(body,expose.Index+expose.Length-1,diagnostics,"part Expose");

@@ -1,0 +1,1581 @@
+{
+  "schemaVersion": 1,
+  "implementationBase": "96aa41ca58f4facd46bb7e8afa93f18524dc068d",
+  "verdict": "Success for the approved assembly reuse and public-contract pass; X2 remains open",
+  "fullRegression": {
+    "failed": 0,
+    "passed": 5070,
+    "skipped": 0,
+    "total": 5070,
+    "executingAssemblies": 20
+  },
+  "focusedCompiler": {
+    "failed": 0,
+    "passed": 96,
+    "skipped": 0,
+    "total": 96,
+    "executingAssemblies": 1
+  },
+  "focusedDomainCli": {
+    "failed": 0,
+    "passed": 2,
+    "skipped": 0,
+    "total": 2,
+    "executingAssemblies": 1
+  },
+  "focusedSheetMetal": {
+    "failed": 0,
+    "passed": 8,
+    "skipped": 0,
+    "total": 8,
+    "executingAssemblies": 1
+  },
+  "fastLane": {
+    "failed": 0,
+    "passed": 1068,
+    "skipped": 0,
+    "total": 1068,
+    "executingAssemblies": 1
+  },
+  "buildWarnings": 2,
+  "corpus": {
+    "schemaVersion": 1,
+    "sourceCount": 1326,
+    "canonicalSourceCount": 368,
+    "canonicalStructurallyParsed": 368,
+    "structurallyParsed": 962,
+    "standaloneProductionAccepted": 521,
+    "inventorySha256": "CB8647D9889E7785583172483BB927E2F927DBBABC2D710BFEA603A6426E8736",
+    "unresolvedMismatchCount": 0,
+    "universalSemanticParityQualified": false,
+    "classifications": {
+      "Admitted": 504,
+      "AdmittedGeometryWithDfmFindings": 1,
+      "AdmittedInConsumerContext": 72,
+      "DeclarationModuleRequiresConsumer": 5,
+      "ExpectedNegativeRejection": 286,
+      "ExperimentalAdmitted": 9,
+      "ExperimentalRejected": 31,
+      "LegacySerializationAdmitted": 5,
+      "LegacySerializationRejected": 324,
+      "MalformedOrUnsupportedSourceRejected": 6,
+      "MisfiledPositiveFixture": 1,
+      "RejectedAtSolveStage": 1,
+      "SourceAdmissionRejected": 81
+    },
+    "canonicalClassifications": {
+      "Admitted": 290,
+      "AdmittedInConsumerContext": 69,
+      "SourceAdmissionRejected": 9
+    }
+  },
+  "existingSourceClassificationChanges": [],
+  "newSources": [
+    {
+      "source": "Canonical/EditableV8/assemblies/cam-left.firmament",
+      "sha256": "635120696BE8F2EBA1FBA0B502305C8ADD0F06455581DE69B3815B85D4AFA755",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/assemblies/cam-right.firmament",
+      "sha256": "E823DE6BA03EB569BE95F71DD9FC7190886103D083D3E0009CBD98B649F90D7D",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/assemblies/crankcase.firmament",
+      "sha256": "C33754AF7B523269B6FF0CAF259D658EFB66A5460429ABB05AC5A0F28953DE1D",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/assemblies/crankshaft.firmament",
+      "sha256": "E33C8B0ADB9D7763536F33D6487B280D2F16890D4DA1B23E8E1B3CAA1C93BBA1",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/assemblies/cylinder.firmament",
+      "sha256": "86216EB51660E414D3AC8A118BD4B03B3920B720FC596B83C4D141EB0DF2D19B",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/assemblies/stage-a.firmament",
+      "sha256": "C3FB386E730B7B5E24822207CE8709133CACC55ED62376DEE3318FB12F5F1C14",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/stage-a.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/assemblies/stage-b.firmament",
+      "sha256": "440363C83D0C4479643F0AD7305BFB4568BB24BF919301D43F94B05CF2D03366",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/bank-rest-configurations.firmament",
+      "sha256": "5FC1F115DF5FC9920C81CCF022CC3863D7D459DEF1D8308E8A300037521369ED",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/bank.firmasm",
+      "sha256": "55D811755AC8C2087A0D43138635AC2036133A5528164BAB8CA6066A09892ACC",
+      "structuralSuccess": true,
+      "classification": "Admitted",
+      "consumers": []
+    },
+    {
+      "source": "Canonical/EditableV8/construction.firmament",
+      "sha256": "FADFB8795AE5D32A4BB6A31C1DF148213409CF78DB8598EEE7D512C893358863",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-a.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/cylinder-config.firmament",
+      "sha256": "63D780EB312EDB0BBB6A30064700D59A069F2041A5CE34212987EF880D75E73E",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/design.firmament",
+      "sha256": "BAA0BAB8F0718DC2776014CF272D7F5C13020BBB2BC7AFBD7EEB6FE90081C91D",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-a.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/engine.firmasm",
+      "sha256": "9B5F3FAD39646AB55272CC6D0C7BCE0A442E269127330E7852EA5014028BE97F",
+      "structuralSuccess": true,
+      "classification": "Admitted",
+      "consumers": []
+    },
+    {
+      "source": "Canonical/EditableV8/interfaces.firmament",
+      "sha256": "F5A62EE42E8E282F0E5A677BBAE9C236CAA3DE9E68123A798F76EED34B26C2C6",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-a.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/Camshaft.firmament",
+      "sha256": "F030F711A3957BC712CE2E1009F4168B4403B4901352838BB0C107E55CF1DF6C",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/ConnectingRod.firmament",
+      "sha256": "6E557267BC7E21DB23EBA2769B0CEDDF532A88E5B8271768747CCCF3A55CFBD6",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-a.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/CrankWeb.firmament",
+      "sha256": "E30DCDB2A25718F85F7F55388D7A7C023D32C6C3988C4D8950CA37C3D3EE1322",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-a.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/CrankcaseRail.firmament",
+      "sha256": "7268DAC6117C13F89E01E37E4B0B3EA527497008039AB8C105C2E8D908E3B726",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/Crankpin.firmament",
+      "sha256": "6440DBBCE8F77364B20002F6FB33C74293C94A075873A91C27B6834A05B8DD95",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/stage-a.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/CylinderHead.firmament",
+      "sha256": "414826E30FCF6DAE4974EAB6DCB74693A7D94E7BE54ED7A1691E425C2428C42F",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/CylinderSleeve.firmament",
+      "sha256": "7D42995BB8151D71AF8A83951082C45DB6D47E0D8300FFD2476595F1E8A2A476",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-a.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/ExhaustValve.firmament",
+      "sha256": "ED5FF0529F6CA342BD315B8BE3454C752DA250D3AE31BF14B915B5466C6A1447",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/Flywheel.firmament",
+      "sha256": "FB027F50360CA9E99ADD9DCAF971EC6F26A7578ACB250837B18B69D482C07023",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/IntakeValve.firmament",
+      "sha256": "071B5E964F3BC8953C36A081970F0C7FA790FFE73787D275B2DF9182D9AC98E7",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/LongMainJournal.firmament",
+      "sha256": "B028497ACEDF2FD1E19C6999505ECF2851D0EC629DB43725F75D422A611C9F0F",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/MainJournal.firmament",
+      "sha256": "301B3BA1B144D6D4CB6C71D01627A21D0FC18979EB5D01F9471B126E6B0144F1",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/stage-a.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/MainSupport.firmament",
+      "sha256": "22A177214C270C145B46D9C1A6F7F9DBF60CA50EEA4928E002DA06D617515C39",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/PairedCrankpin.firmament",
+      "sha256": "0D6B37A32044272BE3E27C721738C470B54A2772D98CE72CB81C5143EC50D43B",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/ParameterizedValveSpring.firmament",
+      "sha256": "BB5D9D7C70DC23C78E6A57E64642E1FE8C441EBF60A9F7A2D7FD146E82514B95",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/PistonCrown.firmament",
+      "sha256": "B78C89E037B9FA25A5E7C593D451A3F3D86C27E88DDDCBADE44EBEAD0757C52D",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-a.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/PistonLug.firmament",
+      "sha256": "9DA2CE017E77B1A01378BBD631E902734AAF9E34ABC9E42A5120E360BD327AA8",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-a.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/PistonSkirt.firmament",
+      "sha256": "F71CE74D4C5C53A75ADA4665E9681DEE83DD7DA48500FF12981C123D03017AD0",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/SpringRetainer.firmament",
+      "sha256": "8F4741EA72B25349992DDC30F1858102B33377DA656B6C361D5702833626D18D",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/TimingLobe.firmament",
+      "sha256": "B48744D11B6B4072A2038CCD1A22A39DAB443ECA5CC7FFA1FB1C712BC3B8F711",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/ValveSpring.firmament",
+      "sha256": "248839A3E36295B5F75B29CDDD49AA8C4DF698BA02ABD8AB74965AC76EC8B5E2",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/ValveStem.firmament",
+      "sha256": "61F06E5D231A531D0557189F913E095108A895E4AC934966A710978DB00DF510",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/parts/WristPin.firmament",
+      "sha256": "FE74A4E553314F9CAF8EAE24E085C00AB8DF9C2BE5442FE1DFAD6CBE3491C2A4",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/bank.firmasm",
+        "Canonical/EditableV8/engine.firmasm",
+        "Canonical/EditableV8/stage-a.firmasm",
+        "Canonical/EditableV8/stage-b.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/rest-configurations.firmament",
+      "sha256": "9FBCAFC7CBF246C7D3C8DBBE3AA6E70F35F3EFA0830FB01E65967678CB60F192",
+      "structuralSuccess": true,
+      "classification": "AdmittedInConsumerContext",
+      "consumers": [
+        "Canonical/EditableV8/engine.firmasm"
+      ]
+    },
+    {
+      "source": "Canonical/EditableV8/scene.firmament",
+      "sha256": "AC0CCFCC3FDDB2C0379E2153B7B5464809B74BF2219B4BE58A074C63A66A033B",
+      "structuralSuccess": true,
+      "classification": "Admitted",
+      "consumers": []
+    },
+    {
+      "source": "Canonical/EditableV8/stage-a.firmasm",
+      "sha256": "E25AF40E0230B2E8AEFEF5A87F6280CA7950BE0AAC08C24D81343D9D822E315C",
+      "structuralSuccess": true,
+      "classification": "Admitted",
+      "consumers": []
+    },
+    {
+      "source": "Canonical/EditableV8/stage-b.firmasm",
+      "sha256": "6408E0EADCD23D6E62C7B73C4F30476580A153B2532A092DBCF67AC61FB7650D",
+      "structuralSuccess": true,
+      "classification": "Admitted",
+      "consumers": []
+    }
+  ],
+  "v8GeometryParity": [
+    {
+      "label": "stage-a",
+      "physicalParts": 11,
+      "definitionsBefore": 8,
+      "definitionsAfter": 8,
+      "maximumWorldMatrixError": 0,
+      "worldTolerance": 1e-09,
+      "geometry": [
+        {
+          "example": "CrankWeb1A",
+          "beforeDefinition": "assembly-definition:0C4B9960A4304578",
+          "afterDefinition": "assembly-definition:D8E90F0787F6F3EE",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Crankpin1",
+          "beforeDefinition": "assembly-definition:430481E918B90413",
+          "afterDefinition": "assembly-definition:D955EED703A3BDFE",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Cylinder1",
+          "beforeDefinition": "assembly-definition:77370A76F5F2AA7B",
+          "afterDefinition": "assembly-definition:96A8CCD8A2A259A4",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "MainJournal1",
+          "beforeDefinition": "assembly-definition:A68EF22F1C9E0940",
+          "afterDefinition": "assembly-definition:6D4E55B2EF48F20B",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Piston1",
+          "beforeDefinition": "assembly-definition:1438ABE389163638",
+          "afterDefinition": "assembly-definition:8A83909077FEE6AF",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "PistonLug1A",
+          "beforeDefinition": "assembly-definition:4DFBB67FAEB0399F",
+          "afterDefinition": "assembly-definition:0324842D51CCC89F",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Rod1",
+          "beforeDefinition": "assembly-definition:087B830BBEFB1A71",
+          "afterDefinition": "assembly-definition:1D1923E5CC2E7874",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "WristPin1",
+          "beforeDefinition": "assembly-definition:8396D23E881714BE",
+          "afterDefinition": "assembly-definition:7A1919660A8FD1B3",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "label": "stage-b",
+      "physicalParts": 20,
+      "definitionsBefore": 14,
+      "definitionsAfter": 14,
+      "maximumWorldMatrixError": 3.552713678800501e-15,
+      "worldTolerance": 1e-09,
+      "geometry": [
+        {
+          "example": "CrankWeb1A",
+          "beforeDefinition": "assembly-definition:0C4B9960A4304578",
+          "afterDefinition": "assembly-definition:D8E90F0787F6F3EE",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Crankpin1",
+          "beforeDefinition": "assembly-definition:430481E918B90413",
+          "afterDefinition": "assembly-definition:D955EED703A3BDFE",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Cylinder1",
+          "beforeDefinition": "assembly-definition:77370A76F5F2AA7B",
+          "afterDefinition": "assembly-definition:96A8CCD8A2A259A4",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "ExhaustRetainer1",
+          "beforeDefinition": "assembly-definition:E42B20F757B89770",
+          "afterDefinition": "assembly-definition:A56526CB2D87FCDB",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "ExhaustSpring1",
+          "beforeDefinition": "assembly-definition:3451AA7AC3498785",
+          "afterDefinition": "assembly-definition:472328DE6715AF03",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "ExhaustStem1",
+          "beforeDefinition": "assembly-definition:2A66D7E927DE406F",
+          "afterDefinition": "assembly-definition:290648FF769BBCEC",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "ExhaustValve1",
+          "beforeDefinition": "assembly-definition:33046E1BEB199411",
+          "afterDefinition": "assembly-definition:6A7D384BDE402574",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Head1",
+          "beforeDefinition": "assembly-definition:CC51CB3973E5BD4B",
+          "afterDefinition": "assembly-definition:545F530CADD960CD",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeValve1",
+          "beforeDefinition": "assembly-definition:092A4C82F7AAF1A2",
+          "afterDefinition": "assembly-definition:53FB45EF035A38FD",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "MainJournal1",
+          "beforeDefinition": "assembly-definition:A68EF22F1C9E0940",
+          "afterDefinition": "assembly-definition:6D4E55B2EF48F20B",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Piston1",
+          "beforeDefinition": "assembly-definition:1438ABE389163638",
+          "afterDefinition": "assembly-definition:8A83909077FEE6AF",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "PistonLug1A",
+          "beforeDefinition": "assembly-definition:4DFBB67FAEB0399F",
+          "afterDefinition": "assembly-definition:0324842D51CCC89F",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Rod1",
+          "beforeDefinition": "assembly-definition:087B830BBEFB1A71",
+          "afterDefinition": "assembly-definition:1D1923E5CC2E7874",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "WristPin1",
+          "beforeDefinition": "assembly-definition:8396D23E881714BE",
+          "afterDefinition": "assembly-definition:7A1919660A8FD1B3",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "label": "stage-c",
+      "physicalParts": 98,
+      "definitionsBefore": 21,
+      "definitionsAfter": 21,
+      "maximumWorldMatrixError": 1.7053025658242404e-13,
+      "worldTolerance": 1e-09,
+      "geometry": [
+        {
+          "example": "Rod1",
+          "beforeDefinition": "assembly-definition:087B830BBEFB1A71",
+          "afterDefinition": "assembly-definition:1D1923E5CC2E7874",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Piston1",
+          "beforeDefinition": "assembly-definition:1438ABE389163638",
+          "afterDefinition": "assembly-definition:8A83909077FEE6AF",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "PistonSkirt1",
+          "beforeDefinition": "assembly-definition:3EFB49114910F8CB",
+          "afterDefinition": "assembly-definition:479F1C2E414FD7CA",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "PistonLugA1",
+          "beforeDefinition": "assembly-definition:4DFBB67FAEB0399F",
+          "afterDefinition": "assembly-definition:0324842D51CCC89F",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "WristPin1",
+          "beforeDefinition": "assembly-definition:8396D23E881714BE",
+          "afterDefinition": "assembly-definition:7A1919660A8FD1B3",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Cylinder1",
+          "beforeDefinition": "assembly-definition:77370A76F5F2AA7B",
+          "afterDefinition": "assembly-definition:96A8CCD8A2A259A4",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Head1",
+          "beforeDefinition": "assembly-definition:CC51CB3973E5BD4B",
+          "afterDefinition": "assembly-definition:545F530CADD960CD",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeValve1",
+          "beforeDefinition": "assembly-definition:092A4C82F7AAF1A2",
+          "afterDefinition": "assembly-definition:53FB45EF035A38FD",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeStem1",
+          "beforeDefinition": "assembly-definition:2A66D7E927DE406F",
+          "afterDefinition": "assembly-definition:290648FF769BBCEC",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeRetainer1",
+          "beforeDefinition": "assembly-definition:E42B20F757B89770",
+          "afterDefinition": "assembly-definition:A56526CB2D87FCDB",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeSpring1",
+          "beforeDefinition": "assembly-definition:3451AA7AC3498785",
+          "afterDefinition": "assembly-definition:F86A8E88E4D7BC9B",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "ExhaustValve1",
+          "beforeDefinition": "assembly-definition:33046E1BEB199411",
+          "afterDefinition": "assembly-definition:6A7D384BDE402574",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeSpring3",
+          "beforeDefinition": "assembly-definition:91984FC4F07343DB",
+          "afterDefinition": "assembly-definition:8C2E45893C8F4C4A",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Crankpin1",
+          "beforeDefinition": "assembly-definition:30EAE7F8FB5DBEA0",
+          "afterDefinition": "assembly-definition:42421B6C706777FD",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "CrankWeb1A",
+          "beforeDefinition": "assembly-definition:0C4B9960A4304578",
+          "afterDefinition": "assembly-definition:D8E90F0787F6F3EE",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "MainJournal1",
+          "beforeDefinition": "assembly-definition:DC8C099AD72F6A4E",
+          "afterDefinition": "assembly-definition:9B8FD0B23AA6E278",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "MainSupport1",
+          "beforeDefinition": "assembly-definition:D1CFA6591DE248AE",
+          "afterDefinition": "assembly-definition:5335014F6BD9CD2C",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "CrankcaseRailA",
+          "beforeDefinition": "assembly-definition:05CB1CB5BDAF6C0B",
+          "afterDefinition": "assembly-definition:E199334EBD95D961",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Flywheel",
+          "beforeDefinition": "assembly-definition:9C9CA5FF7A240B12",
+          "afterDefinition": "assembly-definition:1B638DA6AE16C1AA",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "CamshaftRight",
+          "beforeDefinition": "assembly-definition:2B1EF86EBF66A25F",
+          "afterDefinition": "assembly-definition:337257A2D745437D",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "TimingLobe1In",
+          "beforeDefinition": "assembly-definition:AD0CDBD8542C68FD",
+          "afterDefinition": "assembly-definition:1186B0244BC98480",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "label": "baseline",
+      "physicalParts": 171,
+      "definitionsBefore": 21,
+      "definitionsAfter": 21,
+      "maximumWorldMatrixError": 1.7053025658242404e-13,
+      "worldTolerance": 1e-09,
+      "geometry": [
+        {
+          "example": "Rod1",
+          "beforeDefinition": "assembly-definition:087B830BBEFB1A71",
+          "afterDefinition": "assembly-definition:1D1923E5CC2E7874",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Piston1",
+          "beforeDefinition": "assembly-definition:1438ABE389163638",
+          "afterDefinition": "assembly-definition:8A83909077FEE6AF",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "PistonSkirt1",
+          "beforeDefinition": "assembly-definition:3EFB49114910F8CB",
+          "afterDefinition": "assembly-definition:479F1C2E414FD7CA",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "PistonLugA1",
+          "beforeDefinition": "assembly-definition:4DFBB67FAEB0399F",
+          "afterDefinition": "assembly-definition:0324842D51CCC89F",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "WristPin1",
+          "beforeDefinition": "assembly-definition:8396D23E881714BE",
+          "afterDefinition": "assembly-definition:7A1919660A8FD1B3",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Cylinder1",
+          "beforeDefinition": "assembly-definition:77370A76F5F2AA7B",
+          "afterDefinition": "assembly-definition:96A8CCD8A2A259A4",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Head1",
+          "beforeDefinition": "assembly-definition:CC51CB3973E5BD4B",
+          "afterDefinition": "assembly-definition:545F530CADD960CD",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeValve1",
+          "beforeDefinition": "assembly-definition:092A4C82F7AAF1A2",
+          "afterDefinition": "assembly-definition:53FB45EF035A38FD",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeStem1",
+          "beforeDefinition": "assembly-definition:2A66D7E927DE406F",
+          "afterDefinition": "assembly-definition:290648FF769BBCEC",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeRetainer1",
+          "beforeDefinition": "assembly-definition:E42B20F757B89770",
+          "afterDefinition": "assembly-definition:A56526CB2D87FCDB",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeSpring1",
+          "beforeDefinition": "assembly-definition:3451AA7AC3498785",
+          "afterDefinition": "assembly-definition:F86A8E88E4D7BC9B",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "ExhaustValve1",
+          "beforeDefinition": "assembly-definition:33046E1BEB199411",
+          "afterDefinition": "assembly-definition:6A7D384BDE402574",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeSpring3",
+          "beforeDefinition": "assembly-definition:91984FC4F07343DB",
+          "afterDefinition": "assembly-definition:8C2E45893C8F4C4A",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Crankpin1",
+          "beforeDefinition": "assembly-definition:30EAE7F8FB5DBEA0",
+          "afterDefinition": "assembly-definition:42421B6C706777FD",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "CrankWeb1A",
+          "beforeDefinition": "assembly-definition:0C4B9960A4304578",
+          "afterDefinition": "assembly-definition:D8E90F0787F6F3EE",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "MainJournal1",
+          "beforeDefinition": "assembly-definition:DC8C099AD72F6A4E",
+          "afterDefinition": "assembly-definition:9B8FD0B23AA6E278",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "MainSupport1",
+          "beforeDefinition": "assembly-definition:D1CFA6591DE248AE",
+          "afterDefinition": "assembly-definition:5335014F6BD9CD2C",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "CrankcaseRailA",
+          "beforeDefinition": "assembly-definition:05CB1CB5BDAF6C0B",
+          "afterDefinition": "assembly-definition:E199334EBD95D961",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Flywheel",
+          "beforeDefinition": "assembly-definition:9C9CA5FF7A240B12",
+          "afterDefinition": "assembly-definition:1B638DA6AE16C1AA",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "CamshaftRight",
+          "beforeDefinition": "assembly-definition:2B1EF86EBF66A25F",
+          "afterDefinition": "assembly-definition:337257A2D745437D",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "TimingLobe1In",
+          "beforeDefinition": "assembly-definition:AD0CDBD8542C68FD",
+          "afterDefinition": "assembly-definition:1186B0244BC98480",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "label": "revised",
+      "physicalParts": 171,
+      "definitionsBefore": 21,
+      "definitionsAfter": 21,
+      "maximumWorldMatrixError": 2.2737367544323206e-13,
+      "worldTolerance": 1e-09,
+      "geometry": [
+        {
+          "example": "Rod1",
+          "beforeDefinition": "assembly-definition:087B830BBEFB1A71",
+          "afterDefinition": "assembly-definition:1D1923E5CC2E7874",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Piston1",
+          "beforeDefinition": "assembly-definition:1438ABE389163638",
+          "afterDefinition": "assembly-definition:8A83909077FEE6AF",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "PistonSkirt1",
+          "beforeDefinition": "assembly-definition:3EFB49114910F8CB",
+          "afterDefinition": "assembly-definition:479F1C2E414FD7CA",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "PistonLugA1",
+          "beforeDefinition": "assembly-definition:4DFBB67FAEB0399F",
+          "afterDefinition": "assembly-definition:0324842D51CCC89F",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "WristPin1",
+          "beforeDefinition": "assembly-definition:8396D23E881714BE",
+          "afterDefinition": "assembly-definition:7A1919660A8FD1B3",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Cylinder1",
+          "beforeDefinition": "assembly-definition:0D4C356C065797D6",
+          "afterDefinition": "assembly-definition:96A8CCD8A2A259A4",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Head1",
+          "beforeDefinition": "assembly-definition:CC51CB3973E5BD4B",
+          "afterDefinition": "assembly-definition:545F530CADD960CD",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeValve1",
+          "beforeDefinition": "assembly-definition:092A4C82F7AAF1A2",
+          "afterDefinition": "assembly-definition:53FB45EF035A38FD",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeStem1",
+          "beforeDefinition": "assembly-definition:2A66D7E927DE406F",
+          "afterDefinition": "assembly-definition:290648FF769BBCEC",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeRetainer1",
+          "beforeDefinition": "assembly-definition:E42B20F757B89770",
+          "afterDefinition": "assembly-definition:A56526CB2D87FCDB",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeSpring1",
+          "beforeDefinition": "assembly-definition:3451AA7AC3498785",
+          "afterDefinition": "assembly-definition:F86A8E88E4D7BC9B",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "ExhaustValve1",
+          "beforeDefinition": "assembly-definition:33046E1BEB199411",
+          "afterDefinition": "assembly-definition:6A7D384BDE402574",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "IntakeSpring3",
+          "beforeDefinition": "assembly-definition:91984FC4F07343DB",
+          "afterDefinition": "assembly-definition:8C2E45893C8F4C4A",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Crankpin1",
+          "beforeDefinition": "assembly-definition:30EAE7F8FB5DBEA0",
+          "afterDefinition": "assembly-definition:42421B6C706777FD",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "CrankWeb1A",
+          "beforeDefinition": "assembly-definition:2BFE5CB7B3BE03C2",
+          "afterDefinition": "assembly-definition:D8E90F0787F6F3EE",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "MainJournal1",
+          "beforeDefinition": "assembly-definition:DC8C099AD72F6A4E",
+          "afterDefinition": "assembly-definition:9B8FD0B23AA6E278",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "MainSupport1",
+          "beforeDefinition": "assembly-definition:97D4D441CF2E17E0",
+          "afterDefinition": "assembly-definition:5335014F6BD9CD2C",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "CrankcaseRailA",
+          "beforeDefinition": "assembly-definition:05CB1CB5BDAF6C0B",
+          "afterDefinition": "assembly-definition:E199334EBD95D961",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "Flywheel",
+          "beforeDefinition": "assembly-definition:9C9CA5FF7A240B12",
+          "afterDefinition": "assembly-definition:1B638DA6AE16C1AA",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "CamshaftRight",
+          "beforeDefinition": "assembly-definition:2B1EF86EBF66A25F",
+          "afterDefinition": "assembly-definition:337257A2D745437D",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        },
+        {
+          "example": "TimingLobe1In",
+          "beforeDefinition": "assembly-definition:AD0CDBD8542C68FD",
+          "afterDefinition": "assembly-definition:1186B0244BC98480",
+          "positionsIdentical": true,
+          "normalsIdentical": true,
+          "indicesIdentical": true
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "javascriptParity": [
+    {
+      "label": "baseline",
+      "compared": 27360,
+      "maximumError": 2.842170943040401e-14,
+      "tolerance": 1e-09,
+      "objects": 171,
+      "status": "pass"
+    },
+    {
+      "label": "revised",
+      "compared": 27360,
+      "maximumError": 2.842170943040401e-14,
+      "tolerance": 1e-09,
+      "objects": 171,
+      "status": "pass"
+    }
+  ],
+  "engineValidation": {
+    "success": true,
+    "domain": "Assembly",
+    "validationLevel": "Built",
+    "diagnostics": []
+  },
+  "scene": {
+    "success": true,
+    "scene": "EngineStudy",
+    "definitions": 21,
+    "occurrences": 194,
+    "bounds": {
+      "minimumMm": [
+        -232.61731573020282,
+        -101.84985911070852,
+        -43
+      ],
+      "maximumMm": [
+        232.61731573020282,
+        232.61731573020285,
+        467
+      ]
+    }
+  },
+  "showcaseStepParity": [
+    {
+      "source": "fixtures/Canonical/Symmetry/radial-bolt-circle.firmament",
+      "sourceSha256": "19DAA47DC20CA092A6DDA1CC49AF0B74E7E016F5E4A143AA4C00B7230B81C3CE",
+      "expectedSha256": "4B4F8FD69D10E73BB403F1538C6FC13995F895E4C1C17E0605A3E4A008E5356E",
+      "actualSha256": "4B4F8FD69D10E73BB403F1538C6FC13995F895E4C1C17E0605A3E4A008E5356E",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/partial-radial-pattern.firmament",
+      "sourceSha256": "258427029AA0882653801833109AD9FE04542C7448DE1D126291215FC016DE7D",
+      "expectedSha256": "7D708B30209B6A03010D9C647F762E453C705BC8F656882BE4F18785B2F08D87",
+      "actualSha256": "7D708B30209B6A03010D9C647F762E453C705BC8F656882BE4F18785B2F08D87",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-revolve.firmament",
+      "sourceSha256": "B955033028F838A3A3D7D265BD4EB04A9AAD89E83D95D5EA1C640ECB0953FA6C",
+      "expectedSha256": "C44AE2A5B6CFC978AFB24041F0B5C43A4554161FE5880FC6E2D59ADB1B7CAB4A",
+      "actualSha256": "C44AE2A5B6CFC978AFB24041F0B5C43A4554161FE5880FC6E2D59ADB1B7CAB4A",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-profile.firmament",
+      "sourceSha256": "1F41E7EBE426306205E01226C36410261798418C385E5E284BD0A4216CAF98BF",
+      "expectedSha256": "30D1F927A7295A5B553453BA2D6E936564140839E4497B0C5B46A1682A18F6A1",
+      "actualSha256": "30D1F927A7295A5B553453BA2D6E936564140839E4497B0C5B46A1682A18F6A1",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-hole.firmament",
+      "sourceSha256": "39B62FB47C0C42BDF7CD3DE7FCA2E78E785BCD693412FC052628F470F3261EB0",
+      "expectedSha256": "4A0DA2E67DA153B38DD7E6389CB329B4BBB6939FEC88541936DF705F49BE62FE",
+      "actualSha256": "4A0DA2E67DA153B38DD7E6389CB329B4BBB6939FEC88541936DF705F49BE62FE",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-feature-with-override.firmament",
+      "sourceSha256": "DEBDCE6974743DCBCED725B9FF6B8ED833EF64DBE69A4B94256515E6CDF24B4E",
+      "expectedSha256": "052F9FC96919130FA11D2FDE5BEF302BCBE42BA6441A61F7164D43E25EAF8FBB",
+      "actualSha256": "052F9FC96919130FA11D2FDE5BEF302BCBE42BA6441A61F7164D43E25EAF8FBB",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Regression/FrontendMigration/preferred-profile-links.firmament",
+      "sourceSha256": "41ACDC508CDB714BC0409C864708FD968BB812A83E4FD406B7AA0818670C6C4B",
+      "expectedSha256": "E43449262ECDD3DD05EFB73DB821D2E09226637EC1FB1EAF73E07821CD46AA57",
+      "actualSha256": "E43449262ECDD3DD05EFB73DB821D2E09226637EC1FB1EAF73E07821CD46AA57",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Features/Holes/through-hole.firmament",
+      "sourceSha256": "38E8188DB1BB7C75406570BBCEC9A09DAFA9D4D33A0EDEB746A6C04A973B265C",
+      "expectedSha256": "5999F127E5A1477E5825AFA656DCEB7F89241D8F85312B0E6BCD793639A0F548",
+      "actualSha256": "5999F127E5A1477E5825AFA656DCEB7F89241D8F85312B0E6BCD793639A0F548",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Templates/generic-mounting-plate.firmament",
+      "sourceSha256": "91B69697F5E777438F688FA2D1F0330FEF5C430D064FCA0A7FFF886252567C92",
+      "expectedSha256": "B0FF1D05D82135A3630C5E165C09B6C2C467B3FAF98A0825A9AF86B2E1CE76A3",
+      "actualSha256": "B0FF1D05D82135A3630C5E165C09B6C2C467B3FAF98A0825A9AF86B2E1CE76A3",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Set/pattern-feature-map.firmament",
+      "sourceSha256": "7BF1BA1E508CAE2548EC429724A895F2E50FFDAD057084F17B506C4362A34E40",
+      "expectedSha256": "08D4EA1F1336C06A380E30806C02AEE3F08535CAD1592929470EBD64B9882FC2",
+      "actualSha256": "08D4EA1F1336C06A380E30806C02AEE3F08535CAD1592929470EBD64B9882FC2",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/PMI/hole-diameter-and-datum.firmament",
+      "sourceSha256": "B105A5535F53189938CBA6C9E8644FC9D8C6683F8BB97B04167FA48C411ABBFD",
+      "expectedSha256": "9F2F24975267BF425D16A2ECDF863F4A94C0FAD172C932F9868BBB836BD46F5D",
+      "actualSha256": "9F2F24975267BF425D16A2ECDF863F4A94C0FAD172C932F9868BBB836BD46F5D",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/PMI/typed-tolerance.firmament",
+      "sourceSha256": "7C928F862D443904E87EAD137DB7D55E4D69E03A12F918F3319ECED947245EC9",
+      "expectedSha256": "098B515124D46220AAB85F6DBE1568E6B5969FEB55B537BA91AD3DDA587509A5",
+      "actualSha256": "098B515124D46220AAB85F6DBE1568E6B5969FEB55B537BA91AD3DDA587509A5",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/PMI/record-template-feature-tolerance.firmament",
+      "sourceSha256": "6F88543F7E0D544F460709EE85521620101DCB053CF3C5C7C90F05A96CA63B8D",
+      "expectedSha256": "300023D4A6CC156F9224F4937F990926523372C8BF0AB11D8C15851FA256BB18",
+      "actualSha256": "300023D4A6CC156F9224F4937F990926523372C8BF0AB11D8C15851FA256BB18",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/AssemblyInterfaces/executable-machine.firmament",
+      "sourceSha256": "9CEDEDC63C8EEF28A51F58E0E1E0D85E70104C9014C94508C44F1E9320B42F72",
+      "expectedSha256": "912FCCCDF607E0EB9437423BEA0D2E6EB74D9BEDE4D4758D9DF6BF5364C66391",
+      "actualSha256": "912FCCCDF607E0EB9437423BEA0D2E6EB74D9BEDE4D4758D9DF6BF5364C66391",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Assembly/template-block-pair.firmament",
+      "sourceSha256": "3530A14F1156C588EA5747EE65B338162AEC803243FBBB379D7C11D5265EF211",
+      "expectedSha256": "17E1DABEA787334BE13DA18E9771B69927CE46D754CA35783693C2FD76847B24",
+      "actualSha256": "17E1DABEA787334BE13DA18E9771B69927CE46D754CA35783693C2FD76847B24",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Assembly/coil-on-stem.firmament",
+      "sourceSha256": "056E6354C85B0E54AC6B4E1B79C1E9ED5CBE7A97648748F1C55923B76C85E485",
+      "expectedSha256": "9C21BE66AA885DF21DE349169C4E3D14282C2384E661372EC4034E627A5E0A1A",
+      "actualSha256": "9C21BE66AA885DF21DE349169C4E3D14282C2384E661372EC4034E627A5E0A1A",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm",
+      "sourceSha256": "10C11DD2FA4361C87D14E22D318348CE18BE0925119496184E846A603B1CA2DB",
+      "expectedSha256": "469E42D07EC1BB3FFDB88D5B0149DA50C21F39631EDC7441C2B3DCF11C41681C",
+      "actualSha256": "469E42D07EC1BB3FFDB88D5B0149DA50C21F39631EDC7441C2B3DCF11C41681C",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-branch-variants.firmament",
+      "sourceSha256": "CEFCA8936656C4947A5D434FD75EF6AA23B94D8A3DBB808B340DD376842B9240",
+      "expectedSha256": "DDC7B5C388058035E1B6A5FC8D5AC6701FBA3057508448EF00351312D766EF07",
+      "actualSha256": "DDC7B5C388058035E1B6A5FC8D5AC6701FBA3057508448EF00351312D766EF07",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-offset-region.firmament",
+      "sourceSha256": "2FB5300A60902B01916B7D2D0C72A83156E365674BA0A5F249BC5D0B7EF00EE7",
+      "expectedSha256": "EB310460850C1153C5C1813F2863DCD16595755359E8545558140BBA5F632F05",
+      "actualSha256": "EB310460850C1153C5C1813F2863DCD16595755359E8545558140BBA5F632F05",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-preserve-interface.firmament",
+      "sourceSha256": "C2310DAB5E3F591E1260EDA82852F53EE7842B284914D030231C15DA72D50AF4",
+      "expectedSha256": "67D5F7D6316FA53F63CEE95C08F45AFEC71E2AA2B89060A41F7F88D29319AD79",
+      "actualSha256": "67D5F7D6316FA53F63CEE95C08F45AFEC71E2AA2B89060A41F7F88D29319AD79",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpted-housing.firmament",
+      "sourceSha256": "CD6647031A073A140C93CE7DBC14C08D801B84C24F0C15816D3C446464CF1D48",
+      "expectedSha256": "27136BC65CACE501B84E6EC81BCC186F1F48262ABB2CC9F76D2208951092396F",
+      "actualSha256": "27136BC65CACE501B84E6EC81BCC186F1F48262ABB2CC9F76D2208951092396F",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x1-freeform-housing.firmament",
+      "sourceSha256": "36CCD4855AC3F8574854AA2499CB7B5BFFE4A892852AE9DDC452714962457B38",
+      "expectedSha256": "F509AA95D3B223F876790A755DF0052900E07598A1CB8266D63EA2408EF2DB07",
+      "actualSha256": "F509AA95D3B223F876790A755DF0052900E07598A1CB8266D63EA2408EF2DB07",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x1a-trimmed-freeform-housing.firmament",
+      "sourceSha256": "990DC7389DBCB4E330B2A316AF4946297B5CA8F13C5BD9A693497792852ABD46",
+      "expectedSha256": "5717FD937D9FE93EACF3B49190BB967028C574121AE8850F2D82EA8FC7C1B9B4",
+      "actualSha256": "5717FD937D9FE93EACF3B49190BB967028C574121AE8850F2D82EA8FC7C1B9B4",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-g1-blend.firmament",
+      "sourceSha256": "1BB2EE58823B87D5CF65D227CC7163D36D92E670B43D33B8D6A9DCDB9F6288F9",
+      "expectedSha256": "73C2D486D3CED015EBEFA984C41063C54D86BF81E5A575179CA9098EBE23EF22",
+      "actualSha256": "73C2D486D3CED015EBEFA984C41063C54D86BF81E5A575179CA9098EBE23EF22",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-judged-housing.firmament",
+      "sourceSha256": "96BEDCA540DD454F27DA530E9B58E3E4C3DA21F4AEE0CA5422E56372D32EDE8C",
+      "expectedSha256": "0BC71E45EE37D7B523063A59E5060610048FBE7DAC227D82CB24B4A8186FDB2A",
+      "actualSha256": "0BC71E45EE37D7B523063A59E5060610048FBE7DAC227D82CB24B4A8186FDB2A",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-manual-candidate.firmament",
+      "sourceSha256": "CFBA24141D578B8049C61FA491B5978D40E873DA149373D287F5DB5488F40056",
+      "expectedSha256": "1B32DB8AFF518EAA86ADBEC212047641B48C5CCD9F57736F9C807D897AFA70B2",
+      "actualSha256": "1B32DB8AFF518EAA86ADBEC212047641B48C5CCD9F57736F9C807D897AFA70B2",
+      "exitCode": 0,
+      "byteIdentical": true
+    }
+  ],
+  "changedSourceHashes": {
+    "Aetheris.CLI.Tests/AssemblyDomainImportsTests.cs": "6CA5A5FA02ACDD8383411C51B2A6014B8C5F22AD5854CE575D7475F7225EB1D8",
+    "Aetheris.CLI/AssemblyGlbCommand.cs": "36586DAD8693E479C8ADF1A3CDD8462E454BC5C7E9F10A6714F681578D87D40F",
+    "Aetheris.CLI/AssemblyUsdCommand.cs": "CB9BBCAF5CCC9D2F78A0ABD4D1C4DD5342B077A3DD47D4755E0E98E09148B11B",
+    "Aetheris.CLI/CliRunner.cs": "537C964E0A41827102D92B4E04C0604E1C409DFD9358E15BF62B2C78D195BCBD",
+    "Aetheris.Kernel.Firmament.Tests/Assembly/AssemblyFrameValueTests.cs": "72DF75CA23EB8DB32F87EB7EF5520643F89561D1CC87DD3D3A8DD08795242950",
+    "Aetheris.Kernel.Firmament.Tests/Assembly/AssemblyTypedModuleTests.cs": "67218C2D3C396CD024B0FF2EC64C55A70D2A2D89B8FB036AC131DCA005D84BE5",
+    "Aetheris.Kernel.Firmament/Assembly/AssemblyDatumAuthoring.cs": "FCB4520E6C235BE647B8815E6747926BB3F3C3A968E7A9C4CAFE77CA36F0A293",
+    "Aetheris.Kernel.Firmament/Assembly/AssemblyM0Parser.cs": "E9C40B39EB7F51D06F6B86148DD1386DC2F3A8458576E17BCDF5CAEFB1F0BDCB",
+    "Aetheris.Kernel.Firmament/Assembly/AssemblyM1Execution.cs": "AE1C22750B51386CD67A2B79C978397526075734BED6A02A722AFDB6056FD90D",
+    "Aetheris.Kernel.Firmament/Assembly/AssemblyPublishedPorts.cs": "9DE3981C60D737E1FDCA599E9582F679ED08143C8B235E16A77D41ACC1DB46C9",
+    "Aetheris.Kernel.Firmament/FirmamentV2/CanonicalStaticAuthoring.cs": "C6E5E8D6A1DB05C78B301EBC3C3F545A605710C21C453E738E95A01865D000D7",
+    "Aetheris.Kernel.Firmament/FirmamentV2/FirmamentV2TemplateExpansion.cs": "C9422B73338F3511286694EF3E6CB208BA675300602DB72AA145D4197BBAA519",
+    "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentDataBinding.cs": "654BE246CF7AEB74381011D228F523A261F958640CC11A59D9CAE22579AAA0EB",
+    "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntax.cs": "040ED4E96B320B55B2A3BC41120EEAE83AF0096B79BB8745F2D6C78A781F62A8",
+    "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntaxOrigins.cs": "803AADC77AF9E040094B60E6350F910A75CEA698B73B682A32B3AFBF27D04210",
+    "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntaxParser.cs": "FAFB7C56615535381765C6F5AE768AA36F5DE788835F94EE22424ED3DDC55F09",
+    "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntaxRewriter.cs": "93B0081091255AEC88994FDD86D1AA2FEE3C1998E2A7DFC5BDC44E976DEB3D8B",
+    "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntaxTraversal.cs": "72BABF467B77249FC48983B1406176E4281A2BA22233079ECD07DCAC1A0E67B4",
+    "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntaxWriter.cs": "73EB82CC56E200837C4BE4B43A0828EA34ED4C205B68C0E51CC00F8817CBFE59",
+    "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentTemplateSyntax.cs": "FA9DDAFF44BFF3FE3C56681641FC5155DB26C01D1C2E9656AFE80DAC06DBD123",
+    "Aetheris.Kernel.Firmament/Materializer/WireForm.cs": "46D69D22B459B65B9DBF719D85166E9A028828A7C5797F46176826D531B0733F",
+    "Aetheris.Kernel.Firmament/Modules/FirmamentModuleGraph.cs": "5AA98D8543B4D14B662F204818E0A04E4B5A8D6481DC3260310BF8062E58B7B6",
+    "Aetheris.SheetMetal.Tests/SheetMetalM6Tests.cs": "9F26B67E1273EF53A6EE6A9BF00CED86150E0867DA03B4D6FD7B4A3EDD4994BF",
+    "Aetheris.SheetMetal/EnclosureProductM6.cs": "E9EE76A28B9A2A2A91DB96F6F9DABE5B8EBD59AA4769F0D43E67E182A856622C",
+    "Aetheris.SheetMetal/SheetMetalFirmament.cs": "DB37740ED73638F70EF7579AACD754D8FE2CAE93F1724AAF1CEA3043C22A594C",
+    "demos/Aetheris.EditableV8.Tests/EngineTests.cs": "38E9F89E4C7AB6AD28146571C5312971ED5568F6EED03B5E1E782142B78CF5EE",
+    "demos/Aetheris.EditableV8/Aetheris.EditableV8.csproj": "31C404C31D208936325B6778294493703A63133E6A72522A2DA3488AA90396EA",
+    "demos/Aetheris.EditableV8/EngineMotion.cs": "9C51C3F0E9FF084F8EDF6631C743548061E21DC1EB04235ED913556213DCA06E",
+    "demos/Aetheris.EditableV8/EngineProject.cs": "3F67490C2EAB03CC5BFEED54FF0D454005D8FD02B2E33330E49F5E8CE77564A0",
+    "demos/Aetheris.EditableV8/Program.cs": "8C5BB10A236F7D806AFFB4937C32F5D3F96F230A80376D3E8B4EF37C85D3952F",
+    "demos/Aetheris.EditableV8/README.md": "5BF13EBE930BB78B190579A177B83393A7A65BBA692938D326BB1B518F8E1F45",
+    "demos/Aetheris.EditableV8/Run.ps1": "F65EB56B2956EF377D774B79FA2DC341F2BCE2D471D2D13A0E0BAA85630F8E82",
+    "demos/Aetheris.EditableV8/web/index.html": "6F83B30BCFDC000BCA0D130A7D1E21A8BB22041AAC2A542F4C80D8A18123F67E",
+    "demos/Aetheris.EditableV8/web/viewer.mjs": "ADCCAF149E9F23BBCC0F642129F4A8AFC2265013E17EA0B6D0DE145478B58720",
+    "docs/public/firmament/assembly-authoring-foundation.md": "028D9D59382A885DF1294CA095E849143C127535458E033DAA126691DFC13F79",
+    "docs/public/firmament/editable-mechanisms.md": "939BA52A1B05D5B3577DE6F244BE7180D22431F4376B4750093DB2366948498C",
+    "docs/public/firmament/inventory.md": "726310041E5AEC4B1714CAAB2BF8FC7A94E4F0E22B35A5CAC74A3C34DEBA794C",
+    "docs/public/firmament/sheet-metal.md": "FBFDB29DE45A70BF82013EB4F6E1239EE0C20D93F3B6962B2DB260FEE3CD203D",
+    "docs/public/firmament/syntax.md": "B5415154EC82663E2BD9495C83D2EE4E7A5CC6D715101C622ABF1CE318A135F7",
+    "docs/public/firmament/templates.md": "660D58F3438BC76DFF619B6B1BD6C7F8397333BBEB239FC4D7B7BB602C040BDF",
+    "docs/public/firmament/wire-form.md": "CB97EF18E6FD9A14F877DE46A383BD2E4B584406E41DE00350EC389F8DE6F4F3",
+    "fixtures/Canonical/EditableV8/assemblies/cam-left.firmament": "635120696BE8F2EBA1FBA0B502305C8ADD0F06455581DE69B3815B85D4AFA755",
+    "fixtures/Canonical/EditableV8/assemblies/cam-right.firmament": "E823DE6BA03EB569BE95F71DD9FC7190886103D083D3E0009CBD98B649F90D7D",
+    "fixtures/Canonical/EditableV8/assemblies/crankcase.firmament": "C33754AF7B523269B6FF0CAF259D658EFB66A5460429ABB05AC5A0F28953DE1D",
+    "fixtures/Canonical/EditableV8/assemblies/crankshaft.firmament": "E33C8B0ADB9D7763536F33D6487B280D2F16890D4DA1B23E8E1B3CAA1C93BBA1",
+    "fixtures/Canonical/EditableV8/assemblies/cylinder.firmament": "86216EB51660E414D3AC8A118BD4B03B3920B720FC596B83C4D141EB0DF2D19B",
+    "fixtures/Canonical/EditableV8/assemblies/stage-a.firmament": "C3FB386E730B7B5E24822207CE8709133CACC55ED62376DEE3318FB12F5F1C14",
+    "fixtures/Canonical/EditableV8/assemblies/stage-b.firmament": "440363C83D0C4479643F0AD7305BFB4568BB24BF919301D43F94B05CF2D03366",
+    "fixtures/Canonical/EditableV8/bank-rest-configurations.firmament": "5FC1F115DF5FC9920C81CCF022CC3863D7D459DEF1D8308E8A300037521369ED",
+    "fixtures/Canonical/EditableV8/bank.firmasm": "55D811755AC8C2087A0D43138635AC2036133A5528164BAB8CA6066A09892ACC",
+    "fixtures/Canonical/EditableV8/construction.firmament": "FADFB8795AE5D32A4BB6A31C1DF148213409CF78DB8598EEE7D512C893358863",
+    "fixtures/Canonical/EditableV8/cylinder-config.firmament": "63D780EB312EDB0BBB6A30064700D59A069F2041A5CE34212987EF880D75E73E",
+    "fixtures/Canonical/EditableV8/design.firmament": "BAA0BAB8F0718DC2776014CF272D7F5C13020BBB2BC7AFBD7EEB6FE90081C91D",
+    "fixtures/Canonical/EditableV8/engine.firmasm": "9B5F3FAD39646AB55272CC6D0C7BCE0A442E269127330E7852EA5014028BE97F",
+    "fixtures/Canonical/EditableV8/geometry-reference.expected.json": "E79FBA10EBC1BA18076BF9DEC045B81A9D16729B402C8A43620880D8FDC38D96",
+    "fixtures/Canonical/EditableV8/interfaces.firmament": "F5A62EE42E8E282F0E5A677BBAE9C236CAA3DE9E68123A798F76EED34B26C2C6",
+    "fixtures/Canonical/EditableV8/parts/Camshaft.firmament": "F030F711A3957BC712CE2E1009F4168B4403B4901352838BB0C107E55CF1DF6C",
+    "fixtures/Canonical/EditableV8/parts/ConnectingRod.firmament": "6E557267BC7E21DB23EBA2769B0CEDDF532A88E5B8271768747CCCF3A55CFBD6",
+    "fixtures/Canonical/EditableV8/parts/CrankWeb.firmament": "E30DCDB2A25718F85F7F55388D7A7C023D32C6C3988C4D8950CA37C3D3EE1322",
+    "fixtures/Canonical/EditableV8/parts/CrankcaseRail.firmament": "7268DAC6117C13F89E01E37E4B0B3EA527497008039AB8C105C2E8D908E3B726",
+    "fixtures/Canonical/EditableV8/parts/Crankpin.firmament": "6440DBBCE8F77364B20002F6FB33C74293C94A075873A91C27B6834A05B8DD95",
+    "fixtures/Canonical/EditableV8/parts/CylinderHead.firmament": "414826E30FCF6DAE4974EAB6DCB74693A7D94E7BE54ED7A1691E425C2428C42F",
+    "fixtures/Canonical/EditableV8/parts/CylinderSleeve.firmament": "7D42995BB8151D71AF8A83951082C45DB6D47E0D8300FFD2476595F1E8A2A476",
+    "fixtures/Canonical/EditableV8/parts/ExhaustValve.firmament": "ED5FF0529F6CA342BD315B8BE3454C752DA250D3AE31BF14B915B5466C6A1447",
+    "fixtures/Canonical/EditableV8/parts/Flywheel.firmament": "FB027F50360CA9E99ADD9DCAF971EC6F26A7578ACB250837B18B69D482C07023",
+    "fixtures/Canonical/EditableV8/parts/IntakeValve.firmament": "071B5E964F3BC8953C36A081970F0C7FA790FFE73787D275B2DF9182D9AC98E7",
+    "fixtures/Canonical/EditableV8/parts/LongMainJournal.firmament": "B028497ACEDF2FD1E19C6999505ECF2851D0EC629DB43725F75D422A611C9F0F",
+    "fixtures/Canonical/EditableV8/parts/MainJournal.firmament": "301B3BA1B144D6D4CB6C71D01627A21D0FC18979EB5D01F9471B126E6B0144F1",
+    "fixtures/Canonical/EditableV8/parts/MainSupport.firmament": "22A177214C270C145B46D9C1A6F7F9DBF60CA50EEA4928E002DA06D617515C39",
+    "fixtures/Canonical/EditableV8/parts/PairedCrankpin.firmament": "0D6B37A32044272BE3E27C721738C470B54A2772D98CE72CB81C5143EC50D43B",
+    "fixtures/Canonical/EditableV8/parts/ParameterizedValveSpring.firmament": "BB5D9D7C70DC23C78E6A57E64642E1FE8C441EBF60A9F7A2D7FD146E82514B95",
+    "fixtures/Canonical/EditableV8/parts/PistonCrown.firmament": "B78C89E037B9FA25A5E7C593D451A3F3D86C27E88DDDCBADE44EBEAD0757C52D",
+    "fixtures/Canonical/EditableV8/parts/PistonLug.firmament": "9DA2CE017E77B1A01378BBD631E902734AAF9E34ABC9E42A5120E360BD327AA8",
+    "fixtures/Canonical/EditableV8/parts/PistonSkirt.firmament": "F71CE74D4C5C53A75ADA4665E9681DEE83DD7DA48500FF12981C123D03017AD0",
+    "fixtures/Canonical/EditableV8/parts/SpringRetainer.firmament": "8F4741EA72B25349992DDC30F1858102B33377DA656B6C361D5702833626D18D",
+    "fixtures/Canonical/EditableV8/parts/TimingLobe.firmament": "B48744D11B6B4072A2038CCD1A22A39DAB443ECA5CC7FFA1FB1C712BC3B8F711",
+    "fixtures/Canonical/EditableV8/parts/ValveSpring.firmament": "248839A3E36295B5F75B29CDDD49AA8C4DF698BA02ABD8AB74965AC76EC8B5E2",
+    "fixtures/Canonical/EditableV8/parts/ValveStem.firmament": "61F06E5D231A531D0557189F913E095108A895E4AC934966A710978DB00DF510",
+    "fixtures/Canonical/EditableV8/parts/WristPin.firmament": "FE74A4E553314F9CAF8EAE24E085C00AB8DF9C2BE5442FE1DFAD6CBE3491C2A4",
+    "fixtures/Canonical/EditableV8/rest-configurations.firmament": "9FBCAFC7CBF246C7D3C8DBBE3AA6E70F35F3EFA0830FB01E65967678CB60F192",
+    "fixtures/Canonical/EditableV8/scene.firmament": "AC0CCFCC3FDDB2C0379E2153B7B5464809B74BF2219B4BE58A074C63A66A033B",
+    "fixtures/Canonical/EditableV8/stage-a.firmasm": "E25AF40E0230B2E8AEFEF5A87F6280CA7950BE0AAC08C24D81343D9D822E315C",
+    "fixtures/Canonical/EditableV8/stage-b.firmasm": "6408E0EADCD23D6E62C7B73C4F30476580A153B2532A092DBCF67AC61FB7650D"
+  },
+  "binaryHashes": {
+    "Aetheris.CLI/bin/Release/net10.0/aetheris.dll": "9BC236FB695D6547AE65E6B4A902BC44D2900E8C7AD9E1368F9CEBC75E975653",
+    "Aetheris.Kernel.Firmament/bin/Release/net10.0/Aetheris.Kernel.Firmament.dll": "1A0146D09B32B4B182F8B3B1842A6686C6E2A66F9335406DAC0CDFB01522AE3C",
+    "Aetheris.SheetMetal/bin/Release/net10.0/Aetheris.SheetMetal.dll": "5318652E21AD91C6E36BF82A2D83FBD96BB361F75998B5702CDFDF480A505163",
+    "demos/Aetheris.EditableV8/bin/Release/net10.0/Aetheris.EditableV8.dll": "BCF59C7E433E1389BD00453C9D768332151A71C224CC0F1759107579056A3FFC"
+  },
+  "remainingBoundaries": [
+    "Motion language and general dynamic constraints are a separate design pass.",
+    "Imported Part Record/type arguments reject; typed Subassemblies accept checked nested Record values.",
+    "Typed Assembly/Scene imports require concrete exports; legacy Assembly compatibility remains.",
+    "Full expansion source maps and Template-local Record-to-nested-Template forwarding are not claimed.",
+    "Existing sheet-metal trimmed-surface display tessellation limitation rejects explicitly; valid STEP compilation remains available."
+  ],
+  "runtimeSnapshot": {
+    "taskDotnetBuildOrTestHostsAfterQualification": 0,
+    "nodeReuse": false,
+    "sharedCompilation": false,
+    "parallelHeavyQualificationJobs": false
+  }
+}

@@ -40,9 +40,10 @@ internal static class AssemblyUsdCommand
             }
             if (!string.Equals(Path.GetExtension(output), ".usda", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("X0 writes readable .usda files; use external usdcat to convert to .usdc.");
             var materials = materialPath is null ? null : JsonSerializer.Deserialize<Dictionary<string, AssemblyUsdMaterial>>(File.ReadAllText(materialPath), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            var compilation = Path.GetExtension(path).Equals(".firmasm", StringComparison.OrdinalIgnoreCase)
-                ? new FirmamentAssemblyDocumentCompiler().CompileFile(path).Compilation
-                : new AssemblyM1Pipeline().CompileFile(path, File.ReadAllText(path).Contains("Use SheetMetal.ProductFamilies", StringComparison.Ordinal) ? EnclosureProductFamilies.MaterializeAssemblyPart : null);
+            var usesSheetMetalParts = File.ReadAllText(path).Contains("Use SheetMetal.ProductFamilies", StringComparison.Ordinal);
+            var compilation = usesSheetMetalParts ? EnclosureProductFamilies.CompileAssemblyFile(path)
+                : Path.GetExtension(path).Equals(".firmasm", StringComparison.OrdinalIgnoreCase)
+                    ? new FirmamentAssemblyDocumentCompiler().CompileFile(path).Compilation : new AssemblyM1Pipeline().CompileFile(path);
             if (!compilation.IsSuccess) throw new InvalidOperationException(string.Join("\n", compilation.Diagnostics.Select(d => d.Code + ": " + d.Message)));
             var pose = AssemblyKinematics.Evaluate(compilation.Ir!, state);
             var watch = Stopwatch.StartNew();

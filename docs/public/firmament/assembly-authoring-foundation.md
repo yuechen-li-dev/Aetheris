@@ -31,7 +31,7 @@ parent origin, and `World` the current assembly root. Relative ports resolve on
 the current occurrence, then its parent; qualified paths obey public boundaries.
 Named transforms are referenced as `Name.Frame`.
 
-Translations require finite literal mm; rotation requires X/Y/Z and finite deg.
+Translations require finite mm lengths; checked scalar Static/Record fields can supply translation and dimensionless basis components. Rotation requires X/Y/Z and finite deg. Manufacturing tolerances belong to the owning Part and explicit PMI, rather than Assembly frame values.
 Optional paired Normal/Up vectors are dimensionless and expressed in the target
 frame. Normal supplies Z, projected Up supplies Y, and Y cross Z supplies X.
 Zero/parallel vectors fail. Rotation applies in that constructed basis,
@@ -106,7 +106,32 @@ provenance; geometry definitions remain shared.
 
 Limits: 1024 keys per pattern, 4096 expanded keys per source, unique pattern names,
 no nested assembly patterns or dynamic collections. Group-node identity placement
-is compiler-owned. Independent arbitrary Mate-pattern bodies are outside this slice.
+is compiler-owned. A mapping can also contain a bounded declaration block: one or more Part/Assembly
+occurrences with local Concept Struct, Interface and Mate declarations. Each key
+owns a distinct declaration scope and occurrence paths. Other statements reject;
+nested Patterns and dynamic collections remain unsupported.
+
+```firmament
+Pattern Cylinders over cylinderConfigs {
+  config => {
+    <Assembly Cylinder = Units.cylinder<config: config>></Assembly>
+    Concept Struct Installation {
+      Axis Mount { origin: [0mm,0mm,config.z]; direction: [0,0,1]; reference: [config.bankCos,-config.bankSin,0]; }
+    }
+    Interface<Fixed> Seat { datum: Installation.Mount; members: [Cylinder.Mount]; }
+    Mate Install: Seat { member: Cylinder.Mount; at: 0mm; clocking: 0deg; }
+  }
+}
+```
+
+This fragment belongs inside an Assembly occurrence tree and requires the typed
+Inventory/configuration declarations. `Cylinder.Mount` is the complete unit's
+public Axis/Frame endpoint. Axis seating may name a visible nested occurrence,
+including a complete encapsulated Subassembly; private descendants stay private.
+Concept axes accept checked finite scalar expressions. A station requires Length,
+clocking requires Angle, and direction/reference components are dimensionless.
+Only one placement may drive an occurrence. A dimensional-only fit Interface
+checks physical endpoints without adding a placement driver.
 
 ## Fixed seating
 
@@ -197,3 +222,23 @@ The guitar remains suitable as a presentation witness against the supplied Zoo
 example. This qualification establishes Aetheris behavior and preserves its
 visual geometry; it does not measure Zoo's build times or certify an independent
 head-to-head performance ratio.
+
+
+## Typed rest-frame data and Assembly-owned ports
+
+The [editable V8](editable-mechanisms.md) uses named `RestFrame` Records rather
+than serializing anonymous matrices into occurrence declarations. Assembly frame
+consumers use the existing lexical data binder and typed scalar dependency graph.
+Unknown fields and dimensionally invalid Record values reject before placement.
+
+An Assembly occurrence may declare its own `Semantic` datums. These belong to that
+occurrence, including during a Subassembly's local solve; descendant Part ports
+are not copied onto its root. `Expose` continues to publish selected internal
+endpoints. Semantic DatumFrame and Axis origins accept finite millimetre lengths;
+bare numeric origins retain their legacy millimetre interpretation. Bases remain
+dimensionless.
+
+Concrete WireForm Parts publish their compiler-derived winding Axis, Frame and
+ClearDiameter before the local solve. The source AIR and post-build report share
+one datum factory; adding a Subassembly boundary does not require hand-copying a
+coil axis or materializing the wire before semantic binding.

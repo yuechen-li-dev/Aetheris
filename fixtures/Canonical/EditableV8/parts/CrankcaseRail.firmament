@@ -1,0 +1,10 @@
+include "../design";
+include "../construction";
+
+Struct CrankcaseRail {
+  Struct Stock = PlateStock<w: 20mm, h: 16mm, c: 0mm, zmin: d.caseMin, zmax: d.caseMax>
+
+  Expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+
+
+}

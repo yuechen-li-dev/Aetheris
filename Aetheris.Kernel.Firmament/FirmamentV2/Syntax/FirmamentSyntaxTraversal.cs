@@ -84,6 +84,7 @@ public static class FirmamentSyntaxTraversal
         FieldSyntax f => ExpressionBodies(f.Value),
         ExpressionStatementSyntax e => ExpressionBodies(e.Value),
         ReturnSyntax r => ExpressionBodies(r.Value),
+        StatementBlockSyntax b => b.Body.Statements,
         MappingSyntax m => [m.Value],
         ReplacementSyntax r => [r.Replacement],
         _ => []

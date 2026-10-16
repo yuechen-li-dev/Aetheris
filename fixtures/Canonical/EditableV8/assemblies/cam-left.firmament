@@ -1,0 +1,42 @@
+include "../interfaces";
+include "../design";
+
+Inventory Record Parts {
+  camshaft: Part = Firmament("../parts/Camshaft").Camshaft
+  timingLobe: Part = Firmament("../parts/TimingLobe").TimingLobe
+}
+
+// Local coordinates belong to this reusable unit; the engine places it once.
+Subassembly CamLeft {
+  <Assembly CamLeft>
+    <Part CamshaftLeft = Parts.camshaft>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,0mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part TimingLobe2In = Parts.timingLobe>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(0 - 1.5) * d.cylinderSpacing + -28mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part TimingLobe2Ex = Parts.timingLobe>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(0 - 1.5) * d.cylinderSpacing + 12mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part TimingLobe4In = Parts.timingLobe>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(1 - 1.5) * d.cylinderSpacing + -28mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part TimingLobe4Ex = Parts.timingLobe>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(1 - 1.5) * d.cylinderSpacing + 12mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part TimingLobe6In = Parts.timingLobe>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(2 - 1.5) * d.cylinderSpacing + -28mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part TimingLobe6Ex = Parts.timingLobe>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(2 - 1.5) * d.cylinderSpacing + 12mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part TimingLobe8In = Parts.timingLobe>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(3 - 1.5) * d.cylinderSpacing + -28mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    <Part TimingLobe8Ex = Parts.timingLobe>
+      Placement { from: Origin; to: World; translateLocal: [0mm,0mm,(3 - 1.5) * d.cylinderSpacing + 12mm]; normal: [0,0,1]; up: [0,1,0]; }
+    </Part>
+    Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  </Assembly>
+  Anchor: CamLeft;
+}

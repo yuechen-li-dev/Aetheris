@@ -1,0 +1,977 @@
+{
+  "description": "FrontendX4 authoring corpus. See README.md.",
+  "compilerRevision": "0a72e6f1",
+  "chimera": {
+    "file": "chimera.firmament",
+    "reference": "chimera.baseline.firmament",
+    "geometry": {
+      "faces": 98,
+      "edges": 240,
+      "vertices": 144,
+      "bbox": [
+        [
+          -35,
+          -30,
+          0
+        ],
+        [
+          35,
+          30,
+          6
+        ]
+      ],
+      "assessment": "enclosed-manifold",
+      "surfaces": {
+        "plane": 22,
+        "cylinder": 76
+      },
+      "volume": 20769.234952815874
+    }
+  },
+  "cases": [
+    {
+      "id": "a01",
+      "file": "cases/a01-let-in-model.firmament",
+      "kind": "design",
+      "register": "X2 #19",
+      "findings": "F1",
+      "expect": "valid",
+      "observedAt0a72e6f": "Unknown statement 'let' (3,3)",
+      "note": "Scope-local named value in Model. Feature bodies already admit `let`; the spelling for Model scope is a register decision. If the decision is a different keyword, change this file and the chimera together with the decision.",
+      "reference": "cases/reference/a01-let-in-model.firmament",
+      "geometry": {
+        "faces": 6,
+        "edges": 12,
+        "vertices": 8,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            6
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6
+        },
+        "volume": 14400
+      }
+    },
+    {
+      "id": "a02",
+      "file": "cases/a02-static-in-model.firmament",
+      "kind": "guard",
+      "register": "X2 #19",
+      "findings": "F1",
+      "expect": "valid",
+      "observedAt0a72e6f": "valid",
+      "note": "Static scalar in Model consumed by a primitive field. Must keep working.",
+      "geometry": {
+        "faces": 6,
+        "edges": 12,
+        "vertices": 8,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            6
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6
+        },
+        "volume": 14400
+      }
+    },
+    {
+      "id": "a03",
+      "file": "cases/a03-set-entry-arithmetic.firmament",
+      "kind": "fix",
+      "register": "X2 #9",
+      "findings": "F18",
+      "expect": "valid",
+      "observedAt0a72e6f": "static-set-entry-type-mismatch:Bolts:ne:expected-Point2",
+      "note": "Arithmetic on Statics inside Set<Point2> entries. The shared numeric evaluator already serves fields and Feature arguments.",
+      "reference": "cases/reference/a03-set-entry-arithmetic.firmament",
+      "geometry": {
+        "faces": 8,
+        "edges": 18,
+        "vertices": 16,
+        "bbox": [
+          [
+            -21,
+            -21,
+            0
+          ],
+          [
+            21,
+            21,
+            5
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 2
+        },
+        "volume": 8730.241555158445
+      }
+    },
+    {
+      "id": "a04",
+      "file": "cases/a04-box-size-arithmetic.firmament",
+      "kind": "guard",
+      "register": "X2 #9",
+      "findings": "",
+      "expect": "valid",
+      "observedAt0a72e6f": "valid",
+      "note": "Arithmetic in Box Size. Must keep working.",
+      "geometry": {
+        "faces": 6,
+        "edges": 12,
+        "vertices": 8,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            6
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6
+        },
+        "volume": 14400
+      }
+    },
+    {
+      "id": "a05",
+      "file": "cases/a05-static-in-compose-interval.firmament",
+      "kind": "fix",
+      "register": "X2 #9 / #19",
+      "findings": "F1",
+      "expect": "valid",
+      "observedAt0a72e6f": "static-scalar-consumer-unsupported: Model Static scalars currently bind direct primitive and Modify fields",
+      "note": "A Model Static consumed by a Compose interval (To:).",
+      "reference": "cases/reference/a05-static-in-compose-interval.firmament",
+      "geometry": {
+        "faces": 6,
+        "edges": 12,
+        "vertices": 8,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            6
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6
+        },
+        "volume": 14400
+      }
+    },
+    {
+      "id": "a06",
+      "file": "cases/a06-unused-static-with-compose.firmament",
+      "kind": "fix",
+      "register": "X2 #9",
+      "findings": "",
+      "expect": "valid",
+      "observedAt0a72e6f": "parse-failed + static-scalar-consumer-unsupported",
+      "note": "An UNUSED Model Static fails a Compose model. A declaration nobody consumes cannot have an unsupported consumer.",
+      "reference": "cases/reference/a06-unused-static-with-compose.firmament",
+      "geometry": {
+        "faces": 6,
+        "edges": 12,
+        "vertices": 8,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            6
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6
+        },
+        "volume": 14400
+      }
+    },
+    {
+      "id": "b01",
+      "file": "cases/b01-pattern-model-scope.firmament",
+      "kind": "fix",
+      "register": "X3 #12 / #15",
+      "findings": "F15",
+      "expect": "valid",
+      "observedAt0a72e6f": "Unknown statement 'Hole' at the Model line (8,1)",
+      "note": "Documented Model-scope `Pattern ... Over` with a Feature. The current message names a statement the author never wrote.",
+      "reference": "cases/reference/b01-pattern-model-scope.firmament",
+      "geometry": {
+        "faces": 8,
+        "edges": 18,
+        "vertices": 16,
+        "bbox": [
+          [
+            -30,
+            -15,
+            0
+          ],
+          [
+            30,
+            15,
+            5
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 2
+        },
+        "volume": 8875.766858350791
+      }
+    },
+    {
+      "id": "b02",
+      "file": "cases/b02-pattern-in-modify.firmament",
+      "kind": "guard",
+      "register": "X3 #12",
+      "findings": "",
+      "expect": "valid",
+      "observedAt0a72e6f": "valid",
+      "note": "Pattern Over a Static Set inside Modify. Must keep working.",
+      "geometry": {
+        "faces": 8,
+        "edges": 18,
+        "vertices": 16,
+        "bbox": [
+          [
+            -30,
+            -15,
+            0
+          ],
+          [
+            30,
+            15,
+            5
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 2
+        },
+        "volume": 8875.766858350791
+      }
+    },
+    {
+      "id": "b03",
+      "file": "cases/b03-pattern-in-modify-struct-root.firmament",
+      "kind": "guard",
+      "register": "X3 #14",
+      "findings": "F16",
+      "expect": "valid",
+      "observedAt0a72e6f": "valid",
+      "note": "Same as b02 under a bare Struct root. Must keep working.",
+      "geometry": {
+        "faces": 8,
+        "edges": 18,
+        "vertices": 16,
+        "bbox": [
+          [
+            -30,
+            -15,
+            0
+          ],
+          [
+            30,
+            15,
+            5
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 2
+        },
+        "volume": 8875.766858350791
+      }
+    },
+    {
+      "id": "b04",
+      "file": "cases/b04-pattern-model-scope-with-modify.firmament",
+      "kind": "fix",
+      "register": "X3 #12",
+      "findings": "F15",
+      "expect": "valid",
+      "observedAt0a72e6f": "Unknown statement 'Hole' (8,1)",
+      "note": "Model-scope Pattern next to an existing Modify on the only body.",
+      "reference": "cases/reference/b04-pattern-model-scope-with-modify.firmament",
+      "geometry": {
+        "faces": 9,
+        "edges": 21,
+        "vertices": 20,
+        "bbox": [
+          [
+            -30,
+            -15,
+            0
+          ],
+          [
+            30,
+            15,
+            5
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 3
+        },
+        "volume": 8516.655433271042
+      }
+    },
+    {
+      "id": "c01",
+      "file": "cases/c01-hole-on-plusz-struct-root.firmament",
+      "kind": "guard",
+      "register": "X2 #21",
+      "findings": "F19",
+      "expect": "valid",
+      "observedAt0a72e6f": "valid",
+      "note": "On: +Z under a Struct root. Must keep working.",
+      "geometry": {
+        "faces": 7,
+        "edges": 15,
+        "vertices": 12,
+        "bbox": [
+          [
+            -20,
+            -20,
+            0
+          ],
+          [
+            20,
+            20,
+            5
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 1
+        },
+        "volume": 7611.771432346218
+      }
+    },
+    {
+      "id": "c02",
+      "file": "cases/c02-hole-on-plusz-model-root.firmament",
+      "kind": "guard",
+      "register": "X2 #21",
+      "findings": "F19",
+      "expect": "valid",
+      "observedAt0a72e6f": "valid",
+      "note": "On: +Z under a Model root. Must keep working.",
+      "geometry": {
+        "faces": 7,
+        "edges": 15,
+        "vertices": 12,
+        "bbox": [
+          [
+            -20,
+            -20,
+            0
+          ],
+          [
+            20,
+            20,
+            5
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 1
+        },
+        "volume": 7611.771432346218
+      }
+    },
+    {
+      "id": "c03",
+      "file": "cases/c03-face-reference-spellings.firmament",
+      "kind": "fix",
+      "register": "X2 #21",
+      "findings": "F19",
+      "expect": "valid",
+      "observedAt0a72e6f": "face(+Z)/Body.Top: concept-invalid-spatial-derivation; Top: point-projection-unsupported:only-planar-+Z (1,1)",
+      "note": "+Z, face(+Z), Body.Top and Top on one Box. A face spelling must not switch the hole into the Concept route, and `Top` must not be refused as 'only +Z'.",
+      "reference": "cases/reference/c03-face-reference-spellings.firmament",
+      "geometry": {
+        "faces": 10,
+        "edges": 24,
+        "vertices": 24,
+        "bbox": [
+          [
+            -40,
+            -10,
+            0
+          ],
+          [
+            40,
+            10,
+            5
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 4
+        },
+        "volume": 7818.2003833682475
+      }
+    },
+    {
+      "id": "c04",
+      "file": "cases/c04-point-literal-spellings.firmament",
+      "kind": "fix",
+      "register": "X3 #10",
+      "findings": "F23",
+      "expect": "valid",
+      "observedAt0a72e6f": "canonical-point2-invalid (1,1)",
+      "note": "Center: [x, y] in Modify means Point2(x, y).",
+      "reference": "cases/reference/c04-point-literal-spellings.firmament",
+      "geometry": {
+        "faces": 8,
+        "edges": 18,
+        "vertices": 16,
+        "bbox": [
+          [
+            -30,
+            -10,
+            0
+          ],
+          [
+            30,
+            10,
+            5
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 2
+        },
+        "volume": 5875.766858350791
+      }
+    },
+    {
+      "id": "c05",
+      "file": "cases/c05-feature-hole-on-top.firmament",
+      "kind": "fix",
+      "register": "X2 #21",
+      "findings": "F19",
+      "expect": "valid",
+      "observedAt0a72e6f": "point-projection-unsupported:only-planar-+Z (8,1)",
+      "note": "Feature-returned Hole with On: Top.",
+      "reference": "cases/reference/c05-feature-hole-on-top.firmament",
+      "geometry": {
+        "faces": 8,
+        "edges": 18,
+        "vertices": 16,
+        "bbox": [
+          [
+            -30,
+            -15,
+            0
+          ],
+          [
+            30,
+            15,
+            5
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 2
+        },
+        "volume": 8875.766858350791
+      }
+    },
+    {
+      "id": "c06",
+      "file": "cases/c06-set-array-literal-entries.firmament",
+      "kind": "fix",
+      "register": "X3 #10",
+      "findings": "F23",
+      "expect": "valid",
+      "observedAt0a72e6f": "static-set-entry-type-mismatch:expected-Point2",
+      "note": "Set<Point2> entries written as [x, y].",
+      "reference": "cases/reference/c06-set-array-literal-entries.firmament",
+      "geometry": {
+        "faces": 8,
+        "edges": 18,
+        "vertices": 16,
+        "bbox": [
+          [
+            -30,
+            -15,
+            0
+          ],
+          [
+            30,
+            15,
+            5
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 2
+        },
+        "volume": 8875.766858350791
+      }
+    },
+    {
+      "id": "d01",
+      "file": "cases/d01-edgefinish-generic-variant.firmament",
+      "kind": "fix",
+      "register": "X3 #11",
+      "findings": "F22",
+      "expect": "valid",
+      "observedAt0a72e6f": "SemanticSourceNotFound (1,1), message text dropped",
+      "note": "EdgeFinish<Chamfer>, with Kind: kept as an alias. If X3 rejects the generic form instead, it must be rejected at the EdgeFinish line with a sentence naming `Kind: Chamfer`, and this case changes with that decision.",
+      "reference": "cases/reference/d01-edgefinish-generic-variant.firmament",
+      "geometry": {
+        "faces": 10,
+        "edges": 20,
+        "vertices": 12,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            10
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 10
+        },
+        "volume": 23901.333333333332
+      }
+    },
+    {
+      "id": "d02",
+      "file": "cases/d02-edgefinish-kind-field.firmament",
+      "kind": "guard",
+      "register": "X3 #11",
+      "findings": "",
+      "expect": "valid",
+      "observedAt0a72e6f": "valid",
+      "note": "Kind: Chamfer on a Compose profile target. Must keep working.",
+      "geometry": {
+        "faces": 10,
+        "edges": 20,
+        "vertices": 12,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            10
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 10
+        },
+        "volume": 23901.333333333332
+      }
+    },
+    {
+      "id": "d03",
+      "file": "cases/d03-edgefinish-primitive-selector.firmament",
+      "kind": "guard",
+      "register": "X3 #11",
+      "findings": "F7",
+      "expect": "valid",
+      "observedAt0a72e6f": "valid",
+      "note": "Face: +Z; Target: Boundary on a Box. Must keep working.",
+      "geometry": {
+        "faces": 10,
+        "edges": 20,
+        "vertices": 12,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            10
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 10
+        },
+        "volume": 23901.333333333332
+      }
+    },
+    {
+      "id": "d04",
+      "file": "cases/d04-edgefinish-lowercase-fields.firmament",
+      "kind": "guard",
+      "register": "X3 #17",
+      "findings": "F4",
+      "expect": "valid",
+      "observedAt0a72e6f": "valid",
+      "note": "Lowercase EdgeFinish fields. Must keep working.",
+      "geometry": {
+        "faces": 10,
+        "edges": 20,
+        "vertices": 12,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            10
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 10
+        },
+        "volume": 23901.333333333332
+      }
+    },
+    {
+      "id": "d05",
+      "file": "cases/d05-fillet-with-hole.firmament",
+      "kind": "diagnostic",
+      "register": "#24",
+      "findings": "F5",
+      "expect": "invalid",
+      "observedAt0a72e6f": "CombinedFeatureSelectionLost at (1,1)",
+      "note": "Capability gap, stays rejected. The diagnostic must point at the EdgeFinish line.",
+      "code": "CombinedFeatureSelectionLost",
+      "line": 6
+    },
+    {
+      "id": "e01",
+      "file": "cases/e01-pocket-through.firmament",
+      "kind": "fix",
+      "register": "X3 #13",
+      "findings": "F21",
+      "expect": "valid",
+      "observedAt0a72e6f": "pocket-missing-required-field:required=On,Profile,Depth",
+      "note": "Pocket with End: ThroughAll means Remove ... Role: ThroughCut.",
+      "reference": "cases/reference/e01-pocket-through.firmament",
+      "geometry": {
+        "faces": 10,
+        "edges": 24,
+        "vertices": 16,
+        "bbox": [
+          [
+            -40,
+            -20,
+            0
+          ],
+          [
+            40,
+            20,
+            12
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 8,
+          "cylinder": 2
+        },
+        "volume": 33766.53530625001
+      }
+    },
+    {
+      "id": "e02",
+      "file": "cases/e02-cut-in-modify.firmament",
+      "kind": "diagnostic",
+      "register": "X3 #13",
+      "findings": "F21",
+      "expect": "invalid",
+      "observedAt0a72e6f": "Unknown statement 'Cut' in Modify (6,5)",
+      "note": "Already correct: keep the span and the sentence.",
+      "code": "firmament-v2-canonical-declaration-unknown",
+      "line": 6
+    },
+    {
+      "id": "f01",
+      "file": "cases/f01-xz-layout.firmament",
+      "kind": "diagnostic",
+      "register": "X0 #5",
+      "findings": "F9",
+      "expect": "invalid",
+      "observedAt0a72e6f": "profile-layout-placement-unsupported at (9,1), preceded by ConceptPathProfileNotAdmittedByCompose",
+      "note": "Stays rejected for the frame reason. Passes today; the extra ConceptPathProfileNotAdmittedByCompose noise ahead of it should go.",
+      "code": "profile-layout-placement-unsupported",
+      "line": 9
+    },
+    {
+      "id": "f02",
+      "file": "cases/f02-inline-polygon.firmament",
+      "kind": "design",
+      "register": "X3 #20",
+      "findings": "F11",
+      "expect": "valid",
+      "observedAt0a72e6f": "polygon2-variant-unsupported:Outline (1,1)",
+      "note": "Polygon2 with an inline Points list. Field name is a register decision.",
+      "reference": "cases/reference/f02-inline-polygon.firmament",
+      "geometry": {
+        "faces": 8,
+        "edges": 18,
+        "vertices": 12,
+        "bbox": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            60,
+            40,
+            30
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 8
+        },
+        "volume": 14250
+      }
+    },
+    {
+      "id": "f03",
+      "file": "cases/f03-segment-inline-coordinates.firmament",
+      "kind": "diagnostic",
+      "register": "X3 #20",
+      "findings": "F11",
+      "expect": "invalid",
+      "observedAt0a72e6f": "ConceptPathProfileNotAdmittedByCompose (1,1)",
+      "note": "If X3 admits inline Segment endpoints, change to valid with a reference. Otherwise reject at the first Segment with the endpoint diagnostic, not a Compose admission error.",
+      "code": "ProfileSegmentEndpointMustReferenceNamedPoint",
+      "line": 5
+    },
+    {
+      "id": "f04",
+      "file": "cases/f04-inline-polygon-arithmetic.firmament",
+      "kind": "design",
+      "register": "X3 #20 + X2 #9",
+      "findings": "F11 F18",
+      "expect": "valid",
+      "observedAt0a72e6f": "polygon2-variant-unsupported",
+      "note": "Inline Points with Static arithmetic.",
+      "reference": "cases/reference/f04-inline-polygon-arithmetic.firmament",
+      "geometry": {
+        "faces": 8,
+        "edges": 18,
+        "vertices": 12,
+        "bbox": [
+          [
+            -35,
+            -30,
+            0
+          ],
+          [
+            35,
+            30,
+            6
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 8
+        },
+        "volume": 25050
+      }
+    },
+    {
+      "id": "g01",
+      "file": "cases/g01-revolve-point-list.firmament",
+      "kind": "design",
+      "register": "X3 #20",
+      "findings": "F13",
+      "expect": "valid",
+      "observedAt0a72e6f": "polygon2-variant-unsupported (3,1)",
+      "note": "Revolve of a Polygon2 point list instead of Point2 + Line2 per vertex.",
+      "reference": "cases/reference/g01-revolve-point-list.firmament",
+      "geometry": {
+        "faces": 4,
+        "edges": 6,
+        "vertices": 4,
+        "bbox": [
+          [
+            -10,
+            0,
+            -10
+          ],
+          [
+            10,
+            20,
+            10
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 2,
+          "cylinder": 2
+        },
+        "volume": 1552.914270615124
+      }
+    },
+    {
+      "id": "h00",
+      "file": "cases/h00-concept-grid-struct-root.firmament",
+      "kind": "guard",
+      "register": "X3 #14",
+      "findings": "F16",
+      "expect": "valid",
+      "observedAt0a72e6f": "valid",
+      "note": "Concept Grid pattern under a Struct root. Must keep working.",
+      "geometry": {
+        "faces": 12,
+        "edges": 30,
+        "vertices": 32,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            10
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 6
+        },
+        "volume": 22835.31429703865
+      }
+    },
+    {
+      "id": "h01",
+      "file": "cases/h01-concept-grid-model-root.firmament",
+      "kind": "guard",
+      "register": "X3 #14",
+      "findings": "F16",
+      "expect": "valid",
+      "observedAt0a72e6f": "valid",
+      "note": "Same wrapped in Model. Fixed since the original audit; must keep working.",
+      "geometry": {
+        "faces": 12,
+        "edges": 30,
+        "vertices": 32,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            10
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 6
+        },
+        "volume": 22835.31429703865
+      }
+    },
+    {
+      "id": "h02",
+      "file": "cases/h02-documented-feature-pattern.firmament",
+      "kind": "fix",
+      "register": "X3 #12 / #15",
+      "findings": "F15",
+      "expect": "valid",
+      "observedAt0a72e6f": "Unknown statement 'Pattern' (19,3)",
+      "note": "The original audit's grid part as syntax.md teaches it: Model-scope Feature + Pattern { Source; MountHole(Center: Item) }.",
+      "reference": "cases/reference/h02-documented-feature-pattern.firmament",
+      "geometry": {
+        "faces": 12,
+        "edges": 30,
+        "vertices": 32,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            10
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 6
+        },
+        "volume": 22835.31429703865
+      }
+    }
+  ]
+}

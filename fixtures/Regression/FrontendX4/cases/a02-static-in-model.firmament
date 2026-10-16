@@ -1,0 +1,5 @@
+Model StaticPlate {
+  Units: mm
+  Static Thickness: Length = 6mm
+  Box Body { Size: [60mm, 40mm, Thickness] }
+}

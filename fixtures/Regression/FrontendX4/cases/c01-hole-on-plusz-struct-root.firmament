@@ -1,0 +1,6 @@
+Struct Plate {
+  Box Body { Size: [40mm, 40mm, 5mm] }
+  Modify Body {
+    Hole<Shaft> Bore { On: +Z; Center: Point2(0mm, 0mm); Diameter: 10mm; End: ThroughAll }
+  }
+}

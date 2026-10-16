@@ -1,0 +1,58 @@
+// Reference spelling of chimera.firmament using only syntax admitted at 0a72e6f.
+// It must keep building; chimera.firmament must produce the same geometry.
+Static OutlineVertices: Set<Point2> {
+  SW => Point2(-30mm, -30mm)
+  SSE => Point2(30mm, -30mm)
+  ESE => Point2(35mm, -25mm)
+  ENE => Point2(35mm, 25mm)
+  NNE => Point2(30mm, 30mm)
+  NNW => Point2(-30mm, 30mm)
+  WNW => Point2(-35mm, 25mm)
+  WSW => Point2(-35mm, -25mm)
+}
+
+Static MotorBolts: Set<Point2> {
+  NE => Point2(15.5mm, 15.5mm)
+  NW => Point2(-15.5mm, 15.5mm)
+  SW => Point2(-15.5mm, -15.5mm)
+  SE => Point2(15.5mm, -15.5mm)
+}
+
+Static FrameHoles: Set<Point2> {
+  NE => Point2(28mm, 23mm)
+  NW => Point2(-28mm, 23mm)
+  SW => Point2(-28mm, -23mm)
+  SE => Point2(28mm, -23mm)
+}
+
+Feature M3Clearance(center: Point2) -> Hole<Shaft> {
+  return Hole<Shaft> { On: +Z; Center: center; Diameter: 3.4mm; End: ThroughAll }
+}
+
+Feature M5Clearance(center: Point2) -> Hole<Shaft> {
+  return Hole<Shaft> { On: +Z; Center: center; Diameter: 5.5mm; End: ThroughAll }
+}
+
+Model MotorMount {
+  Units: mm
+
+  Concept Struct Layout On XY {
+    Polygon2<Explicit> Outline { Vertices: OutlineVertices }
+    Slot2 CableSlot { Center: [0mm, -22mm]; Length: 30mm; Width: 6mm }
+  }
+
+  Profile Stock Using Layout { Loop Outer { Outline |> TraceLoop } }
+  Profile SlotProfile Using Layout { Loop Outer { CableSlot |> TraceLoop } }
+
+  Compose Body {
+    Base Plate { Profile: Stock; From: 0mm; To: 6mm; Role: Stock }
+    Remove Cable { Profile: SlotProfile; From: 0mm; To: 6mm; Role: ThroughCut }
+  }
+
+  Modify Body {
+    Hole<Shaft> Pilot { On: +Z; Center: Point2(0mm, 0mm); Diameter: 22mm; End: ThroughAll }
+    Pattern Motor Over MotorBolts { p => M3Clearance(center: p) }
+    Pattern Frame Over FrameHoles { p => M5Clearance(center: p) }
+    EdgeFinish TopBreak { Target: Stock.Outer; On: Top; Kind: Chamfer; Distance: 0.5mm }
+  }
+}

@@ -1,0 +1,8 @@
+schema Mechanical
+
+Model Sleeve {
+  Units: mm
+  Axis MainAxis { Origin: [0mm, 0mm, 0mm]; Direction: [0, 1, 0] }
+  Polygon2 Section { Points: [[5mm, 0mm], [10mm, 0mm], [10mm, 20mm], [5mm, 20mm]] }
+  Revolve Body { Profile: Section; About: MainAxis; Angle: full }
+}

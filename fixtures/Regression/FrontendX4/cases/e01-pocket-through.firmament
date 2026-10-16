@@ -1,0 +1,11 @@
+Model ThroughPocket {
+  Units: mm
+  Rect2 Outline { Center: [0mm,0mm] Size: [80mm,40mm] }
+  Slot2 Groove { Center: [0mm,0mm] Length: 50mm Width: 8mm }
+  Profile Stock { Loop Outer { Outline |> TraceLoop } }
+  Profile GrooveProfile { Loop Outer { Groove |> TraceLoop } }
+  Compose Body {
+    Base Block { Profile: Stock; From: 0mm; To: 12mm; Role: Stock }
+    Pocket Slot { On: Top; Profile: GrooveProfile; End: ThroughAll }
+  }
+}

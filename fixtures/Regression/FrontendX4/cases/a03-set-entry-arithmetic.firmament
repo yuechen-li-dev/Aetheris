@@ -1,0 +1,15 @@
+Static Pitch: Length = 31mm
+Static Bolts: Set<Point2> {
+  ne => Point2(Pitch / 2, Pitch / 2)
+  sw => Point2(-Pitch / 2, -Pitch / 2)
+}
+Feature Clearance(center: Point2) -> Hole<Shaft> {
+  return Hole<Shaft> { On: +Z; Center: center; Diameter: 3.4mm; End: ThroughAll }
+}
+Model SetArithmetic {
+  Units: mm
+  Box Body { Size: [42mm, 42mm, 5mm] }
+  Modify Body {
+    Pattern Holes Over Bolts { p => Clearance(center: p) }
+  }
+}

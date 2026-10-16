@@ -1,0 +1,4 @@
+Model BoxArithmetic {
+  Units: mm
+  Box Body { Size: [20mm * 3, 40mm, 2mm + 4mm] }
+}

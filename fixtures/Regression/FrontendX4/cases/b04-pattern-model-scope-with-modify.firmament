@@ -1,0 +1,15 @@
+Static FrameHoles: Set<Point2> {
+  a => Point2(-20mm, 0mm)
+  b => Point2(20mm, 0mm)
+}
+Feature M5Clearance(center: Point2) -> Hole<Shaft> {
+  return Hole<Shaft> { On: +Z; Center: center; Diameter: 5.5mm; End: ThroughAll }
+}
+Model PatternBesideModify {
+  Units: mm
+  Box Body { Size: [60mm, 30mm, 5mm] }
+  Modify Body {
+    Hole<Shaft> Pilot { On: +Z; Center: Point2(0mm, 0mm); Diameter: 8mm; End: ThroughAll }
+  }
+  Pattern Frame Over FrameHoles { p => M5Clearance(center: p) }
+}

@@ -1,0 +1,8 @@
+Model InlinePolygon {
+  Units: mm
+  Polygon2 Outline { Points: [[0mm,0mm], [60mm,0mm], [60mm,5mm], [5mm,5mm], [5mm,40mm], [0mm,40mm]] }
+  Profile Section { Loop Outer { Outline |> TraceLoop } }
+  Compose Body {
+    Base Stock { Profile: Section; From: 0mm; To: 30mm; Role: Stock }
+  }
+}

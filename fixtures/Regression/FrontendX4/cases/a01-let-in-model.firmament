@@ -1,0 +1,5 @@
+Model LetPlate {
+  Units: mm
+  let thickness = 6mm
+  Box Body { Size: [60mm, 40mm, thickness] }
+}

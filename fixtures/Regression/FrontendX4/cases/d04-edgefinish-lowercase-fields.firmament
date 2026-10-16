@@ -1,0 +1,7 @@
+Model LowercaseChamfer {
+  Units: mm
+  Box Body { Size: [60mm, 40mm, 10mm] }
+  Modify Body {
+    EdgeFinish TopEdge { face: +Z; target: Boundary; kind: Chamfer; distance: 1mm }
+  }
+}

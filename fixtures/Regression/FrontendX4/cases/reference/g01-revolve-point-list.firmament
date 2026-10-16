@@ -1,0 +1,16 @@
+schema Mechanical
+
+Model Sleeve {
+  Units: mm
+  Axis MainAxis { Origin: [0mm, 0mm, 0mm]; Direction: [0, 1, 0] }
+  Point2 a { Position: [5mm, 0mm] }
+  Point2 b { Position: [10mm, 0mm] }
+  Point2 c { Position: [10mm, 20mm] }
+  Point2 d { Position: [5mm, 20mm] }
+  Line2 bottom { From: a; To: b }
+  Line2 outer { From: b; To: c }
+  Line2 top { From: c; To: d }
+  Line2 bore { From: d; To: a }
+  Profile Section { bottom |> outer |> top |> bore |> Close }
+  Revolve Body { Profile: Section; About: MainAxis; Angle: full }
+}

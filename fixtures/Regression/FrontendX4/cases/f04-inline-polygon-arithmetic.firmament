@@ -1,0 +1,12 @@
+Static Chamfer: Length = 5mm
+Model InlinePolygonArithmetic {
+  Units: mm
+  Polygon2 Outline {
+    Points: [[-35mm + Chamfer, -30mm], [35mm - Chamfer, -30mm], [35mm, -30mm + Chamfer], [35mm, 30mm],
+             [-35mm, 30mm], [-35mm, -30mm + Chamfer]]
+  }
+  Profile Stock { Loop Outer { Outline |> TraceLoop } }
+  Compose Body {
+    Base Plate { Profile: Stock; From: 0mm; To: 6mm; Role: Stock }
+  }
+}

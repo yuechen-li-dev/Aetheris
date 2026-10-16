@@ -1,0 +1,7 @@
+Model PrimitiveChamfer {
+  Units: mm
+  Box Body { Size: [60mm, 40mm, 10mm] }
+  Modify Body {
+    EdgeFinish TopEdge { Face: +Z; Target: Boundary; Kind: Chamfer; Distance: 1mm }
+  }
+}

@@ -1,0 +1,14 @@
+Static Bolts: Set<Point2> {
+  a => Point2(-20mm, 0mm)
+  b => Point2(20mm, 0mm)
+}
+Feature Clearance(center: Point2) -> Hole<Shaft> {
+  return Hole<Shaft> { On: +Z; Center: center; Diameter: 4mm; End: ThroughAll }
+}
+Model PatternInModify {
+  Units: mm
+  Box Body { Size: [60mm, 30mm, 5mm] }
+  Modify Body {
+    Pattern Holes Over Bolts { p => Clearance(center: p) }
+  }
+}

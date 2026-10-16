@@ -1,0 +1,14 @@
+Model InlineSegments {
+  Units: mm
+  Profile Section {
+    Loop Outer {
+      Segment A { From: [0mm,0mm]; To: [40mm,0mm] }
+      Segment B { From: [40mm,0mm]; To: [40mm,20mm] }
+      Segment C { From: [40mm,20mm]; To: [0mm,20mm] }
+      Segment D { From: [0mm,20mm]; To: [0mm,0mm] }
+    }
+  }
+  Compose Body {
+    Base Stock { Profile: Section; From: 0mm; To: 5mm; Role: Stock }
+  }
+}

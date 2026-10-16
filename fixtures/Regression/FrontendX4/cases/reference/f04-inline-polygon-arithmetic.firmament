@@ -1,0 +1,18 @@
+Static OutlineVertices: Set<Point2> {
+  V0 => Point2(-30mm, -30mm)
+  V1 => Point2(30mm, -30mm)
+  V2 => Point2(35mm, -25mm)
+  V3 => Point2(35mm, 30mm)
+  V4 => Point2(-35mm, 30mm)
+  V5 => Point2(-35mm, -25mm)
+}
+Model InlinePolygonArithmetic {
+  Units: mm
+  Concept Struct Layout On XY {
+    Polygon2<Explicit> Outline { Vertices: OutlineVertices }
+  }
+  Profile Section Using Layout { Loop Outer { Outline |> TraceLoop } }
+  Compose Body {
+    Base Stock { Profile: Section; From: 0mm; To: 6mm; Role: Stock }
+  }
+}

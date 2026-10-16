@@ -1,0 +1,8 @@
+Model PointLiterals {
+  Units: mm
+  Box Body { Size: [60mm, 20mm, 5mm] }
+  Modify Body {
+    Hole<Shaft> A { On: +Z; Center: Point2(-15mm, 0mm); Diameter: 4mm; End: ThroughAll }
+    Hole<Shaft> B { On: +Z; Center: Point2(15mm, 0mm); Diameter: 4mm; End: ThroughAll }
+  }
+}

@@ -1,0 +1,13 @@
+Struct GridPlate {
+  Concept Struct Design {
+    Bounds: Box3 { Size: [60mm, 40mm, 10mm] }
+    Points: Grid { Within: Bounds.Face(+Z).Inset(8mm); Columns: 3; Rows: 2 }
+  }
+  Box Base { Bounds: Design.Bounds }
+  Modify Base {
+    Pattern Mounts {
+      Source: Design.Points
+      Hole<Shaft> Item { On: Base.Top; Center: Item; Diameter: 5mm; End: ThroughAll }
+    }
+  }
+}

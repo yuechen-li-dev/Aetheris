@@ -1,0 +1,17 @@
+Static Corners: Set<Point2> {
+  Heel => Point2(0mm, 0mm)
+  Toe => Point2(60mm, 0mm)
+  Lip => Point2(60mm, 5mm)
+  Inner => Point2(5mm, 5mm)
+  Top => Point2(5mm, 40mm)
+  Back => Point2(0mm, 40mm)
+}
+Concept Struct Layout On XZ {
+  Polygon2<Explicit> Outline { Vertices: Corners }
+}
+Profile Section Using Layout { Loop Outer { Outline |> TraceLoop } }
+Struct Bracket {
+  Compose Body {
+    Base Stock { Profile: Section; From: 0mm; To: 30mm; Role: Stock }
+  }
+}

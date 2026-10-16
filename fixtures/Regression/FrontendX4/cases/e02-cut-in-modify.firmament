@@ -1,0 +1,8 @@
+Model CutInModify {
+  Units: mm
+  Box Body { Size: [80mm, 40mm, 12mm] }
+  Slot2 Groove { Center: [0mm, 0mm]; Length: 50mm; Width: 8mm }
+  Modify Body {
+    Cut Groove { Profile: Groove; End: ThroughAll }
+  }
+}

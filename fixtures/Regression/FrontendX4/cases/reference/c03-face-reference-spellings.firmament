@@ -1,0 +1,10 @@
+Model FaceRefs {
+  Units: mm
+  Box Body { Size: [80mm, 20mm, 5mm] }
+  Modify Body {
+    Hole<Shaft> A { On: +Z; Center: Point2(-30mm, 0mm); Diameter: 4mm; End: ThroughAll }
+    Hole<Shaft> B { On: +Z; Center: Point2(-10mm, 0mm); Diameter: 4mm; End: ThroughAll }
+    Hole<Shaft> C { On: +Z; Center: Point2(10mm, 0mm); Diameter: 4mm; End: ThroughAll }
+    Hole<Shaft> D { On: +Z; Center: Point2(30mm, 0mm); Diameter: 4mm; End: ThroughAll }
+  }
+}

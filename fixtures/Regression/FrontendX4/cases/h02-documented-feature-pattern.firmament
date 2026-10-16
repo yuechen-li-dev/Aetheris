@@ -1,0 +1,23 @@
+Model GridPlate {
+  Units: mm
+
+  Box Base { Size: [60mm, 40mm, 10mm] }
+
+  Concept Struct Design {
+    Bounds: Box3 { Size: [60mm, 40mm, 10mm] }
+    Points: Grid {
+      Within: Bounds.Face(+Z).Inset(8mm)
+      Columns: 3
+      Rows: 2
+    }
+  }
+
+  Feature MountHole(Center: Point3, Diameter: Length = 5mm) -> Hole<Shaft> {
+    return Hole<Shaft> { On: Base.Top; Center: Center; Diameter: Diameter; End: ThroughAll }
+  }
+
+  Pattern Mounts {
+    Source: Design.Points
+    MountHole(Center: Item)
+  }
+}

@@ -1,0 +1,11 @@
+Model GenericChamfer {
+  Units: mm
+  Rect2 Outline { Center: [0mm,0mm] Size: [60mm,40mm] }
+  Profile Stock { Loop Outer { Outline |> TraceLoop } }
+  Compose Body {
+    Base Block { Profile: Stock; From: 0mm; To: 10mm; Role: Stock }
+  }
+  Modify Body {
+    EdgeFinish<Chamfer> TopEdge { Target: Stock.Outer; On: Top; Distance: 1mm }
+  }
+}

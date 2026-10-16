@@ -56,6 +56,7 @@ public static partial class Program
                 "compile" => Compile(request),
                 "languageComplete" => LanguageComplete(request),
                 "languageAnalyze" => LanguageAnalyze(request),
+                "languageOutline" => LanguageOutline(request),
                 "languageHover" => LanguageHover(request),
                 "languageDefinition" => LanguageDefinition(request),
                 "languageFormat" => LanguageFormat(request),
@@ -138,6 +139,17 @@ public static partial class Program
         return new { document = name, revision = request.SourceRevision, analysis.Tokens,
             diagnostics = analysis.Diagnostics.Select(item => new WebDiagnostic(item.Severity, item.Code, item.Message,
                 SourceRefAt(name, request.Source, item.Start, item.Length))).ToArray() };
+    }
+
+    private static object LanguageOutline(WebRequest request)
+    {
+        if (request.Source is null || string.IsNullOrWhiteSpace(request.SourceRevision))
+            throw new WebRuntimeException("language-input-required", "languageOutline requires source and sourceRevision.");
+        var name = request.SourceName ?? "model.firmament";
+        if (request.ProjectDocuments is not { Count: > 0 })
+            return FirmamentLanguageOutlineService.Outline(request.Source, name, request.SourceRevision);
+        var documents = new Dictionary<string, string>(request.ProjectDocuments, StringComparer.Ordinal) { [name] = request.Source };
+        return FirmamentLanguageOutlineService.Outline(new FirmamentProjectSnapshot(request.ProjectRoot ?? name, documents), name, request.SourceRevision);
     }
 
     private static object? LanguageHover(WebRequest request)

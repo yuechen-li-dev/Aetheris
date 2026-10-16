@@ -26,3 +26,18 @@ test('public semantic schema uses the versioned runtime contract', async () => {
   assert.equal(schema.version, 'firmament-semantic-schema/1');
   assert.deepEqual(requests, [{ operation: 'languageSchema' }]);
 });
+
+test('public language outline sends source, revision and project context through runtime transport', async () => {
+  const requests = [];
+  const cad = new Aetheris({ request: async request => {
+    requests.push(request);
+    return { version: 'firmament-outline/1', document: request.sourceName, revision: request.sourceRevision,
+      nodes: [], edges: [], externals: [], diagnostics: [] };
+  } });
+  const outline = await cad.language.outline('Model M { Units: mm }',
+    { sourceName: 'root.firmament', sourceRevision: 'r9', projectRoot: 'root.firmament', projectDocuments: { 'part.firmament': 'Struct P {}' } });
+  assert.equal(outline.version, 'firmament-outline/1');
+  assert.equal(outline.revision, 'r9');
+  assert.deepEqual(requests, [{ operation: 'languageOutline', source: 'Model M { Units: mm }', sourceName: 'root.firmament',
+    sourceRevision: 'r9', projectDocuments: { 'part.firmament': 'Struct P {}' }, projectRoot: 'root.firmament' }]);
+});

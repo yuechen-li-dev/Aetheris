@@ -51,6 +51,19 @@ the root is an Assembly. This resolves included ports without touching disk.
 Single-document analysis remains available; declaration modules without a
 project context retain the explicit context-required informational diagnostic.
 
+`cad.language.outline(source, { sourceName, sourceRevision, projectRoot,
+projectDocuments })` returns the document's declaration graph for visual editors
+(`firmament-outline/1`). Every declaration is a node whose `id` is its name path
+(`MotorMount/Modify:Body/Pilot`); a name shared by siblings is qualified by kind,
+and a repeat of both carries an ordinal. Ids depend on names, kinds and nesting,
+never on offsets. Nodes carry their authored fields with source spans. Edges are
+resolved name uses (`field:Profile`, `clause:Using`, `clause:Over`, a Pattern's
+Feature call, `Modify X` naming its body) found by lexical scope. With
+`projectDocuments`, names the document does not declare are resolved against the
+other documents' top-level declarations and carry `toDocument`. Uses nothing
+answers are listed as `externals`. The outline is source structure, not
+admission: the build still decides whether a use is valid.
+
 Production AOT preserves the semantic provenance record metadata used by the
 reflection JSON bridge. Package generation clears its owned AOT publish output
 before publishing, so obsolete fingerprints are not included in the tarball.

@@ -1,0 +1,9 @@
+Model TwoBodies {
+    units: mm
+    Box Base { size: [60mm, 40mm, 10mm] }
+    Box Extra { size: [8mm, 6mm, 4mm] }
+    Modify Base {
+        Hole<Shaft> Mount { on: +Z; center: Point2(0mm, 0mm); diameter: 6mm; end: ThroughAll }
+        EdgeFinish Finish { face: +Z; target: Boundary; kind: Fillet; radius: 1mm }
+    }
+}

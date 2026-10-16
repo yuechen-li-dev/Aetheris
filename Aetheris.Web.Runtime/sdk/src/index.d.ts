@@ -54,7 +54,7 @@ export type LanguageEditOperation =
 /** The edited source and the single replacement `[start, start + length)` → `replacement` that produces it from the original. `nodes` holds the outline id each operation left behind (created, renamed or edited), in order; removals add none. */
 export interface LanguageEdit { readonly document: string; readonly revision: string; readonly text: string; readonly changed: boolean; readonly edit: { readonly start: number; readonly length: number; readonly replacement: string }; readonly nodes: readonly string[]; readonly warnings: readonly string[] }
 /** Something a visual editor can add. `placement` `model` inserts with `insertDeclaration`; `feature` with `insertFeature` on a body. `source` declares `nameStem`; pass a unique `name` with the insert. Every item is proven to build. */
-export interface PaletteItem { readonly id: string; readonly label: string; readonly category: string; readonly description: string; readonly placement: 'model' | 'feature'; readonly nameStem: string; readonly source: string }
+export interface PaletteItem { readonly id: string; readonly label: string; readonly category: string; readonly description: string; readonly placement: 'model' | 'feature'; readonly nameStem: string; readonly source: string; readonly requiresEmptyModel?: boolean }
 export interface LanguagePalette { readonly version: 'firmament-palette/1'; readonly items: readonly PaletteItem[] }
 export interface LanguageHover { readonly document: string; readonly revision: string; readonly start: number; readonly length: number; readonly title: string; readonly description: string }
 export interface LanguageFormat { readonly document: string; readonly revision: string; readonly text: string; readonly changed: boolean }

@@ -613,6 +613,16 @@ public static partial class FirmamentV2Parser
         if (compatibilityCore) diagnostics.AddRange(syntax.Diagnostics.Select(d => d.Code));
 
         var byName = BindCompatibilitySolids(syntax, compatibilityModel, source, sourceDirectory, diagnostics);
+        // A referenced record prototype is compile-time data, not another output
+        // body. Preserve legitimate `with` derivation while rejecting unrelated
+        // material that the last-body exporter would otherwise discard.
+        var prototypes = byName.Values.Select(s => s.DerivedFrom).OfType<string>().ToHashSet(StringComparer.Ordinal);
+        var outputs = byName.Keys.Where(name => !prototypes.Contains(name)).ToHashSet(StringComparer.Ordinal);
+        if (v2AdmissionCandidate && compatibilityModel?.Body is { } compatibilityBody &&
+            RejectMultipleMaterialBodies(compatibilityBody.Statements.OfType<DeclarationSyntax>()
+                .Where(d => d.Type.Name.Text == "solid" && d.Name is not null && outputs.Contains(d.Name.Text)).ToArray(),
+                compatibilityModel.Name?.Text ?? "<unnamed>", diagnostics) is { } rejectedBodies)
+            return rejectedBodies with { ParserRoute = compatibilityCore ? "UnifiedCompatibility" : "CompatibilityExtensions", OwnsUnifiedAdmission = compatibilityCore, BoundSource = source, DiagnosticSource = source };
         var solids = byName.Values.ToList();
         var appearsStandaloneLattice = compatibilityModel?.Body?.Statements.OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text == "fill") == true;
         if (solids.Count == 0 && !appearsStandaloneLattice) diagnostics.Add(MissingSolid);

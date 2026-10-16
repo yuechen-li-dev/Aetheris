@@ -1,0 +1,5 @@
+model TwoBodies {
+    units mm
+    solid Base: Box { size: [60, 40, 10] }
+    solid Extra: Box { size: [8, 6, 4] }
+}

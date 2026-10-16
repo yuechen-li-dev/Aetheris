@@ -25,12 +25,20 @@ public sealed class FirmamentLanguagePaletteTests
             "feature" => new FirmamentLanguageEditOperation("insertFeature") { Node = "PaletteHost/Plate", Source = item.Source, Name = item.NameStem + "1" },
             _ => throw new InvalidOperationException(item.Placement)
         };
-        var edit = FirmamentLanguageEditService.Apply(Host, "host.firmament", "1", [operation]);
+        var host = item.RequiresEmptyModel ? "Model PaletteHost {\n    Units: mm\n}\n" : Host;
+        var edit = FirmamentLanguageEditService.Apply(host, "host.firmament", "1", [operation]);
         Assert.Single(edit.Nodes);
         Assert.EndsWith("/" + item.NameStem + "1", edit.Nodes[0], StringComparison.Ordinal);
 
         var build = FirmamentBuildAndExport.CompileSource(edit.Text);
         Assert.True(build.IsSuccess, $"{item.Id} did not build:\n{edit.Text}\n{string.Join("\n", build.Diagnostics.Select(d => d.Message))}");
+        if (item.RequiresEmptyModel)
+        {
+            var occupied = FirmamentLanguageEditService.Apply(Host, "host.firmament", "1", [operation]);
+            var rejected = FirmamentBuildAndExport.CompileSource(occupied.Text);
+            Assert.False(rejected.IsSuccess);
+            Assert.Contains(rejected.Diagnostics, d => d.Message.Contains("multiple-material-bodies-unsupported", StringComparison.Ordinal));
+        }
     }
 
     [Theory]
@@ -47,20 +55,20 @@ public sealed class FirmamentLanguagePaletteTests
         Assert.True(build.IsSuccess, $"{first} + {second} did not build:\n{edit.Text}\n{string.Join("\n", build.Diagnostics.Select(d => d.Message))}");
     }
 
-    /// <summary>Current kernel limit, pinned so it is noticed when it lifts: the combined hole and
-    /// edge-finish route admits only shaft or counterbore through holes from the top face.</summary>
-    [Fact]
-    public void CountersinkWithAnEdgeFinish_IsRefusedByTheCombinedRouteForNow()
+    [Theory]
+    [InlineData("chamfer")]
+    [InlineData("fillet")]
+    public void CountersinkWithAnEdgeFinish_BuildsThroughThePalette(string finish)
     {
         var items = FirmamentLanguagePaletteService.Palette().Items;
         var edit = FirmamentLanguageEditService.Apply(Host, "host.firmament", "1",
         [
             new("insertFeature") { Node = "PaletteHost/Plate", Source = items.Single(i => i.Id == "countersink").Source },
-            new("insertFeature") { Node = "PaletteHost/Box:Plate", Source = items.Single(i => i.Id == "chamfer").Source },
+            new("insertFeature") { Node = "PaletteHost/Box:Plate", Source = items.Single(i => i.Id == finish).Source },
         ]);
         var build = FirmamentBuildAndExport.CompileSource(edit.Text);
-        Assert.False(build.IsSuccess);
-        Assert.Contains(build.Diagnostics, d => d.Message.Contains("CombinedFeaturePlanChainInvalid", StringComparison.Ordinal));
+        Assert.True(build.IsSuccess, string.Join(';', build.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(1, Assert.Single(build.Value.Features!).ConicalFaces);
     }
 
     [Fact]

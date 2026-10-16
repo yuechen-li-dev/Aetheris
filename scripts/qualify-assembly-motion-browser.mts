@@ -14,6 +14,8 @@ const fixture = resolve(repo, 'fixtures/Canonical/AssemblyInterfaces/articulated
 const source = await readFile(fixture, 'utf8');
 const holeSource = await readFile(resolve(repo, 'fixtures/Regression/LanguageService/hole-variant.firmament'), 'utf8');
 const emptyModifySource = await readFile(resolve(repo, 'fixtures/Regression/LanguageService/empty-modify.firmament'), 'utf8');
+const combinedSource = await readFile(resolve(repo, 'fixtures/Regression/CombinedFeatures/countersink-fillet.firmament'), 'utf8');
+const twoBodiesSource = await readFile(resolve(repo, 'fixtures/Regression/CombinedFeatures/two-bodies.firmament'), 'utf8');
 const documents = {
   'motion.firmament': source,
   'articulated-subassemblies.firmament': await readFile(resolve(repo, 'fixtures/Canonical/AssemblyInterfaces/articulated-subassemblies.firmament'), 'utf8'),
@@ -42,7 +44,7 @@ try {
   browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true });
   const page = await browser.newPage();
   await page.goto(`http://127.0.0.1:${address.port}/`);
-  const result = await page.evaluate(async ({ source, documents, times, expected, holeSource, emptyModifySource }) => {
+  const result = await page.evaluate(async ({ source, documents, times, expected, holeSource, emptyModifySource, combinedSource, twoBodiesSource }) => {
     const { Aetheris } = await import('/Aetheris.Web.Runtime/sdk/src/index.js');
     const cad = await Aetheris.create({ wasmUrl: new URL('/Aetheris.Web.Runtime/bin/Release/net10.0/wwwroot/', location.href) });
     try {
@@ -102,10 +104,30 @@ try {
       const empty = await cad.compile(emptyModifySource, { sourceName: 'bracket.firmament' });
       if (!empty.model) throw new Error('Empty Modify rejected: ' + JSON.stringify(empty.diagnostics));
       await empty.model.dispose();
+      const palette = await cad.language.palette();
+      if (palette.items.some((item: {placement: string; requiresEmptyModel?: boolean}) => item.placement === 'model' && !item.requiresEmptyModel))
+        throw new Error('Body starter lost its empty-Model requirement');
+      for (const finish of ['Fillet', 'Chamfer']) {
+        const authored = combinedSource.replace('kind: Fillet; radius:', `kind: ${finish}; ${finish === 'Fillet' ? 'radius' : 'distance'}:`);
+        const built = await cad.compile(authored, { sourceName: 'combined.firmament' });
+        if (!built.model) throw new Error('Countersink finish rejected: ' + JSON.stringify(built.diagnostics));
+        try {
+          const bad = await built.model.setSource(authored.replace('end: ThroughAll', 'end: Blind(8mm)'));
+          if (bad.success || !bad.diagnostics.length || bad.diagnostics.some((d: {source?: {line: number}}) => !d.source || d.source.line <= 1))
+            throw new Error('Unsupported combined hole lost its feature location: ' + JSON.stringify(bad.diagnostics));
+        } finally { await built.model.dispose(); }
+      }
+      for (const authored of [twoBodiesSource, twoBodiesSource.slice(0, twoBodiesSource.indexOf('    Modify Base')) + '}']) {
+        const rejected = await cad.compile(authored, { sourceName: 'two.firmament' });
+        if (rejected.model || !rejected.diagnostics.some((d: {code: string; source?: {start: number}}) =>
+          d.code === 'firmament-v2-multiple-material-bodies-unsupported' && d.source?.start === authored.indexOf('Box Extra')))
+          throw new Error('Second body was dropped or its rejection lost the declaration span');
+      }
       return { status: 'pass', runtime: 'real browser WASM via public SDK', samples: times.length, compared, maximumError: maximum,
-        sharedDefinitionsRetained: true, lastValidGraphRetained: true, holeVariants: 3, emptyModify: 'pass', locatedFieldError: 'pass' };
+        sharedDefinitionsRetained: true, lastValidGraphRetained: true, holeVariants: 3, emptyModify: 'pass', locatedFieldError: 'pass',
+        countersinkFinishes: 2, bodyCardinality: 'rejected at second declaration', paletteBodyRequirement: 'pass' };
     } finally { await cad.dispose(); }
-  }, { source, documents, times, expected, holeSource, emptyModifySource });
+  }, { source, documents, times, expected, holeSource, emptyModifySource, combinedSource, twoBodiesSource });
   const output = resolve(repo, 'artifacts/local/v8-relations');
   await mkdir(output, { recursive: true });
   await writeFile(resolve(output, 'motion-browser.json'), JSON.stringify(result, null, 2));

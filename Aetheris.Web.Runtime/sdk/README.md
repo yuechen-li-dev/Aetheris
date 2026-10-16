@@ -85,6 +85,12 @@ decision.
 (`firmament-palette/1`): bodies (`placement: 'model'`) and features on a body
 (`placement: 'feature'`), each a declaration `source` with starting values.
 Every item is proven to build by the kernel's tests.
+Body starters have `requiresEmptyModel: true`: they start a Model without an
+existing material body. Separate objects belong in Parts of an Assembly;
+adding an independent second body to an occupied Model rejects at that
+declaration. A referenced legacy `with` prototype is compile-time data and
+does not count as a second output body. Hole centers remain explicit source
+values; the palette does not invent non-overlapping placements.
 
 Production AOT preserves the semantic provenance record metadata used by the
 reflection JSON bridge. Package generation clears its owned AOT publish output

@@ -482,6 +482,13 @@ base material interval and admitted operations inside it. Compose does not
 reopen a separately declared Box, and neither construct admits arbitrary Boolean
 or feature combinations.
 
+The current engineering exporter admits one material body per Model. A second
+Box, Cylinder or other material body is rejected at its declaration, even if
+the bodies have no Modify operations. It is never silently discarded. Use
+separate Parts in an Assembly for separate objects, or the admitted Compose
+operations for material belonging to one body. Palette body entries marked
+`requiresEmptyModel` start an empty Model; feature entries operate on its body.
+
 In a primitive Model, `Modify Base {}` is a valid no-op once `Base` resolves to
 an existing body. Deleting its last feature leaves the same stock geometry;
 an unresolved target still rejects. An empty Modify does not create a feature.
@@ -504,13 +511,16 @@ variant applicability from the shared schema.
 
 For a Box top-boundary chamfer or fillet, the selector is `face: +Z` plus
 `target: Boundary`. A fillet uses `radius`; a chamfer uses `distance`.
-One such finish can coexist with disjoint top `ThroughAll` shaft or counterbore
-holes in the same Modify. The hole entry circles must stay strictly inside the
+One such finish can coexist with disjoint top `ThroughAll` shaft, counterbore
+or countersink holes in the same Modify. The hole entry circles must stay strictly inside the
 inset top face. Fillets retain sharp vertical stock corners and join their four
 cylindrical blends on exact elliptical seams; this is not a whole-box rounding.
 A profile-composed finish names its Profile boundary and support instead.
 The generic variant has the same capability checks as `kind`.
 A bare `Fillet corners { ... }` is not an alternative EdgeFinish declaration.
+For a combined countersink, its conical relief must end above a positive shaft
+span. Blind or side-entry holes sharing a boundary finish remain unsupported;
+their diagnostic points to the Hole declaration.
 
 Read the [feature support and examples](geometry.md) before combining operations.
 A feature's existence does not imply that every combination is admitted.

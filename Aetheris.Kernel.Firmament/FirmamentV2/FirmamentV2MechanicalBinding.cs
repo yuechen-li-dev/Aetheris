@@ -19,6 +19,20 @@ public static partial class FirmamentV2Parser
     internal static bool IsPrimitiveDeclaration(DeclarationSyntax d) => d.Type.Name.Text is
         "Box" or "Cylinder" or "Cone" or "Sphere" or "Torus" or "RoundedBox" or "Frustum" or "StandardPart" or "ExactCoaxialPart";
 
+    private static FirmamentV2ParseResult? RejectMultipleMaterialBodies(IReadOnlyList<DeclarationSyntax> bodies,
+        string model, List<string> diagnostics)
+    {
+        if (bodies.Count <= 1) return null;
+        const string code = "firmament-v2-multiple-material-bodies-unsupported";
+        diagnostics.Add(code);
+        return CanonicalFailure(diagnostics, CanonicalDocumentMalformed) with
+        {
+            SyntaxDiagnostics = [new(code, "fatal",
+                $"Model '{model}' declares {bodies.Count} material bodies ({string.Join(", ", bodies.Select(d => d.Name?.Text))}). The current Model exporter admits one body. Use separate Parts in an Assembly for separate objects, or Compose for admitted material operations on one body.")
+                { SourceSpan = bodies[1].Span, Stage = "Capability" }]
+        };
+    }
+
     /// <summary>Mechanical syntax has one owner. Selection of a material lowerer
     /// follows declared material bodies; unused construction data cannot select a grammar.</summary>
     private static FirmamentV2ParseResult BindMechanicalModel(DocumentSyntax syntax, DeclarationSyntax model,
@@ -28,6 +42,8 @@ public static partial class FirmamentV2Parser
         if (model.Body is null || model.Name is null) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
         if (model.Clauses.Count > 0 || model.Type.Arguments.Count > 0)
             return CanonicalFailure(diagnostics, "firmament-v2-mechanical-root-header-unsupported: Use the admitted Model/Struct header and declare placement in its owning construct.");
+        var materialBodies = MechanicalDeclarations(model.Body.Statements).Where(d => IsPrimitiveDeclaration(d) || d.Type.Name.Text == "InlineStep").ToArray();
+        if (RejectMultipleMaterialBodies(materialBodies, model.Name.Text, diagnostics) is { } rejectedBodies) return rejectedBodies;
         if (model.Annotation is not null)
         {
             if (syntax.Statements.Concat(model.Body.Statements).OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text == "Static"))

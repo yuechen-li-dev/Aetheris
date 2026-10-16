@@ -5,7 +5,7 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 /// inserted with <c>insertFeature</c>). <c>Source</c> is one declaration named <c>NameStem</c>; editors
 /// pass a unique name with the insert.</summary>
 public sealed record FirmamentPaletteItem(string Id, string Label, string Category, string Description,
-    string Placement, string NameStem, string Source);
+    string Placement, string NameStem, string Source, bool RequiresEmptyModel = false);
 
 public sealed record FirmamentLanguagePalette(string Version, IReadOnlyList<FirmamentPaletteItem> Items);
 
@@ -22,9 +22,9 @@ public static class FirmamentLanguagePaletteService
     private static readonly FirmamentPaletteItem[] Catalog =
     [
         new("box", "Box", "Bodies", "A rectangular block, centered on the origin.", "model", "Block",
-            "Box Block { Size: [40mm, 30mm, 10mm] }"),
+            "Box Block { Size: [40mm, 30mm, 10mm] }", RequiresEmptyModel: true),
         new("cylinder", "Cylinder", "Bodies", "A round bar standing on the XY plane.", "model", "Bar",
-            "Cylinder Bar { Radius: 10mm Height: 20mm }"),
+            "Cylinder Bar { Radius: 10mm Height: 20mm }", RequiresEmptyModel: true),
 
         new("hole", "Hole", "Holes", "A drilled through hole from the top face.", "feature", "Hole",
             "Hole<Shaft> Hole { On: +Z Center: Point2(0mm, 0mm) Diameter: 6mm End: ThroughAll }"),

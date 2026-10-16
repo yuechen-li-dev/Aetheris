@@ -64,7 +64,7 @@ public sealed class SemanticAuthorityConvergenceTests
         Assert.True(build.IsSuccess,string.Join("; ",build.Diagnostics.Select(x=>x.Message)));
         Assert.Equal("CombinedHoleEdgeFinish",build.Value!.Combined!.Route);
         var bottomArea=10d*15d;var topArea=8d*13d;
-        var chamferedHost=bottomArea*19d+(bottomArea+topArea+Math.Sqrt(bottomArea*topArea))/3d;
+        var chamferedHost=bottomArea*19d+(bottomArea+4d*9d*14d+topArea)/6d;
         var expected=chamferedHost-Math.PI*2d*2d*20d-Math.PI*(3.5d*3.5d-2d*2d)*3d;
         Assert.Equal(expected,build.Value.Combined.FinalAnalyticVolume,6);
         var imported=Step242Importer.ImportBody(build.Value.StepText);Assert.True(imported.IsSuccess,string.Join("; ",imported.Diagnostics.Select(x=>x.Message)));

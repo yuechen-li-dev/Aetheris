@@ -19,10 +19,18 @@ public sealed record CombinedTopBoundaryEdgeFinishThroughHole(
     double CenterY,
     double Radius,
     double? CounterboreRadius = null,
-    double? CounterboreDepth = null)
+    double? CounterboreDepth = null,
+    double? CountersinkRadius = null,
+    double? CountersinkAngleDegrees = null)
 {
     public bool IsCounterbore => CounterboreRadius is not null;
-    public double EntryRadius => CounterboreRadius ?? Radius;
+    public bool IsCountersink => CountersinkRadius is not null;
+    public double EntryRadius => CountersinkRadius ?? CounterboreRadius ?? Radius;
+    public double? ReliefDepth => CounterboreDepth ?? (CountersinkRadius is { } radius && CountersinkAngleDegrees is { } angle
+        ? (radius - Radius) / System.Math.Tan(angle * System.Math.PI / 360d) : null);
+    public double RemovedVolume(double height) => System.Math.PI * Radius * Radius * height
+        + (IsCounterbore ? System.Math.PI * (EntryRadius * EntryRadius - Radius * Radius) * ReliefDepth!.Value : 0d)
+        + (IsCountersink ? System.Math.PI / 3d * (EntryRadius - Radius) * (EntryRadius + 2d * Radius) * ReliefDepth!.Value : 0d);
 }
 
 public enum TopBoundaryEdgeFinishKind { Chamfer, Fillet }
@@ -44,10 +52,11 @@ public sealed record CombinedTopBoundaryEdgeFinishThroughHolePlan(
         get
         {
             var height = ZMax - ZMin;
-            var lowerHeight = height - FinishSize;
             var bottomArea = Width * Depth;
-            var topArea = (Width - (2d * FinishSize)) * (Depth - (2d * FinishSize));
-            var finishedHost = (bottomArea * lowerHeight) + (FinishSize / 3d * (bottomArea + topArea + System.Math.Sqrt(bottomArea * topArea)));
+            // Integrate (Width-2t)(Depth-2t). Rectangular offsets are not
+            // homothetic pyramids unless Width == Depth.
+            var finishedHost = bottomArea * height - (Width + Depth) * FinishSize * FinishSize
+                + 4d / 3d * FinishSize * FinishSize * FinishSize;
             if (FinishKind == TopBoundaryEdgeFinishKind.Fillet)
             {
                 // Integrate the retained rectangle (W-2s)(D-2s), where
@@ -58,10 +67,7 @@ public sealed record CombinedTopBoundaryEdgeFinishThroughHolePlan(
                 var overlap = r * r * r * (5d / 3d - System.Math.PI / 2d);
                 finishedHost = bottomArea * height - 2d * (Width + Depth) * section + 4d * overlap;
             }
-            var removed = Holes.Sum(h => System.Math.PI * h.Radius * h.Radius * height
-                + (h.CounterboreRadius is { } reliefRadius && h.CounterboreDepth is { } reliefDepth
-                    ? System.Math.PI * (reliefRadius * reliefRadius - h.Radius * h.Radius) * reliefDepth
-                    : 0d));
+            var removed = Holes.Sum(h => h.RemovedVolume(height));
             return finishedHost - removed;
         }
     }
@@ -112,6 +118,14 @@ public static class CombinedTopBoundaryEdgeFinishThroughHoleBuilder
             // The periodic circle and its longitudinal seam share endpoint identities.
             // Coincident but distinct seam/circle vertices produce invalid STEP wires.
             var seamTop = b.AddVertex(); var seamBottom = b.AddVertex();
+            if (h.IsCountersink)
+            {
+                // The cone and shaft share one throat circle and seam endpoint.
+                var throat = b.AddVertex(); var throatCircle = b.AddEdge(throat, throat);
+                return new HoleTopology(h, seamTop, seamBottom, throat, throat,
+                    b.AddEdge(seamTop, seamTop), b.AddEdge(seamBottom, seamBottom), throatCircle, throatCircle,
+                    b.AddEdge(seamTop, throat), b.AddEdge(throat, seamBottom));
+            }
             if (!h.IsCounterbore)
                 return new HoleTopology(h, seamTop, seamBottom, null, null,
                     b.AddEdge(seamTop, seamTop), b.AddEdge(seamBottom, seamBottom), null, null, b.AddEdge(seamTop, seamBottom), null);
@@ -140,23 +154,32 @@ public static class CombinedTopBoundaryEdgeFinishThroughHoleBuilder
             lowerFaces[i] = b.AddFace([AddLoop(b, [Forward(bottomEdges[i]), Forward(lowerEdges[next]), Reversed(shoulderEdges[i]), Reversed(lowerEdges[i])])]);
             finishFaces[i] = b.AddFace([AddLoop(b, [Forward(shoulderEdges[i]), Forward(finishEdges[next]), Reversed(topEdges[i]), Reversed(finishEdges[i])])]);
         }
-        var holeFaces = new List<(HoleTopology Hole, FaceId Face, double Radius, double ZMin, double ZMax)>();
+        var holeFaces = new List<(HoleTopology Hole, FaceId Face, double Radius, double ZMin, double ZMax, bool Cone)>();
         var shoulderFaces = new List<(HoleTopology Hole, FaceId Face)>();
         foreach (var hole in holes)
         {
+            if (hole.Hole.IsCountersink)
+            {
+                var throatZ = plan.ZMax - hole.Hole.ReliefDepth!.Value;
+                var cone = b.AddFace([AddLoop(b, [Forward(hole.UpperSeam), Forward(hole.ShoulderInnerCircle!.Value), Reversed(hole.UpperSeam), Reversed(hole.TopCircle)])]);
+                var shaft = b.AddFace([AddLoop(b, [Forward(hole.LowerSeam!.Value), Forward(hole.BottomCircle), Reversed(hole.LowerSeam.Value), Reversed(hole.ShoulderInnerCircle.Value)])]);
+                holeFaces.Add((hole, cone, hole.Hole.Radius, throatZ, plan.ZMax, true));
+                holeFaces.Add((hole, shaft, hole.Hole.Radius, plan.ZMin, throatZ, false));
+                continue;
+            }
             if (!hole.Hole.IsCounterbore)
             {
                 var face=b.AddFace([AddLoop(b, [Forward(hole.UpperSeam), Forward(hole.BottomCircle), Reversed(hole.UpperSeam), Reversed(hole.TopCircle)])]);
-                holeFaces.Add((hole,face,hole.Hole.Radius,plan.ZMin,plan.ZMax));
+                holeFaces.Add((hole,face,hole.Hole.Radius,plan.ZMin,plan.ZMax,false));
                 continue;
             }
             var shoulderZ=plan.ZMax-hole.Hole.CounterboreDepth!.Value;
             var boreFace=b.AddFace([AddLoop(b,[Forward(hole.UpperSeam),Forward(hole.ShoulderOuterCircle!.Value),Reversed(hole.UpperSeam),Reversed(hole.TopCircle)])]);
             var shoulderFace=b.AddFace([AddLoop(b,[Reversed(hole.ShoulderOuterCircle.Value)]),AddLoop(b,[Forward(hole.ShoulderInnerCircle!.Value)])]);
             var shaftFace=b.AddFace([AddLoop(b,[Forward(hole.LowerSeam!.Value),Forward(hole.BottomCircle),Reversed(hole.LowerSeam.Value),Reversed(hole.ShoulderInnerCircle.Value)])]);
-            holeFaces.Add((hole,boreFace,hole.Hole.CounterboreRadius!.Value,shoulderZ,plan.ZMax));
+            holeFaces.Add((hole,boreFace,hole.Hole.CounterboreRadius!.Value,shoulderZ,plan.ZMax,false));
             shoulderFaces.Add((hole,shoulderFace));
-            holeFaces.Add((hole,shaftFace,hole.Hole.Radius,plan.ZMin,shoulderZ));
+            holeFaces.Add((hole,shaftFace,hole.Hole.Radius,plan.ZMin,shoulderZ,false));
         }
         var shell = b.AddShell([bottomFace, topFace, .. lowerFaces, .. finishFaces, .. holeFaces.Select(x=>x.Face), .. shoulderFaces.Select(x=>x.Face)]);
         b.AddBody([shell]);
@@ -220,13 +243,24 @@ public static class CombinedTopBoundaryEdgeFinishThroughHoleBuilder
             var centerBottom = new Point3D(hole.Hole.CenterX, hole.Hole.CenterY, plan.ZMin);
             geometry.AddCurve(topCurve, CurveGeometry.FromCircle(new Circle3Curve(centerTop, zAxis, hole.Hole.EntryRadius, xAxis)));
             geometry.AddCurve(bottomCurve, CurveGeometry.FromCircle(new Circle3Curve(centerBottom, zAxis, hole.Hole.Radius, xAxis)));
-            var upperZMin=hole.Hole.IsCounterbore?plan.ZMax-hole.Hole.CounterboreDepth!.Value:plan.ZMin;
-            geometry.AddCurve(seamCurve, CurveGeometry.FromLine(new Line3Curve(new Point3D(hole.Hole.CenterX + hole.Hole.EntryRadius, hole.Hole.CenterY, upperZMin), zAxis)));
+            var upperZMin=hole.Hole.ReliefDepth is { } reliefDepth ? plan.ZMax-reliefDepth : plan.ZMin;
+            var seamStart = new Point3D(hole.Hole.CenterX + (hole.Hole.IsCountersink ? hole.Hole.Radius : hole.Hole.EntryRadius), hole.Hole.CenterY, upperZMin);
+            var seamVector = new Vector3D(hole.Hole.IsCountersink ? hole.Hole.EntryRadius-hole.Hole.Radius : 0d, 0d, plan.ZMax-upperZMin);
+            geometry.AddCurve(seamCurve, CurveGeometry.FromLine(new Line3Curve(seamStart, hole.Hole.IsCountersink ? Direction3D.Create(seamVector) : zAxis)));
             bindings.AddEdgeBinding(new EdgeGeometryBinding(hole.TopCircle, topCurve, new ParameterInterval(0d, 2d * System.Math.PI)));
             bindings.AddEdgeBinding(new EdgeGeometryBinding(hole.BottomCircle, bottomCurve, new ParameterInterval(0d, 2d * System.Math.PI)));
-            bindings.AddEdgeBinding(new EdgeGeometryBinding(hole.UpperSeam, seamCurve, new ParameterInterval(0d, plan.ZMax - upperZMin), OrientedEdgeSense: false));
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(hole.UpperSeam, seamCurve, new ParameterInterval(0d, hole.Hole.IsCountersink ? seamVector.Length : plan.ZMax-upperZMin), OrientedEdgeSense: false));
             vertexPoints[hole.SeamTopVertex] = new Point3D(hole.Hole.CenterX + hole.Hole.EntryRadius, hole.Hole.CenterY, plan.ZMax);
             vertexPoints[hole.SeamBottomVertex] = new Point3D(hole.Hole.CenterX + hole.Hole.Radius, hole.Hole.CenterY, plan.ZMin);
+            if (hole.Hole.IsCountersink)
+            {
+                var throatCurve = new CurveGeometryId(edgeCurve++); var lowerSeamCurve = new CurveGeometryId(edgeCurve++);
+                geometry.AddCurve(throatCurve, CurveGeometry.FromCircle(new Circle3Curve(new(hole.Hole.CenterX, hole.Hole.CenterY, upperZMin), zAxis, hole.Hole.Radius, xAxis)));
+                geometry.AddCurve(lowerSeamCurve, CurveGeometry.FromLine(new Line3Curve(new(hole.Hole.CenterX+hole.Hole.Radius, hole.Hole.CenterY, plan.ZMin), zAxis)));
+                bindings.AddEdgeBinding(new(hole.ShoulderInnerCircle!.Value, throatCurve, new(0d, 2d*System.Math.PI)));
+                bindings.AddEdgeBinding(new(hole.LowerSeam!.Value, lowerSeamCurve, new(0d, upperZMin-plan.ZMin), OrientedEdgeSense: false));
+                vertexPoints[hole.ShoulderInnerVertex!.Value] = new(hole.Hole.CenterX+hole.Hole.Radius, hole.Hole.CenterY, upperZMin);
+            }
             if (hole.Hole.IsCounterbore)
             {
                 var shoulderZ=upperZMin;
@@ -243,7 +277,12 @@ public static class CombinedTopBoundaryEdgeFinishThroughHoleBuilder
         }
         foreach(var wall in holeFaces)
         {
-            var sid=new SurfaceGeometryId(surface++);geometry.AddSurface(sid,SurfaceGeometry.FromCylinder(new CylinderSurface(new(wall.Hole.Hole.CenterX,wall.Hole.Hole.CenterY,wall.ZMin),zAxis,wall.Radius,xAxis)));bindings.AddFaceBinding(new(wall.Face,sid,IsAlignedWithSurface:false));
+            var sid = new SurfaceGeometryId(surface++);
+            var origin = new Point3D(wall.Hole.Hole.CenterX, wall.Hole.Hole.CenterY, wall.ZMin);
+            geometry.AddSurface(sid, wall.Cone
+                ? SurfaceGeometry.FromCone(new ConeSurface(origin, zAxis, wall.Radius, wall.Hole.Hole.CountersinkAngleDegrees!.Value * System.Math.PI / 360d, xAxis))
+                : SurfaceGeometry.FromCylinder(new CylinderSurface(origin, zAxis, wall.Radius, xAxis)));
+            bindings.AddFaceBinding(new(wall.Face,sid,IsAlignedWithSurface:false));
         }
         foreach(var shoulderBinding in shoulderFaces)BindPlane(shoulderBinding.Face,new(shoulderBinding.Hole.Hole.CenterX,shoulderBinding.Hole.Hole.CenterY,plan.ZMax-shoulderBinding.Hole.Hole.CounterboreDepth!.Value),new Vector3D(1,0,0),new Vector3D(0,1,0));
 
@@ -272,10 +311,16 @@ public static class CombinedTopBoundaryEdgeFinishThroughHoleBuilder
         {
             if ((hole.CounterboreRadius is null) != (hole.CounterboreDepth is null))
                 return Failure($"CombinedFeaturePlanChainInvalid: counterbore '{hole.FeatureId}' requires both radius and depth.");
+            if ((hole.CountersinkRadius is null) != (hole.CountersinkAngleDegrees is null) || hole.IsCounterbore && hole.IsCountersink)
+                return Failure($"CombinedFeaturePlanChainInvalid: countersink '{hole.FeatureId}' requires one entry radius and included angle, without counterbore fields.");
             if (!double.IsFinite(hole.CenterX) || !double.IsFinite(hole.CenterY) || !double.IsFinite(hole.Radius) || hole.Radius <= Tol)
                 return Failure($"CombinedFeaturePlanChainInvalid: hole '{hole.FeatureId}' has invalid cylinder data.");
             if (hole.IsCounterbore && (hole.CounterboreRadius is not { } cr || !double.IsFinite(cr) || hole.CounterboreDepth is not { } cd || !double.IsFinite(cd) || cr <= hole.Radius + Tol || cd <= Tol || hole.CounterboreDepth >= plan.ZMax-plan.ZMin-Tol))
                 return Failure($"CombinedFeaturePlanChainInvalid: counterbore '{hole.FeatureId}' has invalid relief dimensions.");
+            if (hole.IsCountersink && (hole.CountersinkRadius is not { } sr || !double.IsFinite(sr) || sr <= hole.Radius + Tol
+                || hole.CountersinkAngleDegrees is not { } angle || !double.IsFinite(angle) || angle <= 0d || angle >= 180d
+                || hole.ReliefDepth is not { } depth || !double.IsFinite(depth) || depth <= Tol || depth >= plan.ZMax-plan.ZMin-Tol))
+                return Failure($"CombinedFeaturePlanChainInvalid: countersink '{hole.FeatureId}' must have a finite relief entirely above a positive shaft span.");
             if (System.Math.Abs(hole.CenterX) + hole.EntryRadius >= plan.Width / 2d - plan.FinishSize - Tol || System.Math.Abs(hole.CenterY) + hole.EntryRadius >= plan.Depth / 2d - plan.FinishSize - Tol)
                 return Failure($"CombinedFeatureInteractionUnsupported: hole '{hole.FeatureId}' intersects or splits the selected outer top-boundary finish band; move the hole inward or reduce its entry radius or the finish size.");
         }

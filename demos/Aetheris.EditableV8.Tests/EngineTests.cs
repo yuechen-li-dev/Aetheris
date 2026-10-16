@@ -1,3 +1,5 @@
+using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Aetheris.EditableV8;
 using Aetheris.Kernel.Firmament.Assembly;
@@ -79,30 +81,60 @@ public sealed class EngineTests
         Assert.NotNull(directory);
         using var reference = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory!.FullName,
             "fixtures/Canonical/EditableV8/geometry-reference.expected.json")));
-        var definitions = mesh.Definitions.ToDictionary(d => d.Id, d => Fingerprint(d), StringComparer.Ordinal);
+        using var meshes = ZipFile.OpenRead(Path.Combine(directory.FullName,
+            "fixtures/Canonical/EditableV8/geometry-reference.meshes.zip"));
+        var definitions = mesh.Definitions.ToDictionary(d => d.Id, StringComparer.Ordinal);
         var occurrences = mesh.Occurrences.ToDictionary(o => o.Id, StringComparer.Ordinal);
         var bindings = motion.Bindings.ToDictionary(b => b.Name, StringComparer.Ordinal);
         Assert.Equal(reference.RootElement.GetProperty("bodyCount").GetInt32(), bindings.Count);
+        Assert.Equal(reference.RootElement.GetProperty("definitionCount").GetInt32(), definitions.Count);
+        var compared = new HashSet<(string DefinitionId, string Hash)>();
         foreach (var row in reference.RootElement.GetProperty("bindings").EnumerateArray()) {
             var binding = bindings[row.GetProperty("name").GetString()!];
-            Assert.True(row.GetProperty("meshSha256").GetString() == definitions[occurrences[binding.OccurrenceId!].DefinitionId!], "Part geometry changed for " + binding.Name);
+            var definition = definitions[occurrences[binding.OccurrenceId!].DefinitionId!];
+            var hash = row.GetProperty("meshSha256").GetString()!;
+            if (compared.Add((definition.Id, hash)))
+            {
+                var entry = meshes.GetEntry(hash + ".bin");
+                Assert.NotNull(entry);
+                using var data = new MemoryStream();
+                using (var stream = entry.Open()) stream.CopyTo(data);
+                // Keep the original reference bytes; only the live comparison is tolerant.
+                Assert.Equal(hash, Convert.ToHexString(SHA256.HashData(data.ToArray())));
+                data.Position = 0;
+                using var reader = new BinaryReader(data);
+                foreach (var (values, channel) in new[] { (definition.Positions, "positions"), (definition.Normals, "normals") })
+                {
+                    Assert.Equal(reader.ReadInt32(), values.Length);
+                    for (var i = 0; i < values.Length; i++)
+                    {
+                        var expected = reader.ReadDouble();
+                        Assert.True(ComponentMatches(expected, values[i]),
+                            $"Part geometry changed for {binding.Name}: {channel}[{i}] expected {expected:R}, actual {values[i]:R}");
+                    }
+                }
+                Assert.Equal(reader.ReadInt32(), definition.Indices.Length);
+                foreach (var index in definition.Indices) Assert.Equal(reader.ReadInt32(), index);
+                Assert.Equal(data.Length, data.Position);
+            }
             var oldRest = row.GetProperty("rest").EnumerateArray().Select(v => v.GetDouble());
             Assert.True(binding.Rest.Zip(oldRest).All(p => double.Abs(p.First - p.Second) <= 1e-9), "Rest geometry changed for " + binding.Name);
         }
     }
 
-    private static string Fingerprint(AssemblyDisplayMeshDefinition definition)
+    // libm and numerically differentiated spring normals vary across platforms.
+    // Positions are in mm; normals are unitless. Topology remains exact above.
+    private static bool ComponentMatches(double expected, double actual) =>
+        double.IsFinite(expected) && double.IsFinite(actual) && double.Abs(expected - actual) <= 1e-9;
+
+    [Theory]
+    [InlineData(20d, 20.0000000001d, true)]
+    [InlineData(20d, 20.00001d, false)]
+    [InlineData(0d, double.NaN, false)]
+    [InlineData(0d, double.PositiveInfinity, false)]
+    public void GeometryComparisonAdmitsRoundoffButRejectsChanges(double expected, double actual, bool matches)
     {
-        using var data = new MemoryStream();
-        using (var writer = new BinaryWriter(data, System.Text.Encoding.UTF8, leaveOpen: true)) {
-            foreach (var values in new[] { definition.Positions, definition.Normals }) {
-                writer.Write(values.Length);
-                foreach (var value in values) writer.Write(value == 0 ? 0d : value);
-            }
-            writer.Write(definition.Indices.Length);
-            foreach (var index in definition.Indices) writer.Write(index);
-        }
-        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(data.ToArray()));
+        Assert.Equal(matches, ComponentMatches(expected, actual));
     }
 
 }

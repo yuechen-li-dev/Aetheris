@@ -161,10 +161,13 @@ parity and source hashes. Intermediate failing runs are not final acceptance.
 
 The durable `geometry-reference.expected.json` fixture captures the original
 baseline at the implementation-base commit: 171 logical Part bindings, local
-mesh fingerprints and solved world matrices. Its test hashes little-endian array
-lengths and position/normal/index data, normalizing signed zero; world matrices
-have a 1e-9 tolerance. The JSON records the original generated-source hash and
-reproduction provenance. Raw old meshes and per-run outputs stay ignored.
+mesh fingerprints and solved world matrices. The adjacent compressed numeric
+golden now permits cross-platform comparisons: its bytes must match those original
+fingerprints, while live positions/normals use a 1e-9 component tolerance and
+indices remain exact. World matrices retain a 1e-9 tolerance. See the
+[fixture contract](../../fixtures/Canonical/EditableV8/README.md) for format,
+Windows/Linux measurements and recovery instructions. The JSON retains the original
+generated-source hash and provenance. Per-run mesh exports stay ignored.
 
 Reproduce the build/test lanes from the repository root:
 

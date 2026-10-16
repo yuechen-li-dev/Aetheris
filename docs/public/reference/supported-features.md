@@ -5,6 +5,7 @@
 | Area | Status | Preview 3 boundary |
 |---|---|---|
 | Firmament V2 native primitives/profiles | Bounded | Named Box/Cylinder/Frustum/RoundedBox and admitted line/arc profile construction/composition |
+| Box top-boundary finish with holes | Bounded | One complete +Z Boundary Chamfer or constant-radius Fillet with disjoint ThroughAll shaft/counterbore holes; exact cylindrical fillets and elliptical corner seams. Intersecting holes/finish bands, other combined selectors and general feature chains remain unsupported. See [geometry](../firmament/geometry.md#box-top-fillet-with-holes). |
 | Gear Standard Library | Supported / bounded by family | Supported external/internal standard involute spur gears; bounded straight bevel/miter and ratchet/pawl; typed `Interface<Gear>` compatibility and ideal ratios; deterministic manifold AP242. No contact, dynamics, ratings, helical/worm, spiral-bevel, or qualified hub/keyway geometry. See the [gear guide](../firmament/gears.md). |
 | Assembly Interface bundles and Subassemblies | Supported / bounded | Compiler-owned `Fixed`, `Axial`, and `Revolute` expansion; explicit `Custom` atomic bundles; compile-time relative `Include`; reusable nested definitions; private-by-default internals; exposed semantic ports that preserve type, including Gear; stable hierarchical paths and dependency hashes. Include aliases are deferred. See [assemblies](../firmament/assemblies.md). |
 | Scene spatial composition | Supported / bounded | Metre/mm coordinates; rectangular Room boundaries; Door/Window apertures; independent AssemblyFile and typed Part occurrences; keyed patterns; retained definition reuse; cameras and appearances; USD/GLB. No Scene mechanical relationships, nested Scenes, whole-scene STEP or BIM. See [scenes](../firmament/scenes.md). |
@@ -42,7 +43,7 @@
 | Linux/macOS release binaries | Not in Preview 3 | Framework logic tests do not constitute binary qualification |
 | Post-Preview-3 feature families | X0 exception | Circular Sweep, WIRE-X0 Formed Wire, and Standard Products Paperclip are bounded X0 additions; other new geometry/PMI/FEA/Forge families remain frozen |
 | General smooth/rail/topology-changing loft and freeform surface features | Not in Preview 3 | The bounded two-section lofts, G1 SectionChains, and WireForm `Helix` do not qualify arbitrary smooth loft, guide rails, topology-changing correspondence, arbitrary dumb-solid editing, G2 continuity, or surface networks. |
-| Through profile removal | Bounded semantic operations | Use qualified `Hole`, `Slot`, or another documented opening feature; Pocket never means through-all |
+| Through profile removal | Bounded semantic operations | Use qualified `Hole`, `Slot`, explicit `Pocket { end: ThroughAll }`, or `Remove` with `role: ThroughCut`; depth-based Pocket must leave its admitted floor |
 | Arbitrary solid Boolean subtraction / hemispherical cavity | Not in Preview 3 | No public `Union`, `Subtract`, `Intersect`, CSG tree, Sphere-from-Block subtraction, or hemisphere special case |
 
 ## Template capability matrix

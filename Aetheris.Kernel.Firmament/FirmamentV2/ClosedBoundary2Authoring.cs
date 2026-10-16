@@ -26,7 +26,7 @@ internal static class ClosedBoundary2Authoring
     private sealed record Shape(FirmamentV2ClosedBoundary2Decl Declaration, string? LoweredSource,
         IReadOnlyDictionary<string, string> MemberMap, string TraceExpression, int Start, int Length);
 
-    public static Result? Expand(string source, List<string> diagnostics)
+    public static Result? Expand(string source, List<string> diagnostics, FirmamentCompileTimeValues? scalars = null)
     {
         // Template bodies have local names and unbound dimensions. Their selected
         // specializations pass through this lowering after ordinary template binding.
@@ -55,7 +55,11 @@ internal static class ClosedBoundary2Authoring
             // static geometry expander; it does not request a material operation.
             fields.Word("Role");
             var beforeBinding = diagnostics.Count;
-            var shape = Bind(source, declaration, fields, diagnostics);
+            var boundDeclaration = scalars is null ? declaration : (DeclarationSyntax)new BoundaryValues(scalars).Statement(declaration);
+            var boundFields = scalars is null ? fields : new FirmamentSyntaxFields(boundDeclaration, diagnostics);
+            if (scalars is not null) boundFields.Word("Role");
+            var shape = Bind(source, boundDeclaration, boundFields, diagnostics);
+            fields = boundFields;
             // Unbound template/record expressions remain with their specialization
             // owner. Successful shape binding must consume every authored field.
             if (shape is not null) { fields.Complete(); shapes.Add(shape); }
@@ -65,7 +69,15 @@ internal static class ClosedBoundary2Authoring
         var changes = new List<(int Start, int Length, string Text)>();
         foreach (var shape in shapes)
         {
-            if (shape.LoweredSource is not null) changes.Add((shape.Start, shape.Length, shape.LoweredSource));
+            if (shape.LoweredSource is not null)
+            {
+                var directConsumer = FirmamentSyntaxTraversal.Declarations(syntax.Document).Any(d => d.Type.Name.Text == "Revolve"
+                    && d.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Profile")
+                        && FirmamentSyntaxValues.Reference(f.Value) == shape.Declaration.Name) == true);
+                var lowered = shape.LoweredSource;
+                if (directConsumer) lowered += "\nProfile " + shape.Declaration.Name + " { Loop Outer { " + shape.TraceExpression + " } }\n";
+                changes.Add((shape.Start, shape.Length, lowered));
+            }
             // Preserve a closed boundary value for immutable Profile derivation
             // before the primitive declaration is erased to its ordinary guides.
             var seedUses = Regex.Matches(source,
@@ -102,6 +114,11 @@ internal static class ClosedBoundary2Authoring
             GeneratedDeclarationNames = shapes.Where(s => s.LoweredSource is not null)
                 .SelectMany(s => s.MemberMap.Values).Distinct(StringComparer.Ordinal).ToArray()
         };
+    }
+
+    private sealed class BoundaryValues(FirmamentCompileTimeValues values) : FirmamentSyntaxRewriter
+    {
+        internal override ExpressionSyntax Expression(ExpressionSyntax expression) => values.NominalExpression(expression);
     }
 
     private static IEnumerable<DeclarationSyntax> BoundaryDeclarations(DocumentSyntax syntax) =>
@@ -143,7 +160,7 @@ internal static class ClosedBoundary2Authoring
             "Slot2" => Slot(name, body, rotation, span, diagnostics),
             "SmoothRoundedRect2" => SmoothRoundedRect(name, body, rotation, span, diagnostics),
             "RoundedRect2" => RoundedRect(name, body, rotation, span, diagnostics),
-            "Polygon2" => Polygon(source, name, variant!, body, rotation, span, diagnostics),
+            "Polygon2" => Polygon(source, name, variant ?? "Explicit", body, rotation, span, diagnostics),
             _ => RegularPolygon(name, variant!, body, rotation, span, diagnostics)
         };
     }
@@ -316,8 +333,32 @@ internal static class ClosedBoundary2Authoring
                 if (!Point(body, "Center", out c) || !Length(body, "BottomWidth", out var bw) || !Length(body, "TopWidth", out var tw) || !Length(body, "Height", out var th) || !Positive(bw, tw, th)) return Invalid(name, "invalid-dimensions", diagnostics);
                 vertices = new (double X, double Y)[] { (-bw / 2, -th / 2), (bw / 2, -th / 2), (tw / 2, th / 2), (-tw / 2, th / 2) }.Select(p => Rotate((p.X + c.X, p.Y + c.Y), c, rotation)).ToArray(); pointNames = ["BottomLeft", "BottomRight", "TopRight", "TopLeft"]; dimensions["BottomWidth"] = bw; dimensions["TopWidth"] = tw; dimensions["Height"] = th; break;
             case "Explicit":
+                var inline = body.Take("Points");
                 var setName = Identifier(body, "Vertices");
-                if (setName is null || !PointSet(source, setName, out pointNames, out vertices) || vertices.Count < 3) return Invalid(name, "explicit-too-few-vertices", diagnostics);
+                if (inline is not null)
+                {
+                    if (setName is not null) return Invalid(name, "explicit-points-and-vertices-conflict", diagnostics);
+                    if (Math.Abs(rotation) > Tol) return Invalid(name, "rotation-unsupported: Explicit boundaries use authored coordinates", diagnostics);
+                    if (inline is not SequenceSyntax { Kind: SequenceKind.List } list) return Invalid(name, "invalid-points-list", diagnostics);
+                    var coordinates = new List<(double X, double Y)>();
+                    foreach (var item in list.Items)
+                    {
+                        if (item.Name is not null || item.Default is not null) return Invalid(name, "invalid-point", diagnostics);
+                        if (item.Value is not (SequenceSyntax { Kind: SequenceKind.List } or CallSyntax { Target: ReferenceSyntax { Name.Text: "Point2" } })
+                            || !FirmamentSyntaxValues.Vector(item.Value, "mm", out var point) || point.Length != 2)
+                        {
+                            // Scalar binding precedes the second boundary pass.
+                            if (FirmamentSyntaxTraversal.Expressions(item.Value).Any(x => x is ReferenceSyntax or MemberSyntax)) return null;
+                            return Invalid(name, "invalid-point", diagnostics);
+                        }
+                        coordinates.Add((point[0], point[1]));
+                    }
+                    vertices = coordinates;
+                    pointNames = Enumerable.Range(0, vertices.Count).Select(i => "Vertex" + i).ToArray();
+                }
+                else if (setName is not null && PointSet(source, setName, out pointNames, out vertices)) { }
+                else return Invalid(name, "explicit-too-few-vertices", diagnostics);
+                if (vertices.Count < 3) return Invalid(name, "explicit-too-few-vertices", diagnostics);
                 if (HasDuplicate(vertices)) return Invalid(name, "explicit-duplicate-vertex", diagnostics); if (SelfIntersects(vertices)) return Invalid(name, "explicit-self-intersection", diagnostics); if (Math.Abs(SignedArea(vertices)) <= Tol) return Invalid(name, "explicit-degenerate-area", diagnostics);
                 c = PolygonCentroid(vertices); rotation = 0; break;
             default: diagnostics.Add("firmament-polygon2-variant-unsupported:" + name + ":" + variant); return null;

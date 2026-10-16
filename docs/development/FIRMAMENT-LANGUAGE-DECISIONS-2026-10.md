@@ -1,5 +1,7 @@
 # October 2026 Firmament language decision register
 
+X4 authoring retest amendment (2026-10-15): [repairs and final qualification](../release/FIRMAMENT-FRONTEND-X4.md) close all 32 checks in Claude's current corpus. The decisions at the end of this register supersede only their qualified portions of the historical dispositions below.
+
 X2 production binding amendment (2026-10-15):
 [current semantic migration report](../release/FIRMAMENT-FRONTEND-X2.md) migrates
 Feature definitions/calls, private construction renaming and defaults to lexical
@@ -312,3 +314,38 @@ are deferred to the remaining typed module contract, without implicit capture.
 Recommendations 3, 4, 8, 15, 19, 22 and 23 advance. The full X2 domain/value/source-map
 migration is still open; no new parser route, geometry engine or runtime module
 system is introduced. Qualification is recorded in the Inventory release report.
+
+## FrontendX4 retest decisions (2026-10-15)
+
+- #19 / a01: `Static name = expression` is the Model-local compile-time value spelling, with optional scalar type inference. Model `let` is not a new alias; Feature-local `let` retains its existing meaning. Update the design specimen to `Static thickness = 6mm`; its geometry oracle is unchanged.
+- #20 / f02, f04, g01: admit `Polygon2 Name { points: [[x, y], ...] }` as the inline form of the existing explicit boundary. Coordinates use typed Length expressions; winding, duplicate, intersection and area checks remain owned by the explicit-polygon lowerer. Named `vertices: Set<Point2>` stays supported. No general inline Segment endpoint syntax is added; f03 remains a located rejection.
+
+- #10: planar Hole centers and `Set<Point2>` entries accept `[x, y]` as well as `Point2(x, y)`. Both retain Length checks and the shared numeric evaluator. Spatial Point3/Grid values retain their frame checks.
+- #11: `EdgeFinish<Chamfer>` and `<Fillet>` select the existing variant, with `Kind` retained as a compatibility alias. Conflicting variants reject. Profile finish fields close through the existing AST field-consumption owner; extra misspelled fields cannot disappear.
+- #12 / #15: a Model/Struct-level Pattern targets exactly one material body. Multiple candidate bodies require an explicit Modify. Source/Grid Patterns and Set/Feature Patterns keep their respective finite binders; generated features enter the target's Modify scope.
+- #13: `Pocket { end: ThroughAll }` lowers to the existing Remove/ThroughCut operation, from stock bottom to selected top support. Explicit depth or floor policy conflicts with ThroughAll; an accidentally through-depth Pocket still rejects. No kernel capability is added.
+- #21: `+Z`, `face(+Z)`, `Top`, and the active host's `.Top` share planar support binding; spelling alone cannot select Concept point interpretation.
+- #4 / #24: the combined Fillet + Hole capability remains rejected, with its explanatory message and original EdgeFinish location. Inline Segment endpoints remain rejected at their Segment declarations. Causal profile errors precede and replace derivative missing-operand noise.
+
+The a01 reference and chimera already use `Static`, so only its design specimen
+changes. Other specimens, references and recorded geometry remain unchanged.
+The [X4 qualification report](../release/FIRMAMENT-FRONTEND-X4.md) records the
+measured outcomes; these amendments supersede earlier deferrals only within
+the cases and boundaries qualified there. They do not close every expression,
+expansion-provenance or domain limitation tracked by the original 24 items.
+
+
+## Engineering follow-up: Fillet + Hole (2026-10-15)
+
+The user explicitly authorized the capability after X4. Recommendation #24 is
+**partially implemented in a separate geometry feature**, not a new language
+restriction or another parser milestone. One Box top `Boundary` Fillet can now
+coexist with disjoint top ThroughAll shaft/counterbore holes. The same bounded
+builder handles finish-only top-boundary fillets. Four exact cylindrical blends
+join on elliptical direct-intersection seams; vertical corners remain sharp.
+Original d05 source is retained and becomes a positive capability specimen.
+Intersections, tangencies, other combined selectors, blind holes, countersinks,
+Regions, mixed finishes and general feature chains remain explicit limitations.
+Shell and unrelated geometry work from #24 is still deferred. This supersedes
+the d05 rejection disposition above only for the newly qualified combination.
+See [qualification and upstream reconciliation](../release/FIRMAMENT-FILLET-HOLE.md).

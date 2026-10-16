@@ -250,7 +250,7 @@ internal static class CanonicalStaticAuthoring
             if (close < 0) { diagnostics.Add(Prefix + "set-malformed:" + name); continue; }
             if (!IsSupportedSetElementType(type, recordByName)) { diagnostics.Add(Prefix + "set-element-type-unsupported:" + name + ":" + type); continue; }
             if (!names.Add(name)) { diagnostics.Add(FirmamentV2Parser.DuplicateName + ":Static:" + name); continue; }
-            var entries = ParseSetEntries(source, open + 1, close, name, type, recordByName, diagnostics);
+            var entries = ParseSetEntries(source, open + 1, close, name, type, recordByName, diagnostics, scalars);
             sets.Add(new(name, type, entries, new(header.Index, close - header.Index + 1)));
             changes.Add((header.Index, close - header.Index + 1, string.Empty));
         }
@@ -355,7 +355,15 @@ internal static class CanonicalStaticAuthoring
             { diagnostics.Add(Prefix + "pattern-source-invalid:" + patternName); continue; }
             if (setByName.TryGetValue(sourceName, out var set))
             {
-                ExpandSetPattern(pattern, set, templateByName, changes, patterns, diagnostics);
+                var parent = FirmamentSyntaxTraversal.Declarations(patternSyntax.Document).FirstOrDefault(d => d.Body?.Statements.Contains(pattern) == true);
+                string? target = null;
+                if (parent?.Type.Name.Text is "Model" or "Struct")
+                {
+                    var bodies = parent.Body!.Statements.OfType<DeclarationSyntax>().Where(d => FirmamentV2Parser.IsPrimitiveDeclaration(d) || d.Type.Name.Text is "Compose" or "Extrude").ToArray();
+                    if (bodies.Length != 1) { diagnostics.Add(Prefix + "pattern-target-ambiguous:" + patternName + ":Model-scope features require exactly one material body; use Modify target"); continue; }
+                    target = bodies[0].Name?.Text;
+                }
+                ExpandSetPattern(pattern, set, templateByName, changes, patterns, diagnostics, target);
                 continue;
             }
             if (!arrayByName.TryGetValue(sourceName, out var array))
@@ -462,7 +470,7 @@ internal static class CanonicalStaticAuthoring
     }
 
     private static IReadOnlyList<FirmamentV2StaticSetEntry> ParseSetEntries(string source, int start, int end, string setName, string elementType,
-        IReadOnlyDictionary<string, FirmamentV2RecordTypeDecl> recordTypes, List<string> diagnostics)
+        IReadOnlyDictionary<string, FirmamentV2RecordTypeDecl> recordTypes, List<string> diagnostics, FirmamentCompileTimeValues? scalars = null)
     {
         var parsed = FirmamentSyntaxParser.Parse(source[start..end]);
         var result = new List<FirmamentV2StaticSetEntry>();
@@ -483,7 +491,18 @@ internal static class CanonicalStaticAuthoring
                     "__SetValue_" + setName + "_" + entryName, diagnostics);
                 if (fields is null) continue;
             }
-            else if (!ValueMatchesType(value, elementType))
+            else
+            {
+                var expression = FirmamentSyntaxParser.ParseExpression(value).Expression;
+                if (expression is not null && scalars is not null) expression = scalars.NominalExpression(expression);
+                if (elementType is "Point2" or "Point3" or "Vector2"
+                    && (expression is SequenceSyntax { Kind: SequenceKind.List } || expression is CallSyntax { Target: ReferenceSyntax constructor } && constructor.Name.Text == elementType)
+                    && FirmamentSyntaxValues.Vector(expression, elementType == "Vector2" ? "" : "mm", out var coordinates)
+                    && coordinates.Length == (elementType == "Point3" ? 3 : 2))
+                    value = elementType + "(" + string.Join(", ", coordinates.Select(n => n.ToString("R", CultureInfo.InvariantCulture) + (elementType == "Vector2" ? "" : "mm"))) + ")";
+                else if (expression is not null) value = FirmamentSyntaxWriter.Expression(expression);
+            }
+            if (fields is null && !ValueMatchesType(value, elementType))
             { diagnostics.Add(Prefix + "set-entry-type-mismatch:" + setName + ":" + entryName + ":expected-" + elementType); continue; }
             result.Add(new(entryName, value, result.Count, span, fields));
         }
@@ -505,7 +524,7 @@ internal static class CanonicalStaticAuthoring
 
     private static void ExpandSetPattern(DeclarationSyntax pattern, FirmamentV2StaticSetDecl set,
         IReadOnlyDictionary<string, Template> templates, List<(int Start, int Length, string Text)> changes,
-        List<FirmamentV2CanonicalPatternDecl> patterns, List<string> diagnostics)
+        List<FirmamentV2CanonicalPatternDecl> patterns, List<string> diagnostics, string? target = null)
     {
         var patternName = pattern.Name!.Text;
         if (set.Entries.Count > MaxPatternExpansion) { diagnostics.Add(Prefix + "pattern-expansion-limit:" + patternName + ":" + set.Entries.Count); return; }
@@ -542,7 +561,8 @@ internal static class CanonicalStaticAuthoring
         }
         patterns.Add(new(patternName, set.Name, invocation ?? (mapping.Value as DeclarationSyntax)?.Type.Name.Text ?? "mapping",
             generated.Count, generated, pattern.Span, associations));
-        changes.Add((pattern.Span.Start, pattern.Span.Length, string.Join(Environment.NewLine, output)));
+        var emitted = string.Join(Environment.NewLine, output);
+        changes.Add((pattern.Span.Start, pattern.Span.Length, target is null ? emitted : "Modify " + target + " {\n" + emitted + "\n}"));
     }
 
     private static bool IsSupportedSetElementType(string type, IReadOnlyDictionary<string, FirmamentV2RecordTypeDecl> records) =>
@@ -551,11 +571,15 @@ internal static class CanonicalStaticAuthoring
     private static bool ValueMatchesType(string value, string type)
     {
         value = value.Trim();
+        if (type is "Point2" or "Point3" or "Vector2")
+        {
+            var expression = FirmamentSyntaxParser.ParseExpression(value).Expression;
+            return (expression is SequenceSyntax { Kind: SequenceKind.List } || expression is CallSyntax { Target: ReferenceSyntax constructor } && constructor.Name.Text == type)
+                && FirmamentSyntaxValues.Vector(expression, type == "Vector2" ? "" : "mm", out var components)
+                && components.Length == (type == "Point3" ? 3 : 2);
+        }
         return type switch
         {
-            "Point2" => Regex.IsMatch(value, @"^Point2\s*\(\s*[-+]?\d+(?:\.\d+)?mm\s*,\s*[-+]?\d+(?:\.\d+)?mm\s*\)$", RegexOptions.CultureInvariant),
-            "Point3" => Regex.IsMatch(value, @"^Point3\s*\(\s*[-+]?\d+(?:\.\d+)?mm\s*,\s*[-+]?\d+(?:\.\d+)?mm\s*,\s*[-+]?\d+(?:\.\d+)?mm\s*\)$", RegexOptions.CultureInvariant),
-            "Vector2" => Regex.IsMatch(value, @"^Vector2\s*\(\s*[-+]?\d+(?:\.\d+)?\s*,\s*[-+]?\d+(?:\.\d+)?\s*\)$", RegexOptions.CultureInvariant),
             "Length" => Regex.IsMatch(value, @"^[-+]?\d+(?:\.\d+)?mm$", RegexOptions.CultureInvariant),
             "Angle" => Regex.IsMatch(value, @"^[-+]?\d+(?:\.\d+)?deg$", RegexOptions.CultureInvariant),
             "Int" => Regex.IsMatch(value, @"^[-+]?\d+$", RegexOptions.CultureInvariant),

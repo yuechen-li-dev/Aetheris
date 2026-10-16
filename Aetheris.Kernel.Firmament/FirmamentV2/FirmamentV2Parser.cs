@@ -467,7 +467,7 @@ public static partial class FirmamentV2Parser
 
 
 
-        var specializedBoundaries = ClosedBoundary2Authoring.Expand(source, diagnostics);
+        var specializedBoundaries = ClosedBoundary2Authoring.Expand(source, diagnostics, compileTime);
         if (specializedBoundaries is null)
         {
             diagnostics.Add("firmament-v2-parse-failed");
@@ -1090,6 +1090,15 @@ public static partial class FirmamentV2Parser
     /// </summary>
     private static FirmamentV2ParseResult BindMechanicalConstruction(string source, DeclarationSyntax model, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations)
     {
+        source = MechanicalConstructionSource(source, model, diagnostics);
+        if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
+        // Re-index the existing AST after local source transport; semantic binding
+        // is already complete and is not delegated to another parser route.
+        var projectedSyntax = FirmamentSyntaxParser.Parse(source).Document;
+        model = model.Body!.Delimited
+            ? FirmamentSyntaxTraversal.Declarations(projectedSyntax)
+                .First(d => d.Span.Start == model.Span.Start && d.Type.Name.Text == model.Type.Name.Text && d.Name?.Text == model.Name?.Text)
+            : model with { Span = projectedSyntax.Span, Body = model.Body with { Statements = projectedSyntax.Statements, Span = projectedSyntax.Span } };
         var bodySpan = model.Body!.ContentSpan;
         var body = source.Substring(bodySpan.Start, bodySpan.Length);
         var units = model.Body.Statements.OfType<FieldSyntax>().Where(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Units")).ToArray();

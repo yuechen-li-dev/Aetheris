@@ -293,6 +293,16 @@ public static class PrismaticProfileCompositionParser
         }
 
         var syntax = FirmamentSyntaxParser.Parse(source);
+        // Low-level Profiles are ordinary operands too. Preserve their owner's
+        // endpoint/frame errors rather than replacing them with a missing-profile error.
+        foreach (var declaration in FirmamentSyntaxTraversal.Declarations(syntax.Document).Where(d => d.Type.Name.Text == "Profile" && d.Name is not null))
+        {
+            if (profiles.ContainsKey(declaration.Name!.Text)) continue;
+            var resolved = ProfileAuthoringParser.ResolveNamedProfile(source, declaration.Name.Text, out var reported);
+            diagnostics.AddRange(reported);
+            if (resolved is not null && reported.Count == 0) profiles.Add(declaration.Name.Text, resolved);
+        }
+        if (diagnostics.Count > 0) return new(null, profiles, diagnostics.Distinct(StringComparer.Ordinal).ToArray());
         var compose = FirmamentSyntaxTraversal.Declarations(syntax.Document).FirstOrDefault(d => d.Type.Name.Text == "Compose");
         if (compose?.Body is null || compose.Name is null) return new(null, profiles, diagnostics.Append("compose-source-missing-compose").ToArray());
         if (compose.Clauses.Count > 0 || compose.Type.Arguments.Count > 0)
@@ -391,14 +401,19 @@ public static class PrismaticProfileCompositionParser
             {
                 var name = declaration.Name?.Text ?? "";
                 var fields = new FirmamentSyntaxFields(declaration, diagnostics);
-                var profileName = fields.Word("Profile"); var face = fields.Word("On"); var depth = fields.Number("Depth", "mm");
-                fields.Take("MinimumFloorThickness");
+                var profileName = fields.Word("Profile"); var face = fields.Word("On"); var depthExpression = fields.Take("Depth");
+                var depth = FirmamentSyntaxValues.TryMeasure(depthExpression, "mm", out var measuredDepth) ? measuredDepth : double.NaN;
+                var end = fields.Word("End");
+                var minimumFloorExpression = fields.Take("MinimumFloorThickness");
+                var through = end == "ThroughAll";
+                if (end is not null && !through || through && (depthExpression is not null || minimumFloorExpression is not null))
+                { diagnostics.Add($"firmament-pocket-termination-conflict:{name}: Use End: ThroughAll alone, or Depth with a remaining floor."); continue; }
                 fields.Complete();
-                if (profileName is null || face is null || !double.IsFinite(depth)) { diagnostics.Add($"firmament-pocket-missing-required-field:{name}:required=On,Profile,Depth"); continue; }
+                if (profileName is null || face is null || !through && !double.IsFinite(depth)) { diagnostics.Add($"firmament-pocket-missing-required-field:{name}:required=On,Profile,Depth-or-End-ThroughAll"); continue; }
                 var body = composeBody.Substring(declaration.Body!.Span.Start + 1, declaration.Body.Span.Length - 2);
                 if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
                 if (!profiles.TryGetValue(profileName, out var pocketProfile)) { diagnostics.Add($"firmament-pocket-invalid-profile:{name}:profile={profileName}"); continue; }
-                if (!double.IsFinite(depth) || depth <= 0d) { diagnostics.Add($"firmament-pocket-depth-must-be-positive:{name}:depth={depth:R}mm"); continue; }
+                if (!through && (!double.IsFinite(depth) || depth <= 0d)) { diagnostics.Add($"firmament-pocket-depth-must-be-positive:{name}:depth={depth:R}mm"); continue; }
                 surfaceSpans.TryGetValue(face, out var supportSpan);
                 if (supportSpan is null && !IsTopSelector(face)) { diagnostics.Add($"firmament-pocket-invalid-target:{name}:On={face}:supported=Top-or-<feature>.Top-or-Span<Plane>"); continue; }
                 if (supportSpan is not null && !IsProfileFootprintInsideSpan(supportSpan, pocketProfile, profiles))
@@ -409,6 +424,11 @@ public static class PrismaticProfileCompositionParser
                 if (candidates.Count == 0) { diagnostics.Add($"feature-support-not-found:{name}:{face}:profile={profileName}:footprint-must-be-enclosed-by-support"); continue; }
                 if (candidates.Count > 1) { diagnostics.Add($"feature-support-ambiguous:Top:feature={name}:candidates={string.Join(",", candidates.Select(x => x.Name).Order(StringComparer.Ordinal))}"); continue; }
                 var selectedSupport = candidates[0];
+                if (through)
+                {
+                    operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, stock.From, selectedSupport.To, "ThroughCut", $"offset:{declaration.Span.Start}"));
+                    continue;
+                }
                 var hostThickness = selectedSupport.To - selectedSupport.From; var remaining = hostThickness - depth;
                 var (minimumFloor, policySource) = ResolveMinimumFloor(source, body);
                 if (!double.IsFinite(minimumFloor) || minimumFloor <= 0d)
@@ -570,7 +590,11 @@ public static class PrismaticProfileCompositionParser
             var diagnosticName = patternIdentityMatch.Success ? patternIdentityMatch.Groups["id"].Value : name;
             var center = ReadFeatureField(fields, composeBody, HoleCenter, "Center"); if (!center.Success) center = ReadFeatureField(fields, composeBody, HolePoint2Center, "Center");
             var diameter = ReadFeatureField(fields, composeBody, HoleDiameter, "Diameter"); var end = ReadFeatureField(fields, composeBody, HoleEnd, "End"); var role = ReadFeatureField(fields, composeBody, HoleRole, "Role");
-            var counterboreDiameter = ReadFeatureField(fields, composeBody, HoleCounterboreDiameter, "CounterboreDiameter"); var counterboreDepth = ReadFeatureField(fields, composeBody, HoleCounterboreDepth, "CounterboreDepth"); var on = ReadFeatureField(fields, composeBody, HoleOn, "On");
+            var counterboreDiameter = ReadFeatureField(fields, composeBody, HoleCounterboreDiameter, "CounterboreDiameter"); var counterboreDepth = ReadFeatureField(fields, composeBody, HoleCounterboreDepth, "CounterboreDepth"); var onExpression = fields.Take("On");
+            var onName = FirmamentV2Parser.MechanicalFaceAxis(onExpression, compose.Name.Text) ?? FirmamentSyntaxValues.Reference(onExpression);
+            var on = HoleOn.Match("On: " + onName);
+            if (onExpression is not null && (!on.Success || on.Groups["face"].Value != onName))
+                diagnostics.Add($"compose-hole-support-invalid:{name}: Use a host face or an admitted Span<Plane>.");
             var from = ReadFeatureField(fields, composeBody, HoleFrom, "From"); var depthEnd = ReadFeatureField(fields, composeBody, HoleDepthEnd, "End"); var termination = ReadFeatureField(fields, composeBody, HoleTermination, "Termination");
             fields.Complete();
             if (from.Success)

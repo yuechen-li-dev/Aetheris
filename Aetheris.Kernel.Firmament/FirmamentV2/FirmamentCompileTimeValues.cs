@@ -377,6 +377,15 @@ internal sealed class FirmamentCompileTimeValues(string source)
     internal string NominalExpression(string expression) => values.TryGetValue(expression.Trim(), out var value) ? Nominal(value)
         : recordValues.TryGetValue(expression.Trim(), out var record) ? record.AuthoredName ?? record.Name : expression;
 
+    internal ExpressionSyntax NominalExpression(ExpressionSyntax expression)
+    {
+        var replacements = FirmamentSyntaxTraversal.Expressions(expression)
+            .Select(FirmamentSyntaxValues.Reference).OfType<string>().Distinct(StringComparer.Ordinal)
+            .Where(values.ContainsKey).ToDictionary(name => name,
+                name => FirmamentSyntaxParser.ParseExpression(NominalExpression(name)).Expression!, StringComparer.Ordinal);
+        return new FirmamentSyntaxSubstitution(replacements).Expression(expression);
+    }
+
     private static bool IsLiteral(string expression) => FirmamentSyntaxParser.ParseExpression(expression).Expression is
         LiteralSyntax or QuantitySyntax or UnarySyntax { Operand: LiteralSyntax or QuantitySyntax };
 

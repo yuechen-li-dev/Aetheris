@@ -17,15 +17,16 @@ records belong under ignored `artifacts/local/frontend-x0/`.
 | unknown-modify-statement | Modify-level unknown Fillet statement |
 | unknown-box-field | Unknown dimension field must not disappear |
 | unsupported-xz-layout | Asymmetric six-edge L outline, 60 x 30 x 3 mm; XY must not substitute for XZ |
-| combined-fillet-hole | Parsed features rejected at the actual capability boundary |
+| combined-fillet-hole | Original source now admitted by the 2026-10-15 bounded Fillet + Hole capability follow-up |
+| combined-fillet-hole-intersection | Parsed features rejected because the hole crosses the requested fillet band |
 | unresolved-semantic-source | Selection binding must preserve AbsentEdge and its explanation |
-| edgefinish-generic-variant | Unsupported generic spelling must not validate as build-admitted |
+| edgefinish-generic-variant | Generic spelling is recognized; this semantic-selection consumer still requires its admitted materialization path |
 | through-pocket | Finite Pocket reaching through the stock must suggest the through-cut vocabulary |
-| unknown-compose-statement | **Open defect:** advanced Compose ignores nested Fillet |
-| unknown-boundary-field | **Open defect:** boundary lowering discards heigth before Compose admission |
+| unknown-compose-statement | Former ignored nested Fillet: now rejected as unknown intent |
+| unknown-boundary-field | Former discarded heigth: now rejected before Compose admission |
 
-The last two remain reproduction evidence, not accepted language forms. Do not
-turn their current successful compilation into a compatibility requirement.
+The last two remain negative reproduction evidence; their historical silent
+acceptance is not a compatibility requirement. See the X4 closeout for their repair.
 
 ## Twelve-part audit coverage map
 

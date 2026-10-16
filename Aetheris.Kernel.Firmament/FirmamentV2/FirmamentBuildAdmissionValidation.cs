@@ -36,8 +36,19 @@ public static class FirmamentBuildAdmissionValidation
                 ? diagnostic.Message : diagnostic.Code.ToString();
         if (source is not null)
         {
-            var original = FirmamentV2Parser.Parse(source).SyntaxDiagnostics.FirstOrDefault(d => d.Code == code || d.Code.StartsWith(code + ":", StringComparison.Ordinal));
+            var parsed = FirmamentV2Parser.Parse(source);
+            var original = parsed.SyntaxDiagnostics.FirstOrDefault(d => d.Code == code || d.Code.StartsWith(code + ":", StringComparison.Ordinal));
             if (original is not null) return Locate(original, source, sourceFile);
+            if (diagnostic.SourceSpan is { } produced && FirmamentV2Parser.Parse(source.ReplaceLineEndings("\n")).DiagnosticSource is { } input)
+            {
+                var origins = new Syntax.FirmamentSyntaxOrigins(Syntax.FirmamentSyntaxParser.Parse(FirmamentSourceSpelling.Normalize(source)).Document,
+                    Syntax.FirmamentSyntaxParser.Parse(input).Document);
+                var anchor = origins.Find(new(produced.Start, produced.Length));
+                if (anchor is not null) return Locate(new(code, diagnostic.Severity == KernelDiagnosticSeverity.Error ? "fatal" : "warning", diagnostic.Message)
+                    { SourceSpan = anchor, Source = diagnostic.Source, Stage = diagnostic.Source }, source, sourceFile);
+            }
+            if (ProfileAuthoringParser.LocateDiagnostic(source, diagnostic.Message) is { } profileDiagnostic)
+                return Locate(profileDiagnostic, source, sourceFile);
         }
         if (source is not null && code.StartsWith("firmament-syntax-", StringComparison.Ordinal))
         {

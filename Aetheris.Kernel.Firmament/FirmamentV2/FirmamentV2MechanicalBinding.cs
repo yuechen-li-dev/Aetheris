@@ -51,20 +51,27 @@ public static partial class FirmamentV2Parser
         var materialConstruction = constructions.Length > 0;
         // Concept-valued stock retains its existing semantic resolver. Its actual
         // declarations do not change the grammar of neighbouring nodes.
-        var semanticStock = declarations.Any(d => d.Type.Name.Text == "Modify" && d.Body?.Statements.OfType<DeclarationSyntax>().Any(f => f.Type.Name.Text == "Pattern") == true)
+        var semanticStock = declarations.Any(d => d.Type.Name.Text == "Pattern" || d.Type.Name.Text == "Modify" && d.Body?.Statements.OfType<DeclarationSyntax>().Any(f => f.Type.Name.Text == "Pattern") == true)
             || declarations.Any(d => d.Type.Name.Text == "Struct" && d.Annotation is not null)
             || declarations.Where(d => d.Type.Name.Text == "Modify").SelectMany(d => d.Body?.Statements.OfType<DeclarationSyntax>() ?? [])
-                .Any(d => d.Type.Name.Text == "Hole" && d.Body?.Statements.OfType<FieldSyntax>().Any(f => f.Name.Text == "From" || f.Name.Text == "On" && FirmamentSyntaxValues.Reference(f.Value) is not ("+X" or "-X" or "+Y" or "-Y" or "+Z" or "-Z")) == true);
+                .Any(d => d.Type.Name.Text == "Hole" && d.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "From")
+                    || FirmamentSyntaxFields.SameField(f.Name.Text, "Center") && f.Value is IndexSyntax) == true);
         var constructionConsumer = materialConstruction || semanticStock || primitives.Any(d => d.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Bounds")) == true);
-        if (staticValues.Values.Count > 0 && constructionConsumer)
-            return CanonicalFailure(diagnostics,
-                "firmament-v2-static-scalar-consumer-unsupported: Model Static scalars currently bind direct primitive and Modify fields; parameterize construction recipes with Template instead.");
         if (constructions.Length > 1 && constructions.All(d => d.Type.Name.Text == "Extrude") && primitives.Length == 0)
             return BindMechanicalExtrusionStack(model, constructions, source, diagnostics);
         if (constructions.Length > 1 || materialConstruction && primitives.Length > 0)
             return CanonicalFailure(diagnostics, "firmament-v2-mechanical-material-owners-unsupported: Use one material body per mechanical document; use Assembly for separate parts.");
         if (constructionConsumer)
-            return BindMechanicalConstruction(source, model, diagnostics, templateInstantiations);
+        {
+            // The construction adapter consumes serialized bound AST fields. An
+            // unused Static is data, never a reason to reject a material owner.
+            var construction = BindMechanicalConstruction(source, model, diagnostics, templateInstantiations);
+            return construction.Document is null ? construction : construction with
+            {
+                Document = construction.Document with { Lets = staticValues.Declarations, BoundLets = staticValues.Values },
+                SyntaxDiagnostics = construction.SyntaxDiagnostics.Concat(staticValues.Diagnostics).ToArray()
+            };
+        }
 
         var units = model.Body.Statements.OfType<FieldSyntax>().Where(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Units")).ToArray();
         if (units.Length == 0 && model.Type.Name.Text != "Struct" || units.Any(f => FirmamentSyntaxValues.Reference(f.Value) != "mm")) return CanonicalFailure(diagnostics, CanonicalUnitsInvalid);
@@ -112,7 +119,7 @@ public static partial class FirmamentV2Parser
                 switch (feature.Type.Name.Text)
                 {
                     case "Hole":
-                        if (BindMechanicalHole(fields, diagnostics) is { } hole) holes.Add(hole);
+                        if (BindMechanicalHole(fields, diagnostics, ownerName: solid.Name) is { } hole) holes.Add(hole);
                         break;
                     case "EdgeFinish":
                         if (BindMechanicalFinish(fields, diagnostics) is { } finish) finishes.Add(finish);
@@ -280,14 +287,14 @@ public static partial class FirmamentV2Parser
         return result;
     }
 
-    private static FirmamentV2SemanticHoleDecl? BindMechanicalHole(FirmamentSyntaxFields f, List<string> diagnostics, FirmamentV2SolidBinding? compatibilityStock = null)
+    private static FirmamentV2SemanticHoleDecl? BindMechanicalHole(FirmamentSyntaxFields f, List<string> diagnostics, FirmamentV2SolidBinding? compatibilityStock = null, string? ownerName = null)
     {
         var d = f.Declaration;
         if (d.Modifiers.Count > 0 || d.Type.Arguments.Any(a => a.Name is not null || a.Default is not null))
         { diagnostics.Add(HoleVariantUnknown); return null; }
         var variantName = d.Type.Arguments.Count == 1 ? FirmamentSyntaxValues.Reference(d.Type.Arguments[0].Value) : null;
         if (!Enum.TryParse<FirmamentV2SemanticHoleVariant>(variantName, compatibilityStock is not null, out var variant)) { diagnostics.Add(HoleVariantUnknown); return null; }
-        var on = f.Take("On"); var axis = FirmamentSyntaxValues.Reference(on);
+        var on = f.Take("On"); var axis = MechanicalFaceAxis(on, compatibilityStock?.Name ?? ownerName);
         FirmamentV2FaceTarget? face = null;
         if (compatibilityStock is not null)
         {
@@ -319,7 +326,8 @@ public static partial class FirmamentV2Parser
         if (variant == FirmamentV2SemanticHoleVariant.Countersink) { csDiameter = Diameter("CountersinkDiameter", "Countersink");
             var angle = f.Take("CountersinkAngle");
             csAngle = FirmamentSyntaxValues.TryMeasure(angle, "deg", out var degrees, compatibilityStock is null ? null : "deg") ? degrees : double.NaN; }
-        if (compatibilityStock is null && point is not CallSyntax { Target: ReferenceSyntax { Name.Text: "Point2" } } || !FirmamentSyntaxValues.Vector(point, "mm", out var center, compatibilityStock is null ? null : "mm") || center.Length != 2) { diagnostics.Add(CanonicalPoint2Invalid); return null; }
+        if (compatibilityStock is null && point is not (SequenceSyntax { Kind: SequenceKind.List } or CallSyntax { Target: ReferenceSyntax { Name.Text: "Point2" } })
+            || !FirmamentSyntaxValues.Vector(point, "mm", out var center, compatibilityStock is null ? null : "mm") || center.Length != 2) { diagnostics.Add(CanonicalPoint2Invalid); return null; }
         if (axis is not ("+X" or "-X" or "+Y" or "-Y" or "+Z" or "-Z") || termination is null || d.Name is null) { diagnostics.Add(CanonicalModifyMalformed); return null; }
         if (!(diameter > 0)) { diagnostics.Add(HoleDiameterInvalid); return null; }
         if (cbDiameter is not null && (!(cbDiameter > diameter) || !(cbDepth > 0))) { diagnostics.Add(HoleCounterboreInvalid); return null; }
@@ -329,10 +337,82 @@ public static partial class FirmamentV2Parser
             cbDiameter, cbDepth, csDiameter, csAngle, SourceSpan: d.Span, AuthoredFields: f.AuthoredFields);
     }
 
+    private static string? MechanicalFinishKind(FirmamentSyntaxFields fields, List<string> diagnostics)
+    {
+        var arguments = fields.Declaration.Type.Arguments;
+        var generic = arguments.Count == 1 && arguments[0].Name is null && arguments[0].Default is null
+            ? FirmamentSyntaxValues.Reference(arguments[0].Value) : null;
+        var alias = fields.Word("Kind");
+        if (arguments.Count > 0 && generic is not ("Chamfer" or "Fillet") || generic is not null && alias is not null && generic != alias)
+        { diagnostics.Add("firmament-v2-edgefinish-variant-conflict: Use EdgeFinish<Chamfer> or EdgeFinish<Fillet>; Kind, if supplied, must agree."); return null; }
+        return generic ?? alias;
+    }
+
+    // Transport only bound value/header edits to the existing domain adapters.
+    // Reprinting an entire document would unnecessarily change legacy productions
+    // such as ProfileDelta anchors and Concept descriptor fields.
+    private static string MechanicalConstructionSource(string source, DeclarationSyntax bound, List<string> diagnostics)
+    {
+        var original = FirmamentSyntaxParser.Parse(source).Document;
+        var originalFields = FirmamentSyntaxTraversal.Statements(original).OfType<FieldSyntax>()
+            .ToDictionary(f => f.Span);
+        var changes = new List<(FirmamentV2SourceSpan Span, string Text)>();
+        void Project(DeclarationSyntax declaration)
+        {
+            if (declaration.Type.Name.Text == "Static")
+            { changes.Add((declaration.Span, "")); return; }
+            if (declaration.Type.Name.Text is "Pmi" or "Concept" or "Feature" or "Template" || declaration.Modifiers.Count > 0) return;
+            if (declaration.Type.Name.Text == "EdgeFinish" && declaration.Type.Arguments.Count > 0)
+            {
+                var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+                var kind = MechanicalFinishKind(fields, diagnostics);
+                if (kind is not null && declaration.Body is not null)
+                {
+                    changes.Add((declaration.Type.Span, "EdgeFinish"));
+                    if (!declaration.Body.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Kind")))
+                        changes.Add((new(declaration.Body.Span.Start + 1, 0), " Kind: " + kind + "; "));
+                }
+            }
+            foreach (var statement in declaration.Body?.Statements ?? [])
+            {
+                if (statement is DeclarationSyntax child) Project(child);
+                if (statement is FieldSyntax field && originalFields.TryGetValue(field.Span, out var authored)
+                    && FirmamentSyntaxWriter.Expression(authored.Value) != FirmamentSyntaxWriter.Expression(field.Value))
+                    changes.Add((authored.Value.Span, FirmamentSyntaxWriter.Expression(field.Value)));
+            }
+        }
+        Project(bound);
+        var patterns = bound.Body!.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Pattern").ToArray();
+        if (patterns.Length > 0)
+        {
+            var bodies = bound.Body.Statements.OfType<DeclarationSyntax>().Where(IsPrimitiveDeclaration).ToArray();
+            if (bodies.Length != 1) diagnostics.Add("firmament-pattern-target-ambiguous: Model Pattern requires one material body; use Modify target.");
+            else foreach (var pattern in patterns)
+            {
+                changes.Add((new(pattern.Span.Start, 0), "Modify " + bodies[0].Name!.Text + " {\n"));
+                changes.Add((new(pattern.Span.Start + pattern.Span.Length, 0), "\n}"));
+            }
+        }
+        foreach (var (span, text) in changes.OrderByDescending(c => c.Span.Start))
+            source = source.Remove(span.Start, span.Length).Insert(span.Start, text);
+        return source;
+    }
+
+    internal static string? MechanicalFaceAxis(ExpressionSyntax? expression, string? ownerName)
+    {
+        if (expression is CallSyntax { Target: ReferenceSyntax { Name.Text: "face" or "Face" }, Arguments.Count: 1 } call
+            && call.Arguments[0].Name is null && call.Arguments[0].Default is null)
+            expression = call.Arguments[0].Value;
+        var reference = FirmamentSyntaxValues.Reference(expression);
+        if (reference is "+X" or "-X" or "+Y" or "-Y" or "+Z" or "-Z") return reference;
+        if (reference == "Top" || ownerName is not null && reference == ownerName + ".Top") return "+Z";
+        return null;
+    }
+
     private static FirmamentV2EdgeFinishDecl? BindMechanicalFinish(FirmamentSyntaxFields f, List<string> diagnostics)
     {
-        if (f.Declaration.Type.Arguments.Count != 0) { diagnostics.Add(CanonicalModifyMalformed); return null; }
-        var axis = f.Word("Face"); var target = f.Word("Target"); var kind = f.Word("Kind");
+        var kind = MechanicalFinishKind(f, diagnostics);
+        var axis = f.Word("Face"); var target = f.Word("Target");
         var distance = f.Take("Distance"); var radius = f.Take("Radius");
         if ((distance is not null && radius is not null) || f.Declaration.Name is null || axis is null || target is null || kind is null
             || !FirmamentSyntaxValues.TryMeasure(distance ?? radius, "mm", out var value))
@@ -412,7 +492,7 @@ public static partial class FirmamentV2Parser
                 case "Box" or "Cylinder" or "Cone" or "Sphere" or "Torus" or "RoundedBox" or "Frustum" or "StandardPart" or "ExactCoaxialPart":
                 case "Plane" or "Axis" or "Axis2" or "Point2" or "Line2" or "CubicBezier2" or "Rect2" or "Square2" or "Triangle2" or "Polygon2" or "RegularPolygon2" or "Circle2" or "Ellipse2" or "Ellipse2Guide" or "Slot2" or "RoundedRect2" or "SmoothRoundedRect2" or "Path":
                 case "Plateau" or "Concept" or "Struct" or "Profile" or "Span" or "Compose" or "Boss" or "Pocket" or "AddOffset" or "RemoveOffset" or "EdgeFinish" or "Extrude":
-                case "Enum" or "Expose" or "Record" or "Template" or "template" or "Feature" or "ProfileDelta" or "Selection" or "InlineStep" or "Recognize" or "Replace" or "Pmi" or "Modify" or "Match" or "Require" or "Assert" or "Thread":
+                case "Enum" or "Expose" or "Record" or "Template" or "template" or "Feature" or "Pattern" or "ProfileDelta" or "Selection" or "InlineStep" or "Recognize" or "Replace" or "Pmi" or "Modify" or "Match" or "Require" or "Assert" or "Thread":
                     break;
                 case "Solid": diagnostics.Add(CanonicalConstructNotYetSupported + ":Solid"); break;
                 default: diagnostics.Add(CanonicalDeclarationUnrecognized); diagnostics.Add($"{CanonicalDeclarationUnknown}:{declaration.Type.Name.Text}"); break;

@@ -31,6 +31,12 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 VOLUME_REL = 1e-9
+ARTIFACTS = ROOT / "artifacts" / "local" / "frontend-x4"
+
+
+def scratch(prefix: str) -> Path:
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(prefix=prefix, dir=ARTIFACTS))
 
 
 def default_cli() -> Path:
@@ -58,7 +64,7 @@ def build(cli: Path, source: Path, out: Path) -> tuple[bool, str]:
 
 def geometry(cli: Path, step: Path) -> dict:
     s = json.loads(run(cli, "inspect", str(step), "--json").stdout)["summary"]
-    evidence = Path(tempfile.mkdtemp(prefix="x4-verify-"))
+    evidence = scratch("verify-")
     v = json.loads(run(cli, "verify", str(step), "--json", "--evidence-dir", str(evidence)).stdout)
     bb = s["boundingBox"]
     return {
@@ -137,7 +143,7 @@ def main() -> int:
     manifest_path = HERE / "expected.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     only = {x.strip() for x in args.only.split(",") if x.strip()}
-    tmp = Path(tempfile.mkdtemp(prefix="x4-"))
+    tmp = scratch("run-")
     failures = 0
     rows = []
     for case in manifest["cases"]:

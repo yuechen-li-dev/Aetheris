@@ -694,14 +694,35 @@
     {
       "id": "d05",
       "file": "cases/d05-fillet-with-hole.firmament",
-      "kind": "diagnostic",
+      "kind": "capability",
       "register": "#24",
       "findings": "F5",
-      "expect": "invalid",
+      "expect": "valid",
       "observedAt0a72e6f": "CombinedFeatureSelectionLost at (1,1)",
-      "note": "Capability gap, stays rejected. The diagnostic must point at the EdgeFinish line.",
-      "code": "CombinedFeatureSelectionLost",
-      "line": 6
+      "note": "2026-10-15: explicitly authorized kernel follow-up admits disjoint top Boundary Fillet plus ThroughAll shaft/counterbore holes. Original source unchanged. Four exact cylindrical blends meet on elliptical seams. Interacting holes remain diagnostic regressions in CombinedFilletHoleTests.",
+      "geometry": {
+        "faces": 11,
+        "edges": 23,
+        "vertices": 14,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            10
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 6,
+          "cylinder": 5
+        },
+        "volume": 23460.317970712236
+      }
     },
     {
       "id": "e01",

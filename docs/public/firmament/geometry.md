@@ -70,7 +70,7 @@ Model BossPlate {
 
 ## Pocket
 
-`Pocket` is the first-class finite profile feature for accessible prismatic removal from the active Compose body's top support. It deliberately leaves a floor:
+`Pocket` removes a profile from the active Compose body's top support. Its `depth` form deliberately leaves a floor:
 
 ```firmament
 Compose Body {
@@ -86,6 +86,13 @@ Compose Body {
 
 Preview 3 admits only `On: Top` / `+Z`, an enclosed admitted line/arc profile, and a positive finite `Depth`. The compiler derives `hostThickness` from the unique Base interval and calculates `remainingFloor = hostThickness - Depth`. `Depth == hostThickness`, greater depth, and tolerance-close through depth fail as `firmament-pocket-through-depth`; a positive remaining floor below policy fails as `firmament-pocket-minimum-floor-thickness`. Diagnostics include feature, host, requested depth, host thickness, remaining floor, and required floor.
 
+For a through cut, use `Pocket cable { on: Top; profile: cableProfile; end: ThroughAll }`.
+This lowers to the existing `Remove` operation with `role: ThroughCut` across the
+stock interval to the selected top support. Omit `depth` and
+`minimumFloorThickness`; mixing termination policies is an error. A `depth`
+that accidentally reaches through remains an error and never changes into a
+through cut automatically.
+
 Minimum-floor precedence is:
 
 1. `MinimumFloorThickness` on the Pocket;
@@ -93,7 +100,7 @@ Minimum-floor precedence is:
 3. the existing template `minimumWallThickness` concept;
 4. the documented Preview 3 bounded default of `1mm`.
 
-Every supplied policy value must be positive and finite. Pocket retains a stable `pocket:<host>.<name>` identity and lowers through the existing section-stack `Remove` operation. It is intentionally not arbitrary solid subtraction and never means through-all. Use semantic `Hole`, `Slot`, or another documented opening feature for through removal.
+Every supplied policy value must be positive and finite. Pocket retains a stable `pocket:<host>.<name>` identity and lowers through the existing section-stack `Remove` operation. A depth-based Pocket must retain its floor; explicit `end: ThroughAll` selects the admitted through-cut operation. This is not arbitrary solid subtraction.
 
 ### Complete rectangular Pocket source
 
@@ -136,6 +143,39 @@ For readable local geometry, start with the [line/arc Concept Path](../../../fix
 For geometry that already exposes named spans, prefer the finite [Profile pipeline flagship](../../../fixtures/Canonical/Pipeline/profile-pipeline-flagship.firmament). `Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close` inherits segment identities and derives endpoint continuity and orientation from the named source geometry. The [mixed line/arc witness](../../../fixtures/Canonical/Pipeline/line-arc-profile.firmament), [inner-loop witness](../../../fixtures/Canonical/Pipeline/profile-with-inner-loop.firmament), [open Concept Path](../../../fixtures/Canonical/Pipeline/open-path.firmament), and [whole-loop trace](../../../fixtures/Canonical/Pipeline/traceloop-profile.firmament) exercise the same resolved Profile/Path boundary. Pipelines also support named endpoint selection with `from`/`to` and arc traversal with `Reverse`; see [syntax](syntax.md#constructing-from-a-layout). Use manual `Segment` declarations when deliberate low-level control or debugging requires them.
 
 Sheet Metal has its own `Hole Name` syntax for planar circular openings; countersink and counterbore forms are Model-domain features and deliberately fail in Sheet Metal rather than being ignored.
+
+## Box top fillet with holes
+
+```firmament
+Model Mount {
+    units: mm
+    Box Body { size: [60mm, 40mm, 10mm] }
+    Modify Body {
+        Hole<Shaft> Bore { on: +Z; center: [0mm, 0mm]; diameter: 8mm; end: ThroughAll }
+        EdgeFinish<Fillet> TopEdge { face: +Z; target: Boundary; radius: 1mm }
+    }
+}
+```
+
+This constructs the four top-edge cylindrical fillets and the through hole in
+one enclosed body. The cylinders meet at exact elliptical corner seams, matching
+the existing direct-intersection two-edge fillet construction. The vertical
+corners stay sharp; this does not request a spherical whole-box corner blend.
+The stock remains centered in XY with its bottom at Z=0.
+
+The same finish works without holes. With holes, the bounded combination admits
+one Box, one Modify, one complete `+Z` `Boundary` finish and top `ThroughAll`
+shaft/counterbore holes. No Region operations participate. For finish size `r`,
+the entry circle must satisfy `abs(x) + entryRadius < width/2 - r` and
+`abs(y) + entryRadius < depth/2 - r`, with kernel tolerance applied. A counterbore
+uses its larger entry radius. Hole entry circles must also be mutually disjoint.
+Touching or overlapping requests fail; neither the hole nor the finish is dropped.
+The radius must be positive, smaller than the height, and smaller than half the
+width and depth. Other combined selectors, blind holes, countersinks, mixed
+finishes and hole/fillet intersections remain outside this qualified combination.
+
+The [shaft/counterbore witness](../../../fixtures/Regression/Fillet/top-boundary-with-counterbore.firmament)
+uses the ordinary authoring and AP242 paths. Explicit supported PMI is retained.
 
 ## Intentional Boolean boundary
 

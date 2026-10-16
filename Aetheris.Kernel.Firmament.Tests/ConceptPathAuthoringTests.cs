@@ -106,7 +106,8 @@ public sealed class ConceptPathAuthoringTests
 
         Assert.Null(parsed.Feature);
         Assert.Contains("profile-path-missing:Plate:MissingOutline", parsed.Diagnostics);
-        Assert.Contains("ConceptPathProfileNotAdmittedByCompose:Stock:Plate", parsed.Diagnostics);
+        Assert.Contains("profile-path-missing:Plate:MissingOutline", parsed.Diagnostics);
+        Assert.DoesNotContain(parsed.Diagnostics, diagnostic => diagnostic.StartsWith("ConceptPathProfileNotAdmittedByCompose", StringComparison.Ordinal));
     }
 
     [Fact]

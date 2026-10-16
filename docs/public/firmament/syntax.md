@@ -143,10 +143,12 @@ angles also admit `rad`; this does not make radians a universal alias in every
 Angle field. Mixed degree/radian arithmetic requires an explicit owning-domain
 conversion rather than silently adding the raw numbers.
 
-Points and lists overlap without being universal aliases. The direct Hole above
-requires `Point2(...)`; a Rect2's `center` accepts `[x, y]`. A semantic Grid may
-publish Point3 values in its own frame. Use the field owner's documented type
-and spelling rather than replacing all point forms mechanically.
+Planar point fields such as a Hole's or Rect2's `center` accept both
+`Point2(x, y)` and `[x, y]`, with Length coordinates. `Set<Point2>` entries
+accept both forms and typed scalar arithmetic. A semantic Grid publishes
+Point3 values in its own frame; these retain their spatial placement checks.
+For a direct Hole on its host's top plane, `+Z`, `face(+Z)`, `Top` and
+`host.Top` identify the same support. An unrelated body name is not an alias.
 
 Arithmetic is available in admitted value positions, with dimensional checks.
 Expression support is not uniform across every field, Template argument and
@@ -422,8 +424,12 @@ a material Profile must satisfy its boundary rules.
 Closed boundaries should express their engineering shape. Use Rect2 for a
 rectangle, Triangle2 for a triangle, or a named Polygon2 variant. Current Polygon2
 variants include `Rhombus`, `Parallelogram`, `Trapezoid` and `Explicit`. Explicit
-references a named point set; it does not introduce inline arbitrary vertex-array
-syntax. `RegularPolygon2<N>` uses a bounded vertex count. These are built-in
+references a named point set with `vertices: points`. The inline equivalent is
+`Polygon2 outline { points: [[0mm, 0mm], [40mm, 0mm], [0mm, 20mm]] }`.
+Each coordinate can use typed Static arithmetic. Both forms check winding,
+duplicate points, self-intersection and nonzero area; neither accepts a nonzero
+`rotation`. Segment endpoints still reference named Point2 declarations.
+`RegularPolygon2<N>` uses a bounded vertex count. These are built-in
 shape parameters, not user-extensible generic types.
 
 | 2D construction family | Main fields / meaning |
@@ -481,13 +487,18 @@ or feature combinations.
 | Drill a hole | `Hole<Shaft>`, `Hole<Counterbore>`, `Hole<Countersink>` | `on`, `center`, `end: ThroughAll` or a bounded blind end. |
 | Add a profile boss | `Boss` in profile-based Compose | Top support, a Profile and positive `height`. |
 | Remove a finite-depth recess | `Pocket` in profile-based Compose | Profile and positive `depth`; must leave the admitted floor. |
-| Cut through a profile-based body | Admitted `Remove` with `Role: ThroughCut` | Use the through-cut form rather than a through-depth Pocket. |
+| Cut through a profile-based body | `Pocket` with `end: ThroughAll`, or `Remove` with `role: ThroughCut` | Through-Pocket selects its top support and lowers to the same through-cut operation; omit `depth` and floor policy. |
 | Make a capsule slot | `Slot<Capsule>` in its admitted composition | `length`, `width`, `direction`, `extent` and `role`. |
-| Finish selected edges | `EdgeFinish` with `kind: Chamfer` or `kind: Fillet` | Selector and capability depend on the target body. |
+| Finish selected edges | `EdgeFinish<Chamfer>` or `EdgeFinish<Fillet>` | `kind: Chamfer` / `kind: Fillet` remains an alias; if both are supplied they must agree. Selector and capability depend on the target body. |
 
-For a primitive boundary chamfer, the selector is `face: +Z` plus
-`target: Boundary`; a profile-composed finish names its Profile boundary and
-support instead. `EdgeFinish<Chamfer>` is not the direct primitive spelling.
+For a Box top-boundary chamfer or fillet, the selector is `face: +Z` plus
+`target: Boundary`. A fillet uses `radius`; a chamfer uses `distance`.
+One such finish can coexist with disjoint top `ThroughAll` shaft or counterbore
+holes in the same Modify. The hole entry circles must stay strictly inside the
+inset top face. Fillets retain sharp vertical stock corners and join their four
+cylindrical blends on exact elliptical seams; this is not a whole-box rounding.
+A profile-composed finish names its Profile boundary and support instead.
+The generic variant has the same capability checks as `kind`.
 A bare `Fillet corners { ... }` is not an alternative EdgeFinish declaration.
 
 Read the [feature support and examples](geometry.md) before combining operations.
@@ -571,7 +582,12 @@ Model MountingPlate {
 }
 ```
 
-The Pattern belongs **inside the target Modify**, not at the root of this file.
+A Pattern may be inside its target `Modify`, or directly inside a Model/Struct
+with exactly one material body. The latter form targets that body; ambiguous
+material ownership requires an explicit `Modify`. Scalar `Static` values may
+be declared in the module or Model scope and used in Compose intervals as well
+as primitive dimensions. Use `Static` for Model-local values; `let` remains a
+Feature-local derivation.
 Each Set entry has a unique stable name; equal values are allowed and source
 order is authoritative. `mountPoints.left` selects that value. An empty typed
 Set yields zero mapped instances. Arrays provide anonymous ordered data; Sets

@@ -1,0 +1,622 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-15",
+  "verdict": "Accepted for the FrontendX4 authoring corpus and exercised compatibility set",
+  "implementationBase": "7525f37fc6ec68ce9475dbceec7b946c2188e5c2",
+  "qualificationUsesUncommittedImplementation": true,
+  "before": {
+    "authoringPassed": 13,
+    "authoringTotal": 32
+  },
+  "after": {
+    "authoringPassed": 32,
+    "authoringTotal": 32,
+    "normalValidateAndBuild": true,
+    "geometryReferenceRelativeTolerance": 1e-09,
+    "recordUsed": false,
+    "changedDesignSpecimens": [
+      "cases/a01-let-in-model.firmament"
+    ]
+  },
+  "chimera": {
+    "faces": 98,
+    "edges": 240,
+    "vertices": 144,
+    "bbox": [
+      [
+        -35,
+        -30,
+        0
+      ],
+      [
+        35,
+        30,
+        6
+      ]
+    ],
+    "assessment": "enclosed-manifold",
+    "surfaces": {
+      "plane": 22,
+      "cylinder": 76
+    },
+    "volume": 20769.234952815874
+  },
+  "tests": {
+    "solutionBuild": "passed",
+    "fastCore": {
+      "passed": 1068,
+      "failed": 0
+    },
+    "focused": {
+      "passed": 93,
+      "failed": 0
+    },
+    "full": {
+      "executingAssemblies": 20,
+      "passed": 5112,
+      "failed": 0,
+      "skipped": 0,
+      "emptyTestProjects": [
+        "Aetheris.FrictionLab.Tests"
+      ]
+    },
+    "newFrontendX4Cases": 42
+  },
+  "corpus": {
+    "schemaVersion": 1,
+    "sourceCount": 1375,
+    "canonicalSourceCount": 368,
+    "canonicalStructurallyParsed": 368,
+    "structurallyParsed": 1011,
+    "standaloneProductionAccepted": 571,
+    "inventorySha256": "D24300E1FD53E7D00E2995B02CFF2255749A65AFC8C700595F52084E28EAD3B2",
+    "unresolvedMismatchCount": 0,
+    "universalSemanticParityQualified": false,
+    "classifications": {
+      "Admitted": 554,
+      "AdmittedGeometryWithDfmFindings": 1,
+      "AdmittedInConsumerContext": 72,
+      "DeclarationModuleRequiresConsumer": 5,
+      "ExpectedNegativeRejection": 286,
+      "ExperimentalAdmitted": 9,
+      "ExperimentalRejected": 31,
+      "LegacySerializationAdmitted": 5,
+      "LegacySerializationRejected": 324,
+      "MalformedOrUnsupportedSourceRejected": 6,
+      "MisfiledPositiveFixture": 1,
+      "RejectedAtSolveStage": 1,
+      "SourceAdmissionRejected": 80
+    },
+    "canonicalClassifications": {
+      "Admitted": 290,
+      "AdmittedInConsumerContext": 69,
+      "SourceAdmissionRejected": 9
+    }
+  },
+  "existingCorpusComparison": {
+    "unchangedSourceHashes": 1326,
+    "acceptedSourceRegressions": [],
+    "intentionalNewAdmissions": 5
+  },
+  "additionalAdmissions": [
+    {
+      "source": "Regression/LanguageBurnIn/boss-hole-unique/boss-hole-unique.firmament",
+      "before": "SourceAdmissionRejected",
+      "after": "Admitted",
+      "beforeExit": 1,
+      "afterExit": 0,
+      "sameSource": true,
+      "reason": "Structural parse and domain production owner both succeed at the recorded production level.",
+      "sourceSha256": "59644E39E4DBC32D48887E7751762E1B79263DE512E5269D1494E9EC5C0A3528",
+      "geometry": {
+        "faces": 19,
+        "edges": 44,
+        "vertices": 28,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            17
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 11,
+          "cylinder": 8
+        },
+        "volume": 30986.524186192815
+      },
+      "analyticVolume": 30986.371699555893,
+      "analyticRelativeTolerance": 1e-05,
+      "analyticRelativeError": 4.921087192793441e-06,
+      "referenceGeometryMatches": true,
+      "stepByteIdentical": true,
+      "disposition": "Newly admitted Top alias; geometry agrees with +Z and analytic through-hole volume"
+    },
+    {
+      "source": "Regression/LanguageBurnIn/boss-hole/boss-hole.firmament",
+      "before": "SourceAdmissionRejected",
+      "after": "Admitted",
+      "beforeExit": 1,
+      "afterExit": 0,
+      "sameSource": true,
+      "reason": "Structural parse and domain production owner both succeed at the recorded production level.",
+      "sourceSha256": "007ED873F1FBBB289B7B56A8E190300B14F27B347FE9C040D03519101861B67F",
+      "geometry": {
+        "faces": 19,
+        "edges": 44,
+        "vertices": 28,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            17
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 11,
+          "cylinder": 8
+        },
+        "volume": 30986.524186192815
+      },
+      "analyticVolume": 30986.371699555893,
+      "analyticRelativeTolerance": 1e-05,
+      "analyticRelativeError": 4.921087192793441e-06,
+      "referenceGeometryMatches": true,
+      "stepByteIdentical": true,
+      "disposition": "Newly admitted Top alias; geometry agrees with +Z and analytic through-hole volume"
+    },
+    {
+      "source": "Regression/LanguageBurnIn/boss-stack-hole-unique/boss-stack-hole-unique.firmament",
+      "before": "SourceAdmissionRejected",
+      "after": "Admitted",
+      "beforeExit": 1,
+      "afterExit": 0,
+      "sameSource": true,
+      "reason": "Structural parse and domain production owner both succeed at the recorded production level.",
+      "sourceSha256": "1228B9246170227D4A3CB0DB7DD45037A8EF3B1BD7C3419AF3BCA185A3D615FE",
+      "geometry": {
+        "faces": 28,
+        "edges": 64,
+        "vertices": 40,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            21
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 16,
+          "cylinder": 12
+        },
+        "volume": 31416.29458294407
+      },
+      "analyticVolume": 31416.10621709846,
+      "analyticRelativeTolerance": 1e-05,
+      "analyticRelativeError": 5.995836794931368e-06,
+      "referenceGeometryMatches": true,
+      "stepByteIdentical": true,
+      "disposition": "Newly admitted Top alias; geometry agrees with +Z and analytic through-hole volume"
+    },
+    {
+      "source": "Regression/LanguageBurnIn/boss-stack-hole/boss-stack-hole.firmament",
+      "before": "SourceAdmissionRejected",
+      "after": "Admitted",
+      "beforeExit": 1,
+      "afterExit": 0,
+      "sameSource": true,
+      "reason": "Structural parse and domain production owner both succeed at the recorded production level.",
+      "sourceSha256": "67522759BC02D9B9E125C6F840895260C72C36C92513CD5E3240BEF3BB008FEC",
+      "geometry": {
+        "faces": 28,
+        "edges": 64,
+        "vertices": 40,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            21
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 16,
+          "cylinder": 12
+        },
+        "volume": 31416.29458294407
+      },
+      "analyticVolume": 31416.10621709846,
+      "analyticRelativeTolerance": 1e-05,
+      "analyticRelativeError": 5.995836794931368e-06,
+      "referenceGeometryMatches": true,
+      "stepByteIdentical": true,
+      "disposition": "Newly admitted Top alias; geometry agrees with +Z and analytic through-hole volume"
+    },
+    {
+      "source": "Regression/LanguageBurnIn/pocket-hole/pocket-hole.firmament",
+      "before": "SourceAdmissionRejected",
+      "after": "Admitted",
+      "beforeExit": 1,
+      "afterExit": 0,
+      "sameSource": true,
+      "reason": "Structural parse and domain production owner both succeed at the recorded production level.",
+      "sourceSha256": "C9C059BC216CBB9800BCA9E593D8E70528F42A15E67498262293EAAECBA1D2D5",
+      "geometry": {
+        "faces": 19,
+        "edges": 44,
+        "vertices": 28,
+        "bbox": [
+          [
+            -30,
+            -20,
+            0
+          ],
+          [
+            30,
+            20,
+            12
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 15,
+          "cylinder": 4
+        },
+        "volume": 27931.540793502496
+      },
+      "analyticVolume": 27931.469035085127,
+      "analyticRelativeTolerance": 1e-05,
+      "analyticRelativeError": 2.5690885530884937e-06,
+      "referenceGeometryMatches": true,
+      "stepByteIdentical": true,
+      "disposition": "Newly admitted Top alias; geometry agrees with +Z and analytic through-hole volume"
+    }
+  ],
+  "stepParity": [
+    {
+      "source": "fixtures/Canonical/Symmetry/radial-bolt-circle.firmament",
+      "sourceSha256": "19DAA47DC20CA092A6DDA1CC49AF0B74E7E016F5E4A143AA4C00B7230B81C3CE",
+      "expectedSha256": "4B4F8FD69D10E73BB403F1538C6FC13995F895E4C1C17E0605A3E4A008E5356E",
+      "actualSha256": "4B4F8FD69D10E73BB403F1538C6FC13995F895E4C1C17E0605A3E4A008E5356E",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/partial-radial-pattern.firmament",
+      "sourceSha256": "258427029AA0882653801833109AD9FE04542C7448DE1D126291215FC016DE7D",
+      "expectedSha256": "7D708B30209B6A03010D9C647F762E453C705BC8F656882BE4F18785B2F08D87",
+      "actualSha256": "7D708B30209B6A03010D9C647F762E453C705BC8F656882BE4F18785B2F08D87",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-revolve.firmament",
+      "sourceSha256": "B955033028F838A3A3D7D265BD4EB04A9AAD89E83D95D5EA1C640ECB0953FA6C",
+      "expectedSha256": "C44AE2A5B6CFC978AFB24041F0B5C43A4554161FE5880FC6E2D59ADB1B7CAB4A",
+      "actualSha256": "C44AE2A5B6CFC978AFB24041F0B5C43A4554161FE5880FC6E2D59ADB1B7CAB4A",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-profile.firmament",
+      "sourceSha256": "1F41E7EBE426306205E01226C36410261798418C385E5E284BD0A4216CAF98BF",
+      "expectedSha256": "30D1F927A7295A5B553453BA2D6E936564140839E4497B0C5B46A1682A18F6A1",
+      "actualSha256": "30D1F927A7295A5B553453BA2D6E936564140839E4497B0C5B46A1682A18F6A1",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-hole.firmament",
+      "sourceSha256": "39B62FB47C0C42BDF7CD3DE7FCA2E78E785BCD693412FC052628F470F3261EB0",
+      "expectedSha256": "4A0DA2E67DA153B38DD7E6389CB329B4BBB6939FEC88541936DF705F49BE62FE",
+      "actualSha256": "4A0DA2E67DA153B38DD7E6389CB329B4BBB6939FEC88541936DF705F49BE62FE",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-feature-with-override.firmament",
+      "sourceSha256": "DEBDCE6974743DCBCED725B9FF6B8ED833EF64DBE69A4B94256515E6CDF24B4E",
+      "expectedSha256": "052F9FC96919130FA11D2FDE5BEF302BCBE42BA6441A61F7164D43E25EAF8FBB",
+      "actualSha256": "052F9FC96919130FA11D2FDE5BEF302BCBE42BA6441A61F7164D43E25EAF8FBB",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Regression/FrontendMigration/preferred-profile-links.firmament",
+      "sourceSha256": "41ACDC508CDB714BC0409C864708FD968BB812A83E4FD406B7AA0818670C6C4B",
+      "expectedSha256": "E43449262ECDD3DD05EFB73DB821D2E09226637EC1FB1EAF73E07821CD46AA57",
+      "actualSha256": "E43449262ECDD3DD05EFB73DB821D2E09226637EC1FB1EAF73E07821CD46AA57",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Features/Holes/through-hole.firmament",
+      "sourceSha256": "38E8188DB1BB7C75406570BBCEC9A09DAFA9D4D33A0EDEB746A6C04A973B265C",
+      "expectedSha256": "5999F127E5A1477E5825AFA656DCEB7F89241D8F85312B0E6BCD793639A0F548",
+      "actualSha256": "5999F127E5A1477E5825AFA656DCEB7F89241D8F85312B0E6BCD793639A0F548",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Templates/generic-mounting-plate.firmament",
+      "sourceSha256": "91B69697F5E777438F688FA2D1F0330FEF5C430D064FCA0A7FFF886252567C92",
+      "expectedSha256": "B0FF1D05D82135A3630C5E165C09B6C2C467B3FAF98A0825A9AF86B2E1CE76A3",
+      "actualSha256": "B0FF1D05D82135A3630C5E165C09B6C2C467B3FAF98A0825A9AF86B2E1CE76A3",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Set/pattern-feature-map.firmament",
+      "sourceSha256": "7BF1BA1E508CAE2548EC429724A895F2E50FFDAD057084F17B506C4362A34E40",
+      "expectedSha256": "08D4EA1F1336C06A380E30806C02AEE3F08535CAD1592929470EBD64B9882FC2",
+      "actualSha256": "08D4EA1F1336C06A380E30806C02AEE3F08535CAD1592929470EBD64B9882FC2",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/PMI/hole-diameter-and-datum.firmament",
+      "sourceSha256": "B105A5535F53189938CBA6C9E8644FC9D8C6683F8BB97B04167FA48C411ABBFD",
+      "expectedSha256": "9F2F24975267BF425D16A2ECDF863F4A94C0FAD172C932F9868BBB836BD46F5D",
+      "actualSha256": "9F2F24975267BF425D16A2ECDF863F4A94C0FAD172C932F9868BBB836BD46F5D",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/PMI/typed-tolerance.firmament",
+      "sourceSha256": "7C928F862D443904E87EAD137DB7D55E4D69E03A12F918F3319ECED947245EC9",
+      "expectedSha256": "098B515124D46220AAB85F6DBE1568E6B5969FEB55B537BA91AD3DDA587509A5",
+      "actualSha256": "098B515124D46220AAB85F6DBE1568E6B5969FEB55B537BA91AD3DDA587509A5",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/PMI/record-template-feature-tolerance.firmament",
+      "sourceSha256": "6F88543F7E0D544F460709EE85521620101DCB053CF3C5C7C90F05A96CA63B8D",
+      "expectedSha256": "300023D4A6CC156F9224F4937F990926523372C8BF0AB11D8C15851FA256BB18",
+      "actualSha256": "300023D4A6CC156F9224F4937F990926523372C8BF0AB11D8C15851FA256BB18",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/AssemblyInterfaces/executable-machine.firmament",
+      "sourceSha256": "9CEDEDC63C8EEF28A51F58E0E1E0D85E70104C9014C94508C44F1E9320B42F72",
+      "expectedSha256": "912FCCCDF607E0EB9437423BEA0D2E6EB74D9BEDE4D4758D9DF6BF5364C66391",
+      "actualSha256": "912FCCCDF607E0EB9437423BEA0D2E6EB74D9BEDE4D4758D9DF6BF5364C66391",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Assembly/template-block-pair.firmament",
+      "sourceSha256": "3530A14F1156C588EA5747EE65B338162AEC803243FBBB379D7C11D5265EF211",
+      "expectedSha256": "17E1DABEA787334BE13DA18E9771B69927CE46D754CA35783693C2FD76847B24",
+      "actualSha256": "17E1DABEA787334BE13DA18E9771B69927CE46D754CA35783693C2FD76847B24",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Assembly/coil-on-stem.firmament",
+      "sourceSha256": "056E6354C85B0E54AC6B4E1B79C1E9ED5CBE7A97648748F1C55923B76C85E485",
+      "expectedSha256": "9C21BE66AA885DF21DE349169C4E3D14282C2384E661372EC4034E627A5E0A1A",
+      "actualSha256": "9C21BE66AA885DF21DE349169C4E3D14282C2384E661372EC4034E627A5E0A1A",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm",
+      "sourceSha256": "10C11DD2FA4361C87D14E22D318348CE18BE0925119496184E846A603B1CA2DB",
+      "expectedSha256": "469E42D07EC1BB3FFDB88D5B0149DA50C21F39631EDC7441C2B3DCF11C41681C",
+      "actualSha256": "469E42D07EC1BB3FFDB88D5B0149DA50C21F39631EDC7441C2B3DCF11C41681C",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-branch-variants.firmament",
+      "sourceSha256": "CEFCA8936656C4947A5D434FD75EF6AA23B94D8A3DBB808B340DD376842B9240",
+      "expectedSha256": "DDC7B5C388058035E1B6A5FC8D5AC6701FBA3057508448EF00351312D766EF07",
+      "actualSha256": "DDC7B5C388058035E1B6A5FC8D5AC6701FBA3057508448EF00351312D766EF07",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-offset-region.firmament",
+      "sourceSha256": "2FB5300A60902B01916B7D2D0C72A83156E365674BA0A5F249BC5D0B7EF00EE7",
+      "expectedSha256": "EB310460850C1153C5C1813F2863DCD16595755359E8545558140BBA5F632F05",
+      "actualSha256": "EB310460850C1153C5C1813F2863DCD16595755359E8545558140BBA5F632F05",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-preserve-interface.firmament",
+      "sourceSha256": "C2310DAB5E3F591E1260EDA82852F53EE7842B284914D030231C15DA72D50AF4",
+      "expectedSha256": "67D5F7D6316FA53F63CEE95C08F45AFEC71E2AA2B89060A41F7F88D29319AD79",
+      "actualSha256": "67D5F7D6316FA53F63CEE95C08F45AFEC71E2AA2B89060A41F7F88D29319AD79",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpted-housing.firmament",
+      "sourceSha256": "CD6647031A073A140C93CE7DBC14C08D801B84C24F0C15816D3C446464CF1D48",
+      "expectedSha256": "27136BC65CACE501B84E6EC81BCC186F1F48262ABB2CC9F76D2208951092396F",
+      "actualSha256": "27136BC65CACE501B84E6EC81BCC186F1F48262ABB2CC9F76D2208951092396F",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x1-freeform-housing.firmament",
+      "sourceSha256": "36CCD4855AC3F8574854AA2499CB7B5BFFE4A892852AE9DDC452714962457B38",
+      "expectedSha256": "F509AA95D3B223F876790A755DF0052900E07598A1CB8266D63EA2408EF2DB07",
+      "actualSha256": "F509AA95D3B223F876790A755DF0052900E07598A1CB8266D63EA2408EF2DB07",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x1a-trimmed-freeform-housing.firmament",
+      "sourceSha256": "990DC7389DBCB4E330B2A316AF4946297B5CA8F13C5BD9A693497792852ABD46",
+      "expectedSha256": "5717FD937D9FE93EACF3B49190BB967028C574121AE8850F2D82EA8FC7C1B9B4",
+      "actualSha256": "5717FD937D9FE93EACF3B49190BB967028C574121AE8850F2D82EA8FC7C1B9B4",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-g1-blend.firmament",
+      "sourceSha256": "1BB2EE58823B87D5CF65D227CC7163D36D92E670B43D33B8D6A9DCDB9F6288F9",
+      "expectedSha256": "73C2D486D3CED015EBEFA984C41063C54D86BF81E5A575179CA9098EBE23EF22",
+      "actualSha256": "73C2D486D3CED015EBEFA984C41063C54D86BF81E5A575179CA9098EBE23EF22",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-judged-housing.firmament",
+      "sourceSha256": "96BEDCA540DD454F27DA530E9B58E3E4C3DA21F4AEE0CA5422E56372D32EDE8C",
+      "expectedSha256": "0BC71E45EE37D7B523063A59E5060610048FBE7DAC227D82CB24B4A8186FDB2A",
+      "actualSha256": "0BC71E45EE37D7B523063A59E5060610048FBE7DAC227D82CB24B4A8186FDB2A",
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-manual-candidate.firmament",
+      "sourceSha256": "CFBA24141D578B8049C61FA491B5978D40E873DA149373D287F5DB5488F40056",
+      "expectedSha256": "1B32DB8AFF518EAA86ADBEC212047641B48C5CCD9F57736F9C807D897AFA70B2",
+      "actualSha256": "1B32DB8AFF518EAA86ADBEC212047641B48C5CCD9F57736F9C807D897AFA70B2",
+      "byteIdentical": true
+    }
+  ],
+  "downstreamDispositions": {
+    "Invalid/FEA/ExperimentalShell/singular-map.firmament": {
+      "classification": "RejectedAtSolveStage",
+      "reason": "Analysis compilation succeeds at the explicitly reported AnalysisCompiledNotSolved level. The ordinary fea execution rejects the inconsistent cylindrical map with thinwall-map-singular. This is a solve/map negative, not a syntax failure.",
+      "exitCode": 1,
+      "diagnostics": [
+        {
+          "code": "thinwall-map-singular",
+          "severity": "Error",
+          "message": "Cylindrical master S span must equal radius times angle (0.15707963267948966 m); got 0.16 m."
+        }
+      ],
+      "sourceSha256": "A1C922DC74CB102CE47F7696A8F52AB82B2DA6973CD61E52F2EF298C8325F2EB",
+      "witnessPassed": true,
+      "requalifiedOn": "2026-10-15",
+      "evidenceRoot": "artifacts/local/frontend-x4"
+    },
+    "Invalid/Pipeline/traceloop-non-loop.firmament": {
+      "classification": "MisfiledPositiveFixture",
+      "reason": "Despite the historical filename, the actual source traces a closed Rect2 into an outer loop and extrudes it. Real build and STEP reimport confirm a valid enclosed six-face solid with the requested bounds. Rejecting it would reject legitimate geometry.",
+      "exitCodes": [
+        0,
+        0
+      ],
+      "bodyCount": 1,
+      "faceCount": 6,
+      "boundsMm": {
+        "min": {
+          "x": -5,
+          "y": -2,
+          "z": 0
+        },
+        "max": {
+          "x": 5,
+          "y": 2,
+          "z": 1
+        }
+      },
+      "structuralAssessment": "enclosed-manifold",
+      "stepSha256": "CC536B201711D265AB53ECB6BC50262F5FF577FD9FC2745B6B53ACB8FC1672E2",
+      "sourceSha256": "1BC08FBE89A39A14A46E13AC25D2FDC5C75962F2759E8FB0951213C69526C169",
+      "witnessPassed": true,
+      "requalifiedOn": "2026-10-15",
+      "evidenceRoot": "artifacts/local/frontend-x4"
+    },
+    "Invalid/SheetMetal/tray-dfm-violation.firmament": {
+      "classification": "AdmittedGeometryWithDfmFindings",
+      "reason": "The fixture explicitly requests geometry that compiles and a DFM repair finding. sheetmetal inspect succeeds and reports Warning with insufficient corner relief; a manufacturing warning does not make the frontend source invalid.",
+      "exitCode": 0,
+      "dfmOverall": "Warning",
+      "findings": [
+        {
+          "ruleId": "sheetmetal-dfm-corner-resolution",
+          "status": "Warning",
+          "message": "'corner-Front-Right' has insufficient or missing relief geometry.",
+          "subjectId": "corner-Front-Right",
+          "measured": 1,
+          "required": 2.7,
+          "suggestedFix": "Increase relief-Front-Right width to at least 1.2 mm and depth to at least 2.7 mm."
+        }
+      ],
+      "sourceSha256": "035B7CDA274FF49DC23E3223F8EFE44F100E26A4CF208327D74759312AB11EB8",
+      "witnessPassed": true,
+      "requalifiedOn": "2026-10-15",
+      "evidenceRoot": "artifacts/local/frontend-x4"
+    }
+  },
+  "compilerAssemblies": {
+    "Aetheris.CLI/bin/Release/net10.0/aetheris.dll": "2375025B5D546C7E9728A79E93C51AF997FD80D26A6461E64000262290D87FD5",
+    "Aetheris.Kernel.Firmament/bin/Release/net10.0/Aetheris.Kernel.Firmament.dll": "A52623D687A762B00D74AA111C5BF1C4C768A7D5414EE177A19A9223861EA8F4",
+    "Aetheris.Kernel.Core/bin/Release/net10.0/Aetheris.Kernel.Core.dll": "A8AF785620B0809C5838A7B6EA1A92DFDC22CF184B21F8A98EA93E5D999954C8"
+  },
+  "corpusSourceHashes": {
+    "cases/a01-let-in-model.firmament": "F8230868CDC93F31980E834AAB15DD3E407AF88F1EA81D2246D3281B628AB507",
+    "cases/a02-static-in-model.firmament": "BEBF407605E13C6DEE10B46E2C81D9E0A7278AE1FF738E2B4AE842AE3F08FD98",
+    "cases/a03-set-entry-arithmetic.firmament": "56EE1516723D6A218177EF48E1EB18FEF7BBEA510117B0AA731A33F3045DDB3A",
+    "cases/a04-box-size-arithmetic.firmament": "16683EFE8A95F7F704BD26EB5189209557F75DFF83DAA577B3E7BC5674941C10",
+    "cases/a05-static-in-compose-interval.firmament": "852A24933726111F5B4760B4AF88A32A99DF5C15F42F5FB95015355C9A78A060",
+    "cases/a06-unused-static-with-compose.firmament": "D9ADA72B7E7E1F51D8EB17DA31FF2F90623A5724B330AB3AE7A73F695D4F3DFF",
+    "cases/b01-pattern-model-scope.firmament": "3F4C89C7536574460A6B7DB4D6028F76CF9B6C728A0699E56C35C0CB3CF63C1E",
+    "cases/b02-pattern-in-modify.firmament": "185CCE0669616299582E33644F39F2B1C0B8AAD6E1AB3A606AD05CC3E0B585B1",
+    "cases/b03-pattern-in-modify-struct-root.firmament": "A34587E52C0B5B952E99D2657320158302F4C3BBE35C2ED7B618A93E2A03CDEB",
+    "cases/b04-pattern-model-scope-with-modify.firmament": "4680C895DFF9A9C908EA44B0A21150C528D7598516D1AF1423615A74165DC977",
+    "cases/c01-hole-on-plusz-struct-root.firmament": "F5DB592071F80E5B4EE0AA3B2EB0DA6B38C462549CD4418F14939B3B184DE8EC",
+    "cases/c02-hole-on-plusz-model-root.firmament": "90E60225962974572C65FC017FC19E52407C0D28C35CD67AA97FD02F6DCE14EE",
+    "cases/c03-face-reference-spellings.firmament": "0D226D1DF461FDF2B3C068C6FEFBD365EF70A477DC896B79F44C3E9CFAB803EF",
+    "cases/c04-point-literal-spellings.firmament": "47CE255531BEE6549969DF2138AD327CB6EDA8EA2896BA60518632672713BBFB",
+    "cases/c05-feature-hole-on-top.firmament": "470076AF44458847D547905B6D13D5143B393CDF74676B24F560F6CCBC64DA0D",
+    "cases/c06-set-array-literal-entries.firmament": "16F1F221F0906F147BD127A143571E04152A68A279C740370303EBAED7F43A44",
+    "cases/d01-edgefinish-generic-variant.firmament": "C23AA9B7FC78881662233F0C84B0110DC1FA730C41735045AE406A18E4610AB4",
+    "cases/d02-edgefinish-kind-field.firmament": "F429B4A5C1D3D975A7C65ACCFE7D1286904DE3730C8074993E943117F2698CE3",
+    "cases/d03-edgefinish-primitive-selector.firmament": "6CEFC0AD46DF1B8B07DB8083F1E915F00AB6814F3717F44533FF86D85A7A3731",
+    "cases/d04-edgefinish-lowercase-fields.firmament": "5700985F38726A21BD497ABAE3F2AEA9B2BC7C3440C6273FD3796306027BC071",
+    "cases/d05-fillet-with-hole.firmament": "DE61EE6716FF2805F9358A65BB3DD64A9B13C000F4354301D69813682DD36C1F",
+    "cases/e01-pocket-through.firmament": "05190253316BF3A04C75100463E38810EF0DE79335E03EA696443CD31621BA47",
+    "cases/e02-cut-in-modify.firmament": "E3F0CE299AEB627F7C6B38FF080AC292E9186AB09BE2F2586EE0E39DC2ED9189",
+    "cases/f01-xz-layout.firmament": "FD9011AA6EC8CBF07BA2B63200268D7B9AA47B9D63084CA088A67A008B1DC775",
+    "cases/f02-inline-polygon.firmament": "EE8653D39AFBE84F7BBDC1EE1C2393628530A0B429F97871824BFCB612D115F3",
+    "cases/f03-segment-inline-coordinates.firmament": "B3DCCA0F208A1BBBD4846B39C16CD20B0FB3413B66FE0265C12C872FFBA4D570",
+    "cases/f04-inline-polygon-arithmetic.firmament": "F8986AF5294A0E516EAD6A7D53CE60258E94BE987882874D0371A1A9C14864C6",
+    "cases/g01-revolve-point-list.firmament": "52D9FEBA91E908F8E4DA19E25F1380034D6A5C2CCBF7656FF6023A0062625FAE",
+    "cases/h00-concept-grid-struct-root.firmament": "56A68D0B11D82C2C3A5613C2DE5F398601CCC6B98C8B9CB4C5240237902484D5",
+    "cases/h01-concept-grid-model-root.firmament": "FA4AE6A99FF908830D321389832738AD91E70359285A075122EACCEBC7C4CE6C",
+    "cases/h02-documented-feature-pattern.firmament": "D9D7E0795F74AD83A47E11683F42228A079A3CCFFB00B10579666FE7D639E06F",
+    "cases/reference/a01-let-in-model.firmament": "C3CCAC2AAE567A78A93C837281F9C546AD6F6C3228D816E8079CDD25B7111629",
+    "cases/reference/a03-set-entry-arithmetic.firmament": "235C5D6C89FC2B3C64E34813654915E261C1FA1B71A4551DEDB2685C785B3F09",
+    "cases/reference/a05-static-in-compose-interval.firmament": "1EB26AFA2E625361542E65DB045377B7FA4FD1F7A0014C8B08569E8A4B29EE16",
+    "cases/reference/a06-unused-static-with-compose.firmament": "181FB119B836EDDBC27E2F8D516DD8DF17B42334B30805B69BB13FFD664726FE",
+    "cases/reference/b01-pattern-model-scope.firmament": "185CCE0669616299582E33644F39F2B1C0B8AAD6E1AB3A606AD05CC3E0B585B1",
+    "cases/reference/b04-pattern-model-scope-with-modify.firmament": "55EBD6A23C97B190491B28DB1E1D3B6CF43820BC1D0A9A04B607969BAD5F02DE",
+    "cases/reference/c03-face-reference-spellings.firmament": "9009A12C2E33DBC5C5225065508E96235496E97D513A751A00E7769E4EC92096",
+    "cases/reference/c04-point-literal-spellings.firmament": "DAABA37C16F0876B29E12CD5ED8C72D4F0B9084C3C982C802690BCA7F2F7FFBA",
+    "cases/reference/c05-feature-hole-on-top.firmament": "F1043C16CFC25A0CB7C81B95A5B360AD7B6FB7C0EDEC9B8E6A9C4469514A3BC0",
+    "cases/reference/c06-set-array-literal-entries.firmament": "7A6BA9F32AD7A097A49DB971375125F277AA9A7D1DD37DFC90B16C49CA915BA8",
+    "cases/reference/d01-edgefinish-generic-variant.firmament": "F429B4A5C1D3D975A7C65ACCFE7D1286904DE3730C8074993E943117F2698CE3",
+    "cases/reference/e01-pocket-through.firmament": "61776648D57105BA92ADA716F63024E32AC08E7BC4452AD06E7F72157DD5B762",
+    "cases/reference/f02-inline-polygon.firmament": "9AF07581C3DF6E54B290C08189A33A1285473C1DFCC93216BBD5B350280B4AB4",
+    "cases/reference/f04-inline-polygon-arithmetic.firmament": "D73E3156A724C9B8A4C12882CCB5E3F2D248C6215CEB51F6A9BF422673413DEC",
+    "cases/reference/g01-revolve-point-list.firmament": "C4873ED6F0952CF78DED0108A35E7B1B9D255D4D82E83E0CBC0657058BBB88D5",
+    "cases/reference/h02-documented-feature-pattern.firmament": "FA4AE6A99FF908830D321389832738AD91E70359285A075122EACCEBC7C4CE6C",
+    "chimera.baseline.firmament": "88F08FB7D6D458753311DDBC916F12AB1B256401E0CE455EF15D583D79E75C8B",
+    "chimera.firmament": "AB4CB3069B9320B7CE41A66B8207103B6CA4EAAC7169EF2EE264AADB532670BF"
+  },
+  "recordedGeometryManifestSha256": "925211843505411F12525AD55A8861BFB99D6291D451F89E6A05F792D8CA0765",
+  "resourceCleanup": {
+    "finalSnapshotHostsRemaining": [],
+    "checkedProcessNames": [
+      "dotnet",
+      "testhost",
+      "MSBuild",
+      "VBCSCompiler",
+      "aetheris"
+    ]
+  },
+  "limits": [
+    "Not universal semantic parity across all language domains or source expansions.",
+    "Fillet plus Hole remains a rejected geometry capability.",
+    "Chamfer wall splitting is unchanged.",
+    "The additional analytic-volume checks use 1e-5 relative tolerance for the existing numerical mass integrator; all reference geometry checks retain 1e-9 and all five aliases are STEP byte-identical."
+  ]
+}

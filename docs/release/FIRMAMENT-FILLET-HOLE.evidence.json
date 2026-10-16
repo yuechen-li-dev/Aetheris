@@ -1,0 +1,484 @@
+{
+  "scope": "Box complete +Z Boundary Fillet with disjoint ThroughAll shaft/counterbore holes; finish-only shares the builder",
+  "verdict": "Success within the stated engineering boundary",
+  "date": "2026-10-15 America/Los_Angeles",
+  "upstream": {
+    "before": "7525f37f",
+    "after": "1585f637a381f668b82ea153172c6f3d1249bd80",
+    "originMaster": "1585f637a381f668b82ea153172c6f3d1249bd80",
+    "strategy": "fast-forward",
+    "contentConflicts": 0,
+    "localChangesRetained": true,
+    "committed": false,
+    "pushed": false
+  },
+  "qualification": {
+    "releaseBuild": "Passed",
+    "coreFastPassed": 1076,
+    "focusedFrontendPassed": 92,
+    "focusedCliPassed": 13,
+    "fullSolution": {
+      "assemblies": 20,
+      "totals": {
+        "failed": 0,
+        "passed": 5140,
+        "skipped": 0,
+        "total": 5140
+      }
+    },
+    "authoringCorpus": {
+      "passed": 32,
+      "total": 32,
+      "changedManifestCases": [
+        "d05"
+      ],
+      "d05SourceUnchanged": true,
+      "otherGeometryGoldensUnchanged": true
+    },
+    "sdkLanguageTransport": {
+      "passed": 3,
+      "failed": 0,
+      "liveBrowserExecution": false
+    },
+    "runtimeHostsAfter": [],
+    "diffCheck": "Passed"
+  },
+  "normalCli": {
+    "gitHead": "1585f637a381f668b82ea153172c6f3d1249bd80",
+    "positiveCases": [
+      {
+        "source": "fixtures/Regression/FrontendX4/cases/d05-fillet-with-hole.firmament",
+        "sourceSha256": "de61ee6716ff2805f9358a65bb3dd64a9b13c000f4354301d69813682dd36c1f",
+        "stepSha256": "7896bd08f1584d9647c3d914de49797cb988700b7df2d3ddb563b903f88d69dc",
+        "faces": 11,
+        "edges": 23,
+        "vertices": 14,
+        "planes": 6,
+        "cylinders": 5,
+        "ellipses": 4,
+        "bbox": {
+          "min": {
+            "x": -30,
+            "y": -20,
+            "z": 0
+          },
+          "max": {
+            "x": 30,
+            "y": 20,
+            "z": 10
+          }
+        },
+        "analyticVolume": 23454.80828946461,
+        "numericalVolume": 23460.317970712236,
+        "massEvaluationMethod": "DeterministicTrimmedFaceTriangulationBoundaryIntegral",
+        "massStatus": "NumericalWithBound",
+        "massErrorBound": 2746.011024431587,
+        "importQualification": "Qualified",
+        "pcurveMaximumDeviation": 3.6123509517291385e-07
+      },
+      {
+        "source": "fixtures/Regression/Fillet/top-boundary-with-counterbore.firmament",
+        "sourceSha256": "223b8743879c82d624b86a15847d9a80140030d0ab863445a6099382e2e7359b",
+        "stepSha256": "3b12afac6ce78a114bc4074c7694201f2f0dc4dcbc876b27aae8e0d6f6a721ee",
+        "faces": 14,
+        "edges": 29,
+        "vertices": 18,
+        "planes": 7,
+        "cylinders": 7,
+        "ellipses": 4,
+        "bbox": {
+          "min": {
+            "x": -30,
+            "y": -20,
+            "z": 0
+          },
+          "max": {
+            "x": 30,
+            "y": 20,
+            "z": 10
+          }
+        },
+        "analyticVolume": 23435.95873354307,
+        "numericalVolume": 23441.682999464858,
+        "massEvaluationMethod": "DeterministicTrimmedFaceTriangulationBoundaryIntegral",
+        "massStatus": "NumericalWithBound",
+        "massErrorBound": 2793.5626591805394,
+        "importQualification": "Qualified",
+        "pcurveMaximumDeviation": 3.6123509517291385e-07
+      },
+      {
+        "source": "fixtures/Regression/FrontendX0/combined-fillet-hole.firmament",
+        "sourceSha256": "a6a99c8be86b88286b441ce0387867dba42b4d85289e35c7848cb74a6ab0aab4",
+        "stepSha256": "e6e3e88ac0cac14df250b54d6294bffbe551aff4ac676a3413bbc4bd3ba9fd46",
+        "faces": 11,
+        "edges": 23,
+        "vertices": 14,
+        "planes": 6,
+        "cylinders": 5,
+        "ellipses": 4,
+        "bbox": {
+          "min": {
+            "x": -20,
+            "y": -10,
+            "z": 0
+          },
+          "max": {
+            "x": 20,
+            "y": 10,
+            "z": 6
+          }
+        },
+        "analyticVolume": 4699.233037281026,
+        "numericalVolume": 4699.965260845049,
+        "massEvaluationMethod": "DeterministicTrimmedFaceTriangulationBoundaryIntegral",
+        "massStatus": "NumericalWithBound",
+        "massErrorBound": 927.3585646053124,
+        "importQualification": "Qualified",
+        "pcurveMaximumDeviation": 3.612350951705584e-07
+      }
+    ],
+    "negativeCase": {
+      "source": "fixtures/Regression/FrontendX0/combined-fillet-hole-intersection.firmament",
+      "validateExit": 1,
+      "buildExit": 1,
+      "code": "CombinedFeatureInteractionUnsupported",
+      "line": 6,
+      "artifactAbsent": true
+    }
+  },
+  "showcaseGeometryParity": [
+    {
+      "source": "fixtures/Canonical/Symmetry/radial-bolt-circle.firmament",
+      "sourceSha256": "19DAA47DC20CA092A6DDA1CC49AF0B74E7E016F5E4A143AA4C00B7230B81C3CE",
+      "expectedSha256": "4B4F8FD69D10E73BB403F1538C6FC13995F895E4C1C17E0605A3E4A008E5356E",
+      "actualSha256": "4B4F8FD69D10E73BB403F1538C6FC13995F895E4C1C17E0605A3E4A008E5356E",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 829.5063
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/partial-radial-pattern.firmament",
+      "sourceSha256": "258427029AA0882653801833109AD9FE04542C7448DE1D126291215FC016DE7D",
+      "expectedSha256": "7D708B30209B6A03010D9C647F762E453C705BC8F656882BE4F18785B2F08D87",
+      "actualSha256": "7D708B30209B6A03010D9C647F762E453C705BC8F656882BE4F18785B2F08D87",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 857.3559
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-revolve.firmament",
+      "sourceSha256": "B955033028F838A3A3D7D265BD4EB04A9AAD89E83D95D5EA1C640ECB0953FA6C",
+      "expectedSha256": "C44AE2A5B6CFC978AFB24041F0B5C43A4554161FE5880FC6E2D59ADB1B7CAB4A",
+      "actualSha256": "C44AE2A5B6CFC978AFB24041F0B5C43A4554161FE5880FC6E2D59ADB1B7CAB4A",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 543.8599
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-profile.firmament",
+      "sourceSha256": "1F41E7EBE426306205E01226C36410261798418C385E5E284BD0A4216CAF98BF",
+      "expectedSha256": "30D1F927A7295A5B553453BA2D6E936564140839E4497B0C5B46A1682A18F6A1",
+      "actualSha256": "30D1F927A7295A5B553453BA2D6E936564140839E4497B0C5B46A1682A18F6A1",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 477.8405
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-hole.firmament",
+      "sourceSha256": "39B62FB47C0C42BDF7CD3DE7FCA2E78E785BCD693412FC052628F470F3261EB0",
+      "expectedSha256": "4A0DA2E67DA153B38DD7E6389CB329B4BBB6939FEC88541936DF705F49BE62FE",
+      "actualSha256": "4A0DA2E67DA153B38DD7E6389CB329B4BBB6939FEC88541936DF705F49BE62FE",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 648.1466
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-feature-with-override.firmament",
+      "sourceSha256": "DEBDCE6974743DCBCED725B9FF6B8ED833EF64DBE69A4B94256515E6CDF24B4E",
+      "expectedSha256": "052F9FC96919130FA11D2FDE5BEF302BCBE42BA6441A61F7164D43E25EAF8FBB",
+      "actualSha256": "052F9FC96919130FA11D2FDE5BEF302BCBE42BA6441A61F7164D43E25EAF8FBB",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 639.2726
+    },
+    {
+      "source": "fixtures/Regression/FrontendMigration/preferred-profile-links.firmament",
+      "sourceSha256": "41ACDC508CDB714BC0409C864708FD968BB812A83E4FD406B7AA0818670C6C4B",
+      "expectedSha256": "E43449262ECDD3DD05EFB73DB821D2E09226637EC1FB1EAF73E07821CD46AA57",
+      "actualSha256": "E43449262ECDD3DD05EFB73DB821D2E09226637EC1FB1EAF73E07821CD46AA57",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 415.1094
+    },
+    {
+      "source": "fixtures/Canonical/Features/Holes/through-hole.firmament",
+      "sourceSha256": "38E8188DB1BB7C75406570BBCEC9A09DAFA9D4D33A0EDEB746A6C04A973B265C",
+      "expectedSha256": "5999F127E5A1477E5825AFA656DCEB7F89241D8F85312B0E6BCD793639A0F548",
+      "actualSha256": "5999F127E5A1477E5825AFA656DCEB7F89241D8F85312B0E6BCD793639A0F548",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 577.4685
+    },
+    {
+      "source": "fixtures/Canonical/Templates/generic-mounting-plate.firmament",
+      "sourceSha256": "91B69697F5E777438F688FA2D1F0330FEF5C430D064FCA0A7FFF886252567C92",
+      "expectedSha256": "B0FF1D05D82135A3630C5E165C09B6C2C467B3FAF98A0825A9AF86B2E1CE76A3",
+      "actualSha256": "B0FF1D05D82135A3630C5E165C09B6C2C467B3FAF98A0825A9AF86B2E1CE76A3",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 642.4878
+    },
+    {
+      "source": "fixtures/Canonical/Set/pattern-feature-map.firmament",
+      "sourceSha256": "7BF1BA1E508CAE2548EC429724A895F2E50FFDAD057084F17B506C4362A34E40",
+      "expectedSha256": "08D4EA1F1336C06A380E30806C02AEE3F08535CAD1592929470EBD64B9882FC2",
+      "actualSha256": "08D4EA1F1336C06A380E30806C02AEE3F08535CAD1592929470EBD64B9882FC2",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 642.7746
+    },
+    {
+      "source": "fixtures/Canonical/PMI/hole-diameter-and-datum.firmament",
+      "sourceSha256": "B105A5535F53189938CBA6C9E8644FC9D8C6683F8BB97B04167FA48C411ABBFD",
+      "expectedSha256": "9F2F24975267BF425D16A2ECDF863F4A94C0FAD172C932F9868BBB836BD46F5D",
+      "actualSha256": "9F2F24975267BF425D16A2ECDF863F4A94C0FAD172C932F9868BBB836BD46F5D",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 587.0204
+    },
+    {
+      "source": "fixtures/Canonical/PMI/typed-tolerance.firmament",
+      "sourceSha256": "7C928F862D443904E87EAD137DB7D55E4D69E03A12F918F3319ECED947245EC9",
+      "expectedSha256": "098B515124D46220AAB85F6DBE1568E6B5969FEB55B537BA91AD3DDA587509A5",
+      "actualSha256": "098B515124D46220AAB85F6DBE1568E6B5969FEB55B537BA91AD3DDA587509A5",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 618.4675
+    },
+    {
+      "source": "fixtures/Canonical/PMI/record-template-feature-tolerance.firmament",
+      "sourceSha256": "6F88543F7E0D544F460709EE85521620101DCB053CF3C5C7C90F05A96CA63B8D",
+      "expectedSha256": "300023D4A6CC156F9224F4937F990926523372C8BF0AB11D8C15851FA256BB18",
+      "actualSha256": "300023D4A6CC156F9224F4937F990926523372C8BF0AB11D8C15851FA256BB18",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 635.3654
+    },
+    {
+      "source": "fixtures/Canonical/AssemblyInterfaces/executable-machine.firmament",
+      "sourceSha256": "9CEDEDC63C8EEF28A51F58E0E1E0D85E70104C9014C94508C44F1E9320B42F72",
+      "expectedSha256": "912FCCCDF607E0EB9437423BEA0D2E6EB74D9BEDE4D4758D9DF6BF5364C66391",
+      "actualSha256": "912FCCCDF607E0EB9437423BEA0D2E6EB74D9BEDE4D4758D9DF6BF5364C66391",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 665.7939
+    },
+    {
+      "source": "fixtures/Canonical/Assembly/template-block-pair.firmament",
+      "sourceSha256": "3530A14F1156C588EA5747EE65B338162AEC803243FBBB379D7C11D5265EF211",
+      "expectedSha256": "17E1DABEA787334BE13DA18E9771B69927CE46D754CA35783693C2FD76847B24",
+      "actualSha256": "17E1DABEA787334BE13DA18E9771B69927CE46D754CA35783693C2FD76847B24",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 652.6033
+    },
+    {
+      "source": "fixtures/Canonical/Assembly/coil-on-stem.firmament",
+      "sourceSha256": "056E6354C85B0E54AC6B4E1B79C1E9ED5CBE7A97648748F1C55923B76C85E485",
+      "expectedSha256": "9C21BE66AA885DF21DE349169C4E3D14282C2384E661372EC4034E627A5E0A1A",
+      "actualSha256": "9C21BE66AA885DF21DE349169C4E3D14282C2384E661372EC4034E627A5E0A1A",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 6804.7577
+    },
+    {
+      "source": "fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm",
+      "sourceSha256": "10C11DD2FA4361C87D14E22D318348CE18BE0925119496184E846A603B1CA2DB",
+      "expectedSha256": "469E42D07EC1BB3FFDB88D5B0149DA50C21F39631EDC7441C2B3DCF11C41681C",
+      "actualSha256": "469E42D07EC1BB3FFDB88D5B0149DA50C21F39631EDC7441C2B3DCF11C41681C",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 10455.0212
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-branch-variants.firmament",
+      "sourceSha256": "CEFCA8936656C4947A5D434FD75EF6AA23B94D8A3DBB808B340DD376842B9240",
+      "expectedSha256": "DDC7B5C388058035E1B6A5FC8D5AC6701FBA3057508448EF00351312D766EF07",
+      "actualSha256": "DDC7B5C388058035E1B6A5FC8D5AC6701FBA3057508448EF00351312D766EF07",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 650.0488
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-offset-region.firmament",
+      "sourceSha256": "2FB5300A60902B01916B7D2D0C72A83156E365674BA0A5F249BC5D0B7EF00EE7",
+      "expectedSha256": "EB310460850C1153C5C1813F2863DCD16595755359E8545558140BBA5F632F05",
+      "actualSha256": "EB310460850C1153C5C1813F2863DCD16595755359E8545558140BBA5F632F05",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 578.8937
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-preserve-interface.firmament",
+      "sourceSha256": "C2310DAB5E3F591E1260EDA82852F53EE7842B284914D030231C15DA72D50AF4",
+      "expectedSha256": "67D5F7D6316FA53F63CEE95C08F45AFEC71E2AA2B89060A41F7F88D29319AD79",
+      "actualSha256": "67D5F7D6316FA53F63CEE95C08F45AFEC71E2AA2B89060A41F7F88D29319AD79",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 583.3042
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpted-housing.firmament",
+      "sourceSha256": "CD6647031A073A140C93CE7DBC14C08D801B84C24F0C15816D3C446464CF1D48",
+      "expectedSha256": "27136BC65CACE501B84E6EC81BCC186F1F48262ABB2CC9F76D2208951092396F",
+      "actualSha256": "27136BC65CACE501B84E6EC81BCC186F1F48262ABB2CC9F76D2208951092396F",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 578.8487
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x1-freeform-housing.firmament",
+      "sourceSha256": "36CCD4855AC3F8574854AA2499CB7B5BFFE4A892852AE9DDC452714962457B38",
+      "expectedSha256": "F509AA95D3B223F876790A755DF0052900E07598A1CB8266D63EA2408EF2DB07",
+      "actualSha256": "F509AA95D3B223F876790A755DF0052900E07598A1CB8266D63EA2408EF2DB07",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 878.4901
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x1a-trimmed-freeform-housing.firmament",
+      "sourceSha256": "990DC7389DBCB4E330B2A316AF4946297B5CA8F13C5BD9A693497792852ABD46",
+      "expectedSha256": "5717FD937D9FE93EACF3B49190BB967028C574121AE8850F2D82EA8FC7C1B9B4",
+      "actualSha256": "5717FD937D9FE93EACF3B49190BB967028C574121AE8850F2D82EA8FC7C1B9B4",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 973.4191
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-g1-blend.firmament",
+      "sourceSha256": "1BB2EE58823B87D5CF65D227CC7163D36D92E670B43D33B8D6A9DCDB9F6288F9",
+      "expectedSha256": "73C2D486D3CED015EBEFA984C41063C54D86BF81E5A575179CA9098EBE23EF22",
+      "actualSha256": "73C2D486D3CED015EBEFA984C41063C54D86BF81E5A575179CA9098EBE23EF22",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 823.1821
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-judged-housing.firmament",
+      "sourceSha256": "96BEDCA540DD454F27DA530E9B58E3E4C3DA21F4AEE0CA5422E56372D32EDE8C",
+      "expectedSha256": "0BC71E45EE37D7B523063A59E5060610048FBE7DAC227D82CB24B4A8186FDB2A",
+      "actualSha256": "0BC71E45EE37D7B523063A59E5060610048FBE7DAC227D82CB24B4A8186FDB2A",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 1214.0909
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-manual-candidate.firmament",
+      "sourceSha256": "CFBA24141D578B8049C61FA491B5978D40E873DA149373D287F5DB5488F40056",
+      "expectedSha256": "1B32DB8AFF518EAA86ADBEC212047641B48C5CCD9F57736F9C807D897AFA70B2",
+      "actualSha256": "1B32DB8AFF518EAA86ADBEC212047641B48C5CCD9F57736F9C807D897AFA70B2",
+      "exitCode": 0,
+      "byteIdentical": true,
+      "commandMilliseconds": 919.1661
+    }
+  ],
+  "scopedDogfood": [
+    {
+      "source": "fixtures/Regression/FrontendX2/scoped-drill.firmament",
+      "sourceSha256": "E9E7611398FA7A12504F3713A405D2AC931D244659D3C470B4E4A770EF2D23EB",
+      "validationExit": 0,
+      "buildExit": 0,
+      "artifactExists": true,
+      "expectedAccepted": true
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/pattern-symbol-collision.firmament",
+      "sourceSha256": "526AEB3BA9CC466B1686C484C9B45A310048ABE8F05A57A4025D5F99491FD0E3",
+      "validationExit": 0,
+      "buildExit": 0,
+      "artifactExists": true,
+      "expectedAccepted": true
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/sibling-feature.invalid.firmament",
+      "sourceSha256": "77F9E13949E472FDDE6F2229C5E55281698DDE69B71C72C5BB7F5F3182D7E26C",
+      "validationExit": 1,
+      "buildExit": 1,
+      "artifactExists": false,
+      "expectedAccepted": false
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/template-shadowing.firmament",
+      "sourceSha256": "4B9BCF681615E0B92CACC2B803885BCF638C0629AEFECF078E582EA5DD033E14",
+      "validationExit": 0,
+      "buildExit": 0,
+      "artifactExists": true,
+      "expectedAccepted": true
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/sibling-template.invalid.firmament",
+      "sourceSha256": "8C50B7AE867AF1BFAEA76F6ED05FD82752ECF388350F134DF30C6891BB15CA37",
+      "validationExit": 1,
+      "buildExit": 1,
+      "artifactExists": false,
+      "expectedAccepted": false
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/record-shadowing.firmament",
+      "sourceSha256": "F2A221AF5F2AA873758CD2299215F9DA4E40CA2FD578DCC08618A4C36A9B4C9D",
+      "validationExit": 0,
+      "buildExit": 0,
+      "artifactExists": true,
+      "expectedAccepted": true
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/scoped-record-pmi.firmament",
+      "sourceSha256": "11AF24E14B595F714939CB389E9AD82207EADEE68BE28E4035E4CC12F13FDDA2",
+      "validationExit": 0,
+      "buildExit": 0,
+      "artifactExists": true,
+      "expectedAccepted": true
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/scoped-table.firmament",
+      "sourceSha256": "099403730BB31221D936BA23842FE5709416791A649B729C9603EB11815852D3",
+      "validationExit": 0,
+      "buildExit": 0,
+      "artifactExists": true,
+      "expectedAccepted": true
+    },
+    {
+      "source": "fixtures/Regression/FrontendX2/sibling-data.invalid.firmament",
+      "sourceSha256": "2584C8449E345361DCBDE8D8DD1BEB1907602E3E3767A9F6B1A2C8B731F0FA0B",
+      "validationExit": 1,
+      "buildExit": 1,
+      "artifactExists": false,
+      "expectedAccepted": false
+    }
+  ],
+  "codeSourceHashes": {
+    "Aetheris.Kernel.Core/Brep/Features/CombinedTopBoundaryEdgeFinishThroughHoleBuilder.cs": "39e1a152138493d05894fbb707d887341c14b0e2d13bbc8c266ba79f09b34847",
+    "Aetheris.Kernel.Firmament/FirmamentBuildAndExport.cs": "bbdb68e4203cbda919e63bc2e733fd1f7740bbf851a9d3ab5bbc457f2e7b57cb",
+    "Aetheris.Kernel.Core.Tests/Brep/Features/TopBoundaryFilletThroughHoleTests.cs": "a1ca7a970c34aec7dd57349ea4fec5ed80375fcf7a5055665a1becd0b806ee94",
+    "Aetheris.Kernel.Firmament.Tests/CombinedFilletHoleTests.cs": "bca99ea19311a2f28d07eefde0302c860573b12fcc9ee33c06b2ae0f3112ddf2",
+    "Aetheris.CLI.Tests/FirmamentFrontendX0CliTests.cs": "fba280aac280391c558fb290d6187ce882ff628db5908b4649111a90d40eabe7",
+    "Aetheris.Kernel.Firmament.Tests/FirmamentFrontendX0Tests.cs": "632cf2966c6f8fd517ac796097a230410a1cb8d1940bd4cb7395d8977f927855",
+    "fixtures/Regression/FrontendX4/expected.json": "cfd253a7ec0b0df1052f96983bafd3549824726e5fb7f8748e0b905d0b8015dd",
+    "fixtures/Regression/FrontendX4/cases/d05-fillet-with-hole.firmament": "de61ee6716ff2805f9358a65bb3dd64a9b13c000f4354301d69813682dd36c1f",
+    "fixtures/Regression/Fillet/top-boundary-with-counterbore.firmament": "223b8743879c82d624b86a15847d9a80140030d0ab863445a6099382e2e7359b",
+    "fixtures/Regression/FrontendX0/combined-fillet-hole-intersection.firmament": "25a08b5ca7730a1b960fc16b55c442b706be79dc45e6d0494fe22200ecc3c206"
+  },
+  "assemblyHashes": {
+    "Aetheris.Kernel.Core/bin/Release/net10.0/Aetheris.Kernel.Core.dll": "b1e90ceece4381c85a4dfd56959e89996564376e977825ea4ec88d07aff56720",
+    "Aetheris.Kernel.Firmament/bin/Release/net10.0/Aetheris.Kernel.Firmament.dll": "d5caf018ab940432face6167c3591c46ea1a1a255d59e2923b35d6dbc8f42c0b",
+    "Aetheris.CLI/bin/Release/net10.0/aetheris.dll": "b518925eade047b11ee04d5e9e96df9f2f7fe14838e0f18d49b17a5721b87cca"
+  },
+  "limits": [
+    "Other combined selectors",
+    "Blind holes and countersinks in this combination",
+    "Regions and mixed finishes",
+    "Intersecting or tangent hole/finish footprints",
+    "General feature-history composition"
+  ],
+  "volumeEvidencePolicy": "Analytic plan volume is checked by independent section integration and exact surface/curve support tests. Existing verify triangulation is only a numerical regression fingerprint; it is not promoted to exact volume authority."
+}

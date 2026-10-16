@@ -29,7 +29,7 @@ public sealed class FirmamentFrontendX0Tests
     }
 
     [Theory]
-    [InlineData("combined-fillet-hole")]
+    [InlineData("combined-fillet-hole-intersection")]
     [InlineData("unresolved-semantic-source")]
     [InlineData("edgefinish-generic-variant")]
     public void BuildAdmission_RejectsParsedButUnbuildablePrograms(string fixture)

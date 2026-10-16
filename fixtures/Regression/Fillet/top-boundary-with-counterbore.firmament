@@ -1,0 +1,16 @@
+Model RoundedMount {
+  units: mm
+  Box Body { size: [60mm, 40mm, 10mm] }
+  Modify Body {
+    Hole<Shaft> Pilot { on: +Z; center: [-12mm, 0mm]; diameter: 6mm; end: ThroughAll }
+    Hole<Counterbore> Fastener {
+      on: +Z
+      center: [12mm, 0mm]
+      diameter: 4mm
+      end: ThroughAll
+      counterboreDiameter: 8mm
+      counterboreDepth: 3mm
+    }
+    EdgeFinish<Fillet> TopEdge { face: +Z; target: Boundary; radius: 1mm }
+  }
+}

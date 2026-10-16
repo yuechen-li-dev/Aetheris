@@ -38,6 +38,17 @@ public static class ProfileAuthoringParser
     }
 
     /// <summary>Resolves one named Profile without requiring an Extrude consumer.</summary>
+    internal static FirmamentV2ValidationDiagnostic? LocateDiagnostic(string source, string diagnostic)
+    {
+        var parts = diagnostic.Split(':');
+        if (parts.Length < 3 || parts[0] != SegmentEndpointMustReferenceNamedPoint) return null;
+        var syntax = FirmamentSyntaxParser.Parse(FirmamentSourceSpelling.Normalize(source)).Document;
+        var segments = FirmamentSyntaxTraversal.Declarations(syntax).Where(d => d.Type.Name.Text == "Segment" && d.Name?.Text == parts[1]).ToArray();
+        if (segments.Length != 1) return null;
+        return new(parts[0], "fatal", $"Segment '{parts[1]}' endpoint '{parts[2]}' must reference a named Point2; declare the point and use its name.")
+            { SourceSpan = segments[0].Span, Target = parts[1], Stage = "Profile binding", IsOriginalSource = true };
+    }
+
     public static ResolvedProfile2D? ResolveNamedProfile(string source, string profileName, out IReadOnlyList<string> reportedDiagnostics)
         => ResolveNamedProfileCore(source, profileName, new(StringComparer.Ordinal), out reportedDiagnostics);
 

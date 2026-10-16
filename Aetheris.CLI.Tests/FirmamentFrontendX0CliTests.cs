@@ -12,7 +12,7 @@ public sealed class FirmamentFrontendX0CliTests
     [InlineData("unknown-compose-statement")]
     [InlineData("unknown-boundary-field")]
     [InlineData("unsupported-xz-layout")]
-    [InlineData("combined-fillet-hole")]
+    [InlineData("combined-fillet-hole-intersection")]
     [InlineData("unresolved-semantic-source")]
     [InlineData("edgefinish-generic-variant")]
     public void ValidateAndBuild_RejectSameSource_WithStructuredDiagnostics(string fixture)
@@ -44,6 +44,26 @@ public sealed class FirmamentFrontendX0CliTests
         Assert.Contains("parsed-not-built", stdout.ToString(), StringComparison.Ordinal);
         Assert.Contains("UnifiedMechanical", stdout.ToString(), StringComparison.Ordinal);
         Assert.Contains("ParsedNotBuilt", stdout.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DisjointFilletAndHole_ValidateAndBuildBothAdmitTheOriginalSource()
+    {
+        var path = Fixture("combined-fillet-hole");
+        var directory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+            "../../../../artifacts/local/fillet-hole-cli-tests", Guid.NewGuid().ToString("N")));
+        Directory.CreateDirectory(directory);
+        var output = Path.Combine(directory, "combined.step");
+        var validation = new StringWriter();
+        var build = new StringWriter();
+        Assert.Equal(0, CliRunner.Run(["validate", path, "--json"], validation, new StringWriter()));
+        Assert.Equal(0, CliRunner.Run(["build", path, "--output", output, "--json"], build, new StringWriter()));
+        using var v = JsonDocument.Parse(validation.ToString());
+        using var b = JsonDocument.Parse(build.ToString());
+        Assert.Equal("valid", v.RootElement.GetProperty("firmamentV2Validation").GetProperty("status").GetString());
+        Assert.Equal("Built", v.RootElement.GetProperty("firmamentV2Validation").GetProperty("validationLevel").GetString());
+        Assert.True(b.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(File.Exists(output));
     }
 
     [Fact]

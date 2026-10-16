@@ -36,8 +36,11 @@ Each case goes through both `validate --json` and `build`.
    of the same constructs.
 3. **`--record` rewrites the recorded geometry.** Use it only when a geometry change is intended
    and explained in the commit, as the M4 report did for its hash changes.
-4. **No new kernel capability is in scope.** Fillet plus Hole stays rejected (#24). Only its
-   diagnostic moves.
+4. **Original X4 scope was diagnostic-only for kernel gaps.** The explicitly authorized
+   2026-10-15 follow-up now admits d05 (disjoint Box top-boundary Fillet + ThroughAll Hole).
+   Its original source is unchanged; only that manifest expectation gains a geometry baseline.
+   Touching/intersecting holes and unsupported selectors remain rejection tests. See the
+   [capability report](../../../docs/release/FIRMAMENT-FILLET-HOLE.md).
 
 ## The chimera
 
@@ -82,7 +85,7 @@ removes about 31 mm³.
 | c05 | fix | X2 #21 | F19 | "only +Z" for `On: Top` | `Top` in a Feature hole |
 | c06 | fix | X3 #10 | F23 | `static-set-entry-type-mismatch` | `[x, y]` entries in `Set<Point2>` |
 | d01 | fix | X3 #11 | F22 | `SemanticSourceNotFound` at (1,1), no message | `EdgeFinish<Chamfer>`, keeping `Kind:` as an alias |
-| d05 | diagnostic | #24 | F5 | `CombinedFeatureSelectionLost` at (1,1) | Same code, at the EdgeFinish line (6) |
+| d05 | capability follow-up | #24 | F5 | Originally `CombinedFeatureSelectionLost` at (1,1) | Now builds the original source: 11 faces, 23 edges, 14 vertices; 4 fillet cylinders plus the hole wall |
 | e01 | fix | X3 #13 | F21 | `pocket-missing-required-field` | `Pocket … End: ThroughAll` = `Remove … Role: ThroughCut` |
 | e02 | diagnostic | X3 #13 | F21 | correct at (6,5) | Keep it |
 | f01 | diagnostic | X0 #5 | F9 | correct code at line 9, after `ConceptPathProfileNotAdmittedByCompose` noise | Keep it; drop the noise |
@@ -108,3 +111,23 @@ removes about 31 mm³.
   heavier than it needs to be. This is not part of acceptance.
 - **Binding-level diagnostics still default to (1,1) or the Model header** (a05, a06, c03, c04,
   d01, d05, e01, f02). Syntax-level ones already carry exact spans.
+
+## Repair qualification (2026-10-15)
+
+See [the repair and qualification report](../../../docs/release/FIRMAMENT-FRONTEND-X4.md).
+The `Today` column above preserves Claude's original observations. The a01
+design specimen now uses the decided `Static` spelling, as its reference and
+the chimera already did. Other specimens and geometry goldens are unchanged.
+The runner's checks and tolerances are unchanged; generated STEP and verify
+evidence now default to ignored `artifacts/local/frontend-x4/` rather than the
+system temporary directory. `--record` was not used for the repair.
+
+
+## Fillet + Hole capability follow-up (2026-10-15)
+
+The user authorized the engineering capability after X4 qualification. `d05` now
+expects acceptance, with unchanged source. Every other recorded geometry value
+remains unchanged. The numerical `verify` volume is a deterministic regression
+fingerprint, not analytic volume authority. The combined plan's analytic volume
+is checked independently against section integration and its emitted cylinder /
+ellipse supports are checked through AP242 preflight and round trip.

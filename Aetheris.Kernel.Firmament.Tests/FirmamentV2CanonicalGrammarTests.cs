@@ -161,13 +161,16 @@ public sealed class FirmamentV2CanonicalGrammarTests
     }
 
     [Fact]
-    public void CanonicalPoint2_RejectsTheLegacyBracketLiteralWithASpecificDiagnostic()
+    public void CanonicalPoint2_AdmitsBracketLiteralWithIdenticalEngineeringGeometry()
     {
-        var source = File.ReadAllText(Fixture("through-hole.firmament")).Replace("Point2(0mm, 0mm)", "[0mm, 0mm]", StringComparison.Ordinal);
-        var parsed = FirmamentV2Parser.Parse(source);
-
-        Assert.False(parsed.IsSuccess);
-        Assert.Contains(FirmamentV2Parser.CanonicalPoint2Invalid, parsed.Diagnostics);
+        var original = File.ReadAllText(Fixture("through-hole.firmament"));
+        var source = original.Replace("Point2(0mm, 0mm)", "[0mm, 0mm]", StringComparison.Ordinal);
+        Assert.True(FirmamentV2Parser.Parse(source).IsSuccess);
+        var before = FirmamentBuildAndExport.CompileSource(original);
+        var after = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(before.IsSuccess);
+        Assert.True(after.IsSuccess);
+        Assert.Equal(before.Value.StepText, after.Value.StepText);
     }
 
     private static string Fixture(string name)

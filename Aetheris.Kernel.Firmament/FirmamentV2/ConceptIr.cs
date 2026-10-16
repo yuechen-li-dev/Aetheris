@@ -280,6 +280,8 @@ internal static class ConceptIrResolver
         {
             size = FirmamentSyntaxValues.Vector(sizeExpression, "mm", out var values) && values.Length == 3 && values.All(v => v > 0) ? values : null;
             boundsProvenance = $"{materialized.Groups["name"].Value}.{box.Groups["name"].Value}.Size";
+            if (size is not null) resolvedBounds = new("materialized:" + boundsProvenance,
+                new(-size[0] / 2, -size[1] / 2, 0), new(size[0] / 2, size[1] / 2, size[2]), boundsProvenance);
         }
 
         if (size is null || box.Groups["name"].Value != modify.Groups["target"].Value)
@@ -441,7 +443,7 @@ internal static class ConceptIrResolver
             }
             var faceAxis = on switch
             {
-                "face(+Z)" => "+Z",
+                "face(+Z)" or "Top" or "+Z" => "+Z",
                 _ when string.Equals(on, boxName + ".Top", StringComparison.Ordinal) => "+Z",
                 _ => ResolvePlaneAxis(on, instances, diagnostics)
             };
@@ -533,14 +535,17 @@ internal static class ConceptIrResolver
         IReadOnlyList<FirmamentV2SemanticHoleDecl> holes,
         List<string> diagnostics)
     {
-        var expose = Regex.Match(body, @"\bExpose\s*\{(?<body>.*?)\}", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-        if (!expose.Success) return [];
+        var expose = FirmamentSyntaxParser.Parse(body).Document.Statements.OfType<DeclarationSyntax>()
+            .FirstOrDefault(d => d.Type.Name.Text == "Expose");
+        if (expose?.Body is null) return [];
         var result = new List<ConceptIrSemanticMember>();
         var names = new HashSet<string>(StringComparer.Ordinal);
-        var fields = Regex.Matches(expose.Groups["body"].Value, @"(?m)^\s*(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<value>[^\r\n}]+?)\s*$", RegexOptions.CultureInvariant).Cast<Match>().ToArray();
-        var fieldNames = fields.Select(f => f.Groups["name"].Value).ToHashSet(StringComparer.Ordinal);
+        var fields = expose.Body.Statements.OfType<FieldSyntax>().ToArray();
+        foreach (var statement in expose.Body.Statements.Where(s => s is not FieldSyntax))
+            diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:Expose:{(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}");
+        var fieldNames = fields.Select(f => f.Name.Text).ToHashSet(StringComparer.Ordinal);
         var dependencies = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var field in fields) dependencies.TryAdd(field.Groups["name"].Value, field.Groups["value"].Value.Trim());
+        foreach (var field in fields) dependencies.TryAdd(field.Name.Text, FirmamentSyntaxWriter.Expression(field.Value));
         var cycleMembers = new HashSet<string>(StringComparer.Ordinal);
         foreach (var start in dependencies.Keys)
         {
@@ -550,10 +555,10 @@ internal static class ConceptIrResolver
         }
         foreach (var field in fields)
         {
-            var name = field.Groups["name"].Value; var reference = field.Groups["value"].Value.Trim();
+            var name = field.Name.Text; var reference = FirmamentSyntaxWriter.Expression(field.Value);
             if (!names.Add(name)) { diagnostics.Add($"{DuplicateExposedMember}:{name}"); continue; }
             if (cycleMembers.Contains(name)) { diagnostics.Add($"{CircularExposureDependency}:{name}->{reference}"); continue; }
-            var span = new FirmamentV2SourceSpan(bodyOffset + expose.Groups["body"].Index + field.Index, field.Length);
+            var span = new FirmamentV2SourceSpan(bodyOffset + field.Span.Start, field.Span.Length);
             ConceptIrValue? value = null; string? semanticReference = null; ConceptIrSemanticPhase phase; ConceptIrMaterializationCategory category;
             var dotted = Regex.Match(reference, @"^(?<instance>[A-Za-z_][A-Za-z0-9_]*)\.(?<member>[A-Za-z_][A-Za-z0-9_]*)$", RegexOptions.CultureInvariant);
             if (dotted.Success && instances.TryGetValue(dotted.Groups["instance"].Value, out var instance) && instance.Members.TryGetValue(dotted.Groups["member"].Value, out value))

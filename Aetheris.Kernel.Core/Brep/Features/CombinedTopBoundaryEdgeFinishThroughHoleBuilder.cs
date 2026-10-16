@@ -9,11 +9,11 @@ namespace Aetheris.Kernel.Core.Brep.Features;
 
 /// <summary>
 /// Bounded materializer for the composition of the existing rectangular top-boundary
-/// chamfer family and disjoint, world-Z through-hole cylinders.  It is deliberately
+/// chamfer or constant-radius fillet family and disjoint, world-Z through-hole cylinders.  It is deliberately
 /// a final-plan consumer: callers must have already admitted the host, hole, and
 /// semantic finish selections.  It performs no topology search or feature recovery.
 /// </summary>
-public sealed record CombinedTopBoundaryChamferThroughHole(
+public sealed record CombinedTopBoundaryEdgeFinishThroughHole(
     string FeatureId,
     double CenterX,
     double CenterY,
@@ -25,7 +25,9 @@ public sealed record CombinedTopBoundaryChamferThroughHole(
     public double EntryRadius => CounterboreRadius ?? Radius;
 }
 
-public sealed record CombinedTopBoundaryChamferThroughHolePlan(
+public enum TopBoundaryEdgeFinishKind { Chamfer, Fillet }
+
+public sealed record CombinedTopBoundaryEdgeFinishThroughHolePlan(
     string PlanId,
     string? ParentHostPlanId,
     IReadOnlyList<string> AppliedFeatureIds,
@@ -33,32 +35,43 @@ public sealed record CombinedTopBoundaryChamferThroughHolePlan(
     double Depth,
     double ZMin,
     double ZMax,
-    double ChamferDistance,
-    IReadOnlyList<CombinedTopBoundaryChamferThroughHole> Holes)
+    double FinishSize,
+    IReadOnlyList<CombinedTopBoundaryEdgeFinishThroughHole> Holes,
+    TopBoundaryEdgeFinishKind FinishKind = TopBoundaryEdgeFinishKind.Chamfer)
 {
     public double AnalyticVolume
     {
         get
         {
             var height = ZMax - ZMin;
-            var lowerHeight = height - ChamferDistance;
+            var lowerHeight = height - FinishSize;
             var bottomArea = Width * Depth;
-            var topArea = (Width - (2d * ChamferDistance)) * (Depth - (2d * ChamferDistance));
-            var chamferedHost = (bottomArea * lowerHeight) + (ChamferDistance / 3d * (bottomArea + topArea + System.Math.Sqrt(bottomArea * topArea)));
+            var topArea = (Width - (2d * FinishSize)) * (Depth - (2d * FinishSize));
+            var finishedHost = (bottomArea * lowerHeight) + (FinishSize / 3d * (bottomArea + topArea + System.Math.Sqrt(bottomArea * topArea)));
+            if (FinishKind == TopBoundaryEdgeFinishKind.Fillet)
+            {
+                // Integrate the retained rectangle (W-2s)(D-2s), where
+                // s(z)=r-sqrt(r*r-z*z) over the top r of the stock.
+                // The four equal-radius cylinder junctions use exact ellipse seams.
+                var r = FinishSize;
+                var section = r * r * (1d - System.Math.PI / 4d);
+                var overlap = r * r * r * (5d / 3d - System.Math.PI / 2d);
+                finishedHost = bottomArea * height - 2d * (Width + Depth) * section + 4d * overlap;
+            }
             var removed = Holes.Sum(h => System.Math.PI * h.Radius * h.Radius * height
                 + (h.CounterboreRadius is { } reliefRadius && h.CounterboreDepth is { } reliefDepth
                     ? System.Math.PI * (reliefRadius * reliefRadius - h.Radius * h.Radius) * reliefDepth
                     : 0d));
-            return chamferedHost - removed;
+            return finishedHost - removed;
         }
     }
 }
 
-public static class CombinedTopBoundaryChamferThroughHoleBuilder
+public static class CombinedTopBoundaryEdgeFinishThroughHoleBuilder
 {
     private const double Tol = 1e-9;
 
-    public static KernelResult<BrepBody> Build(CombinedTopBoundaryChamferThroughHolePlan plan)
+    public static KernelResult<BrepBody> Build(CombinedTopBoundaryEdgeFinishThroughHolePlan plan)
     {
         ArgumentNullException.ThrowIfNull(plan);
         var validation = Validate(plan);
@@ -68,13 +81,13 @@ public static class CombinedTopBoundaryChamferThroughHoleBuilder
         }
 
         var z0 = plan.ZMin;
-        var z1 = plan.ZMax - plan.ChamferDistance;
+        var z1 = plan.ZMax - plan.FinishSize;
         var z2 = plan.ZMax;
         var x0 = -plan.Width / 2d;
         var x1 = plan.Width / 2d;
         var y0 = -plan.Depth / 2d;
         var y1 = plan.Depth / 2d;
-        var d = plan.ChamferDistance;
+        var d = plan.FinishSize;
         var bottom = new[] { new Point3D(x0, y0, z0), new Point3D(x1, y0, z0), new Point3D(x1, y1, z0), new Point3D(x0, y1, z0) };
         var shoulder = new[] { new Point3D(x0, y0, z1), new Point3D(x1, y0, z1), new Point3D(x1, y1, z1), new Point3D(x0, y1, z1) };
         var top = new[] { new Point3D(x0 + d, y0 + d, z2), new Point3D(x1 - d, y0 + d, z2), new Point3D(x1 - d, y1 - d, z2), new Point3D(x0 + d, y1 - d, z2) };
@@ -82,7 +95,7 @@ public static class CombinedTopBoundaryChamferThroughHoleBuilder
     }
 
     private static KernelResult<BrepBody> BuildWithHoleTopology(
-        CombinedTopBoundaryChamferThroughHolePlan plan,
+        CombinedTopBoundaryEdgeFinishThroughHolePlan plan,
         Point3D[] bottom,
         Point3D[] shoulder,
         Point3D[] top)
@@ -93,7 +106,7 @@ public static class CombinedTopBoundaryChamferThroughHoleBuilder
         var shoulderEdges = Ring(b, vertices, 4);
         var topEdges = Ring(b, vertices, 8);
         var lowerEdges = Enumerable.Range(0, 4).Select(i => b.AddEdge(vertices[i], vertices[4 + i])).ToArray();
-        var chamferEdges = Enumerable.Range(0, 4).Select(i => b.AddEdge(vertices[4 + i], vertices[8 + i])).ToArray();
+        var finishEdges = Enumerable.Range(0, 4).Select(i => b.AddEdge(vertices[4 + i], vertices[8 + i])).ToArray();
         var holes = plan.Holes.Select(h =>
         {
             // The periodic circle and its longitudinal seam share endpoint identities.
@@ -120,12 +133,12 @@ public static class CombinedTopBoundaryChamferThroughHoleBuilder
         var bottomFace = b.AddFace(bottomLoops);
         var topFace = b.AddFace(topLoops);
         var lowerFaces = new FaceId[4];
-        var chamferFaces = new FaceId[4];
+        var finishFaces = new FaceId[4];
         for (var i = 0; i < 4; i++)
         {
             var next = (i + 1) % 4;
             lowerFaces[i] = b.AddFace([AddLoop(b, [Forward(bottomEdges[i]), Forward(lowerEdges[next]), Reversed(shoulderEdges[i]), Reversed(lowerEdges[i])])]);
-            chamferFaces[i] = b.AddFace([AddLoop(b, [Forward(shoulderEdges[i]), Forward(chamferEdges[next]), Reversed(topEdges[i]), Reversed(chamferEdges[i])])]);
+            finishFaces[i] = b.AddFace([AddLoop(b, [Forward(shoulderEdges[i]), Forward(finishEdges[next]), Reversed(topEdges[i]), Reversed(finishEdges[i])])]);
         }
         var holeFaces = new List<(HoleTopology Hole, FaceId Face, double Radius, double ZMin, double ZMax)>();
         var shoulderFaces = new List<(HoleTopology Hole, FaceId Face)>();
@@ -145,7 +158,7 @@ public static class CombinedTopBoundaryChamferThroughHoleBuilder
             shoulderFaces.Add((hole,shoulderFace));
             holeFaces.Add((hole,shaftFace,hole.Hole.Radius,plan.ZMin,shoulderZ));
         }
-        var shell = b.AddShell([bottomFace, topFace, .. lowerFaces, .. chamferFaces, .. holeFaces.Select(x=>x.Face), .. shoulderFaces.Select(x=>x.Face)]);
+        var shell = b.AddShell([bottomFace, topFace, .. lowerFaces, .. finishFaces, .. holeFaces.Select(x=>x.Face), .. shoulderFaces.Select(x=>x.Face)]);
         b.AddBody([shell]);
 
         var geometry = new BrepGeometryStore();
@@ -153,14 +166,30 @@ public static class CombinedTopBoundaryChamferThroughHoleBuilder
         var points = bottom.Concat(shoulder).Concat(top).ToArray();
         var vertexPoints = vertices.Select((id, index) => new KeyValuePair<VertexId, Point3D>(id, points[index])).ToDictionary(x => x.Key, x => x.Value);
         var edgeCurve = 1;
-        foreach (var edge in bottomEdges.Concat(shoulderEdges).Concat(topEdges).Concat(lowerEdges).Concat(chamferEdges))
+        foreach (var edge in bottomEdges.Concat(shoulderEdges).Concat(topEdges).Concat(lowerEdges).Concat(finishEdges))
         {
-            var start = vertexPoints[edge == default ? vertices[0] : b.Model.Edges.Single(e => e.Id == edge).StartVertexId];
+            var start = vertexPoints[b.Model.Edges.Single(e => e.Id == edge).StartVertexId];
             var end = vertexPoints[b.Model.Edges.Single(e => e.Id == edge).EndVertexId];
             var vector = end - start;
             var id = new CurveGeometryId(edgeCurve++);
-            geometry.AddCurve(id, CurveGeometry.FromLine(new Line3Curve(start, Direction3D.Create(vector))));
-            bindings.AddEdgeBinding(new EdgeGeometryBinding(edge, id, new ParameterInterval(0d, vector.Length)));
+            var corner = Array.IndexOf(finishEdges, edge);
+            if (plan.FinishKind == TopBoundaryEdgeFinishKind.Fillet && corner >= 0)
+            {
+                var r = plan.FinishSize;
+                var sx = System.Math.Sign(shoulder[corner].X);
+                var sy = System.Math.Sign(shoulder[corner].Y);
+                var center = new Point3D(top[corner].X, top[corner].Y, shoulder[corner].Z);
+                var diagonal = Direction3D.Create(new Vector3D(sx, sy, 0));
+                // normal x diagonal = +Z, so [0,pi/2] runs shoulder -> top.
+                var normal = Direction3D.Create(new Vector3D(sy, -sx, 0));
+                geometry.AddCurve(id, CurveGeometry.FromEllipse(new Ellipse3Curve(center, normal, r * System.Math.Sqrt(2d), r, diagonal)));
+                bindings.AddEdgeBinding(new EdgeGeometryBinding(edge, id, new ParameterInterval(0d, System.Math.PI / 2d)));
+            }
+            else
+            {
+                geometry.AddCurve(id, CurveGeometry.FromLine(new Line3Curve(start, Direction3D.Create(vector))));
+                bindings.AddEdgeBinding(new EdgeGeometryBinding(edge, id, new ParameterInterval(0d, vector.Length)));
+            }
         }
 
         var zAxis = Direction3D.Create(new Vector3D(0d, 0d, 1d));
@@ -172,7 +201,17 @@ public static class CombinedTopBoundaryChamferThroughHoleBuilder
         {
             var next = (i + 1) % 4;
             BindPlane(lowerFaces[i], bottom[i], bottom[next] - bottom[i], shoulder[i] - bottom[i]);
-            BindPlane(chamferFaces[i], shoulder[i], shoulder[next] - shoulder[i], top[i] - shoulder[i]);
+            if (plan.FinishKind == TopBoundaryEdgeFinishKind.Chamfer)
+                BindPlane(finishFaces[i], shoulder[i], shoulder[next] - shoulder[i], top[i] - shoulder[i]);
+            else
+            {
+                var tangent = Direction3D.Create(shoulder[next] - shoulder[i]);
+                var outward = Direction3D.Create(tangent.ToVector().Cross(new Vector3D(0, 0, 1)));
+                var center = new Point3D(top[i].X, top[i].Y, shoulder[i].Z);
+                var id = new SurfaceGeometryId(surface++);
+                geometry.AddSurface(id, SurfaceGeometry.FromCylinder(new CylinderSurface(center, tangent, plan.FinishSize, outward)));
+                bindings.AddFaceBinding(new FaceGeometryBinding(finishFaces[i], id));
+            }
         }
         foreach (var hole in holes)
         {
@@ -185,7 +224,7 @@ public static class CombinedTopBoundaryChamferThroughHoleBuilder
             geometry.AddCurve(seamCurve, CurveGeometry.FromLine(new Line3Curve(new Point3D(hole.Hole.CenterX + hole.Hole.EntryRadius, hole.Hole.CenterY, upperZMin), zAxis)));
             bindings.AddEdgeBinding(new EdgeGeometryBinding(hole.TopCircle, topCurve, new ParameterInterval(0d, 2d * System.Math.PI)));
             bindings.AddEdgeBinding(new EdgeGeometryBinding(hole.BottomCircle, bottomCurve, new ParameterInterval(0d, 2d * System.Math.PI)));
-            bindings.AddEdgeBinding(new EdgeGeometryBinding(hole.UpperSeam, seamCurve, new ParameterInterval(0d, plan.ZMax - upperZMin)));
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(hole.UpperSeam, seamCurve, new ParameterInterval(0d, plan.ZMax - upperZMin), OrientedEdgeSense: false));
             vertexPoints[hole.SeamTopVertex] = new Point3D(hole.Hole.CenterX + hole.Hole.EntryRadius, hole.Hole.CenterY, plan.ZMax);
             vertexPoints[hole.SeamBottomVertex] = new Point3D(hole.Hole.CenterX + hole.Hole.Radius, hole.Hole.CenterY, plan.ZMin);
             if (hole.Hole.IsCounterbore)
@@ -197,7 +236,7 @@ public static class CombinedTopBoundaryChamferThroughHoleBuilder
                 geometry.AddCurve(lowerSeamCurve,CurveGeometry.FromLine(new Line3Curve(new(hole.Hole.CenterX+hole.Hole.Radius,hole.Hole.CenterY,plan.ZMin),zAxis)));
                 bindings.AddEdgeBinding(new(hole.ShoulderOuterCircle!.Value,outerCurve,new(0,2d*System.Math.PI)));
                 bindings.AddEdgeBinding(new(hole.ShoulderInnerCircle!.Value,innerCurve,new(0,2d*System.Math.PI)));
-                bindings.AddEdgeBinding(new(hole.LowerSeam!.Value,lowerSeamCurve,new(0,shoulderZ-plan.ZMin)));
+                bindings.AddEdgeBinding(new(hole.LowerSeam!.Value,lowerSeamCurve,new(0,shoulderZ-plan.ZMin), OrientedEdgeSense: false));
                 vertexPoints[hole.ShoulderOuterVertex!.Value]=new(hole.Hole.CenterX+hole.Hole.CounterboreRadius.Value,hole.Hole.CenterY,shoulderZ);
                 vertexPoints[hole.ShoulderInnerVertex!.Value]=new(hole.Hole.CenterX+hole.Hole.Radius,hole.Hole.CenterY,shoulderZ);
             }
@@ -222,20 +261,23 @@ public static class CombinedTopBoundaryChamferThroughHoleBuilder
         }
     }
 
-    private static KernelResult<bool> Validate(CombinedTopBoundaryChamferThroughHolePlan plan)
+    private static KernelResult<bool> Validate(CombinedTopBoundaryEdgeFinishThroughHolePlan plan)
     {
-        if (!double.IsFinite(plan.Width) || !double.IsFinite(plan.Depth) || !double.IsFinite(plan.ZMin) || !double.IsFinite(plan.ZMax) || !double.IsFinite(plan.ChamferDistance)
-            || plan.Width <= Tol || plan.Depth <= Tol || plan.ZMax - plan.ZMin <= Tol || plan.ChamferDistance <= Tol
-            || 2d * plan.ChamferDistance >= plan.Width - Tol || 2d * plan.ChamferDistance >= plan.Depth - Tol || plan.ChamferDistance >= plan.ZMax - plan.ZMin - Tol)
-            return Failure("CombinedFeaturePlanChainInvalid: bounded top-boundary chamfer dimensions are invalid.");
+        if (!Enum.IsDefined(plan.FinishKind)) return Failure("CombinedFeaturePlanChainInvalid: unknown top-boundary finish kind.");
+        if (!double.IsFinite(plan.Width) || !double.IsFinite(plan.Depth) || !double.IsFinite(plan.ZMin) || !double.IsFinite(plan.ZMax) || !double.IsFinite(plan.FinishSize)
+            || plan.Width <= Tol || plan.Depth <= Tol || plan.ZMax - plan.ZMin <= Tol || plan.FinishSize <= Tol
+            || 2d * plan.FinishSize >= plan.Width - Tol || 2d * plan.FinishSize >= plan.Depth - Tol || plan.FinishSize >= plan.ZMax - plan.ZMin - Tol)
+            return Failure("CombinedFeaturePlanChainInvalid: bounded top-boundary finish size must be positive, smaller than the stock height and smaller than half its width and depth.");
         foreach (var hole in plan.Holes)
         {
+            if ((hole.CounterboreRadius is null) != (hole.CounterboreDepth is null))
+                return Failure($"CombinedFeaturePlanChainInvalid: counterbore '{hole.FeatureId}' requires both radius and depth.");
             if (!double.IsFinite(hole.CenterX) || !double.IsFinite(hole.CenterY) || !double.IsFinite(hole.Radius) || hole.Radius <= Tol)
                 return Failure($"CombinedFeaturePlanChainInvalid: hole '{hole.FeatureId}' has invalid cylinder data.");
-            if (hole.IsCounterbore && (hole.CounterboreRadius <= hole.Radius + Tol || hole.CounterboreDepth <= Tol || hole.CounterboreDepth >= plan.ZMax-plan.ZMin-Tol))
+            if (hole.IsCounterbore && (hole.CounterboreRadius is not { } cr || !double.IsFinite(cr) || hole.CounterboreDepth is not { } cd || !double.IsFinite(cd) || cr <= hole.Radius + Tol || cd <= Tol || hole.CounterboreDepth >= plan.ZMax-plan.ZMin-Tol))
                 return Failure($"CombinedFeaturePlanChainInvalid: counterbore '{hole.FeatureId}' has invalid relief dimensions.");
-            if (System.Math.Abs(hole.CenterX) + hole.EntryRadius >= plan.Width / 2d - plan.ChamferDistance - Tol || System.Math.Abs(hole.CenterY) + hole.EntryRadius >= plan.Depth / 2d - plan.ChamferDistance - Tol)
-                return Failure($"CombinedFeatureInteractionUnsupported: hole '{hole.FeatureId}' intersects or splits the selected outer top-boundary chamfer chain.");
+            if (System.Math.Abs(hole.CenterX) + hole.EntryRadius >= plan.Width / 2d - plan.FinishSize - Tol || System.Math.Abs(hole.CenterY) + hole.EntryRadius >= plan.Depth / 2d - plan.FinishSize - Tol)
+                return Failure($"CombinedFeatureInteractionUnsupported: hole '{hole.FeatureId}' intersects or splits the selected outer top-boundary finish band; move the hole inward or reduce its entry radius or the finish size.");
         }
         for (var i = 0; i < plan.Holes.Count; i++)
         for (var j = i + 1; j < plan.Holes.Count; j++)
@@ -246,7 +288,7 @@ public static class CombinedTopBoundaryChamferThroughHoleBuilder
         }
         return KernelResult<bool>.Success(true);
 
-        static KernelResult<bool> Failure(string message) => KernelResult<bool>.Failure([new Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic(Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "CombinedTopBoundaryChamferThroughHole")]);
+        static KernelResult<bool> Failure(string message) => KernelResult<bool>.Failure([new Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic(Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "CombinedTopBoundaryEdgeFinishThroughHole")]);
     }
 
     private static EdgeId[] Ring(TopologyBuilder builder, VertexId[] vertices, int offset) => Enumerable.Range(0, 4).Select(i => builder.AddEdge(vertices[offset + i], vertices[offset + ((i + 1) % 4)])).ToArray();
@@ -260,7 +302,7 @@ public static class CombinedTopBoundaryChamferThroughHoleBuilder
     private static Use Forward(EdgeId edge) => new(edge, false);
     private static Use Reversed(EdgeId edge) => new(edge, true);
     private readonly record struct Use(EdgeId Edge, bool Reversed);
-    private sealed record HoleTopology(CombinedTopBoundaryChamferThroughHole Hole, VertexId SeamTopVertex, VertexId SeamBottomVertex,
+    private sealed record HoleTopology(CombinedTopBoundaryEdgeFinishThroughHole Hole, VertexId SeamTopVertex, VertexId SeamBottomVertex,
         VertexId? ShoulderOuterVertex,VertexId? ShoulderInnerVertex,EdgeId TopCircle,EdgeId BottomCircle,
         EdgeId? ShoulderOuterCircle,EdgeId? ShoulderInnerCircle,EdgeId UpperSeam,EdgeId? LowerSeam);
 }

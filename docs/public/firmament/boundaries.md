@@ -55,7 +55,7 @@ Polygon2<Rhombus> Diamond { center: [0mm,0mm] diagonals: [50mm,32mm] }
 Polygon2<Parallelogram> Leaning { center: [0mm,0mm] base: 40mm height: 24mm shear: 10mm }
 Polygon2<Trapezoid> Tapered { center: [0mm,0mm] bottomWidth: 44mm topWidth: 28mm height: 24mm }
 Static vertices: Set<Point2> { A => Point2(0mm,0mm) B => Point2(30mm,0mm) C => Point2(20mm,20mm) D => Point2(0mm,15mm) }
-Polygon2<Explicit> Outline { vertices: Vertices }
+Polygon2<Explicit> Outline { vertices: vertices }
 RegularPolygon2<6> Hex { center: [0mm,0mm] acrossFlats: 32mm rotation: 30deg }
 ```
 
@@ -93,3 +93,11 @@ The fixed corner law is polynomial, inspired by a fourth-power superellipse; it 
 The existing Profile binder owns the resolved curves, and ordinary extrusion and SectionChain consume them as polynomial B-splines. No guide body is exported. [The SectionChain witness](../../../fixtures/Canonical/SectionChain/smooth-corner-sections.firmament) checks realized surface position, normals, and geometric curvature at every span and section join. Its straight extrusion has G2 side joins; its planar caps meet the sides with sharp edges. General `Continuity: G2` surface construction and plateau-to-body support matching remain separate work.
 
 Use a smooth boundary as the footprint of a [G2 planar plateau](plateaus.md) to blend a raised region into a planar base.
+
+`Polygon2 outline { points: [[0mm, 0mm], [30mm, 0mm], [20mm, 20mm], [0mm, 15mm]] }`
+is the inline explicit form. Both `Point2(x, y)` and `[x, y]` entries use Length
+expressions, including scoped Static arithmetic. Inline vertex identities are
+`Vertex0`, `Vertex1`, and so on; use a named Set when names must survive a reorder.
+The duplicate, area, self-intersection and explicit-rotation checks are shared.
+A Revolve may name this closed polygon directly as its `profile`; it is converted
+to the same closed Profile before the existing revolve binder runs.

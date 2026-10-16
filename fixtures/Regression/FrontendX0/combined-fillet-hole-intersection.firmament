@@ -1,0 +1,8 @@
+Model IntersectingFilletHole {
+    units: mm
+    Box Body { size: [40mm, 20mm, 6mm] }
+    Modify Body {
+        Hole<Shaft> Mount { on: +Z; center: Point2(17mm, 0mm); diameter: 4mm; end: ThroughAll }
+        EdgeFinish TopRound { face: +Z; target: Boundary; kind: Fillet; radius: 2mm }
+    }
+}

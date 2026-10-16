@@ -57,6 +57,7 @@ public static partial class Program
                 "languageComplete" => LanguageComplete(request),
                 "languageAnalyze" => LanguageAnalyze(request),
                 "languageOutline" => LanguageOutline(request),
+                "languageEdit" => LanguageEdit(request),
                 "languageHover" => LanguageHover(request),
                 "languageDefinition" => LanguageDefinition(request),
                 "languageFormat" => LanguageFormat(request),
@@ -150,6 +151,14 @@ public static partial class Program
             return FirmamentLanguageOutlineService.Outline(request.Source, name, request.SourceRevision);
         var documents = new Dictionary<string, string>(request.ProjectDocuments, StringComparer.Ordinal) { [name] = request.Source };
         return FirmamentLanguageOutlineService.Outline(new FirmamentProjectSnapshot(request.ProjectRoot ?? name, documents), name, request.SourceRevision);
+    }
+
+    private static object LanguageEdit(WebRequest request)
+    {
+        if (request.Source is null || string.IsNullOrWhiteSpace(request.SourceRevision) || request.Operations is not { Count: > 0 })
+            throw new WebRuntimeException("language-input-required", "languageEdit requires source, sourceRevision and operations.");
+        try { return FirmamentLanguageEditService.Apply(request.Source, request.SourceName ?? "model.firmament", request.SourceRevision, request.Operations); }
+        catch (FirmamentLanguageEditException error) { throw new WebRuntimeException(error.Code, error.Message); }
     }
 
     private static object? LanguageHover(WebRequest request)
@@ -260,7 +269,7 @@ public static partial class Program
         string? SourceRevision = null, int? Offset = null, string? ConstructSemanticId = null,
         string? FieldId = null, FirmamentProjectedValue? FieldValue = null, int? BuildRevision = null,
         bool Performance = false, IReadOnlyDictionary<string, string>? ProjectDocuments = null, string? ProjectRoot = null,
-        int? Bridge = null);
+        int? Bridge = null, IReadOnlyList<FirmamentLanguageEditOperation>? Operations = null);
 
     /// <summary>
     /// BUILD-PERF-M3 response bridge (request <c>bridge: 1</c>, sent by the SDK). Large numeric arrays

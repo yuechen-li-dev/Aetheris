@@ -64,6 +64,20 @@ other documents' top-level declarations and carry `toDocument`. Uses nothing
 answers are listed as `externals`. The outline is source structure, not
 admission: the build still decides whether a use is valid.
 
+`cad.language.edit(source, operations, { sourceName, sourceRevision })` applies
+structural edits addressed by outline ids and returns the edited `text`, the one
+replacement (`edit.start`, `edit.length`, `edit.replacement`) that turns the
+original into it, the outline id each operation left behind in `nodes`, and
+`warnings`. Operations are `setField` (replace a value or add the field),
+`removeField`, `insertDeclaration` (`parent`, a `declaration` spec, and `after`
+or `first`), `removeDeclaration` (warns about uses that stop resolving),
+`renameDeclaration` (renames every use in the document; uses in other project
+files are not renamed) and `moveDeclaration` (among its siblings). Each edit is
+a splice placed by the syntax tree, so comments and layout elsewhere are kept,
+and an edit whose result adds a syntax error is refused with an
+`edit-*` error code. Whether the edited model builds is still the compiler's
+decision.
+
 Production AOT preserves the semantic provenance record metadata used by the
 reflection JSON bridge. Package generation clears its owned AOT publish output
 before publishing, so obsolete fingerprints are not included in the tarball.

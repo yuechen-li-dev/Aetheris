@@ -40,6 +40,18 @@ export interface OutlineEdge { readonly from: string; readonly to: string; reado
 /** A name use no declaration answers: a builtin, a vocabulary word, or a declaration outside the given documents. */
 export interface OutlineExternal { readonly from: string; readonly name: string; readonly member: string | null; readonly kind: string; readonly via: string; readonly span: OutlineSpan }
 export interface LanguageOutline { readonly version: 'firmament-outline/1'; readonly document: string; readonly revision: string; readonly nodes: readonly OutlineNode[]; readonly edges: readonly OutlineEdge[]; readonly externals: readonly OutlineExternal[]; readonly diagnostics: readonly { readonly severity: string; readonly code: string; readonly message: string; readonly span: OutlineSpan | null }[] }
+/** A declaration to write: `Modifiers Kind<Variant> Name { Field: Value ... }`. Values are Firmament source text. */
+export interface DeclarationSpec { readonly kind: string; readonly variant?: string | null; readonly modifiers?: readonly string[] | null; readonly name?: string | null; readonly fields?: readonly { readonly name: string; readonly value: string }[] | null }
+/** One structural edit, addressed by outline node ids. Operations apply in order; each later one sees the ids the earlier ones produced. */
+export type LanguageEditOperation =
+  | { readonly kind: 'setField'; readonly node: string; readonly field: string; readonly value: string }
+  | { readonly kind: 'removeField'; readonly node: string; readonly field: string }
+  | { readonly kind: 'insertDeclaration'; readonly parent: string | null; readonly declaration: DeclarationSpec; readonly after?: string; readonly first?: boolean }
+  | { readonly kind: 'removeDeclaration'; readonly node: string }
+  | { readonly kind: 'renameDeclaration'; readonly node: string; readonly name: string }
+  | { readonly kind: 'moveDeclaration'; readonly node: string; readonly after?: string; readonly first?: boolean };
+/** The edited source and the single replacement `[start, start + length)` → `replacement` that produces it from the original. `nodes` holds the outline id each operation left behind (created, renamed or edited), in order; removals add none. */
+export interface LanguageEdit { readonly document: string; readonly revision: string; readonly text: string; readonly changed: boolean; readonly edit: { readonly start: number; readonly length: number; readonly replacement: string }; readonly nodes: readonly string[]; readonly warnings: readonly string[] }
 export interface LanguageHover { readonly document: string; readonly revision: string; readonly start: number; readonly length: number; readonly title: string; readonly description: string }
 export interface LanguageFormat { readonly document: string; readonly revision: string; readonly text: string; readonly changed: boolean }
 export interface SemanticFieldSchema { readonly id: string; readonly name: string; readonly kind: string; readonly unit: 'None' | 'Length' | 'Angle'; readonly required: boolean; readonly default: string | null; readonly choices: readonly string[]; readonly description: string | null; readonly sourceEditable: boolean }
@@ -57,7 +69,7 @@ export class Aetheris {
   static create(options?: AetherisOptions): Promise<Aetheris>;
   readonly runtimeInfo: RuntimeInfo;
   readonly workerTiming: WorkerTiming | null;
-  readonly language: { complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion>; analyze(source: string, options: LanguageOptions): Promise<LanguageAnalysis>; outline(source: string, options: LanguageOptions): Promise<LanguageOutline>; hover(source: string, offset: number, options: LanguageOptions): Promise<LanguageHover | null>; definition(source: string, offset: number, options: LanguageOptions): Promise<SourceReference | null>; format(source: string, options: LanguageOptions): Promise<LanguageFormat>; schema(): Promise<SemanticSchema> };
+  readonly language: { complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion>; analyze(source: string, options: LanguageOptions): Promise<LanguageAnalysis>; outline(source: string, options: LanguageOptions): Promise<LanguageOutline>; edit(source: string, operations: readonly LanguageEditOperation[], options: LanguageOptions): Promise<LanguageEdit>; hover(source: string, offset: number, options: LanguageOptions): Promise<LanguageHover | null>; definition(source: string, offset: number, options: LanguageOptions): Promise<SourceReference | null>; format(source: string, options: LanguageOptions): Promise<LanguageFormat>; schema(): Promise<SemanticSchema> };
   info(): Promise<RuntimeInfo>;
   capabilities(): Promise<RuntimeCapabilities>;
   compile(source: string, options?: CompileOptions): Promise<{ model: ModelSession | null; diagnostics: readonly Diagnostic[] }>;

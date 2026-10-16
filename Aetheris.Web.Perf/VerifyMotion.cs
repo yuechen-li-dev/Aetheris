@@ -10,9 +10,13 @@ internal static class VerifyMotion
         if (args.Length != 1) { Console.Error.WriteLine("Usage: Aetheris.Web.Perf verify-motion <articulated-motion.firmament>"); return 2; }
         var path = Path.GetFullPath(args[0]);
         var motion = File.ReadAllText(path);
-        var source = File.ReadAllText(Path.Combine(Path.GetDirectoryName(path)!, "articulated-subassemblies.firmament"))
-            + "\n" + string.Join('\n', motion.Split('\n').Where(l => !l.StartsWith("include ", StringComparison.Ordinal)));
-        var native = new AssemblyM1Pipeline().Compile(source, "motion.firmament");
+        var source = motion;
+        var documents = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["motion.firmament"] = source,
+            ["articulated-subassemblies.firmament"] = File.ReadAllText(Path.Combine(Path.GetDirectoryName(path)!, "articulated-subassemblies.firmament"))
+        };
+        var native = new AssemblyM1Pipeline().CompileFile(path);
         if (!native.IsSuccess) throw new InvalidOperationException(string.Join(';', native.Diagnostics.Select(d => d.Message)));
         JsonElement Call(object request)
         {
@@ -20,7 +24,7 @@ internal static class VerifyMotion
             if (!response.RootElement.GetProperty("ok").GetBoolean()) throw new InvalidOperationException(response.RootElement.ToString());
             return response.RootElement.GetProperty("result").Clone();
         }
-        var built = Call(new { operation = "compile", source, sourceName = "motion.firmament" });
+        var built = Call(new { operation = "compile", source, sourceName = "motion.firmament", projectDocuments = documents });
         if (!built.GetProperty("success").GetBoolean()) throw new InvalidOperationException(built.ToString());
         var model = built.GetProperty("model");
         var sessionId = model.GetProperty("id").GetString();

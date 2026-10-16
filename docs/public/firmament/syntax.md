@@ -482,6 +482,17 @@ base material interval and admitted operations inside it. Compose does not
 reopen a separately declared Box, and neither construct admits arbitrary Boolean
 or feature combinations.
 
+In a primitive Model, `Modify Base {}` is a valid no-op once `Base` resolves to
+an existing body. Deleting its last feature leaves the same stock geometry;
+an unresolved target still rejects. An empty Modify does not create a feature.
+
+Hole fields depend on the declared variant. `Hole<Shaft>` uses the common
+`on`, `center`, `diameter` and `end` fields. `Hole<Counterbore>` additionally
+uses `counterboreDiameter` and `counterboreDepth`; `Hole<Countersink>` uses
+`countersinkDiameter` and `countersinkAngle`. Relief fields on a Shaft hole
+are errors. Compiler completion and bound-field inspection project the same
+variant applicability from the shared schema.
+
 | Intent | Current vocabulary | Placement / termination |
 | --- | --- | --- |
 | Drill a hole | `Hole<Shaft>`, `Hole<Counterbore>`, `Hole<Countersink>` | `on`, `center`, `end: ThroughAll` or a bounded blind end. |

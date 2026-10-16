@@ -5,7 +5,8 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class FirmamentLanguageEditTests
 {
-    private const string Bracket = """
+    // Assertions below deliberately use LF; keep the specimen independent of checkout line endings.
+    private static readonly string Bracket = """
         // Mounting plate
         Model WebBracket {
             Units: mm
@@ -15,7 +16,7 @@ public sealed class FirmamentLanguageEditTests
             }
         }
 
-        """;
+        """.ReplaceLineEndings("\n");
 
     private static FirmamentLanguageEdit Edit(string source, params FirmamentLanguageEditOperation[] operations) =>
         FirmamentLanguageEditService.Apply(source, "bracket.firmament", "1", operations);

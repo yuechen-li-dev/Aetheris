@@ -43,7 +43,7 @@ public static class FirmamentFieldProjector
             if (hole.SourceSpan is null) continue;
             var schema = FirmamentSemanticSchemas.Get("Hole")!;
             result.Add(new(schema.Id, $"{block.TargetSolid}.{hole.Name}", sourceDocument, revision, buildRevision, hole.SourceSpan,
-                schema.Fields.Select(field => ProjectHoleField(field, hole, source)).ToArray()));
+                schema.Fields.Where(field => field.AppliesTo(hole.Variant.ToString())).Select(field => ProjectHoleField(field, hole, source)).ToArray()));
         }
         return result;
     }

@@ -62,6 +62,8 @@ continuity. Input expressions reuse the existing typed expression evaluator.
 Local templated Parts in Inventory modules now keep declaration identity separate
 from invocation arguments, fixing doubled specializations during module binding.
 The imported two-occurrence witness qualifies public channels and geometry sharing.
+Ordinary validate/build and the SDK also classify an Assembly inherited through
+include via that same module graph, rather than misrouting the clip as a Part.
 
 The compiler orders coordinate writers once; duplicate writers and dependency
 cycles reject before sampling.
@@ -115,9 +117,125 @@ error sentences.
 
 ## Qualification
 
-Evidence is generated under ignored `artifacts/local/`. Final results are
-recorded below after qualification. No whole-V8 declarative-motion claim is
-implied by successful rigid-joint clip qualification.
+Evidence is generated under ignored `artifacts/local/`. The build uses serial
+MSBuild with node reuse and shared compilation disabled. Qualification covers
+the real CLI, native session runtime, public browser SDK and compiled WASM.
+No whole-V8 declarative-motion claim is implied by the rigid-joint clip witness.
+
+- Release solution build: passed. Existing analyzer, trimming and WebAssembly
+  interop warnings remain; they are not represented as a warning-free build.
+- Core fast lane: 1,076 passed. Focused articulated-assembly and Motion tests:
+  28 passed. SDK Node tests: 13 passed.
+- Final complete solution gate, including Helios feedback: **5,198 passed across 20 test assemblies,
+  zero failures**. The final focused integration rerun passed 50 tests,
+  including the imported-root project and structural-editing cases.
+- Native session and real browser WASM proofs passed at seven times, including
+  reverse/non-key queries. All 1,232 compared matrix components matched exactly.
+  Explicit endpoint sampling retained 720deg; shared definitions and the
+  last-valid graph survived sampling and failed edits.
+- Both include-root and Inventory-root Motion fixtures passed ordinary CLI
+  validate and build. Validation reports `validationLevel: Built` and no errors;
+  the builds produced STEP artifacts.
+- Claude FrontendX4 corpus: 32/32 passed without changing cases or recording
+  new expected geometry.
+- Frozen STEP replay: 26/26 byte-identical artifacts. Scoped FrontendX2
+  qualification: all nine expected validate/build outcomes held.
+- Full editable V8 demo generation completed for Stages A/B/C, baseline and
+  the +6mm stroke revision. Each final configuration checked 5,768 cylinder
+  samples and 11,536 spring samples. Maximum rod-closure residual was
+  `8.527e-14mm`; spring seat distance and drift were zero. This retains the
+  existing bounded interference scope, not a general collision certificate.
+
+The V8 comparison retains 171 physical Parts, all 21 definition STEP hashes
+and occurrence identities. Maximum world-matrix and measured metric difference
+is `2.842170943040401e-14`, below the existing `1e-9` qualification threshold.
+No reference tolerance was widened. The resulting graph contains 193
+occurrences, 140 retained mechanical relationships and 43 separate frame
+dependencies; increased retained relationship counts are graph fidelity, not
+new geometry.
+
+Local evidence: `v8-relations-fast.log`, `v8-motion-focused.log`,
+`v8-motion-sdk-tests.log`, `v8-relations-x4.log`, `v8-relations-demo.log`,
+`v8-relations/v8-parity.json` and `v8-relations/parity/geometry-parity.json`,
+all beneath `artifacts/local/`.
+
+Final integration also tests a Motion document whose Assembly comes from an
+include. Root classification and Assembly-profile admission resolve that
+include through the existing module graph. The browser witness supplies real
+project documents rather than concatenating their text. The concurrent
+structural-editing update is retained, including its request fields alongside
+the restored Motion query fields.
+Its six Windows-only assertion failures came from a raw-string test specimen
+inheriting CRLF while assertions require LF. The specimen now explicitly uses
+LF, independent of checkout settings. Production editing and geometry logic
+were not changed for those failures; the initial failing full-run log is retained
+as `v8-relations-full-before-newline-fix.log`.
+The final rebuilt native runtime and WASM harness passed after exposing raw
+schema applicability. No task-owned dotnet, testhost or aetheris hosts remained
+at closeout. Consolidated local evidence is
+`artifacts/local/v8-relations/qualification.json`.
+
+The code-quality review kept variant rules in the existing schema metadata,
+source alias matching in its existing owner, and diagnostic presentation in the
+compiler presenter. The only added regex vocabulary is Hole in the existing
+bounded completion-context scanner; no execution parser route, global rewrite,
+diagnostic-fatality allowlist or geometry workaround was added.
+
+Reproduction commands (from the repository root):
+
+```powershell
+$env:MSBUILDDISABLENODEREUSE = '1'
+dotnet build Aetheris.slnx -c Release -m:1 -nr:false -p:UseSharedCompilation=false --no-restore
+dotnet test Aetheris.Kernel.Core.Tests -c Release --no-build -m:1 -nr:false --filter 'Category!=SlowCorpus'
+dotnet test Aetheris.slnx -c Release --no-build -m:1 -nr:false -- RunConfiguration.MaxCpuCount=1
+dotnet build Aetheris.Web.Perf -c Release -m:1 -nr:false -p:UseSharedCompilation=false
+dotnet Aetheris.Web.Perf/bin/Release/net10.0/Aetheris.Web.Perf.dll verify-motion fixtures/Canonical/AssemblyInterfaces/articulated-motion.firmament
+node scripts/qualify-assembly-motion-browser.mts <absolute-path-to-playwright-index.mjs>
+node --test Aetheris.Web.Runtime/sdk/tests/*.test.mjs
+python fixtures/Regression/FrontendX4/run.py
+dotnet demos/Aetheris.EditableV8/bin/Release/net10.0/Aetheris.EditableV8.dll artifacts/local/v8-relations/demo
+```
+
+## Helios authoring feedback follow-up
+
+The follow-up screenshots identified three compiler/language-service defects.
+Hole field metadata now carries variant applicability in the generated schema;
+completion and semantic field projection use that same metadata. A Shaft hole
+no longer advertises counterbore or countersink fields. Those fields remain
+errors when authored on the wrong variant.
+The raw SDK schema also exposes additive `variants` metadata. A Helios control
+using that union schema must filter by the active variant, or request compiler
+completion; the compiler does not mutate the union schema per document.
+
+The parser failure producer no longer appends a locationless generic malformed
+Model error when a precise error already explains rejection. Structural failures
+without a more specific diagnostic retain the generic fallback.
+The build failure adapter treats `parse-failed` as a fallback result status,
+not an extra diagnostic alongside an explanation. Source lookup for legacy
+unknown-field diagnostics uses the existing accepted camelCase/PascalCase
+aliases and requires an actual field-name token. The browser Part path now
+uses the compiler's shared presenter rather than flattening errors to
+`ValidationFailed` with invented `1:1` locations.
+
+An empty Modify in a primitive Model binds its target and becomes a no-op before
+material feature lowering. Tests compare its STEP text exactly with unmodified
+stock and retain rejection for an unresolved target. The specimens live in
+`fixtures/Regression/LanguageService/`. No separate Helios validator or
+renderer fix is introduced; the viewport error pictured is outside this compiler
+qualification.
+
+Focused qualification: 24 tests passed, including all three Hole variants and
+the five new feedback regressions. The real public-SDK/WASM browser harness
+also passed all three variants, field completion/projection agreement, the
+precise wrong-field diagnostic, and empty-Modify compilation. It simultaneously
+retained the seven-time Motion proof and its 1,232 exact native/WASM component
+comparisons. Evidence: `helios-authoring-focused.log` and
+`helios-authoring-browser.log` beneath `artifacts/local/`.
+The full follow-up gate passed all 5,198 tests; the fast lane passed 1,076.
+Ordinary CLI validate and build reject both wrong-variant fields at their
+actual field spans, without the generic Model or parse-status errors. Empty
+Modify validates at `Built` level and exports successfully. The STEP identity
+test verifies that accepting this no-op does not alter its stock geometry.
 
 ## Exact remaining ownership boundary
 

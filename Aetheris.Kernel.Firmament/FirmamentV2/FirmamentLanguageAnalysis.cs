@@ -128,7 +128,9 @@ public static class FirmamentLanguageAnalysisService
             parsed.Diagnostics.Select(d => new FirmamentLanguageDiagnostic(d.Severity == AssemblyDiagnosticSeverity.Error ? "error" : "information", d.Code, d.Message, 0, 0)).ToArray());
     }
 
-    public static bool HasAssemblyRoot(string source)
+    public static bool HasAssemblyRoot(string source) => HasAssemblyRoot(source, null);
+
+    public static bool HasAssemblyRoot(string source, string? document, FirmamentProjectSnapshot? project = null)
     {
         var tokens = Lex(source).Where(t => t.Shape != "comment").ToArray();
         var depth = 0;
@@ -138,6 +140,12 @@ public static class FirmamentLanguageAnalysisService
             else if (tokens[i].Text == "}") depth--;
             if (depth == 0 && tokens[i].Text == "<" && tokens[i + 1].Text == "Assembly") return true;
             if (depth == 0 && tokens[i].Text == "Assembly" && tokens[i + 1].Shape == "identifier" && (i == 0 || tokens[i - 1].Text != "/")) return true;
+        }
+        if (document is not null && Aetheris.Kernel.Firmament.Modules.FirmamentModuleGraph.HasImports(source))
+        {
+            var graph = Aetheris.Kernel.Firmament.Modules.FirmamentModuleGraph.Load(source, document, project);
+            if (graph.Diagnostics.Count == 0)
+                return HasAssemblyRoot(graph.ProjectSource(graph.Root).Text);
         }
         return false;
     }

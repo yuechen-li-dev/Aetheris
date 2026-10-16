@@ -113,3 +113,11 @@ graph, reuses the existing mesh definitions, and does not rebuild geometry or
 change the engineering STEP snapshot. Consumers own their playback clock and
 apply the returned occurrence matrices. An unsuccessful source rebuild retains
 the previous admitted graph together with the previous geometry.
+
+Compiler completion and `model.describeConstruct(semanticId)` return fields
+applicable to the active Hole variant. The raw `cad.language.schema()` is a
+union schema: its optional field `variants` array restricts applicability;
+an absent or empty array means common to all variants. Schema-driven controls
+must honor this metadata or request completion. For example, `CounterboreDepth`
+applies to `Counterbore`, never `Shaft`. Part build diagnostics use the shared
+compiler presenter, retaining stable error codes and authored source locations.

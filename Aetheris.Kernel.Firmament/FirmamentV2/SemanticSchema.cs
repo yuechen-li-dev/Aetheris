@@ -26,6 +26,7 @@ public sealed class FirmamentFieldAttribute(string stableId, string name, Firmam
     public string? Default { get; init; }
     public string? Description { get; init; }
     public string[]? Choices { get; init; }
+    public string[]? Variants { get; init; }
     public bool SourceEditable { get; init; }
     public string? ProjectionMember { get; init; }
 }
@@ -44,7 +45,11 @@ public readonly record struct FirmamentConstructId(string Value);
 public readonly record struct FirmamentFieldId(string Value);
 public readonly record struct FirmamentOutputId(string Value);
 public sealed record FirmamentFieldSchema(FirmamentFieldId Id, string Name, FirmamentSchemaValueKind Kind, FirmamentUnitKind Unit,
-    bool Required, string? Default, IReadOnlyList<string> Choices, string? Description, bool SourceEditable);
+    bool Required, string? Default, IReadOnlyList<string> Choices, string? Description, bool SourceEditable)
+{
+    public IReadOnlyList<string> Variants { get; init; } = [];
+    public bool AppliesTo(string? variant) => Variants.Count == 0 || Variants.Contains(variant, StringComparer.Ordinal);
+}
 public sealed record FirmamentOutputSchema(FirmamentOutputId Id, string Name, string Kind, bool SourceAddressable, string? SourceRole);
 public sealed record FirmamentConstructSchema(FirmamentConstructId Id, string Name, string? Context, string? Entry,
     string? Description, string? CompatibilityAlias, IReadOnlyList<FirmamentFieldSchema> Fields,

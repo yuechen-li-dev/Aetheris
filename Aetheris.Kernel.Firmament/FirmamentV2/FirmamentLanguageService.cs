@@ -31,7 +31,7 @@ public static class FirmamentLanguageService
         if (composition is not null)
         {
             beforePrefix = source[Math.Max(lineStart,composition.Value.Open+1)..prefixStart];
-            fields = FirmamentSchemaAuthoringFields.For(composition.Value.Name);
+            fields = FirmamentSchemaAuthoringFields.For(composition.Value.Name, composition.Value.Variant);
             context = composition.Value.Name;
         }
         else if (interfaceFamily is not null)
@@ -135,11 +135,11 @@ public static class FirmamentLanguageService
         return header is not null && !prefix[(header.Index + header.Length)..].Contains('}');
     }
 
-    private static (string Name, int Open)? ActiveCompositionConstruct(string source, int offset)
+    private static (string Name, int Open, string? Variant)? ActiveCompositionConstruct(string source, int offset)
     {
         // Ignore comments/strings and balance nested blocks in incomplete drafts.
         var prefix = Regex.Replace(source[..offset], @"//[^\r\n]*|/\*[\s\S]*?\*/|""(?:\\.|[^""\\])*""", m => new string(' ', m.Length));
-        var names = "Scene|Room|Door|Window|Camera|WireRoute|Follow|Section|Points|Linear|Series|Appearance|Material|Placement|FrameTransform|Garment|Panel|Fabric|Drape|FigureFit|Fitting|PoseTransition|Pose|Joint|Interface";
+        var names = "Scene|Room|Door|Window|Camera|WireRoute|Follow|Section|Points|Linear|Series|Appearance|Material|Placement|FrameTransform|Garment|Panel|Fabric|Drape|FigureFit|Fitting|PoseTransition|Pose|Joint|Interface|Hole";
         var matches = Regex.Matches(prefix, $@"\b(?<kind>{names})(?:\s*<(?<family>[^>]+)>)?(?:\s+[A-Za-z_]\w*)?\s*\{{");
         foreach (Match header in matches.Cast<Match>().Reverse())
         {
@@ -154,7 +154,7 @@ public static class FirmamentLanguageService
             {
                 string name = header.Groups["kind"].Value;
                 if (name == "Interface") name += "<" + header.Groups["family"].Value.Trim() + ">";
-                return (name, header.Index + header.Length - 1);
+                return (name, header.Index + header.Length - 1, header.Groups["family"].Value.Trim());
             }
         }
         return null;

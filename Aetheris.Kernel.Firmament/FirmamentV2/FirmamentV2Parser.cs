@@ -1795,7 +1795,10 @@ public static partial class FirmamentV2Parser
 
     private static FirmamentV2ParseResult CanonicalFailure(List<string> diagnostics, string diagnostic)
     {
-        diagnostics.Add(diagnostic);
+        // A precise producer error already explains rejection. Do not append a
+        // locationless document-malformed error for a semantically parsed Model.
+        if (diagnostic != CanonicalDocumentMalformed || !diagnostics.Any(IsFatalDiagnosticCode))
+            diagnostics.Add(diagnostic);
         diagnostics.Add("firmament-v2-parse-failed");
         return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
     }

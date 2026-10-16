@@ -1,0 +1,5 @@
+Model WebBracket {
+    units: mm
+    Box Base { size: [50mm, 40mm, 8mm] }
+    Modify Base {}
+}

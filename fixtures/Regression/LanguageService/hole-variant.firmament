@@ -1,0 +1,12 @@
+Model WebBracket {
+    units: mm
+    Box Base { size: [50mm, 40mm, 8mm] }
+    Modify Base {
+        Hole<Shaft> CenterMount {
+            on: +Z
+            center: Point2(0mm, 0mm)
+            diameter: 8mm
+            end: ThroughAll
+        }
+    }
+}

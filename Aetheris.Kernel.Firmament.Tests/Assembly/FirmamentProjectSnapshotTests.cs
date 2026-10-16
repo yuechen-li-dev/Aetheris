@@ -5,6 +5,20 @@ namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 public sealed class FirmamentProjectSnapshotTests
 {
     [Fact]
+    public void IncludedAssemblyRootAdmitsItsMotionInAProjectSnapshot()
+    {
+        var directory = Path.GetDirectoryName(FirmamentCorpusHarness.ResolveFixtureFullPath(
+            "fixtures/Canonical/AssemblyInterfaces/articulated-motion.firmament"))!;
+        var project = new FirmamentProjectSnapshot("motion.firmament", [
+            KeyValuePair.Create("motion.firmament", File.ReadAllText(Path.Combine(directory, "articulated-motion.firmament"))),
+            KeyValuePair.Create("articulated-subassemblies.firmament", File.ReadAllText(Path.Combine(directory, "articulated-subassemblies.firmament")))]);
+        var result = new AssemblyM1Pipeline().CompileProject(project);
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => $"{d.Code}: {d.Message}")));
+        Assert.Single(result.Ir!.Motions);
+        Assert.True(AssemblyMotion.Evaluate(result.Ir, "Cycle", 1.25).IsSuccess);
+    }
+
+    [Fact]
     public void PathsAreNormalizedAndCannotEscapeTheProject()
     {
         var project = new FirmamentProjectSnapshot("./main.firmasm",

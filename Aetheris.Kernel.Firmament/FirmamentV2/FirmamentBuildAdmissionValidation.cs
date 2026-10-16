@@ -87,7 +87,10 @@ public static class FirmamentBuildAdmissionValidation
         var parts = diagnostic.Code.Split(':');
         string? subject = parts[0] is FirmamentV2Parser.CanonicalFieldUnknown or FirmamentV2Parser.CanonicalDeclarationUnknown
             && parts.Length > 1 ? parts[^1] : null;
-        var matches = subject is null ? [] : tokens.Where(token => token.Shape == "identifier" && token.Text == subject).ToArray();
+        var matches = subject is null ? [] : tokens.Where((token, index) => token.Shape == "identifier" &&
+            (parts[0] == FirmamentV2Parser.CanonicalFieldUnknown
+                ? Syntax.FirmamentSyntaxFields.SameField(token.Text, subject) && index + 1 < tokens.Length && tokens[index + 1].Text == ":"
+                : token.Text == subject)).ToArray();
         var exact = matches.Length == 1;
         var token = exact ? matches[0] : tokens.FirstOrDefault(token => token.Shape == "identifier"
             && token.Text is "Model" or "model" or "Struct" or "Concept" or "Profile" or "Template" or "Assembly" or "Scene");

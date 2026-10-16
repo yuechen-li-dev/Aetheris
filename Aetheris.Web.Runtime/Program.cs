@@ -134,9 +134,10 @@ public static partial class Program
             ? new Dictionary<string, string>(request.ProjectDocuments, StringComparer.Ordinal) { [name] = request.Source }
             : null;
         var root = request.ProjectRoot ?? name;
+        var project = documents is null ? null : new FirmamentProjectSnapshot(root, documents);
         var analysis = documents is not null && documents.TryGetValue(root, out var rootSource) &&
-            FirmamentLanguageAnalysisService.HasAssemblyRoot(rootSource)
-            ? FirmamentLanguageAnalysisService.Analyze(new FirmamentProjectSnapshot(root, documents), name, request.SourceRevision)
+            FirmamentLanguageAnalysisService.HasAssemblyRoot(rootSource, root, project)
+            ? FirmamentLanguageAnalysisService.Analyze(project!, name, request.SourceRevision)
             : FirmamentLanguageAnalysisService.Analyze(request.Source, name, request.SourceRevision);
         return new { document = name, revision = request.SourceRevision, analysis.Tokens,
             diagnostics = analysis.Diagnostics.Select(item => new WebDiagnostic(item.Severity, item.Code, item.Message,
@@ -196,7 +197,7 @@ public static partial class Program
             fields = construct.Fields.Select(field => new
             {
                 id = field.Id.Value, field.Name, kind = field.Kind.ToString(), unit = field.Unit.ToString(),
-                field.Required, field.Default, field.Choices, field.Description, field.SourceEditable
+                field.Required, field.Default, field.Choices, field.Variants, field.Description, field.SourceEditable
             }),
             outputs = construct.Outputs.Select(item => new
             {
@@ -270,7 +271,8 @@ public static partial class Program
         string? SourceRevision = null, int? Offset = null, string? ConstructSemanticId = null,
         string? FieldId = null, FirmamentProjectedValue? FieldValue = null, int? BuildRevision = null,
         bool Performance = false, IReadOnlyDictionary<string, string>? ProjectDocuments = null, string? ProjectRoot = null,
-        int? Bridge = null, IReadOnlyList<FirmamentLanguageEditOperation>? Operations = null);
+        int? Bridge = null, IReadOnlyList<FirmamentLanguageEditOperation>? Operations = null,
+        string? Motion = null, double? TimeSeconds = null, bool PreserveEndpoint = false);
 
     /// <summary>
     /// BUILD-PERF-M3 response bridge (request <c>bridge: 1</c>, sent by the SDK). Large numeric arrays
@@ -422,7 +424,10 @@ public static partial class Program
                 var index = nextProperties.FindIndex(property => property.Id == propertyId);
                 if (index >= 0) nextProperties[index] = nextProperties[index] with { Value = value.Value };
             }
-            var assembly = Regex.IsMatch(effective, @"(?m)^\s*Assembly\s+", RegexOptions.CultureInvariant);
+            var rootDocuments = new Dictionary<string, string>(_projectDocuments ?? new Dictionary<string, string>(), StringComparer.Ordinal)
+                { [_sourceName] = effective };
+            var assembly = FirmamentLanguageAnalysisService.HasAssemblyRoot(effective, _sourceName,
+                new FirmamentProjectSnapshot(_sourceName, rootDocuments));
             var scene = SceneAuthoring.HasRoot(effective);
             var compiled = scene ? CompileScene(effective) : assembly ? CompileAssembly(effective, nextProperties) : CompilePart(effective, nextProperties);
             if (!compiled.Success)
@@ -470,7 +475,7 @@ public static partial class Program
             compilePhase.Dispose();
             var compileMs = watch.Elapsed.TotalMilliseconds;
             if (!build.IsSuccess || build.Value is null)
-                return WebBuildResult.Failed(Diagnostics(build.Diagnostics, _sourceName), compileMs);
+                return WebBuildResult.Failed(Diagnostics(build.Diagnostics, _sourceName, effective), compileMs);
             var step = build.Value.StepText;
             BrepBody displayBody;
             if (build.Value.RuntimeBody is { } canonicalBody) displayBody = canonicalBody;
@@ -627,10 +632,16 @@ public static partial class Program
         return result;
     }
 
-    private static IReadOnlyList<WebDiagnostic> Diagnostics(IEnumerable<KernelDiagnostic> diagnostics, string source)
-        => diagnostics.Select(diagnostic => new WebDiagnostic(
-            diagnostic.Severity switch { KernelDiagnosticSeverity.Error => "error", KernelDiagnosticSeverity.Warning => "warning", _ => "info" },
-            diagnostic.Code.ToString(), diagnostic.Message, SourceRef(source, 0, 0), diagnostic.Source)).ToArray();
+    private static IReadOnlyList<WebDiagnostic> Diagnostics(IEnumerable<KernelDiagnostic> diagnostics, string source, string? text = null)
+        => diagnostics.Select(diagnostic =>
+        {
+            var presented = FirmamentBuildAdmissionValidation.Present(diagnostic, source, text);
+            var location = presented.SourceSpan is { } span
+                ? new WebSourceRef(presented.SourceFile ?? source, presented.Line ?? 0, presented.Column ?? 0, span.Start, span.Length)
+                : null;
+            return new WebDiagnostic(presented.Severity is "fatal" or "error" ? "error" : presented.Severity,
+                presented.Code, presented.Message, location, presented.LocationNote ?? diagnostic.Source);
+        }).ToArray();
 
     private static WebSourceRef SourceRef(string source, int start, int length) => new(source, 1, 1, start, length);
     private static WebSourceRef SourceRefAt(string name, string text, int start, int length)

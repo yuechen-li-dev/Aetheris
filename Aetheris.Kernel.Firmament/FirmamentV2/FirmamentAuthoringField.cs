@@ -20,4 +20,11 @@ public static class FirmamentSchemaAuthoringFields
 
     public static IReadOnlyList<FirmamentAuthoringField> For(string construct) =>
         Cache.TryGetValue(construct, out var fields) ? fields : [];
+
+    public static IReadOnlyList<FirmamentAuthoringField> For(string construct, string? variant)
+    {
+        var applicable = FirmamentSemanticSchemas.Get(construct)?.Fields.Where(f => f.AppliesTo(variant))
+            .Select(f => f.Name).ToHashSet(StringComparer.Ordinal);
+        return applicable is null ? [] : For(construct).Where(f => applicable.Contains(f.Name)).ToArray();
+    }
 }

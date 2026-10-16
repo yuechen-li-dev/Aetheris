@@ -11,8 +11,13 @@ const modulePath = process.argv[2];
 if (!modulePath) throw new Error('Pass an explicit Playwright module path.');
 const { chromium } = await import(pathToFileURL(resolve(modulePath)).href);
 const fixture = resolve(repo, 'fixtures/Canonical/AssemblyInterfaces/articulated-motion.firmament');
-const source = await readFile(resolve(repo, 'fixtures/Canonical/AssemblyInterfaces/articulated-subassemblies.firmament'), 'utf8')
-  + '\n' + (await readFile(fixture, 'utf8')).split('\n').filter(line => !line.startsWith('include ')).join('\n');
+const source = await readFile(fixture, 'utf8');
+const holeSource = await readFile(resolve(repo, 'fixtures/Regression/LanguageService/hole-variant.firmament'), 'utf8');
+const emptyModifySource = await readFile(resolve(repo, 'fixtures/Regression/LanguageService/empty-modify.firmament'), 'utf8');
+const documents = {
+  'motion.firmament': source,
+  'articulated-subassemblies.firmament': await readFile(resolve(repo, 'fixtures/Canonical/AssemblyInterfaces/articulated-subassemblies.firmament'), 'utf8'),
+};
 const times = [0, 1.25, .231, 1.749, 2, -.75, 3.25];
 const expected = times.map(time => JSON.parse(execFileSync('dotnet', [resolve(repo, 'Aetheris.CLI/bin/Release/net10.0/aetheris.dll'),
   'asm', 'motion', fixture, '--clip', 'Cycle', '--time', String(time), '--json'], { cwd: repo, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })));
@@ -37,11 +42,11 @@ try {
   browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true });
   const page = await browser.newPage();
   await page.goto(`http://127.0.0.1:${address.port}/`);
-  const result = await page.evaluate(async ({ source, times, expected }) => {
+  const result = await page.evaluate(async ({ source, documents, times, expected, holeSource, emptyModifySource }) => {
     const { Aetheris } = await import('/Aetheris.Web.Runtime/sdk/src/index.js');
     const cad = await Aetheris.create({ wasmUrl: new URL('/Aetheris.Web.Runtime/bin/Release/net10.0/wwwroot/', location.href) });
     try {
-      const built = await cad.compile(source, { sourceName: 'motion.firmament' });
+      const built = await cad.compile(source, { sourceName: 'motion.firmament', projectDocuments: documents });
       const model = built.model;
       if (!model) throw new Error(JSON.stringify(built.diagnostics));
       if (model.motions.length !== 1) throw new Error('Missing compiled clip');
@@ -67,10 +72,40 @@ try {
       const retained = await model.sampleMotion('Cycle', 1.25);
       if (retained.revision !== revision) throw new Error('Last-valid graph revision changed');
       await model.dispose();
+      const schema = await cad.language.schema();
+      const holeSchema = schema.constructs.find((c: {name: string}) => c.name === 'Hole');
+      if (holeSchema?.fields.find((f: {name: string}) => f.name === 'CounterboreDepth')?.variants?.join(',') !== 'Counterbore')
+        throw new Error('Raw schema lost Hole variant applicability');
+      for (const [variant, relief] of [['Shaft', ''], ['Counterbore', 'counterboreDiameter: 14mm; counterboreDepth: 3mm; '],
+        ['Countersink', 'countersinkDiameter: 14mm; countersinkAngle: 90deg; ']]) {
+        const authored = holeSource.replace('<Shaft>', `<${variant}>`).replace('            end:', '            ' + relief + 'end:');
+        const completion = await cad.language.complete(authored, authored.indexOf('            on:'), { sourceName: 'bracket.firmament', sourceRevision: '1' });
+        const part = (await cad.compile(authored, { sourceName: 'bracket.firmament' })).model;
+        if (!part) throw new Error('Hole variant rejected ' + variant);
+        try {
+          const projection = await part.describeConstruct('Base.CenterMount');
+          for (const fields of [completion.fields, projection.fields]) {
+            if (fields.some((f: {name: string}) => f.name === 'CounterboreDepth') !== (variant === 'Counterbore')
+              || fields.some((f: {name: string}) => f.name === 'CountersinkAngle') !== (variant === 'Countersink'))
+              throw new Error('Wrong variant field projection ' + variant);
+          }
+          if (variant === 'Shaft') {
+            const invalid = authored.replace('            end:', '            counterboreDepth: 3mm; end:');
+            const failed = await part.setSource(invalid);
+            const error = failed.diagnostics.find((d: {code: string}) => d.code.includes('canonical-field-unknown'));
+            if (failed.success || !error || error.source?.start !== invalid.indexOf('counterboreDepth')
+              || failed.diagnostics.some((d: {code: string}) => d.code === 'firmament-v2-canonical-document-malformed'))
+              throw new Error('Wrong-field error projection: ' + JSON.stringify({ expectedStart: invalid.indexOf('counterboreDepth'), failed }));
+          }
+        } finally { await part.dispose(); }
+      }
+      const empty = await cad.compile(emptyModifySource, { sourceName: 'bracket.firmament' });
+      if (!empty.model) throw new Error('Empty Modify rejected: ' + JSON.stringify(empty.diagnostics));
+      await empty.model.dispose();
       return { status: 'pass', runtime: 'real browser WASM via public SDK', samples: times.length, compared, maximumError: maximum,
-        sharedDefinitionsRetained: true, lastValidGraphRetained: true };
+        sharedDefinitionsRetained: true, lastValidGraphRetained: true, holeVariants: 3, emptyModify: 'pass', locatedFieldError: 'pass' };
     } finally { await cad.dispose(); }
-  }, { source, times, expected });
+  }, { source, documents, times, expected, holeSource, emptyModifySource });
   const output = resolve(repo, 'artifacts/local/v8-relations');
   await mkdir(output, { recursive: true });
   await writeFile(resolve(output, 'motion-browser.json'), JSON.stringify(result, null, 2));

@@ -497,7 +497,7 @@ public static class CliRunner
             { stderr.WriteLine("garment-step-export-unsupported: Fabric is a material-space surface; use garment build or garment drape."); return 1; }
             if (Aetheris.Kernel.Firmament.Scene.SceneAuthoring.HasRoot(source))
             { stderr.WriteLine("scene-step-export-unsupported: Scene is a spatial product; use scene export-usd or scene export-glb."); return 1; }
-            if (Path.GetExtension(sourcePath).Equals(".firmasm", StringComparison.OrdinalIgnoreCase) || FirmamentLanguageAnalysisService.HasAssemblyRoot(source))
+            if (Path.GetExtension(sourcePath).Equals(".firmasm", StringComparison.OrdinalIgnoreCase) || FirmamentLanguageAnalysisService.HasAssemblyRoot(source, sourcePath))
                 return RunAsmExportAp242([sourcePath, "--out", outPath ?? Path.GetFullPath(Path.Combine("artifacts", "local", "build", Path.GetFileNameWithoutExtension(sourcePath) + ".step")), .. (json ? new[] { "--json" } : [])], stdout, stderr);
             if (SectionChainAuthoringParser.IsSectionChainSource(source))
                 return RunSectionChain(["build", sourcePath, .. (outPath is null ? Array.Empty<string>() : ["--out", outPath]), .. (json ? new[] { "--json" } : [])], stdout, stderr);
@@ -1418,7 +1418,7 @@ Model CanonicalPanel {
             return GarmentCommand.Run(["inspect", .. args], stdout, stderr);
         if (File.Exists(input) && Aetheris.Kernel.Firmament.Scene.SceneAuthoring.HasRoot(File.ReadAllText(input)))
             return SceneCommand.Run(["inspect", .. args], stdout, stderr);
-        if (File.Exists(input) && (Path.GetExtension(input).Equals(".firmasm", StringComparison.OrdinalIgnoreCase) || FirmamentLanguageAnalysisService.HasAssemblyRoot(File.ReadAllText(input))))
+        if (File.Exists(input) && (Path.GetExtension(input).Equals(".firmasm", StringComparison.OrdinalIgnoreCase) || FirmamentLanguageAnalysisService.HasAssemblyRoot(File.ReadAllText(input), input)))
             return RunAsmInspect(args, stdout, stderr);
         var json = args.Skip(1).SequenceEqual(["--json"]);
         if (!json && args.Length > 1) { stderr.WriteLine($"Unknown inspect option '{args[1]}'."); stderr.WriteLine(InspectUsage); return 1; }
@@ -2367,7 +2367,7 @@ Model CanonicalPanel {
         if (Aetheris.Kernel.Firmament.Garment.GarmentAuthoring.HasRoot(validationSource)
             || frontend.Schema == FirmamentFrontendSchema.Garment)
             return GarmentCommand.Run(["inspect", sourcePath, .. (json ? new[] { "--json" } : Array.Empty<string>())], stdout, stderr);
-        if (FirmamentLanguageAnalysisService.HasAssemblyRoot(validationSource))
+        if (FirmamentLanguageAnalysisService.HasAssemblyRoot(validationSource, sourcePath))
         {
             var sheetMetalAssembly = validationSource.Contains("Use SheetMetal.ProductFamilies", StringComparison.Ordinal);
             var parsedAssembly = parseOnly ? sheetMetalAssembly
@@ -4072,7 +4072,7 @@ Model CanonicalPanel {
         var builds = new List<object>();
         if (repeatRequested)
         {
-            if (!FirmamentLanguageAnalysisService.HasAssemblyRoot(sourceText) || usesSheetMetalParts)
+            if (!FirmamentLanguageAnalysisService.HasAssemblyRoot(sourceText, path) || usesSheetMetalParts)
             { stderr.WriteLine("--repeat requires a canonical authored assembly using the ordinary M1 materializer."); return 1; }
             using var session = new FirmamentCompilationSession();
             AssemblyM1CompilationResult? last = null;

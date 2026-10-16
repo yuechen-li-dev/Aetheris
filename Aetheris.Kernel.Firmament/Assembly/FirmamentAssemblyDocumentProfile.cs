@@ -49,7 +49,7 @@ public sealed class FirmamentAssemblyDocumentCompiler
             migrated = true;
         }
 
-        var profileDiagnostics = ValidateProfile(source, profile);
+        var profileDiagnostics = ValidateProfile(source, profile, fullPath);
         if (profileDiagnostics.Any(diagnostic => diagnostic.Severity == AssemblyDiagnosticSeverity.Error))
             return new(profile, fullPath, source, migrated, new(null, null, profileDiagnostics));
 
@@ -76,8 +76,18 @@ public sealed class FirmamentAssemblyDocumentCompiler
     }
 
     public static IReadOnlyList<AssemblyDiagnostic> ValidateProfile(string source, FirmamentDocumentProfile profile)
+        => ValidateProfile(source, profile, null);
+
+    public static IReadOnlyList<AssemblyDiagnostic> ValidateProfile(string source, FirmamentDocumentProfile profile,
+        string? document, FirmamentProjectSnapshot? project = null)
     {
         if (profile == FirmamentDocumentProfile.General) return [];
+        if (document is not null && Modules.FirmamentModuleGraph.HasImports(source))
+        {
+            var graph = Modules.FirmamentModuleGraph.Load(source, document, project);
+            if (graph.Diagnostics.Count > 0) return graph.Diagnostics;
+            source = graph.ProjectSource(graph.Root).Text;
+        }
         var syntax = Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FirmamentSyntaxParser.Parse(source);
         // The syntax owner reports malformed source; root counting must not hide
         // its diagnostic behind a line-oriented profile guess.

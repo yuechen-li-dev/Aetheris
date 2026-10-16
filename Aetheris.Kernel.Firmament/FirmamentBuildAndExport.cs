@@ -745,7 +745,8 @@ public static class FirmamentBuildAndExport
     private static KernelResult<FirmamentStepExportResult> V2ParseFailure(FirmamentV2ParseResult parse)
     {
         var syntaxCodes = parse.SyntaxDiagnostics.Select(d => d.Code).ToHashSet(StringComparer.Ordinal);
-        var errors = parse.Diagnostics.Where(FirmamentV2Parser.IsFatalDiagnosticCode).Where(code => !syntaxCodes.Contains(code))
+        // parse-failed is a result status, used only when the producer supplied no explanation.
+        var errors = parse.Diagnostics.Where(FirmamentV2Parser.IsFatalDiagnosticCode).Where(code => code != "firmament-v2-parse-failed" && !syntaxCodes.Contains(code))
             .Concat(parse.SyntaxDiagnostics.Select(d => d.Code + ": " + d.Message)).Distinct(StringComparer.Ordinal).ToArray();
         if (errors.Length == 0) errors = ["firmament-v2-parse-failed"];
         return KernelResult<FirmamentStepExportResult>.Failure(errors.Select(code => new KernelDiagnostic(

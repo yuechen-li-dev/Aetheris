@@ -111,6 +111,9 @@ public static partial class FirmamentV2Parser
         {
             if (modify.Clauses.Count > 0 || modify.Type.Arguments.Count > 0) diagnostics.Add(CanonicalModifyMalformed);
             if (modify.Name is null || !solids.TryGetValue(modify.Name.Text, out var solid)) { diagnostics.Add(ModifyTargetUnresolved); continue; }
+            // An authored empty body is an admitted no-op after target binding.
+            // Keep it out of material feature lowering, which requires real work.
+            if (modify.Body is { Statements.Count: 0 }) continue;
             var holes = new List<FirmamentV2SemanticHoleDecl>(); var finishes = new List<FirmamentV2EdgeFinishDecl>(); var perforations = new List<FirmamentV2PerforationDecl>();
             foreach (var statement in modify.Body?.Statements ?? [])
             {

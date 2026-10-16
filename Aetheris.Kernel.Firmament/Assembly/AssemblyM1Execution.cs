@@ -428,7 +428,7 @@ public sealed class AssemblyM1Pipeline
     {
         ArgumentNullException.ThrowIfNull(project);
         var profile = project.TryResolve(project.RootDocument, out var root)
-            ? FirmamentAssemblyDocumentCompiler.ValidateProfile(root, FirmamentDocumentProfile.Assembly)
+            ? FirmamentAssemblyDocumentCompiler.ValidateProfile(root, FirmamentDocumentProfile.Assembly, project.RootDocument, project)
             : [];
         if (profile.Any(diagnostic => diagnostic.Severity == AssemblyDiagnosticSeverity.Error))
             return new(null, null, profile);

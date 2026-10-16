@@ -484,7 +484,7 @@ public static class FirmamentSyntaxParser
                     { left = new ObjectSyntax(left, Block(), Span(start)); continue; }
                     if (allowObject && Take("with")) { left = new WithSyntax(left, Block(), Span(start)); continue; }
                     if (Current.Kind == SyntaxTokenKind.Identifier && !LineBreak &&
-                        (Current.Text is "mm" or "cm" or "m" or "deg" or "rad" or "N" or "kN" or "MN" or "Pa" or "kPa" or "MPa" or "GPa"
+                        (Current.Text is "mm" or "cm" or "m" or "deg" or "rad" or "s" or "ms" or "N" or "kN" or "MN" or "Pa" or "kPa" or "MPa" or "GPa"
                             || left is LiteralSyntax { Kind: LiteralKind.Number } && Current.Span.Start == left.Span.Start + left.Span.Length)
                         && left is LiteralSyntax or SequenceSyntax or ReferenceSyntax)
                     { left = new QuantitySyntax(left, Identifier(), Span(start)); continue; }

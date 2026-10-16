@@ -111,6 +111,18 @@ public sealed class AssemblyM0Parser
         if (expandedPatterns is null || patternDiagnostics.Count>0) return Done(null);
         source = expandedPatterns.Source;
         var concreteSyntax = FirmamentSyntaxParser.Parse(source).Document;
+        var motionSyntax = AssemblyMotionAuthoring.Extract(concreteSyntax, ref source, sourceIdentity, diagnostics);
+        var motionOrigins = new FirmamentSyntaxOrigins(syntax.Document, concreteSyntax);
+        AssemblyDiagnostic MapMotion(AssemblyDiagnostic diagnostic)
+        {
+            if (diagnostic.SourceSpan is not { } span) return diagnostic;
+            var original = motionOrigins.Find(new(span.Start, span.Length));
+            var mapped = diagnostic with { SourceSpan = original is null ? null : new(sourceIdentity, original.Start, original.Length),
+                LocationNote = original is null ? "Expanded Motion location has no retained original-source counterpart." : diagnostic.LocationNote };
+            return projection is null ? mapped : projection.Map(mapped);
+        }
+        if (exported is not null && motionSyntax.Count > 0)
+            diagnostics.Add(new("assembly-motion-definition-unsupported", "Declare Motion on the owning root Assembly; reusable Subassemblies publish joints and do not own playback clips."));
         var localLayouts = concreteSyntax.Statements.OfType<DeclarationSyntax>()
             .Where(d => d.Type.Name.Text == "Assembly" && !d.Modifiers.Any(m => m.Name.Text == "Template"))
             .SelectMany(d => d.Body?.Statements.OfType<DeclarationSyntax>() ?? [])
@@ -182,9 +194,10 @@ public sealed class AssemblyM0Parser
         var tree = ParseTree(body, sourceIdentity, diagnostics, assemblyDefinitions, interfaces, specializationCache, gearAuthorities, Ports, graph, source);
         treePhase.Dispose();
         if (tree is null) return Done(null);
+        var exportedSemantics = ParseAssemblyExposes(body, tree, sourceIdentity, diagnostics, out var exposedMates, assemblyHeader.Index + assemblyHeader.Length);
         if (exported is not null)
         {
-            tree = tree with { ExposedSemantics = [.. tree.ExposedSemantics, .. ParseAssemblyExposes(body, tree, sourceIdentity, diagnostics)] };
+            tree = tree with { ExposedSemantics = [.. tree.ExposedSemantics, .. exportedSemantics] };
             tree = graph!.QualifyParts(module!, tree);
         }
         var mates = ParseMates(body, sourceIdentity, diagnostics);
@@ -197,7 +210,7 @@ public sealed class AssemblyM0Parser
         tree = AssemblyDatumAuthoring.Bind(body, tree, layout, interfaces, diagnostics, out var datumFrames, Ports);
         datumbindPhase.Dispose();
         frames = frames.Concat(datumFrames).ToArray();
-        var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource, assemblyDefinitions, SourceDependencies: portDependencies, FrameTransforms: frames, Patterns: expandedPatterns.Document?.Patterns, ConceptPoints: expandedPatterns.Document?.ConceptPoints, AppearanceCatalog: appearanceCatalog, Annotations: annotations) { ModuleGraph = graph };
+        var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource, assemblyDefinitions, SourceDependencies: portDependencies, FrameTransforms: frames, Patterns: expandedPatterns.Document?.Patterns, ConceptPoints: expandedPatterns.Document?.ConceptPoints, AppearanceCatalog: appearanceCatalog, Annotations: annotations) { ModuleGraph = graph, MotionSyntax = motionSyntax, MapMotionDiagnostic = MapMotion, ExposedMates = exposedMates };
         return Done(result);
 
         ParseResult Done(AssemblySource? value) { watch.Stop(); return new(value,
@@ -356,9 +369,7 @@ public sealed class AssemblyM0Parser
             var root = ParseTree(body, sourceIdentity, diagnostics, result, interfaces, new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), gearAuthorities, publishedPorts, graph, source);
             if (root is null) continue;
             root = AssemblyDatumAuthoring.Bind(body, root, layout ?? [], interfaces, diagnostics, out var datumFrames, publishedPorts);
-            if (root.Children.Any(c => c.FramePlacement?.JointFamily == MechanicalInterfaceFamily.Revolute))
-                diagnostics.Add(new("assembly-axis-internal-motion-unsupported", "Reusable definitions have rigid solved children. Declare a Revolute mate on the complete occurrence in its owning root assembly."));
-            var exposed = ParseAssemblyExposes(body, root, sourceIdentity, diagnostics);
+            var exposed = ParseAssemblyExposes(body, root, sourceIdentity, diagnostics, out var exposedMates, template.Index + template.Length);
             root = root with { ExposedSemantics = [.. root.ExposedSemantics, .. exposed], IsEncapsulatedDefinition = true };
             var name = template.Groups["name"].Value;
             var claimedConcept = template.Groups["concept"].Success ? template.Groups["concept"].Value : null;
@@ -385,7 +396,7 @@ public sealed class AssemblyM0Parser
                  .. claimedConcept is null ? [] : new[] { new SemanticProvenance("assembly-concept-satisfaction", claimedConcept, name, SemanticSourceSpan.Generated(sourceIdentity)) },
                  .. staticProvenance],
                 anchor, localMates, ParseRelations(body, diagnostics), ParseAsserts(body, sourceIdentity, diagnostics), exposedRelations, claimedConcept,
-                ParseFrameTransforms(body, sourceIdentity, diagnostics).Concat(datumFrames).ToArray()));
+                ParseFrameTransforms(body, sourceIdentity, diagnostics).Concat(datumFrames).ToArray()) { ExposedMates = exposedMates });
         }
         return result;
     }
@@ -426,14 +437,19 @@ public sealed class AssemblyM0Parser
                 AssemblyPath.Parse(match.Groups["internalFrom"].Value), AssemblyPath.Parse(match.Groups["internalTo"].Value))).ToArray();
     }
 
-    private static IReadOnlyList<SemanticValue> ParseAssemblyExposes(string body, AssemblyMemberSource root, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
+    private static IReadOnlyList<SemanticValue> ParseAssemblyExposes(string body, AssemblyMemberSource root, string sourceIdentity, List<AssemblyDiagnostic> diagnostics,
+        out IReadOnlyDictionary<string, AssemblyExposedMateSource> exposedMates, int bodyOffset)
     {
+        var channels = new Dictionary<string, AssemblyExposedMateSource>(StringComparer.Ordinal);
+        exposedMates = channels;
         var header = Regex.Match(body, @"\bExpose\s*\{", RegexOptions.CultureInvariant);
         if (!header.Success) return [];
         var block = BalancedBody(body, header.Index + header.Length - 1, diagnostics, "Assembly Expose") ?? string.Empty;
         var result = new List<SemanticValue>();
+        var consumed = new List<FirmamentV2SourceSpan>();
         foreach (Match expose in Regex.Matches(block, @"\b(?<type>Semantic|Axis|Plane|Point|Dimension|DatumFrame|Gear)\s+(?<name>[A-Za-z_]\w*)\s*=\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant))
         {
+            consumed.Add(new(expose.Index, expose.Length));
             var alias = expose.Groups["name"].Value;
             if (result.Any(value => value.ExposedName == alias)) { diagnostics.Add(new("assembly-expose-duplicate-name", $"Assembly Expose declares '{alias}' more than once.")); continue; }
             var segments = expose.Groups["path"].Value.Split('.');
@@ -462,6 +478,22 @@ public sealed class AssemblyM0Parser
             result.Add(new SemanticValue(value.StableIdentity + ":expose:" + alias, value.Type, value.Capabilities.Values, value.Bindings,
                 value.ExposedMembers.Values, [.. value.Provenance, new("assembly-expose", alias, expose.Groups["path"].Value, SemanticSourceSpan.Generated(sourceIdentity))],
                 value.AuthoredSourceSpan, value.GeneratedSourceSpan, alias));
+        }
+        foreach (var statement in FirmamentSyntaxParser.Parse(block).Document.Statements)
+        {
+            if (statement is DeclarationSyntax { Type.Name.Text: "Relation" }) continue; // Owned by ParseExposedRelations.
+            if (statement is DeclarationSyntax { Type.Name.Text: "Mate", Name: { } alias, Body: null } channel
+                && channel.Type.Arguments.Count == 0 && AssemblyInterfaceSyntax.HasContractHeader(channel with { Initializer = null })
+                && FirmamentSyntaxValues.Reference(channel.Initializer) is { } path)
+            {
+                if (result.Concat(root.ExposedSemantics).Any(v => v.ExposedName == alias.Text) || !channels.TryAdd(alias.Text, new(path, new(sourceIdentity + "#expanded-assembly-scope", bodyOffset + header.Index + header.Length + channel.Span.Start, channel.Span.Length))))
+                    diagnostics.Add(new("assembly-expose-duplicate-name", $"Assembly Expose repeats public name '{alias.Text}'."));
+                continue;
+            }
+            if (consumed.Any(span => span.Start <= statement.Span.Start && span.Start + span.Length >= statement.Span.Start + statement.Span.Length)) continue;
+            var kind = (statement as DeclarationSyntax)?.Type.Name.Text ?? "statement";
+            diagnostics.Add(new("assembly-expose-kind-unsupported", $"Assembly Expose cannot publish '{kind}' here. Publish a geometric semantic, dimensional Relation or realized Mate alias; public Interface contracts with external roles are not yet admitted.")
+                { SourceSpan = SemanticSourceSpan.Generated(sourceIdentity), LocationNote = "Enclosing reusable definition; this legacy exposure owner does not retain an original source offset." });
         }
         return result;
     }
@@ -522,17 +554,21 @@ public sealed class AssemblyM0Parser
                 var parentWorld = Aetheris.Kernel.Core.Math.Transform3D.FromRowMajor(parent.ResolvedTransform!.Matrix);
                 relative = new((world * parentWorld.Inverse()).ToRowMajor());
             }
-            return item with { Children = item.Children.Select(child => ApplyLocal(child, path.Append(child.Name))).ToArray(), ExplicitTransform = relative, FramePlacement = null };
+            return item with { Children = item.Children.Select(child => ApplyLocal(child, path.Append(child.Name))).ToArray(),
+                ExposedSemantics = localInstance.SemanticRoot.ExposedMembers.Values.ToArray(),
+                ExplicitTransform = relative, FramePlacement = null };
         }
         specializedRoot = ApplyLocal(specializedRoot, new([specializedRoot.Name]));
         var publicSemantics = specializedRoot.ExposedSemantics.Select(value => BindPublicSemantic(value, local.Ir, sourceIdentity)).ToArray();
         var publicRelations = BuildPublicRelations(definition, specializationIdentity, publicSemantics, local.Ir, diagnostics);
+        var localRootPath = local.Ir.Instances.Single(i => i.ParentStableId is null).Path.ToString();
+        var publicChannels = AssemblyM0Compiler.BindPublicJointChannels(definition.ExposedMates, local.Ir.Joints ?? [], localRootPath, diagnostics);
         var stableId = "assembly-definition:" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(specializationIdentity)))[..16];
         var definitionIr = new AssemblyDefinitionIr(stableId, specializationIdentity, definition.Name, specializationIdentity,
             [.. definition.Provenance, new("assembly-template-specialization", definition.Name, specializationIdentity, SemanticSourceSpan.Generated(sourceIdentity))],
             local.Ir.Instances, local.Ir.Mates, local.Ir.Placements, local.Ir.DimensionalRelations, local.Ir.ToleranceStackups,
             publicSemantics, publicRelations, watch.Elapsed.TotalMilliseconds,
-            local.Ir.PlacementConstraints, local.Ir.Datums, local.Ir.DatumMateSolutions, local.Ir.FitResults, local.Ir.AxisSeats);
+            local.Ir.PlacementConstraints, local.Ir.Datums, local.Ir.DatumMateSolutions, local.Ir.FitResults, local.Ir.AxisSeats, local.Ir.Joints, local.Ir.FrameDependencies) { PublicJointChannels = publicChannels };
         specializedRoot = specializedRoot with { ExposedSemantics = publicSemantics, IsEncapsulatedDefinition = true, SolvedAssemblyDefinition = definitionIr, DefinitionIdentity = specializationIdentity };
         specializationCache[specializationIdentity] = specializedRoot;
         return RenameOccurrence(specializedRoot, occurrenceName);
@@ -545,6 +581,7 @@ public sealed class AssemblyM0Parser
         var internalPath = exposed.Provenance.LastOrDefault(item => item.Stage == "assembly-expose")?.Evidence;
         if (internalPath is null || !AssemblyM0Compiler.TryResolve(AssemblyPath.Parse(localIr.Instances.Single(i => i.ParentStableId is null).Path + "." + internalPath), localIr.Instances, out var reference)) return exposed;
         var bindings = exposed.Bindings.Where(binding => binding is TolerancedDimensionBinding).ToList();
+        bindings.Add(Alias(reference!.Value));
         if (reference!.Value.TryBinding<TypedSemanticAuthorityBinding<GearAir>>(out var gear))
         {
             var owner = localIr.Instances.Where(instance => Flatten(instance.SemanticRoot).Any(value => value.StableIdentity == reference.Value.StableIdentity))
@@ -563,11 +600,20 @@ public sealed class AssemblyM0Parser
             // are not source children. Their typed authority retains ownership;
             // ordinary published composites rebase only corresponding children.
             var transformed = member.Bindings.Where(binding => binding is not (ExactAxisBinding or ExactPlaneBinding or ExactDatumFrameBinding or ExactPointBinding)).ToList();
+            transformed.RemoveAll(binding => binding is AssemblyExposedSemanticBinding);
+            transformed.Add(Alias(local));
             try { transformed.Add(AssemblyWorldQuery.Resolve(localIr, local.StableIdentity)); } catch (InvalidOperationException) { }
             return new(member.StableIdentity, member.Type, member.Capabilities.Values, transformed,
                 member.ExposedMembers.Values.Select(child => local.ExposedMembers.TryGetValue(child.ExposedName!, out var value)
                     ? BindMember(child, value) : child),
                 member.Provenance, member.AuthoredSourceSpan, member.GeneratedSourceSpan, member.ExposedName);
+        }
+
+        AssemblyExposedSemanticBinding Alias(SemanticValue value)
+        {
+            var owner = localIr.Instances.Single(instance => Flatten(instance.SemanticRoot).Any(v => v.StableIdentity == value.StableIdentity));
+            return new(owner.Path.Segments.Skip(1).ToArray(), value.StableIdentity == owner.SemanticRoot.StableIdentity ? ""
+                : value.StableIdentity[(owner.SemanticRoot.StableIdentity.Length + 1)..], value.StableIdentity);
         }
 
         static IEnumerable<SemanticValue> Flatten(SemanticValue value)
@@ -659,7 +705,7 @@ public sealed class AssemblyM0Parser
                             var definition = new AssemblyDefinitionSource(specializedIdentity, "__Unit", "__Unit", unit.Root,
                                 imported.Identity, [new("inventory-module", imported.Path, imported.Definition, imported.Origin)],
                                 unit.Anchor, unit.Mates, unit.DimensionalRelations, unit.StackupAsserts, FrameTransforms: unit.FrameTransforms)
-                                { LocalInterfaces = unit.Interfaces };
+                                { LocalInterfaces = unit.Interfaces, ExposedMates = unit.ExposedMates };
                             instantiated = InstantiateAssemblyDefinition(node.Name, specializedIdentity, [definition], unit.Interfaces,
                                 specializationCache ?? new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), imported.Path, diagnostics);
                         }

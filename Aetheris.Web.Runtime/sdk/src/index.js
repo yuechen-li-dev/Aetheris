@@ -162,6 +162,14 @@ export class ModelSession {
   async setSource(source, options = {}) {
     return this.serial(async () => { throwIfAborted(options.signal); await this.transport.request({ operation: 'setSource', sessionId: this.id, source, sourceName: options.sourceName, sourceRevision: options.sourceRevision, projectDocuments: options.projectDocuments }); return this.rebuild(options); });
   }
+  async sampleMotion(motion, timeSeconds, options = {}) {
+    return this.serial(async () => {
+      throwIfAborted(options.signal);
+      const pose = await this.transport.request({ operation: 'sampleMotion', sessionId: this.id, motion, timeSeconds, preserveEndpoint: options.preserveEndpoint === true });
+      if (pose.revision !== this.revision) throw new AetherisError('motion-revision-mismatch', 'The sampled Motion belongs to a different build revision.');
+      return pose;
+    });
+  }
   async describeConstruct(semanticId, options = {}) {
     throwIfAborted(options.signal);
     return this.transport.request({ operation: 'describeConstruct', sessionId: this.id, constructSemanticId: semanticId });

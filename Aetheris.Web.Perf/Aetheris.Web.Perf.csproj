@@ -17,5 +17,6 @@
     <Compile Include="CompareStep.cs" />
     <Compile Include="VerifyBridge.cs" />
     <Compile Include="VerifyIncremental.cs" />
+    <Compile Include="VerifyMotion.cs" />
   </ItemGroup>
 </Project>

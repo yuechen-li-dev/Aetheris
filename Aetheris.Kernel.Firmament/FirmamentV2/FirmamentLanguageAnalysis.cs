@@ -20,9 +20,9 @@ public sealed record FirmamentLanguageFormat(string Document, string Revision, s
 public static class FirmamentLanguageAnalysisService
 {
     internal sealed record Lexeme(int Start, int Length, string Text, string Shape, string? Error = null);
-    private static readonly HashSet<string> Keywords = ["Model", "Units", "Modify", "WireForm", "Construction", "Use", "schema", "Let", "Static", "With", "with", "Expose", "Include", "Subassembly", "Assembly", "Part", "Template", "Function", "Record", "Pattern", "Over", "Using", "As", "as", "Output", "tol", "Concept", "Require"];
-    private static readonly HashSet<string> DeclarationKinds = ["Model", "Struct", "Subassembly", "Assembly", "Template", "Profile", "Static", "Record", "Function", "Pattern", "Section", "SectionChain", "FrameTransform", "Points", "Path", "Semantic", "Enum", "Concept"];
-    private static readonly HashSet<string> Types = ["Length", "Angle", "Float", "Int", "Bool", "Box3", "Plane", "Point2", "Point3"];
+    private static readonly HashSet<string> Keywords = ["Model", "Units", "Modify", "WireForm", "Construction", "Use", "schema", "Let", "Static", "With", "with", "Expose", "Include", "Subassembly", "Assembly", "Part", "Template", "Function", "Record", "Pattern", "Over", "Using", "As", "as", "Output", "tol", "Concept", "Require", "Motion", "Track", "Keyframes", "Keyframe"];
+    private static readonly HashSet<string> DeclarationKinds = ["Model", "Struct", "Subassembly", "Assembly", "Template", "Profile", "Static", "Record", "Function", "Pattern", "Section", "SectionChain", "FrameTransform", "Points", "Path", "Semantic", "Enum", "Concept", "Motion", "Track", "Keyframes", "Keyframe"];
+    private static readonly HashSet<string> Types = ["Length", "Angle", "Time", "Float", "Int", "Bool", "Box3", "Plane", "Point2", "Point3"];
     private static readonly HashSet<string> Choices = FirmamentSemanticSchemas.All
         .SelectMany(construct => construct.Fields).SelectMany(field => field.Choices).ToHashSet(StringComparer.Ordinal);
 
@@ -287,7 +287,7 @@ public static class FirmamentLanguageAnalysisService
         if (Types.Contains(token.Text)) return "type";
         if (index + 1 < tokens.Count && tokens[index + 1].Text == ":" &&
             FirmamentSemanticSchemas.All.Any(item => item.Fields.Any(field => field.Name == token.Text))) return "field";
-        if (token.Text is "mm" or "cm" or "m" or "deg" or "rad") return "unit";
+        if (token.Text is "mm" or "cm" or "m" or "deg" or "rad" or "s" or "ms") return "unit";
         if (Choices.Contains(token.Text)) return "value";
         if (token.Text == "face" && index + 1 < tokens.Count && tokens[index + 1].Text == "(") return "selector";
         return "identifier";

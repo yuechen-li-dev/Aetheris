@@ -12,6 +12,7 @@ public static class PerfProgram
         if (args.Length > 0 && args[0] == "showcase") return ShowcasePerf.Run(args[1..]);
         if (args.Length > 0 && args[0] == "compare-step") return CompareStep.Run(args[1..]);
         if (args.Length > 0 && args[0] == "verify-bridge") return VerifyBridge.Run(args[1..]);
+        if (args.Length > 0 && args[0] == "verify-motion") return VerifyMotion.Run(args[1..]);
         if (args.Length > 0 && args[0] == "verify-incremental") return VerifyIncremental.Run(args[1..]);
         if (args.Length > 0 && args[0] == "profile") return ProfileOne(args[1..]);
         if (args.Length != 1) { Console.Error.WriteLine("Usage: Aetheris.Web.Perf <helix-fixture> | Aetheris.Web.Perf showcase --help | Aetheris.Web.Perf compare-step <a.step> <b.step>"); return 2; }

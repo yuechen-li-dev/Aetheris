@@ -89,3 +89,13 @@ production preview retains its existing fingerprint cache policy.
 Shared Assembly/Scene face ranges carry BRep face IDs. A range without an owned
 feature semantic ID uses `semanticEntityId: null`; selection resolves through the
 picked occurrence. This does not grant a source selector to a runtime-only face.
+
+
+Compiled Assembly snapshots include `motions`, with clip names, durations,
+repeat modes and realized Mate targets. `await model.sampleMotion(name, seconds,
+{ preserveEndpoint: false })` returns occurrence transforms and scalar joint
+state at the current successful revision. Sampling uses the retained compiler
+graph, reuses the existing mesh definitions, and does not rebuild geometry or
+change the engineering STEP snapshot. Consumers own their playback clock and
+apply the returned occurrence matrices. An unsuccessful source rebuild retains
+the previous admitted graph together with the previous geometry.

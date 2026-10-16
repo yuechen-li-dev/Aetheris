@@ -38,9 +38,9 @@ internal static class FirmamentNumericEvaluation
                     return variables is not null && variables.TryGetValue(r.Name.Text, out result);
                 case MemberSyntax m when FirmamentSyntaxValues.Reference(m) is { } name:
                     return variables is not null && variables.TryGetValue(name, out result);
-                case QuantitySyntax q when q.Unit.Text is "mm" or "deg" or "rad":
+                case QuantitySyntax q when q.Unit.Text is "mm" or "deg" or "rad" or "s" or "ms":
                     if (!Evaluate(q.Value, depth + 1, out var quantity) || quantity.Unit.Length != 0) return false;
-                    result = quantity with { Unit = q.Unit.Text }; return true;
+                    result = new(q.Unit.Text == "ms" ? quantity.Number / 1000d : quantity.Number, q.Unit.Text == "ms" ? "s" : q.Unit.Text); return true;
                 case UnarySyntax { Operator: UnaryOperator.Positive or UnaryOperator.Negative } u:
                     if (!Evaluate(u.Operand, depth + 1, out result)) return false;
                     if (u.Operator == UnaryOperator.Negative) result = result with { Number = -result.Number };
@@ -62,7 +62,7 @@ internal static class FirmamentNumericEvaluation
                         result = new(typeOnly ? 1 : Math.Pow(args[0].Number, args[1].Number), "");
                     else if (functions is not null) result = functions(target.Name.Text, args);
                     else return false;
-                    return (result.Unit is "" or "mm" or "deg" or "rad") && (typeOnly || double.IsFinite(result.Number));
+                    return (result.Unit is "" or "mm" or "deg" or "rad" or "s" or "ms") && (typeOnly || double.IsFinite(result.Number));
                 default: return false;
             }
         }
@@ -74,7 +74,7 @@ internal static class FirmamentNumericEvaluation
     {
         result = default;
         static FirmamentV2PrimitiveType? Type(string unit) => unit switch
-        { "" => FirmamentV2PrimitiveType.Float, "mm" => FirmamentV2PrimitiveType.Length, "deg" or "rad" => FirmamentV2PrimitiveType.Angle, _ => null };
+        { "" => FirmamentV2PrimitiveType.Float, "mm" => FirmamentV2PrimitiveType.Length, "deg" or "rad" => FirmamentV2PrimitiveType.Angle, "s" => FirmamentV2PrimitiveType.Time, _ => null };
         var symbol = op switch { BinaryOperator.Add => "+", BinaryOperator.Subtract => "-", BinaryOperator.Multiply => "*", BinaryOperator.Divide => "/", _ => "" };
         if (Type(left.Unit) is not { } lt || Type(right.Unit) is not { } rt || ResultType(lt, symbol, rt) is not { } type
             || left.Unit.Length > 0 && right.Unit.Length > 0 && left.Unit != right.Unit
@@ -82,14 +82,14 @@ internal static class FirmamentNumericEvaluation
         var number = typeOnly ? 1 : op switch
         { BinaryOperator.Add => left.Number + right.Number, BinaryOperator.Subtract => left.Number - right.Number,
             BinaryOperator.Multiply => left.Number * right.Number, _ => left.Number / right.Number };
-        result = new(number, type is FirmamentV2PrimitiveType.Length or FirmamentV2PrimitiveType.Angle
+        result = new(number, type is FirmamentV2PrimitiveType.Length or FirmamentV2PrimitiveType.Angle or FirmamentV2PrimitiveType.Time
             ? left.Unit.Length > 0 ? left.Unit : right.Unit : "");
         return typeOnly || double.IsFinite(result.Number);
     }
 
     internal static FirmamentV2PrimitiveType? ResultType(FirmamentV2PrimitiveType a, string op, FirmamentV2PrimitiveType b) => op switch
         {
-            "+" or "-" when a == b && a is FirmamentV2PrimitiveType.Int or FirmamentV2PrimitiveType.Float or FirmamentV2PrimitiveType.Length or FirmamentV2PrimitiveType.Angle => a,
+            "+" or "-" when a == b && a is FirmamentV2PrimitiveType.Int or FirmamentV2PrimitiveType.Float or FirmamentV2PrimitiveType.Length or FirmamentV2PrimitiveType.Angle or FirmamentV2PrimitiveType.Time => a,
             "+" or "-" when IsNumeric(a) && IsNumeric(b) => FirmamentV2PrimitiveType.Float,
             "*" when IsNumeric(a) && IsNumeric(b) => a == FirmamentV2PrimitiveType.Int && b == FirmamentV2PrimitiveType.Int ? FirmamentV2PrimitiveType.Int : FirmamentV2PrimitiveType.Float,
             "*" when IsDim(a) && IsNumeric(b) => a,
@@ -100,7 +100,7 @@ internal static class FirmamentNumericEvaluation
             _ => null
         };
     private static bool IsNumeric(FirmamentV2PrimitiveType t) => t is FirmamentV2PrimitiveType.Int or FirmamentV2PrimitiveType.Float;
-    private static bool IsDim(FirmamentV2PrimitiveType t) => t is FirmamentV2PrimitiveType.Length or FirmamentV2PrimitiveType.Angle;
+    private static bool IsDim(FirmamentV2PrimitiveType t) => t is FirmamentV2PrimitiveType.Length or FirmamentV2PrimitiveType.Angle or FirmamentV2PrimitiveType.Time;
 
     internal static bool TryEvaluateScalar(string expression, out double value, out string unit)
     {

@@ -225,7 +225,7 @@ public static class FirmamentSourceSpelling
         Add("Assembly Subassembly", "Anchor Provenance Appearance");
         Add("Part Occurrence", "Material Appearance");
         Add("Plane DatumPlane", "Origin Normal Up From Offset RotateLocal Clocking");
-        Add("DatumFrame", "On At X");
+        Add("DatumFrame", "On At X From TranslateLocal RotateLocal Normal Up");
         Add("Point2 Point3", "Position");
         Add("Axis Axis2 Line3", "Origin Direction Start End Reference");
         Add("Circle2", "Center Radius");

@@ -50,7 +50,7 @@ internal static class AssemblyRouteBindings
         if (!source.Root.Flatten().Any(m => m.RouteInputs is not null)) return source;
         var placed = new AssemblyM0Compiler().Compile(source);
         if (!placed.IsSuccess || placed.Ir is null) { diagnostics.AddRange(placed.Diagnostics); return null; }
-        if ((placed.Ir.Joints ?? []).Any())
+        if ((placed.Ir.Joints ?? []).Any(joint => joint.DegreesOfFreedom > 0))
         { diagnostics.Add(new("assembly-route-bind-motion-not-qualified", "Bound routes require a completely fixed assembly; posed or moving routes are deferred.")); return null; }
         var declarations = source.DefinitionSource ?? "";
         AssemblyMemberSource Visit(AssemblyMemberSource member, string path)

@@ -1,5 +1,6 @@
 using Aetheris.Semantics;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
 
@@ -49,7 +50,10 @@ public sealed record InterfaceDefinition(
     IReadOnlyList<InterfacePredicateRequirementDefinition>? PredicateRequirements = null,
     GearInterfaceOptions? GearOptions = null,
     FixedSeatingOptions? Seating = null,
-    AssemblyDatumContract? DatumContract = null);
+    AssemblyDatumContract? DatumContract = null)
+{
+    internal bool IsFramePlacement { get; init; }
+}
 
 public sealed record AssemblyDatumContract(string Datum, IReadOnlyList<string> Members);
 public sealed record AssemblyDatumSeat(string Interface, string Datum, string Port, double[] Origin, double[] Normal, bool Support);
@@ -100,7 +104,10 @@ public sealed record AssemblyDefinitionSource(
     IReadOnlyList<AssemblyFrameTransformSource>? FrameTransforms = null)
 {
     internal IReadOnlyList<InterfaceDefinition>? LocalInterfaces { get; init; }
+    internal IReadOnlyDictionary<string, AssemblyExposedMateSource> ExposedMates { get; init; } = new Dictionary<string, AssemblyExposedMateSource>();
 }
+
+internal sealed record AssemblyExposedMateSource(string Target, SemanticSourceSpan SourceSpan);
 
 public sealed record AssemblyExposedRelationSource(
     string Name, string PublicFrom, string PublicTo, AssemblyPath InternalFrom, AssemblyPath InternalTo);
@@ -124,6 +131,9 @@ public sealed record AssemblySource(
     AssemblyAppearanceCatalog? AppearanceCatalog = null,
     AssemblyAnnotations? Annotations = null)
 {
+    internal IReadOnlyList<DeclarationSyntax> MotionSyntax { get; init; } = [];
+    internal IReadOnlyDictionary<string, AssemblyExposedMateSource> ExposedMates { get; init; } = new Dictionary<string, AssemblyExposedMateSource>();
+    internal Func<AssemblyDiagnostic, AssemblyDiagnostic>? MapMotionDiagnostic { get; init; }
     internal Aetheris.Kernel.Firmament.Modules.FirmamentModuleGraph? ModuleGraph { get; init; }
     public bool HasModuleBindings => ModuleGraph?.HasModuleBindings == true;
 }
@@ -203,7 +213,15 @@ public sealed record DatumMateSolutionIr(string MateStableId, string FirstDatumS
 /// Z is the motion axis and X fixes the angular zero. State is degrees or millimetres.</summary>
 public sealed record AssemblyJointIr(string MateStableId, string Name, MechanicalInterfaceFamily Family,
     string ParentOccurrenceId, string ChildOccurrenceId, string ParentFrameSemanticId, string ChildFrameSemanticId,
-    AssemblyTransform ParentLocalFrame, AssemblyTransform ChildLocalFrame, int DegreesOfFreedom, double DefaultState = 0);
+    AssemblyTransform ParentLocalFrame, AssemblyTransform ChildLocalFrame, int DegreesOfFreedom, double DefaultState = 0)
+{
+    public IReadOnlyList<string> PublicNames { get; init; } = [];
+}
+
+/// <summary>An exposed semantic keeps its owning occurrence, rather than freezing
+/// a moving child's port at the reusable definition's zero pose.</summary>
+public sealed record AssemblyExposedSemanticBinding(IReadOnlyList<string> RelativeOccurrencePath, string SemanticPath,
+    string SourceSemanticId) : SemanticBinding("AssemblyExposedSemantic", SourceSemanticId);
 
 public sealed record AssemblyDefinitionIr(
     string StableId, string DefinitionIdentity, string TemplateName, string SpecializationIdentity,
@@ -217,7 +235,12 @@ public sealed record AssemblyDefinitionIr(
     IReadOnlyList<AssemblyDatumIr>? LocalDatums = null,
     IReadOnlyList<DatumMateSolutionIr>? LocalDatumMateSolutions = null,
     IReadOnlyList<InterfaceFitResultIr>? LocalFitResults = null,
-    IReadOnlyList<AssemblyAxisSeatEvidence>? LocalAxisSeats = null);
+    IReadOnlyList<AssemblyAxisSeatEvidence>? LocalAxisSeats = null,
+    IReadOnlyList<AssemblyJointIr>? LocalJoints = null,
+    IReadOnlyList<AssemblyJointIr>? LocalFrameDependencies = null)
+{
+    public IReadOnlyDictionary<string, string> PublicJointChannels { get; init; } = new Dictionary<string, string>();
+}
 
 public sealed record AssemblyPerformanceIr(double ParseMilliseconds, double BindMilliseconds, double MateValidationMilliseconds, double PlacementMilliseconds, double DimensionalGraphMilliseconds, double ToleranceAnalysisMilliseconds, double DefinitionMaterializationMilliseconds = 0, double GeometryExecutionMilliseconds = 0, double RouteBindingMilliseconds = 0);
 public sealed record AssemblyGeometryMetricsIr(int Bodies, int Faces, int Edges, int Vertices, double[] Minimum, double[] Maximum);
@@ -246,6 +269,10 @@ public sealed record AssemblyIr(
     IReadOnlyList<AssemblyRouteBindingEvidence>? RouteBindings = null,
     AssemblyAnnotations? Annotations = null)
 {
+    public IReadOnlyList<AssemblyMotionIr> Motions { get; init; } = [];
+    // The same exact frame-relation data drives pose evaluation, but authored
+    // Placement is not exported or counted as a physical mechanical joint.
+    public IReadOnlyList<AssemblyJointIr> FrameDependencies { get; init; } = [];
     public IReadOnlyList<Aetheris.Kernel.Firmament.Modules.FirmamentInventoryBinding> InventoryBindings { get; init; } = [];
 }
 

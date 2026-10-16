@@ -25,7 +25,8 @@ public enum FirmamentValueKind
     Length,
     Angle,
     String,
-    Bool
+    Bool,
+    Time
 }
 
 public sealed record FirmamentScalarValue(

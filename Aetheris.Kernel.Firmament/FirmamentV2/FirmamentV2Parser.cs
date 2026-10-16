@@ -757,11 +757,12 @@ public static partial class FirmamentV2Parser
             "float" or "Float" => FirmamentV2PrimitiveType.Float,
             "length" or "Length" => FirmamentV2PrimitiveType.Length,
             "angle" or "Angle" => FirmamentV2PrimitiveType.Angle,
+            "time" or "Time" => FirmamentV2PrimitiveType.Time,
             "string" or "String" => FirmamentV2PrimitiveType.String,
             "bool" or "Bool" => FirmamentV2PrimitiveType.Bool,
             _ => default
         };
-        return text is "int" or "float" or "length" or "angle" or "string" or "bool" or "Int" or "Float" or "Length" or "Angle" or "String" or "Bool";
+        return text is "Time" or "time" or "int" or "float" or "length" or "angle" or "string" or "bool" or "Int" or "Float" or "Length" or "Angle" or "String" or "Bool";
     }
 
     private static FirmamentV2ValueExpression? ParseLetValueExpression(FirmamentV2PrimitiveType type, string literal, List<string> diagnostics)
@@ -844,6 +845,9 @@ public static partial class FirmamentV2Parser
                 if (m.Groups["unit"].Value != "deg") { diagnostics.Add(m.Groups["unit"].Success ? LetUnitMismatch : LetTypeMismatch); return null; }
                 var angle = double.Parse(m.Groups["num"].Value, CultureInfo.InvariantCulture);
                 return new(type, angle, angle, "deg", literal);
+            case FirmamentV2PrimitiveType.Time:
+                if (!FirmamentNumericEvaluation.TryEvaluate(literal, out var time) || time.Unit != "s") { diagnostics.Add(LetUnitMismatch); return null; }
+                return new(type, time.Number, time.Number, "s", literal);
             case FirmamentV2PrimitiveType.String:
                 if (!Regex.IsMatch(literal, "^\\\"[^\\\"]*\\\"$", RegexOptions.CultureInvariant)) { diagnostics.Add(LetInvalidLiteral); return null; }
                 return new(type, literal[1..^1], null, null, literal);
@@ -1000,7 +1004,7 @@ public static partial class FirmamentV2Parser
                 return new(type, double.NaN, double.NaN, Raw: raw);
             var d = computed.Number;
             object value = type == FirmamentV2PrimitiveType.Int ? (object)(int)d : d;
-            return new(type, value, d, type == FirmamentV2PrimitiveType.Length ? "mm" : type == FirmamentV2PrimitiveType.Angle ? "deg" : null, raw);
+            return new(type, value, d, type == FirmamentV2PrimitiveType.Length ? "mm" : type == FirmamentV2PrimitiveType.Angle ? "deg" : type == FirmamentV2PrimitiveType.Time ? "s" : null, raw);
         }
     }
 

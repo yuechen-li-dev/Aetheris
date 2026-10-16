@@ -48,3 +48,21 @@ test('a retained definition the session does not hold is an error, not a silent 
   assert.throws(() => session.apply({ revision: 2, mesh: { definitions: [{ id: 'missing', identity: 'missing', retained: true }], occurrences: [] } }),
     error => error.code === 'retained-definition-missing');
 });
+
+
+test('Motion sampling uses the cached runtime graph without replacing shared meshes', async () => {
+  const requests = [];
+  const mesh = { definitions: [], occurrences: [] };
+  const transport = { async request(request) {
+    requests.push(request);
+    return { revision: 3, motion: request.motion, timeSeconds: request.timeSeconds, state: { Shaft: 450 }, transforms: [] };
+  } };
+  const session = new ModelSession(transport, { id: 'model-1', revision: 3, mesh, motions: [] });
+  const pose = await session.sampleMotion('Cycle', 1.25);
+  assert.equal(pose.state.Shaft, 450);
+  assert.equal(session.mesh, mesh);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].operation, 'sampleMotion');
+  transport.request = async () => ({ revision: 2 });
+  await assert.rejects(session.sampleMotion('Cycle', 1), error => error.code === 'motion-revision-mismatch');
+});

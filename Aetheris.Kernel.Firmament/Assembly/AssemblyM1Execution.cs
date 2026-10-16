@@ -641,11 +641,20 @@ public sealed class AssemblyM1Pipeline
 public static class AssemblyWorldQuery
 {
     public static SemanticBinding Resolve(AssemblyIr ir, string semanticValueId)
+        => Resolve(ir, semanticValueId, new HashSet<string>(StringComparer.Ordinal));
+
+    private static SemanticBinding Resolve(AssemblyIr ir, string semanticValueId, HashSet<string> visited)
     {
+        if (!visited.Add(semanticValueId)) throw new InvalidOperationException($"Cyclic exposed semantic '{semanticValueId}'.");
         var instance = ir.Instances.FirstOrDefault(candidate => Flatten(candidate.SemanticRoot).Any(value => value.StableIdentity == semanticValueId))
             ?? throw new KeyNotFoundException($"Semantic value '{semanticValueId}' has no owning assembly instance.");
         if (instance.ResolvedTransform is null) throw new InvalidOperationException($"Instance '{instance.Path}' has no resolved world transform.");
         var value = Flatten(instance.SemanticRoot).Single(candidate => candidate.StableIdentity == semanticValueId);
+        if (value.TryBinding<AssemblyExposedSemanticBinding>(out var alias))
+        {
+            var target = ExposedTarget(ir.Instances, instance, alias);
+            return Resolve(ir, target.Value.StableIdentity, visited);
+        }
         var transform = Transform3D.FromRowMajor(instance.ResolvedTransform.Matrix);
         if (value.TryBinding<ExactAxisBinding>(out var axis))
         {
@@ -676,6 +685,17 @@ public static class AssemblyWorldQuery
         if (value.TryBinding<ExactBrepBodyBinding>(out var body))
             return new ExactBrepBodyBinding(FirmasmAssemblyExecutor.TransformBody(body.Body, transform), body.BodyStableId + ":world:" + instance.StableId);
         throw new InvalidOperationException($"Semantic value '{semanticValueId}' has no world-queryable exact binding.");
+    }
+
+    internal static (AssemblyInstanceIr Owner, SemanticValue Value) ExposedTarget(IReadOnlyList<AssemblyInstanceIr> instances,
+        AssemblyInstanceIr owner, AssemblyExposedSemanticBinding alias)
+    {
+        var path = new AssemblyPath([.. owner.Path.Segments, .. alias.RelativeOccurrencePath]).ToString();
+        var instance = instances.Single(i => i.Path.ToString() == path);
+        var value = instance.SemanticRoot;
+        if (alias.SemanticPath.Length > 0)
+            foreach (var member in alias.SemanticPath.Split('.')) value = value.ExposedMembers[member];
+        return (instance, value);
     }
 
     public static IReadOnlyList<AssemblyMateResidualIr> ValidateResiduals(AssemblyIr ir, IReadOnlySet<string> materializedInstanceIds, double positionToleranceMm = 1e-8, double angularToleranceRadians = 1e-8)

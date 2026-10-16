@@ -1,0 +1,27 @@
+// Approved design witness; currently rejected, not a canonical must-build case.
+// The next owner is bounded closure admission and public external-role binding.
+Assembly PendingSliderCrank {
+  <Assembly PendingSliderCrank>
+    Semantic Guide { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    <Part Crank = Panel<L:10mm,W:5mm,H:2mm,R:0mm>>
+      Semantic Pin { DatumFrame Frame = [0,44,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+    <Part Rod = Panel<L:145mm,W:5mm,H:2mm,R:0mm>>
+      Semantic BigEnd { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+      Semantic SmallEnd { DatumFrame Frame = [0,145,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+    <Part Slider = Panel<L:10mm,W:5mm,H:2mm,R:0mm>>
+      Semantic Pin { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+  </Assembly>
+  Interface<SliderCrank> Drive {}
+  Mate Stroke: Drive {
+    crankPin: PendingSliderCrank.Crank.Pin
+    rodBigEnd: PendingSliderCrank.Rod.BigEnd
+    rodSmallEnd: PendingSliderCrank.Rod.SmallEnd
+    sliderPin: PendingSliderCrank.Slider.Pin
+    guide: PendingSliderCrank.Guide
+    branch: Extended
+  }
+  anchor: PendingSliderCrank;
+}

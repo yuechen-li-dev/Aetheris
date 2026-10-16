@@ -1,0 +1,24 @@
+Template<H:Length> Struct Link {
+  Circle2 C { center: [0mm,0mm]; radius: 1mm }
+  Profile P { Loop Outer { C |> TraceLoop } }
+  Extrude Body { profile: P; from: 0mm; to: H }
+}
+Assembly RelativeFrames {
+  <Assembly RelativeFrames>
+    Semantic Ground { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    <Part Rotor = Link<H:4mm>>
+      Semantic Input { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+      Semantic Output { DatumFrame Frame = [20,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+    <Part Rigid = Link<H:4mm>>
+      Placement { from: Origin; to: RelativeFrames.Rotor.Output.Frame; }
+      Semantic Output { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+    <Part Tip = Link<H:4mm>>
+      Semantic Input { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+  </Assembly>
+  Interface<Revolute> Base { A: RelativeFrames.Ground.Frame; B: RelativeFrames.Rotor.Input.Frame; }
+  Interface<Revolute> Elbow { A: RelativeFrames.Rigid.Output.Frame; B: RelativeFrames.Tip.Input.Frame; }
+  anchor: RelativeFrames;
+}

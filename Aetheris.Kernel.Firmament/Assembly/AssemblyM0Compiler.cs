@@ -27,7 +27,10 @@ public sealed class AssemblyM0Compiler
         var diagnostics = new List<AssemblyDiagnostic>();
         var bindWatch = Stopwatch.StartNew();
         var instances = BindInstances(source, diagnostics);
-        (source, instances) = AssemblyFrameAuthoring.Lower(source, instances, diagnostics);
+        var retainedJoints = InstantiateRelations(source.Root, instances).ToArray();
+        var retainedFrames = InstantiateRelations(source.Root, instances, frameDependencies: true).ToArray();
+        var retainedRelations = retainedJoints.Concat(retainedFrames).ToArray();
+        (source, instances) = AssemblyFrameAuthoring.Lower(source, instances, diagnostics, retainedRelations);
         bindWatch.Stop();
         var byPath = instances.ToDictionary(x => x.Path.ToString(), StringComparer.Ordinal);
         var interfaces = source.Interfaces.ToDictionary(x => x.Name, StringComparer.Ordinal);
@@ -47,7 +50,12 @@ public sealed class AssemblyM0Compiler
             ResolvedTransform = placements.First(x => x.InstanceStableId == instance.StableId).Transform
         }).ToArray();
         mates = ValidateGearInterfaces(mates, interfaces, instances, diagnostics);
-        var joints = BindJoints(source.Anchor, mates, interfaces, instances, constraints, diagnostics);
+        var joints = BindJoints(source.Anchor, mates, interfaces, instances, constraints, diagnostics, retainedRelations)
+            .Concat(retainedJoints).ToArray();
+        var channels = BindPublicJointChannels(source.ExposedMates, joints, source.Root.Name, diagnostics);
+        joints = joints.Select(j => j with { PublicNames = j.PublicNames.Concat(channels.Where(c => c.Value == j.MateStableId).Select(c => c.Key)).Distinct(StringComparer.Ordinal).ToArray() }).ToArray();
+        var frameDependencies = BindFrameDependencies(mates, interfaces, instances, constraints).Concat(retainedFrames).ToArray();
+        diagnostics.AddRange(AssemblyKinematics.ValidateGraph(instances, joints.Concat(frameDependencies).ToArray()));
         placementWatch.Stop();
 
         var graphWatch = Stopwatch.StartNew();
@@ -81,8 +89,18 @@ public sealed class AssemblyM0Compiler
         AssemblyPmiAuthoring.Validate(source.Annotations, instances, diagnostics);
         var ir = new AssemblyIr("aetheris/assembly-ir/m0", $"assembly:{source.Name}", source.Name,
             instances.Single(x => x.ParentStableId is null).StableId, instances, source.Interfaces, mates,
-            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions, source.SourceDependencies, joints, source.Patterns, ConceptPoints: source.ConceptPoints, Annotations: source.Annotations) { InventoryBindings = source.ModuleGraph?.InventoryBindings.ToArray() ?? [] };
+            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions, source.SourceDependencies, joints, source.Patterns, ConceptPoints: source.ConceptPoints, Annotations: source.Annotations) { InventoryBindings = source.ModuleGraph?.InventoryBindings.ToArray() ?? [], FrameDependencies = frameDependencies };
         ir = ir with { AxisSeats = AssemblyDatumAuthoring.ValidateAxisSeats(source, ir, diagnostics) };
+        var motionStart = diagnostics.Count;
+        var motions = AssemblyMotionAuthoring.Bind(source, ir, diagnostics);
+        if (source.MapMotionDiagnostic is { } map)
+        {
+            for (var i = motionStart; i < diagnostics.Count; i++) diagnostics[i] = map(diagnostics[i]);
+            SemanticSourceSpan? MapSpan(SemanticSourceSpan? span) => span is null ? null : map(new("motion-origin", "") { SourceSpan = span }).SourceSpan;
+            motions = motions.Select(m => m with { SourceSpan = MapSpan(m.SourceSpan), Tracks = m.Tracks.Select(t => t with
+                { SourceSpan = MapSpan(t.SourceSpan), Curve = t.Curve with { Keys = t.Curve.Keys.Select(k => k with { SourceSpan = MapSpan(k.SourceSpan) }).ToArray() } }).ToArray() }).ToArray();
+        }
+        ir = ir with { Motions = motions };
         ir = AssemblyAppearanceAuthoring.Bind(ir, source.AppearanceCatalog, diagnostics);
         return new(ir, diagnostics, perf);
 
@@ -92,6 +110,93 @@ public sealed class AssemblyM0Compiler
             return value.StableIdentity.StartsWith(prefix, StringComparison.Ordinal)
                 ? instance.Path + "." + value.StableIdentity[prefix.Length..]
                 : instance.Path + "." + (value.ExposedName ?? value.StableIdentity);
+        }
+    }
+
+    internal static IReadOnlyDictionary<string, string> BindPublicJointChannels(IReadOnlyDictionary<string, AssemblyExposedMateSource> aliases,
+        IReadOnlyList<AssemblyJointIr> joints, string root, List<AssemblyDiagnostic> diagnostics)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (alias, origin) in aliases)
+        {
+            var target = origin.Target;
+            var matches = joints.Where(j => j.PublicNames.Contains(target, StringComparer.Ordinal)
+                || j.PublicNames.Contains(root + "." + target, StringComparer.Ordinal)).ToArray();
+            if (matches.Length != 1 || matches[0].DegreesOfFreedom != 1)
+                diagnostics.Add(new("assembly-expose-mate-unresolved", $"Expose Mate '{alias}' must resolve one movable local Mate or a nested public Mate channel; '{target}' is unavailable.") { SourceSpan = origin.SourceSpan, LocationNote = "Expanded Assembly Expose statement; the legacy definition adapter has no retained original statement span." });
+            else if (joints.Any(j => j.MateStableId != matches[0].MateStableId && j.PublicNames.Contains(alias, StringComparer.Ordinal)))
+                diagnostics.Add(new("assembly-expose-duplicate-name", $"Public Mate channel '{alias}' conflicts with another realized Mate. Choose a distinct public name.") { SourceSpan = origin.SourceSpan, LocationNote = "Expanded Assembly Expose statement; the legacy definition adapter has no retained original statement span." });
+            else result[alias] = matches[0].MateStableId;
+        }
+        return result;
+    }
+
+    private static IEnumerable<AssemblyJointIr> InstantiateRelations(AssemblyMemberSource root, IReadOnlyList<AssemblyInstanceIr> instances, bool frameDependencies = false)
+    {
+        return Walk(root, new([root.Name]));
+
+        IEnumerable<AssemblyJointIr> Walk(AssemblyMemberSource member, AssemblyPath path)
+        {
+            if (member.SolvedAssemblyDefinition is { } definition)
+            {
+                var localRoot = definition.LocalInstances.Single(i => i.ParentStableId is null);
+                var byId = definition.LocalInstances.ToDictionary(i => i.StableId, StringComparer.Ordinal);
+                AssemblyInstanceIr Occurrence(string id)
+                {
+                    var local = byId[id];
+                    var target = new AssemblyPath([.. path.Segments, .. local.Path.Segments.Skip(localRoot.Path.Segments.Count)]);
+                    return instances.Single(i => i.Path.ToString() == target.ToString());
+                }
+                string Semantic(string id, string owner)
+                {
+                    var local = byId[owner];
+                    var occurrence = Occurrence(owner);
+                    var suffix = id[local.SemanticRoot.StableIdentity.Length..];
+                    return occurrence.SemanticRoot.StableIdentity + suffix;
+                }
+                foreach (var joint in (frameDependencies ? definition.LocalFrameDependencies : definition.LocalJoints) ?? [])
+                    yield return joint with
+                    {
+                        MateStableId = joint.MateStableId + ":occurrence:" + path,
+                        Name = path + "." + (joint.Name.StartsWith(localRoot.Path + ".", StringComparison.Ordinal)
+                            ? joint.Name[(localRoot.Path.ToString().Length + 1)..] : joint.Name),
+                        ParentOccurrenceId = Occurrence(joint.ParentOccurrenceId).StableId,
+                        ChildOccurrenceId = Occurrence(joint.ChildOccurrenceId).StableId,
+                        ParentFrameSemanticId = Semantic(joint.ParentFrameSemanticId, joint.ParentOccurrenceId),
+                        ChildFrameSemanticId = Semantic(joint.ChildFrameSemanticId, joint.ChildOccurrenceId),
+                        PublicNames = frameDependencies ? [] : definition.PublicJointChannels.Where(c => c.Value == joint.MateStableId)
+                            .Select(c => path + "." + c.Key).ToArray()
+                    };
+                // Each retained relation collection already contains nested definitions.
+                yield break;
+            }
+            foreach (var child in member.Children)
+                foreach (var joint in Walk(child, path.Append(child.Name))) yield return joint;
+        }
+    }
+
+    private static IEnumerable<AssemblyJointIr> BindFrameDependencies(IReadOnlyList<MateIr> mates,
+        IReadOnlyDictionary<string, InterfaceDefinition> interfaces, IReadOnlyList<AssemblyInstanceIr> instances,
+        IReadOnlyList<PlacementConstraintIr> constraints)
+    {
+        var definitions = interfaces.Values.ToDictionary(i => i.StableId, StringComparer.Ordinal);
+        var values = Flatten(instances.Select(i => i.SemanticRoot)).ToDictionary(v => v.StableIdentity, StringComparer.Ordinal);
+        foreach (var mate in mates.Where(m => m.ValidationStatus == "valid"))
+        {
+            var definition = definitions[mate.InterfaceStableId];
+            if (!definition.IsFramePlacement) continue;
+            var moving = mate.Roles.SingleOrDefault(r => r.Role == "Moving");
+            var target = mate.Roles.SingleOrDefault(r => r.Role == "Target");
+            var constraint = constraints.SingleOrDefault(c => c.MateStableId == mate.StableId && c.Kind == PlacementConstraintKind.FrameCoincident);
+            if (moving is null || target is null || constraint is null) continue;
+            var child = OwnerInstance(moving.ParticipantSemanticValueId, instances);
+            var parent = OwnerInstance(target.ParticipantSemanticValueId, instances);
+            if (child is null || parent is null
+                || !values[moving.ParticipantSemanticValueId].TryBinding<ExactDatumFrameBinding>(out var from)
+                || !values[target.ParticipantSemanticValueId].TryBinding<ExactDatumFrameBinding>(out var to)) continue;
+            yield return new(mate.StableId, mate.Name, MechanicalInterfaceFamily.Fixed, parent.StableId, child.StableId,
+                target.ParticipantSemanticValueId, moving.ParticipantSemanticValueId,
+                new(AssemblyFrameAuthoring.Matrix(to).ToRowMajor()), new(AssemblyFrameAuthoring.Matrix(from).ToRowMajor()), 0);
         }
     }
 
@@ -423,7 +528,7 @@ public sealed class AssemblyM0Compiler
 
     private static IReadOnlyList<AssemblyJointIr> BindJoints(AssemblyPath anchorPath, IReadOnlyList<MateIr> mates,
         IReadOnlyDictionary<string, InterfaceDefinition> interfaces, IReadOnlyList<AssemblyInstanceIr> instances,
-        IReadOnlyList<PlacementConstraintIr> constraints, List<AssemblyDiagnostic> diagnostics)
+        IReadOnlyList<PlacementConstraintIr> constraints, List<AssemblyDiagnostic> diagnostics, IReadOnlyList<AssemblyJointIr> retainedJoints)
     {
         var values = Flatten(instances.Select(instance => instance.SemanticRoot))
             .ToDictionary(value => value.StableIdentity, StringComparer.Ordinal);
@@ -467,30 +572,29 @@ public sealed class AssemblyM0Compiler
                 (aFrame, bFrame) = (bFrame, aFrame);
                 (parentSemanticId, childSemanticId) = (childSemanticId, parentSemanticId);
             }
+            if (!AssemblyKinematics.IsRigidPort(child, values[childSemanticId], instances, retainedJoints))
+            {
+                diagnostics.Add(new("assembly-kinematic-moving-mount-unsupported", $"Mate '{mate.Name}' must seat the complete occurrence through a rigid public mount; its B port moves internally."));
+                continue;
+            }
+            var parentIsSeat = frame.SeatFrameSemanticId == parentSemanticId;
+            // An A port exported by an articulated definition follows its actual
+            // local occurrence. B still seats the complete child occurrence.
+            var parentValue = values[parentSemanticId];
+            var aliases = new HashSet<string>(StringComparer.Ordinal);
+            while (parentValue.TryBinding<AssemblyExposedSemanticBinding>(out var alias) && aliases.Add(parentValue.StableIdentity))
+            {
+                var target = AssemblyWorldQuery.ExposedTarget(instances, parent, alias);
+                parent = target.Owner;
+                parentValue = target.Value;
+                parentSemanticId = parentValue.StableIdentity;
+                if (parentValue.TryBinding<ExactDatumFrameBinding>(out var exact)) aFrame = exact;
+            }
             result.Add(new(mate.StableId, mate.Name, family, parent.StableId, child.StableId,
                 parentSemanticId, childSemanticId,
-                new((frame.Seating is null ? FrameMatrix(aFrame,frame.Orientation) : frame.SeatFrameSemanticId==parentSemanticId ? SeatMatrix(aFrame,frame.Seating) : FrameMatrix(aFrame,DatumOrientationRelation.SameDirection)).ToRowMajor()),
+                new((frame.Seating is null ? FrameMatrix(aFrame,frame.Orientation) : parentIsSeat ? SeatMatrix(aFrame,frame.Seating) : FrameMatrix(aFrame,DatumOrientationRelation.SameDirection)).ToRowMajor()),
                 new((frame.Seating is not null && frame.SeatFrameSemanticId==childSemanticId ? SeatMatrix(bFrame,frame.Seating) : FrameMatrix(bFrame, DatumOrientationRelation.SameDirection)).ToRowMajor()),
-                family == MechanicalInterfaceFamily.Fixed ? 0 : 1));
-        }
-        foreach (var group in result.Where(joint => joint.DegreesOfFreedom == 1)
-                     .GroupBy(joint => joint.ChildOccurrenceId).Where(group => group.Count() > 1))
-            diagnostics.Add(new("assembly-kinematic-duplicate-child", $"Occurrence '{group.Key}' is driven by multiple kinematic Interfaces: {string.Join(", ", group.Select(joint => joint.Name))}."));
-        var parentByChild = result.Where(joint => joint.DegreesOfFreedom == 1)
-            .GroupBy(joint => joint.ChildOccurrenceId).ToDictionary(group => group.Key, group => group.First().ParentOccurrenceId);
-        foreach (var child in parentByChild.Keys)
-        {
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            var current = child;
-            while (parentByChild.TryGetValue(current, out var parent))
-            {
-                if (!seen.Add(current))
-                {
-                    diagnostics.Add(new("assembly-kinematic-loop-unsupported", $"Kinematic loop through occurrence '{current}' requires loop closure, which X0 does not support."));
-                    break;
-                }
-                current = parent;
-            }
+                family == MechanicalInterfaceFamily.Fixed ? 0 : 1) { PublicNames = [mate.Name] });
         }
         return result;
     }

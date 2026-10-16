@@ -1,0 +1,30 @@
+Inventory Record Units {
+  arm: Subassembly = Firmament("articulated-subassemblies").Arm
+}
+Assembly ModularMotion {
+  <Assembly ModularMotion>
+    <Assembly First = Units.arm>
+      Placement { from: Mount; to: World; }
+    </Assembly>
+    <Assembly Second = Units.arm>
+      Placement { from: Mount; to: World; translateLocal: [100mm,0mm,0mm]; }
+    </Assembly>
+  </Assembly>
+  anchor: ModularMotion;
+}
+Motion Cycle {
+  duration: 1s
+  repeat: Loop
+  Track First {
+    target: ModularMotion.First.Bend.angle
+    interpolation: Linear
+    Keyframe Start { at: 0s; value: 0deg }
+    Keyframe End { at: 1s; value: 360deg }
+  }
+  Track Second {
+    target: ModularMotion.Second.Bend.angle
+    interpolation: Linear
+    Keyframe Start { at: 0s; value: 0deg }
+    Keyframe End { at: 1s; value: -720deg }
+  }
+}

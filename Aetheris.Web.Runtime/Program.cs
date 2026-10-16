@@ -64,6 +64,7 @@ public static partial class Program
                 "describeConstruct" => DescribeConstruct(request),
                 "rewriteField" => RewriteField(request),
                 "snapshot" => Session(request).Snapshot,
+                "sampleMotion" => Session(request).SampleMotion(request),
                 "setProperty" => SetProperty(request),
                 "setSource" => SetSource(request),
                 "rebuild" => Rebuild(request),
@@ -260,7 +261,7 @@ public static partial class Program
         string? SourceRevision = null, int? Offset = null, string? ConstructSemanticId = null,
         string? FieldId = null, FirmamentProjectedValue? FieldValue = null, int? BuildRevision = null,
         bool Performance = false, IReadOnlyDictionary<string, string>? ProjectDocuments = null, string? ProjectRoot = null,
-        int? Bridge = null);
+        int? Bridge = null, string? Motion = null, double? TimeSeconds = null, bool PreserveEndpoint = false);
 
     /// <summary>
     /// BUILD-PERF-M3 response bridge (request <c>bridge: 1</c>, sent by the SDK). Large numeric arrays
@@ -293,7 +294,18 @@ public static partial class Program
         private readonly FirmamentCompilationSession _compilationSession = new();
         private readonly FirmamentSceneSession _sceneSession = new();
         private AssemblyCompilationReuse? _lastReuse;
-        public void Dispose() { _compilationSession.Dispose(); _sceneSession.Dispose(); }
+        private AssemblyIr? _assembly;
+        private AssemblyIr? _pendingAssembly;
+        public void Dispose() { _assembly = null; _pendingAssembly = null; _compilationSession.Dispose(); _sceneSession.Dispose(); }
+        internal object SampleMotion(WebRequest request)
+        {
+            if (_assembly is null || request.Motion is null || request.TimeSeconds is null)
+                throw new WebRuntimeException("assembly-motion-query-required", "sampleMotion requires a compiled Assembly, Motion name and timeSeconds.");
+            var pose = AssemblyMotion.Evaluate(_assembly, request.Motion, request.TimeSeconds.Value, request.PreserveEndpoint);
+            if (!pose.IsSuccess) throw new WebRuntimeException(pose.Diagnostics[0].Code, pose.Diagnostics[0].Message);
+            return new { revision = Revision, motion = request.Motion, timeSeconds = request.TimeSeconds, state = pose.State,
+                transforms = pose.Instances.Select(i => new { id = i.StableId, matrix = i.ResolvedTransform!.Matrix }).ToArray() };
+        }
         private IReadOnlyList<WebProperty> _properties = [];
         private IReadOnlyList<FirmamentConstructProjection> _projections = [];
         private readonly Dictionary<string, WebPropertyValue> _overrides = new(StringComparer.Ordinal);
@@ -394,6 +406,7 @@ public static partial class Program
             inspectPhase.Dispose();
             var effective = ApplyOverrides(_source, sourceProperties, _overrides);
             _lastReuse = null;
+            _pendingAssembly = null;
             var nextProperties = sourceProperties;
             foreach (var (propertyId, value) in _overrides)
             {
@@ -407,6 +420,7 @@ public static partial class Program
                 return compiled with { Revision = Revision, RetainedPreviousGeometry = _lastSnapshot is not null };
 
             Revision++;
+            _assembly = _pendingAssembly;
             _properties = nextProperties;
             _projections = compiled.Projections ?? [];
             _stepText = compiled.StepText;
@@ -429,7 +443,9 @@ public static partial class Program
             {
                 id = Id, name = Name, revision = Revision, source = _source, sourceName = _sourceName,
                 tree = compiled.Tree, properties = _properties, mesh = compiled.Mesh,
-                diagnostics = compiled.Diagnostics, changes, timings
+                diagnostics = compiled.Diagnostics, changes, timings,
+                motions = (_assembly?.Motions ?? []).Select(m => new { m.Name, m.DurationSeconds, repeat = m.Repeat.ToString(),
+                    tracks = m.Tracks.Select(t => new { t.Name, t.MateStableId, t.JointName, valueDimension = t.Curve.ValueDimension.ToString() }) }).ToArray()
             };
             _currentDefinitions = compiled.Mesh is AssemblyDisplayMeshDocument document ? document.Definitions.Cast<object>().ToArray() : [];
             // The snapshot carries tree, mesh and entity ids; the response does not repeat them.
@@ -524,7 +540,18 @@ public static partial class Program
             _lastReuse = compilation.Reuse;
             var compileMs = watch.Elapsed.TotalMilliseconds;
             if (!compilation.IsSuccess || compilation.Ir is null || compilation.Geometry is null)
-                return WebBuildResult.Failed(compilation.Diagnostics.Select(d => new WebDiagnostic(d.Severity == AssemblyDiagnosticSeverity.Error ? "error" : "warning", d.Code, d.Message, SourceRef(_sourceName, 0, effective.Length))).ToArray(), compileMs);
+                return WebBuildResult.Failed(compilation.Diagnostics.Select(d => new WebDiagnostic(d.Severity == AssemblyDiagnosticSeverity.Error ? "error" : "warning", d.Code, d.Message,
+                    DiagnosticSource(d), d.LocationNote)).ToArray(), compileMs);
+            WebSourceRef? DiagnosticSource(AssemblyDiagnostic diagnostic)
+            {
+                if (diagnostic.SourceSpan is not { } span) return null;
+                var text = span.Source == _sourceName ? effective : _projectDocuments?.GetValueOrDefault(span.Source);
+                if (text is null) return new(span.Source, 0, 0, span.Start, span.Length);
+                var start = Math.Clamp(span.Start, 0, text.Length);
+                var prefix = text.AsSpan(0, start);
+                var line = 1; foreach (var character in prefix) if (character == '\n') line++;
+                return new(span.Source, line, start - prefix.LastIndexOf('\n'), span.Start, span.Length);
+            }
             var assemblyStepPhase = BuildPerfTrace.Phase("web.assembly-step-prepare");
             var step = AssemblyIrAp242Exporter.PrepareExport(compilation);
             assemblyStepPhase.Dispose();
@@ -546,6 +573,7 @@ public static partial class Program
             var children = nodes.Where(node => node.ParentId == compilation.Ir.RootInstanceStableId).Select(node => node.Id).ToArray();
             var root = new WebTreeNode(compilation.Ir.RootInstanceStableId, "Assembly", compilation.Ir.Name, null, children, true, SourceRef(_sourceName, 0, effective.Length));
             var tree = new { rootId = root.Id, nodes = nodes.Prepend(root).DistinctBy(node => node.Id).ToArray() };
+            _pendingAssembly = compilation.Ir;
             return WebBuildResult.Passed(null, tree, mesh, nodes.Select(node => node.Id).Prepend(root.Id).Distinct().ToArray(), compileMs, meshMs) with { StepWriter = StepWriter };
         }
 

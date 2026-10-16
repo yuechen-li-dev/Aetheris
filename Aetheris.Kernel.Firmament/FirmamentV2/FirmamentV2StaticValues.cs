@@ -34,6 +34,7 @@ public static partial class FirmamentV2Parser
             ToleranceSyntax t => InferType(t.Nominal, visiting),
             QuantitySyntax { Unit.Text: "mm" } => FirmamentV2PrimitiveType.Length,
             QuantitySyntax { Unit.Text: "deg" } => FirmamentV2PrimitiveType.Angle,
+            QuantitySyntax { Unit.Text: "s" or "ms" } => FirmamentV2PrimitiveType.Time,
             LiteralSyntax { Kind: LiteralKind.Boolean } => FirmamentV2PrimitiveType.Bool,
             LiteralSyntax { Kind: LiteralKind.String } => FirmamentV2PrimitiveType.String,
             LiteralSyntax { Kind: LiteralKind.Number } n => n.Raw.Contains('.') || n.Raw.Contains('e', StringComparison.OrdinalIgnoreCase) ? FirmamentV2PrimitiveType.Float : FirmamentV2PrimitiveType.Int,
@@ -175,7 +176,7 @@ public static partial class FirmamentV2Parser
                     ? new FirmamentV2BinaryExpression(l, op, rgt, text) : null;
             }
             var unit = e is QuantitySyntax q ? q.Unit.Text : e is UnarySyntax { Operand: QuantitySyntax uq } ? uq.Unit.Text : "";
-            var inferred = unit switch { "mm" => FirmamentV2PrimitiveType.Length, "deg" => FirmamentV2PrimitiveType.Angle,
+            var inferred = unit switch { "mm" => FirmamentV2PrimitiveType.Length, "deg" => FirmamentV2PrimitiveType.Angle, "s" or "ms" => FirmamentV2PrimitiveType.Time,
                 "" => expected is FirmamentV2PrimitiveType.String or FirmamentV2PrimitiveType.Bool ? expected
                     : text.Contains('.') || text.Contains('e', StringComparison.OrdinalIgnoreCase) ? FirmamentV2PrimitiveType.Float : FirmamentV2PrimitiveType.Int, _ => (FirmamentV2PrimitiveType?)null };
             if (inferred is null) return null;
@@ -191,10 +192,10 @@ public static partial class FirmamentV2Parser
                 }
                 catch (System.Text.Json.JsonException) { return null; }
             }
-            if (!FirmamentSyntaxValues.TryMeasure(e, unit, out var n) || inferred == FirmamentV2PrimitiveType.Int && (n < int.MinValue || n > int.MaxValue || n != Math.Truncate(n))) return null;
+            if (!FirmamentSyntaxValues.TryMeasure(e, inferred == FirmamentV2PrimitiveType.Time ? "s" : unit, out var n) || inferred == FirmamentV2PrimitiveType.Int && (n < int.MinValue || n > int.MaxValue || n != Math.Truncate(n))) return null;
             // Float declarations admit integer-written constants, as legacy let did.
             if (inferred == FirmamentV2PrimitiveType.Int && expected == FirmamentV2PrimitiveType.Float) inferred = expected;
-            return new FirmamentV2LiteralExpression(new(inferred.Value, inferred == FirmamentV2PrimitiveType.Int ? (object)(int)n : n, n, unit.Length == 0 ? null : unit, text));
+            return new FirmamentV2LiteralExpression(new(inferred.Value, inferred == FirmamentV2PrimitiveType.Int ? (object)(int)n : n, n, inferred == FirmamentV2PrimitiveType.Time ? "s" : unit.Length == 0 ? null : unit, text));
         }
     }
 

@@ -1,0 +1,17 @@
+Concept Struct Layout {
+  DatumFrame Shaft { from: World; translateLocal: [3mm,4mm,5mm] }
+  DatumFrame Bank { from: Shaft; rotateLocal: { axis: Z; angle: -45deg } }
+  DatumFrame Cam { from: Bank; translateLocal: [0mm,100mm,20mm]; rotateLocal: { axis: Z; angle: 45deg } }
+}
+Template<H:Length> Struct Pin {
+  Circle2 C { center: [0mm,0mm]; radius: 1mm }
+  Profile P { Loop Outer { C |> TraceLoop } }
+  Extrude Body { profile: P; from: 0mm; to: H }
+  Expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+}
+Assembly SharedFrames {
+  <Assembly SharedFrames><Part Cam = Pin<H:4mm>></Part></Assembly>
+  Interface<Fixed> CamSeat { datum: Layout.Cam; members: [SharedFrames.Cam.Mount] }
+  Mate Install: CamSeat { member: SharedFrames.Cam.Mount; at: 0mm; clocking: 0deg }
+  anchor: SharedFrames;
+}

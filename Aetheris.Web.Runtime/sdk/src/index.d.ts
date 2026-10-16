@@ -1,5 +1,5 @@
 export type DiagnosticSeverity = 'info' | 'warning' | 'error';
-export type Unit = 'mm' | 'cm' | 'm' | 'deg' | 'rad';
+export type Unit = 'mm' | 'cm' | 'm' | 'deg' | 'rad' | 's' | 'ms';
 export interface SourceReference { readonly source: string; readonly line: number; readonly column: number; readonly start: number; readonly length: number }
 export interface Diagnostic { readonly severity: DiagnosticSeverity; readonly code: string; readonly message: string; readonly source?: SourceReference; readonly details?: string }
 export interface UnitValue { readonly value: number; readonly unit: Unit }
@@ -64,7 +64,11 @@ export class Aetheris {
   dispose(): Promise<void>;
   terminate(): void;
 }
+export interface MotionClip { readonly name: string; readonly durationSeconds: number; readonly repeat: 'Once' | 'Loop'; readonly tracks: readonly { readonly name: string; readonly mateStableId: string; readonly jointName: string; readonly valueDimension: 'Angle' | 'Length' }[] }
+export interface MotionPose { readonly revision: number; readonly motion: string; readonly timeSeconds: number; readonly state: Readonly<Record<string, number>>; readonly transforms: readonly { readonly id: string; readonly matrix: readonly number[] | Float64Array }[] }
 export class ModelSession {
+  readonly motions: readonly MotionClip[];
+  sampleMotion(motion: string, timeSeconds: number, options?: OperationOptions & { readonly preserveEndpoint?: boolean }): Promise<MotionPose>;
   readonly id: string; readonly name: string; readonly revision: number; readonly source: string; readonly sourceName: string;
   readonly tree: ModelTree; readonly properties: readonly EditableProperty[]; readonly mesh: DisplayMesh; readonly diagnostics: readonly Diagnostic[]; readonly changes: ChangeSet;
   readonly timings?: { readonly compileMilliseconds: number; readonly meshMilliseconds?: number; readonly totalBeforeSnapshotMilliseconds?: number; readonly profile?: { readonly phases: readonly { readonly name: string; readonly inclusiveMilliseconds: number; readonly exclusiveMilliseconds: number; readonly allocatedBytes: number }[]; readonly counts: Readonly<Record<string, number>>; readonly gc0: number; readonly gc1: number; readonly gc2: number } };

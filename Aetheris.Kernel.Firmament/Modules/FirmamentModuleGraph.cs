@@ -342,6 +342,9 @@ internal sealed class FirmamentModuleGraph
     internal Reference LocalPart(Module module, string definition)
     {
         if (TryReference(definition, out var existing)) return existing;
+        // The reference identifies the declaration; QualifyParts/PartIdentity
+        // carry invocation arguments exactly once on each occurrence.
+        definition = Base(definition);
         var identity = "__Module_" + Hash(IdentityPath(module.Path) + "\0local-part\0" + definition)[..20];
         var reference = new Reference(identity, "Part", module.Path, module, null, definition, new(module.Path, 0, 0));
         references.TryAdd(identity, reference); return reference;

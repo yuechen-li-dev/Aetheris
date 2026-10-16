@@ -12,9 +12,19 @@ Inventory Record Units {
 }
 
 Concept Struct EngineLayout {
-  Axis Shaft { origin: [0mm,0mm,d.cylinderSpacing / 2]; direction: [0,0,1]; reference: [1,0,0]; }
-  Axis RightCam { origin: [0.7071067811865475 * d.camHeight,0.7071067811865476 * d.camHeight,2 * d.cylinderSpacing]; direction: [0,0,1]; reference: [1,0,0]; }
-  Axis LeftCam { origin: [-0.7071067811865475 * d.camHeight,0.7071067811865476 * d.camHeight,2 * d.cylinderSpacing]; direction: [0,0,1]; reference: [1,0,0]; }
+  DatumFrame Shaft { from: World; translateLocal: [0mm,0mm,d.cylinderSpacing / 2] }
+  DatumFrame RightBank { from: World; rotateLocal: { axis: Z; angle: -45deg } }
+  DatumFrame LeftBank { from: World; rotateLocal: { axis: Z; angle: 45deg } }
+  DatumFrame RightCam {
+    from: RightBank
+    translateLocal: [0mm,d.camHeight,2 * d.cylinderSpacing]
+    rotateLocal: { axis: Z; angle: 45deg }
+  }
+  DatumFrame LeftCam {
+    from: LeftBank
+    translateLocal: [0mm,d.camHeight,2 * d.cylinderSpacing]
+    rotateLocal: { axis: Z; angle: -45deg }
+  }
 }
 // Product ownership is separate from the prescribed analytical motion.
 Assembly EditableV8 {

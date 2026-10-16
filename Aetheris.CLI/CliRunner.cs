@@ -3903,6 +3903,8 @@ Model CanonicalPanel {
             return RunAsmExportAp242(args.Skip(1).ToArray(), stdout, stderr);
         if (string.Equals(args[0], "export-usd", StringComparison.Ordinal))
             return AssemblyUsdCommand.Run(args.Skip(1).ToArray(), stdout, stderr);
+        if (string.Equals(args[0], "motion", StringComparison.Ordinal))
+            return AssemblyMotionCommand.Run(args.Skip(1).ToArray(), stdout, stderr);
         if (string.Equals(args[0], "export-glb", StringComparison.Ordinal))
             return AssemblyGlbCommand.Run(args.Skip(1).ToArray(), stdout, stderr);
 
@@ -5618,6 +5620,7 @@ Model CanonicalPanel {
         stdout.WriteLine($"   or: {AsmImportStepUsage[7..]}");
         stdout.WriteLine($"   or: {AsmExportAp242Usage[7..]}");
         stdout.WriteLine($"   or: {AssemblyUsdCommand.Usage}");
+        stdout.WriteLine($"   or: {AssemblyMotionCommand.Usage}");
         stdout.WriteLine($"   or: {AssemblyGlbCommand.Usage}");
         stdout.WriteLine($"   or: {Presentation3DCommand.Usage}");
         stdout.WriteLine();

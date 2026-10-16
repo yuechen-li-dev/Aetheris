@@ -10,6 +10,50 @@ namespace Aetheris.Kernel.Firmament.Assembly;
 /// <summary>Bounded frame authoring; lowers layout to the existing frame constraint solver.</summary>
 internal static class AssemblyFrameAuthoring
 {
+    internal static AssemblyFrameTransformSource? Parse(DeclarationSyntax declaration, string sourceIdentity,
+        List<AssemblyDiagnostic> diagnostics, int sourceOffset = 0)
+    {
+        var errors = new List<string>();
+        var fields = new FirmamentSyntaxFields(declaration, errors);
+        var from = fields.Reference("From");
+        if (from is null) fields.Invalid("From");
+        var translation = Vector("TranslateLocal", "mm", [0, 0, 0]);
+        var normal = Vector("Normal", "", null);
+        var up = Vector("Up", "", null);
+        var axis = "Z";
+        var angle = 0d;
+        if (fields.Take("RotateLocal") is { } rotation)
+        {
+            if (rotation is ObjectSyntax obj)
+            {
+                // The anonymous rotation object has the same fields as ordinary
+                // Placement/FrameTransform rotation, with no source rewriting.
+                var type = new IdentifierSyntax("RotateLocal", obj.Span);
+                var rotate = new FirmamentSyntaxFields(new(new(type, [], obj.Span), null, [], [], null, null, [], null, obj.Body, false, obj.Span), errors);
+                axis = rotate.Reference("Axis") ?? "";
+                angle = rotate.Number("Angle", "deg");
+                if (axis is not ("X" or "Y" or "Z") || !double.IsFinite(angle)) rotate.Invalid("Angle");
+                rotate.Complete();
+            }
+            else fields.Invalid("RotateLocal");
+        }
+        if ((normal is null) != (up is null)) fields.Invalid("Normal/Up");
+        fields.Complete();
+        foreach (var error in errors)
+            diagnostics.Add(new(error.Split(':')[0], $"Frame '{declaration.Name?.Text}': {Aetheris.Kernel.Firmament.FirmamentV2.FirmamentInterop.FirmamentV2DiagnosticAdapter.MessageFor(error)}")
+                { SourceSpan = new(sourceIdentity, sourceOffset + declaration.Span.Start, declaration.Span.Length) });
+        return errors.Count == 0 ? new(declaration.Name!.Text, from!, translation!, axis, angle, normal, up,
+            new(sourceIdentity, sourceOffset + declaration.Span.Start, declaration.Span.Length)) : null;
+
+        double[]? Vector(string name, string unit, double[]? fallback)
+        {
+            var expression = fields.Take(name);
+            if (expression is null) return fallback;
+            if (FirmamentSyntaxValues.Vector(expression, unit, out var values) && values.Length == 3) return values;
+            fields.Invalid(name); return fallback;
+        }
+    }
+
     internal static AssemblyFrameTransformSource? Parse(string name, string body, string targetField,
         string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
     {
@@ -63,7 +107,8 @@ internal static class AssemblyFrameAuthoring
     }
 
     internal static (AssemblySource Source, IReadOnlyList<AssemblyInstanceIr> Instances) Lower(
-        AssemblySource source, IReadOnlyList<AssemblyInstanceIr> original, List<AssemblyDiagnostic> diagnostics)
+        AssemblySource source, IReadOnlyList<AssemblyInstanceIr> original, List<AssemblyDiagnostic> diagnostics,
+        IReadOnlyList<AssemblyJointIr> retainedJoints)
     {
         var instances = original.ToDictionary(i => i.Path.ToString(), StringComparer.Ordinal);
         var named = (source.FrameTransforms ?? []).GroupBy(f => f.Name).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
@@ -73,13 +118,13 @@ internal static class AssemblyFrameAuthoring
             diagnostics.Add(new("assembly-frame-reserved-name", $"FrameTransform '{name}' uses a reserved name."));
         var interfaces = source.Interfaces.ToList(); var mates = source.Mates.ToList();
         var root = original.Single(i => i.ParentStableId is null);
-        (AssemblyInstanceIr Owner, Transform3D Frame)? Resolve(string path, string context, HashSet<string> visiting)
+        (AssemblyInstanceIr Owner, Transform3D Frame)? Resolve(string path, string context, HashSet<string> visiting, bool followExposed = false)
         {
             var key = path.EndsWith(".Frame", StringComparison.Ordinal) ? path[..^6] : path;
             if (named.TryGetValue(key, out var transform))
             {
                 if (!visiting.Add(key)) { diagnostics.Add(new("assembly-frame-cycle", $"FrameTransform cycle at '{key}'.")); return null; }
-                var resolved = Resolve(transform.From, root.Path.ToString(), visiting);
+                var resolved = Resolve(transform.From, root.Path.ToString(), visiting, followExposed);
                 visiting.Remove(key);
                 return resolved is { } value ? (value.Owner, Compose(value.Frame, transform, diagnostics)) : null;
             }
@@ -105,6 +150,19 @@ internal static class AssemblyFrameAuthoring
             { diagnostics.Add(new("assembly-frame-unresolved", $"'{context}' cannot resolve exact published DatumFrame '{path}'.")); return null; }
             var owner = instances.Values.Where(i => path == i.Path.ToString() || path.StartsWith(i.Path + ".", StringComparison.Ordinal))
                 .OrderByDescending(i => i.Path.Segments.Count).First();
+            var semantic = reference.Value;
+            if (!followExposed && !AssemblyKinematics.IsRigidPort(owner, semantic, original, retainedJoints))
+            {
+                diagnostics.Add(new("assembly-kinematic-moving-mount-unsupported", $"Placement '{context}' requires a rigid source mount; '{path}' moves internally."));
+                return null;
+            }
+            var aliases = new HashSet<string>(StringComparer.Ordinal);
+            while (followExposed && semantic.TryBinding<AssemblyExposedSemanticBinding>(out var alias) && aliases.Add(semantic.StableIdentity))
+            {
+                var target = AssemblyWorldQuery.ExposedTarget(instances.Values.ToArray(), owner, alias);
+                owner = target.Owner; semantic = target.Value;
+                if (semantic.TryBinding<ExactDatumFrameBinding>(out var exact)) frame = exact;
+            }
             return (owner, Matrix(frame));
         }
         AssemblyPath Publish(AssemblyInstanceIr owner, string name, Transform3D frame, string origin)
@@ -144,7 +202,7 @@ internal static class AssemblyFrameAuthoring
             }
             if (member.ExplicitTransform is not null || source.Mates.Any(DrivesOccurrence))
                 diagnostics.Add(new("assembly-placement-authority-conflict", $"Occurrence '{path}' has both authored placement and another placement driver."));
-            var from = Resolve(layout.From, path, []); var to = Resolve(layout.Target.From, path, []);
+            var from = Resolve(layout.From, path, []); var to = Resolve(layout.Target.From, path, [], followExposed: true);
             if (from is null || to is null) continue;
             if (from.Value.Owner.StableId != owner.StableId || to.Value.Owner.StableId == owner.StableId)
             { diagnostics.Add(new("assembly-placement-invalid-owner", $"Placement '{path}' requires a source frame on itself and a target on another occurrence.")); continue; }
@@ -163,7 +221,7 @@ internal static class AssemblyFrameAuthoring
             else
             {
                 interfaces.Add(new("interface:" + name, name, [new("Moving", ["DatumFrameCapable"]),new("Target", ["DatumFrameCapable"])],
-                    [new(PlacementConstraintKind.FrameCoincident,"Moving",".","Target",".")], SourceSpan: layout.Target.SourceSpan));
+                    [new(PlacementConstraintKind.FrameCoincident,"Moving",".","Target",".")], SourceSpan: layout.Target.SourceSpan, CompilerOwnedExpansion: true) { IsFramePlacement = true });
                 mates.Add(new(name,name,[new("Moving",a),new("Target",b)],layout.Target.SourceSpan));
             }
         }

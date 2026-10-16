@@ -1,0 +1,35 @@
+// Two independent occurrences share geometry and a local joint graph.
+Template<H: Length> Struct Link {
+  Circle2 C { center: [0mm,0mm]; radius: 1mm }
+  Profile P { Loop Outer { C |> TraceLoop } }
+  Extrude Body { profile: P; from: 0mm; to: H }
+  Expose { Semantic Pivot { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+}
+Subassembly Arm {
+  <Assembly Arm>
+    <Part Base = Link<H:2mm>></Part>
+    <Assembly Rigid>
+      Placement { from: Origin; to: Arm.Base.Pivot.Frame; translateLocal: [20mm,0mm,0mm]; }
+      Semantic Tip { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Assembly>
+    <Part Tip = Link<H:4mm>></Part>
+  </Assembly>
+  anchor: Arm.Base.Pivot;
+  Interface<Revolute> Elbow { A: Arm.Rigid.Tip.Frame; B: Arm.Tip.Pivot.Frame; }
+  Expose { DatumFrame Mount = Base.Pivot.Frame; DatumFrame Tool = Tip.Pivot.Frame; Mate Bend = Elbow; }
+}
+Assembly Articulated {
+  <Assembly Articulated>
+    Semantic Root { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    <Assembly First = Arm></Assembly>
+    <Part Slider = Link<H:4mm>></Part>
+    <Part Follower = Link<H:4mm>></Part>
+    <Assembly Second = Arm>
+      Placement { from: Mount; to: World; translateLocal: [100mm,0mm,0mm]; }
+    </Assembly>
+  </Assembly>
+  anchor: Articulated;
+  Interface<Prismatic> Slide { A: Articulated.Root.Frame; B: Articulated.Slider.Pivot.Frame; }
+  Interface<Fixed> Follow { A: Articulated.First.Tool; B: Articulated.Follower.Pivot.Frame; }
+  Interface<Revolute> Shoulder { A: Articulated.Root.Frame; B: Articulated.First.Mount; }
+}

@@ -1,0 +1,29 @@
+include "articulated-subassemblies";
+Record Playback { duration: Time }
+Static playback: Playback = Playback { duration: 2000ms }
+Keyframes<Angle,Length> Lift {
+  period: 720deg
+  interpolation: Cosine
+  Keyframe Rest { at: 0deg; value: 0mm }
+  Keyframe Open { at: 360deg; value: 0mm }
+  Keyframe Peak { at: 450deg; value: 9mm }
+  Keyframe Close { at: 540deg; value: 0mm }
+  Keyframe End { at: 720deg; value: 0mm }
+}
+Keyframes<Angle,Angle> HalfSpeed {
+  interpolation: Linear
+  Keyframe Start { at: 0deg; value: 0deg }
+  Keyframe End { at: 720deg; value: 360deg }
+}
+Motion Cycle {
+  duration: playback.duration
+  repeat: Loop
+  Track Shaft {
+    target: Articulated.Shoulder.angle
+    interpolation: Linear
+    Keyframe Start { at: 0s; value: 0deg }
+    Keyframe End { at: 2000ms; value: 720deg }
+  }
+  Track Bend { target: Articulated.First.Bend.angle; values: HalfSpeed; input: Articulated.Shoulder.angle }
+  Track Valve { target: Articulated.Slide.translation; values: Lift; input: Articulated.Shoulder.angle }
+}

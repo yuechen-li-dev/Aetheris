@@ -54,6 +54,7 @@ internal static class FirmamentV2InteropValueAdapter
             FirmamentV2PrimitiveType.Float => FirmamentValueKind.Float,
             FirmamentV2PrimitiveType.Length => FirmamentValueKind.Length,
             FirmamentV2PrimitiveType.Angle => FirmamentValueKind.Angle,
+            FirmamentV2PrimitiveType.Time => FirmamentValueKind.Time,
             FirmamentV2PrimitiveType.String => FirmamentValueKind.String,
             FirmamentV2PrimitiveType.Bool => FirmamentValueKind.Bool,
             _ => throw new ArgumentOutOfRangeException(nameof(primitiveType), primitiveType, "Unsupported Firmament V2 primitive type.")

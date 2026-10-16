@@ -566,7 +566,7 @@ internal static class CanonicalStaticAuthoring
     }
 
     private static bool IsSupportedSetElementType(string type, IReadOnlyDictionary<string, FirmamentV2RecordTypeDecl> records) =>
-        type is "Point2" or "Point3" or "Vector2" or "Length" or "Angle" or "Int" or "Float" or "Bool" || records.ContainsKey(type);
+        type is "Point2" or "Point3" or "Vector2" or "Length" or "Angle" or "Time" or "Int" or "Float" or "Bool" || records.ContainsKey(type);
 
     private static bool ValueMatchesType(string value, string type)
     {
@@ -580,6 +580,7 @@ internal static class CanonicalStaticAuthoring
         }
         return type switch
         {
+            "Time" => FirmamentNumericEvaluation.TryEvaluate(value, out var duration) && duration.Unit == "s",
             "Length" => Regex.IsMatch(value, @"^[-+]?\d+(?:\.\d+)?mm$", RegexOptions.CultureInvariant),
             "Angle" => Regex.IsMatch(value, @"^[-+]?\d+(?:\.\d+)?deg$", RegexOptions.CultureInvariant),
             "Int" => Regex.IsMatch(value, @"^[-+]?\d+$", RegexOptions.CultureInvariant),

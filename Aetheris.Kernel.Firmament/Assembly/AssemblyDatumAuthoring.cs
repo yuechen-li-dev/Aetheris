@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Semantics;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
@@ -20,7 +21,9 @@ internal static class AssemblyDatumAuthoring
         {
             if (!IsTopLevel(source, header.Index)) continue;
             var body = AssemblyM0Parser.BalancedBody(source, header.Index + header.Length - 1, diagnostics, "Concept layout");
-            if (body is null || !Regex.IsMatch(body, @"\b(?:Plane|Axis)\s+\w+\s*\{")) continue;
+            if (body is null) continue;
+            var members = FirmamentSyntaxParser.Parse(body, sourceIdentity).Document.Statements.OfType<DeclarationSyntax>().ToArray();
+            if (!members.Any(m => m.Type.Name.Text is "Plane" or "Axis" or "DatumFrame")) continue;
             var owner = header.Groups["name"].Value;
             var remaining = body;
             var planes = new Dictionary<string, AssemblyFrameTransformSource>(StringComparer.Ordinal);
@@ -81,23 +84,43 @@ internal static class AssemblyDatumAuthoring
                 result.Add(new(owner + "." + name, owner + "." + name, transform));
                 remaining = remaining.Replace(member.Value + fields + "}", "", StringComparison.Ordinal);
             }
-            foreach (Match member in Regex.Matches(body, @"\bDatumFrame\s+(?<name>\w+)\s*\{"))
+            foreach (var member in members.Where(m => m.Type.Name.Text == "DatumFrame"))
             {
-                var fields = AssemblyM0Parser.BalancedBody(body, member.Index + member.Length - 1, diagnostics, "layout frame")!;
-                if (fields is null) continue;
-                var planeName = Field(fields, "On", diagnostics);
-                var at = Vector(fields, "At", 2, true, diagnostics);
-                var x = Vector(fields, "X", 2, false, diagnostics);
-                CheckFields(fields, ["On", "At", "X"], diagnostics);
-                if (!planes.TryGetValue(planeName, out var plane))
-                { diagnostics.Add(new("assembly-datum-plane-unresolved", $"Frame '{owner}.{member.Groups["name"].Value}' references unknown plane '{planeName}'.")); continue; }
-                if (Math.Sqrt(x[0]*x[0] + x[1]*x[1]) < 1e-12)
-                    diagnostics.Add(new("assembly-datum-invalid-direction", "DatumFrame X must be nonzero."));
-                var angle = Math.Atan2(x[1], x[0]) * 180 / Math.PI;
-                var name = member.Groups["name"].Value;
-                var frame = new AssemblyFrameTransformSource(owner + "_" + name, owner + "." + planeName, [at[0], at[1], 0], "Z", angle, SourceSpan: plane.SourceSpan);
-                result.Add(new(owner + "." + name, owner + "." + planeName, frame));
-                remaining = remaining.Replace(member.Value + fields + "}", "", StringComparison.Ordinal);
+                var name = member.Name!.Text;
+                var text = body.Substring(member.Span.Start, member.Span.Length);
+                if (member.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "From")) == true)
+                {
+                    var derived = AssemblyFrameAuthoring.Parse(member, sourceIdentity, diagnostics, header.Index + header.Length);
+                    if (derived is not null)
+                    {
+                        var from = derived.From;
+                        if (from != "World" && members.Any(m => m.Name?.Text == from)) from = owner + "." + from;
+                        derived = derived with { Name = owner + "_" + name, From = from,
+                            SourceSpan = new(sourceIdentity, header.Index + header.Length + member.Span.Start, member.Span.Length) };
+                        // A derived frame is a complete 3D datum, suitable for an
+                        // axial seat as well as another frame's from reference.
+                        result.Add(new(owner + "." + name, owner + "." + name, derived, IsAxis: true));
+                    }
+                }
+                else
+                {
+                    var fields = member.Body is null ? "" : body.Substring(member.Body.ContentSpan.Start, member.Body.ContentSpan.Length);
+                    var planeName = Field(fields, "On", diagnostics);
+                    var at = Vector(fields, "At", 2, true, diagnostics);
+                    var x = Vector(fields, "X", 2, false, diagnostics);
+                    CheckFields(fields, ["On", "At", "X"], diagnostics);
+                    if (!planes.TryGetValue(planeName, out var plane))
+                        diagnostics.Add(new("assembly-datum-plane-unresolved", $"Frame '{owner}.{name}' references unknown plane '{planeName}'."));
+                    else
+                    {
+                        if (Math.Sqrt(x[0]*x[0] + x[1]*x[1]) < 1e-12)
+                            diagnostics.Add(new("assembly-datum-invalid-direction", "DatumFrame X must be nonzero."));
+                        var angle = Math.Atan2(x[1], x[0]) * 180 / Math.PI;
+                        var frame = new AssemblyFrameTransformSource(owner + "_" + name, owner + "." + planeName, [at[0], at[1], 0], "Z", angle, SourceSpan: plane.SourceSpan);
+                        result.Add(new(owner + "." + name, owner + "." + planeName, frame));
+                    }
+                }
+                remaining = remaining.Replace(text, "", StringComparison.Ordinal);
             }
             if (!string.IsNullOrWhiteSpace(remaining.Replace(";", "")))
                 diagnostics.Add(new("assembly-datum-invalid-layout", $"Unsupported members in Concept Struct '{owner}'."));
@@ -107,6 +130,11 @@ internal static class AssemblyDatumAuthoring
             diagnostics.Add(new("assembly-datum-duplicate", "Concept layout datum identities must be unique."));
         foreach (var value in result)
         {
+            var from = value.Transform.From;
+            var localOwner = from.Contains('.') ? from[..from.LastIndexOf('.')] : null;
+            if (from != "World" && !result.Any(d => d.Identity == from)
+                && (!from.Contains('.') || result.Any(d => d.Identity.StartsWith(localOwner + ".", StringComparison.Ordinal))))
+                diagnostics.Add(new("assembly-datum-source-unresolved", $"Datum '{value.Identity}' references unknown declared datum '{from}'.") { SourceSpan = value.Transform.SourceSpan });
             var seen = new HashSet<string>(StringComparer.Ordinal);
             var current = value;
             while (current is not null)

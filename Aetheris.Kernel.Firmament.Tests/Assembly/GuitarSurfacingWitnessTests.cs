@@ -46,7 +46,7 @@ public sealed class GuitarSurfacingWitnessTests
         Assert.All(inlays, i => Assert.Equal(62, i.ResolvedTransform!.Matrix[14], 10));
         var inlay3 = Assert.Single(inlays, i => i.Path.ToString() == "GuitarX0.Neck.PearlInlays.Fret3.Inlay");
         Assert.Equal(573.8, inlay3.ResolvedTransform!.Matrix[13], 10);
-        Assert.Empty(compiled.Ir.Joints!);
+        Assert.All(compiled.Ir.Joints!, joint => Assert.Equal(0, joint.DegreesOfFreedom));
         Assert.Equal(10, compiled.Ir.AssemblyDefinitions!.Count);
         Assert.Single(compiled.Ir.AssemblyDefinitions.Single(d => d.DefinitionIdentity == "GuitarNeck").LocalMates,
             mate => mate.Name == "VeneerSeat");

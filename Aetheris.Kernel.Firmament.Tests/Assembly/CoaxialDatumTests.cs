@@ -27,7 +27,8 @@ public sealed class CoaxialDatumTests
         Assert.Equal(30, seat.Seating.ClockingDegrees);
         Assert.Equal(3, Assert.Single(ir.AssemblyDefinitions!).LocalAxisSeats!.Count);
         Assert.All(ir.AssemblyDefinitions![0].LocalAxisSeats!, e => { Assert.True(e.Passed); Assert.Equal(0,e.DegreesOfFreedom); });
-        var joint = Assert.Single(ir.Joints!);
+        var joint = Assert.Single(ir.Joints!, j => j.DegreesOfFreedom == 1);
+        Assert.Equal(3, ir.Joints!.Count(j => j.Family == MechanicalInterfaceFamily.Fixed));
         Assert.Equal("VolumeRotation", joint.Name);
         Assert.Equal(MechanicalInterfaceFamily.Revolute, joint.Family);
         var zero = AssemblyKinematics.Evaluate(ir, new Dictionary<string,double>());
@@ -123,7 +124,7 @@ public sealed class CoaxialDatumTests
     [InlineData("-> [0,0,1]","-> [1,0,0]","assembly-axis-port-invalid")]
     [InlineData("Axis Axis = [0mm,0mm,0mm]","Axis Axis = [1mm,0mm,0mm]","assembly-axis-port-invalid")]
     [InlineData("<Assembly VolumeKnob = ControlKnob></Assembly>","<Assembly VolumeKnob = ControlKnob> Placement { From: Origin; To: World; } </Assembly>","assembly-placement-authority-conflict")]
-    [InlineData("Interface<Fixed> CoaxialStack","Interface<Revolute> CoaxialStack","assembly-axis-internal-motion-unsupported")]
+    [InlineData("Interface<Fixed> CoaxialStack","Interface<Revolute> CoaxialStack","assembly-axis-revolute-member-count")]
     public void InvalidAxisContractsFailClosed(string from,string to,string code)
     {
         Assert.Contains(from, Source);

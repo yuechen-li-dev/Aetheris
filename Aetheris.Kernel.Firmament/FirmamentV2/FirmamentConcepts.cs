@@ -341,6 +341,7 @@ internal sealed class FirmamentConcepts
             FirmamentV2PrimitiveType.Bool => new LiteralSyntax(LiteralKind.Boolean, "true", span),
             FirmamentV2PrimitiveType.String => new LiteralSyntax(LiteralKind.String, "\"sample\"", span),
             FirmamentV2PrimitiveType.Length => new QuantitySyntax(new LiteralSyntax(LiteralKind.Number, "1", span), new("mm", span), span),
+            FirmamentV2PrimitiveType.Time => new QuantitySyntax(new LiteralSyntax(LiteralKind.Number, "1", span), new("s", span), span),
             FirmamentV2PrimitiveType.Angle => new QuantitySyntax(new LiteralSyntax(LiteralKind.Number, "1", span), new("deg", span), span),
             _ => new LiteralSyntax(LiteralKind.Number, primitive == FirmamentV2PrimitiveType.Float ? "1.5" : "1", span)
         };

@@ -32,7 +32,9 @@ Edit a Part, Concept layout or unit directly and inspect the consuming root with
 Aetheris.CLI. The paired demo workflow refreshes dimension/rest input data from
 `V8Spec`; it does not synthesize the product tree or geometry. Moving membership
 changes still require matching motion bindings and reject if a Part is missing or
-unbound. Motion laws and animation syntax are a separate design pass.
+unbound. The [shared-datum and declarative motion proposal](../../development/architecture/FIRMAMENT-V8-RELATIONS-AND-MOTION-PROPOSAL.md)
+describes the next refactoring pass. Its Motion/keyframe syntax and articulated
+Subassembly extensions are proposed, not currently admitted language features.
 
 ## Build and revise
 
@@ -122,3 +124,18 @@ dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll asm export-ap242 fixtures/C
 
 dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll scene export-glb fixtures/Canonical/EditableV8/scene.firmament artifacts/local/demos/editable-v8/engine.glb --json
 ```
+
+
+## Declarative migration status
+
+The V8's common Shaft, bank and cam frames now use derived DatumFrames. Cam
+positions are expressed relative to a shared bank, with clocking restored at the
+cam datum; the first-main-journal origin and existing engineering configuration
+remain the qualification reference.
+
+The compiler now retains articulated Subassembly graphs and admits typed Motion
+clips through its ordinary Assembly path. See [syntax](syntax.md#shared-datums-and-articulated-motion).
+The V8 has **not** switched to those clips yet: its SliderCrank closure, external
+relation roles and axial spring baking still need compiler admission. Its
+`CylinderRest` records and existing native/browser motion adapter remain active.
+Do not infer full declarative V8 motion from the general rigid-joint witness.

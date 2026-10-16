@@ -134,3 +134,33 @@ Subassembly composition never exports a child STEP and imports it into its paren
 A capped, closed `SectionChain` or bounded `Loft<Hollow>` can serve as a ruled assembly part from a separate authored `.firmament` file. Write `<Part Shade = LoftFile<"lamp-shade-loft.firmament">>` (or `SectionChainFile` for a directly authored chain); the path is relative to the assembly source. Both use the SectionChain materializer, and assembly imports its AP242 body into the ordinary product tree. Open shells are rejected as part definitions. The [Cartesian lamp fixture](../../../fixtures/Canonical/ThreeDm/lamp-visible-intent.firmament) exercises this path with a tilted ruled shade.
 
 Legacy JSON `.firmasm` remains a compatibility/import lane. Canonical reusable semantic authoring uses `.firmament`; the compatibility format does not gain runtime inclusion or become the design authority.
+
+
+## Articulated definitions and finite clips
+
+Reusable definitions preserve their solved zero frames and local joint graph.
+Each occurrence receives its own realized Mate identity and qualified name;
+geometry remains shared. Pose evaluation resolves both rigid ancestry and
+kinematic dependencies before a dependent joint reads a published port. Exposed
+ports retain the actual child occurrence rather than a frozen rest-frame copy.
+Fixed local relationships remain Fixed and do not make a route-bound assembly
+moving.
+
+See [shared datums and motion syntax](syntax.md#shared-datums-and-articulated-motion)
+and the executable [articulated assembly](../../../fixtures/Canonical/AssemblyInterfaces/articulated-subassemblies.firmament)
+and [clip](../../../fixtures/Canonical/AssemblyInterfaces/articulated-motion.firmament).
+`AssemblyMotion.Evaluate(ir, name, seconds, preserveEndpoint)` samples an admitted
+clip; `AssemblyKinematics.Evaluate` remains the direct realized-Mate-state API.
+A clip does not make arbitrary closed mechanical loops admissible.
+
+Ordinary `Placement` keeps its exact frame dependency when its target moves.
+It uses the same occurrence evaluator as the mechanical joints, but does not
+create a physical Fixed joint in USD. An installation source mount on a reusable
+Subassembly must remain rigid within that unit; using an internally moving port
+as that mount rejects explicitly.
+
+A reusable definition publishes a movable coordinate with
+`expose { Mate Bend = Elbow; }`. Its parent can target `Unit.Bend.angle` or
+`Unit.Travel.translation`, according to the actual Mate family. Wrappers can
+re-export nested public channels. Private local Mate names remain developer
+state-query names and do not bypass this Motion authoring boundary.

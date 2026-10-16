@@ -610,7 +610,8 @@ internal static class FirmamentV2TemplateExpansion
         FirmamentCompileTimeValues? scalars = null) => scalars?.Contains(value) == true ? scalars.HasType(value, type) : type switch
     {
         "Point2" or "Point3" or "Vector2" => MatchesCoordinates(value, type),
-        "Length" => Regex.IsMatch(value, @"^[-+]?[0-9]+(?:\.[0-9]+)?mm$", RegexOptions.CultureInvariant),
+        "Time" => FirmamentNumericEvaluation.TryEvaluate(value, out var duration) && duration.Unit == "s",
+            "Length" => Regex.IsMatch(value, @"^[-+]?[0-9]+(?:\.[0-9]+)?mm$", RegexOptions.CultureInvariant),
         "Angle" => Regex.IsMatch(value, @"^[-+]?[0-9]+(?:\.[0-9]+)?deg$", RegexOptions.CultureInvariant),
         "String" => Regex.IsMatch(value, "^\"[^\"]*\"$", RegexOptions.CultureInvariant),
         "Version" => Regex.IsMatch(value, @"^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$", RegexOptions.CultureInvariant),

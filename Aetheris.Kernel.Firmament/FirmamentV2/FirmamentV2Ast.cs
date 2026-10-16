@@ -21,7 +21,7 @@ public sealed record FirmamentV2ThreadDecl(string Name, string SupportSolid, str
     double MajorDiameterMm, double PitchMm, double LengthMm, double? StartOffsetMm,
     string Hand, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2AuthoredField(string Name, FirmamentV2SourceSpan DeclarationSpan, FirmamentV2SourceSpan ValueSpan);
-public enum FirmamentV2PrimitiveType { Int, Float, Length, Angle, String, Bool }
+public enum FirmamentV2PrimitiveType { Int, Float, Length, Angle, String, Bool, Time }
 public enum FirmamentV2ToleranceKind { Bilateral, Asymmetric }
 public sealed record FirmamentV2Tolerance(FirmamentV2ToleranceKind Kind, double Plus, double Minus, string Unit, FirmamentV2PrimitiveType Type, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2LiteralValue(FirmamentV2PrimitiveType Type, object Value, double? NumericValue = null, string? Unit = null, string? Raw = null);

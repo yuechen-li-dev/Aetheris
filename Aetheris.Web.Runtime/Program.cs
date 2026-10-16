@@ -58,6 +58,7 @@ public static partial class Program
                 "languageAnalyze" => LanguageAnalyze(request),
                 "languageOutline" => LanguageOutline(request),
                 "languageEdit" => LanguageEdit(request),
+                "languagePalette" => FirmamentLanguagePaletteService.Palette(),
                 "languageHover" => LanguageHover(request),
                 "languageDefinition" => LanguageDefinition(request),
                 "languageFormat" => LanguageFormat(request),

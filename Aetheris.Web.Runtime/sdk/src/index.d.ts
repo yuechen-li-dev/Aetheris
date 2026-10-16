@@ -46,12 +46,16 @@ export interface DeclarationSpec { readonly kind: string; readonly variant?: str
 export type LanguageEditOperation =
   | { readonly kind: 'setField'; readonly node: string; readonly field: string; readonly value: string }
   | { readonly kind: 'removeField'; readonly node: string; readonly field: string }
-  | { readonly kind: 'insertDeclaration'; readonly parent: string | null; readonly declaration: DeclarationSpec; readonly after?: string; readonly first?: boolean }
+  | { readonly kind: 'insertDeclaration'; readonly parent: string | null; readonly declaration?: DeclarationSpec; readonly source?: string; readonly name?: string; readonly after?: string; readonly first?: boolean }
   | { readonly kind: 'removeDeclaration'; readonly node: string }
   | { readonly kind: 'renameDeclaration'; readonly node: string; readonly name: string }
-  | { readonly kind: 'moveDeclaration'; readonly node: string; readonly after?: string; readonly first?: boolean };
+  | { readonly kind: 'moveDeclaration'; readonly node: string; readonly after?: string; readonly first?: boolean }
+  | { readonly kind: 'insertFeature'; readonly node: string; readonly source: string; readonly name?: string };
 /** The edited source and the single replacement `[start, start + length)` → `replacement` that produces it from the original. `nodes` holds the outline id each operation left behind (created, renamed or edited), in order; removals add none. */
 export interface LanguageEdit { readonly document: string; readonly revision: string; readonly text: string; readonly changed: boolean; readonly edit: { readonly start: number; readonly length: number; readonly replacement: string }; readonly nodes: readonly string[]; readonly warnings: readonly string[] }
+/** Something a visual editor can add. `placement` `model` inserts with `insertDeclaration`; `feature` with `insertFeature` on a body. `source` declares `nameStem`; pass a unique `name` with the insert. Every item is proven to build. */
+export interface PaletteItem { readonly id: string; readonly label: string; readonly category: string; readonly description: string; readonly placement: 'model' | 'feature'; readonly nameStem: string; readonly source: string }
+export interface LanguagePalette { readonly version: 'firmament-palette/1'; readonly items: readonly PaletteItem[] }
 export interface LanguageHover { readonly document: string; readonly revision: string; readonly start: number; readonly length: number; readonly title: string; readonly description: string }
 export interface LanguageFormat { readonly document: string; readonly revision: string; readonly text: string; readonly changed: boolean }
 export interface SemanticFieldSchema { readonly id: string; readonly name: string; readonly kind: string; readonly unit: 'None' | 'Length' | 'Angle'; readonly required: boolean; readonly default: string | null; readonly choices: readonly string[]; readonly variants?: readonly string[]; readonly description: string | null; readonly sourceEditable: boolean }
@@ -69,7 +73,7 @@ export class Aetheris {
   static create(options?: AetherisOptions): Promise<Aetheris>;
   readonly runtimeInfo: RuntimeInfo;
   readonly workerTiming: WorkerTiming | null;
-  readonly language: { complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion>; analyze(source: string, options: LanguageOptions): Promise<LanguageAnalysis>; outline(source: string, options: LanguageOptions): Promise<LanguageOutline>; edit(source: string, operations: readonly LanguageEditOperation[], options: LanguageOptions): Promise<LanguageEdit>; hover(source: string, offset: number, options: LanguageOptions): Promise<LanguageHover | null>; definition(source: string, offset: number, options: LanguageOptions): Promise<SourceReference | null>; format(source: string, options: LanguageOptions): Promise<LanguageFormat>; schema(): Promise<SemanticSchema> };
+  readonly language: { complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion>; analyze(source: string, options: LanguageOptions): Promise<LanguageAnalysis>; outline(source: string, options: LanguageOptions): Promise<LanguageOutline>; edit(source: string, operations: readonly LanguageEditOperation[], options: LanguageOptions): Promise<LanguageEdit>; palette(): Promise<LanguagePalette>; hover(source: string, offset: number, options: LanguageOptions): Promise<LanguageHover | null>; definition(source: string, offset: number, options: LanguageOptions): Promise<SourceReference | null>; format(source: string, options: LanguageOptions): Promise<LanguageFormat>; schema(): Promise<SemanticSchema> };
   info(): Promise<RuntimeInfo>;
   capabilities(): Promise<RuntimeCapabilities>;
   compile(source: string, options?: CompileOptions): Promise<{ model: ModelSession | null; diagnostics: readonly Diagnostic[] }>;

@@ -41,3 +41,17 @@ test('public language outline sends source, revision and project context through
   assert.deepEqual(requests, [{ operation: 'languageOutline', source: 'Model M { Units: mm }', sourceName: 'root.firmament',
     sourceRevision: 'r9', projectDocuments: { 'part.firmament': 'Struct P {}' }, projectRoot: 'root.firmament' }]);
 });
+
+test('public language edit sends operations with the source revision through runtime transport', async () => {
+  const requests = [];
+  const cad = new Aetheris({ request: async request => {
+    requests.push(request);
+    return { document: request.sourceName, revision: request.sourceRevision, text: 'Model M { Units: cm }', changed: true,
+      edit: { start: 17, length: 2, replacement: 'cm' }, nodes: ['M'], warnings: [] };
+  } });
+  const operations = [{ kind: 'setField', node: 'M', field: 'Units', value: 'cm' }];
+  const edit = await cad.language.edit('Model M { Units: mm }', operations, { sourceName: 'm.firmament', sourceRevision: 'r3' });
+  assert.equal(edit.text, 'Model M { Units: cm }');
+  assert.deepEqual(edit.nodes, ['M']);
+  assert.deepEqual(requests, [{ operation: 'languageEdit', source: 'Model M { Units: mm }', operations, sourceName: 'm.firmament', sourceRevision: 'r3' }]);
+});

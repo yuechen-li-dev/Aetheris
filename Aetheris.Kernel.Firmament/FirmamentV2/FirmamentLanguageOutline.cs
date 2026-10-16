@@ -120,6 +120,18 @@ public static class FirmamentLanguageOutlineService
         return local with { Edges = edges, Externals = remaining };
     }
 
+    /// <summary>The declarations of a parsed document under their outline ids, parents first.
+    /// Structural edits use this to address the same nodes a visual editor shows.</summary>
+    internal static IReadOnlyList<(string Id, string? ParentId, DeclarationSyntax Syntax)> Declarations(SyntaxParseResult parse)
+    {
+        var roots = new List<Entry>();
+        Collect(parse.Document.Statements, null, roots);
+        return Flatten(roots).Select(e => (e.Id, e.Parent?.Id, e.Syntax)).ToArray();
+    }
+
+    internal static bool NameIsUse(DeclarationSyntax declaration) =>
+        declaration.Type.Name.Text is "Modify" or "modify" or "Recognize" || declaration.Modifiers.Any(m => m.Name.Text == "Assert");
+
     private static bool NameIsUseKind(FirmamentOutlineNode node) =>
         node.Kind is "Modify" or "modify" or "Recognize" || node.Modifiers.Contains("Assert");
 

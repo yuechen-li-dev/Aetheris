@@ -8,7 +8,21 @@ public sealed record FirmamentOutlineField(string Name, string Text, string Shap
 
 public sealed record FirmamentOutlineNode(string Id, string Kind, string? Variant, IReadOnlyList<string> Modifiers, string? Name,
     bool Occurrence, string? ParentId, int Order, FirmamentOutlineSpan Span, FirmamentOutlineSpan? NameSpan, string? SchemaId,
-    IReadOnlyList<string> Parameters, IReadOnlyList<FirmamentOutlineField> Fields, IReadOnlyList<string> Children);
+    IReadOnlyList<string> Parameters, IReadOnlyList<FirmamentOutlineField> Fields, IReadOnlyList<string> Children)
+{
+    /// <summary>A bare call written in a body (<c>MountHole(center: Point2(10mm, 0mm))</c>): <c>Kind</c> is the
+    /// callee and <c>Fields</c> are its arguments, positional ones named <c>#1</c>, <c>#2</c>.</summary>
+    public bool Call { get; init; }
+    /// <summary>The value a declaration is initialized with (<c>Static Thickness: Length = 8mm</c>), named <c>=</c>.
+    /// Absent for object initializers, whose fields are <c>Fields</c>.</summary>
+    public FirmamentOutlineField? Value { get; init; }
+    /// <summary>The declared type annotation (<c>Length</c>), as written.</summary>
+    public string? Annotation { get; init; }
+    /// <summary>Declared parameters with their types and defaults, as written (Feature, Template).</summary>
+    public IReadOnlyList<FirmamentOutlineParameter> Signature { get; init; } = [];
+}
+
+public sealed record FirmamentOutlineParameter(string Name, string Type, string? Default);
 
 /// <summary>One resolved name use. <c>Via</c> says where the use sits in the source declaration:
 /// <c>field:Profile</c>, <c>clause:Using</c>, <c>clause:Over</c>, <c>target</c>, <c>body</c> (an
@@ -62,13 +76,17 @@ public static class FirmamentLanguageOutlineService
 
     private sealed class Entry
     {
+        /// <summary>The declaration, or a synthetic stand-in for a call statement (see <see cref="Call"/>).</summary>
         public required DeclarationSyntax Syntax { get; init; }
+        /// <summary>For a bare call written in a body: the call. Calls have no name and no children.</summary>
+        public CallSyntax? Call { get; init; }
+        public required StatementSyntax Statement { get; init; }
         public required string Id { get; init; }
         public Entry? Parent { get; init; }
         public required int Order { get; init; }
         public List<Entry> Children { get; } = [];
         public string Kind => Syntax.Type.Name.Text;
-        public string? Name => Syntax.Name?.Text;
+        public string? Name => Call is null ? Syntax.Name?.Text : null;
     }
 
     public static FirmamentLanguageOutline Outline(string source, string document, string revision)
@@ -126,8 +144,20 @@ public static class FirmamentLanguageOutlineService
     {
         var roots = new List<Entry>();
         Collect(parse.Document.Statements, null, roots);
-        return Flatten(roots).Select(e => (e.Id, e.Parent?.Id, e.Syntax)).ToArray();
+        return Flatten(roots).Where(e => e.Call is null).Select(e => (e.Id, e.Parent?.Id, e.Syntax)).ToArray();
     }
+
+    /// <summary>Every outline node's statement, declarations and bare calls, under its outline id.</summary>
+    internal static IReadOnlyList<(string Id, string? ParentId, StatementSyntax Statement, bool Call)> Statements(SyntaxParseResult parse)
+    {
+        var roots = new List<Entry>();
+        Collect(parse.Document.Statements, null, roots);
+        return Flatten(roots).Select(e => (e.Id, e.Parent?.Id, e.Statement, e.Call is not null)).ToArray();
+    }
+
+    /// <summary>A body statement that is just a call of a named Feature or function.</summary>
+    internal static CallSyntax? BareCall(StatementSyntax statement) =>
+        statement is ExpressionStatementSyntax { Value: CallSyntax { Target: ReferenceSyntax } call } ? call : null;
 
     internal static bool NameIsUse(DeclarationSyntax declaration) =>
         declaration.Type.Name.Text is "Modify" or "modify" or "Recognize" || declaration.Modifiers.Any(m => m.Name.Text == "Assert");
@@ -140,16 +170,31 @@ public static class FirmamentLanguageOutlineService
 
     private static void Collect(IEnumerable<StatementSyntax> statements, Entry? parent, List<Entry> into)
     {
-        var declarations = statements.SelectMany(DirectDeclarations).ToList();
-        var segments = Segments(declarations);
-        for (var i = 0; i < declarations.Count; i++)
+        // Inside a body, a bare call is a node too: a reused Feature placed like any other feature.
+        var items = statements.SelectMany(s => DirectDeclarations(s).Select(d => ((StatementSyntax)d, d, (CallSyntax?)null))
+            .Concat(parent is null ? [] : DirectCalls(s).Select(c => (c, CallStandIn(BareCall(c)!), BareCall(c))))).ToList();
+        var segments = Segments(items.Select(i => i.Item2).ToList());
+        for (var i = 0; i < items.Count; i++)
         {
             var id = parent is null ? segments[i] : parent.Id + "/" + segments[i];
-            var entry = new Entry { Syntax = declarations[i], Id = id, Parent = parent, Order = i };
+            var entry = new Entry { Syntax = items[i].Item2, Call = items[i].Item3, Statement = items[i].Item1, Id = id, Parent = parent, Order = i };
             into.Add(entry);
-            Collect(Body(declarations[i]), entry, entry.Children);
+            if (entry.Call is null) Collect(Body(items[i].Item2), entry, entry.Children);
         }
     }
+
+    // Bare calls reachable the way DirectDeclarations reaches declarations: through nested blocks, not mappings.
+    private static IEnumerable<StatementSyntax> DirectCalls(StatementSyntax statement) => statement switch
+    {
+        StatementBlockSyntax b => b.Body.Statements.SelectMany(DirectCalls),
+        _ when BareCall(statement) is not null => [statement],
+        _ => []
+    };
+
+    // A nameless declaration whose type is the callee keeps id assignment uniform: `MountHole`, or
+    // `MountHole#1` and `MountHole#2` when a body calls it twice.
+    private static DeclarationSyntax CallStandIn(CallSyntax call) =>
+        new(new TypeSyntax(((ReferenceSyntax)call.Target).Name, [], call.Target.Span), null, [], [], null, null, [], null, null, false, call.Span);
 
     // Declarations reachable from a statement without passing through another declaration:
     // nested blocks and Pattern mappings hold declarations that belong to the enclosing one.
@@ -180,6 +225,10 @@ public static class FirmamentLanguageOutlineService
 
     private static FirmamentOutlineNode Node(Entry entry, string source)
     {
+        if (entry.Call is { } call)
+            return new(entry.Id, entry.Kind, null, [], null, false, entry.Parent?.Id, entry.Order, Span(call.Span), null, null, [],
+                call.Arguments.Select((a, i) => new FirmamentOutlineField(a.Name?.Text ?? "#" + (i + 1), Text(source, a.Value.Span),
+                    Shape(a.Value), Span(a.Span), Span(a.Value.Span))).ToArray(), []) { Call = true };
         var d = entry.Syntax;
         var variant = d.Type.Arguments.Count == 0 ? null
             : string.Join(", ", d.Type.Arguments.Select(a => Text(source, a.Span)));
@@ -187,9 +236,17 @@ public static class FirmamentLanguageOutlineService
         var fields = Body(d).OfType<FieldSyntax>().Select(f => new FirmamentOutlineField(f.Name.Text,
             Text(source, f.Value.Span), Shape(f.Value), Span(f.Span), Span(f.Value.Span))).ToArray();
         var parameters = d.Parameters.Select(p => p.Name?.Text ?? Text(source, p.Span)).ToArray();
+        var value = d.Initializer is { } init and not ObjectSyntax
+            ? new FirmamentOutlineField("=", Text(source, init.Span), Shape(init), Span(init.Span), Span(init.Span)) : null;
         return new(entry.Id, entry.Kind, variant, d.Modifiers.Select(m => m.Name.Text).ToArray(), entry.Name,
             d.Occurrence, entry.Parent?.Id, entry.Order, Span(d.Span), d.Name is null ? null : Span(d.Name.Span), schema,
-            parameters, fields, entry.Children.Select(c => c.Id).ToArray());
+            parameters, fields, entry.Children.Select(c => c.Id).ToArray())
+        {
+            Value = value,
+            Annotation = d.Annotation is null ? null : Text(source, d.Annotation.Span),
+            Signature = d.Parameters.Where(p => p.Name is not null).Select(p => new FirmamentOutlineParameter(p.Name!.Text,
+                Text(source, p.Value.Span), p.Default is null ? null : Text(source, p.Default.Span))).ToArray(),
+        };
     }
 
     private static string? SchemaFor(Entry entry)
@@ -217,6 +274,14 @@ public static class FirmamentLanguageOutlineService
 
     private static void Resolve(Entry entry, IReadOnlyList<Entry> roots, string source, List<FirmamentOutlineEdge> edges, List<FirmamentOutlineExternal> externals)
     {
+        if (entry.Call is { } call)
+        {
+            var scope = new HashSet<string>(StringComparer.Ordinal);
+            for (var a = entry.Parent; a is not null; a = a.Parent)
+                foreach (var p in a.Syntax.Parameters) if (p.Name is not null) scope.Add(p.Name.Text);
+            Walk(call, entry, roots, source, "body", scope, null, edges, externals);
+            return;
+        }
         var d = entry.Syntax;
         var locals = new HashSet<string>(d.Parameters.Select(p => p.Name?.Text).OfType<string>(), StringComparer.Ordinal);
         for (var a = entry.Parent; a is not null; a = a.Parent)
@@ -257,6 +322,8 @@ public static class FirmamentLanguageOutlineService
                     var vocab = VocabularyFields.Contains(f.Name.Text) || ChoiceFields.Contains(f.Name.Text);
                     Uses(f.Value, "field:" + f.Name.Text, vocab && f.Value is ReferenceSyntax, scoped);
                     break;
+                // A bare call in a body is its own node and resolves its own uses.
+                case ExpressionStatementSyntax e when scoped is null && BareCall(e) is not null: break;
                 case ExpressionStatementSyntax e: Uses(e.Value, "body", scoped: scoped); break;
                 case ReturnSyntax r: Uses(r.Value, "body", scoped: scoped); break;
                 case MappingSyntax m:

@@ -81,6 +81,19 @@ text, with `name` replacing its declared name; `insertFeature` (`node`, `source`
 there is none. Whether the edited model builds is still the compiler's
 decision.
 
+Inside a body, a bare call such as `MountHole(center: Point2(10mm, 0mm))` is an
+outline node with `call: true`: its `kind` is the callee and its `fields` are the
+arguments, so `setField`/`removeField` edit arguments and `moveDeclaration`/
+`removeDeclaration` place and remove it like a feature; `insertFeature` also takes
+a call as `source`. Value declarations carry `value` (the initializer, for a
+parameter sheet) and `annotation`; Features carry `signature`.
+`extractFeature` (`node`, `name`, `parameters`) turns a feature into a
+document-level `Feature` whose chosen fields become typed parameters defaulting to
+their current values, and leaves a call with those values in its place: the
+model builds the same geometry. A placed call has no name, so extraction is
+refused (`edit-extract-referenced`) while anything names the declaration,
+including a Pmi `Target`, and otherwise warns that the name is not kept.
+
 `cad.language.palette()` lists what a visual editor can add
 (`firmament-palette/1`): bodies (`placement: 'model'`) and features on a body
 (`placement: 'feature'`), each a declaration `source` with starting values.

@@ -9,7 +9,7 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 internal static class ConceptProfileDerivation
 {
     internal static bool TryResolve(string source, string name, HashSet<string> visiting,
-        List<string> diagnostics, out ResolvedProfile2D? result)
+        List<string> diagnostics, out ResolvedProfile2D? result,FirmamentCompileTimeValues? scalars=null)
     {
         result = null;
         var profile = Regex.Match(source, $@"\bProfile\s+{Regex.Escape(name)}(?:\s+Using\s+(?<owner>\w+))?\s*\{{");
@@ -46,7 +46,7 @@ internal static class ConceptProfileDerivation
         if (!string.IsNullOrWhiteSpace(remaining.Replace(";", ""))) diagnostics.Add($"concept-profile-fields-invalid:{qualified}");
         if (from is null || !Regex.IsMatch(from, @"^\w+$") || on is null || !Regex.IsMatch(on, @"^\w+(?:\.\w+)?$"))
         { diagnostics.Add($"concept-profile-source-invalid:{qualified}:named-profile-and-plane-required"); return true; }
-        var inherited = ProfileAuthoringParser.ResolveNamedProfileCore(source, from, visiting, out var sourceErrors);
+        var inherited = ProfileAuthoringParser.ResolveNamedProfileCore(source, from, visiting, out var sourceErrors,scalars);
         diagnostics.AddRange(sourceErrors);
         if (inherited is null) return true;
         if (inherited.Loops.Count != 1)

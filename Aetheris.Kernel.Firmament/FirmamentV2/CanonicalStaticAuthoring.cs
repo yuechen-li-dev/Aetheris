@@ -484,6 +484,38 @@ internal static class CanonicalStaticAuthoring
         return new(source, new(recordTypes, arrays, templates.Select(t => new FirmamentV2CanonicalTemplateDecl(t.Name, t.Type, t.Parameter, t.Body, t.Span)).ToArray(), patterns, requires, semanticConstraints, projections, staticRecords, tables, sets, symmetry.Mirrors, symmetry.RadialPatterns, linear.Patterns, linear.Axes, points.Points));
     }
 
+    // Domain adapters reuse the existing finite Set binder and Pattern materializer.
+    // No domain-specific evaluator or repetition engine is introduced here.
+    internal static string ExpandDomainPatterns(string source,string ownerType,FirmamentCompileTimeValues scalars,List<string> diagnostics,IReadOnlySet<string> domainResults)
+    {
+        var syntax=FirmamentSyntaxParser.Parse(source).Document;
+        var patterns=FirmamentSyntaxTraversal.Declarations(syntax).Where(d=>d.Type.Name.Text=="Pattern" && d.Clauses.Any(c=>c.Kind==ClauseKind.Over)).ToArray();
+        if(patterns.Length==0)return source;
+        var catalog=FirmamentV2TemplateExpansion.ReadDataCatalog(source,diagnostics,scalars);
+        var types=catalog.Types.ToDictionary(p=>p.Key,p=>new FirmamentV2RecordTypeDecl(p.Key,p.Value.Fields,p.Value.SourceSpan),StringComparer.Ordinal);
+        var sets=new Dictionary<string,FirmamentV2StaticSetDecl>(StringComparer.Ordinal);
+        foreach(var d in FirmamentSyntaxTraversal.Declarations(syntax).Where(d=>d.Type.Name.Text=="Static" && d.Body is not null && d.Annotation is SpecializationSyntax { Target:ReferenceSyntax { Name.Text:"Set" } }))
+        {
+            var type=(SpecializationSyntax)d.Annotation!;
+            var element=type.Arguments.Count==1?FirmamentSyntaxValues.Reference(type.Arguments[0].Value):null;
+            if(d.Name is null || element is null || !IsSupportedSetElementType(element,types)) { diagnostics.Add(Prefix+"set-element-type-unsupported:"+d.Name?.Text);continue; }
+            var entries=ParseSetEntries(source,d.Body!.ContentSpan.Start,d.Body.ContentSpan.Start+d.Body.ContentSpan.Length,d.Name.Text,element,types,diagnostics,scalars);
+            if(!sets.TryAdd(d.Name.Text,new(d.Name.Text,element,entries,d.Span)))diagnostics.Add(Prefix+"set-duplicate:"+d.Name.Text);
+        }
+        var changes=new List<(int Start,int Length,string Text)>();
+        foreach(var pattern in patterns)
+        {
+            var parent=FirmamentSyntaxTraversal.Declarations(syntax).FirstOrDefault(d=>d.Body?.Statements.Contains(pattern)==true);
+            var name=pattern.Clauses.Count==1?FirmamentSyntaxValues.Reference(pattern.Clauses[0].Value):null;
+            if(parent?.Type.Name.Text!=ownerType || pattern.Name is null || pattern.Body is null || pattern.Parameters.Count>0 || pattern.Annotation is not null || pattern.Initializer is not null || pattern.Modifiers.Count>0 || pattern.Occurrence || name is null || !sets.TryGetValue(name,out var set))
+            { diagnostics.Add(Prefix+"pattern-source-invalid:"+pattern.Name?.Text+":use an owning "+ownerType+" and a bound named Set");continue; }
+            ExpandSetPattern(pattern,set,new Dictionary<string,Template>(),changes,[],diagnostics,domainResults:domainResults);
+        }
+        if(changes.Sum(c=>(long)c.Text.Length)+source.Length>4*1024*1024){diagnostics.Add(Prefix+"pattern-output-limit");return source;}
+        foreach(var change in changes.OrderByDescending(c=>c.Start))source=source.Remove(change.Start,change.Length).Insert(change.Start,change.Text);
+        return source;
+    }
+
     private static IReadOnlyList<FirmamentV2StaticSetEntry> ParseSetEntries(string source, int start, int end, string setName, string elementType,
         IReadOnlyDictionary<string, FirmamentV2RecordTypeDecl> recordTypes, List<string> diagnostics, FirmamentCompileTimeValues? scalars = null)
     {
@@ -539,7 +571,7 @@ internal static class CanonicalStaticAuthoring
 
     private static void ExpandSetPattern(DeclarationSyntax pattern, FirmamentV2StaticSetDecl set,
         IReadOnlyDictionary<string, Template> templates, List<(int Start, int Length, string Text)> changes,
-        List<FirmamentV2CanonicalPatternDecl> patterns, List<string> diagnostics, string? target = null)
+        List<FirmamentV2CanonicalPatternDecl> patterns, List<string> diagnostics, string? target = null, IReadOnlySet<string>? domainResults = null)
     {
         var patternName = pattern.Name!.Text;
         if (set.Entries.Count > MaxPatternExpansion) { diagnostics.Add(Prefix + "pattern-expansion-limit:" + patternName + ":" + set.Entries.Count); return; }
@@ -557,7 +589,7 @@ internal static class CanonicalStaticAuthoring
             else
             {
                 if (mapping.Value is not DeclarationSyntax declaration || declaration.Body is null || declaration.Name is null
-                    || declaration.Type.Name.Text is not ("Hole" or "Slot" or "Boss" or "Pocket" or "EdgeFinish" or "Panel" or "Section"))
+                    || declaration.Type.Name.Text is not ("Hole" or "Slot" or "Boss" or "Pocket" or "EdgeFinish" or "Panel" or "Section") && domainResults?.Contains(declaration.Type.Name.Text) != true)
                 { diagnostics.Add(Prefix + "pattern-body-invalid:" + patternName); return; }
                 var substitution = BindSetElement(mapping.Key.Text, entry, diagnostics);
                 if (substitution is null) continue;

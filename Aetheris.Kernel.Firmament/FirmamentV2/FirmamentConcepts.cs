@@ -92,6 +92,20 @@ internal sealed class FirmamentConcepts
     internal IReadOnlyList<ConceptIrDefinition> Contracts => contracts.Values.ToArray();
     internal bool HasContract(string name) => declarations.TryGetValue(name, out var d) && !IsPredicate(d);
 
+    internal bool CheckMembers(string name, IReadOnlyDictionary<string, string> members, string owner, FirmamentV2SourceSpan span)
+    {
+        if (!contracts.TryGetValue(name, out var contract))
+        { Add("contract-unresolved", $"'{owner}' claims unknown structural Concept '{name}'.", span); return false; }
+        foreach (var member in contract.Members.Values)
+        {
+            if (!members.TryGetValue(member.Name, out var actual))
+            { Add("missing-member", $"'{owner}' does not expose required semantic member '{member.Name}: {member.Type}' from Concept '{name}'.", member.SourceSpan); return false; }
+            if (member.Type.IsCollection || actual != member.Type.Name)
+            { Add("type-mismatch", $"'{owner}.{member.Name}' exposes '{actual}', but Concept '{name}' requires '{member.Type}'.", member.SourceSpan); return false; }
+        }
+        return true;
+    }
+
     internal void ValidateClaims()
     {
         Visit(syntax.Statements);

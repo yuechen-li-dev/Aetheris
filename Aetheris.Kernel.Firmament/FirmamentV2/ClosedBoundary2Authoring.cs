@@ -164,7 +164,7 @@ internal static class ClosedBoundary2Authoring
         return source;
     }
 
-    private static bool IsBoundaryType(string type) => type is "Rect2" or "Square2" or "Circle2" or "Ellipse2" or "Slot2"
+    internal static bool IsBoundaryType(string type) => type is "Rect2" or "Square2" or "Circle2" or "Ellipse2" or "Slot2"
         or "RoundedRect2" or "SmoothRoundedRect2" or "Triangle2" or "Polygon2" or "RegularPolygon2";
 
     private static IEnumerable<DeclarationSyntax> BoundaryDeclarations(DocumentSyntax syntax) =>

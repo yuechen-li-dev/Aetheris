@@ -10,7 +10,7 @@ internal static class SheetMetalProfileBinding
 {
     private const double Tol = 1e-7;
 
-    internal static AuthoredSheetBaseSpec? Base(string source, string name, FirmamentSyntaxFields fields, List<string> errors)
+    internal static AuthoredSheetBaseSpec? Base(string source, string name, FirmamentSyntaxFields fields, List<string> errors,FirmamentDomainBinding? binding=null)
     {
         var value = fields.Take("Profile");
         var origin = fields.Take("Origin");
@@ -25,7 +25,7 @@ internal static class SheetMetalProfileBinding
             if (FirmamentSyntaxValues.TryMeasure(height, "mm", out var depth)) result = new(name, width, depth) { Origin = offset };
             dimensions.Complete();
         }
-        else if (Resolve(source, value, errors) is { } profile)
+        else if (Resolve(source, value, errors,binding) is { } profile)
         {
             var segments = profile.Loops.Single().Segments;
             var bounds = Bounds(profile);
@@ -41,7 +41,7 @@ internal static class SheetMetalProfileBinding
         return result;
     }
 
-    internal static AuthoredSheetCutSpec? Cut(string source, string name, FirmamentSyntaxFields fields, List<string> errors)
+    internal static AuthoredSheetCutSpec? Cut(string source, string name, FirmamentSyntaxFields fields, List<string> errors,FirmamentDomainBinding? binding=null)
     {
         var on = fields.Word("On");
         var atValue = fields.Take("At") ?? fields.Take("Center");
@@ -67,7 +67,7 @@ internal static class SheetMetalProfileBinding
             if (legacy != "Circle" && width > 0 && length > 0) return new(name, on, SheetFeatureKind.Slot, at.Value.X, at.Value.Y, null, width, length);
             errors.Add($"sheetmetal-cut-profile-invalid: Cut '{name}' requires positive profile dimensions."); return null;
         }
-        var resolved = Resolve(source, value, errors);
+        var resolved = Resolve(source, value, errors,binding);
         fields.Complete();
         if (resolved is null) return null;
         LineArcProfileCurve2D Move(LineArcProfileCurve2D curve) => curve switch
@@ -85,11 +85,12 @@ internal static class SheetMetalProfileBinding
             null, box.MaxY - box.MinY, box.MaxX - box.MinX) { Profile = profile };
     }
 
-    private static ResolvedProfile2D? Resolve(string source, ExpressionSyntax? value, List<string> errors)
+    private static ResolvedProfile2D? Resolve(string source, ExpressionSyntax? value, List<string> errors,FirmamentDomainBinding? binding)
     {
         var name = FirmamentSyntaxValues.Reference(value);
         if (name is null) { errors.Add("sheetmetal-profile-reference-required: Declare a named Profile with Rect2, Circle2, Slot2 or an exact line/arc boundary, then reference it."); return null; }
-        var profile = ProfileAuthoringParser.ResolveNamedProfile(source, name, out var diagnostics);
+        IReadOnlyList<string> diagnostics;
+        var profile = binding is null?ProfileAuthoringParser.ResolveNamedProfile(source, name, out diagnostics):binding.ResolveProfile(name,out diagnostics);
         errors.AddRange(diagnostics);
         if (profile is null) return null;
         var frame = profile.EffectiveConstructionPlane;

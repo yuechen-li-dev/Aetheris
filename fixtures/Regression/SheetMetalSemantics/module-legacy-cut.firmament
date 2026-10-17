@@ -1,0 +1,6 @@
+SheetMetal plate {
+    thickness: 1mm
+    Base deck { profile: Rectangle { width: 100mm; height: 60mm } }
+}
+// Legacy module-level operation: one concrete sheet owns this cut.
+Hole mount { on: deck; center: Point2(20mm, 30mm); diameter: 6mm }

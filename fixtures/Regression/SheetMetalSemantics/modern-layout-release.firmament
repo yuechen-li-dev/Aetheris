@@ -1,0 +1,44 @@
+Record PlateSpec {
+    width: Length
+    depth: Length
+    thickness: Length
+    drillDiameter: Length
+}
+Static plate: PlateSpec {
+    width: 100mm tol 0.25mm
+    depth: 60mm
+    thickness: 1.5mm tol 0.12mm
+    drillDiameter: 6mm tol +0.10mm -0.05mm
+}
+Concept PanelContract { deck: SheetRegion; Flat: FlatPattern; }
+Concept Positive(width: Length) => width > 0mm
+Concept Struct layout {
+    Datum center { on: deck; at: deck.Center }
+    Datum left { on: deck; at: center + Vector2(-20mm, 0mm) }
+}
+Manufacturing release {
+    materialSpecification: "5052-H32 // shop specification"
+    blankProcess: "Laser cut # deburr"
+    generalCutTolerance: 0.25mm
+}
+SheetMetal modernPanel: PanelContract {
+    manufacturing: release
+    thickness: plate.thickness
+    Base deck { profile: Rectangle { width: plate.width; height: plate.depth } }
+    Flange lip { from: deck.Rear; length: 15mm; angle: 90deg; insideRadius: 2mm }
+    Require positive => Positive(plate.width)
+    Pattern holes {
+        on: deck
+        feature: Circle { diameter: plate.drillDiameter }
+        center: layout.left
+        count: 2
+        pitch: Vector2(40mm, 0mm)
+    }
+    Pmi {
+        DatumFeature A { target: deck }
+        Dimension width { kind: Linear; target: deck; dimension: plate.width }
+        Dimension drill { kind: Diameter; target: holes; dimension: plate.drillDiameter; quantity: 2 }
+        Position drillPosition { target: holes; tolerance: 0.3mm; datumRefs: [A]; quantity: 2 }
+        Note finish { target: modernPanel; text: "Cut before forming // keep this text" }
+    }
+}

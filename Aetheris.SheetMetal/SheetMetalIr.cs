@@ -67,7 +67,13 @@ public sealed record SheetMetalDiagnostic(
     string Code,
     SheetMetalDiagnosticSeverity Severity,
     string Message,
-    IReadOnlyList<int>? SourceFaceIds = null);
+    IReadOnlyList<int>? SourceFaceIds = null)
+{
+    public string? SourceFile { get; init; }
+    public FirmamentV2SourceSpan? SourceSpan { get; init; }
+    public string? Context { get; init; }
+    public string? LocationNote { get; init; }
+}
 
 public sealed record SheetEvidence(
     SheetEvidenceKind Kind,

@@ -48,7 +48,7 @@ internal static class ProfileBoundaryAuthoring
     internal static bool IsDerived(string? body) => body is not null && Regex.IsMatch(WithoutComments(body), @"^\s*From\s*:");
 
     internal static bool TryResolve(string source, string name, HashSet<string> visiting,
-        List<string> diagnostics, out ResolvedProfile2D? result)
+        List<string> diagnostics, out ResolvedProfile2D? result,FirmamentCompileTimeValues? scalars=null)
     {
         result = null;
         var declaration = Regex.Match(source, $@"\bProfile\s+{Regex.Escape(name)}(?:\s+Using\s+(?<owner>\w+))?\s*\{{");
@@ -65,7 +65,7 @@ internal static class ProfileBoundaryAuthoring
         var header = Fields(remainder, ["From"], diagnostics, name);
         if (!header.TryGetValue("From", out var from) || !Regex.IsMatch(from, @"^\w+(?:\.\w+)?$"))
         { diagnostics.Add($"profile-edit-source-invalid:{name}"); return true; }
-        var deltas = SemanticProfileDeltaParser.Parse(source);
+        var deltas = SemanticProfileDeltaParser.Parse(source,scalars is null?null:scalars.NominalExpression);
         if (applies.Length > 0) diagnostics.AddRange(deltas.Diagnostics);
         // Existing edge authoring attaches ProfileDelta implicitly. A derivation
         // applies only explicitly selected programs, so resolve an unedited seed.
@@ -74,7 +74,7 @@ internal static class ProfileBoundaryAuthoring
         IReadOnlyList<string> seedErrors;
         var localFrom = from.Contains('.') && from.StartsWith(owner + ".", StringComparison.Ordinal) ? from[(owner.Length + 1)..] : from;
         if (Regex.IsMatch(seedSource, $@"\bProfile\s+{Regex.Escape(localFrom)}\b"))
-            seed = ProfileAuthoringParser.ResolveNamedProfileCore(seedSource, localFrom, visiting, out seedErrors);
+            seed = ProfileAuthoringParser.ResolveNamedProfileCore(seedSource, localFrom, visiting, out seedErrors,scalars);
         else
         {
             foreach (var delta in Blocks(source, "ProfileDelta").OrderByDescending(b => b.Start))
@@ -82,7 +82,7 @@ internal static class ProfileBoundaryAuthoring
             var synthetic = "__BoundarySeed_" + name;
             while (Regex.IsMatch(seedSource, $@"\b{Regex.Escape(synthetic)}\b")) synthetic += "_";
             seed = ProfileAuthoringParser.ResolveNamedProfileCore(seedSource + $"\nProfile {synthetic} {{ Loop Outer {{ {localFrom} |> TraceLoop }} }}",
-                synthetic, visiting, out seedErrors);
+                synthetic, visiting, out seedErrors,scalars);
         }
         diagnostics.AddRange(seedErrors);
         if (seed is null) return true;

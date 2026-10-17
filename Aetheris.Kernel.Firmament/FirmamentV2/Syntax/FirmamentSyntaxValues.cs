@@ -53,7 +53,8 @@ public static class FirmamentSyntaxValues
 
 /// <summary>Each semantic owner consumes its actual fields, then closes its scope.
 /// No second field schema or spelling allowlist is maintained here.</summary>
-public sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<string> diagnostics, string? implicitUnit = null)
+public sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<string> diagnostics, string? implicitUnit = null,
+    Func<ExpressionSyntax, ExpressionSyntax>? bind = null)
 {
     private readonly HashSet<FieldSyntax> consumed = [];
     public DeclarationSyntax Declaration => declaration;
@@ -62,7 +63,7 @@ public sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<st
         var fields = declaration.Body?.Statements.OfType<FieldSyntax>().Where(f => SameField(f.Name.Text, name)).ToArray() ?? [];
         foreach (var field in fields) consumed.Add(field);
         if (fields.Length > 1) diagnostics.Add($"firmament-v2-field-duplicate:{declaration.Type.Name.Text}:{name}");
-        return fields.Length == 1 ? fields[0].Value : null;
+        return fields.Length == 1 ? bind?.Invoke(fields[0].Value) ?? fields[0].Value : null;
     }
     public bool Measure(string name, string unit, out double value) => FirmamentSyntaxValues.TryMeasure(Take(name), unit, out value, implicitUnit);
     public double Number(string name, string unit, double fallback = double.NaN)

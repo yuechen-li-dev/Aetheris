@@ -1,0 +1,14 @@
+Profile opening = Slot2 { center: [0mm, 0mm]; length: 12mm; width: 6mm }
+Static locations: Set<Point2> {
+    left => Point2(20mm, 30mm)
+    right => Point2(80mm, 30mm)
+}
+Feature Vent(center: Point2) -> Cut {
+    return Cut { on: deck; profile: opening; at: center }
+}
+SheetMetal ventPanel {
+    thickness: 1.5mm
+    Base deck { profile: Rectangle { width: 100mm; height: 60mm } }
+    Pattern vents over locations { point => Vent(point) }
+    Pmi { Note leftVent { target: vents.left; text: "Exact shared Slot2 boundary" } }
+}

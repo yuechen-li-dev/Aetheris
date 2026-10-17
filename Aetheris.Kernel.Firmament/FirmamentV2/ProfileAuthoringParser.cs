@@ -51,18 +51,19 @@ public static class ProfileAuthoringParser
     public static ResolvedProfile2D? ResolveNamedProfile(string source, string profileName, out IReadOnlyList<string> reportedDiagnostics)
         => ResolveNamedProfileCore(source, profileName, new(StringComparer.Ordinal), out reportedDiagnostics);
 
-    internal static ResolvedProfile2D? ResolveNamedProfileCore(string source, string profileName, HashSet<string> visiting, out IReadOnlyList<string> reportedDiagnostics)
+    internal static ResolvedProfile2D? ResolveNamedProfileCore(string source, string profileName, HashSet<string> visiting, out IReadOnlyList<string> reportedDiagnostics,
+        FirmamentCompileTimeValues? scalars=null)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentException.ThrowIfNullOrWhiteSpace(profileName);
         var diagnostics = new List<string>();
         if (!visiting.Add(profileName)) { reportedDiagnostics = [$"concept-profile-dependency-cycle:{profileName}"]; return null; }
         source = ProfileModificationTemplateLibrary.ResolveImports(source);
-        source = ExpandBuiltInPolygons(source, diagnostics);
-        var expansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
+        source = ExpandBuiltInPolygons(source, diagnostics,scalars);
+        var expansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics,scalars);
         if (expansion is not null) source = expansion.Source;
-        if (ProfileBoundaryAuthoring.TryResolve(source, profileName, visiting, diagnostics, out var derived)
-            || ConceptProfileDerivation.TryResolve(source, profileName, visiting, diagnostics, out derived))
+        if (ProfileBoundaryAuthoring.TryResolve(source, profileName, visiting, diagnostics, out var derived,scalars)
+            || ConceptProfileDerivation.TryResolve(source, profileName, visiting, diagnostics, out derived,scalars))
         {
             visiting.Remove(profileName);
             reportedDiagnostics = diagnostics.Distinct(StringComparer.Ordinal).ToArray();
@@ -72,7 +73,7 @@ public static class ProfileAuthoringParser
         if (declaration is null) { reportedDiagnostics = [$"profile-source-missing-profile:{profileName}"]; return null; }
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
         var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
-        AddOrdinaryGuides(source, points, guides, diagnostics, applySpans: false);
+        AddOrdinaryGuides(source, points, guides, diagnostics, applySpans: false,bind:scalars is null?null:scalars.NominalExpression);
         var paths = BindPaths(source, points, guides, diagnostics);
         var plane = ResolveConstructionPlane(source, declaration.Frame, diagnostics);
         var loops = BindProfileLoops(declaration, paths, points, guides, diagnostics);
@@ -244,30 +245,37 @@ public static class ProfileAuthoringParser
         return profiles;
     }
 
-    private static string ExpandBuiltInPolygons(string source, List<string> diagnostics)
+    private static string ExpandBuiltInPolygons(string source, List<string> diagnostics,FirmamentCompileTimeValues? scalars=null)
     {
         // Direct profile/path API consumers use the same AST-position aliases as
         // whole-document compilation, including remaining compatibility adapters.
         source = FirmamentSourceSpelling.Normalize(source);
-        return ClosedBoundary2Authoring.Expand(source, diagnostics)?.Source ?? source;
+        return ClosedBoundary2Authoring.Expand(source, diagnostics,scalars)?.Source ?? source;
     }
 
     internal static ConstructionPlane? ResolveNamedConstructionPlane(string source, string frame, List<string> diagnostics)
         => ResolveConstructionPlane(source, frame, diagnostics);
 
-    private static void AddOrdinaryGuides(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics, bool applySpans = true)
+    internal static bool OwnsConstructionGuide(string type) => type is "Point2" or "Rect2" or "Line2" or "CubicBezier2" or "Circle2" or "Ellipse2Guide";
+    internal static bool OwnsDeclaration(DeclarationSyntax declaration) => OwnsConstructionGuide(declaration.Type.Name.Text)
+        || ClosedBoundary2Authoring.IsBoundaryType(declaration.Type.Name.Text)
+        || declaration.Type.Name.Text is "Profile" or "Path" or "Span" or "Curve2"
+        || declaration.Type.Name.Text=="Plane" && declaration.Modifiers.Any(m=>m.Name.Text=="Construction");
+
+    private static void AddOrdinaryGuides(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics, bool applySpans = true,
+        Func<ExpressionSyntax,ExpressionSyntax>? bind=null)
     {
         var declarations = SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Where(d => d.Name is not null && d.Body is not null).ToArray();
         foreach (var d in declarations.Where(d => d.Type.Name.Text == "Point2"))
         {
-            var fields = new FirmamentSyntaxFields(d, diagnostics);
+            var fields = new FirmamentSyntaxFields(d, diagnostics,bind:bind);
             if (fields.Vector("Position", "mm", out var xy) && xy.Length == 2) points[d.Name!.Text] = (xy[0], xy[1]);
             else diagnostics.Add($"profile-layout-point-invalid:{d.Name!.Text}:expected-two-finite-lengths");
             fields.Complete();
         }
         foreach (var d in declarations.Where(d => d.Type.Name.Text == "Rect2"))
         {
-            var fields = new FirmamentSyntaxFields(d, diagnostics); var name = d.Name!.Text;
+            var fields = new FirmamentSyntaxFields(d, diagnostics,bind:bind); var name = d.Name!.Text;
             fields.Word("Role");
             if (!fields.Vector("Center", "mm", out var center) || center.Length != 2 || !fields.Vector("Size", "mm", out var size) || size.Length != 2 || size.Any(n => n <= 0))
             { diagnostics.Add($"rect2-invalid-size:{name}"); continue; }
@@ -283,7 +291,7 @@ public static class ProfileAuthoringParser
         }
         foreach (var d in declarations.Where(d => d.Type.Name.Text is "Line2" or "CubicBezier2"))
         {
-            var fields = new FirmamentSyntaxFields(d, diagnostics); var name = d.Name!.Text;
+            var fields = new FirmamentSyntaxFields(d, diagnostics,bind:bind); var name = d.Name!.Text;
             var a = fields.Word("From"); var b = fields.Word("To");
             var c1 = d.Type.Name.Text == "CubicBezier2" ? fields.Word("Control1") : null;
             var c2 = d.Type.Name.Text == "CubicBezier2" ? fields.Word("Control2") : null;
@@ -297,7 +305,7 @@ public static class ProfileAuthoringParser
         }
         foreach (var d in declarations.Where(d => d.Type.Name.Text is "Circle2" or "Ellipse2Guide"))
         {
-            var fields = new FirmamentSyntaxFields(d, diagnostics); var name = d.Name!.Text;
+            var fields = new FirmamentSyntaxFields(d, diagnostics,bind:bind); var name = d.Name!.Text;
             var centerName = fields.Word("Center");
             if (centerName is null || !points.TryGetValue(centerName, out var center)) { diagnostics.Add($"profile-layout-unresolved-circle:{name}"); continue; }
             if (d.Type.Name.Text == "Circle2")
@@ -319,10 +327,10 @@ public static class ProfileAuthoringParser
         if (applySpans) ApplyGeometricSpans(source, points, guides, diagnostics, addGuides: true);
     }
 
-    internal static IReadOnlyList<string> ValidateConstructionGuides(string source)
+    internal static IReadOnlyList<string> ValidateConstructionGuides(string source,Func<ExpressionSyntax,ExpressionSyntax>? bind=null)
     {
         var diagnostics = new List<string>();
-        AddOrdinaryGuides(source, new(StringComparer.Ordinal), new(StringComparer.Ordinal), diagnostics, applySpans: false);
+        AddOrdinaryGuides(source, new(StringComparer.Ordinal), new(StringComparer.Ordinal), diagnostics, applySpans: false,bind:bind);
         return diagnostics;
     }
 
@@ -424,7 +432,9 @@ public static class ProfileAuthoringParser
     }
 
     private static bool IsWorldXyLayout(string source, string frame) =>
-        Regex.IsMatch(source, $@"\bConcept\s+Struct\s+{Regex.Escape(frame)}\s+On\s+XY\s*\{{", RegexOptions.CultureInvariant);
+        FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).Any(d=>
+            d.Type.Name.Text=="Struct" && d.Modifiers.Any(m=>m.Name.Text=="Concept") && d.Name?.Text==frame
+            && d.Clauses.Count==1 && d.Clauses[0].Kind==ClauseKind.On && FirmamentSyntaxValues.Reference(d.Clauses[0].Value)=="XY");
 
     private static IReadOnlyList<string> FindSpanConsumers(string source, string spanName)
     {

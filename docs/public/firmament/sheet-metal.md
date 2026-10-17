@@ -38,9 +38,68 @@ There is no separate sheet-metal sketch language for new named boundaries.
 
 Use PascalCase for constructs/types and domain symbols (`Base`, `Rect2`, `Up`,
 `Rear`), camelCase for fields and authored value names. PascalCase field spellings
-remain compatible. Semicolons are optional in Base, Flange, Hole and Cut fields;
-newlines can separate fields. Older manufacturing/semantic-layout recipes retain
-their documented statement forms and terminators.
+remain compatible. Semicolons and newlines separate fields in the sheet,
+semantic-layout, ProfileDelta, manufacturing and PMI owners. Unknown fields,
+unknown statements, duplicate aliases and unsupported header placements reject.
+
+### Layout, requirements and release data
+
+A layout Datum is a named region-local **construction point**. It is not a PMI
+DatumFeature or a 3D DatumFrame. Declare `Datum center { on: deck; at: deck.Center }`
+in a Concept Struct, then refer to `layout.center`. `at` admits `Point2(...)`,
+legacy tuples, region centers and scoped Datums, optionally plus a `Vector2`
+offset. Short names resolve in their layout; forward references work and cycles
+reject. Layout `on XZ` is unsupported and rejects rather than producing XY.
+
+Keep reusable construction data in Concept Structs; put material operations in
+the consuming SheetMetal body. A single legacy Concept Struct containing sheet
+effects remains supported with its existing identities. Multiple implicit effect
+bundles reject as ambiguous. `intent:` does not select between several effect
+bundles; move those operations into the sheet body.
+
+Sheet fields consume the same checked scalar Static/Record values as mechanical
+models. `Require name => predicate` uses the common Boolean/Concept evaluator,
+and `SheetMetal name: Contract` checks every structural member regardless of
+semicolons. Legacy brace Require records still support RequiredMembers,
+EqualSize, EqualPitch and Mirror. Spatial checks require one owning region;
+Mirror accepts `axis: X` or `axis: Y` when its `about` names a Datum. Arbitrary
+geometric constraint solving is not part of these checks.
+
+Named `Set<Point2>` values and ordinary `Pattern name over points { point =>
+Recipe(point) }` use the existing Feature/Pattern expansion. Sheet recipes may
+return `Hole` or `Cut`; mechanical `Hole<Shaft>` is a different domain operation.
+Generated identities use Pattern/Set keys, such as `mounting.left`, independently
+of entry order. See the complete
+[keyed recipe example](../../../fixtures/Regression/SheetMetalSemantics/keyed-features.firmament).
+The legacy centered Count/Pitch Pattern retains its placement and index IDs.
+Its `Slot` and `Rectangle` feature spellings both retain the historical capsule
+with a straight-run Length; use shared Rect2/Slot2 Profiles for new boundaries.
+
+`Manufacturing release { ... }` describes material/process data and general
+allowance policies. A sheet selects it with `manufacturing: release`. A single
+legacy release remains implicitly selectable. Multiple unselected releases
+reject; reusable unselected releases are still checked for invalid fields.
+An ordinary quoted process string may contain `//` or `#`.
+
+Use one root-contained `Pmi { ... }` for explicit projection. One named top-level
+Pmi remains compatible; multiple Pmi blocks reject. PMI does not require a
+Manufacturing block. `Dimension width { kind: Linear; target: deck;
+dimension: plate.width }` projects a bound toleranced Length; geometry consumes
+its nominal. Record/Static origins are retained on the bound dimension. Literal
+`value` and `tolerance: PlusMinus(...)` remain compatible but cannot be combined
+with `dimension:`. Allowances must be nonnegative, quantities positive integers,
+and kinds one of Thickness, Linear or Diameter.
+
+Sheet PMI targets named regions, bends, parts, authored cuts and generated
+features. `DatumFeature`, `Position` with `datumRefs`, and `Note` (legacy
+`Annotation`) retain their existing AP242 roles and face associations. General
+GD&T support is not implied. Check the exported result with `analyze --json`.
+The complete [typed layout/release example](../../../fixtures/Regression/SheetMetalSemantics/modern-layout-release.firmament)
+uses a Record requirement for both construction and PMI.
+
+ProfileDelta fields use the same AST consumption and dimensional binding.
+Prefer `anchor: FromStart(0mm)` / `FromEnd(...)` / `CenteredAt(...)`; the historic
+`Anchor: FromStart 0mm` spelling remains a local compatibility production.
 
 ### Coordinates and capability admission
 
@@ -96,7 +155,7 @@ modifies the wall edge while preserving formed/flat semantic identity.
 
 Flat inspection distinguishes `MaterialArea` from `BoundingArea`. `MaterialArea` is exact line/arc integration of the final flat material contour after additive ProfileDelta regions, notches, holes, cutouts, and overlap clipping. `BoundingArea` is only the rectangular nesting envelope. If no validated exact blank contour exists, material area is reported as unavailable rather than reconstructed from feature bookkeeping.
 
-Sheet Metal holes use `Hole Mount { On: Base; Center: (40mm, 20mm); Diameter: 8mm; }`. Model-domain `Hole<Shaft>` is deliberately rejected here with `sheetmetal-hole-domain-syntax`. `On` targets a named planar semantic region (`Base`, a named flange, or a verified exposed region/path), not `face(+Z)`. Manufacturing PMI likewise uses `DatumFeature A { Target: Base; }` inside `Pmi`, together with a named `Manufacturing` block; Model-domain `Datum`/`face(-Z)` syntax is rejected with `sheetmetal-pmi-domain-syntax`.
+Sheet Metal holes use `Hole Mount { On: Base; Center: (40mm, 20mm); Diameter: 8mm; }`. Model-domain `Hole<Shaft>` is deliberately rejected here with `sheetmetal-hole-domain-syntax`. `On` targets a named planar semantic region (`Base`, a named flange, or a verified exposed region/path), not `face(+Z)`. Manufacturing PMI likewise uses `DatumFeature A { Target: Base; }` inside `Pmi`; Model-domain `Datum`/`face(-Z)` syntax is rejected with `sheetmetal-pmi-domain-syntax`.
 
 The JSON `part.features` count is the number of lowered cuts/openings in `SheetMetalPartIr`; bends are reported separately as `part.bends`. Authoring and imported reconstruction are separate workflows. Commands such as `sheetmetal recognize`, `recover-flat`, and `recover` operate on imported STEP and may be partial; they do not turn arbitrary geometry into authoritative authored intent.
 

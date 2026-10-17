@@ -399,7 +399,10 @@ internal sealed partial class FirmamentCompileTimeValues(string source)
 
     internal ExpressionSyntax NominalExpression(ExpressionSyntax expression)
     {
-        var replacements = FirmamentSyntaxTraversal.Expressions(expression)
+        // Object/with bodies contain statements, so expression-only traversal
+        // misses their scalar fields. Use the existing complete tree traversal.
+        var tree = new DocumentSyntax("inline", [new ExpressionStatementSyntax(expression, expression.Span)], [], expression.Span);
+        var replacements = FirmamentSyntaxTraversal.Expressions(tree)
             .Select(FirmamentSyntaxValues.Reference).OfType<string>().Distinct(StringComparer.Ordinal)
             .Where(values.ContainsKey).ToDictionary(name => name,
                 name => FirmamentSyntaxParser.ParseExpression(NominalExpression(name)).Expression!, StringComparer.Ordinal);

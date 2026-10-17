@@ -59,6 +59,22 @@ graphical dimension-label placement is separate. Explicit `value:` and
 Existing `Require`-based `from:` / `as:` projections continue to mean a checked
 semantic constraint, rather than an implicit export of all Static values.
 
+## Sheet-metal requirements
+
+The authored sheet-metal frontend also admits `dimension:` references to checked
+toleranced Length values from Static/Record data. It preserves nominal geometry,
+allowances and binding origins. Its `Dimension` kinds are Thickness, Linear and
+Diameter; targets are bound sheet regions, bends, parts and cuts, including
+Pattern members. `DatumFeature` and `Position` retain the sheet exporter's datum
+relationships and geometric associations. Native Model's smaller GD&T capability
+set remains unchanged. See [sheet-metal layout and release syntax](sheet-metal.md#layout-requirements-and-release-data)
+and the [complete typed example](../../../fixtures/Regression/SheetMetalSemantics/modern-layout-release.firmament).
+
+Use one owning Pmi block. Unknown kinds/fields, missing targets, duplicate blocks,
+negative allowance magnitudes and nonpositive quantities reject. Manufacturing
+process metadata is optional and does not implicitly create PMI. A successful
+export can be inspected with `aetheris analyze file.step --json`.
+
 ## Targets and inspection
 
 For a simple `Hole<Shaft>` constructed in a Box, `face(H.Wall)` names the stable wall output of Hole `H`. It is a semantic role selector, independent of the current BRep face number. `HoleDiameter` accepts it as a target:

@@ -890,7 +890,7 @@ public static class CliRunner
         if(!authored.IsSuccess||authored.Part?.FormedBody is null)
         {
             if(json)stdout.WriteLine(JsonSerializer.Serialize(new{command="build",success=false,input=Path.GetFullPath(sourcePath),domain="SheetMetal",diagnostics=authored.Diagnostics},JsonOptions));
-            else{stderr.WriteLine("Build failed:");foreach(var d in authored.Diagnostics)stderr.WriteLine($"- [{d.Severity}] {d.Code}: {d.Message}");}
+            else{stderr.WriteLine("Build failed:");WriteSheetMetalDiagnostics(authored.Diagnostics,stderr);}
             return 1;
         }
         var semanticPmi=authored.Spec?.Manufacturing.ToStep242SemanticPmi(authored.Part)??[];
@@ -960,7 +960,7 @@ public static class CliRunner
             stdout.WriteLine($"Sheet Metal: {part.RecognitionStatus} ({report.sourceAuthority})");if(part.Material is not null)stdout.WriteLine($"Material: {part.Material}");stdout.WriteLine($"Thickness: {part.Thickness:G8} mm{(thickness is null?" authored/recovered":$" ± {thickness.Tolerance:G4} mm, {thickness.SourcePairs.Count(p=>p.Admitted)} paired supports")}");stdout.WriteLine($"Regions: {part.Regions.Count} ({part.Regions.Count(r=>r.Kind==SheetRegionKind.Planar)} planar, {part.Regions.Count(r=>r.Kind==SheetRegionKind.CylindricalBend)} cylindrical)");stdout.WriteLine($"Bends: {part.Bends.Count}; cuts: {part.Features.Count}; base: {part.BaseRegionId}");foreach(var bend in part.Bends)stdout.WriteLine($"  {bend.StableId}: {bend.BendAngleRadians*180/Math.PI:G5} deg, R{bend.InsideRadius:G6}, {bend.Direction}, {bend.AdjacentRegionA} -> {bend.AdjacentRegionB}");stdout.WriteLine($"Flat pattern: {flat.Status}; MaterialArea={(flat.MaterialArea is { } materialArea?$"{materialArea:G10} mm^2":"unavailable")}; BoundingArea={(flat.BoundingArea is { } boundingArea?$"{boundingArea:G10} mm^2":"unavailable")}; {(flat.Bounds is null?"no bounds":$"{flat.Bounds.Width:G8} x {flat.Bounds.Height:G8} mm")}; K={flat.Policy.KFactor:G4}; hash={flat.DeterministicHash}");if(flatStepOutput is not null)stdout.WriteLine($"STEP: {flatStepOutput}");if(firmamentOutput is not null)stdout.WriteLine($"Firmament: {firmamentOutput}");if(output is not null)stdout.WriteLine($"SVG: {output}");foreach(var d in allDiagnostics)stdout.WriteLine($"  [{d.Severity}] {d.Code}: {d.Message}");
         }
         return flat.Status is FlatPatternStatus.Unsupported or FlatPatternStatus.Overlapping?2:0;
-        void WriteFailure(IReadOnlyList<SheetMetalDiagnostic> ds){if(json)stdout.WriteLine(JsonSerializer.Serialize(new{command=$"sheetmetal {operation}",success=false,input,diagnostics=ds},JsonOptions));else foreach(var d in ds)stderr.WriteLine($"[{d.Severity}] {d.Code}: {d.Message}");}
+        void WriteFailure(IReadOnlyList<SheetMetalDiagnostic> ds){if(json)stdout.WriteLine(JsonSerializer.Serialize(new{command=$"sheetmetal {operation}",success=false,input,diagnostics=ds},JsonOptions));else WriteSheetMetalDiagnostics(ds,stderr);}
     }
 
     private static int RunSheetMetalRecognize(string[] args, TextWriter stdout, TextWriter stderr)
@@ -1032,7 +1032,19 @@ public static class CliRunner
         LineArcFullCircle2D circle=>new{center=new{x=circle.Center.X,y=circle.Center.Y},circle.Radius},
         _=>new{unsupported=curve.GetType().Name}
     };
-    private static void WriteSheetMetalDiagnostics(IEnumerable<SheetMetalDiagnostic> diagnostics,TextWriter stderr){foreach(var d in diagnostics)stderr.WriteLine($"[{d.Severity}] {d.Code}: {d.Message}");}
+    private static void WriteSheetMetalDiagnostics(IEnumerable<SheetMetalDiagnostic> diagnostics,TextWriter stderr)
+    {
+        foreach(var diagnostic in diagnostics)
+        {
+            var file=diagnostic.SourceFile;
+            var source=file is not null && File.Exists(file)?File.ReadAllText(file):null;
+            var presented=FirmamentBuildAdmissionValidation.Locate(new(diagnostic.Code,diagnostic.Severity.ToString(),diagnostic.Message)
+                { SourceSpan=diagnostic.SourceSpan,LocationNote=diagnostic.LocationNote },source,file ?? "unknown");
+            var location=diagnostic.SourceSpan is not null && source is not null?$"{file}({presented.Line},{presented.Column}): ":file is not null?$"{file}: ":"";
+            var note=diagnostic.LocationNote is { Length:>0 } detail?" "+detail:"";
+            stderr.WriteLine($"{location}[{diagnostic.Severity}] {diagnostic.Code}: {diagnostic.Message}{note}");
+        }
+    }
 
     private static int RunSheetMetalRecover(string[] args, TextWriter stdout, TextWriter stderr)
     {
@@ -2514,7 +2526,11 @@ Model CanonicalPanel {
                 diagnostics=sheet.Diagnostics
             };
             if(json)stdout.WriteLine(JsonSerializer.Serialize(new{sheetMetalValidation=payload},JsonOptions));
-            else stdout.WriteLine($"Sheet Metal validation: {status} ({payload.summary.fatalDiagnosticCount} fatal, {payload.summary.warningDiagnosticCount} warning)");
+            else
+            {
+                stdout.WriteLine($"Sheet Metal validation: {status} ({payload.summary.fatalDiagnosticCount} fatal, {payload.summary.warningDiagnosticCount} warning)");
+                WriteSheetMetalDiagnostics(sheet.Diagnostics,stderr);
+            }
             return sheet.IsSuccess?0:1;
         }
 

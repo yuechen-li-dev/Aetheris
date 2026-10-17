@@ -100,6 +100,15 @@ public static class FirmamentSyntaxParser
                 {
                     var name = Identifier(); Expect(":");
                     var value = Expression();
+                    // Local compatibility production for historical ProfileDelta
+                    // anchors. Both spellings produce the same call AST.
+                    if (contexts.TryPeek(out var fieldOwner) && fieldOwner.StartsWith("ProfileDelta ", StringComparison.Ordinal)
+                        && name.Text is "Anchor" or "anchor" && value is ReferenceSyntax { Name.Text: "FromStart" or "FromEnd" or "CenteredAt" }
+                        && !LineBreak && !Is(";") && !Is("}"))
+                    {
+                        var offset = Expression();
+                        value = new CallSyntax(value, [new(null, offset, null, offset.Span)], Span(value.Span.Start));
+                    }
                     if (Take("=")) value = new TypedValueSyntax(value, Expression(), Span(value.Span.Start));
                     return new FieldSyntax(name, value, Span(start));
                 }

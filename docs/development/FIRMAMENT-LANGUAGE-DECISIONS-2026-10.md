@@ -372,3 +372,28 @@ Regions, mixed finishes and general feature chains remain explicit limitations.
 Shell and unrelated geometry work from #24 is still deferred. This supersedes
 the d05 rejection disposition above only for the newly qualified combination.
 See [qualification and upstream reconciliation](../release/FIRMAMENT-FILLET-HOLE.md).
+
+## Sheet semantic layout and manufacturing follow-up (2026-10-17)
+
+The [modernization report](FIRMAMENT-SHEET-METAL-SEMANTIC-MANUFACTURING-MODERNIZATION-2026-10.md)
+records the production AST migration and every disposition from the preceding
+sheet audit. This is an implementation follow-up, not another shadow milestone.
+
+- Layout, structural contracts, manufacturing/PMI and ProfileDelta no longer use
+  their old block/field regex readers. Unknown intent and unsupported placements
+  reject. Validate and build execute the same sheet compiler.
+- Shared scalar Record/Static binding and typed `dimension:` projection preserve
+  nominal geometry, allowances and value provenance. Ordinary keyed Set/Pattern
+  mapping reuses Feature specialization for sheet Hole/Cut consumers.
+- Preserve one legacy layout effect bundle and its identities. Multiple implicit
+  bundles reject; new effects belong under the consuming SheetMetal body.
+- Preserve legacy capsule/rectangular Slot meanings explicitly; new shared
+  Rect2/Slot2 Profiles have their established exact-boundary meanings.
+- camelCase fields and PascalCase aliases are admitted by the owning field
+  reader; conflicting aliases reject. Prefer call-shaped ProfileDelta anchors,
+  unnamed owning Pmi and Note; old anchors, one named top-level Pmi and Annotation
+  remain compatibility forms.
+- Arbitrary-plane sheet layout, general GD&T, constraint solving and callable
+  Boolean-composable domain EqualPitch/Mirror intrinsics remain separate work.
+  Legacy domain checks are AST-owned; ordinary predicate/bundle Concepts use the
+  common checker. These limits do not grant apparent successful admission.

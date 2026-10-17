@@ -1,5 +1,5 @@
-using System.Globalization;
-using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
@@ -16,7 +16,10 @@ public sealed record SheetMetalManufacturingDimension(
     double Value,
     double TolerancePlus,
     double ToleranceMinus,
-    int? Quantity);
+    int? Quantity)
+{
+    public IReadOnlyList<FirmamentV2ValueOrigin> DimensionOrigins { get; init; } = [];
+}
 
 public sealed record SheetMetalManufacturingGeometricTolerance(
     string Name,
@@ -177,239 +180,130 @@ internal sealed record SheetMetalManufacturingParseResult(
 
 internal static class SheetMetalManufacturingParser
 {
-    private const RegexOptions Rx = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline;
-    private const string Number = @"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)";
-
-    public static SheetMetalManufacturingParseResult Parse(
-        string source,
-        string partName,
-        AuthoredSheetBaseSpec baseSpec,
-        IReadOnlyList<AuthoredSheetFlangeSpec> flanges,
-        SheetMetalSemanticLayout semanticLayout)
+    public static SheetMetalManufacturingParseResult Parse(FirmamentDomainBinding binding, string partName,
+        AuthoredSheetBaseSpec baseSpec, IReadOnlyList<AuthoredSheetFlangeSpec> flanges,
+        SheetMetalSemanticLayout layout, IReadOnlyList<AuthoredSheetCutSpec> cuts, string? selectedRelease)
     {
-        var manufacturing = FindNamedBlock(source, "Manufacturing");
-        var pmi = FindNamedBlock(source, "Pmi");
-        if (manufacturing is null && pmi is null)
-        {
-            return new(SheetMetalManufacturingDefinition.Empty, []);
-        }
-
+        var errors = new List<string>();
         var diagnostics = new List<SheetMetalDiagnostic>();
-        if (manufacturing is null)
+        var root = binding.Document.Statements.OfType<DeclarationSyntax>().Single(d=>d.Type.Name.Text=="SheetMetal" && d.Modifiers.Count==0);
+        var declarations = binding.Document.Statements.Concat(root.Body!.Statements).OfType<DeclarationSyntax>().ToArray();
+        var releases=declarations.Where(d=>d.Type.Name.Text=="Manufacturing").ToArray();
+        var pmis=declarations.Where(d=>d.Type.Name.Text=="Pmi").ToArray();
+        var selected=releases.Where(d=>selectedRelease is null || d.Name?.Text==selectedRelease).ToArray();
+        if (selected.Length>1 || selectedRelease is not null && selected.Length!=1)
+            Error(root,"Select one declared Manufacturing release with manufacturing: <name>; release ownership is ambiguous or unresolved.");
+        if (pmis.Length>1) Error(pmis[1],"Declare one owning Pmi block; multiple blocks cannot be silently selected by source order.");
+        var release=selected.Length==1?selected[0]:null;
+        var releaseValues=new Dictionary<DeclarationSyntax,SheetMetalManufacturingDefinition>();
+        foreach(var item in releases)
         {
-            diagnostics.Add(Error("A Sheet Metal `Pmi` block requires a `Manufacturing <Release> { ... }` block."));
-            return new(SheetMetalManufacturingDefinition.Empty, diagnostics);
+            var f=new FirmamentSyntaxFields(item,errors,bind:binding.Nominal);
+            var material=f.Reference("MaterialSpecification");
+            var blank=f.Reference("BlankProcess");var forming=f.Reference("FormingProcess");
+            var thickness=PlusMinus(f.Take("ThicknessTolerance"),item);
+            var cut=OptionalMeasure(f,"GeneralCutTolerance","mm");
+            var formed=OptionalMeasure(f,"GeneralFormedTolerance","mm");
+            var angular=OptionalMeasure(f,"GeneralAngularTolerance","deg");
+            f.Complete();
+            releaseValues[item]=new(item.Name?.Text ?? "unspecified",material,thickness?.Plus,thickness?.Minus,blank,forming,cut,formed,angular,[],[],[],[]);
         }
-
-        var targets = BuildTargets(partName, baseSpec, flanges, semanticLayout);
-        var datums = new List<SheetMetalManufacturingDatum>();
-        var dimensions = new List<SheetMetalManufacturingDimension>();
-        var tolerances = new List<SheetMetalManufacturingGeometricTolerance>();
-        var annotations = new List<SheetMetalManufacturingAnnotation>();
-
-        var materialSpecification = Quoted(manufacturing.Value.Body, "MaterialSpecification");
-        var blankProcess = Quoted(manufacturing.Value.Body, "BlankProcess");
-        var formingProcess = Quoted(manufacturing.Value.Body, "FormingProcess");
-        var thicknessTolerance = PlusMinus(manufacturing.Value.Body, "ThicknessTolerance");
-        var generalCutTolerance = Scalar(manufacturing.Value.Body, "GeneralCutTolerance", "mm");
-        var generalFormedTolerance = Scalar(manufacturing.Value.Body, "GeneralFormedTolerance", "mm");
-        var generalAngularTolerance = Scalar(manufacturing.Value.Body, "GeneralAngularTolerance", "deg");
-
-        if (pmi is not null)
+        var definition=release is null?SheetMetalManufacturingDefinition.Empty:releaseValues[release];
+        var targets = new HashSet<string>(StringComparer.Ordinal) { partName,baseSpec.Name };
+        foreach(var flange in flanges) { targets.Add(flange.Name);targets.Add(flange.Name+"Bend"); }
+        foreach(var pattern in layout.Patterns) { targets.Add(pattern.Path);foreach(var member in pattern.Members)targets.Add(member); }
+        foreach(var cut in cuts)targets.Add(cut.Name);
+        var datums=new List<SheetMetalManufacturingDatum>();var dimensions=new List<SheetMetalManufacturingDimension>();
+        var tolerances=new List<SheetMetalManufacturingGeometricTolerance>();var annotations=new List<SheetMetalManufacturingAnnotation>();
+        foreach(var pmi in pmis.Take(1))
         {
-            foreach (var block in ChildBlocks(pmi.Value.Body))
+            if(pmi.Body is null) { Error(pmi,"Pmi needs a body.");continue; }
+            var header = new FirmamentSyntaxFields(pmi with { Body=pmi.Body with { Statements=[] } },errors);header.Complete();
+            var names=new HashSet<string>(StringComparer.Ordinal);
+            foreach(var statement in pmi.Body.Statements)
             {
-                var target = Token(block.Body, "Target");
-                if (target is null)
+                if(statement is not DeclarationSyntax record || record.Name is null || record.Body is null)
+                { Error(statement,"Expected a named DatumFeature, Dimension, Position or Note record in Pmi.");continue; }
+                if(!names.Add(record.Name.Text))Error(record,$"PMI name '{record.Name.Text}' is declared more than once.");
+                var f=new FirmamentSyntaxFields(record,errors,bind:binding.Nominal);
+                var target=SheetMetalSyntaxDiagnostics.Path(f.Take("Target"));
+                if(target is null || !targets.Contains(target)) Error(record,$"PMI '{record.Name.Text}' targets unknown Sheet Metal identity '{target ?? "<missing>"}'.");
+                switch(record.Type.Name.Text)
                 {
-                    diagnostics.Add(Error($"PMI '{block.Name}' requires a stable Target."));
-                    continue;
-                }
-                if (!targets.Contains(target))
-                {
-                    diagnostics.Add(Error($"PMI '{block.Name}' targets unknown Sheet Metal identity '{target}'."));
-                    continue;
-                }
-
-                switch (block.Kind.ToLowerInvariant())
-                {
-                    case "datumfeature":
-                        if (datums.Any(existing => existing.Label.Equals(block.Name, StringComparison.OrdinalIgnoreCase)))
-                            diagnostics.Add(Error($"Datum label '{block.Name}' is declared more than once."));
-                        else datums.Add(new(block.Name, target));
-                        break;
-                    case "dimension":
+                    case "DatumFeature":
+                        if(target is not null)datums.Add(new(record.Name.Text,target));break;
+                    case "Dimension":
                     {
-                        var kind = Token(block.Body, "Kind");
-                        var value = Scalar(block.Body, "Value", "mm");
-                        var tolerance = PlusMinus(block.Body, "Tolerance");
-                        if (kind is null || value is null || value <= 0 || tolerance is null)
+                        var kind=f.Reference("Kind");
+                        if(kind is not ("Thickness" or "Linear" or "Diameter"))Error(record,$"Unsupported Dimension kind '{kind}'. Use Thickness, Linear or Diameter.");
+                        var rawDimension=f.TakeAll("Dimension");
+                        var dimension=rawDimension.Count==1?rawDimension[0].Value:null;
+                        if(rawDimension.Count>1)Error(record,"Duplicate dimension projection.");
+                        double? nominal=null; (double Plus,double Minus)? tolerance=null;
+                        IReadOnlyList<FirmamentV2ValueOrigin> origins=[];
+                        if(dimension is not null)
                         {
-                            diagnostics.Add(Error($"Dimension '{block.Name}' requires Kind, positive Value, and PlusMinus tolerance in millimetres."));
-                            break;
+                            if(record.Body.Statements.OfType<FieldSyntax>().Any(v=>FirmamentSyntaxFields.SameField(v.Name.Text,"Value") || FirmamentSyntaxFields.SameField(v.Name.Text,"Tolerance")))
+                                Error(record,"dimension: cannot be combined with literal value: or tolerance:.");
+                            if(!binding.TryValue(dimension,out var bound) || bound.Type!=FirmamentV2PrimitiveType.Length || bound.Tolerance is null)
+                                Error(record,"dimension: requires a bound toleranced Length from Static or Record data.");
+                            else { nominal=bound.Value.NumericValue;tolerance=(bound.Tolerance.Plus,bound.Tolerance.Minus);origins=bound.Origins; }
                         }
-                        dimensions.Add(new(block.Name, kind, target, value.Value, tolerance.Value.Plus, tolerance.Value.Minus, Integer(block.Body, "Quantity")));
+                        else { nominal=OptionalMeasure(f,"Value","mm");tolerance=PlusMinus(f.Take("Tolerance"),record); }
+                        var quantity=Quantity(f,record);
+                        if(nominal is null || nominal<=0 || tolerance is null)Error(record,$"Dimension '{record.Name.Text}' requires a positive nominal and nonnegative PlusMinus allowances, or dimension: <typed requirement>.");
+                        else if(target is not null) dimensions.Add(new(record.Name.Text,kind ?? "",target,nominal.Value,tolerance.Value.Plus,tolerance.Value.Minus,quantity) { DimensionOrigins=origins });
                         break;
                     }
-                    case "position":
+                    case "Position":
                     {
-                        var value = Scalar(block.Body, "Tolerance", "mm");
-                        var refs = TokenList(block.Body, "DatumRefs");
-                        if (value is null || value <= 0 || refs.Count == 0)
-                        {
-                            diagnostics.Add(Error($"Position '{block.Name}' requires positive Tolerance and DatumRefs."));
-                            break;
-                        }
-                        tolerances.Add(new(block.Name, "Position", target, value.Value, refs, Integer(block.Body, "Quantity")));
+                        var tolerance=OptionalMeasure(f,"Tolerance","mm");var refs=List(f.Take("DatumRefs"),record);
+                        var quantity=Quantity(f,record);
+                        if(tolerance is null || tolerance<=0 || refs.Count==0)Error(record,$"Position '{record.Name.Text}' requires positive tolerance: and datumRefs:.");
+                        else if(target is not null)tolerances.Add(new(record.Name.Text,"Position",target,tolerance.Value,refs,quantity));
                         break;
                     }
-                    case "annotation":
-                    {
-                        var text = Quoted(block.Body, "Text");
-                        if (string.IsNullOrWhiteSpace(text)) diagnostics.Add(Error($"Annotation '{block.Name}' requires non-empty Text."));
-                        else annotations.Add(new(block.Name, target, text));
-                        break;
-                    }
-                    default:
-                        diagnostics.Add(Error($"Unsupported Sheet Metal PMI record '{block.Kind} {block.Name}'. Supported: DatumFeature, Dimension, Position, Annotation."));
-                        break;
+                    case "Annotation": case "Note":
+                        var text=f.Reference("Text");
+                        if(string.IsNullOrWhiteSpace(text))Error(record,"Note requires nonempty text:.");
+                        else if(target is not null)annotations.Add(new(record.Name.Text,target,text));break;
+                    default:Error(record,$"Unsupported Sheet Metal PMI record '{record.Type.Name.Text}'. Supported: DatumFeature, Dimension, Position, Note (legacy Annotation).");break;
                 }
+                f.Complete();
             }
         }
+        foreach(var position in tolerances)
+            foreach(var reference in position.DatumReferences.Where(r=>!datums.Any(d=>d.Label==r)))
+                Error(root,$"Position '{position.Name}' references unknown datum '{reference}'.");
+        diagnostics.AddRange(SheetMetalSyntaxDiagnostics.Codes(errors,binding));
+        return new(definition with { Datums=datums,Dimensions=dimensions,GeometricTolerances=tolerances,Annotations=annotations },diagnostics);
 
-        var declaredLabels = datums.Select(datum => datum.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var tolerance in tolerances)
+        void Error(StatementSyntax owner,string message)=>diagnostics.Add(SheetMetalSyntaxDiagnostics.At(binding,"sheetmetal-manufacturing-pmi-invalid",message,owner.Span,(owner as DeclarationSyntax)?.Name?.Text));
+        double? OptionalMeasure(FirmamentSyntaxFields f,string name,string unit)
         {
-            foreach (var datumReference in tolerance.DatumReferences.Where(reference => !declaredLabels.Contains(reference)))
-                diagnostics.Add(Error($"Position '{tolerance.Name}' references unknown datum '{datumReference}'."));
+            var expression=f.Take(name);if(expression is null)return null;
+            if(FirmamentSyntaxValues.TryMeasure(expression,unit,out var value) && value>=0)return value;
+            Error(f.Declaration,$"{name} requires a finite nonnegative {unit} value.");return null;
         }
-
-        var definition = new SheetMetalManufacturingDefinition(
-            manufacturing.Value.Name,
-            materialSpecification,
-            thicknessTolerance?.Plus,
-            thicknessTolerance?.Minus,
-            blankProcess,
-            formingProcess,
-            generalCutTolerance,
-            generalFormedTolerance,
-            generalAngularTolerance,
-            datums,
-            dimensions,
-            tolerances,
-            annotations);
-        return new(definition, diagnostics);
-    }
-
-    private static HashSet<string> BuildTargets(
-        string partName,
-        AuthoredSheetBaseSpec baseSpec,
-        IReadOnlyList<AuthoredSheetFlangeSpec> flanges,
-        SheetMetalSemanticLayout layout)
-    {
-        var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { partName, baseSpec.Name };
-        foreach (var flange in flanges)
+        (double Plus,double Minus)? PlusMinus(ExpressionSyntax? expression,StatementSyntax owner)
         {
-            targets.Add(flange.Name);
-            targets.Add($"{flange.Name}Bend");
+            if(expression is null)return null;
+            if(expression is CallSyntax { Target:ReferenceSyntax { Name.Text:"PlusMinus" },Arguments.Count:2 } call
+                && call.Arguments.All(a=>a.Name is null && a.Default is null)
+                && FirmamentSyntaxValues.TryMeasure(call.Arguments[0].Value,"mm",out var plus)
+                && FirmamentSyntaxValues.TryMeasure(call.Arguments[1].Value,"mm",out var minus) && plus>=0 && minus>=0)return (plus,minus);
+            Error(owner,"PlusMinus requires two finite nonnegative Length allowances in millimetres.");return null;
         }
-        foreach (var pattern in layout.Patterns)
+        int? Quantity(FirmamentSyntaxFields f,StatementSyntax owner)
         {
-            targets.Add(pattern.Path);
-            foreach (var member in pattern.Members) targets.Add(member);
+            var expression=f.Take("Quantity");if(expression is null)return null;
+            if(FirmamentSyntaxValues.TryMeasure(expression,"",out var number) && number>0 && number<=int.MaxValue && number==Math.Truncate(number))return (int)number;
+            Error(owner,"quantity: requires a positive integer.");return null;
         }
-        return targets;
-    }
-
-    private static (string Name, string Body)? FindNamedBlock(string source, string keyword)
-    {
-        var match = Regex.Match(source, $@"\b{Regex.Escape(keyword)}\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{{", Rx);
-        return match.Success ? Extract(source, match, match.Groups["name"].Value) : null;
-    }
-
-    private static IReadOnlyList<(string Kind, string Name, string Body)> ChildBlocks(string source)
-    {
-        var result = new List<(string, string, string)>();
-        var offset = 0;
-        while (offset < source.Length)
+        IReadOnlyList<string> List(ExpressionSyntax? value,StatementSyntax owner)
         {
-            var match = Regex.Match(source[offset..], @"\b(?<kind>DatumFeature|Dimension|Position|Annotation)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", Rx);
-            if (!match.Success) break;
-            var absolute = new MatchProxy(match, offset);
-            var extracted = Extract(source, absolute.Index, absolute.OpenBraceIndex, absolute.Name);
-            result.Add((match.Groups["kind"].Value, absolute.Name, extracted.Body));
-            offset = extracted.CloseIndex + 1;
+            if(value is SequenceSyntax { Kind:SequenceKind.List } list && list.Items.All(i=>i.Name is null && i.Default is null && FirmamentSyntaxValues.Reference(i.Value) is not null))return list.Items.Select(i=>FirmamentSyntaxValues.Reference(i.Value)!).ToArray();
+            Error(owner,"datumRefs: requires a list of declared datum labels.");return [];
         }
-        return result;
     }
-
-    private static (string Name, string Body) Extract(string source, Match match, string name)
-    {
-        var open = source.IndexOf('{', match.Index);
-        var extracted = Extract(source, match.Index, open, name);
-        return (name, extracted.Body);
-    }
-
-    private static (string Body, int CloseIndex) Extract(string source, int matchIndex, int open, string name)
-    {
-        var depth = 0;
-        for (var index = open; index < source.Length; index++)
-        {
-            if (source[index] == '{') depth++;
-            else if (source[index] == '}' && --depth == 0) return (source[(open + 1)..index], index);
-        }
-        return (source[(open + 1)..], source.Length - 1);
-    }
-
-    private readonly record struct MatchProxy(int Index, int OpenBraceIndex, string Name)
-    {
-        public MatchProxy(Match match, int offset) : this(
-            offset + match.Index,
-            offset + match.Index + match.Value.LastIndexOf('{'),
-            match.Groups["name"].Value) { }
-    }
-
-    private static string? Token(string source, string name)
-    {
-        var match = Regex.Match(source, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_.\[\]]*)\s*;", Rx);
-        return match.Success ? match.Groups["value"].Value : null;
-    }
-
-    private static string? Quoted(string source, string name)
-    {
-        var match = Regex.Match(source, $@"\b{Regex.Escape(name)}\s*:\s*""(?<value>(?:[^""\\]|\\.)*)""\s*;", Rx);
-        return match.Success ? Regex.Unescape(match.Groups["value"].Value) : null;
-    }
-
-    private static double? Scalar(string source, string name, string unit)
-    {
-        var match = Regex.Match(source, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>{Number})\s*{Regex.Escape(unit)}\s*;", Rx);
-        return match.Success ? double.Parse(match.Groups["value"].Value, CultureInfo.InvariantCulture) : null;
-    }
-
-    private static (double Plus, double Minus)? PlusMinus(string source, string name)
-    {
-        var match = Regex.Match(source, $@"\b{Regex.Escape(name)}\s*:\s*PlusMinus\s*\(\s*(?<plus>{Number})\s*mm\s*,\s*(?<minus>{Number})\s*mm\s*\)\s*;", Rx);
-        if (!match.Success) return null;
-        return (
-            double.Parse(match.Groups["plus"].Value, CultureInfo.InvariantCulture),
-            double.Parse(match.Groups["minus"].Value, CultureInfo.InvariantCulture));
-    }
-
-    private static int? Integer(string source, string name)
-    {
-        var match = Regex.Match(source, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[0-9]+)\s*;", Rx);
-        return match.Success ? int.Parse(match.Groups["value"].Value, CultureInfo.InvariantCulture) : null;
-    }
-
-    private static IReadOnlyList<string> TokenList(string source, string name)
-    {
-        var match = Regex.Match(source, $@"\b{Regex.Escape(name)}\s*:\s*\[(?<value>[^\]]*)\]\s*;", Rx);
-        return match.Success
-            ? match.Groups["value"].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            : [];
-    }
-
-    private static SheetMetalDiagnostic Error(string message) =>
-        new("sheetmetal-manufacturing-pmi-invalid", SheetMetalDiagnosticSeverity.Error, message);
 }

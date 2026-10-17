@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
@@ -50,36 +49,43 @@ public sealed record SheetMetalConstructionSpec(
 /// </summary>
 internal static class AuthoredSheetMetalCompiler
 {
-    private const RegexOptions Rx = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline;
-
-    public static SheetMetalAuthoringResult Compile(string source, string sourcePath)
+    public static SheetMetalAuthoringResult Compile(string source, string sourcePath, string? originalSource=null)
     {
         var parseStarted=Stopwatch.GetTimestamp();
         var diagnostics = new List<SheetMetalDiagnostic>();
-        var modelStyleHole = Regex.Match(source, @"\bHole\s*<\s*(?<variant>[A-Za-z_][A-Za-z0-9_]*)\s*>", Rx);
-        if (modelStyleHole.Success)
-            return Fail(
-                $"Sheet Metal does not use the Model-domain `Hole<{modelStyleHole.Groups["variant"].Value}>` form. Declare `Hole <Name> {{ On: <planar-region>; Center: (<x>, <y>); Diameter: <length>; }}`; for example, `Hole Mount {{ On: Base; Center: (20mm, 15mm); Diameter: 6mm; }}`.",
-                "sheetmetal-hole-domain-syntax");
-        if (Regex.IsMatch(source, @"\bPmi\s*\{\s*Datum\s+[A-Za-z_]", Rx))
-            return Fail(
-                "Sheet Metal PMI does not use the Model-domain `Datum` record or axis-face targets. Add a `Manufacturing <Release> { ... }` block and declare `DatumFeature <Label> { Target: <named-sheet-region>; }` inside `Pmi`; for example, `DatumFeature A { Target: Base; }`.",
-                "sheetmetal-pmi-domain-syntax");
-        var syntax = FirmamentSyntaxParser.Parse(source);
+        var binding = new FirmamentDomainBinding(source,sourcePath,"SheetMetal",new HashSet<string>(StringComparer.Ordinal) { "Hole","Cut" },originalSource);
+        if(binding.Diagnostics.Any(d=>d.Severity is "error" or "fatal"))return new(false,null,null,null,SheetMetalSyntaxDiagnostics.Binding(binding));
+        source=binding.Source;
+        var unresolvedDirective=binding.Document.Statements.OfType<DirectiveSyntax>().FirstOrDefault(d=>d.Kind!=DirectiveKind.Schema);
+        if(unresolvedDirective is not null)return new(false,null,null,null,[SheetMetalSyntaxDiagnostics.At(binding,"sheetmetal-module-reference-unresolved",
+            "This sheet module contains an unresolved include/Use directive. Resolve supported domain libraries or load external modules through their owning project loader; imports cannot be ignored.",unresolvedDirective.Span)]);
+        foreach(var requirement in binding.Document.Statements.OfType<DeclarationSyntax>().Where(d=>d.Type.Name.Text=="Require" && d.Body is null))
+            if(!binding.CheckRequirement(requirement))return new(false,null,null,null,SheetMetalSyntaxDiagnostics.Binding(binding));
+        foreach(var statement in binding.Document.Statements)
+        {
+            if(statement is DirectiveSyntax { Kind:DirectiveKind.Schema })continue;
+            if(statement is DeclarationSyntax declaration && (declaration.Type.Name.Text is "SheetMetal" or "Concept" or "Manufacturing" or "Pmi" or "Base" or "Flange" or "Hole" or "Cut"
+                || declaration.Type.Name.Text=="Struct" && declaration.Modifiers.Any(m=>m.Name.Text=="Concept")
+                || SheetMetalSemanticLayoutParser.OwnsDeclaration(declaration.Type.Name.Text) || binding.OwnsProfileData(declaration) || binding.OwnsData(declaration)))continue;
+            return new(false,null,null,null,[SheetMetalSyntaxDiagnostics.At(binding,"sheetmetal-statement-unknown",
+                $"Unsupported statement '{(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}' in the sheet module. Material operations require a sheet owner; shared construction data keeps its profile/data owner.",statement.Span)]);
+        }
+        var modelStyleHole=FirmamentSyntaxTraversal.Declarations(binding.Document).FirstOrDefault(d=>d.Type.Name.Text=="Hole" && d.Type.Arguments.Count>0);
+        if(modelStyleHole is not null)return new(false,null,null,null,[SheetMetalSyntaxDiagnostics.At(binding,"sheetmetal-hole-domain-syntax",
+            $"Sheet Metal holes target planar regions: use Hole {modelStyleHole.Name?.Text ?? "Mount"} {{ on: region; center: Point2(x, y); diameter: length }}. Model-domain Hole<Shaft>/face selectors are not sheet operations.",modelStyleHole.Span)]);
+        var modelStyleDatum=FirmamentSyntaxTraversal.Declarations(binding.Document).Where(d=>d.Type.Name.Text=="Pmi")
+            .SelectMany(d=>d.Body?.Statements.OfType<DeclarationSyntax>()??[]).FirstOrDefault(d=>d.Type.Name.Text=="Datum");
+        if(modelStyleDatum is not null)return new(false,null,null,null,[SheetMetalSyntaxDiagnostics.At(binding,"sheetmetal-pmi-domain-syntax",
+            $"Sheet Metal PMI uses DatumFeature {modelStyleDatum.Name?.Text ?? "A"} {{ target: namedRegion }}, rather than Model-domain Datum/axis-face selectors.",modelStyleDatum.Span)]);
         var syntaxErrors = new List<string>();
-        var owners = syntax.Document.Statements.OfType<DeclarationSyntax>()
+        var owners = binding.Document.Statements.OfType<DeclarationSyntax>()
             .Where(d => d.Type.Name.Text == "SheetMetal" && d.Body is not null && d.Modifiers.Count == 0).ToArray();
         if (owners.Length != 1) return Fail($"Expected one concrete SheetMetal document; found {owners.Length}.");
         var owner = owners[0];
         if (owner.Body is null || owner.Name is null) return Fail("Expected one named SheetMetal document.");
         var documentName = owner.Name.Text;
-        // ProfileDelta and semantic-layout declarations retain their domain owners.
-        // Their syntax is admitted there; this owner closes its actual sheet body.
-        var bodyErrors = syntax.Diagnostics.Where(d => d.SourceSpan is { } span && span.Start >= owner.Span.Start
-            && span.Start < owner.Span.Start + owner.Span.Length).ToArray();
-        if (bodyErrors.Length > 0) return Fail(string.Join("\n", bodyErrors.Select(d => d.Message)), "sheetmetal-syntax-invalid");
         var root = new FirmamentSyntaxFields(owner with { Annotation = null,
-            Body = owner.Body with { Statements = owner.Body.Statements.OfType<FieldSyntax>().Cast<StatementSyntax>().ToArray() } }, syntaxErrors);
+            Body = owner.Body with { Statements = owner.Body.Statements.OfType<FieldSyntax>().Cast<StatementSyntax>().ToArray() } }, syntaxErrors,bind:binding.Nominal);
         if (!root.Measure("Thickness", "mm", out var thickness) || thickness <= 0)
             return Fail("Thickness must be a positive millimetre value.");
         var material = root.Reference("Material");
@@ -87,18 +93,23 @@ internal static class AuthoredSheetMetalCompiler
         if (!double.IsFinite(k) || k is < 0 or > 1) return Fail("KFactor must be between zero and one.");
         var legacyBaseValue = root.Take("Base");
         var intent = root.Reference("Intent");
+        var selectedRelease=root.Reference("Manufacturing");
+        if(owner.Clauses.Count>0)return Fail("SheetMetal does not admit header placements; its geometry owns named planar regions.","firmament-v2-placement-unsupported");
         if (intent is not (null or "Authored" or "Reconstructed" or "Manufacturing")
-            && !syntax.Document.Statements.OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text == "Struct"
+            && !binding.Document.Statements.OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text == "Struct"
                 && d.Modifiers.Any(m => m.Name.Text == "Concept") && d.Name?.Text == intent))
             return Fail("Intent requires Authored, Reconstructed, Manufacturing or a declared Concept Struct layout.");
         root.Complete();
-        foreach (var statement in owner.Body.Statements.Where(s => s is not FieldSyntax))
+        var sheetScopes=binding.Document.Statements.OfType<DeclarationSyntax>().Where(d=>d.Type.Name.Text=="SheetMetal" && d.Body is not null).ToArray();
+        foreach(var scope in sheetScopes.Where(s=>s!=owner))
+            new FirmamentSyntaxFields(scope with { Body=scope.Body! with { Statements=scope.Body.Statements.OfType<FieldSyntax>().Cast<StatementSyntax>().ToArray() } },syntaxErrors).Complete();
+        foreach (var statement in sheetScopes.SelectMany(scope=>scope.Body!.Statements).Where(s => s is not FieldSyntax))
             if (statement is not DeclarationSyntax declaration || !(declaration.Type.Name.Text is "Base" or "Flange" or "Hole" or "Cut" or "Manufacturing" or "Pmi"
-                || SheetMetalSemanticLayoutParser.OwnsDeclaration(declaration.Type.Name.Text)))
+                || SheetMetalSemanticLayoutParser.OwnsDeclaration(declaration.Type.Name.Text) || binding.OwnsProfileData(declaration) || binding.OwnsData(declaration)))
                 syntaxErrors.Add($"sheetmetal-statement-unknown: Unknown statement in SheetMetal '{owner.Name?.Text}': {(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}.");
         var legacyBase = legacyBaseValue is not null;
         AuthoredSheetBaseSpec? baseSpec;
-        var bases = Blocks(source, "Base", syntaxErrors);
+        var bases = Blocks(binding, "Base", syntaxErrors);
         if (bases.Count > 1 || legacyBase && bases.Count > 0)
             return Fail("Declare exactly one Base; do not combine the legacy Base field with a named Base.", "sheetmetal-base-duplicate");
         if (legacyBaseValue is CallSyntax { Target: ReferenceSyntax { Name.Text: "Rectangle" }, Arguments.Count: 2 } rectangle
@@ -109,7 +120,7 @@ internal static class AuthoredSheetMetalCompiler
         else
         {
             var named = bases.SingleOrDefault();
-            baseSpec = named is null ? null : SheetMetalProfileBinding.Base(source, named.Name, named.Fields, syntaxErrors);
+            baseSpec = named is null ? null : SheetMetalProfileBinding.Base(source, named.Name, named.Fields, syntaxErrors,binding);
         }
         if (baseSpec is null || baseSpec.Width <= 0 || baseSpec.Depth <= 0)
             return Fail(syntaxErrors.Count > 0 ? string.Join("\n", syntaxErrors) : "A positive rectangular base Profile is required.", "sheetmetal-base-profile-invalid");
@@ -117,12 +128,10 @@ internal static class AuthoredSheetMetalCompiler
         // Attachment paths are resolved fully by the semantic-layout pass after
         // all region dimensions are known.  This small pre-scan exists only so
         // Flange.From capability checking can admit their public member names.
-        var declaredAttachmentPaths=Blocks(source,"AttachmentPath")
-            .Select(b=>(Block:b,On:Regex.Match(b.Body,@"\bOn\s*:\s*(?<region>[A-Za-z_][A-Za-z0-9_]*)\.(?<edge>[A-Za-z_][A-Za-z0-9_]*)\s*;",Rx)))
-            .Where(x=>x.On.Success)
-            .Select(x=>$"{x.On.Groups["region"].Value}.{x.Block.Name}")
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var deltaDeclarations=SemanticProfileDeltaParser.Parse(source);
+        var declaredAttachmentPaths=Blocks(binding,"AttachmentPath")
+            .Select(b=>(Block:b,On:b.Fields.Reference("On")?.Split('.')))
+            .Where(x=>x.On is { Length:2 }).Select(x=>$"{x.On![0]}.{x.Block.Name}").ToHashSet(StringComparer.Ordinal);
+        var deltaDeclarations=SemanticProfileDeltaParser.ParseDeclarations(DeltaDeclarations(binding.Document),binding.Nominal);
         foreach(var delta in deltaDeclarations.Deltas)
         {
             var region=delta.OwnerPath.Split('.')[0];
@@ -131,7 +140,7 @@ internal static class AuthoredSheetMetalCompiler
         }
 
         var flanges = new List<AuthoredSheetFlangeSpec>();
-        foreach (var block in Blocks(source, "Flange", syntaxErrors))
+        foreach (var block in Blocks(binding, "Flange", syntaxErrors))
         {
             var from = Token(block, "From")?.Split('.');
             var hasLength = Scalar(block, "Length", "mm", out var length) || Scalar(block, "Height", "mm", out length);
@@ -204,13 +213,13 @@ internal static class AuthoredSheetMetalCompiler
             return Fail($"Multiple flanges target {duplicate.First().ParentRegion}.{duplicate.First().EdgeName}.", SheetMetalDiagnosticCodes.DuplicateFlange);
         if (flanges.Select(f => f.Name).Append(baseSpec.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != flanges.Count + 1)
             return Fail("Base and flange names must be unique.", SheetMetalDiagnosticCodes.ImpossibleTopology);
-        foreach (var extension in syntax.Document.Statements.OfType<DeclarationSyntax>()
+        foreach (var extension in binding.Document.Statements.OfType<DeclarationSyntax>()
             .Where(d => d.Type.Name.Text == "SheetMetal" && d.Modifiers.Any(m => m.Name.Text == "Extend")))
             if (extension.Name?.Text != documentName)
                 return Fail($"Sheet Metal extension targets '{extension.Name?.Text}', but the specialized part is '{documentName}'.", "sheetmetal-extension-target-mismatch");
 
         var cuts = new List<AuthoredSheetCutSpec>();
-        foreach (var block in Blocks(source, "Hole", syntaxErrors))
+        foreach (var block in Blocks(binding, "Hole", syntaxErrors))
         {
             var on = Token(block, "On");
             var at = Point(block, "Center");
@@ -219,18 +228,18 @@ internal static class AuthoredSheetMetalCompiler
             block.Fields.Complete();
             cuts.Add(new(block.Name, on, SheetFeatureKind.CircularHole, at.Value.X, at.Value.Y, diameter, null, null));
         }
-        foreach (var block in Blocks(source, "Cut", syntaxErrors))
+        foreach (var block in Blocks(binding, "Cut", syntaxErrors))
         {
-            var cut = SheetMetalProfileBinding.Cut(source, block.Name, block.Fields, syntaxErrors);
+            var cut = SheetMetalProfileBinding.Cut(source, block.Name, block.Fields, syntaxErrors,binding);
             if (cut is not null) cuts.Add(cut);
         }
-        if (syntaxErrors.Count > 0) return Fail(string.Join("\n", syntaxErrors), "sheetmetal-authoring-invalid");
+        if (syntaxErrors.Count > 0) return new(false,null,null,null,SheetMetalSyntaxDiagnostics.Codes(syntaxErrors,binding));
 
         var semanticStarted=Stopwatch.GetTimestamp();
-        var semanticLayout=SheetMetalSemanticLayoutParser.Parse(source,baseSpec,flanges,cuts);
+        var semanticLayout=SheetMetalSemanticLayoutParser.Parse(baseSpec,flanges,cuts,binding);
         var semanticMs=Stopwatch.GetElapsedTime(semanticStarted).TotalMilliseconds;
         if(!semanticLayout.IsSuccess)return new(false,null,null,null,semanticLayout.Diagnostics);
-        var manufacturing = SheetMetalManufacturingParser.Parse(source, documentName, baseSpec, flanges, semanticLayout.Layout);
+        var manufacturing = SheetMetalManufacturingParser.Parse(binding, documentName, baseSpec, flanges, semanticLayout.Layout, cuts.Concat(semanticLayout.GeneratedCuts).ToArray(), selectedRelease);
         if(!manufacturing.IsSuccess)return new(false,null,null,null,manufacturing.Diagnostics);
         cuts.AddRange(semanticLayout.GeneratedCuts);
         var duplicateCut=cuts.GroupBy(x=>x.Name,StringComparer.Ordinal).FirstOrDefault(x=>x.Count()>1);
@@ -241,24 +250,43 @@ internal static class AuthoredSheetMetalCompiler
         if (owner.Annotation is not null && concept is null) return Fail("SheetMetal requires a named Concept contract after ':'.");
         var spec = new SheetMetalConstructionSpec(documentName, thickness, material, k, baseSpec, flanges, cuts, authority, legacyBase,concept)
         { SemanticLayout=semanticLayout.Layout, Manufacturing=manufacturing.Definition };
-        if(concept is not null&&SheetMetalConceptContracts.Validate(source,spec) is { } conformanceFailure)
-            return Fail(conformanceFailure.Message,conformanceFailure.Code);
+        if(concept is not null)
+        {
+            var members=new Dictionary<string,string>(StringComparer.Ordinal) { [baseSpec.Name]="SheetRegion",["Flat"]="FlatPattern" };
+            foreach(var flange in flanges){ members[flange.Name]="SheetFlange";members[flange.Name+"Bend"]="SheetBend"; }
+            foreach(var cut in cuts)members[cut.Name]="SheetCut";
+            foreach(var pattern in semanticLayout.Layout.Patterns)members[pattern.Name]="SheetPattern";
+            if(!binding.CheckContract(concept,members,documentName,owner.Span))return new(false,null,null,null,SheetMetalSyntaxDiagnostics.Binding(binding));
+        }
         var parseMs=Stopwatch.GetElapsedTime(parseStarted).TotalMilliseconds;var formedStarted=Stopwatch.GetTimestamp();var lowered = AuthoredSheetMetalLowering.Lower(spec, sourcePath);var formedMs=Stopwatch.GetElapsedTime(formedStarted).TotalMilliseconds;
         if (!lowered.IsSuccess || lowered.Part is null) return new(false, spec, null, null, lowered.Diagnostics);
         var flatStarted=Stopwatch.GetTimestamp();var flat = SheetMetalFlattener.Flatten(lowered.Part);var flatMs=Stopwatch.GetElapsedTime(flatStarted).TotalMilliseconds;
         diagnostics.AddRange(lowered.Diagnostics); diagnostics.AddRange(flat.Diagnostics);
-        return new(flat.Status is not FlatPatternStatus.Unsupported and not FlatPatternStatus.Overlapping, spec, lowered.Part, flat, diagnostics,new(parseMs,formedMs,flatMs,semanticMs));
+        return new(flat.Status is not FlatPatternStatus.Unsupported and not FlatPatternStatus.Overlapping, spec, lowered.Part, flat, diagnostics,new(parseMs,formedMs,flatMs,semanticMs)) { TemplateInstantiations=binding.Instantiations };
 
         SheetMetalAuthoringResult Fail(string message, string code = "sheetmetal-firmament-invalid") =>
-            new(false, null, null, null, [new(code, SheetMetalDiagnosticSeverity.Error, message)]);
+            new(false, null, null, null, [SheetMetalSyntaxDiagnostics.At(binding,code,message,binding.Document.Statements.OfType<DeclarationSyntax>().FirstOrDefault(d=>d.Type.Name.Text=="SheetMetal")?.Span)]);
     }
 
-    private sealed record Block(string Name, string Body, FirmamentSyntaxFields Fields);
-    private static IReadOnlyList<Block> Blocks(string source, string keyword, List<string>? diagnostics = null) =>
-        FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
+    internal static IEnumerable<DeclarationSyntax> DeltaDeclarations(DocumentSyntax document) =>
+        document.Statements.OfType<DeclarationSyntax>().Where(d=>d.Type.Name.Text=="ProfileDelta")
+        .Concat(document.Statements.OfType<DeclarationSyntax>().Where(d=>d.Type.Name.Text=="SheetMetal" || d.Type.Name.Text=="Struct" && d.Modifiers.Any(m=>m.Name.Text=="Concept"))
+            .SelectMany(d=>d.Body?.Statements.OfType<DeclarationSyntax>()??[]).Where(d=>d.Type.Name.Text=="ProfileDelta"));
+
+    private sealed record Block(string Name, FirmamentSyntaxFields Fields);
+    private static IReadOnlyList<Block> Blocks(FirmamentDomainBinding binding, string keyword, List<string>? diagnostics = null) =>
+        binding.Document.Statements.OfType<DeclarationSyntax>().Where(d=>d.Type.Name.Text=="SheetMetal")
+            .SelectMany(d=>d.Body?.Statements.OfType<DeclarationSyntax>()??[])
+            .Concat(binding.Document.Statements.OfType<DeclarationSyntax>())
+            .Concat(binding.Document.Statements.OfType<DeclarationSyntax>().Where(d=>d.Type.Name.Text=="Struct" && d.Modifiers.Any(m=>m.Name.Text=="Concept"))
+                .SelectMany(d=>d.Body?.Statements.OfType<DeclarationSyntax>()??[]).Where(d=>d.Type.Name.Text=="AttachmentPath"))
             .Where(d => d.Type.Name.Text == keyword && d.Name is not null && d.Body is not null)
-            .Select(d => new Block(d.Name!.Text, source.Substring(d.Body!.ContentSpan.Start, d.Body.ContentSpan.Length),
-                new(d, diagnostics ?? []))).ToArray();
+            .Select(d =>
+            {
+                var fields=new FirmamentSyntaxFields(d,diagnostics ?? [],bind:binding.Nominal);
+                var identity=d.Type.Name.Text is "Hole" or "Cut"?fields.Reference("PatternIdentity"):null;
+                return new Block(identity ?? d.Name!.Text,fields);
+            }).ToArray();
     private static bool Scalar(Block block, string name, string? unit, out double value)
     {
         value = 0;

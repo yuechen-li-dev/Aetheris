@@ -1,0 +1,5 @@
+SheetMetal plate {
+    thickness: 1mm
+    Base deck { profile: Rectangle { width: 100mm; height: 60mm } }
+}
+Fillet ignored { radius: 2mm }

@@ -8,6 +8,18 @@ namespace Aetheris.CLI.Tests;
 
 public sealed class SheetMetalCliTests
 {
+    [Fact]
+    public void SemanticAdmissionErrorsPrintSourceLocationAndExplanation()
+    {
+        var input=Path.Combine(RepoRoot,"fixtures/Regression/SheetMetalSemantics/layout-unknown-field.firmament");
+        var output=new StringWriter();var error=new StringWriter();
+        Assert.Equal(1,CliRunner.Run(["validate",input],output,error));
+        Assert.Contains(Path.GetFullPath(input),error.ToString(),StringComparison.Ordinal);
+        Assert.Matches(@"\([0-9]+,[0-9]+\)",error.ToString());
+        Assert.Contains("firmament-v2-canonical-field-unknown",error.ToString(),StringComparison.Ordinal);
+        Assert.Contains("Coutn",error.ToString(),StringComparison.Ordinal);
+    }
+
     private static readonly string RepoRoot=FindRepoRoot();
 
     [Fact]

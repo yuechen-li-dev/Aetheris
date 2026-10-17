@@ -39,7 +39,7 @@ internal static class FirmamentV2FeatureExpansion
     }
 
     internal static Result? Expand(string source, List<string> diagnostics, FirmamentCompileTimeValues? scalars = null,
-        string? originalSource = null)
+        string? originalSource = null, IReadOnlySet<string>? domainResults = null)
     {
         var parsed = FirmamentSyntaxParser.Parse(source);
         var declarations = FirmamentSyntaxTraversal.Declarations(parsed.Document)
@@ -102,7 +102,7 @@ internal static class FirmamentV2FeatureExpansion
         foreach (var d in declarations)
         {
             var name = d.Name?.Text ?? "<unnamed>"; var resultType = TypeName(d.ResultType!);
-            if (!AllowedResult(resultType)) Error(ReturnType + $":{name}:unsupported-{resultType}", $"Feature '{name}' cannot return {resultType}; expected a supported Hole variant, Boss, Pocket, EdgeFinish or Profile.", d.Span, d);
+            if (!AllowedResult(resultType) && domainResults?.Contains(resultType) != true) Error(ReturnType + $":{name}:unsupported-{resultType}", $"Feature '{name}' cannot return {resultType}; expected a supported engineering result admitted by its consuming domain.", d.Span, d);
             var names = new HashSet<string>(StringComparer.Ordinal);
             foreach (var p in d.Parameters)
                 if (p.Name is null || p.Value is not ReferenceSyntax)

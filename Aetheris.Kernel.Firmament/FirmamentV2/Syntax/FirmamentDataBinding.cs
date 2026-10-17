@@ -7,6 +7,8 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 /// only after AST lookup, at the existing source boundary to domain adapters.</summary>
 internal sealed class FirmamentDataBinding
 {
+    internal static string? NamespaceFor(DeclarationSyntax declaration) => declaration.Type.Name.Text is "Record" or "Enum" ? "type"
+        : declaration.Type.Name.Text=="Static" || declaration.Type.Name.Text=="Table" && declaration.Modifiers.Any(m=>m.Name.Text=="Static") ? "value" : null;
     internal sealed record Symbol(string Name, string Identity, string Namespace, string Scope, DeclarationSyntax Declaration);
     private sealed class Scope(Scope? parent, string identity)
     {
@@ -82,8 +84,7 @@ internal sealed class FirmamentDataBinding
                     Error("firmament-module-context-required", $"Inventory Record '{name.Text}' requires an Assembly or Scene project loader. Reference this module from a consuming project; it is not an ordinary data Record.", d.Span, name.Text, "Module binding");
                     continue;
                 }
-                var space = d.Type.Name.Text is "Record" or "Enum" ? "type"
-                    : d.Type.Name.Text == "Static" || d.Type.Name.Text == "Table" && d.Modifiers.Any(m => m.Name.Text == "Static") ? "value" : null;
+                var space = NamespaceFor(d);
                 if (space is null) { scope.Values.Add(name.Text); continue; }
                 var table = d.Type.Name.Text == "Table";
                 if (d.HasParameterList || d.Type.Span.Length != d.Type.Name.Span.Length || d.Occurrence

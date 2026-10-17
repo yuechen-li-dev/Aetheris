@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.SheetMetal;
 
@@ -29,9 +30,9 @@ public static class SheetMetalFirmament
     public static bool LooksLikeSheetMetal(string source)
     {
         if(source is null)return false;
-        var clean=Regex.Replace(source,@"//.*?$|#.*?$",string.Empty,RegexOptions.Multiline);
-        return Regex.IsMatch(clean,@"\bSheetMetal\s+[A-Za-z_]",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant)
-            ||Regex.IsMatch(clean,@"\bUse\s+SheetMetal\.ProductFamilies\s*;",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
+        var document=FirmamentSyntaxParser.Parse(source).Document;
+        return document.Statements.OfType<DeclarationSyntax>().Any(d=>d.Type.Name.Text=="SheetMetal")
+            || document.Statements.OfType<DirectiveSyntax>().Any(d=>d.Kind==DirectiveKind.Use && FirmamentSyntaxValues.Reference(d.Value)=="SheetMetal.ProductFamilies");
     }
 
     public static SheetMetalAuthoringResult CompileFile(string path)
@@ -45,36 +46,40 @@ public static class SheetMetalFirmament
     // including assemblies that defer SheetMetal body materialization.
     public static string ResolveImports(string source)
     {
-        if(Regex.IsMatch(source,@"\bUse\s+Profile\.Modifications\s*;",RegexOptions.CultureInvariant))
+        var directives=FirmamentSyntaxParser.Parse(source).Document.Statements.OfType<DirectiveSyntax>()
+            .Where(d=>d.Kind==DirectiveKind.Use).ToArray();
+        var libraries=new List<string>();
+        foreach(var directive in directives.OrderByDescending(d=>d.Span.Start))
         {
-            source=Regex.Replace(source,@"\bUse\s+Profile\.Modifications\s*;",string.Empty,RegexOptions.CultureInvariant);
-            source=ProfileModificationTemplateLibrary.Source+Environment.NewLine+source;
+            var library=FirmamentSyntaxValues.Reference(directive.Value) switch
+            {
+                "Profile.Modifications"=>ProfileModificationTemplateLibrary.Source,
+                "SheetMetal.ProductFamilies"=>SheetMetalTemplateLibrary.Source,
+                _=>null
+            };
+            if(library is null)continue;
+            if(!libraries.Contains(library,StringComparer.Ordinal))libraries.Add(library);
+            source=source.Remove(directive.Span.Start,directive.Span.Length);
         }
-        if(Regex.IsMatch(source,@"\bUse\s+SheetMetal\.ProductFamilies\s*;",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant))
-        {
-            source=Regex.Replace(source,@"\bUse\s+SheetMetal\.ProductFamilies\s*;",string.Empty,RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
-            source=SheetMetalTemplateLibrary.Source+Environment.NewLine+source;
-        }
+        if(libraries.Count>0)source=string.Join(Environment.NewLine,libraries)+Environment.NewLine+source;
         return source;
     }
 
     public static SheetMetalAuthoringResult Compile(string source,string sourcePath="authored.firmament")
     {
         ArgumentNullException.ThrowIfNull(source);
+        var originalSource=source;
         source = ResolveImports(source);
-        IReadOnlyList<ConceptIrTemplateInstantiation> instantiations=[];
-        if(Regex.IsMatch(source,@"\bTemplate\s*<",RegexOptions.CultureInvariant))
-        {
-            var expanded=FirmamentTemplateSourceCompiler.Expand(source,out var templateDiagnostics);
-            if(expanded is null||templateDiagnostics.Count>0)
-                return new(false,null,null,null,templateDiagnostics.Select(x=>new SheetMetalDiagnostic(x.Split(':',2)[0],SheetMetalDiagnosticSeverity.Error,x)).ToArray());
-            source=expanded.ExpandedSource;instantiations=expanded.Instantiations;
-        }
-        var clean=Regex.Replace(source,@"//.*?$|#.*?$",string.Empty,RegexOptions.Multiline);
+        // Preserve strings and offsets. Recovery retains its historical domain owner;
+        // authored source is expanded and bound once by the shared frontend below.
+        var cleanChars=source.ToCharArray();
+        foreach(var token in FirmamentSyntaxParser.Parse(source).Document.Tokens.Where(t=>t.Kind==SyntaxTokenKind.Comment))
+            for(var i=token.Span.Start;i<token.Span.Start+token.Span.Length;i++)if(cleanChars[i] is not ('\r' or '\n'))cleanChars[i]=' ';
+        var clean=new string(cleanChars);
         if(ReconstructedSheetMetalFirmament.IsReconstructed(clean)&&Regex.IsMatch(clean,@"\bEvidenceSource\s*:",Rx))return ReconstructedSheetMetalFirmament.Compile(clean,sourcePath);
         if(RecoveredSheetMetalFirmament.IsRecovered(clean))return RecoveredSheetMetalFirmament.Compile(clean,sourcePath);
-        var result=AuthoredSheetMetalCompiler.Compile(clean,sourcePath);
-        return result with { TemplateInstantiations=instantiations };
+        var result=AuthoredSheetMetalCompiler.Compile(clean,sourcePath,originalSource);
+        return result;
     }
 
     private static SheetMetalAuthoringResult Failure(string message)=>new(false,null,null,null,[new("sheetmetal-firmament-invalid",SheetMetalDiagnosticSeverity.Error,message)]);

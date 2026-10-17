@@ -432,6 +432,15 @@ Cut operations, subject to the sheet owner's rectangular-base and line/arc-cut
 capabilities. This brings compact sheet authoring to mechanical profiles while
 sharing closure, dimension and unknown-field checking.
 
+[Sheet-metal layout and manufacturing](sheet-metal.md#layout-requirements-and-release-data)
+now consume the shared AST and checked scalar Record/Static values. They admit
+Point2/Vector2 layout expressions, Boolean Require, structural Concepts and typed
+`dimension:` PMI projection, with sheet-specific target/capability admission.
+Ordinary keyed Pattern/Feature mapping can produce sheet Hole/Cut results. This
+shares frontend semantics while retaining the sheet region and bend lowerers;
+it does not make mechanical face selectors or arbitrary-plane sheet operations
+interchangeable with sheet region references.
+
 **Complete file — a profile extruded from Z = 0 to 12mm:**
 
 ```firmament

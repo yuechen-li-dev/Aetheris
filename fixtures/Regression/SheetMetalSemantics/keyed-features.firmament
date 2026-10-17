@@ -1,0 +1,16 @@
+Static drillDiameter: Length = 6mm tol 0.1mm
+Static mounts: Set<Point2> {
+    left => Point2(20mm, 30mm)
+    right => Point2(80mm, 30mm)
+}
+Feature Drill(center: Point2, diameter: Length) -> Hole {
+    return Hole { on: deck; center: center; diameter: diameter }
+}
+SheetMetal keyedPanel {
+    thickness: 1.5mm
+    Base deck { profile: Rectangle { width: 100mm; height: 60mm } }
+    Pattern mounting over mounts { point => Drill(center: point, diameter: drillDiameter) }
+    Pmi {
+        Dimension leftDrill { kind: Diameter; target: mounting.left; dimension: drillDiameter }
+    }
+}

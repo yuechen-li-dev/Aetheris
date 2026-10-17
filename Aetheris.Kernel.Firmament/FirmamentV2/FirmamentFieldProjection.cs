@@ -120,13 +120,16 @@ public static class FirmamentFieldProjector
         return new(true, rewritten, RevisionOf(rewritten), span, replacement, null, null);
     }
 
+    // Shown after "Read-only" in an inspector: what to do instead, in the reader's terms.
+    private const string EditElsewhere = "Change it in the graph or in source.";
+
     private static FirmamentFieldProjection ProjectBoxField(FirmamentFieldSchema field,
         FirmamentV2BoxRecord box, IReadOnlyList<FirmamentV2AuthoredField>? fields, string source)
     {
         var effective = field.Id.Value == "Box.Size"
             ? new FirmamentProjectedValue("Vector", string.Join(" × ", box.Size.Select(Format)) + " mm", Components: box.Size, Unit: "mm")
             : null;
-        return Make(field, effective, fields, source, false, "Aggregate Box values are source-only in X1.");
+        return Make(field, effective, fields, source, false, EditElsewhere);
     }
 
     private static FirmamentFieldProjection ProjectHoleField(FirmamentFieldSchema field,
@@ -143,7 +146,7 @@ public static class FirmamentFieldProjector
             _ => null
         };
         return Make(field, effective, hole.AuthoredFields, source, field.Id.Value == "Hole.Diameter",
-            field.Id.Value == "Hole.Diameter" ? "No direct diameter literal." : "This field is source-only in X1.");
+            field.Id.Value == "Hole.Diameter" ? "The diameter is not written as a number in source, so it cannot be changed here." : EditElsewhere);
     }
 
     private static FirmamentFieldProjection ProjectHelixField(FirmamentFieldSchema field,
@@ -160,7 +163,7 @@ public static class FirmamentFieldProjector
                 coil.StartPhaseRadians * 180d / Math.PI, Unit: "deg"),
             _ => null
         };
-        var projected = Make(field, effective, fields, source, false, "Helix fields are source-only in X1.");
+        var projected = Make(field, effective, fields, source, false, EditElsewhere);
         return projected.AuthoredValue is null && effective is not null
             ? projected with { Origin = field.Default is null ? "Derived" : "Defaulted" } : projected;
     }
@@ -181,7 +184,7 @@ public static class FirmamentFieldProjector
             "Loft.Twist" => new("Angle", Format(binding.TwistDegrees) + " deg", binding.TwistDegrees, Unit: "deg"),
             _ => null
         };
-        var projected = Make(field, effective, binding.Fields, source, false, "Loft fields are source-only in X1.");
+        var projected = Make(field, effective, binding.Fields, source, false, EditElsewhere);
         return projected.AuthoredValue is null && effective is not null && field.Default is not null
             ? projected with { Origin = "Defaulted" } : projected;
     }

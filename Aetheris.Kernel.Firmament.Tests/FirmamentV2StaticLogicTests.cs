@@ -34,7 +34,7 @@ public sealed class FirmamentV2StaticLogicTests
     {
         var parse = FirmamentV2Parser.Parse(Source().Replace("        HeavyDuty => 2mm\n", string.Empty, StringComparison.Ordinal));
         Assert.False(parse.IsSuccess);
-        Assert.Contains(parse.Diagnostics, d => d == ConceptIrResolver.NonExhaustiveMatch + ":Missing arm: HeavyDuty");
+        Error(parse, ConceptIrResolver.NonExhaustiveMatch, "HeavyDuty");
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public sealed class FirmamentV2StaticLogicTests
     {
         var parse = FirmamentV2Parser.Parse(Source().Replace("        HeavyDuty => 2mm", "        Standard => 2mm", StringComparison.Ordinal));
         Assert.False(parse.IsSuccess);
-        Assert.Contains(parse.Diagnostics, d => d == ConceptIrResolver.DuplicateMatchArm + ":Standard:unreachable");
+        Error(parse, ConceptIrResolver.DuplicateMatchArm, "Standard");
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public sealed class FirmamentV2StaticLogicTests
     {
         var parse = FirmamentV2Parser.Parse(Source().Replace("        Standard => 1.5mm", "        Standard => 90deg", StringComparison.Ordinal));
         Assert.False(parse.IsSuccess);
-        Assert.Contains(parse.Diagnostics, d => d.Contains(ConceptIrResolver.MatchArmTypeMismatch + ":BracketConcept.ChamferDistance:Standard:expected-Length:actual-Angle", StringComparison.Ordinal));
+        Error(parse, ConceptIrResolver.MatchArmTypeMismatch, "Standard", "Length", "Angle");
     }
 
     [Fact]
@@ -63,20 +63,20 @@ public sealed class FirmamentV2StaticLogicTests
         Assert.Contains(unknownVariant.Diagnostics, d => d == ConceptIrResolver.UnknownEnumVariant + ":BracketVariant.Unknown");
 
         var invalidBool = FirmamentV2Parser.Parse(Source().Replace("        false => 3mm", "        Standard => 3mm", StringComparison.Ordinal));
-        Assert.Contains(invalidBool.Diagnostics, d => d == ConceptIrResolver.InvalidBooleanArm + ":Standard");
+        Error(invalidBool, ConceptIrResolver.InvalidBooleanArm, "Standard", "Bool");
     }
 
     [Fact]
     public void EnumDuplicate_InvalidScrutinee_AndSelectedFailureAreDiagnosed()
     {
         var duplicate = FirmamentV2Parser.Parse(Source().Replace("    HeavyDuty\n", "    HeavyDuty\n    HeavyDuty\n", StringComparison.Ordinal));
-        Assert.Contains(duplicate.Diagnostics, d => d == ConceptIrResolver.DuplicateEnumVariant + ":BracketVariant.HeavyDuty");
+        Error(duplicate, ConceptIrResolver.DuplicateEnumVariant, "BracketVariant", "HeavyDuty");
 
         var invalidScrutinee = FirmamentV2Parser.Parse(Source().Replace("WallThickness: Match UseHeavyWall", "WallThickness: Match ChamferDistance", StringComparison.Ordinal));
-        Assert.Contains(invalidScrutinee.Diagnostics, d => d.StartsWith(ConceptIrResolver.InvalidMatchScrutinee + ":BracketConcept.ChamferDistance:Length", StringComparison.Ordinal));
+        Error(invalidScrutinee, ConceptIrResolver.InvalidMatchScrutinee, "Length");
 
         var selectedFailure = FirmamentV2Parser.Parse(Source().Replace("        Standard => 1.5mm", "        Standard => MissingValue", StringComparison.Ordinal));
-        Assert.Contains(selectedFailure.Diagnostics, d => d == ConceptIrResolver.SelectedBranchEvaluationFailure + ":BracketConcept.ChamferDistance:Standard");
+        Error(selectedFailure, FirmamentV2Parser.ExpressionUnknownSymbol, "MissingValue");
     }
 
     [Fact]
@@ -85,7 +85,15 @@ public sealed class FirmamentV2StaticLogicTests
         var cyclic = Source().Replace("Variant: BracketVariant = Standard", "Variant: BracketVariant = SelectedVariant\n    SelectedVariant: Match Variant { Compact => Compact Standard => Standard HeavyDuty => HeavyDuty }", StringComparison.Ordinal);
         var parse = FirmamentV2Parser.Parse(cyclic);
         Assert.False(parse.IsSuccess);
-        Assert.Contains(parse.Diagnostics, d => d.StartsWith(ConceptIrResolver.CircularDependency + ":Variant -> SelectedVariant -> Variant", StringComparison.Ordinal));
+        Error(parse, FirmamentV2Parser.ExpressionCycle, "Variant", "SelectedVariant");
+    }
+
+    private static void Error(FirmamentV2ParseResult parse, string code, params string[] details)
+    {
+        Assert.False(parse.IsSuccess);
+        var diagnostic = Assert.Single(parse.SyntaxDiagnostics.Where(d => d.Code == code));
+        Assert.NotNull(diagnostic.SourceSpan);
+        Assert.All(details, detail => Assert.Contains(detail, diagnostic.Message, StringComparison.Ordinal));
     }
 
     internal static string Source(string variant = "Standard") => $$"""

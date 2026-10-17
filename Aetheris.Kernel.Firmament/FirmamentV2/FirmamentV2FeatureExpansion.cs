@@ -132,6 +132,17 @@ internal static class FirmamentV2FeatureExpansion
         foreach (var definition in definitions.Values)
         {
             var returned = definition.Return.Value;
+            if (scalars is not null)
+            {
+                var inputs = definition.Syntax.Parameters.Where(p => p.Name is not null).ToDictionary(p => p.Name!.Text,
+                    p => new FirmamentCompileTimeValues.ChoiceInput(TypeName(p.Value), new ReferenceSyntax(p.Name!, p.Name!.Span)), StringComparer.Ordinal);
+                foreach (var local in definition.Locals) inputs[local.Name!.Text] = new(TypeName(local.Annotation!), local.Initializer!);
+                var before = scalars.Diagnostics.Count;
+                foreach (var value in definition.Syntax.Parameters.Select(p => p.Default).OfType<ExpressionSyntax>()
+                    .Concat(definition.Locals.Select(l => l.Initializer!)).Append(returned))
+                    _ = scalars.ResolveChoices(value, diagnostics, inputs, select: false);
+                scalars.LocateChoiceErrors(before, OriginalDefinition(definition.Syntax), "Location identifies the original enclosing Feature definition; its body was checked before expansion.");
+            }
             if (returned is ObjectSyntax { Name: not null })
                 Error(UnsupportedBody + ":" + definition.Syntax.Name!.Text + ":named-return", "A return constructor is unnamed. Name its consuming invocation with Feature name = Recipe(arguments).", returned.Span, definition.Syntax);
             else if (returned is CallSyntax { Target: ReferenceSyntax call })
@@ -188,6 +199,15 @@ internal static class FirmamentV2FeatureExpansion
             bool BindValue(ExpressionSyntax expression, string type, string name, FirmamentV2SourceSpan span, out ExpressionSyntax bound)
             {
                 bound = expression; var text = FirmamentSyntaxWriter.Expression(expression);
+                if (scalars?.IsChoice(type) == true)
+                {
+                    var before = scalars.Diagnostics.Count;
+                    var choiceTransferred = scalars.TryChoiceTransfer(text, type, diagnostics, out var tag);
+                    scalars.LocateChoiceErrors(before, OriginalDefinition(definition.Syntax),
+                        "Location identifies the original enclosing Feature definition; the argument was decoded at its invocation.");
+                    if (!choiceTransferred) return false;
+                    bound = ParseValue(tag); return true;
+                }
                 if (scalars?.IsRecordType(type) == true)
                 {
                     if (!scalars.TryRecordTransfer(text, type, $"Feature {definition.Syntax.Name!.Text}.{name}", call.Span, diagnostics, out var fields))
@@ -219,7 +239,12 @@ internal static class FirmamentV2FeatureExpansion
                     if (p.Default is null) { Error(ArgumentCount + $":{definition.Syntax.Name!.Text}:missing-{name}", $"Missing required Feature argument '{name}'.", call.Span, definition.Syntax); resolving.Remove(name); return; }
                     foreach (var dependency in FirmamentSyntaxTraversal.Expressions(p.Default).OfType<ReferenceSyntax>())
                         if (definition.Syntax.Parameters.FirstOrDefault(x => x.Name!.Text == dependency.Name.Text) is { } other) BindParameter(other);
-                    value = new FirmamentSyntaxSubstitution(environment).Expression(p.Default);
+                    var defaults = definition.Syntax.Parameters.Where(p => p.Name is not null && environment.ContainsKey(p.Name.Text))
+                        .ToDictionary(p => p.Name!.Text, p => scalars?.CheckedChoiceInput(TypeName(p.Value), environment[p.Name!.Text]) ?? new(TypeName(p.Value), environment[p.Name!.Text]), StringComparer.Ordinal);
+                    var before = scalars?.Diagnostics.Count ?? 0;
+                    var resolved = scalars?.ResolveChoices(p.Default, diagnostics, defaults, expected: TypeName(p.Value)) ?? p.Default;
+                    scalars?.LocateChoiceErrors(before, OriginalDefinition(definition.Syntax), "Location identifies the original enclosing Feature default.");
+                    value = new FirmamentSyntaxSubstitution(environment).Expression(resolved);
                 }
                 var type = TypeName(p.Value);
                 if (type is "Point2" or "Point3") value = ResolvePoint(value!, explicitArgument ? callScope : definition.Scope);
@@ -227,10 +252,29 @@ internal static class FirmamentV2FeatureExpansion
                 resolving.Remove(name);
             }
             foreach (var p in definition.Syntax.Parameters) BindParameter(p);
+            var choiceInputs = new Dictionary<string, FirmamentCompileTimeValues.ChoiceInput>(StringComparer.Ordinal);
+            foreach (var parameter in definition.Syntax.Parameters)
+            {
+                if (environment.TryGetValue(parameter.Name!.Text, out var input)) choiceInputs[parameter.Name.Text] = scalars?.CheckedChoiceInput(TypeName(parameter.Value), input) ?? new(TypeName(parameter.Value), input);
+                if (scalars?.IsRecordType(TypeName(parameter.Value)) == true)
+                    foreach (var field in environment.Where(p => p.Key.StartsWith(parameter.Name!.Text + ".", StringComparison.Ordinal)))
+                        if (scalars.RecordFieldType(TypeName(parameter.Value), field.Key[(parameter.Name!.Text.Length + 1)..]) is { } type)
+                            choiceInputs[field.Key] = scalars.CheckedChoiceInput(type, field.Value);
+            }
+            ExpressionSyntax ResolveChoices(ExpressionSyntax expression)
+            {
+                if (scalars is null) return expression;
+                var before = scalars.Diagnostics.Count;
+                var resolved = scalars.ResolveChoices(expression, diagnostics, choiceInputs);
+                scalars.LocateChoiceErrors(before, OriginalDefinition(definition.Syntax), "Location identifies the original enclosing Feature definition; parameter values were checked at its invocation.");
+                return resolved;
+            }
             foreach (var local in definition.Locals)
             {
-                var expression = new FirmamentSyntaxSubstitution(environment).Expression(local.Initializer!); var type = TypeName(local.Annotation!);
-                if (BindValue(expression, type, local.Name!.Text, local.Span, out var bound)) environment[local.Name.Text] = bound;
+                var expression = new FirmamentSyntaxSubstitution(environment).Expression(ResolveChoices(local.Initializer!));
+                var type = TypeName(local.Annotation!);
+                if (BindValue(expression, type, local.Name!.Text, local.Span, out var bound))
+                { environment[local.Name.Text] = bound; choiceInputs[local.Name.Text] = scalars?.CheckedChoiceInput(type, bound) ?? new(type, bound); }
                 else Error(LocalType + $":{definition.Syntax.Name!.Text}:{local.Name.Text}:expected-{type}", $"Feature local '{local.Name.Text}' requires {type}.", local.Span, definition.Syntax);
             }
             if (Failed()) return [];
@@ -238,7 +282,8 @@ internal static class FirmamentV2FeatureExpansion
                 : stack.Count == 0 ? resultName : resultName + "__Call" + stack.Count.ToString(CultureInfo.InvariantCulture);
             var renames = definition.Construction.ToDictionary(d => d.Name!.Text, d => prefix + "__" + d.Name!.Text, StringComparer.Ordinal);
             var transform = new FirmamentSyntaxSubstitution(environment, renames);
-            var output = definition.Construction.Select(transform.Statement).ToList(); var returned = transform.Expression(definition.Return.Value);
+            var output = definition.Construction.Select(transform.Statement).ToList();
+            var returned = transform.Expression(ResolveChoices(definition.Return.Value));
             if (returned is CallSyntax { Target: ReferenceSyntax nestedName } nestedCall
                 && definition.Scope.Resolve("Feature", nestedName.Name.Text) is { } nestedSyntax && definitions.TryGetValue(nestedSyntax, out var nested))
             {

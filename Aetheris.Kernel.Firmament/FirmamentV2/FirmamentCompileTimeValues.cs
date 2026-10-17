@@ -9,7 +9,7 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 /// nominal strings. The mechanical binder consumes their nominal AST and PMI consumes their IR.
 /// This is not an evaluator: all scalar semantics belong to the existing typed dependency binder.
 /// </summary>
-internal sealed class FirmamentCompileTimeValues(string source)
+internal sealed partial class FirmamentCompileTimeValues(string source)
 {
     private readonly Dictionary<string, FirmamentV2BoundLet> values = new(StringComparer.Ordinal);
     private readonly HashSet<string> identifiers = FirmamentLanguageAnalysisService.Lex(source)
@@ -69,13 +69,23 @@ internal sealed class FirmamentCompileTimeValues(string source)
 
     internal void BindExpandedScalars(string expanded, List<string> codes)
     {
+        var expandedChoices = new FirmamentChoiceBinding(expanded);
+        choices = new(Choices.Types.Values.Concat(expandedChoices.Types.Values).GroupBy(t => t.Name).Select(g => g.Last()));
+        var choiceErrorStart = diagnostics.Count;
+        foreach (var error in expandedChoices.Diagnostics) ChoiceError(error, codes);
+        recordTypes = recordTypes.Concat(FirmamentV2TemplateExpansion.ParseRecordTypes(expanded, codes, templateLocals: true))
+            .GroupBy(p => p.Key, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Last().Value, StringComparer.Ordinal);
+        InitializeChoices(recordTypes, codes, expanded);
+        LocateChoiceErrors(choiceErrorStart, null, "Binding checked specialized Static values; an exact original-source span is unavailable.");
         var declarations = Scope(FirmamentSyntaxParser.Parse(expanded).Document.Statements)
             .Where(d => d.Type.Name.Text == "Static" && d.Name is not null && d.Initializer is not null
                 && !definitions.ContainsKey(d.Name.Text)
                 && d.Body is null && d.Initializer is not (ObjectSyntax or WithSyntax or IndexSyntax)
                 && (d.Annotation is null || IsScalar(FirmamentSyntaxValues.Reference(d.Annotation) ?? ""))).ToArray();
         if (declarations.Length == 0) return;
-        var bound = FirmamentV2Parser.BindCompileTimeScalars(declarations, expanded, "inline", codes, values.Values.ToArray());
+        var projected = declarations.Select(d => d with { Initializer = ResolveChoices(d.Initializer!, codes,
+            expected: FirmamentSyntaxValues.Reference(d.Annotation)) }).ToArray();
+        var bound = FirmamentV2Parser.BindCompileTimeScalars(projected, expanded, "inline", codes, values.Values.ToArray());
         foreach (var diagnostic in bound.Diagnostics)
         {
             var original = originalScopes.GetValueOrDefault("Static " + diagnostic.Target);
@@ -92,6 +102,7 @@ internal sealed class FirmamentCompileTimeValues(string source)
 
     internal void Initialize(IReadOnlyDictionary<string, TemplateRecordTypeIr> records, List<string> codes)
     {
+        recordTypes = FirmamentV2TemplateExpansion.ParseRecordTypes(source, codes, templateLocals: true);
         var syntax = FirmamentSyntaxParser.Parse(source);
         var declarations = Scope(syntax.Document.Statements).ToArray();
         foreach (var d in declarations.Where(d => d.Type.Name.Text == "Static" && d.Name is not null))
@@ -150,6 +161,7 @@ internal sealed class FirmamentCompileTimeValues(string source)
                 }
         }
         foreach (var d in statics) Record(d);
+        InitializeChoices(recordTypes, codes);
         // A legacy collection reader may retain only a literal prefix. Every tol
         // in a Static value must belong to a checked scalar initializer before
         // that reader can erase the containing declaration.
@@ -166,7 +178,9 @@ internal sealed class FirmamentCompileTimeValues(string source)
                     { SourceSpan = tolerance.ToleranceSpan, IsOriginalSource = true, Stage = "Binding" });
             }
         if (definitions.Count == 0) return;
-        var bound = FirmamentV2Parser.BindCompileTimeScalars(definitions.Select(p => p.Value with { Name = new(p.Key, p.Value.Name!.Span) }).ToArray(), source, "inline", codes);
+        var bound = FirmamentV2Parser.BindCompileTimeScalars(definitions.Select(p => p.Value with
+        { Name = new(p.Key, p.Value.Name!.Span), Initializer = ResolveChoices(p.Value.Initializer!, codes,
+            expected: FirmamentSyntaxValues.Reference(p.Value.Annotation)) }).ToArray(), source, "inline", codes);
         diagnostics.AddRange(bound.Diagnostics.Select(d => d with { IsOriginalSource = true,
             SourceSpan = d.SourceSpan is { } span ? dataBinding?.OriginalSpan(span) ?? span : null }));
         foreach (var value in bound.Values)
@@ -205,7 +219,8 @@ internal sealed class FirmamentCompileTimeValues(string source)
             if (parsed.Expression is null || parsed.Diagnostics.Any(d => d.Severity is "error" or "fatal")) return false;
             var name = FreshName();
             var localCodes = new List<string>();
-            var bound = FirmamentV2Parser.BindCompileTimeScalars([Scalar(name, type, parsed.Expression, parsed.Expression.Span)],
+            var resolved = ResolveChoices(parsed.Expression, codes, expected: type);
+            var bound = FirmamentV2Parser.BindCompileTimeScalars([Scalar(name, type, resolved, parsed.Expression.Span)],
                 expression, "inline", localCodes, values.Values.ToArray());
             codes.AddRange(localCodes);
             diagnostics.AddRange(bound.Diagnostics.Select(d => d with { SourceSpan = originalConsumer ? span : null, IsOriginalSource = originalConsumer,
@@ -248,6 +263,7 @@ internal sealed class FirmamentCompileTimeValues(string source)
 
     internal string Field(string record, string field, string expression, string type, FirmamentV2SourceSpan span, List<string> codes)
     {
+        if (IsChoice(type)) return TryChoiceTransfer(expression, type, codes, out var tag) ? tag : expression;
         if (!IsScalar(type)) return expression;
         if (values.TryGetValue(record + "." + field, out var value) && value.Tolerance is null && IsLiteral(expression)) return expression;
         return TryTransfer(values.ContainsKey(record + "." + field) ? record + "." + field : expression,
@@ -264,8 +280,12 @@ internal sealed class FirmamentCompileTimeValues(string source)
 
     internal void SetRecords(IReadOnlyDictionary<string, TemplateRecordTypeIr> types, IReadOnlyDictionary<string, TemplateStaticRecordIr> records)
     {
-        recordTypes = types;
+        recordTypes = recordTypes.Concat(types).GroupBy(p => p.Key, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Last().Value, StringComparer.Ordinal);
         foreach (var record in records) recordValues[record.Key] = record.Value;
+        foreach (var record in records.Values)
+            foreach (var field in FirmamentV2TemplateExpansion.FlattenRecordFields(record, types, recordValues, []))
+                if (RecordFieldType(record.TypeName, field.Key) is { } type && IsChoice(type))
+                    choiceInputs[record.Name + "." + field.Key] = new(type, FirmamentSyntaxParser.ParseExpression(field.Value).Expression!);
         // Table rows and aliases may not have authored scalar field declarations.
         // Admit their leaves through the same typed graph used by literal Records.
         foreach (var record in records.Values)
@@ -301,7 +321,7 @@ internal sealed class FirmamentCompileTimeValues(string source)
             : (dataBinding?.DisplayName(name[..dot]) ?? name[..dot]) + name[dot..];
     }
 
-    private string? RecordFieldType(string type, string path)
+    internal string? RecordFieldType(string type, string path)
     {
         string? fieldType = null;
         foreach (var part in path.Split('.'))

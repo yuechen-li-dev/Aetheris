@@ -164,6 +164,15 @@ internal sealed record ConceptPhase3Resolution(
 
 internal static class ConceptIrResolver
 {
+    internal sealed record SpatialField(string Type, bool Required = true);
+    // Published by the spatial owner for compile-time admission and spelling.
+    internal static IReadOnlyDictionary<string, IReadOnlyDictionary<string, SpatialField>> SpatialFields { get; } =
+        new Dictionary<string, IReadOnlyDictionary<string, SpatialField>>(StringComparer.Ordinal)
+        {
+            ["Box3"] = new Dictionary<string, SpatialField> { ["Size"] = new("Length[3]") },
+            ["Grid"] = new Dictionary<string, SpatialField> { ["Within"] = new("Region2"), ["Columns"] = new("Int"), ["Rows"] = new("Int") },
+            ["Plane"] = new Dictionary<string, SpatialField> { ["Origin"] = new("Point3|Length[3]"), ["Normal"] = new("Int[3]|Float[3]|Vector3"), ["Up"] = new("Int[3]|Float[3]|Vector3", false) }
+        };
     // Static expansion is deliberately bounded: Pattern is compile-time declaration generation, not iteration.
     private const int MaxStaticPatternExpansion = 1024;
     public const string MissingMember = "firmament-concept-missing-member";
@@ -194,14 +203,21 @@ internal static class ConceptIrResolver
 
     private static readonly Regex ConceptStructHeader = new(@"\bConcept\s+Struct\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*(?<concept>[A-Za-z_][A-Za-z0-9_]*))?\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex MaterializedHeader = new(@"\b(?<kind>Struct|Model)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*(?<concept>[A-Za-z_][A-Za-z0-9_]*))?\s*(?<units>mm\s*)?\{", RegexOptions.CultureInvariant);
-    private static readonly Regex EnumHeader = new(@"\bEnum\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
 
-    public static ConceptPhase3Resolution? Resolve(string source, List<string> diagnostics)
+    public static ConceptPhase3Resolution? Resolve(string source, List<string> diagnostics) => Resolve(source, diagnostics, null);
+
+    internal static ConceptPhase3Resolution? Resolve(string source, List<string> diagnostics, FirmamentCompileTimeValues? scalars)
     {
         // Match roles are compile-time conformance metadata. They deliberately do not lower to AIR,
         // but they must remain available to the static evaluator so invalid domains and selected-arm
         // failures are diagnosed before feature lowering.
-        var enums = ParseEnums(source, diagnostics);
+        if (scalars is null)
+        {
+            scalars = new(source);
+            scalars.Initialize(new Dictionary<string, TemplateRecordTypeIr>(), diagnostics);
+        }
+        var choiceErrorStart = scalars.Diagnostics.Count;
+        var enums = scalars.Choices.Types.Values.Select(t => new ConceptIrEnumDefinition(t.Name, t.Cases, t.Span)).ToArray();
         var definitions = ParseDefinitions(source, diagnostics);
         var materializedMatches = MaterializedHeader.Matches(source).Cast<Match>()
             .Where(m => !IsPrecededByConcept(source, m.Index)).ToArray();
@@ -223,7 +239,7 @@ internal static class ConceptIrResolver
             var close = FindMatchingBrace(source, open);
             if (close < 0) { diagnostics.Add(InvalidSpatialDerivation); continue; }
             var body = source[(open + 1)..close];
-            var members = ResolveMembers(name, body, open + 1, materialized.Groups["name"].Value, enums, staticSelections, diagnostics);
+            var members = ResolveMembers(name, body, open + 1, materialized.Groups["name"].Value, enums, staticSelections, diagnostics, scalars);
             var satisfies = match.Groups["concept"].Success ? new[] { match.Groups["concept"].Value } : [];
             ValidateConformance(name, satisfies, members, definitions, diagnostics);
             var instance = new ConceptIrStructInstance(name, satisfies, members, false, "CompileTimeOnlyErased", new(match.Index, close - match.Index + 1));
@@ -235,6 +251,7 @@ internal static class ConceptIrResolver
             }
         }
 
+        if (scalars.Diagnostics.Skip(choiceErrorStart).Any(d => d.Severity is "error" or "fatal")) return null;
         var bodyText = source[(materializedOpen + 1)..materializedClose];
         ValidateIndexedReferences(bodyText, instanceList, diagnostics);
         var box = Regex.Match(bodyText, @"\bBox\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
@@ -623,27 +640,9 @@ internal static class ConceptIrResolver
 
     private static IReadOnlyList<ConceptIrEnumDefinition> ParseEnums(string source, List<string> diagnostics)
     {
-        var result = new List<ConceptIrEnumDefinition>();
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (Match match in EnumHeader.Matches(source))
-        {
-            var name = match.Groups["name"].Value;
-            var open = source.IndexOf('{', match.Index); var close = FindMatchingBrace(source, open);
-            if (close < 0) { diagnostics.Add(InvalidSpatialDerivation); continue; }
-            if (!IsPascalCase(name)) diagnostics.Add($"{InvalidEnumName}:{name}");
-            if (!names.Add(name)) { diagnostics.Add(DuplicateDeclaration + ":Enum:" + name); continue; }
-            var variants = new List<string>(); var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var raw in source[(open + 1)..close].Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
-            {
-                var variant = raw.Trim();
-                if (variant.Length == 0) continue;
-                if (!Regex.IsMatch(variant, @"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant) || !IsPascalCase(variant)) { diagnostics.Add($"{InvalidEnumName}:{name}.{variant}"); continue; }
-                if (!seen.Add(variant)) { diagnostics.Add($"{DuplicateEnumVariant}:{name}.{variant}"); continue; }
-                variants.Add(variant);
-            }
-            result.Add(new(name, variants, new(match.Index, close - match.Index + 1)));
-        }
-        return result;
+        var binding = new FirmamentChoiceBinding(source);
+        diagnostics.AddRange(binding.Diagnostics.Select(d => d.Code + ":" + d.Message));
+        return binding.Types.Values.Select(t => new ConceptIrEnumDefinition(t.Name, t.Cases, t.Span)).ToArray();
     }
 
     private static IReadOnlyDictionary<string, ParsedConceptMember> ParseConceptMembers(string body, int bodyOffset, List<string> diagnostics)
@@ -661,31 +660,6 @@ internal static class ConceptIrResolver
             var expression = body.Substring(value.Span.Start, value.Span.Length);
             if (!result.TryAdd(field.Name.Text, new(field.Name.Text, declaredType, expression,
                     new(bodyOffset + field.Span.Start, field.Span.Length)))) diagnostics.Add($"{DuplicateDeclaration}:{field.Name.Text}");
-        }
-        return result;
-    }
-
-    private static IReadOnlyList<ParsedMatchArm> ParseMatchArms(string body, int bodyOffset)
-    {
-        var headers = new List<(int Index, Match Match)>(); var depth = 0;
-        for (var lineStart = 0; lineStart < body.Length;)
-        {
-            var lineEnd = body.IndexOf('\n', lineStart); if (lineEnd < 0) lineEnd = body.Length;
-            var line = body[lineStart..lineEnd];
-            if (depth == 0)
-            {
-                var match = Regex.Match(line, @"^\s*(?<pattern>[A-Za-z_][A-Za-z0-9_]*)\s*=>\s*(?<rest>.*?)\s*$", RegexOptions.CultureInvariant);
-                if (match.Success) headers.Add((lineStart, match));
-            }
-            depth += line.Count(c => c == '{') - line.Count(c => c == '}');
-            lineStart = lineEnd == body.Length ? body.Length : lineEnd + 1;
-        }
-        var result = new List<ParsedMatchArm>();
-        for (var i = 0; i < headers.Count; i++)
-        {
-            var (start, match) = headers[i]; var end = i + 1 < headers.Count ? headers[i + 1].Index : body.Length;
-            var arrow = body.IndexOf("=>", start, end - start, StringComparison.Ordinal);
-            result.Add(new(match.Groups["pattern"].Value, body[(arrow + 2)..end].Trim(), new(bodyOffset + start, end - start)));
         }
         return result;
     }
@@ -741,14 +715,18 @@ internal static class ConceptIrResolver
         string materializedName,
         IReadOnlyList<ConceptIrEnumDefinition> enums,
         List<ConceptIrStaticSelection> selections,
-        List<string> diagnostics)
+        List<string> diagnostics, FirmamentCompileTimeValues? scalars = null)
     {
+        if (scalars is null)
+        {
+            scalars = new("");
+            scalars.UseChoiceTypes(enums.Select(e => new FirmamentChoiceBinding.Choice(e.Name, e.Variants, e.SourceSpan)));
+        }
         var members = ParseConceptMembers(body, bodyOffset, diagnostics);
-        return new StaticMemberEvaluator(instanceName, materializedName, members, enums, selections, diagnostics).EvaluateAll();
+        return new StaticMemberEvaluator(instanceName, materializedName, members, enums, selections, diagnostics, scalars).EvaluateAll();
     }
 
     private sealed record ParsedConceptMember(string Name, string? DeclaredType, string Expression, FirmamentV2SourceSpan SourceSpan);
-    private sealed record ParsedMatchArm(string Pattern, string Expression, FirmamentV2SourceSpan SourceSpan);
 
     private sealed class StaticMemberEvaluator(
         string instanceName,
@@ -756,14 +734,19 @@ internal static class ConceptIrResolver
         IReadOnlyDictionary<string, ParsedConceptMember> members,
         IReadOnlyList<ConceptIrEnumDefinition> enums,
         List<ConceptIrStaticSelection> selections,
-        List<string> diagnostics)
+        List<string> diagnostics, FirmamentCompileTimeValues scalars)
     {
         private readonly Dictionary<string, ConceptIrValue> _resolved = new(StringComparer.Ordinal);
         private readonly List<string> _stack = [];
 
         public IReadOnlyDictionary<string, ConceptIrValue> EvaluateAll()
         {
-            foreach (var name in members.Keys) EvaluateMember(name);
+            var before = scalars.Diagnostics.Count;
+            foreach (var name in members.Keys)
+            {
+                EvaluateMember(name);
+                if (scalars.Diagnostics.Skip(before).Any(d => d.Severity is "error" or "fatal")) break;
+            }
             return _resolved;
         }
 
@@ -795,7 +778,7 @@ internal static class ConceptIrResolver
             expression = expression.Trim();
             var provenance = $"{instanceName}.{target.Name}";
             if (expression.StartsWith(materializedName + ".", StringComparison.Ordinal)) { diagnostics.Add(MaterializedPhaseReference); return null; }
-            if (expression.StartsWith("Match ", StringComparison.Ordinal)) return EvaluateMatch(expression, target);
+            if (FirmamentSyntaxParser.ParseExpression(expression).Expression is MatchSyntax match) return EvaluateMatch(match, target);
 
             var box = Regex.Match(expression, @"^Box3\s*\{(?<body>.*)\}$", RegexOptions.Singleline | RegexOptions.CultureInvariant);
             if (box.Success)
@@ -893,50 +876,26 @@ internal static class ConceptIrResolver
             return true;
         }
 
-        private ConceptIrValue? EvaluateMatch(string expression, ParsedConceptMember target)
+        private ConceptIrValue? EvaluateMatch(MatchSyntax match, ParsedConceptMember target)
         {
-            var header = Regex.Match(expression, @"^Match\s+(?<scrutinee>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-            if (!header.Success) { diagnostics.Add(InvalidMatchScrutinee); return null; }
-            var scrutineeName = header.Groups["scrutinee"].Value;
-            var scrutinee = EvaluateMember(scrutineeName);
-            if (scrutinee is not (ConceptIrEnumValue or ConceptIrBoolValue)) { diagnostics.Add($"{InvalidMatchScrutinee}:{instanceName}.{scrutineeName}:{(scrutinee is null ? "unresolved" : TypeOf(scrutinee))}"); return null; }
-            var open = expression.IndexOf('{', header.Index); var close = FindMatchingBrace(expression, open);
-            if (close < 0) { diagnostics.Add(InvalidMatchScrutinee); return null; }
-            var arms = ParseMatchArms(expression[(open + 1)..close], target.SourceSpan.Start + open + 1);
-            var expectedPatterns = scrutinee is ConceptIrEnumValue enumValue
-                ? enums.Single(e => e.Name == enumValue.EnumType).Variants
-                : new[] { "true", "false" };
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var arm in arms)
-            {
-                if (!expectedPatterns.Contains(arm.Pattern, StringComparer.Ordinal))
-                {
-                    diagnostics.Add(scrutinee is ConceptIrBoolValue ? $"{InvalidBooleanArm}:{arm.Pattern}" : $"{UnknownEnumVariant}:{((ConceptIrEnumValue)scrutinee).EnumType}.{arm.Pattern}");
-                    continue;
-                }
-                if (!seen.Add(arm.Pattern)) diagnostics.Add($"{DuplicateMatchArm}:{arm.Pattern}:unreachable");
-            }
-            foreach (var missing in expectedPatterns.Where(p => !seen.Contains(p))) diagnostics.Add($"{NonExhaustiveMatch}:Missing arm: {missing}");
-            if (seen.Count != arms.Count || expectedPatterns.Any(p => !seen.Contains(p))) return null;
-
-            var armValues = new List<(ParsedMatchArm Arm, ConceptIrValue? Value)>();
-            foreach (var arm in arms) armValues.Add((arm, EvaluateExpression(arm.Expression, target, false)));
-            var first = armValues.FirstOrDefault(x => x.Value is not null).Value;
-            if (first is not null)
-            {
-                var expectedType = TypeOf(first);
-                foreach (var (arm, value) in armValues.Where(x => x.Value is not null && TypeOf(x.Value) != expectedType))
-                    diagnostics.Add($"{MatchArmTypeMismatch}:{instanceName}.{target.Name}:{arm.Pattern}:expected-{expectedType}:actual-{TypeOf(value!)}");
-                if (armValues.Any(x => x.Value is not null && TypeOf(x.Value) != expectedType)) return null;
-            }
-            var selectedPattern = scrutinee is ConceptIrEnumValue selectedEnum ? selectedEnum.Variant : ((ConceptIrBoolValue)scrutinee).Value.ToString().ToLowerInvariant();
-            var selected = armValues.Single(x => x.Arm.Pattern == selectedPattern);
-            if (selected.Value is null) { diagnostics.Add($"{SelectedBranchEvaluationFailure}:{instanceName}.{target.Name}:{selectedPattern}"); return null; }
-            selections.Add(new(
-                $"{instanceName}.{target.Name}", $"{instanceName}.{scrutineeName}",
-                scrutinee is ConceptIrEnumValue e ? e.EnumType : "Bool", selectedPattern, selectedPattern,
-                TypeOf(selected.Value).ToString(), FormatValue(selected.Value), target.SourceSpan, $"{instanceName}.{target.Name}"));
-            return selected.Value;
+            var inputs = members.ToDictionary(p => p.Key, p => new FirmamentCompileTimeValues.ChoiceInput(
+                p.Value.DeclaredType ?? "", FirmamentSyntaxParser.ParseExpression(p.Value.Expression).Expression!), StringComparer.Ordinal);
+            var selectedArms = new Dictionary<string, string>(StringComparer.Ordinal);
+            var before = scalars.Diagnostics.Count;
+            var resolved = scalars.ResolveChoices(match, diagnostics, inputs, expected: target.DeclaredType, selected: selectedArms);
+            scalars.LocateChoiceErrors(before, scalars.OriginalDeclaration("Struct", instanceName, "Concept"),
+                "Location identifies the original enclosing Concept Struct; match arms were bound before spatial evaluation.");
+            if (scalars.Diagnostics.Skip(before).Any(d => d.Severity is "error" or "fatal")) return null;
+            var selected = EvaluateExpression(FirmamentSyntaxWriter.Expression(resolved), target, false);
+            var scrutineeName = FirmamentSyntaxValues.Reference(match.Scrutinee) ?? FirmamentSyntaxWriter.Expression(match.Scrutinee);
+            var selectedPattern = selectedArms.GetValueOrDefault(scrutineeName) ?? "";
+            if (selected is null) { diagnostics.Add($"{SelectedBranchEvaluationFailure}:{instanceName}.{target.Name}:{selectedPattern}"); return null; }
+            var domain = inputs.GetValueOrDefault(scrutineeName)?.Type;
+            if (string.IsNullOrEmpty(domain)) domain = selectedPattern is "true" or "false" ? "Bool"
+                : enums.FirstOrDefault(e => e.Variants.Contains(selectedPattern, StringComparer.Ordinal))?.Name;
+            selections.Add(new($"{instanceName}.{target.Name}", $"{instanceName}.{scrutineeName}", domain ?? "Bool", selectedPattern, selectedPattern,
+                TypeOf(selected).ToString(), FormatValue(selected), target.SourceSpan, $"{instanceName}.{target.Name}"));
+            return selected;
         }
     }
 

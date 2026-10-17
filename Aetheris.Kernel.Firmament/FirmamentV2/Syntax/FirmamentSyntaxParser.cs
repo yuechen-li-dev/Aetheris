@@ -166,6 +166,9 @@ public static class FirmamentSyntaxParser
             if (occurrence) Expect("<");
             var modifiers = new List<TypeSyntax>();
             var type = Type();
+            // A declaration alias retains its authored token span. It is the
+            // same nominal type declaration, not source-text preprocessing.
+            if (type.Name.Text == "Options") type = type with { Name = type.Name with { Text = "Enum" } };
             // Prefixes are finite syntax roles, not a list of admitted engineering types.
             while ((type.Name.Text is "Template" or "Concept" or "Construction" or "Radial" or "Linear" or "Mirror" or "Mirrored" or "Semantic"
                 && Current.Kind == SyntaxTokenKind.Identifier && (Peek(1).Kind == SyntaxTokenKind.Identifier || Peek(1).Text == "<"))
@@ -382,8 +385,9 @@ public static class FirmamentSyntaxParser
                         throw Fail("firmament-syntax-entity-reference", "Expected a numeric STEP entity identifier after '#'.");
                     at++; left = new LiteralSyntax(LiteralKind.EntityReference, source[start..(Previous.Span.Start + Previous.Span.Length)], Span(start));
                 }
-                else if (Take("Match"))
+                else if (StartsMatch())
                 {
+                    at++;
                     var scrutinee = Expression(allowObject: false);
                     Expect("{");
                     var arms = new List<MatchArmSyntax>();
@@ -499,6 +503,23 @@ public static class FirmamentSyntaxParser
                 return left;
             }
             finally { depth--; }
+        }
+
+        private bool StartsMatch()
+        {
+            if (!Is("Match") && !Is("match")) return false;
+            if (Peek(1).Text != "(") return Peek(1).Kind is SyntaxTokenKind.Identifier or SyntaxTokenKind.Number
+                && Peek(1).Text is not ("as" or "As" or "with" or "from" or "to") || Peek(1).Text is "!" or "+" or "-";
+            // Preserve a callable authored name `match(...)`. A parenthesized
+            // scrutinee is a match expression only when followed by its arms.
+            var nesting = 0;
+            for (var i = at + 1; i < tokens.Length; i++)
+            {
+                if (tokens[i].Text == "(") nesting++;
+                else if (tokens[i].Text == ")" && --nesting == 0)
+                    return i + 1 < tokens.Length && tokens[i + 1].Text == "{";
+            }
+            return false;
         }
 
         private IReadOnlyList<ArgumentSyntax> Arguments(string close, bool declarationParameters = false)

@@ -1,0 +1,8 @@
+Model Result {
+ units: mm
+ Options LeftChoice { Compact Standard }
+ Options RightChoice { Compact Standard }
+ Static left: LeftChoice = Compact
+ Static right: RightChoice = left
+ Box Stock { size: [40mm, 20mm, 5mm] }
+}

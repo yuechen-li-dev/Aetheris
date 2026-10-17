@@ -90,7 +90,7 @@ internal sealed class FirmamentSyntaxWriter(string? source = null)
         return text;
     }
 
-    private static string Operator(BinaryOperator op) => op switch
+    internal static string Operator(BinaryOperator op) => op switch
     {
         BinaryOperator.Pipeline => "|>", BinaryOperator.Direction => "->", BinaryOperator.Or => "||", BinaryOperator.And => "&&",
         BinaryOperator.Equal => "==", BinaryOperator.NotEqual => "!=", BinaryOperator.Less => "<", BinaryOperator.LessEqual => "<=",

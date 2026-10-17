@@ -15,10 +15,14 @@ internal sealed record TemplateDeclarationIr(string Name, string TargetKind, str
     internal FirmamentTemplateSyntax.Scope? BodyScope { get; init; }
     internal List<TemplateApplicationIr> BodyApplications { get; } = [];
     internal string? IdentityNamespace { get; set; }
+    internal FirmamentV2SourceSpan BodySpan { get; init; } = new(0, 0);
 }
 internal abstract record TemplateParameterIr(string Name, FirmamentV2SourceSpan SourceSpan);
 internal sealed record TemplateTypeParameterIr(string Name, string ConstraintConcept, FirmamentV2SourceSpan SourceSpan) : TemplateParameterIr(Name, SourceSpan);
-internal sealed record TemplateValueParameterIr(string Name, string TypeName, string? DefaultExpression, FirmamentV2SourceSpan SourceSpan) : TemplateParameterIr(Name, SourceSpan);
+internal sealed record TemplateValueParameterIr(string Name, string TypeName, string? DefaultExpression, FirmamentV2SourceSpan SourceSpan) : TemplateParameterIr(Name, SourceSpan)
+{
+    internal FirmamentV2SourceSpan? DefaultSpan { get; init; }
+}
 internal sealed record TemplateApplicationIr(string TargetKind, string InstanceName, string TemplateName, ImmutableArray<TemplateArgumentIr> Arguments, FirmamentV2SourceSpan SourceSpan)
 {
     internal TemplateDeclarationIr? BoundTemplate { get; init; }
@@ -139,8 +143,8 @@ internal static class FirmamentV2TemplateExpansion
                     .ToDictionary(field => field.Key, field => field.Value, StringComparer.Ordinal)))
             .ToArray();
 
-    internal static IReadOnlyDictionary<string, IReadOnlyList<string>> InspectEnums(string source) =>
-        ParseEnums(source).OrderBy(item => item.Key, StringComparer.Ordinal)
+    internal static IReadOnlyDictionary<string, IReadOnlyList<string>> InspectEnums(string source, List<string>? diagnostics = null) =>
+        ParseEnums(source, diagnostics).OrderBy(item => item.Key, StringComparer.Ordinal)
             .ToDictionary(item => item.Key,
                 item => (IReadOnlyList<string>)item.Value.OrderBy(value => value, StringComparer.Ordinal).ToArray(),
                 StringComparer.Ordinal);
@@ -171,7 +175,7 @@ internal static class FirmamentV2TemplateExpansion
         string templateName,
         string instanceName,
         IReadOnlyDictionary<string, HostArgument> hostArguments,
-        List<string> diagnostics)
+        List<string> diagnostics, FirmamentCompileTimeValues? scalars = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(templateName);
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceName);
@@ -197,10 +201,17 @@ internal static class FirmamentV2TemplateExpansion
             return null;
         }
 
-        var enums = ParseEnums(source);
-        var recordTypes = ParseRecordTypes(source, diagnostics);
-        var tables = ParseStaticTables(source, recordTypes, enums, diagnostics);
-        var staticRecords = ParseStaticRecords(source, recordTypes, enums, tables, diagnostics).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        scalars ??= new(source);
+        scalars.UseDataBinding(dataBinding);
+        var catalog = ReadDataCatalog(source, diagnostics, scalars, initialize: true);
+        if (scalars.Diagnostics.Any(d => d.Severity is "error" or "fatal"))
+        {
+            diagnostics.AddRange(scalars.Diagnostics.Select(d => d.Code + ": " + d.Message));
+            return null;
+        }
+        var enums = catalog.Enums;
+        var recordTypes = catalog.Types;
+        var staticRecords = catalog.Records.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
         var arguments = ImmutableArray.CreateBuilder<TemplateArgumentIr>();
         foreach (var pair in hostArguments.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
@@ -248,13 +259,14 @@ internal static class FirmamentV2TemplateExpansion
             templateName,
             arguments.ToImmutable(),
             new FirmamentV2SourceSpan(source.Length, 0));
-        var bound = Bind(template, application, source, enums, recordTypes, staticRecords, diagnostics);
+        scalars.SetRecords(recordTypes, staticRecords);
+        var bound = Bind(template, application, source, enums, recordTypes, staticRecords, diagnostics, scalars);
         if (bound is null || HasErrors(diagnostics)) return null;
 
         if (!ValidateRecordMembers(template.Body, bound, diagnostics)) return null;
         if (!EvaluateRequires(Substitute(template.Body, bound), application.InstanceName,
-                DisplaySignature(template), diagnostics, out var requireResults, source)) return null;
-        var body = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches);
+                DisplaySignature(template), diagnostics, out var requireResults, source, scalars)) return null;
+        var body = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches, template, scalars);
         if (body is null) return null;
         body = Substitute(body, bound);
         body = RemoveRequires(body);
@@ -338,14 +350,15 @@ internal static class FirmamentV2TemplateExpansion
 
     public static Result? Expand(string source, List<string> diagnostics, FirmamentCompileTimeValues? scalars = null, string? originalSource = null)
     {
+        scalars ??= new(source);
         var dataBinding = new FirmamentDataBinding(source);
-        diagnostics.AddRange(dataBinding.Diagnostics.Select(d => scalars is null ? d.Code + ": " + d.Message : d.Code));
-        scalars?.AddExpansionDiagnostics(dataBinding.Diagnostics);
+        diagnostics.AddRange(dataBinding.Diagnostics.Select(d => d.Code));
+        scalars.AddExpansionDiagnostics(dataBinding.Diagnostics);
         if (dataBinding.Diagnostics.Count > 0) return null;
-        scalars?.UseDataBinding(dataBinding);
+        scalars.UseDataBinding(dataBinding);
         source = dataBinding.Source;
         var syntax = new FirmamentTemplateSyntax(source, diagnostics);
-        if (scalars is not null && syntax.Diagnostics.Count > 0)
+        if (syntax.Diagnostics.Count > 0)
         {
             var origins = new FirmamentSyntaxOrigins(FirmamentSyntaxParser.Parse(originalSource ?? source).Document,
                 FirmamentSyntaxParser.Parse(source).Document);
@@ -363,13 +376,28 @@ internal static class FirmamentV2TemplateExpansion
         if (HasErrors(diagnostics)) return null;
 
         var catalog = ReadDataCatalog(source, diagnostics, scalars, initialize: true);
+        if (scalars.Diagnostics.Any(d => d.Severity is "error" or "fatal")) return null;
         var enums = catalog.Enums;
         var recordTypes = catalog.Types;
         var tables = catalog.Tables;
         var staticRecords = catalog.Records;
+        if (scalars is not null)
+            foreach (var definition in syntax.Declarations)
+            {
+                var inputs = definition.Parameters.OfType<TemplateValueParameterIr>().ToDictionary(p => p.Name,
+                    p => new FirmamentCompileTimeValues.ChoiceInput(p.TypeName,
+                        new ReferenceSyntax(new(p.Name, p.SourceSpan), p.SourceSpan)), StringComparer.Ordinal);
+                var bodySyntax = FirmamentSyntaxParser.Parse(definition.Body).Document;
+                foreach (var parameter in definition.Parameters.OfType<TemplateValueParameterIr>().Where(p => p.DefaultExpression is not null))
+                    if (FirmamentSyntaxParser.ParseExpression(parameter.DefaultExpression!).Expression is { } value)
+                        _ = scalars.ResolveChoices(value, diagnostics, inputs, parameter.TypeName, select: false,
+                            sourceOffset: parameter.DefaultSpan?.Start ?? parameter.SourceSpan.Start);
+                foreach (var match in FirmamentChoiceBinding.OutermostMatches(bodySyntax))
+                    _ = scalars.ResolveChoices(match, diagnostics, scalars.ChoiceScope(bodySyntax, match, inputs), select: false, sourceOffset: definition.BodySpan.Start, finitePatternSelector: CanonicalStaticAuthoring.IsFinitePatternSelector(bodySyntax, match));
+            }
         var concepts = new FirmamentConcepts(source, scalars);
         diagnostics.AddRange(concepts.Diagnostics.Select(d => d.Code + ": " + d.Message));
-        scalars?.AddConceptDiagnostics(concepts.Diagnostics, producerSource: source);
+        scalars.AddConceptDiagnostics(concepts.Diagnostics, producerSource: source);
         if (HasErrors(diagnostics)) return null;
         var changes = declarations.Select(d => (d.SourceSpan.Start, d.SourceSpan.Length, Text: string.Empty)).ToList();
         var instantiations = new List<ConceptIrTemplateInstantiation>();
@@ -383,7 +411,7 @@ internal static class FirmamentV2TemplateExpansion
             if (!ValidateRecordMembers(template.Body, bound, diagnostics)) continue;
             if (!EvaluateRequires(Substitute(template.Body, bound, scalars), application.InstanceName,
                     DisplaySignature(template), diagnostics, out var requireResults, source, scalars)) continue;
-            var body = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches);
+            var body = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches, template, scalars ?? new(source));
             if (body is null) continue;
             body = Substitute(body, bound);
             body = RemoveRequires(body);
@@ -406,15 +434,15 @@ internal static class FirmamentV2TemplateExpansion
             // Rebind symbol identities before Feature/default admission, never by
             // sharing the unspecialized definition's value environment.
             var concrete = new FirmamentDataBinding(source);
-            diagnostics.AddRange(concrete.Diagnostics.Select(d => scalars is null ? d.Code + ": " + d.Message : d.Code));
-            scalars?.AddExpansionDiagnostics(concrete.Diagnostics.Select(d => d with { SourceSpan = null, IsOriginalSource = false,
+            diagnostics.AddRange(concrete.Diagnostics.Select(d => d.Code));
+            scalars.AddExpansionDiagnostics(concrete.Diagnostics.Select(d => d with { SourceSpan = null, IsOriginalSource = false,
                 LocationNote = "Binding failed in specialized source; an original instance location is unavailable." }));
             if (concrete.Diagnostics.Count > 0) return null;
             source = concrete.Source;
-            scalars?.BindExpandedScalars(source, diagnostics);
+            scalars.BindExpandedScalars(source, diagnostics);
             _ = ReadDataCatalog(source, diagnostics, scalars);
         }
-        if (HasErrors(diagnostics)) return null;
+        if (HasErrors(diagnostics) || scalars.Diagnostics.Any(d => d.Severity is "error" or "fatal")) return null;
         return new(source, instantiations);
     }
 
@@ -476,13 +504,43 @@ internal static class FirmamentV2TemplateExpansion
             var expression = supplied.TryGetValue(p.Name, out var suppliedValue) ? suppliedValue : p.DefaultExpression;
             if (expression is null) { diagnostics.Add(MissingArgument + ":" + p.Name + ":expected-signature:" + expectedSignature); return null; }
             resolving.Add(p.Name);
-            var referenced = template.Parameters.OfType<TemplateValueParameterIr>().SingleOrDefault(x => x.Name == expression);
+            if (!supplied.ContainsKey(p.Name) && scalars is not null && FirmamentSyntaxParser.ParseExpression(expression).Expression is { } defaultSyntax
+                && FirmamentSyntaxTraversal.Expressions(defaultSyntax).Any(e => e is MatchSyntax))
+            {
+                foreach (var dependency in FirmamentSyntaxTraversal.Expressions(defaultSyntax).OfType<ReferenceSyntax>()
+                    .Select(r => template.Parameters.OfType<TemplateValueParameterIr>().FirstOrDefault(other => other.Name == r.Name.Text)).OfType<TemplateValueParameterIr>())
+                    _ = Resolve(dependency);
+                var inputs = template.Parameters.OfType<TemplateValueParameterIr>().Where(other => values.ContainsKey(other.Name))
+                    .ToDictionary(other => other.Name, other => scalars.CheckedChoiceInput(other.TypeName,
+                        FirmamentSyntaxParser.ParseExpression(values[other.Name]).Expression!), StringComparer.Ordinal);
+                var before = scalars.Diagnostics.Count;
+                expression = FirmamentSyntaxWriter.Expression(scalars.ResolveChoices(defaultSyntax, diagnostics, inputs, p.TypeName));
+                scalars.LocateChoiceErrors(before, scalars.OriginalDeclaration(template.TargetKind, template.Name, "Template"),
+                    "Location identifies the original enclosing Template default.");
+            }
+            var referenced = supplied.ContainsKey(p.Name) ? null : template.Parameters.OfType<TemplateValueParameterIr>().SingleOrDefault(x => x.Name == expression);
             var value = referenced is null ? expression : Resolve(referenced);
             resolving.RemoveAt(resolving.Count - 1);
             if (value is null) return null;
+            if (scalars?.IsChoice(p.TypeName) == true)
+            {
+                var before = scalars.Diagnostics.Count;
+                if (scalars.TryChoiceTransfer(value, p.TypeName, diagnostics, out var tag)) value = tag;
+                scalars.LocateChoiceErrors(before, scalars.OriginalDeclaration(application.TargetKind, application.InstanceName),
+                    "Location identifies the original Template application; the argument was decoded during specialization.");
+            }
             if (scalars?.IsScalar(p.TypeName) == true && scalars.TryTransfer(value, p.TypeName,
                     $"Template {template.Name}.{p.Name}", application.SourceSpan, diagnostics, out var checkedValue)) value = checkedValue;
-            if (!TypeMatches(value, p.TypeName, enums, scalars: scalars)) { diagnostics.Add((supplied.ContainsKey(p.Name) ? TypeMismatch : BadDefault) + $":{p.Name}:expected-{p.TypeName}:actual-{value}:expected-signature:{expectedSignature}"); return null; }
+            if (!TypeMatches(value, p.TypeName, enums, scalars: scalars))
+            {
+                var code = supplied.ContainsKey(p.Name) ? TypeMismatch : BadDefault;
+                diagnostics.Add(code + $":{p.Name}:expected-{p.TypeName}:actual-{value}:expected-signature:{expectedSignature}");
+                var location = scalars?.OriginalDeclaration(application.TargetKind, application.InstanceName);
+                scalars?.AddExpansionDiagnostics([new(code, "error", $"Template input '{p.Name}' requires {p.TypeName}; supplied '{value}'.", Target: p.Name)
+                    { SourceSpan = location, IsOriginalSource = location is not null, Stage = "Template binding",
+                        LocationNote = "Location identifies the original Template application." }]);
+                return null;
+            }
             values[p.Name] = value;
             if (!supplied.ContainsKey(p.Name)) defaults.Add(p.Name);
             return value;
@@ -594,9 +652,12 @@ internal static class FirmamentV2TemplateExpansion
         return transported;
     }
 
-    private static IReadOnlyDictionary<string, ImmutableHashSet<string>> ParseEnums(string source) => Regex.Matches(source, @"\bEnum\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{(?<body>.*?)\}", RegexOptions.Singleline | RegexOptions.CultureInvariant).Cast<Match>().ToDictionary(
-        m => m.Groups["name"].Value,
-        m => Regex.Matches(m.Groups["body"].Value, @"[A-Za-z_][A-Za-z0-9_]*", RegexOptions.CultureInvariant).Select(v => v.Value).ToImmutableHashSet(StringComparer.Ordinal), StringComparer.Ordinal);
+    private static IReadOnlyDictionary<string, ImmutableHashSet<string>> ParseEnums(string source, List<string>? diagnostics = null)
+    {
+        var binding = new FirmamentChoiceBinding(source);
+        diagnostics?.AddRange(binding.Diagnostics.Select(d => d.Code + ": " + d.Message));
+        return binding.Types.ToDictionary(p => p.Key, p => p.Value.Cases.ToImmutableHashSet(StringComparer.Ordinal), StringComparer.Ordinal);
+    }
     private static bool MatchesCoordinates(string value, string type)
     {
         if (FirmamentSyntaxParser.ParseExpression(value).Expression is not CallSyntax { Target: ReferenceSyntax target } call
@@ -659,10 +720,11 @@ internal static class FirmamentV2TemplateExpansion
         return Visit(FirmamentSyntaxParser.Parse(source).Document.Statements);
     }
 
-    private static IReadOnlyDictionary<string, TemplateRecordTypeIr> ParseRecordTypes(string source, List<string> diagnostics)
+    internal static IReadOnlyDictionary<string, TemplateRecordTypeIr> ParseRecordTypes(string source, List<string> diagnostics, bool templateLocals = false)
     {
         var result = new Dictionary<string, TemplateRecordTypeIr>(StringComparer.Ordinal);
-        foreach (var declaration in DataDeclarations(source).Where(d => d.Type.Name.Text == "Record" && d.Name is not null && d.Body is not null))
+        var declarations = templateLocals ? FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document) : DataDeclarations(source);
+        foreach (var declaration in declarations.Where(d => d.Type.Name.Text == "Record" && d.Name is not null && d.Body is not null && !d.Modifiers.Any(m => m.Name.Text == "Inventory")))
         {
             var fields = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.Ordinal);
             foreach (var statement in declaration.Body!.Statements)
@@ -723,13 +785,23 @@ internal static class FirmamentV2TemplateExpansion
         var pending = DataDeclarations(source).Where(d => d.Type.Name.Text == "Static" && d.Name is not null
             && (d.Body is not null && recordTypes.ContainsKey(FirmamentSyntaxValues.Reference(d.Annotation) ?? "")
                 || d.Initializer is ObjectSyntax or WithSyntax
+                || d.Initializer is MatchSyntax && recordTypes.ContainsKey(FirmamentSyntaxValues.Reference(d.Annotation) ?? "")
                 || d.Initializer is IndexSyntax { Target: ReferenceSyntax target } && tables.ContainsKey(target.Name.Text)
                 || d.Initializer is ReferenceSyntax && recordTypes.ContainsKey(FirmamentSyntaxValues.Reference(d.Annotation) ?? ""))).ToList();
         while (pending.Count > 0)
         {
             var progressed = false;
-            foreach (var declaration in pending.ToArray())
+            foreach (var pendingDeclaration in pending.ToArray())
             {
+                var declaration = pendingDeclaration;
+                if (declaration.Initializer is MatchSyntax selection && scalars is not null)
+                {
+                    var before = scalars.Diagnostics.Count;
+                    declaration = declaration with { Initializer = scalars.ResolveChoices(selection, diagnostics,
+                        expected: FirmamentSyntaxValues.Reference(declaration.Annotation)) };
+                    if (scalars.Diagnostics.Skip(before).Any(d => d.Severity is "error" or "fatal"))
+                    { pending.Remove(pendingDeclaration); progressed = true; continue; }
+                }
                 var name = declaration.Name!.Text;
                 var annotatedType = FirmamentSyntaxValues.Reference(declaration.Annotation);
                 if (declaration.Initializer is WithSyntax with)
@@ -793,7 +865,7 @@ internal static class FirmamentV2TemplateExpansion
                 {
                     var literal = declaration.Initializer as ObjectSyntax;
                     var type = annotatedType ?? FirmamentSyntaxValues.Reference(literal?.Type);
-                    if (type is null || !recordTypes.TryGetValue(type, out var schema)) { pending.Remove(declaration); progressed = true; continue; }
+                    if (type is null || !recordTypes.TryGetValue(type, out var schema)) { pending.Remove(pendingDeclaration); progressed = true; continue; }
                     var literalType = FirmamentSyntaxValues.Reference(literal?.Type) ?? type;
                     if (literalType != type) diagnostics.Add(WrongRecordType + ":" + name + ":expected-" + type + ":actual-" + literalType);
                     var body = literal?.Body ?? declaration.Body!;
@@ -803,7 +875,7 @@ internal static class FirmamentV2TemplateExpansion
                     Check(fields, schema, name, RecordFieldTypeMismatch, scalarOnly: true);
                     result[name] = new(name, type, fields.ToImmutableDictionary(StringComparer.Ordinal), declaration.Span);
                 }
-                pending.Remove(declaration); progressed = true;
+                pending.Remove(pendingDeclaration); progressed = true;
             }
             if (progressed) continue;
             foreach (var declaration in pending)
@@ -893,52 +965,36 @@ internal static class FirmamentV2TemplateExpansion
                 if (!record.Fields.ContainsKey(member)) diagnostics.Add(UnknownRecordMember + $":{record.Parameter}.{member}:record-{record.TypeName}");
         return !HasErrors(diagnostics);
     }
-    private static string? ResolveTemplateMatches(string body, BoundTemplateArguments bound, List<string> diagnostics, out IReadOnlyDictionary<string, string> selectedMatches)
+    private static string? ResolveTemplateMatches(string body, BoundTemplateArguments bound, List<string> diagnostics,
+        out IReadOnlyDictionary<string, string> selectedMatches, TemplateDeclarationIr template, FirmamentCompileTimeValues scalars)
     {
-        // Enum parameters are resolved here so M3's downstream Match evaluator receives only the selected value.
         var selected = new Dictionary<string, string>(StringComparer.Ordinal);
-        while (true)
+        selectedMatches = selected;
+        var locals = new Dictionary<string, FirmamentCompileTimeValues.ChoiceInput>(StringComparer.Ordinal);
+        foreach (var p in template.Parameters.OfType<TemplateValueParameterIr>())
+            if (bound.ValueArguments.TryGetValue(p.Name, out var value))
+                locals[p.Name] = scalars.CheckedChoiceInput(p.TypeName, FirmamentSyntaxParser.ParseExpression(value).Expression!);
+        foreach (var record in bound.RecordArguments)
+            foreach (var field in record.Value.Fields)
+                if (scalars.RecordFieldType(template.Parameters.OfType<TemplateValueParameterIr>().Single(p => p.Name == record.Key).TypeName, field.Key) is { } type)
+                    locals[record.Key + "." + field.Key] = scalars.CheckedChoiceInput(type, FirmamentSyntaxParser.ParseExpression(field.Value).Expression!);
+        var syntax = FirmamentSyntaxParser.Parse(body);
+        var edits = new List<(FirmamentV2SourceSpan Span, string Value)>();
+        var before = scalars.Diagnostics.Count;
+        foreach (var match in FirmamentChoiceBinding.OutermostMatches(syntax.Document)
+            .Where(m => !FirmamentSyntaxTraversal.Declarations(syntax.Document).Any(d => d.Body is not null
+                && (d.Type.Name.Text == "Feature" || d.Modifiers.Any(m => m.Name.Text == "Template"))
+                && FirmamentCompileTimeValues.Encloses(d.Body.ContentSpan, m.Span))))
         {
-            var match = Regex.Match(body, @"\bMatch\s+(?<name>[A-Za-z_][A-Za-z0-9_]*(?:\s*\.\s*[A-Za-z_][A-Za-z0-9_]*)?)\s*\{", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
-            if (!match.Success) { selectedMatches = selected; return body; }
-            var name = Regex.Replace(match.Groups["name"].Value, @"\s+", string.Empty, RegexOptions.CultureInvariant);
-            string? selectedArm = null;
-            if (!bound.ValueArguments.TryGetValue(name, out selectedArm))
-            {
-                var dot = name.IndexOf('.');
-                if (dot > 0 && bound.RecordArguments.TryGetValue(name[..dot], out var record))
-                    record.Fields.TryGetValue(name[(dot + 1)..], out selectedArm);
-            }
-            if (selectedArm is null) { selectedMatches = selected; return body; }
-            var open = match.Index + match.Value.LastIndexOf('{'); var close = Matching(body, open, '{', '}');
-            if (close < 0) { diagnostics.Add(FirmamentV2Parser.UnsupportedConstruct); selectedMatches = selected; return null; }
-            var arm = Regex.Match(body[(open + 1)..close], $@"(?m)^\s*{Regex.Escape(selectedArm)}\s*=>\s*", RegexOptions.CultureInvariant);
-            if (!arm.Success) { diagnostics.Add(FirmamentV2Parser.UnsupportedConstruct); selectedMatches = selected; return null; }
-            var armValueStart = open + 1 + arm.Index + arm.Length;
-            var value = StaticMatchArmValue(body, armValueStart, close);
-            if (value is null) { diagnostics.Add(FirmamentV2Parser.UnsupportedConstruct); selectedMatches = selected; return null; }
-            selected[name] = selectedArm;
-            body = body.Remove(match.Index, close - match.Index + 1).Insert(match.Index, value);
+            var resolved = scalars.ResolveChoices(match, diagnostics, scalars.ChoiceScope(syntax.Document, match, locals), selected: selected, sourceOffset: template.BodySpan.Start, finitePatternSelector: CanonicalStaticAuthoring.IsFinitePatternSelector(syntax.Document, match));
+            edits.Add((match.Span, FirmamentSyntaxWriter.Expression(resolved)));
         }
+        if (scalars.Diagnostics.Skip(before).Any(d => d.Severity is "error" or "fatal")) return null;
+        foreach (var edit in edits.OrderByDescending(e => e.Span.Start))
+            body = body.Remove(edit.Span.Start, edit.Span.Length).Insert(edit.Span.Start, edit.Value);
+        return body;
     }
 
-    // A Match arm may be a scalar static expression or a balanced spatial initializer such as Grid { ... }.
-    // Preserve the whole selected initializer; truncating at its first brace would leak malformed source downstream.
-    private static string? StaticMatchArmValue(string body, int start, int enclosingClose)
-    {
-        while (start < enclosingClose && char.IsWhiteSpace(body[start])) start++;
-        if (start >= enclosingClose) return null;
-        var initializer = Regex.Match(body[start..enclosingClose], @"^[A-Za-z_][A-Za-z0-9_]*\s*\{", RegexOptions.CultureInvariant);
-        if (initializer.Success)
-        {
-            var open = start + initializer.Value.LastIndexOf('{');
-            var close = Matching(body, open, '{', '}');
-            return close < 0 || close > enclosingClose ? null : body[start..(close + 1)].Trim();
-        }
-        var end = body.IndexOfAny(['\r', '\n'], start);
-        if (end < 0 || end > enclosingClose) end = enclosingClose;
-        return body[start..end].Trim();
-    }
     private static bool EvaluateRequires(string body, string instance, string signature, List<string> diagnostics,
         out IReadOnlyDictionary<string, string> results, string moduleSource, FirmamentCompileTimeValues? scalars = null)
     {
@@ -1055,7 +1111,7 @@ internal static class FirmamentV2TemplateExpansion
             if (!ValidateRecordMembers(template.Body, bound, diagnostics)) continue;
             if (!EvaluateRequires(Substitute(template.Body, bound, scalars), application.InstanceName,
                     DisplaySignature(template), diagnostics, out var requireResults, moduleSource, scalars)) continue;
-            var specializedBody = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches);
+            var specializedBody = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches, template, scalars ?? new(moduleSource));
             if (specializedBody is null) continue;
             specializedBody = Substitute(specializedBody, bound);
             specializedBody = RemoveRequires(specializedBody);

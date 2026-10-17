@@ -176,6 +176,8 @@ internal sealed class FirmamentDataBinding
                     foreach (var a in c.Arguments) Expression(a.Value, scope, false);
                     if (c.Target is not ReferenceSyntax) Expression(c.Target, scope, false);
                     return;
+                case MemberSyntax { Target: ReferenceSyntax owner } m when scope.Resolve("type", owner.Name.Text) is { Declaration.Type.Name.Text: "Enum" } choice:
+                    Rename(owner.Name, choice.Identity); return;
                 case MemberSyntax m: Expression(m.Target, scope, type); return;
                 case WithSyntax w:
                     Expression(w.Target, scope, false);
@@ -190,7 +192,7 @@ internal sealed class FirmamentDataBinding
                 case TypedValueSyntax t: Expression(t.Type, scope, true); Expression(t.Value, scope, false); return;
                 case ToleranceSyntax t:
                     Expression(t.Nominal, scope, false); Expression(t.Plus, scope, false); if (t.Minus is not null) Expression(t.Minus, scope, false); return;
-                case MatchSyntax m: Expression(m.Scrutinee, scope, false); foreach (var a in m.Arms) Expression(a.Value, scope, false); return;
+                case MatchSyntax m: Expression(m.Scrutinee, scope, false); foreach (var a in m.Arms) { Expression(a.Pattern, scope, false); Expression(a.Value, scope, false); } return;
                 case AliasSyntax a: Expression(a.Value, scope, type); return;
                 case ProvenanceSyntax p: Expression(p.Value, scope, type); return;
                 case FrameSyntax f:

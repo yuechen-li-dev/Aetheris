@@ -1,0 +1,308 @@
+[
+  {
+    "name": "template-compact",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "template-standard",
+    "shouldBuild": true,
+    "reference": "standard-reference"
+  },
+  {
+    "name": "compact-reference",
+    "shouldBuild": true,
+    "reference": null
+  },
+  {
+    "name": "standard-reference",
+    "shouldBuild": true,
+    "reference": null
+  },
+  {
+    "name": "lowercase-match",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "options-alias",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "missing-unselected",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-match-non-exhaustive"
+  },
+  {
+    "name": "missing-selected",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-match-non-exhaustive"
+  },
+  {
+    "name": "duplicate-selected",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-match-duplicate-arm"
+  },
+  {
+    "name": "unknown-arm",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-enum-unknown-variant"
+  },
+  {
+    "name": "wrong-unselected-dimension",
+    "shouldBuild": false,
+    "reference": null
+  },
+  {
+    "name": "unresolved-unselected",
+    "shouldBuild": false,
+    "reference": null
+  },
+  {
+    "name": "unknown-choice",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-template-value-argument-type-mismatch"
+  },
+  {
+    "name": "inline-arms",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "reordered-arms",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "bool-template",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "static-choice",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "feature-choice",
+    "shouldBuild": true,
+    "reference": "feature-reference"
+  },
+  {
+    "name": "concept-compact",
+    "shouldBuild": true,
+    "reference": "concept-reference"
+  },
+  {
+    "name": "concept-missing-unselected",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-match-non-exhaustive"
+  },
+  {
+    "name": "concept-duplicate",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-match-duplicate-arm"
+  },
+  {
+    "name": "concept-wrong-dimension",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-match-arm-type-mismatch"
+  },
+  {
+    "name": "duplicate-enum-case",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-enum-duplicate-variant"
+  },
+  {
+    "name": "record-choice",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "concept-reference",
+    "shouldBuild": true,
+    "reference": null
+  },
+  {
+    "name": "feature-reference",
+    "shouldBuild": true,
+    "reference": null
+  },
+  {
+    "name": "unselected-division",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "nested-match",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "boolean-expression",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "unused-incomplete-template",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-match-non-exhaustive"
+  },
+  {
+    "name": "empty-enum",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-enum-empty"
+  },
+  {
+    "name": "wildcard",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-enum-unknown-variant"
+  },
+  {
+    "name": "nominal-confusion",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-v2-expression-type-mismatch"
+  },
+  {
+    "name": "enum-cycle",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-v2-expression-cycle"
+  },
+  {
+    "name": "match-cycle",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-v2-expression-cycle"
+  },
+  {
+    "name": "scoped-choice",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "record-result",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "pmi-reference",
+    "shouldBuild": true,
+    "reference": null
+  },
+  {
+    "name": "pmi-selected-record",
+    "shouldBuild": true,
+    "reference": "pmi-reference"
+  },
+  {
+    "name": "template-default",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "unused-incomplete-feature",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-match-non-exhaustive"
+  },
+  {
+    "name": "feature-default",
+    "shouldBuild": true,
+    "reference": "feature-reference"
+  },
+  {
+    "name": "feature-local",
+    "shouldBuild": true,
+    "reference": "feature-reference"
+  },
+  {
+    "name": "direct-field",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "unselected-spatial-name",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-v2-expression-unknown-symbol"
+  },
+  {
+    "name": "unselected-spatial-field",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-v2-canonical-field-unknown"
+  },
+  {
+    "name": "unselected-invalid-tolerance",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-v2-tolerance-unit-mismatch"
+  },
+  {
+    "name": "qualified-cases",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "nominal-record-result",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-match-arm-type-mismatch"
+  },
+  {
+    "name": "parenthesized-condition",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "enum-equality",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "private-template-values",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "match-call-compatibility",
+    "shouldBuild": true,
+    "reference": "feature-reference"
+  },
+  {
+    "name": "integer-value-match",
+    "shouldBuild": false,
+    "reference": null,
+    "diagnostic": "firmament-static-match-invalid-scrutinee-type"
+  },
+  {
+    "name": "record-with-result",
+    "shouldBuild": true,
+    "reference": "compact-reference"
+  },
+  {
+    "name": "case-parameter-collision",
+    "shouldBuild": true,
+    "reference": "standard-reference"
+  },
+  {
+    "name": "feature-record-choice",
+    "shouldBuild": true,
+    "reference": "feature-reference"
+  }
+]

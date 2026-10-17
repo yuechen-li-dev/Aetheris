@@ -65,7 +65,7 @@ mutation or general-purpose computation.
 | `Feature` | A reusable recipe returning one typed semantic result. |
 | `Template` | Typed compile-time specialization of a declared product or bounded feature recipe. |
 | `Record` / `Static` | A data shape / an immutable compile-time binding. A Record is not a body. |
-| `Enum` / `Match` | A finite choice type / compile-time selection of one result. |
+| `Options` / `Enum`, `match` | A finite choice type and exhaustive compile-time selection of one value. |
 | `Set<T>` | All named entries of type T, available together for finite repetition. |
 | `Semantic` | A named engineering interface containing published datums, axes, points or dimensions. |
 | `Path` | An ordered construction chain, open or closed; it creates no material. `Concept Path` is a compatibility spelling. |
@@ -346,21 +346,66 @@ rules. See [Sheet Metal](sheet-metal.md) and [FEA](fea.md).
 
 ### Choices versus collections
 
-`Enum` and `Match` remain useful; `Set<T>` does not supersede them:
+`Options` (also spelled `Enum`) declares mutually exclusive choices. `match`
+selects one compile-time value. `Set<T>` holds every entry for Pattern to
+construct. These are different operations; a choice declaration does not
+construct a body for each case.
 
-| Intent | Form | Compile-time meaning |
-| --- | --- | --- |
-| Choose Compact or Standard | `Enum SizeChoice { Compact Standard }` | Define alternatives; a typed parameter holds one case. |
-| Compute a value for the selected case | `Match choice { Compact => 1mm Standard => 2mm }` | Select one arm in an admitted Template/static expression position. |
-| Construct every mount | `Static mounts: Set<Point2> { ... }` and `Pattern` | Bind all entries; expand the recipe for each named entry. |
+**Complete file — choose one plate width:**
 
-Enum cases are tags, not coordinates or a collection of feature instances.
-Match is not a runtime branch or a general statement executor. Pattern repeats
-construction; it does not choose an enum case. Match support is bounded by its
-consumer: the Template binder supports typed choices, while Model scalar Static
-initializers currently admit literals, aliases and arithmetic. Do not infer
-general Match support from its presence in the syntax tree. See
-[Templates](templates.md) and the Pattern examples below.
+```firmament
+Model ConfiguredPlate {
+    units: mm
+    Options SizeChoice { Compact Standard }
+    Static size: SizeChoice = Compact
+    Static width: Length = match size {
+        Compact => 40mm
+        Standard => 80mm
+    }
+    Box stock { size: [width, 20mm, 5mm] }
+}
+```
+
+Use PascalCase for type and case names, camelCase for values and fields, and
+lowercase `match` for the expression keyword. `Enum` and `Options` are the same
+nominal type declaration; `Options` does not mean a set of enabled flags.
+The older `Match` spelling remains compatible. Formatting changes the expression
+keyword to `match` without renaming authored symbols, cases or strings.
+
+Every Enum case, or both `true` and `false` for Bool, must appear exactly once.
+Missing, duplicate and unknown cases reject, including cases that would not be
+selected. There is no wildcard/default arm, fallthrough, guard or payload-enum
+syntax. Cases can be qualified (`SizeChoice.Compact`); a value of another Enum
+is not interchangeable merely because both types have a `Compact` case.
+
+All arms must bind names and have the same result type. `Length` and `Angle`
+cannot share a result; nor can two different Record types with identical fields.
+Only the selected value is evaluated. An unselected arithmetic expression does
+not execute, and an unselected spatial value does not construct geometry.
+This does not excuse misspelled names, fields or incompatible tolerances in that
+arm. Ordinary declarations still have their own admission rules.
+
+Use choice expressions in scalar Static initializers, admitted Record fields,
+Template inputs/defaults/bodies, Feature inputs/defaults/locals, and existing
+Concept spatial values such as Box3 bounds and Grid point sets. Boolean scalar
+comparisons can be scrutinees: `match diameter > 8mm { true => 6mm; false => 4mm }`.
+Arms may occupy separate lines or use semicolons on one line. A selected Record
+retains its nominal type; a selected dimensional requirement retains its
+tolerance allowance and original-source provenance. PMI remains explicit:
+selecting a toleranced value alone creates no annotation. The allowance's syntax
+is still `tol`, as described above.
+
+`match` is an expression, not a statement executor. It does not conditionally
+execute arbitrary Feature, Part, Mate or Assembly declaration blocks. Domain
+constructors and collection forms must still be admitted by their ordinary
+consumer; structural parsing is not permission to construct a new value type.
+
+One compatibility form is intentionally narrower: existing numeric selectors in
+`Pattern ... over Match count { 4 => bolts4; 6 => bolts6; 8 => bolts8 }` choose
+among finite collections. They retain their existing Pattern owner, check all
+arms, and reject an unlisted count. This is not general exhaustive Int matching.
+Use `Options` for new categorical choices and Tables for standard-value matrices.
+See [Templates](templates.md) for typed specialization.
 
 ## Constructing from a layout
 

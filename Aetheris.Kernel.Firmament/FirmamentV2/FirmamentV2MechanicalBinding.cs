@@ -48,10 +48,10 @@ public static partial class FirmamentV2Parser
         {
             if (syntax.Statements.Concat(model.Body.Statements).OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text == "Static"))
                 return CanonicalFailure(diagnostics, "firmament-v2-static-scalar-consumer-unsupported: Concept-valued material construction requires its existing typed Template inputs.");
-            return ParseConceptModelingDocument(source, diagnostics, templateInstantiations);
+            return ParseConceptModelingDocument(source, diagnostics, templateInstantiations, compileTime);
         }
         var outerStatements = syntax.Statements.Where(s => !ReferenceEquals(s, model)).ToArray();
-        var staticValues = BindStaticValues(syntax, model, source, diagnostics, compileTime?.MaterialInputs(source));
+        var staticValues = BindStaticValues(syntax, model, source, diagnostics, compileTime?.MaterialInputs(source), compileTime);
         model = staticValues.Model;
         BindMechanicalScope(outerStatements.Where(s => s is not DeclarationSyntax { Type.Name.Text: "Static" }).ToArray(), diagnostics);
         BindMechanicalScope(model.Body!.Statements.Where(s => s is not DeclarationSyntax { Type.Name.Text: "Static" }).ToArray(), diagnostics);
@@ -81,7 +81,7 @@ public static partial class FirmamentV2Parser
         {
             // The construction adapter consumes serialized bound AST fields. An
             // unused Static is data, never a reason to reject a material owner.
-            var construction = BindMechanicalConstruction(source, model, diagnostics, templateInstantiations);
+            var construction = BindMechanicalConstruction(source, model, diagnostics, templateInstantiations, compileTime);
             return construction.Document is null ? construction : construction with
             {
                 Document = construction.Document with { Lets = staticValues.Declarations, BoundLets = staticValues.Values },

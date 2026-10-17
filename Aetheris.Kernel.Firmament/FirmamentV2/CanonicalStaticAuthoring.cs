@@ -14,6 +14,14 @@ internal static class CanonicalStaticAuthoring
     internal sealed record Result(string Source, FirmamentV2StaticAuthoringDocument? Document);
     private sealed record Template(string Name, string Type, string Parameter, string Body, FirmamentV2SourceSpan Span);
 
+    // Historical Pattern sources select one of explicitly listed finite
+    // collections. This is not a general or exhaustive Int value match.
+    internal static IReadOnlyList<string> FinitePatternDomain(MatchSyntax match) => match.Arms
+        .Select(a => FirmamentChoiceBinding.Pattern(a.Pattern, "Int")).OfType<string>().Distinct(StringComparer.Ordinal).ToArray();
+
+    internal static bool IsFinitePatternSelector(DocumentSyntax document, MatchSyntax match) => FirmamentSyntaxTraversal.Declarations(document)
+        .Any(d => d.Type.Name.Text == "Pattern" && d.Clauses.Any(c => c.Kind == ClauseKind.Over && c.Value.Span == match.Span));
+
     /// <summary>Assembly consumes the same checked Record/Set values, but yields product-tree declarations.</summary>
     internal static Result? ExpandAssemblyPatterns(string source, List<string> diagnostics, bool spatial = false)
     {
@@ -21,6 +29,7 @@ internal static class CanonicalStaticAuthoring
         diagnostics.AddRange(binding.Diagnostics.Select(d => d.Code + ": " + d.Message));
         if (binding.Diagnostics.Count > 0) return null;
         source = binding.Source;
+
         // Assembly frames consume the same checked Record leaves as mechanical
         // geometry. Alpha-bound identities preserve lexical scope; the existing
         // substitution owner transports their nominal values to domain readers.
@@ -192,6 +201,12 @@ internal static class CanonicalStaticAuthoring
         if (binding.Diagnostics.Count > 0) return null;
         scalars?.UseDataBinding(binding);
         source = binding.Source;
+        if (scalars is null)
+        {
+            var choices = new FirmamentChoiceBinding(source);
+            diagnostics.AddRange(choices.Diagnostics.Select(d => d.Code + ": " + d.Message));
+            if (choices.Diagnostics.Any(d => d.Severity is "error" or "fatal")) return null;
+        }
         var points = ConceptPointAuthoring.Expand(source, diagnostics);
         if (points is null) return null;
         source = points.Source;
@@ -222,11 +237,11 @@ internal static class CanonicalStaticAuthoring
 
         // Enums are static type declarations. Modern template binding has consumed their
         // variants already, so keep them out of the material grammar just like Records.
-        foreach (Match header in Regex.Matches(source, @"\bEnum\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant))
-        {
-            var close = MatchPair(source, source.IndexOf('{', header.Index), '{', '}');
-            if (close >= 0) changes.Add((header.Index, close - header.Index + 1, string.Empty));
-        }
+        var choiceTypes = new FirmamentChoiceBinding(source).Types;
+        foreach (var declaration in FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
+            .Where(d => d.Type.Name.Text == "Enum" || d.Type.Name.Text == "Static"
+                && choiceTypes.ContainsKey(FirmamentSyntaxValues.Reference(d.Annotation) ?? "")))
+            changes.Add((declaration.Span.Start, declaration.Span.Length, string.Empty));
 
         var catalog = FirmamentV2TemplateExpansion.ReadDataCatalog(source, diagnostics, scalars);
         foreach (var record in catalog.Types.Values)

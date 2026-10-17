@@ -1,0 +1,10 @@
+Template<width: Length>
+Model Family {
+ units: mm
+ Options SizeChoice { Compact Standard }
+ Record LocalSpec { kind: SizeChoice }
+ Static config: LocalSpec = LocalSpec { kind: Compact }
+ Static thickness: Length = match config.kind { Compact => 5mm; Standard => 10mm }
+ Box Stock { size: [width, 20mm, thickness] }
+}
+Model Result = Family<width: 40mm>

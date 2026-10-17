@@ -1,0 +1,11 @@
+Model Result {
+ units: mm
+ Options SizeChoice { Compact Standard }
+ Record PlateSpec { width: Length }
+ Static small: PlateSpec = PlateSpec { width: 40mm }
+ Static large: PlateSpec = PlateSpec { width: 80mm }
+ Static choice: SizeChoice = Compact
+ Static selected: PlateSpec = match choice { Compact => small; Standard => large }
+ Template<spec: PlateSpec> Struct Plate { Box Stock { size: [spec.width, 20mm, 5mm] } }
+ Struct Result = Plate<spec: selected>
+}

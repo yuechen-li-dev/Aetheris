@@ -1,0 +1,16 @@
+Enum SizeChoice {
+    Compact
+    Standard
+}
+Concept Struct Design {
+    choice: SizeChoice = Compact
+    Bounds: Match choice {
+        Compact => Box3 { Size: [40mm, 20mm, 5mm] }
+        Standard => 80deg
+    }
+    TopPlane: Bounds.Face(+Z)
+}
+Struct Result {
+    Box Stock { Bounds: Design.Bounds }
+    Modify Stock { EdgeFinish Break { Face: +Z; Target: Boundary; Kind: Chamfer; Distance: 1mm } }
+}

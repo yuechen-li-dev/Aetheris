@@ -92,7 +92,7 @@ internal sealed class FirmamentTemplateSyntax
                         parameters.Add(new TemplateTypeParameterIr(type.Name.Text, constraint.Name.Text, parameter.Span));
                     else if (parameter.Value is ReferenceSyntax value)
                         parameters.Add(new TemplateValueParameterIr(parameter.Name.Text, value.Name.Text,
-                            parameter.Default is null ? null : Text(parameter.Default.Span), parameter.Span));
+                            parameter.Default is null ? null : Text(parameter.Default.Span), parameter.Span) { DefaultSpan = parameter.Default?.Span });
                     else diagnostics.Add(FirmamentV2TemplateExpansion.InvalidParameter + ":" + parameter.Name.Text);
                 }
                 var template = new TemplateDeclarationIr(declaration.Name.Text, kind,
@@ -100,6 +100,7 @@ internal sealed class FirmamentTemplateSyntax
                     parameters.ToImmutable(), Text(declaration.Body.ContentSpan), declaration.Span)
                 {
                     DefinitionScope = scope,
+                    BodySpan = declaration.Body.ContentSpan,
                     BodyScope = new(scope, scope.Identity + "/" + kind + " " + declaration.Name.Text + "@" + declaration.Span.Start),
                 };
                 if (!scope.Declare(declaration, template)) Error(FirmamentV2TemplateExpansion.DuplicateName + ":" + template.Name, $"Template '{template.Name}' is already declared in scope '{scope.Identity}'.", declaration);

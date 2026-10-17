@@ -1,0 +1,9 @@
+Enum SizeChoice { Compact Standard }
+Template<Compact: SizeChoice, Standard: SizeChoice>
+Struct Plate {
+    Box Stock { Size: [match Compact {
+        Compact => 40mm
+        Standard => 80mm
+    }, 20mm, 5mm] }
+}
+Struct Result = Plate<Compact: Standard, Standard: Compact>

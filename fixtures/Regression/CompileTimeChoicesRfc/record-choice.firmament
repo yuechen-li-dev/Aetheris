@@ -1,0 +1,11 @@
+Enum SizeChoice { Compact Standard }
+Record PlateSpec { choice: SizeChoice }
+Static compact: PlateSpec = PlateSpec { choice: Compact }
+Template<spec: PlateSpec>
+Struct Plate {
+    Box Stock { Size: [Match spec.choice {
+        Compact => 40mm
+        Standard => 80mm
+    }, 20mm, 5mm] }
+}
+Struct Result = Plate<spec: compact>

@@ -1,0 +1,7 @@
+Model Result {
+    units: mm
+    Enum SizeChoice { Compact Standard }
+    Static choice: SizeChoice = Compact
+    Static width: Length = Match choice { Compact => 40mm; Standard => 80mm }
+    Box Stock { Size: [width, 20mm, 5mm] }
+}

@@ -1,0 +1,8 @@
+Template<choice: Bool>
+Struct Plate {
+    Box Stock { Size: [Match choice {
+        true => 40mm
+        false => 80mm
+    }, 20mm, 5mm] }
+}
+Struct Result = Plate<choice: true>

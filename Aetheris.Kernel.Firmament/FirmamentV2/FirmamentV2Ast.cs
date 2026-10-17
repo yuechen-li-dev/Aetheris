@@ -30,6 +30,7 @@ public sealed record FirmamentV2LiteralExpression(FirmamentV2LiteralValue Value)
 public sealed record FirmamentV2DottedReferenceExpression(string RecordName, string FieldName, string Source) : FirmamentV2ValueExpression;
 public sealed record FirmamentV2IdentifierReferenceExpression(string Name, string Source) : FirmamentV2ValueExpression;
 public sealed record FirmamentV2BinaryExpression(FirmamentV2ValueExpression Left, string Operator, FirmamentV2ValueExpression Right, string Source) : FirmamentV2ValueExpression;
+public sealed record FirmamentV2UnaryExpression(string Operator, FirmamentV2ValueExpression Operand, string Source) : FirmamentV2ValueExpression;
 public sealed record FirmamentV2LetDeclaration(string Name, FirmamentV2PrimitiveType DeclaredType, FirmamentV2ValueExpression ValueExpression, FirmamentV2SourceSpan SourceSpan, FirmamentV2Tolerance? Tolerance = null)
 {
     public FirmamentV2LiteralValue LiteralValue => ValueExpression is FirmamentV2LiteralExpression literal ? literal.Value : throw new InvalidOperationException("Let value is not a literal.");

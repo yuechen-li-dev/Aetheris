@@ -596,7 +596,7 @@ public static partial class FirmamentV2Parser
         if (syntax.Document.Statements.OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text is "Model" or "Struct" or "Concept"
             || d.Modifiers.Any(m => m.Name.Text == "Concept")))
             return Recognized(WithFeatureMetadata(
-                AttachVolumeAssertionsAndSymbols(WithPolygonMetadata(ParseConceptModelingDocument(RemoveCanonicalVolumeAssertions(source), diagnostics, templateExpansion.Instantiations), polygonExpansion), source, canonicalStaticExpansion.Document, diagnostics),
+                AttachVolumeAssertionsAndSymbols(WithPolygonMetadata(ParseConceptModelingDocument(RemoveCanonicalVolumeAssertions(source), diagnostics, templateExpansion.Instantiations, compileTime), polygonExpansion), source, canonicalStaticExpansion.Document, diagnostics),
                 featureExpansion, compileTime)) with { ParserRoute = "ConceptModeling" };
 
         if (ContainsRawBackendId(source)) diagnostics.Add(RawBackendIdReferenceForbidden);
@@ -730,7 +730,7 @@ public static partial class FirmamentV2Parser
             || tokens[0].Text == "{" && tokens[1].Shape == "string")) return false;
         for (var index = 0; index < tokens.Length; index++)
             if (tokens[index].Shape == "identifier"
-                && tokens[index].Text is "Model" or "model" or "Struct" or "Assembly" or "Scene" or "Concept" or "Interface" or "Template" or "template" or "Pattern" or "Profile" or "Panel"
+                && tokens[index].Text is "Model" or "model" or "Struct" or "Assembly" or "Scene" or "Concept" or "Interface" or "Template" or "template" or "Pattern" or "Profile" or "Panel" or "Enum" or "Options"
                 && (index + 1 == tokens.Length || tokens[index + 1].Text != ":")) return true;
         return false;
     }
@@ -1007,8 +1007,16 @@ public static partial class FirmamentV2Parser
             FirmamentV2IdentifierReferenceExpression r => EvalId(r),
             FirmamentV2DottedReferenceExpression r => EvalDotted(r),
             FirmamentV2BinaryExpression b => EvalBinary(b),
+            FirmamentV2UnaryExpression u => EvalNot(u),
             _ => null
         };
+        private FirmamentV2BoundExpression? EvalNot(FirmamentV2UnaryExpression unary)
+        {
+            var operand = Eval(unary.Operand);
+            if (operand is null) return null;
+            if (unary.Operator != "!" || operand.InferredType != FirmamentV2PrimitiveType.Bool) { _diagnostics.Add(ExpressionInvalidOperator); return null; }
+            return operand with { Value = new(FirmamentV2PrimitiveType.Bool, !(bool)operand.Value.Value), AliasTolerance = null };
+        }
         private FirmamentV2BoundExpression? EvalId(FirmamentV2IdentifierReferenceExpression r)
         {
             if (_records.ContainsKey(r.Name)) { _diagnostics.Add(ExpressionRecordUsedAsValue); _diagnostics.Add(LetReferenceRecordUsedAsValue); return null; }
@@ -1030,13 +1038,25 @@ public static partial class FirmamentV2Parser
             if (type is null) { _diagnostics.Add(ExpressionInvalidOperator); return null; }
             if (b.Operator == "/" && IsZero(r.Value)) { _diagnostics.Add(ExpressionDivisionByZero); return null; }
             var val = Compute(type.Value, l.Value, b.Operator, r.Value, b.Source);
-            return new(type.Value, val, new HashSet<string>(l.Dependencies.Concat(r.Dependencies), StringComparer.Ordinal), new(0, b.Source.Length), null, l.AliasTolerance is not null || r.AliasTolerance is not null || l.UsesTolerancedValueInArithmetic || r.UsesTolerancedValueInArithmetic);
+            var arithmetic = b.Operator is "+" or "-" or "*" or "/";
+            return new(type.Value, val, new HashSet<string>(l.Dependencies.Concat(r.Dependencies), StringComparer.Ordinal), new(0, b.Source.Length), null,
+                arithmetic && (l.AliasTolerance is not null || r.AliasTolerance is not null || l.UsesTolerancedValueInArithmetic || r.UsesTolerancedValueInArithmetic));
         }
         private static bool IsZero(FirmamentV2LiteralValue v) => v.NumericValue is double d && d == 0d;
         internal static FirmamentV2PrimitiveType? ResultType(FirmamentV2PrimitiveType a, string op, FirmamentV2PrimitiveType b) =>
-            FirmamentNumericEvaluation.ResultType(a, op, b);
+            op is "&&" or "||" ? a == FirmamentV2PrimitiveType.Bool && b == a ? FirmamentV2PrimitiveType.Bool : null
+            : op is "==" or "!=" ? a == b ? FirmamentV2PrimitiveType.Bool : null
+            : op is "<" or "<=" or ">" or ">=" ? a == b && a is FirmamentV2PrimitiveType.Int or FirmamentV2PrimitiveType.Float or FirmamentV2PrimitiveType.Length or FirmamentV2PrimitiveType.Angle or FirmamentV2PrimitiveType.Time ? FirmamentV2PrimitiveType.Bool : null
+            : FirmamentNumericEvaluation.ResultType(a, op, b);
         private static FirmamentV2LiteralValue Compute(FirmamentV2PrimitiveType type, FirmamentV2LiteralValue l, string op, FirmamentV2LiteralValue r, string raw)
         {
+            if (type == FirmamentV2PrimitiveType.Bool)
+            {
+                var order = l.NumericValue is { } ln && r.NumericValue is { } rn ? ln.CompareTo(rn) : Equals(l.Value, r.Value) ? 0 : 1;
+                var result = op switch { "&&" => (bool)l.Value && (bool)r.Value, "||" => (bool)l.Value || (bool)r.Value,
+                    "==" => order == 0, "!=" => order != 0, "<" => order < 0, "<=" => order <= 0, ">" => order > 0, _ => order >= 0 };
+                return new(type, result, Raw: raw);
+            }
             var a = Convert.ToDouble(l.NumericValue, CultureInfo.InvariantCulture); var b = Convert.ToDouble(r.NumericValue, CultureInfo.InvariantCulture);
             var operation = op switch { "+" => BinaryOperator.Add, "-" => BinaryOperator.Subtract, "*" => BinaryOperator.Multiply, "/" => BinaryOperator.Divide, _ => throw new InvalidOperationException("Unbound arithmetic operator.") };
             if (!FirmamentNumericEvaluation.TryBinary(new(a, l.Unit ?? ""), operation, new(b, r.Unit ?? ""), out var computed))
@@ -1131,7 +1151,7 @@ public static partial class FirmamentV2Parser
     /// production profile and section-stack readers remain semantic adapters; this
     /// method owns the root, units, disposition, and normalized declaration list.
     /// </summary>
-    private static FirmamentV2ParseResult BindMechanicalConstruction(string source, DeclarationSyntax model, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations)
+    private static FirmamentV2ParseResult BindMechanicalConstruction(string source, DeclarationSyntax model, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations, FirmamentCompileTimeValues? compileTime = null)
     {
         source = MechanicalConstructionSource(source, model, diagnostics);
         if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
@@ -1251,7 +1271,7 @@ public static partial class FirmamentV2Parser
             return FirmamentV2ParseResult.Success(document, diagnostics.Distinct(StringComparer.Ordinal).ToArray()) with { BoundProfile = resolved, ExtrusionHeight = profile.Height, BoundSource = adapterSource };
         }
 
-        var concept = ParseConceptModelingDocument(declarations.Any(d => d.Type.Name.Text == "Struct" && !d.Modifiers.Any(m => m.Name.Text == "Concept")) ? adapterSource : source, diagnostics, templateInstantiations);
+        var concept = ParseConceptModelingDocument(declarations.Any(d => d.Type.Name.Text == "Struct" && !d.Modifiers.Any(m => m.Name.Text == "Concept")) ? adapterSource : source, diagnostics, templateInstantiations, compileTime);
         if (!concept.IsSuccess || concept.Document is null) return concept;
         var conceptSolids = concept.Document.Solids.ToDictionary(solid => solid.Name, StringComparer.Ordinal);
         var (conceptPmi, conceptPmiBlock, conceptBoundPmi) = ParsePmi(
@@ -1842,14 +1862,16 @@ public static partial class FirmamentV2Parser
         return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
     }
 
-    private static FirmamentV2ParseResult ParseConceptModelingDocument(string source, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations = null)
+    private static FirmamentV2ParseResult ParseConceptModelingDocument(string source, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations = null, FirmamentCompileTimeValues? scalars = null)
     {
-        var resolution = ConceptIrResolver.Resolve(source, diagnostics);
+        var before = scalars?.Diagnostics.Count ?? 0;
+        var resolution = ConceptIrResolver.Resolve(source, diagnostics, scalars);
         if (resolution is null || diagnostics.Any(IsFatalDiagnosticCode))
         {
             diagnostics.Add("firmament-v2-parse-failed");
             diagnostics.Sort(StringComparer.Ordinal);
-            return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+            return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).ToArray())
+                with { SyntaxDiagnostics = scalars?.Diagnostics.Skip(before).ToArray() ?? [] };
         }
 
         var solid = new FirmamentV2SolidBinding(

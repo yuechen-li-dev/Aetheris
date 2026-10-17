@@ -1,0 +1,8 @@
+Model Result {
+ units: mm
+ Feature match(diameter: Length) -> Hole<Shaft> {
+  return Hole<Shaft> { on: +Z center: Point2(0mm, 0mm) diameter: diameter end: ThroughAll }
+ }
+ Box Stock { size: [40mm, 20mm, 5mm] }
+ Modify Stock { Feature mount = match(diameter: 6mm) }
+}

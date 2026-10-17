@@ -1,0 +1,10 @@
+Model Result {
+    units: mm
+
+    Enum SizeChoice { Compact Standard }
+    Feature Bore(choice: SizeChoice = Compact, diameter: Length = match choice { Compact => 6mm; Standard => 10mm }) -> Hole<Shaft> {
+        return Hole<Shaft> { on: +Z center: Point2(0mm, 0mm) diameter: diameter end: ThroughAll }
+    }
+    Box Stock { size: [40mm, 20mm, 5mm] }
+    Modify Stock { Feature mount = Bore() }
+}

@@ -84,7 +84,9 @@ public static class FirmamentTemplateSourceCompiler
     {
         ArgumentNullException.ThrowIfNull(source);
         var collected = new List<string>();
-        var expansion = FirmamentV2TemplateExpansion.Expand(source, collected);
+        var values = new FirmamentCompileTimeValues(source);
+        var expansion = FirmamentV2TemplateExpansion.Expand(source, collected, values);
+        collected.AddRange(values.Diagnostics.Select(d => d.Code + ": " + d.Message));
         diagnostics = collected.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         return expansion is null ? null : new(expansion.Source, expansion.Instantiations);
     }
@@ -136,7 +138,7 @@ public static class FirmamentTemplateHostBridge
             .Select(record => new FirmamentTemplateRecordMetadata(dataBinding.DisplayName(record.Name),
                 record.Fields.Select(field => new FirmamentTemplateRecordFieldMetadata(field.Key, dataBinding.DisplayName(field.Value))).ToArray()))
             .ToArray();
-        var enums = FirmamentV2TemplateExpansion.InspectEnums(moduleSource)
+        var enums = FirmamentV2TemplateExpansion.InspectEnums(moduleSource, collected)
             .Where(item => Visible("type", item.Key))
             .Select(item => new FirmamentTemplateEnumMetadata(dataBinding.DisplayName(item.Key), item.Value.ToArray()))
             .ToArray();
@@ -175,8 +177,10 @@ public static class FirmamentTemplateHostBridge
             diagnostics = ["firmament-host-argument-duplicate"];
             return null;
         }
+        var values = new FirmamentCompileTimeValues(moduleSource);
         var expansion = FirmamentV2TemplateExpansion.ExpandHostInvocation(
-            moduleSource, templateName, instanceName, hostArguments, collected);
+            moduleSource, templateName, instanceName, hostArguments, collected, values);
+        collected.AddRange(values.Diagnostics.Select(d => d.Code + ": " + d.Message));
         diagnostics = collected.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         if (expansion is null) return null;
         var instance = expansion.Instantiations.First(item =>

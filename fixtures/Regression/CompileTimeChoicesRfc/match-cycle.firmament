@@ -1,0 +1,6 @@
+Model Result {
+ units: mm
+ Options SizeChoice { Compact Standard }
+ Static a: SizeChoice = match a { Compact => Compact; Standard => Standard }
+ Box Stock { size: [40mm, 20mm, 5mm] }
+}

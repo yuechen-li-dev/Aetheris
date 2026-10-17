@@ -14,7 +14,7 @@ public static partial class FirmamentV2Parser
     // Static scalars share the existing typed dependency binder and tolerance IR.
     // Only syntax is projected here; there is no text substitution or second evaluator.
     private static StaticValueBinding BindStaticValues(DocumentSyntax syntax, DeclarationSyntax model, string source,
-        List<string> diagnostics, IReadOnlyList<FirmamentV2BoundLet>? inputs = null)
+        List<string> diagnostics, IReadOnlyList<FirmamentV2BoundLet>? inputs = null, FirmamentCompileTimeValues? compileTime = null)
     {
         var declarations = new List<FirmamentV2LetDeclaration>();
         var located = new List<FirmamentV2ValidationDiagnostic>();
@@ -29,24 +29,18 @@ public static partial class FirmamentV2Parser
         }
         foreach (var nested in MechanicalDeclarations(model.Body!.Statements).Where(d => d.Type.Name.Text == "Static" && !statics.Contains(d)))
             Error("firmament-v2-static-scalar-scope-unsupported", "Declare scalar Static values directly in the Model or its module; nested construction scopes do not introduce scalar environments.", nested.Span, nested.Name?.Text);
-        FirmamentV2PrimitiveType? InferType(ExpressionSyntax? e, HashSet<string> visiting) => e switch
+        FirmamentV2PrimitiveType? InferType(ExpressionSyntax? e, HashSet<string> visiting)
         {
-            ToleranceSyntax t => InferType(t.Nominal, visiting),
-            QuantitySyntax { Unit.Text: "mm" } => FirmamentV2PrimitiveType.Length,
-            QuantitySyntax { Unit.Text: "deg" } => FirmamentV2PrimitiveType.Angle,
-            QuantitySyntax { Unit.Text: "s" or "ms" } => FirmamentV2PrimitiveType.Time,
-            LiteralSyntax { Kind: LiteralKind.Boolean } => FirmamentV2PrimitiveType.Bool,
-            LiteralSyntax { Kind: LiteralKind.String } => FirmamentV2PrimitiveType.String,
-            LiteralSyntax { Kind: LiteralKind.Number } n => n.Raw.Contains('.') || n.Raw.Contains('e', StringComparison.OrdinalIgnoreCase) ? FirmamentV2PrimitiveType.Float : FirmamentV2PrimitiveType.Int,
-            UnarySyntax u => InferType(u.Operand, visiting),
-            SequenceSyntax { Kind: SequenceKind.Tuple, Items.Count: 1 } g => InferType(g.Items[0].Value, visiting),
-            ReferenceSyntax r when visiting.Count < 128 && visiting.Add(r.Name.Text) => InferReference(r.Name.Text, visiting),
-            MemberSyntax m when FirmamentSyntaxValues.Reference(m) is { } member && visiting.Count < 128 && visiting.Add(member) => InferReference(member, visiting),
-            BinarySyntax b when InferType(b.Left, new(visiting, StringComparer.Ordinal)) is { } l
-                && InferType(b.Right, new(visiting, StringComparer.Ordinal)) is { } r => ExpressionBinder.ResultType(l,
-                    b.Operator switch { BinaryOperator.Add => "+", BinaryOperator.Subtract => "-", BinaryOperator.Multiply => "*", BinaryOperator.Divide => "/", _ => "" }, r),
-            _ => null
-        };
+            if (e is null) return null;
+            var type = FirmamentChoiceBinding.Infer(e, reference =>
+            {
+                var name = FirmamentSyntaxValues.Reference(reference);
+                if (name is null || visiting.Count >= 128 || visiting.Contains(name)) return null;
+                var nested = new HashSet<string>(visiting, StringComparer.Ordinal) { name };
+                return InferReference(name, nested)?.ToString();
+            }, match => match.Arms.Count == 0 ? null : InferType(match.Arms[0].Value, visiting)?.ToString());
+            return type is not null && TryParseLetType(type, out var primitive) ? primitive : null;
+        }
         FirmamentV2PrimitiveType? InferReference(string name, HashSet<string> visiting)
         {
             var matches = statics.Where(d => d.Name?.Text == name).ToArray();
@@ -59,7 +53,7 @@ public static partial class FirmamentV2Parser
         {
             var typeName = FirmamentSyntaxValues.Reference(d.Annotation);
             var declared = typeName is not null && TryParseLetType(typeName, out var explicitType) ? explicitType
-                : d.Annotation is null ? InferType(d.Initializer, new(StringComparer.Ordinal)) : null;
+                : d.Annotation is null ? inputs?.FirstOrDefault(v => v.Name == d.Name?.Text)?.Type ?? InferType(d.Initializer, new(StringComparer.Ordinal)) : null;
             if (d.Name is null || declared is not { } type
                 || d.Initializer is null || d.Body is not null || d.Modifiers.Count > 0 || d.Type.Arguments.Count > 0
                 || d.Parameters.Count > 0 || d.Clauses.Count > 0 || d.ResultType is not null || d.Occurrence)
@@ -70,30 +64,13 @@ public static partial class FirmamentV2Parser
             }
             if (!names.Add(d.Name.Text)) { Error(DuplicateName, $"Duplicate compile-time name '{d.Name.Text}'.", d.Span, d.Name.Text); continue; }
             var valueSyntax = d.Initializer;
+            if (inputs?.FirstOrDefault(v => v.Name == d.Name.Text) is { } prebound)
+                valueSyntax = Literal(prebound, valueSyntax.Span);
             FirmamentV2Tolerance? tolerance = null;
             if (valueSyntax is ToleranceSyntax t)
             {
                 valueSyntax = t.Nominal;
-                if (type is not (FirmamentV2PrimitiveType.Length or FirmamentV2PrimitiveType.Angle))
-                    Error(ToleranceInvalidType, "tol requires a Length or Angle value.", t.ToleranceSpan, d.Name.Text);
-                else
-                {
-                    var unit = type == FirmamentV2PrimitiveType.Length ? "mm" : "deg";
-                    var asymmetric = t.Plus is UnarySyntax { Operator: UnaryOperator.Positive };
-                    if (asymmetric && t.Minus is null)
-                        Error(ToleranceMissingMinus, "A +upper tolerance requires -lower; use tol 0.1mm for a symmetric allowance.", t.ToleranceSpan, d.Name.Text);
-                    else if (!FirmamentSyntaxValues.TryMeasure(t.Plus, unit, out var plus)
-                        || t.Minus is not null && !FirmamentSyntaxValues.TryMeasure(t.Minus, unit, out _))
-                        Error(ToleranceUnitMismatch, $"Tolerance must have the value's dimensional unit ({unit}).", t.ToleranceSpan, d.Name.Text);
-                    else
-                    {
-                        var minus = t.Minus is null ? plus : FirmamentSyntaxValues.TryMeasure(t.Minus, unit, out var m) ? m : double.NaN;
-                        if (plus < 0 || minus < 0)
-                            Error(ToleranceNegativeBilateral, "Tolerance allowances must be finite nonnegative magnitudes; write tol +upper -lower.", t.ToleranceSpan, d.Name.Text);
-                        else tolerance = new(asymmetric ? FirmamentV2ToleranceKind.Asymmetric : FirmamentV2ToleranceKind.Bilateral,
-                            plus, minus, unit, type, t.ToleranceSpan);
-                    }
-                }
+                tolerance = BindTolerance(t, type, (code, message, span) => Error(code, message, span, d.Name.Text));
             }
             if (ValueExpression(valueSyntax, type) is { } expression)
                 declarations.Add(new(d.Name.Text, type, expression, d.Span, tolerance));
@@ -137,6 +114,7 @@ public static partial class FirmamentV2Parser
         var map = values.ToDictionary(v => v.Name, StringComparer.Ordinal);
         ExpressionSyntax Nominal(ExpressionSyntax e) => e switch
         {
+            MatchSyntax m when compileTime is not null => Select(m),
             MemberSyntax m when FirmamentSyntaxValues.Reference(m) is { } name && map.TryGetValue(name, out var value) => Literal(value, e.Span),
             ReferenceSyntax r when map.TryGetValue(r.Name.Text, out var value) => Literal(value, e.Span),
             BinarySyntax b => b with { Left = Nominal(b.Left), Right = Nominal(b.Right) },
@@ -147,6 +125,13 @@ public static partial class FirmamentV2Parser
             ToleranceSyntax t => RejectInline(t),
             _ => e
         };
+        ExpressionSyntax Select(MatchSyntax match)
+        {
+            var before = compileTime!.Diagnostics.Count;
+            var selected = compileTime.ResolveChoices(match, diagnostics);
+            located.AddRange(compileTime.Diagnostics.Skip(before));
+            return selected is MatchSyntax ? selected : Nominal(selected);
+        }
         ExpressionSyntax RejectInline(ToleranceSyntax t)
         {
             Error(ToleranceUnsupported, "Declare a named Static value with tol, use its nominal value in geometry, then project it with Pmi dimension: name.", t.ToleranceSpan);
@@ -171,13 +156,18 @@ public static partial class FirmamentV2Parser
             if (e is SequenceSyntax { Kind: SequenceKind.Tuple, Items.Count: 1 } group) return ValueExpression(group.Items[0].Value, expected);
             if (e is BinarySyntax b)
             {
-                var op = b.Operator switch { BinaryOperator.Add => "+", BinaryOperator.Subtract => "-", BinaryOperator.Multiply => "*", BinaryOperator.Divide => "/", _ => null };
+                var op = b.Operator switch { BinaryOperator.Add => "+", BinaryOperator.Subtract => "-", BinaryOperator.Multiply => "*", BinaryOperator.Divide => "/",
+                    BinaryOperator.Equal => "==", BinaryOperator.NotEqual => "!=", BinaryOperator.Less => "<", BinaryOperator.LessEqual => "<=", BinaryOperator.Greater => ">", BinaryOperator.GreaterEqual => ">=",
+                    BinaryOperator.And => "&&", BinaryOperator.Or => "||", _ => null };
                 return op is not null && ValueExpression(b.Left, expected) is { } l && ValueExpression(b.Right, expected) is { } rgt
                     ? new FirmamentV2BinaryExpression(l, op, rgt, text) : null;
             }
+            if (e is UnarySyntax { Operator: UnaryOperator.Not } not && ValueExpression(not.Operand, FirmamentV2PrimitiveType.Bool) is { } operand)
+                return new FirmamentV2UnaryExpression("!", operand, text);
             var unit = e is QuantitySyntax q ? q.Unit.Text : e is UnarySyntax { Operand: QuantitySyntax uq } ? uq.Unit.Text : "";
             var inferred = unit switch { "mm" => FirmamentV2PrimitiveType.Length, "deg" => FirmamentV2PrimitiveType.Angle, "s" or "ms" => FirmamentV2PrimitiveType.Time,
-                "" => expected is FirmamentV2PrimitiveType.String or FirmamentV2PrimitiveType.Bool ? expected
+                "" => e is LiteralSyntax { Kind: LiteralKind.Boolean } ? FirmamentV2PrimitiveType.Bool
+                    : e is LiteralSyntax { Kind: LiteralKind.String } ? FirmamentV2PrimitiveType.String
                     : text.Contains('.') || text.Contains('e', StringComparison.OrdinalIgnoreCase) ? FirmamentV2PrimitiveType.Float : FirmamentV2PrimitiveType.Int, _ => (FirmamentV2PrimitiveType?)null };
             if (inferred is null) return null;
             if (inferred is FirmamentV2PrimitiveType.String or FirmamentV2PrimitiveType.Bool)
@@ -197,6 +187,26 @@ public static partial class FirmamentV2Parser
             if (inferred == FirmamentV2PrimitiveType.Int && expected == FirmamentV2PrimitiveType.Float) inferred = expected;
             return new FirmamentV2LiteralExpression(new(inferred.Value, inferred == FirmamentV2PrimitiveType.Int ? (object)(int)n : n, n, inferred == FirmamentV2PrimitiveType.Time ? "s" : unit.Length == 0 ? null : unit, text));
         }
+    }
+
+    internal static FirmamentV2Tolerance? BindTolerance(ToleranceSyntax syntax, FirmamentV2PrimitiveType type,
+        Action<string, string, FirmamentV2SourceSpan> error)
+    {
+        void Fail(string code, string message) => error(code, message, syntax.ToleranceSpan);
+        if (type is not (FirmamentV2PrimitiveType.Length or FirmamentV2PrimitiveType.Angle))
+        { Fail(ToleranceInvalidType, "tol requires a Length or Angle value."); return null; }
+        var unit = type == FirmamentV2PrimitiveType.Length ? "mm" : "deg";
+        var asymmetric = syntax.Plus is UnarySyntax { Operator: UnaryOperator.Positive };
+        if (asymmetric && syntax.Minus is null)
+        { Fail(ToleranceMissingMinus, "A +upper tolerance requires -lower; use tol 0.1mm for a symmetric allowance."); return null; }
+        if (!FirmamentSyntaxValues.TryMeasure(syntax.Plus, unit, out var plus)
+            || syntax.Minus is not null && !FirmamentSyntaxValues.TryMeasure(syntax.Minus, unit, out _))
+        { Fail(ToleranceUnitMismatch, $"Tolerance must have the value's dimensional unit ({unit})."); return null; }
+        var minus = syntax.Minus is null ? plus : FirmamentSyntaxValues.TryMeasure(syntax.Minus, unit, out var m) ? m : double.NaN;
+        if (!double.IsFinite(plus) || !double.IsFinite(minus) || plus < 0 || minus < 0)
+        { Fail(ToleranceNegativeBilateral, "Tolerance allowances must be finite nonnegative magnitudes; write tol +upper -lower."); return null; }
+        return new(asymmetric ? FirmamentV2ToleranceKind.Asymmetric : FirmamentV2ToleranceKind.Bilateral,
+            plus, minus, unit, type, syntax.ToleranceSpan);
     }
 
     // Template/Feature scalar arguments use precisely the same dimensional graph binder as Static.

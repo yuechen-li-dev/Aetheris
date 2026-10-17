@@ -20,8 +20,8 @@ public sealed record FirmamentLanguageFormat(string Document, string Revision, s
 public static class FirmamentLanguageAnalysisService
 {
     internal sealed record Lexeme(int Start, int Length, string Text, string Shape, string? Error = null);
-    private static readonly HashSet<string> Keywords = ["Model", "Units", "Modify", "WireForm", "Construction", "Use", "schema", "Let", "Static", "With", "with", "Expose", "Include", "Subassembly", "Assembly", "Part", "Template", "Function", "Record", "Pattern", "Over", "Using", "As", "as", "Output", "tol", "Concept", "Require", "Motion", "Track", "Keyframes", "Keyframe"];
-    private static readonly HashSet<string> DeclarationKinds = ["Model", "Struct", "Subassembly", "Assembly", "Template", "Profile", "Static", "Record", "Function", "Pattern", "Section", "SectionChain", "FrameTransform", "Points", "Path", "Semantic", "Enum", "Concept", "Motion", "Track", "Keyframes", "Keyframe"];
+    private static readonly HashSet<string> Keywords = ["Model", "Units", "Modify", "WireForm", "Construction", "Use", "schema", "Let", "Static", "Enum", "Options", "match", "Match", "With", "with", "Expose", "Include", "Subassembly", "Assembly", "Part", "Template", "Function", "Record", "Pattern", "Over", "Using", "As", "as", "Output", "tol", "Concept", "Require", "Motion", "Track", "Keyframes", "Keyframe"];
+    private static readonly HashSet<string> DeclarationKinds = ["Model", "Struct", "Subassembly", "Assembly", "Template", "Profile", "Static", "Record", "Function", "Pattern", "Section", "SectionChain", "FrameTransform", "Points", "Path", "Semantic", "Enum", "Options", "Concept", "Motion", "Track", "Keyframes", "Keyframe"];
     private static readonly HashSet<string> Types = ["Length", "Angle", "Time", "Float", "Int", "Bool", "Box3", "Plane", "Point2", "Point3"];
     private static readonly HashSet<string> Choices = FirmamentSemanticSchemas.All
         .SelectMany(construct => construct.Fields).SelectMany(field => field.Choices).ToHashSet(StringComparer.Ordinal);

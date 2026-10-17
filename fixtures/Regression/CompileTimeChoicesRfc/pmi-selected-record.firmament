@@ -1,0 +1,34 @@
+// One engineering requirement crosses data, specialization and recipe boundaries.
+Record BoreSpec {
+    diameter: Length
+    width: Length
+}
+Static standardBore: BoreSpec = BoreSpec {
+    diameter: 8mm tol +0.10mm -0.05mm
+    width: 40mm
+}
+
+Options BoreChoice { Compact Standard }
+Static largeBore: BoreSpec = BoreSpec { diameter: 10mm tol 0.2mm width: 80mm }
+Static choice: BoreChoice = Compact
+Static selectedBore: BoreSpec = match choice { Compact => standardBore; Standard => largeBore }
+
+Template<spec: BoreSpec>
+Model PlateFamily {
+    units: mm
+    Feature Drill(diameter: Length) -> Hole<Shaft> {
+        let inspection: Length = diameter
+        return Hole<Shaft> {
+            on: +Z
+            center: Point2(0mm, 0mm)
+            diameter: inspection
+            end: ThroughAll
+        }
+    }
+    Box Body { size: [spec.width, 30mm, 8mm] }
+    Modify Body { Feature Mount = Drill(diameter: spec.diameter) }
+    Pmi {
+        HoleDiameter MountSize { target: Mount dimension: spec.diameter }
+    }
+}
+Model TolerancedProduct = PlateFamily<spec: selectedBore>

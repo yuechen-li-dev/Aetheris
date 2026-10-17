@@ -1,0 +1,9 @@
+Options SizeChoice { Compact Standard }
+Template<choice: SizeChoice> Struct Ignored { Box Unused { size: [1mm, 1mm, 1mm] } }
+Model Result {
+ units: mm
+ Options SizeChoice { Small Large }
+ Static choice: SizeChoice = Small
+ Static width: Length = match choice { Small => 40mm; Large => 80mm }
+ Box Stock { size: [width, 20mm, 5mm] }
+}

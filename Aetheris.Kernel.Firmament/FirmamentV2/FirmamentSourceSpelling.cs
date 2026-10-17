@@ -26,6 +26,8 @@ public static class FirmamentSourceSpelling
         ArgumentNullException.ThrowIfNull(source);
         var tokens = FirmamentLanguageAnalysisService.Lex(source).Where(t => t.Shape != "comment").ToArray();
         var syntax = FirmamentSyntaxParser.Parse(source).Document;
+        var matchPositions = FirmamentSyntaxTraversal.Expressions(syntax).OfType<MatchSyntax>().Select(m => m.Span.Start).ToHashSet();
+        var authoredNames = FirmamentSyntaxTraversal.Declarations(syntax).Where(d => d.Name is not null).Select(d => d.Name!.Span.Start).ToHashSet();
         var endpointPositions = new Dictionary<int, string>();
         foreach (var trace in FirmamentSyntaxTraversal.Expressions(syntax).OfType<TraceSyntax>())
         {
@@ -97,7 +99,14 @@ public static class FirmamentSourceSpelling
                 continue;
             }
             if (t.Text == "}") { if (scopes.Count > 0) scopes.Pop(); continue; }
-            if (t.Shape != "identifier" || scopes.Any(s => s.AuthoredData)) continue;
+            if (t.Shape != "identifier") continue;
+            if (matchPositions.Contains(t.Start))
+            {
+                var keyword = preferred ? "match" : "Match";
+                for (var c = 0; c < t.Length; c++) output[t.Start + c] = keyword[c];
+                continue;
+            }
+            if (scopes.Any(s => s.AuthoredData)) continue;
             var fieldPosition = i + 1 < tokens.Length && tokens[i + 1].Text == ":";
             string? canonical = null;
             if (fieldPosition && symmetryFields.TryGetValue(t.Start, out var symmetryField)) canonical = symmetryField;
@@ -111,6 +120,7 @@ public static class FirmamentSourceSpelling
                 canonical = Links.FirstOrDefault(pair => (t.Text == pair.Key || t.Text == pair.Value) &&
                     (pair.Key == "As" ? aliasPositions.Contains(t.Start) : IsLink(tokens, i, pair.Key))).Key;
             }
+            if (authoredNames.Contains(t.Start)) canonical = null;
             if (canonical is null) continue;
             var spelling = preferred ? Links.GetValueOrDefault(canonical) ?? PreferredField(canonical) : canonical;
             // All supported spelling aliases retain spans (important for diagnostics).
@@ -210,6 +220,7 @@ public static class FirmamentSourceSpelling
             }
         }
         // Bounded owner vocabularies not yet projected through generated schema.
+        foreach (var owner in ConceptIrResolver.SpatialFields) Add(owner.Key, string.Join(' ', owner.Value.Keys));
         Add("Model", "Units Material");
         Add("Scene", "Units");
         Add("Garment", "Fabric MeshSize");

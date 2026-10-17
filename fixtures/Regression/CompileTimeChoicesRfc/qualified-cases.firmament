@@ -1,0 +1,9 @@
+Options SizeChoice { Compact Standard }
+Template<choice: SizeChoice>
+Struct Plate {
+    Box Stock { Size: [Match choice {
+        SizeChoice.Compact => 40mm
+        SizeChoice.Standard => 80mm
+    }, 20mm, 5mm] }
+}
+Struct Result = Plate<choice: Compact>

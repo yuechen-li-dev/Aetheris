@@ -68,21 +68,37 @@ The older `Template MountHole(MountSpec spec)` and `MountHole(Current)` spelling
 
 ## Parameters
 
-`Enum` defines mutually exclusive parameter choices; `Match` computes the value
-for the selected choice during specialization. `Set<T>` instead contains all
-of its named entries at once, for iteration with Pattern. These constructs
-have different jobs and remain supported. See the working
+`Options` and `Enum` define the same finite nominal choice type. Preferred
+`match` selects one result; legacy `Match` remains accepted. Every Enum case,
+or both Bool cases, must occur exactly once, and all arms must bind names and
+produce the same type before selection. Unknown, duplicate and missing cases
+reject even in an unselected arm. Only the selected value is evaluated.
+
+A typed choice may travel through a scalar Static, a Record, a Template parameter
+or default, and a Feature parameter or local. Record results must retain the same
+nominal Record type; identical fields do not make unrelated Records interchangeable.
+Arms may be separated by newlines or semicolons. Toleranced selections preserve
+the selected requirement's allowance and provenance through the existing typed
+transport; PMI still requires an explicit projection.
+
+```firmament
+Options PlateSize { Compact Standard }
+Template<size: PlateSize = Standard,
+         width: Length = match size { Compact => 40mm; Standard => 80mm }>
+Struct PlateFamily {
+    Box stock { size: [width, 20mm, 5mm] }
+}
+Struct Plate = PlateFamily<size: Compact>
+```
+
+`Set<T>` contains all entries at once for Pattern; it does not replace choices.
+See the working
 [`table-driven-mounting-plate.firmament`](../../../fixtures/Canonical/Templates/table-driven-mounting-plate.firmament)
 for enum-valued Record data, and [Writing Firmament](syntax.md#choices-versus-collections)
-for their language roles and bounded Match admission. An enum declaration does
-not itself generate one body per case.
-Each specialization must resolve a matching arm. This pass does not add a
-whole-enum exhaustiveness guarantee for unselected alternatives across all
-existing Match consumers.
-Enum values are admitted in typed Template parameters and Record fields. The
-primitive Model scalar Static lane does not yet bind standalone enum-valued
-constants; that is a binder-consolidation task, not a reason to replace choices
-with Set.
+for the expression contract and the bounded legacy numeric Pattern-source selector.
+A match expression does not execute arbitrary declaration blocks or admit new
+geometry capabilities. Static Enum values use an explicit nominal type annotation,
+such as `Static size: PlateSize = Compact`.
 
 Scalar `Static` bindings and typed Record fields can carry
 [typed tolerances](pmi.md#project-a-compile-time-tolerance). Scalar or whole-Record

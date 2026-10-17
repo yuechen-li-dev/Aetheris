@@ -1,5 +1,18 @@
 # October 2026 Firmament language decision register
 
+Compile-time choices amendment (2026-10-16):
+[implementation and qualification](FIRMAMENT-COMPILE-TIME-CHOICES-RFC.md) supersedes
+the earlier enum-Static/total-Match deferral for the qualified engineering value
+consumers. `Options` aliases `Enum`; preferred `match` retains `Match` compatibility.
+Ordinary Enum/Bool value matches require complete unique cases and compatible
+arm types before selected-only evaluation. Scalar Static, Record, Template,
+Feature and Concept consumers share that admission and preserve selected
+requirements into explicit PMI. The existing numeric Pattern-source selector
+remains a bounded compatibility construct; this does not introduce general Int
+matching, statement-level conditional construction or a new geometry capability.
+Fine-grained expansion source mapping and all-domain expression consolidation
+remain separate work, as described in the report.
+
 X4 authoring retest amendment (2026-10-15): [repairs and final qualification](../release/FIRMAMENT-FRONTEND-X4.md) close all 32 checks in Claude's current corpus. The decisions at the end of this register supersede only their qualified portions of the historical dispositions below.
 
 X2 production binding amendment (2026-10-15):

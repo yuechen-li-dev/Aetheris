@@ -1,0 +1,3 @@
+Model Result {
+    units: mm
+ Box Stock { size: [40mm, 20mm, 5mm] } Modify Stock { Hole<Shaft> mount { on: +Z center: Point2(0mm, 0mm) diameter: 6mm end: ThroughAll } } }

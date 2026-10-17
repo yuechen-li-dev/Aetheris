@@ -28,10 +28,12 @@ public sealed class FirmamentV2FeatureFunctionTests
         Assert.Equal(4d, hole.CounterboreDepth);
     }
 
-    [Fact]
-    public void Feature_ComposesWithBoundedPatternWithoutAddingLoopSyntax()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Feature_ComposesWithBoundedPatternWithoutAddingLoopSyntax(bool named)
     {
-        var parse = FirmamentV2Parser.Parse("""
+        var source = """
             Feature MountHole(Center: Point3, Diameter: Length = 6mm) -> Hole<Shaft> {
                 return Hole<Shaft> {
                     On: Base.Top
@@ -59,12 +61,20 @@ public sealed class FirmamentV2FeatureFunctionTests
                     }
                 }
             }
-            """);
+            """;
+        if (named) source = source.Replace("MountHole(Center: Item, Diameter: 6mm)", "Feature mount = MountHole(Center: Item, Diameter: 6mm)");
+        var parse = FirmamentV2Parser.Parse(source);
 
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
         Assert.Equal(4, parse.Document!.ModifyBlocks!.Single().SemanticHoles.Count);
         Assert.Equal(4, Assert.Single(parse.Document.ConceptIr!.PatternExpansions!).Count);
         Assert.Single(parse.Document.FeatureInvocations!);
+        var invocation = parse.Document.FeatureInvocations![0];
+        Assert.Equal("PositionalPattern", invocation.IdentityKind);
+        Assert.Equal(parse.Document.ConceptIr.PatternExpansions![0].GeneratedDeclarations, invocation.GeneratedResults);
+        Assert.Equal(named ? "mount" : null, invocation.ResultIdentity);
+        var build = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(build.IsSuccess, string.Join("\n", build.Diagnostics));
     }
 
     [Fact]

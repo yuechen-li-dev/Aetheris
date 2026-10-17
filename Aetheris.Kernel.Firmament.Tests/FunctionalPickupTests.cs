@@ -72,6 +72,15 @@ public sealed class FunctionalPickupTests
         Assert.Contains("Profile Pad__Call1__Section", expansion.Source);
         Assert.Contains(Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FirmamentSyntaxTraversal.Declarations(expansion.Document!),
             d => d.Type.Name.Text == "Boss" && d.Name?.Text == "Pad");
+        var inserted = FirmamentV2FeatureExpansion.Expand(source.Replace("Feature Pad = Outer()", "Outer()\n Feature Pad = Outer()"), diagnostics);
+        Assert.NotNull(inserted);
+        Assert.Empty(diagnostics);
+        Assert.Contains("Profile Pad__Call1__Section", inserted.Source);
+        Assert.DoesNotContain("Profile Pad__Call3__Section", inserted.Source);
+        var padCalls = inserted.Invocations.Where(i => i.ResultIdentity == "Pad").ToArray();
+        Assert.Equal(2, padCalls.Length);
+        Assert.Single(padCalls.Select(i => i.ApplicationIdentity).Distinct());
+        Assert.Single(padCalls.Select(i => i.InvocationOrigin!.SourceSpan).Distinct());
     }
 
     [Theory]

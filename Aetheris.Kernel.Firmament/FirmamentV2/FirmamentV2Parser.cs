@@ -671,19 +671,48 @@ public static partial class FirmamentV2Parser
     private static FirmamentV2ParseResult WithFeatureMetadata(
         FirmamentV2ParseResult result,
         FirmamentV2FeatureExpansion.Result expansion,
-        FirmamentCompileTimeValues? values = null) =>
-        result.Document is null
-            ? result
-            : result with
-            {
-                Document = result.Document with
+        FirmamentCompileTimeValues? values = null)
+    {
+        if (result.Document is null) return result;
+        FirmamentV2FeatureInvocation BindResults(FirmamentV2FeatureInvocation invocation)
+        {
+            if (invocation.Pattern is null) return invocation;
+            var patterns = result.Document.StaticAuthoring?.Patterns?.Where(p => p.Name == invocation.Pattern).ToArray() ?? [];
+            if (patterns.Length == 1)
+                return invocation with
                 {
-                    FeatureDefinitions = expansion.Definitions,
-                    FeatureInvocations = expansion.Invocations,
-                    FeatureExpansion = expansion.Metrics,
-                    DataBindings = values?.DataBindings ?? []
-                }
-            };
+                    GeneratedResults = patterns[0].GeneratedIds,
+                    IdentityKind = patterns[0].Associations is { Count: > 0 } ? "KeyedPattern" : "PositionalPattern"
+                };
+            var points = result.Document.ConceptIr?.PatternExpansions?
+                .Where(p => p.Pattern.EndsWith("::" + invocation.Pattern, StringComparison.Ordinal)).ToArray() ?? [];
+            return points.Length == 1
+                ? invocation with { GeneratedResults = points[0].GeneratedDeclarations, IdentityKind = "PositionalPattern" }
+                : invocation;
+        }
+        var document = result.Document with
+        {
+            FeatureDefinitions = expansion.Definitions,
+            FeatureInvocations = expansion.Invocations.Select(BindResults).ToArray(),
+            FeatureExpansion = expansion.Metrics,
+            DataBindings = values?.DataBindings ?? []
+        };
+        // The geometry/source-map owner must receive authored call spans, never
+        // offsets into the expanded text. Generated fields are not source edits.
+        document = document with { ModifyBlocks = document.ModifyBlocks?.Select(block => block with
+        {
+            SemanticHoles = block.SemanticHoles.Select(hole =>
+            {
+                var application = FirmamentV2FeatureExpansion.ApplicationFor(document, hole.Name);
+                return application is null ? hole : hole with
+                {
+                    SourceSpan = application.InvocationOrigin is { LocationNote: null } origin ? origin.SourceSpan : null,
+                    AuthoredFields = null
+                };
+            }).ToArray()
+        }).ToArray() };
+        return result with { Document = document };
+    }
 
     private static FirmamentV2ParseResult WithPolygonMetadata(
         FirmamentV2ParseResult result,

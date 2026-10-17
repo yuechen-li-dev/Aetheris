@@ -365,6 +365,7 @@ public static partial class Program
             {
                 version = FirmamentFieldProjector.Version,
                 constructId = projection.ConstructId.Value, semanticId = projection.SemanticId,
+                projection.FeatureApplicationIdentity,
                 sourceRevision = projection.SourceRevision, buildRevision = projection.BuildRevision,
                 source = projection.ConstructSpan is { } span ? SourceRefAt(projection.SourceDocument, _source, span.Start, span.Length) : null,
                 outputs = FirmamentSemanticSchemas.Get(projection.ConstructId.Value)!.Outputs.Select(item => new
@@ -520,7 +521,8 @@ public static partial class Program
             }
             semanticConstruct ??= projections.FirstOrDefault(item => item.SemanticId == entityId)?.ConstructId.Value;
             var featureSources = (build.Value.Features ?? []).ToDictionary(feature => feature.FeatureId,
-                feature => CompilerSource(feature.FeatureId), StringComparer.Ordinal);
+                feature => projections.FirstOrDefault(p => p.SemanticId == feature.FeatureId)?.ConstructSpan is { } span
+                    ? SourceRefAt(_sourceName, effective, span.Start, span.Length) : CompilerSource(feature.FeatureId), StringComparer.Ordinal);
             mappingPhase.Dispose();
             var meshPhase = BuildPerfTrace.Phase("web.mesh-build");
             var mesh = WebMeshBuilder.Build(Name, definitionId, entityId, displayBody,

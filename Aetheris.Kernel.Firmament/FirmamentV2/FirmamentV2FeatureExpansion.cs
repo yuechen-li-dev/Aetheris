@@ -164,12 +164,17 @@ internal static class FirmamentV2FeatureExpansion
         var replacements = new Dictionary<StatementSyntax, IReadOnlyList<StatementSyntax>>(ReferenceEqualityComparer.Instance);
 
         IReadOnlyList<StatementSyntax> ExpandCall(Definition definition, CallSyntax call, FirmamentBindingScope callScope,
-            IReadOnlyList<Definition> stack, bool pattern, string? resultName = null)
+            IReadOnlyList<Definition> stack, bool pattern, string? resultName = null, string? patternName = null,
+            string? applicationIdentity = null, FirmamentV2ValueOrigin? applicationOrigin = null)
         {
             if (stack.Contains(definition)) { Error(Recursion + ":" + string.Join(":", stack.Append(definition).Select(d => d.Syntax.Name!.Text)), "Recursive Feature invocation is not admitted.", call.Span, definition.Syntax); return []; }
             if (stack.Count >= MaximumDepth || ordinal >= MaximumInvocations)
             { Error(Prefix + "expansion-limit", $"Feature expansion is limited to depth {MaximumDepth} and {MaximumInvocations} invocations; no output was truncated.", call.Span, definition.Syntax); return []; }
             var invocationOrdinal = ordinal++;
+            applicationOrigin ??= new(origins.Find(call.Span) is null ? "inline#pre-feature-expansion" : "inline", origins.Find(call.Span) ?? call.Span, definition.Syntax.Name!.Text,
+                origins.Find(call.Span) is null ? "Invocation offsets refer to the AST input of Feature expansion; original include/Template mapping is not yet available." : null);
+            applicationIdentity ??= callScope.Identity + "/" + (resultName ?? (patternName is not null ? definition.Syntax.Name!.Text
+                : definition.Syntax.Name!.Text + "__" + invocationOrdinal.ToString(CultureInfo.InvariantCulture)));
             var environment = new Dictionary<string, ExpressionSyntax>(StringComparer.Ordinal);
             var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
             var supplied = new Dictionary<string, ExpressionSyntax>(StringComparer.Ordinal); var position = 0;
@@ -230,7 +235,7 @@ internal static class FirmamentV2FeatureExpansion
             }
             if (Failed()) return [];
             var prefix = resultName is null ? definition.Syntax.Name!.Text + "__" + invocationOrdinal.ToString(CultureInfo.InvariantCulture)
-                : stack.Count == 0 ? resultName : resultName + "__Call" + invocationOrdinal.ToString(CultureInfo.InvariantCulture);
+                : stack.Count == 0 ? resultName : resultName + "__Call" + stack.Count.ToString(CultureInfo.InvariantCulture);
             var renames = definition.Construction.ToDictionary(d => d.Name!.Text, d => prefix + "__" + d.Name!.Text, StringComparer.Ordinal);
             var transform = new FirmamentSyntaxSubstitution(environment, renames);
             var output = definition.Construction.Select(transform.Statement).ToList(); var returned = transform.Expression(definition.Return.Value);
@@ -238,21 +243,28 @@ internal static class FirmamentV2FeatureExpansion
                 && definition.Scope.Resolve("Feature", nestedName.Name.Text) is { } nestedSyntax && definitions.TryGetValue(nestedSyntax, out var nested))
             {
                 if (!SameType(definition.ResultType, nested.ResultType)) Error(ReturnType + $":{definition.Syntax.Name!.Text}:expected-{definition.ResultType}:actual-{nested.ResultType}", "Delegated Feature result does not match the declared return type.", definition.Return.Span, definition.Syntax);
-                else output.AddRange(ExpandCall(nested, nestedCall, definition.Scope, stack.Append(definition).ToArray(), pattern, resultName));
+                else output.AddRange(ExpandCall(nested, nestedCall, definition.Scope, stack.Append(definition).ToArray(), pattern, resultName, patternName, applicationIdentity, applicationOrigin));
             }
             else if (returned is ObjectSyntax { Type: not null, Name: null } obj && SameType(definition.ResultType, TypeName(obj.Type)))
             {
-                var generated = resultName ?? (pattern ? PatternItemName(obj, definition.Syntax.Name!.Text, invocationOrdinal) : definition.Syntax.Name!.Text + "__" + invocationOrdinal.ToString(CultureInfo.InvariantCulture));
+                // Pattern lowering owns the concrete names. Keep its iteration
+                // placeholder even when the recipe application has a source name.
+                var generated = pattern ? PatternItemName(obj, definition.Syntax.Name!.Text, invocationOrdinal)
+                    : resultName ?? definition.Syntax.Name!.Text + "__" + invocationOrdinal.ToString(CultureInfo.InvariantCulture);
                 output.Add(new DeclarationSyntax(ToType(obj.Type), new(generated, call.Span), [], [], null, null, [], null, obj.Body, false, definition.Return.Span));
             }
             else Error(ReturnType + $":{definition.Syntax.Name!.Text}:expected-{definition.ResultType}", $"Feature '{definition.Syntax.Name!.Text}' must return {definition.ResultType} construction or a Feature with that result type.", definition.Return.Span, definition.Syntax);
             invocations.Add(new(definition.Syntax.Name!.Text, invocationOrdinal, definition.ResultType, bindings.ToImmutableDictionary(StringComparer.Ordinal), call.Span, definition.ResultType, "ExpandedBeforeFeatureAir", resultName)
             {
                 BindingScope = definition.Scope.Identity,
+                ApplicationIdentity = applicationIdentity,
+                IdentityKind = patternName is not null ? "PatternRecipe" : resultName is null ? "Positional" : "Named",
+                Pattern = patternName,
+                GeneratedResults = output.TakeLast(1).OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == definition.ResultType.Split('<')[0])
+                    .Select(d => d.Name!.Text).ToArray(),
                 DefinitionOrigin = new(OriginalDefinition(definition.Syntax) is null ? "inline#pre-feature-expansion" : "inline", OriginalDefinition(definition.Syntax) ?? definition.Syntax.Span, definition.Syntax.Name.Text,
                     OriginalDefinition(definition.Syntax) is null ? "Definition is in expanded input; original-file mapping unavailable." : null),
-                InvocationOrigin = new(origins.Find(call.Span) is null ? "inline#pre-feature-expansion" : "inline", origins.Find(call.Span) ?? call.Span, definition.Syntax.Name.Text,
-                    origins.Find(call.Span) is null ? "Invocation offsets refer to the AST input of Feature expansion; original include/Template mapping is not yet available." : null),
+                InvocationOrigin = applicationOrigin,
                 ExpansionChain = stack.Select(d => d.Syntax.Name!.Text).Append(definition.Syntax.Name.Text).ToArray()
             });
             // Account only this invocation's own nodes; delegated nodes were already
@@ -266,7 +278,7 @@ internal static class FirmamentV2FeatureExpansion
             }
             return output;
         }
-        void Visit(IReadOnlyList<StatementSyntax> statements, FirmamentBindingScope scope, bool pattern)
+        void Visit(IReadOnlyList<StatementSyntax> statements, FirmamentBindingScope scope, bool pattern, string? patternName = null)
         {
             foreach (var statement in statements)
             {
@@ -280,7 +292,7 @@ internal static class FirmamentV2FeatureExpansion
                     { Error(UnsupportedBody + ":invocation-header", "A named invocation is Feature name = Recipe(arguments), without parameter, type, placement or body clauses.", named.Span); continue; }
                     if (scope.Resolve("Feature", target.Name.Text) is { } declaration && definitions.TryGetValue(declaration, out var definition))
                     {
-                        var nodes = ExpandCall(definition, call, scope, [], pattern, (statement as DeclarationSyntax)?.Name?.Text);
+                        var nodes = ExpandCall(definition, call, scope, [], pattern, (statement as DeclarationSyntax)?.Name?.Text, patternName);
                         changes.Add((statement.Span, FirmamentSyntaxWriter.Statements(nodes))); replacements[statement] = nodes;
                     }
                     else Error(Unknown + ":" + target.Name.Text, $"Feature '{target.Name.Text}' is not visible in {scope.Identity}.", call.Span);
@@ -288,8 +300,9 @@ internal static class FirmamentV2FeatureExpansion
                 // Static mappings contain values (Point2 constructors, for example),
                 // not statements invoking a Feature. Their owner binds those values.
                 else if (statement is DeclarationSyntax { Type.Name.Text: "Static" or "Table" or "Record" or "Enum" }) continue;
-                else if (statement is DeclarationSyntax { Body: not null } owner) Visit(owner.Body.Statements, bodies[owner.Body], pattern || owner.Type.Name.Text == "Pattern");
-                else if (statement is MappingSyntax mapping) Visit([mapping.Value], scope, true);
+                else if (statement is DeclarationSyntax { Body: not null } owner) Visit(owner.Body.Statements, bodies[owner.Body], pattern || owner.Type.Name.Text == "Pattern",
+                    owner.Type.Name.Text == "Pattern" ? owner.Name?.Text : patternName);
+                else if (statement is MappingSyntax mapping) Visit([mapping.Value], scope, true, patternName);
             }
         }
         Visit(parsed.Document.Statements, root, false);
@@ -354,6 +367,14 @@ internal static class FirmamentV2FeatureExpansion
         }
         return e;
     }
+    internal static FirmamentV2FeatureInvocation? ApplicationFor(FirmamentV2Document document, string name)
+    {
+        var matches = document.FeatureInvocations?.Where(i => i.GeneratedResults.Any(result => result == name
+            || i.Pattern is not null && (result.Replace('.', '_') == name || result.EndsWith("::" + name, StringComparison.Ordinal))))
+            .DistinctBy(i => i.ApplicationIdentity).ToArray() ?? [];
+        return matches.Length == 1 ? matches[0] : null;
+    }
+
     private static string PatternItemName(ObjectSyntax obj, string feature, int ordinal) => obj.Body.Statements.OfType<FieldSyntax>()
         .FirstOrDefault(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Center"))?.Value is ReferenceSyntax r ? r.Name.Text : feature + "__" + ordinal.ToString(CultureInfo.InvariantCulture);
 

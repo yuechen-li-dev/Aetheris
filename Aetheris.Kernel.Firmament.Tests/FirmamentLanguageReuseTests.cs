@@ -6,7 +6,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 /// operations that make them keep the model's geometry.</summary>
 public sealed class FirmamentLanguageReuseTests
 {
-    private const string Bracket = """
+    private static readonly string Bracket = """
         Model WebBracket {
             Units: mm
             Box Plate { Size: [50mm, 40mm, 8mm] }
@@ -15,7 +15,7 @@ public sealed class FirmamentLanguageReuseTests
             }
         }
 
-        """;
+        """.ReplaceLineEndings("\n");
 
     private static FirmamentLanguageEdit Edit(string source, params FirmamentLanguageEditOperation[] operations) =>
         FirmamentLanguageEditService.Apply(source, "bracket.firmament", "1", operations);
@@ -30,7 +30,7 @@ public sealed class FirmamentLanguageReuseTests
     [Fact]
     public void Outline_ShowsParameterValuesFeatureSignaturesAndPlacedCalls()
     {
-        const string source = """
+        var source = """
             Feature MountHole(center: Point2, diameter: Length = 3.4mm) -> Hole<Shaft> {
                 return Hole<Shaft> { On: +Z Center: center Diameter: diameter End: ThroughAll }
             }
@@ -43,7 +43,7 @@ public sealed class FirmamentLanguageReuseTests
                     MountHole(center: Point2(-10mm, 0mm), diameter: 5mm)
                 }
             }
-            """;
+            """.ReplaceLineEndings("\n");
         var outline = FirmamentLanguageOutlineService.Outline(source, "m", "1");
         var thickness = outline.Nodes.Single(n => n.Id == "M/Thickness");
         Assert.Equal("Length", thickness.Annotation);
@@ -89,12 +89,12 @@ public sealed class FirmamentLanguageReuseTests
                 Units: mm
                 Box Plate { Size: [50mm, 40mm, 8mm] }
                 Modify Plate {
-                    MountHole(center: Point2(0mm, 0mm), diameter: 8mm)
+                    Feature CenterMount = MountHole(center: Point2(0mm, 0mm), diameter: 8mm)
                 }
             }
 
-            """, result.Text);
-        Assert.Equal(["WebBracket/Modify:Plate/MountHole"], result.Nodes);
+            """.ReplaceLineEndings("\n"), result.Text);
+        Assert.Equal(["WebBracket/Modify:Plate/CenterMount"], result.Nodes);
         Assert.Equal(Step(Bracket), Step(result.Text));
     }
 
@@ -105,27 +105,27 @@ public sealed class FirmamentLanguageReuseTests
         var two = Edit(extracted,
             new FirmamentLanguageEditOperation("insertFeature") { Node = "WebBracket/Box:Plate", Source = "MountHole(center: Point2(15mm, 0mm))" },
             new FirmamentLanguageEditOperation("insertFeature") { Node = "WebBracket/Box:Plate", Source = "EdgeFinish TopBreak { Face: +Z Target: Boundary Kind: Chamfer Distance: 1mm }" });
-        Assert.Equal(["WebBracket/Modify:Plate/MountHole#2", "WebBracket/Modify:Plate/TopBreak"], two.Nodes);
-        Assert.Contains("        MountHole(center: Point2(0mm, 0mm))\n        MountHole(center: Point2(15mm, 0mm))\n        EdgeFinish TopBreak", two.Text);
+        Assert.Equal(["WebBracket/Modify:Plate/mountHole", "WebBracket/Modify:Plate/TopBreak"], two.Nodes);
+        Assert.Contains("        Feature CenterMount = MountHole(center: Point2(0mm, 0mm))\n        Feature mountHole = MountHole(center: Point2(15mm, 0mm))\n        EdgeFinish TopBreak", two.Text);
         Step(two.Text);
 
         var moved = Edit(two.Text, new FirmamentLanguageEditOperation("moveDeclaration") { Node = "WebBracket/Modify:Plate/TopBreak", First = true });
-        Assert.Contains("    Modify Plate {\n        EdgeFinish TopBreak { Face: +Z Target: Boundary Kind: Chamfer Distance: 1mm }\n        MountHole(center: Point2(0mm, 0mm))", moved.Text);
+        Assert.Contains("    Modify Plate {\n        EdgeFinish TopBreak { Face: +Z Target: Boundary Kind: Chamfer Distance: 1mm }\n        Feature CenterMount = MountHole(center: Point2(0mm, 0mm))", moved.Text);
         Assert.Equal(["WebBracket/Modify:Plate/TopBreak"], moved.Nodes);
-        var down = Edit(moved.Text, new FirmamentLanguageEditOperation("moveDeclaration") { Node = "WebBracket/Modify:Plate/MountHole#1", After = "WebBracket/Modify:Plate/MountHole#2" });
-        Assert.Contains("MountHole(center: Point2(15mm, 0mm))\n        MountHole(center: Point2(0mm, 0mm))\n    }", down.Text);
+        var down = Edit(moved.Text, new FirmamentLanguageEditOperation("moveDeclaration") { Node = "WebBracket/Modify:Plate/CenterMount", After = "WebBracket/Modify:Plate/mountHole" });
+        Assert.Contains("Feature mountHole = MountHole(center: Point2(15mm, 0mm))\n        Feature CenterMount = MountHole(center: Point2(0mm, 0mm))\n    }", down.Text);
 
         // A placed call's arguments are its fields.
         var argued = Edit(down.Text,
-            new FirmamentLanguageEditOperation("setField") { Node = "WebBracket/Modify:Plate/MountHole#1", Field = "center", Value = "Point2(12mm, 0mm)" },
-            new FirmamentLanguageEditOperation("setField") { Node = "WebBracket/Modify:Plate/MountHole#1", Field = "diameter", Value = "4mm" });
+            new FirmamentLanguageEditOperation("setField") { Node = "WebBracket/Modify:Plate/mountHole", Field = "center", Value = "Point2(12mm, 0mm)" },
+            new FirmamentLanguageEditOperation("setField") { Node = "WebBracket/Modify:Plate/mountHole", Field = "diameter", Value = "4mm" });
         Assert.Contains("MountHole(center: Point2(12mm, 0mm), diameter: 4mm)", argued.Text);
         Assert.Contains("MountHole(center: Point2(12mm, 0mm))", Edit(argued.Text,
-            new FirmamentLanguageEditOperation("removeField") { Node = "WebBracket/Modify:Plate/MountHole#1", Field = "diameter" }).Text);
+            new FirmamentLanguageEditOperation("removeField") { Node = "WebBracket/Modify:Plate/mountHole", Field = "diameter" }).Text);
         Assert.Contains("MountHole(diameter: 4mm)", Edit(argued.Text,
-            new FirmamentLanguageEditOperation("removeField") { Node = "WebBracket/Modify:Plate/MountHole#1", Field = "center" }).Text);
+            new FirmamentLanguageEditOperation("removeField") { Node = "WebBracket/Modify:Plate/mountHole", Field = "center" }).Text);
 
-        var removed = Edit(down.Text, new FirmamentLanguageEditOperation("removeDeclaration") { Node = "WebBracket/Modify:Plate/MountHole#2" });
+        var removed = Edit(down.Text, new FirmamentLanguageEditOperation("removeDeclaration") { Node = "WebBracket/Modify:Plate/CenterMount" });
         Assert.DoesNotContain("Point2(0mm, 0mm))\n", removed.Text[removed.Text.IndexOf("Modify", StringComparison.Ordinal)..]);
         Step(removed.Text);
     }
@@ -148,7 +148,7 @@ public sealed class FirmamentLanguageReuseTests
     [Fact]
     public void ExtractFeature_WorksForOtherFeatureKindsAndAngles()
     {
-        const string source = """
+        var source = """
             Model M {
                 Units: mm
                 Box Plate { Size: [60mm, 40mm, 10mm] }
@@ -158,7 +158,7 @@ public sealed class FirmamentLanguageReuseTests
                 }
             }
 
-            """;
+            """.ReplaceLineEndings("\n");
         var sink = Edit(source, new FirmamentLanguageEditOperation("extractFeature") { Node = "M/Modify:Plate/Sink", Name = "FlatHead", Parameters = ["Center", "CountersinkAngle"] });
         Assert.Contains("Feature FlatHead(center: Point2 = Point2(0mm, 0mm), countersinkAngle: Angle = 90deg) -> Hole<Countersink> {", sink.Text);
         var both = Edit(sink.Text, new FirmamentLanguageEditOperation("extractFeature") { Node = "M/Modify:Plate/Break", Name = "EdgeBreak", Parameters = ["Distance"] });
@@ -166,9 +166,9 @@ public sealed class FirmamentLanguageReuseTests
     }
 
     [Fact]
-    public void ExtractFeature_RefusesADeclarationSomethingRefersToAndWarnsThatTheNameGoes()
+    public void ExtractFeature_PreservesTheNameAndItsPmiReferences()
     {
-        const string pmi = """
+        var pmi = """
             Model A3 {
                 Units: mm
                 Box Plate { Size: [100mm, 70mm, 10mm] }
@@ -180,13 +180,12 @@ public sealed class FirmamentLanguageReuseTests
                 }
             }
 
-            """;
-        var refused = Assert.Throws<FirmamentLanguageEditException>(() =>
-            Edit(pmi, new FirmamentLanguageEditOperation("extractFeature") { Node = "A3/Modify:Plate/Mount", Name = "MountHole", Parameters = ["Center"] }));
-        Assert.Equal("edit-extract-referenced", refused.Code);
-        Assert.Contains("A3/Pmi/MountDiameter", refused.Message, StringComparison.Ordinal);
+            """.ReplaceLineEndings("\n");
+        var extracted = Edit(pmi, new FirmamentLanguageEditOperation("extractFeature") { Node = "A3/Modify:Plate/Mount", Name = "MountHole", Parameters = ["Center"] });
+        Assert.Contains("Feature Mount = MountHole(", extracted.Text);
+        Assert.Contains("Target: Mount", extracted.Text);
+        Assert.Equal(Step(pmi), Step(extracted.Text));
+        Assert.Empty(extracted.Warnings);
 
-        var edit = Edit(Bracket, new FirmamentLanguageEditOperation("extractFeature") { Node = "WebBracket/Modify:Plate/CenterMount", Name = "MountHole", Parameters = ["Center"] });
-        Assert.Contains(edit.Warnings, w => w.StartsWith("CenterMount is now a placed MountHole", StringComparison.Ordinal));
     }
 }

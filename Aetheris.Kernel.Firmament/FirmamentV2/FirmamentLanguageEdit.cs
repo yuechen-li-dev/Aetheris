@@ -6,7 +6,7 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 /// <summary>One structural edit, addressed by outline node ids (<see cref="FirmamentLanguageOutlineService"/>).
 /// <c>Kind</c> is <c>setField</c>, <c>removeField</c>, <c>insertDeclaration</c>, <c>removeDeclaration</c>,
-/// <c>renameDeclaration</c>, <c>moveDeclaration</c>, <c>insertFeature</c> or <c>extractFeature</c>.
+/// <c>renameDeclaration</c>, <c>moveDeclaration</c>, <c>insertFeature</c> <c>extractFeature</c> or <c>nameFeature</c>.
 /// <c>removeDeclaration</c> and <c>moveDeclaration</c> also take a call node (a placed Feature).</summary>
 public sealed record FirmamentLanguageEditOperation(string Kind)
 {
@@ -22,6 +22,8 @@ public sealed record FirmamentLanguageEditOperation(string Kind)
     public string? Value { get; init; }
     /// <summary>renameDeclaration: the new name.</summary>
     public string? Name { get; init; }
+    /// <summary>nameFeature: exact authored statement span of an anonymous call, when Node is absent.</summary>
+    public FirmamentOutlineSpan? Span { get; init; }
     public FirmamentDeclarationSpec? Declaration { get; init; }
     /// <summary>insertDeclaration and insertFeature: one declaration as source text, used instead of
     /// <see cref="Declaration"/>. With <see cref="Name"/> its declared name is replaced.</summary>
@@ -81,7 +83,9 @@ public static class FirmamentLanguageEditService
                 "renameDeclaration" => RenameDeclaration(text, before, operation, document, warnings),
                 "moveDeclaration" => MoveDeclaration(text, before, operation),
                 "insertFeature" => InsertFeature(text, before, operation),
-                "extractFeature" => ExtractFeature(text, before, operation, document, warnings),
+                "extractFeature" => ExtractFeature(text, before, operation),
+
+                "nameFeature" => NameFeature(text, before, operation),
                 _ => throw new FirmamentLanguageEditException("edit-unknown-operation", $"Unknown edit operation '{operation.Kind}'.")
             };
             var after = Parse(next);
@@ -124,13 +128,13 @@ public static class FirmamentLanguageEditService
 
     // A placed call's fields are its named arguments: `MountHole(center: Point2(0mm, 0mm), diameter: 8mm)`.
     private static ArgumentSyntax[] Arguments((string Id, string? ParentId, StatementSyntax Statement, bool Call) placed, string name) =>
-        FirmamentLanguageOutlineService.BareCall(placed.Statement)!.Arguments.Where(a => a.Name?.Text == name).ToArray();
+        FirmamentLanguageOutlineService.ApplicationCall(placed.Statement)!.Arguments.Where(a => a.Name?.Text == name).ToArray();
 
     private static string SetArgument(string text, (string Id, string? ParentId, StatementSyntax Statement, bool Call) placed, FirmamentLanguageEditOperation op)
     {
         var name = RequireIdentifier(op.Field, "argument name");
         var value = RequireValue(op.Value, name);
-        var call = FirmamentLanguageOutlineService.BareCall(placed.Statement)!;
+        var call = FirmamentLanguageOutlineService.ApplicationCall(placed.Statement)!;
         var matches = Arguments(placed, name);
         if (matches.Length > 1) throw new FirmamentLanguageEditException("edit-duplicate-field", $"{name} is passed {matches.Length} times; edit it in source.");
         if (matches.Length == 1) return Replace(text, matches[0].Value.Span.Start, matches[0].Value.Span.Length, value);
@@ -141,7 +145,7 @@ public static class FirmamentLanguageEditService
     private static string RemoveArgument(string text, (string Id, string? ParentId, StatementSyntax Statement, bool Call) placed, FirmamentLanguageEditOperation op)
     {
         var name = RequireIdentifier(op.Field, "argument name");
-        var call = FirmamentLanguageOutlineService.BareCall(placed.Statement)!;
+        var call = FirmamentLanguageOutlineService.ApplicationCall(placed.Statement)!;
         var index = call.Arguments.ToList().FindIndex(a => a.Name?.Text == name);
         if (index < 0) throw new FirmamentLanguageEditException("edit-field-not-found", $"{placed.Id} does not pass {name}.");
         var argument = call.Arguments[index];
@@ -162,7 +166,14 @@ public static class FirmamentLanguageEditService
         var indent = parent is null ? "" : ChildIndent(text, parent);
         var call = op.Declaration is null && IsCallSource(op.Source!);
         if (call && parent is null) throw new FirmamentLanguageEditException("edit-call-scope", "A call is placed inside a body, such as a Modify.");
-        var snippet = op.Declaration is { } spec ? Write(spec, indent, Unit(text)) : call ? indent + op.Source!.Trim() : FromSource(op.Source!, op.Name, indent);
+        var callSource = call ? op.Source!.Trim() : null;
+        if (call && op.Name is not null)
+        {
+            var recipe = (ReferenceSyntax)FirmamentLanguageOutlineService.ApplicationCall(Parse(callSource!).Document.Statements.Single())!.Target;
+            var name = ApplicationName(recipe.Name.Text, op.Name, Siblings(FirmamentLanguageOutlineService.Declarations(parse), op.Parent).Select(d => d.Syntax));
+            callSource = $"Feature {name} = {callSource}";
+        }
+        var snippet = op.Declaration is { } spec ? Write(spec, indent, Unit(text)) : call ? indent + callSource : FromSource(op.Source!, op.Name, indent);
         if (!call) CheckSnippet(snippet);
         var anchor = Anchor(siblings, op);
         int at;
@@ -191,7 +202,8 @@ public static class FirmamentLanguageEditService
         if (!text.EndsWith(')')) return false;
         var parse = Parse("Probe Probe {\n" + text + "\n}");
         var body = parse.Document.Statements.OfType<DeclarationSyntax>().FirstOrDefault()?.Body?.Statements ?? [];
-        if (!parse.IsSuccess || body.Count != 1 || FirmamentLanguageOutlineService.BareCall(body[0]) is null)
+        if (parse.IsSuccess && body.Count == 1 && body[0] is DeclarationSyntax) return false;
+        if (!parse.IsSuccess || body.Count != 1 || body[0] is not ExpressionStatementSyntax || FirmamentLanguageOutlineService.ApplicationCall(body[0]) is null)
             throw new FirmamentLanguageEditException("edit-invalid-declaration", $"'{text}' is not one call.");
         return true;
     }
@@ -208,6 +220,14 @@ public static class FirmamentLanguageEditService
         var parentId = declarations.First(d => d.Id == id).ParentId;
         var modify = Siblings(declarations, parentId)
             .LastOrDefault(s => s.Syntax.Type.Name.Text is "Modify" or "modify" && s.Syntax.Name?.Text == bodyName.Text);
+        var snippet = Parse(op.Source);
+        var call = snippet.Document.Statements.Count == 1 ? snippet.Document.Statements[0] as ExpressionStatementSyntax : null;
+        if (snippet.IsSuccess && call?.Value is CallSyntax { Target: ReferenceSyntax recipe })
+        {
+            var siblings = modify.Syntax is null ? [] : Siblings(declarations, modify.Id).Select(d => d.Syntax).ToArray();
+            var name = ApplicationName(recipe.Name.Text, op.Name, siblings);
+            op = op with { Source = $"Feature {name} = {op.Source.Trim().TrimEnd(';')}", Name = null };
+        }
         if (modify.Syntax is not null)
             return InsertDeclaration(text, parse, new("insertDeclaration") { Parent = modify.Id, Source = op.Source, Name = op.Name });
         var (opened, modifyId) = InsertDeclaration(text, parse,
@@ -224,8 +244,7 @@ public static class FirmamentLanguageEditService
     /// The Feature's body is written one field after another on one line; comments inside the
     /// original body are not carried over. The result's node is the call.
     /// </summary>
-    private static (string, string?) ExtractFeature(string text, SyntaxParseResult parse, FirmamentLanguageEditOperation op,
-        string document, List<string> warnings)
+    private static (string, string?) ExtractFeature(string text, SyntaxParseResult parse, FirmamentLanguageEditOperation op)
     {
         var (id, declaration) = Find(parse, op.Node);
         var name = RequireIdentifier(op.Name, "Feature name");
@@ -237,16 +256,6 @@ public static class FirmamentLanguageEditService
             throw new FirmamentLanguageEditException("edit-extract-shape", "Only a declaration written as fields becomes a Feature; this one has nested declarations or no body.");
         if (declarations.Any(d => d.ParentId is null && d.Syntax.Name?.Text == name))
             throw new FirmamentLanguageEditException("edit-name-taken", $"The document already declares {name}.");
-        // A placed call has no name: whatever names this declaration would stop resolving. That is
-        // a lexical use, or a name the outline cannot place but the compiler resolves by feature
-        // name, such as a Pmi Target.
-        var outline = FirmamentLanguageOutlineService.Outline(text, document, "edit");
-        var users = outline.Edges.Where(e => e.ToDocument is null && (e.To == id || e.To.StartsWith(id + "/", StringComparison.Ordinal))).Select(e => e.From)
-            .Concat(declaration.Name is { } own ? outline.Externals.Where(x => x.Name == own.Text).Select(x => x.From) : [])
-            .Distinct().ToArray();
-        if (users.Length > 0)
-            throw new FirmamentLanguageEditException("edit-extract-referenced",
-                $"{declaration.Name?.Text ?? id} is used by {string.Join(", ", users)}; a placed Feature has no name, so those uses would break.");
         var fields = body.Statements.Cast<FieldSyntax>().ToArray();
         var parameters = new List<(string Field, string Name, string Type, string Value)>();
         foreach (var requested in op.Parameters ?? [])
@@ -265,7 +274,9 @@ public static class FirmamentLanguageEditService
         var feature = $"Feature {name}({string.Join(", ", parameters.Select(p => $"{p.Name}: {p.Type} = {p.Value}"))}) -> {kind} {{\n"
             + $"{unit}return {kind} {{ {string.Join(" ", fields.Select(f => $"{f.Name.Text}: {ValueOf(f)}"))} }}\n}}";
         CheckSnippet(feature);
-        var call = $"{name}({string.Join(", ", parameters.Select(p => $"{p.Name}: {p.Value}"))})";
+        var application = ApplicationName(name, declaration.Name?.Text,
+            Siblings(declarations, entry.ParentId).Where(d => d.Id != id).Select(d => d.Syntax));
+        var call = $"Feature {application} = {name}({string.Join(", ", parameters.Select(p => $"{p.Name}: {p.Value}"))})";
 
         // The declaration becomes the call, in place; then the Feature goes before the root that holds it.
         var end = declaration.Span.Start + declaration.Span.Length;
@@ -277,8 +288,6 @@ public static class FirmamentLanguageEditService
         var next = Replace(placed, at, 0, feature + "\n\n");
         var callStart = declaration.Span.Start + feature.Length + 2;
         var created = FirmamentLanguageOutlineService.Statements(Parse(next)).FirstOrDefault(d => d.Call && d.Statement.Span.Start == callStart);
-        if (declaration.Name is { } lost)
-            warnings.Add($"{lost.Text} is now a placed {name}; the model identifies placements by their order, not by the name {lost.Text}.");
         return (next, created.Id);
     }
 
@@ -291,11 +300,45 @@ public static class FirmamentLanguageEditService
         _ => null
     };
 
+    private static (string, string?) NameFeature(string text, SyntaxParseResult parse, FirmamentLanguageEditOperation op)
+    {
+        var requestedSpan = op.Node is not null ? FindStatement(parse, op.Node).Statement.Span : op.Span is { } requested
+            ? new FirmamentV2SourceSpan(requested.Start, requested.Length) : null;
+        if (requestedSpan is not { } span)
+            throw new FirmamentLanguageEditException("edit-input-required", "nameFeature requires an anonymous call node or exact authored statement span.");
+        var statement = FirmamentSyntaxTraversal.Statements(parse.Document).OfType<ExpressionStatementSyntax>()
+            .SingleOrDefault(s => s.Span.Start == span.Start && (s.Span.Length == span.Length || s.Value.Span.Length == span.Length));
+        if (statement?.Value is not CallSyntax { Target: ReferenceSyntax recipe })
+            throw new FirmamentLanguageEditException("edit-not-feature-call", "The span no longer identifies one anonymous Feature call; refresh the source revision.");
+        var declarations = FirmamentLanguageOutlineService.Declarations(parse);
+        var parent = declarations.Where(d => d.Syntax.Span.Start <= span.Start && d.Syntax.Span.Start + d.Syntax.Span.Length >= span.Start + span.Length)
+            .OrderBy(d => d.Syntax.Span.Length).FirstOrDefault();
+        var name = ApplicationName(recipe.Name.Text, op.Name, Siblings(declarations, parent.Id).Select(d => d.Syntax));
+        var next = Replace(text, span.Start, 0, $"Feature {name} = ");
+        return (next, FirmamentLanguageOutlineService.Declarations(Parse(next)).Single(d => d.Syntax.Span.Start == span.Start).Id);
+    }
+
+    private static string ApplicationName(string recipe, string? requested, IEnumerable<DeclarationSyntax> siblings)
+    {
+        var names = siblings.Where(d => d.Name is not null).Select(d => d.Name!.Text).ToHashSet(StringComparer.Ordinal);
+        names.Add(recipe); // A result must not shadow the callable it invokes.
+        if (requested is not null)
+        {
+            RequireIdentifier(requested, "Feature application name");
+            if (names.Contains(requested)) throw new FirmamentLanguageEditException("edit-name-taken", $"A declaration here is already called {requested}.");
+            return requested;
+        }
+        var stem = char.ToLowerInvariant(recipe[0]) + recipe[1..];
+        var candidate = stem;
+        for (var suffix = 2; names.Contains(candidate); suffix++) candidate = stem + suffix.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return candidate;
+    }
+
     private static (string, string?) RemoveDeclaration(string text, SyntaxParseResult parse, FirmamentLanguageEditOperation op,
         string document, List<string> warnings)
     {
         var placed = FindStatement(parse, op.Node);
-        if (placed.Call) return (RemoveStatement(text, placed.Statement.Span), null);
+        if (placed.Call && placed.Statement is not DeclarationSyntax) return (RemoveStatement(text, placed.Statement.Span), null);
         var (id, declaration) = Find(parse, op.Node);
         var outline = FirmamentLanguageOutlineService.Outline(text, document, "edit");
         var inside = (string node) => node == id || node.StartsWith(id + "/", StringComparison.Ordinal);

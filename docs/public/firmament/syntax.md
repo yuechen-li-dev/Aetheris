@@ -631,6 +631,47 @@ These are context-specific forms, not interchangeable spellings of one loop.
 A named Feature invocation may use `Feature result = Recipe(...)`; it differs
 from a Feature definition and from a Pattern.
 
+Name editable applications explicitly:
+
+```firmament
+Modify stock {
+  Feature leftBore = MountHole(center: Layout.leftMount)
+  Feature rightBore = MountHole(center: Layout.rightMount)
+}
+```
+
+Here `MountHole` is the recipe, `leftBore` is the application identity, and
+`Layout.leftMount` is the Concept datum that supplies its location. Moving the
+datum moves the bore without renaming it. Several operations can share a datum,
+so a placement reference does not automatically name its consumers. Reordering
+named applications preserves their identities; operation order still determines
+construction dependencies. Duplicate names in the consuming scope are errors.
+
+Use the named result with selectors its return kind already supports, such as
+`face(leftBore.Wall)` for an admitted Hole wall. Naming a Feature does not grant
+new geometry capabilities or guarantee that every face survives a topology edit.
+Delegated recipes retain the application's identity and original call provenance;
+private construction names do not depend on unrelated calls.
+
+Keyed `Set` Patterns retain their Pattern and element keys when entries move,
+are inserted, or are removed. The current mapping emits one result per key;
+the Pattern supplies the repeated role and a named recipe result identifies that
+role at the call site. Ordered arrays and generated Grid points remain positional.
+Inspection reports `applicationIdentity`, `identityKind`, `pattern`, and
+`generatedResults`; keyed results reflect the identities produced by Pattern
+lowering, rather than the pre-expansion recipe's temporary name.
+
+Anonymous calls remain supported. Their generated `__0`, `__1`, etc. names are
+positional and should not be treated as durable public names. Give an application
+a source name before attaching persistent editing state or external references.
+Editor extraction preserves the original declaration name when replacing it with
+a Feature application, including references from PMI. Named call nodes expose
+their arguments for structural edits; the name stays unchanged when those values
+or their Concept datums change.
+After naming an existing anonymous call, update any authored selectors that used
+its old generated name. Generated fields are read-only projections: edit the
+recipe arguments or owning Concept datum instead of rewriting expanded fields.
+
 In the admitted Set and semantic point Patterns, an iteration symbol substitutes
 value references. It does not rename field labels, declaration names, string
 contents or a similarly spelled identifier. Generated instance identities still

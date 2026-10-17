@@ -1,0 +1,16 @@
+Model MountingPlate {
+  units: mm
+  Feature MountHole(center: Point2) -> Hole<Shaft> {
+    return Hole<Shaft> { on: +Z center: center diameter: 6mm end: ThroughAll }
+  }
+  Static sites: Set<Point2> {
+    left => Point2(-12mm, 0mm)
+    right => Point2(12mm, 0mm)
+  }
+  Box stock { size: [50mm, 30mm, 8mm] }
+  Modify stock {
+    Pattern mounts over sites {
+      site => Feature bore = MountHole(center: site)
+    }
+  }
+}

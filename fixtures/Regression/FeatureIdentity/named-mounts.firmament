@@ -1,0 +1,18 @@
+Model MountingPlate {
+  units: mm
+  Concept Struct Layout on XY {
+    Point2 leftMount { position: [-12mm, 0mm] }
+    Point2 rightMount { position: [12mm, 0mm] }
+  }
+  Feature MountHole(center: Point2) -> Hole<Shaft> {
+    return Hole<Shaft> { on: +Z center: center diameter: 6mm end: ThroughAll }
+  }
+  Box stock { size: [50mm, 30mm, 8mm] }
+  Modify stock {
+    Feature leftBore = MountHole(center: Layout.leftMount)
+    Feature rightBore = MountHole(center: Layout.rightMount)
+  }
+  Pmi {
+    HoleDiameter LeftSize { target: face(leftBore.Wall) value: 6mm }
+  }
+}

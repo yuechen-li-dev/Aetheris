@@ -85,14 +85,32 @@ Inside a body, a bare call such as `MountHole(center: Point2(10mm, 0mm))` is an
 outline node with `call: true`: its `kind` is the callee and its `fields` are the
 arguments, so `setField`/`removeField` edit arguments and `moveDeclaration`/
 `removeDeclaration` place and remove it like a feature; `insertFeature` also takes
-a call as `source`. Value declarations carry `value` (the initializer, for a
+a call as `source`. Named applications also have `call: true`, their declared
+`name`, and argument fields, with outline ids that survive reordering.
+Value declarations carry `value` (the initializer, for a
 parameter sheet) and `annotation`; Features carry `signature`.
 `extractFeature` (`node`, `name`, `parameters`) turns a feature into a
 document-level `Feature` whose chosen fields become typed parameters defaulting to
 their current values, and leaves a call with those values in its place: the
-model builds the same geometry. A placed call has no name, so extraction is
-refused (`edit-extract-referenced`) while anything names the declaration,
-including a Pmi `Target`, and otherwise warns that the name is not kept.
+model builds the same geometry. Extraction writes a named application using the
+original declaration name, so
+existing references, including a Pmi `Target`, continue to resolve.
+
+`insertFeature` also accepts a bare recipe call as `source`, for example
+`MountHole(center: Layout.leftMount)`. It writes `Feature name = Recipe(...)`
+into the source. Pass a meaningful `name`, or omit it to allocate an unused
+camelCase name in that Modify; existing application names are preserved.
+`nameFeature` takes an anonymous call `node` (or its exact authored `span`) and an optional
+`name`, and promotes it to the same named form. Use spans from the current source
+revision. Duplicate names and spans that do not identify a call reject. Update
+authored selectors that referenced its old ordinal-generated name after promotion.
+The returned `nodes` contains the resulting named outline node.
+
+Construct projections for Feature-generated holes expose
+`featureApplicationIdentity`, navigate to the original call where provenance is
+available, and keep expanded fields read-only. Their ordinary admitted output
+selectors remain available. This does not confer persistent identity on arbitrary
+faces after topology changes.
 
 `cad.language.palette()` lists what a visual editor can add
 (`firmament-palette/1`): bodies (`placement: 'model'`) and features on a body

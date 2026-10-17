@@ -152,6 +152,12 @@ public sealed record FirmamentV2FeatureInvocation(string Feature, int Ordinal, s
 {
     public string GeneratedByFeature => Feature;
     public string? BindingScope { get; init; }
+    /// <summary>Lexical application address. Named applications survive sibling reordering.</summary>
+    public string? ApplicationIdentity { get; init; }
+    public string IdentityKind { get; init; } = "Positional";
+    public string? Pattern { get; init; }
+    /// <summary>Concrete declaration names, or keyed semantic Pattern identities after lowering.</summary>
+    public IReadOnlyList<string> GeneratedResults { get; init; } = [];
     public FirmamentV2ValueOrigin? DefinitionOrigin { get; init; }
     public FirmamentV2ValueOrigin? InvocationOrigin { get; init; }
     public IReadOnlyList<string> ExpansionChain { get; init; } = [];

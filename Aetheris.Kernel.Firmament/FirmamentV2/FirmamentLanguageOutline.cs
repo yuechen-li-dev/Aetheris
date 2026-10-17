@@ -10,8 +10,8 @@ public sealed record FirmamentOutlineNode(string Id, string Kind, string? Varian
     bool Occurrence, string? ParentId, int Order, FirmamentOutlineSpan Span, FirmamentOutlineSpan? NameSpan, string? SchemaId,
     IReadOnlyList<string> Parameters, IReadOnlyList<FirmamentOutlineField> Fields, IReadOnlyList<string> Children)
 {
-    /// <summary>A bare call written in a body (<c>MountHole(center: Point2(10mm, 0mm))</c>): <c>Kind</c> is the
-    /// callee and <c>Fields</c> are its arguments, positional ones named <c>#1</c>, <c>#2</c>.</summary>
+    /// <summary>A bare or named Feature application: <c>Kind</c> is the callee and <c>Fields</c> are its arguments,
+    /// positional ones named <c>#1</c>, <c>#2</c>. Named applications retain <c>Name</c> and its stable path.</summary>
     public bool Call { get; init; }
     /// <summary>The value a declaration is initialized with (<c>Static Thickness: Length = 8mm</c>), named <c>=</c>.
     /// Absent for object initializers, whose fields are <c>Fields</c>.</summary>
@@ -85,8 +85,8 @@ public static class FirmamentLanguageOutlineService
         public Entry? Parent { get; init; }
         public required int Order { get; init; }
         public List<Entry> Children { get; } = [];
-        public string Kind => Syntax.Type.Name.Text;
-        public string? Name => Call is null ? Syntax.Name?.Text : null;
+        public string Kind => Call?.Target is ReferenceSyntax recipe ? recipe.Name.Text : Syntax.Type.Name.Text;
+        public string? Name => Syntax.Name?.Text;
     }
 
     public static FirmamentLanguageOutline Outline(string source, string document, string revision)
@@ -144,7 +144,7 @@ public static class FirmamentLanguageOutlineService
     {
         var roots = new List<Entry>();
         Collect(parse.Document.Statements, null, roots);
-        return Flatten(roots).Where(e => e.Call is null).Select(e => (e.Id, e.Parent?.Id, e.Syntax)).ToArray();
+        return Flatten(roots).Where(e => e.Statement is DeclarationSyntax).Select(e => (e.Id, e.Parent?.Id, e.Syntax)).ToArray();
     }
 
     /// <summary>Every outline node's statement, declarations and bare calls, under its outline id.</summary>
@@ -155,9 +155,14 @@ public static class FirmamentLanguageOutlineService
         return Flatten(roots).Select(e => (e.Id, e.Parent?.Id, e.Statement, e.Call is not null)).ToArray();
     }
 
-    /// <summary>A body statement that is just a call of a named Feature or function.</summary>
-    internal static CallSyntax? BareCall(StatementSyntax statement) =>
-        statement is ExpressionStatementSyntax { Value: CallSyntax { Target: ReferenceSyntax } call } ? call : null;
+    /// <summary>The expression of a bare call or a named Feature application.</summary>
+    internal static CallSyntax? ApplicationCall(StatementSyntax statement) =>
+        statement switch
+        {
+            ExpressionStatementSyntax { Value: CallSyntax { Target: ReferenceSyntax } call } => call,
+            DeclarationSyntax { Type.Name.Text: "Feature", ResultType: null, Initializer: CallSyntax { Target: ReferenceSyntax } call } => call,
+            _ => null
+        };
 
     internal static bool NameIsUse(DeclarationSyntax declaration) =>
         declaration.Type.Name.Text is "Modify" or "modify" or "Recognize" || declaration.Modifiers.Any(m => m.Name.Text == "Assert");
@@ -171,8 +176,8 @@ public static class FirmamentLanguageOutlineService
     private static void Collect(IEnumerable<StatementSyntax> statements, Entry? parent, List<Entry> into)
     {
         // Inside a body, a bare call is a node too: a reused Feature placed like any other feature.
-        var items = statements.SelectMany(s => DirectDeclarations(s).Select(d => ((StatementSyntax)d, d, (CallSyntax?)null))
-            .Concat(parent is null ? [] : DirectCalls(s).Select(c => (c, CallStandIn(BareCall(c)!), BareCall(c))))).ToList();
+        var items = statements.SelectMany(s => DirectDeclarations(s).Select(d => ((StatementSyntax)d, d, ApplicationCall(d)))
+            .Concat(parent is null ? [] : DirectCalls(s).Select(c => (c, CallStandIn(ApplicationCall(c)!), ApplicationCall(c))))).ToList();
         var segments = Segments(items.Select(i => i.Item2).ToList());
         for (var i = 0; i < items.Count; i++)
         {
@@ -187,7 +192,7 @@ public static class FirmamentLanguageOutlineService
     private static IEnumerable<StatementSyntax> DirectCalls(StatementSyntax statement) => statement switch
     {
         StatementBlockSyntax b => b.Body.Statements.SelectMany(DirectCalls),
-        _ when BareCall(statement) is not null => [statement],
+        ExpressionStatementSyntax when ApplicationCall(statement) is not null => [statement],
         _ => []
     };
 
@@ -226,7 +231,8 @@ public static class FirmamentLanguageOutlineService
     private static FirmamentOutlineNode Node(Entry entry, string source)
     {
         if (entry.Call is { } call)
-            return new(entry.Id, entry.Kind, null, [], null, false, entry.Parent?.Id, entry.Order, Span(call.Span), null, null, [],
+            return new(entry.Id, entry.Kind, null, [], entry.Name, false, entry.Parent?.Id, entry.Order, Span(entry.Statement.Span),
+                entry.Syntax.Name is { } name ? Span(name.Span) : null, null, [],
                 call.Arguments.Select((a, i) => new FirmamentOutlineField(a.Name?.Text ?? "#" + (i + 1), Text(source, a.Value.Span),
                     Shape(a.Value), Span(a.Span), Span(a.Value.Span))).ToArray(), []) { Call = true };
         var d = entry.Syntax;
@@ -323,7 +329,7 @@ public static class FirmamentLanguageOutlineService
                     Uses(f.Value, "field:" + f.Name.Text, vocab && f.Value is ReferenceSyntax, scoped);
                     break;
                 // A bare call in a body is its own node and resolves its own uses.
-                case ExpressionStatementSyntax e when scoped is null && BareCall(e) is not null: break;
+                case ExpressionStatementSyntax e when scoped is null && ApplicationCall(e) is not null: break;
                 case ExpressionStatementSyntax e: Uses(e.Value, "body", scoped: scoped); break;
                 case ReturnSyntax r: Uses(r.Value, "body", scoped: scoped); break;
                 case MappingSyntax m:

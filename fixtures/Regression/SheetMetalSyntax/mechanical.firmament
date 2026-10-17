@@ -1,0 +1,5 @@
+Model Plate {
+  units: mm
+  Profile blank = Rect2 { center: [40mm, 25mm]; size: [80mm, 50mm] }
+  Extrude stock { profile: blank; from: 0mm; to: 1.5mm }
+}

@@ -1,0 +1,10 @@
+Profile blank = Rect2 { center: [40mm, 25mm]; size: [80mm, 50mm] }
+Profile opening = Rect2 { center: [0mm, 0mm]; size: [12mm, 6mm] }
+SheetMetal Bracket {
+  thickness: 1.5mm
+  material: "5052-H32 Aluminum"
+  kFactor: 0.42
+  Base deck { profile: blank }
+  Flange wall { from: deck.Rear; length: 30mm; angle: 90deg; insideRadius: 2mm; direction: Up }
+  Cut port { on: deck; profile: opening; at: Point2(30mm, 20mm) }
+}

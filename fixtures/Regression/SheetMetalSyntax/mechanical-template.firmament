@@ -1,0 +1,6 @@
+Template<width: Length> Model PlateFamily {
+  units: mm
+  Profile blank = Rect2 { center: [0mm, 0mm]; size: [width, 20mm] }
+  Extrude stock { profile: blank; from: 0mm; to: 2mm }
+}
+Model Product = PlateFamily<width: 40mm>

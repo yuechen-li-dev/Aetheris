@@ -28,6 +28,7 @@ internal static class ClosedBoundary2Authoring
 
     public static Result? Expand(string source, List<string> diagnostics, FirmamentCompileTimeValues? scalars = null)
     {
+        source = ExpandProfileValues(source, diagnostics);
         // Template bodies have local names and unbound dimensions. Their selected
         // specializations pass through this lowering after ordinary template binding.
         var templates = FirmamentV2TemplateExpansion.DeclarationSpans(source, diagnostics).ToList();
@@ -121,10 +122,55 @@ internal static class ClosedBoundary2Authoring
         internal override ExpressionSyntax Expression(ExpressionSyntax expression) => values.NominalExpression(expression);
     }
 
+    // A compact Profile value delegates to the existing boundary and immutable
+    // Profile owners. This is one AST production at the existing lowering seam.
+    private static string ExpandProfileValues(string source, List<string> diagnostics)
+    {
+        var syntax = FirmamentSyntaxParser.Parse(source).Document;
+        var changes = new List<(int Start, int Length, string Text)>();
+        var coveredUntil = -1;
+        foreach (var profile in FirmamentSyntaxTraversal.Declarations(syntax)
+            .Where(d => d.Type.Name.Text == "Profile" && d.Name is not null && d.Initializer is not null
+                // Specializations and historical Template calls belong to the
+                // existing Template owner, before compact value admission.
+                && d.Initializer is not (SpecializationSyntax or CallSyntax)
+                && !d.Modifiers.Any(m => m.Name.Text == "Template"))
+            .OrderBy(d => d.Span.Start).ThenByDescending(d => d.Span.Length))
+        {
+            if (profile.Span.Start < coveredUntil) continue;
+            coveredUntil = profile.Span.Start + profile.Span.Length;
+            if (profile.Body is not null || profile.Clauses.Count > 0 || profile.Modifiers.Count > 0
+                || profile.Parameters.Count > 0 || profile.HasParameterList || profile.Annotation is not null || profile.ResultType is not null || profile.Occurrence)
+            { diagnostics.Add(Prefix + "profile-value-header:" + profile.Name!.Text); continue; }
+            var name = profile.Name!.Text;
+            string replacement;
+            if (profile.Initializer is ObjectSyntax { Name: null, Type: ReferenceSyntax type } value && IsBoundaryType(type.Name.Text))
+            {
+                var boundaryName = name + "__Boundary";
+                if (FirmamentSyntaxTraversal.Declarations(syntax).Any(d => d.Name?.Text == boundaryName))
+                { diagnostics.Add(Prefix + "duplicate-name:" + boundaryName); continue; }
+                var boundary = new DeclarationSyntax(new(type.Name, [], type.Span), new(boundaryName, value.Span),
+                    [], [], null, null, [], null, value.Body, false, value.Span);
+                replacement = FirmamentSyntaxWriter.Statement(boundary) + $"\nProfile {name} {{ From: {boundaryName}; }}";
+            }
+            else if (FirmamentSyntaxValues.Reference(profile.Initializer) is { } reference)
+                replacement = $"Profile {name} {{ From: {reference}; }}";
+            else
+            { diagnostics.Add(Prefix + "profile-value-unsupported:" + name); continue; }
+            changes.Add((profile.Span.Start, profile.Span.Length, replacement));
+        }
+        foreach (var change in changes.OrderByDescending(c => c.Start))
+            source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
+        return source;
+    }
+
+    private static bool IsBoundaryType(string type) => type is "Rect2" or "Square2" or "Circle2" or "Ellipse2" or "Slot2"
+        or "RoundedRect2" or "SmoothRoundedRect2" or "Triangle2" or "Polygon2" or "RegularPolygon2";
+
     private static IEnumerable<DeclarationSyntax> BoundaryDeclarations(DocumentSyntax syntax) =>
         FirmamentSyntaxTraversal.Declarations(syntax)
             .Where(d => d.Name is not null && d.Body is not null && d.Modifiers.All(m => m.Name.Text == "Concept")
-                && d.Type.Name.Text is "Rect2" or "Square2" or "Circle2" or "Ellipse2" or "Slot2" or "RoundedRect2" or "SmoothRoundedRect2" or "Triangle2" or "Polygon2" or "RegularPolygon2");
+                && IsBoundaryType(d.Type.Name.Text));
 
     private static Shape? Bind(string source, DeclarationSyntax declaration, FirmamentSyntaxFields body, List<string> diagnostics)
     {

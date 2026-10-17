@@ -14,7 +14,6 @@ public static class ProfileAuthoringParser
 {
     public const string SegmentEndpointMustReferenceNamedPoint = "ProfileSegmentEndpointMustReferenceNamedPoint";
     private const double Tolerance = 1e-9;
-    private static readonly Regex ConstructionPlaneDeclaration = new(@"\bConstruction\s+Plane\s+(?<name>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*\}", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*From\s*:\s*(?<from>[\w.]+)\s*;?\s*To\s*:\s*(?<to>[\w.]+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex SpanHeader = new(@"\bSpan\s*<\s*(?<type>[A-Za-z_]\w*)\s*>\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
 
@@ -366,7 +365,7 @@ public static class ProfileAuthoringParser
                 var boundary = Property(body, "Boundary");
                 var planeDiagnostics = new List<string>();
                 var parentPlane = ResolveConstructionPlane(source, parent, planeDiagnostics);
-                if (!ConstructionPlaneDeclaration.Matches(source).Cast<Match>().Any(match => match.Groups["name"].Value == parent) || parentPlane is null)
+                if (!ConstructionPlanes(source).Any(plane => plane.Name?.Text == parent) || parentPlane is null)
                 { diagnostics.Add($"firmament-span-parent-not-found:{name}"); continue; }
                 if (boundary is null) { diagnostics.Add($"firmament-span-surface-boundary-open:{name}"); continue; }
                 var boundaryProfile = ResolveNamedProfile(source, boundary, out var boundaryDiagnostics);
@@ -1144,10 +1143,16 @@ public static class ProfileAuthoringParser
         diagnostics.Add($"profile-guide-missing:{segment}:{trace}"); return null;
     }
 
+    private static IEnumerable<DeclarationSyntax> ConstructionPlanes(string source) =>
+        SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements)
+            .Where(d => d.Type.Name.Text == "Plane" && d.Modifiers.Any(m => m.Name.Text == "Construction"));
+
     private static ConstructionPlane? ResolveConstructionPlane(string source, string? frame, List<string> diagnostics)
     {
         if (frame is null) return ConstructionPlane.WorldXY;
-        var plane = ConstructionPlaneDeclaration.Matches(source).Cast<Match>().SingleOrDefault(x => x.Groups["name"].Value == frame);
+        var planes = ConstructionPlanes(source).Where(d => d.Name?.Text == frame).ToArray();
+        if (planes.Length > 1) { diagnostics.Add($"profile-frame-duplicate:{frame}"); return null; }
+        var plane = planes.SingleOrDefault();
         if (plane is null)
         {
             if (frame == "XY") return ConstructionPlane.WorldXY;
@@ -1163,8 +1168,13 @@ public static class ProfileAuthoringParser
             diagnostics.Add($"profile-frame-unresolved:{frame}:using must name a declared Concept Struct or Construction Plane.");
             return null;
         }
-        if (!ConceptIrResolver.TryResolvePlane(source, plane.Groups["trace"].Value, out var conceptPlane, out var traceDiagnostic) || conceptPlane is null) { diagnostics.Add(traceDiagnostic ?? "ConstructionPlaneTraceMissing"); return null; }
-        if (!ConstructionPlane.TryTrace("construction:" + frame, conceptPlane, $"offset:{plane.Index}", out var result, out var frameDiagnostic)) diagnostics.Add(frameDiagnostic ?? "ConstructionPlaneFrameInvalid");
+        var before = diagnostics.Count;
+        var fields = new FirmamentSyntaxFields(plane, diagnostics);
+        var trace = fields.Reference("Trace");
+        fields.Complete();
+        if (trace is null || diagnostics.Count > before) { diagnostics.Add($"profile-frame-trace-invalid:{frame}"); return null; }
+        if (!ConceptIrResolver.TryResolvePlane(source, trace, out var conceptPlane, out var traceDiagnostic) || conceptPlane is null) { diagnostics.Add(traceDiagnostic ?? "ConstructionPlaneTraceMissing"); return null; }
+        if (!ConstructionPlane.TryTrace("construction:" + frame, conceptPlane, $"offset:{plane.Span.Start}", out var result, out var frameDiagnostic)) diagnostics.Add(frameDiagnostic ?? "ConstructionPlaneFrameInvalid");
         return result;
     }
 

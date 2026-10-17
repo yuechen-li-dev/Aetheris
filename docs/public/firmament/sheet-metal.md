@@ -2,39 +2,97 @@
 
 Authored Sheet Metal uses a specialized semantic model: a base region, named flanges and bend strips, and cuts on named planar regions. It can emit formed STEP, thickness-bearing flat STEP, and flat SVG; it also carries material, K-factor, DFM, semantic layout, and manufacturing definitions on qualified routes.
 
+A closed boundary has the same `Profile` meaning in mechanical and sheet-metal
+construction. Use canonical 2D shapes for a compact boundary, or the ordinary
+`Loop`/`Segment`/pipeline forms for an authored boundary. The consuming operation
+then checks its own capabilities.
+
+**Complete file — a bracket with a reusable blank and rounded opening:**
+
 ```firmament
+Profile blank = Rect2 { center: [40mm, 25mm]; size: [80mm, 50mm] }
+Profile ventilation = Slot2 { center: [0mm, 0mm]; length: 12mm; width: 6mm }
+
 SheetMetal MountingBracket {
-    Thickness: 1.5mm;
-    Material: "5052-H32 Aluminum";
-    KFactor: 0.42;
-    Base: Rectangle(80mm, 50mm);
-
-    Flange Upright {
-        From: Base.Rear;
-        Length: 30mm;
-        Angle: 90deg;
-        InsideRadius: 2mm;
-        Direction: Up;
+    thickness: 1.5mm
+    material: "5052-H32 Aluminum"
+    kFactor: 0.42
+    Base deck { profile: blank }
+    Flange upright {
+        from: deck.Rear
+        length: 30mm
+        angle: 90deg
+        insideRadius: 2mm
+        direction: Up
     }
-
-    Hole Mount {
-        On: Base;
-        Center: (40mm, 20mm);
-        Diameter: 8mm;
-    }
+    Cut vent { on: deck; profile: ventilation; at: Point2(40mm, 20mm) }
 }
 ```
 
-Sheet Metal does not use a Model `Units` declaration in this authored route; dimensional fields carry explicit units. `Thickness`, `Material`, `KFactor`, and `Base` belong directly in the `SheetMetal` body, alongside `Flange` and `Hole` declarations.
+`Profile blank = Rect2 { ... }` is also admitted in a mechanical Model and consumed
+by `Extrude stock { profile: blank; from: 0mm; to: 1.5mm }`. The shape's existing
+field schema, closure checks and exact Profile lowerer remain authoritative.
+`Profile copy = blank` names an immutable derived boundary. Detailed boundary
+editing continues to use the ordinary `Profile { from: ... }` and `Replace` forms.
+There is no separate sheet-metal sketch language for new named boundaries.
 
-[`l-bracket-with-hole.firmament`](../../../fixtures/Canonical/SheetMetal/l-bracket-with-hole.firmament) is the practical first example. Build the formed part and then flatten the same source:
+Use PascalCase for constructs/types and domain symbols (`Base`, `Rect2`, `Up`,
+`Rear`), camelCase for fields and authored value names. PascalCase field spellings
+remain compatible. Semicolons are optional in Base, Flange, Hole and Cut fields;
+newlines can separate fields. Older manufacturing/semantic-layout recipes retain
+their documented statement forms and terminators.
+
+### Coordinates and capability admission
+
+A Base currently admits one axis-aligned rectangular Profile in local XY. Its
+minimum corner becomes the physical base origin; it is not silently recentered.
+An optional Base `origin` adds a physical translation. A circle or arbitrary
+polygon cannot serve as this rectangular base merely because it has bounds.
+Non-axis-aligned or non-XY bases reject explicitly.
+
+A Cut admits one closed line/arc Profile or a circle. Its coordinates are local to
+its named sheet region. Optional `at: Point2(x, y)` adds a translation; without
+`at`, the authored Profile coordinates are used directly. Curves remain exact in
+the formed and flat contours. Inner islands, ellipses, splines and non-XY Profile
+frames are not admitted by this sheet cut owner. Crossing a region boundary or
+bend zone still rejects. Structural parsing alone does not admit a geometry
+capability.
+
+`Slot2.length` is the **overall** rounded-slot length, including its semicircular
+ends, exactly as in mechanical profiles. `Circle2` uses `radius`; `Rect2` uses
+`size`. This avoids the old sheet-specific dimension vocabulary for new Profiles.
+
+The sheet region's `Rear`/`Front` members are attachment semantics; a Profile's
+`Top`/`Bottom` members name its planar boundary. They are not global-axis aliases.
+Named regions, attachment paths, ProfileDelta programs and formed/flat identity
+remain useful sheet-metal concepts; ordinary Profile boundaries and edits now
+feed them through the shared boundary authority.
+
+### Compatibility
+
+Existing `Base: Rectangle(w, d)` and named
+`Base deck { Profile: Rectangle { Width: 80mm; Height: 50mm; }; }` retain their
+geometry. Legacy cuts using `Profile: Rectangle`, `Circle` or `Slot`, including
+inline dimensions and tuple placement, remain admitted. **Legacy `Slot` cuts are
+rectangular** in this route; they are not silently converted into capsules. Use a
+named `Profile` built with `Slot2` when a rounded slot is intended.
+
+Sheet Metal does not use a Model `units` declaration in this authored route;
+dimensional fields carry explicit units. `thickness`, `material`, `kFactor`, and
+the named Base belong directly in the `SheetMetal` body.
+
+[`modern-bracket.firmament`](../../../fixtures/Regression/SheetMetalSyntax/modern-bracket.firmament)
+and its legacy reference qualify formed STEP parity. Build and flatten it:
 
 ```powershell
-aetheris build fixtures/Canonical/SheetMetal/l-bracket-with-hole.firmament --output artifacts/bracket-formed.step --json
-aetheris sheetmetal flatten fixtures/Canonical/SheetMetal/l-bracket-with-hole.firmament --step artifacts/bracket-flat.step --svg artifacts/bracket-flat.svg --json
+aetheris build fixtures/Regression/SheetMetalSyntax/modern-bracket.firmament --output artifacts/local/bracket-formed.step --json
+aetheris sheetmetal flatten fixtures/Regression/SheetMetalSyntax/modern-bracket.firmament --step artifacts/local/bracket-flat.step --svg artifacts/local/bracket-flat.svg --json
 ```
 
-[`profile-delta-tab-family.firmament`](../../../fixtures/Canonical/SheetMetal/profile-delta-tab-family.firmament) is the modern data-driven profile example: a finite Table selects `ProfileTabSpec`, `with` derives the shop variant, and the standard-library `ProfileDelta Tab` modifies the wall edge while preserving formed/flat semantic identity.
+[`profile-delta-tab-family.firmament`](../../../fixtures/Canonical/SheetMetal/profile-delta-tab-family.firmament)
+is the data-driven edge-edit example: a finite Table selects `ProfileTabSpec`,
+`with` derives the shop variant, and the standard-library `ProfileDelta Tab`
+modifies the wall edge while preserving formed/flat semantic identity.
 
 Flat inspection distinguishes `MaterialArea` from `BoundingArea`. `MaterialArea` is exact line/arc integration of the final flat material contour after additive ProfileDelta regions, notches, holes, cutouts, and overlap clipping. `BoundingArea` is only the rectangular nesting envelope. If no validated exact blank contour exists, material area is reported as unavailable rather than reconstructed from feature bookkeeping.
 

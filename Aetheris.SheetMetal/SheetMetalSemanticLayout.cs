@@ -49,6 +49,8 @@ internal sealed record SheetMetalSemanticLayoutParseResult(
 /// </summary>
 internal static class SheetMetalSemanticLayoutParser
 {
+    internal static bool OwnsDeclaration(string type) => type is "AttachmentPath" or "Datum" or "Tab" or "SteppedNotch"
+        or "CornerProfile" or "Pattern" or "Require" or "ProfileDelta";
     private const RegexOptions Rx=RegexOptions.IgnoreCase|RegexOptions.CultureInvariant|RegexOptions.Singleline;
     private const string Number=@"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)";
     private sealed record Block(string Keyword,string Name,string Body,int Index,string? Struct);

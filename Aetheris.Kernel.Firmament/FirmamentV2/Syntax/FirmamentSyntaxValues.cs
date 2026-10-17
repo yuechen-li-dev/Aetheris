@@ -2,7 +2,7 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 /// <summary>Literal and bounded dimensional binding over syntax. This preserves the
 /// existing profile evaluator's one-unit, dimension-0/1 arithmetic contract.</summary>
-internal static class FirmamentSyntaxValues
+public static class FirmamentSyntaxValues
 {
     public static string? Reference(ExpressionSyntax? value) => value switch
     {
@@ -53,7 +53,7 @@ internal static class FirmamentSyntaxValues
 
 /// <summary>Each semantic owner consumes its actual fields, then closes its scope.
 /// No second field schema or spelling allowlist is maintained here.</summary>
-internal sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<string> diagnostics, string? implicitUnit = null)
+public sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<string> diagnostics, string? implicitUnit = null)
 {
     private readonly HashSet<FieldSyntax> consumed = [];
     public DeclarationSyntax Declaration => declaration;

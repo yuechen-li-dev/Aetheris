@@ -1,0 +1,7 @@
+Concept Struct Frames {
+  xz: Plane { origin: [0mm, 0mm, 0mm]; normal: [0, -1, 0]; up: [0, 0, 1] }
+}
+Construction Plane panelPlane { trace: Frames.xz }
+Rect2 boundary { center: [40mm, 25mm]; size: [80mm, 50mm] }
+Profile blank using panelPlane { Loop Outer { boundary.Bottom |> boundary.Right |> boundary.Top |> boundary.Left |> Close } }
+SheetMetal Bracket { thickness: 1.5mm; Base deck { profile: blank } }

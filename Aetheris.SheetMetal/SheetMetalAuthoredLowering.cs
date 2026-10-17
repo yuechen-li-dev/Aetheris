@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Brep;
@@ -11,6 +10,7 @@ using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Surfacing;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.SheetMetal;
 
@@ -29,7 +29,10 @@ public sealed record AuthoredSheetTerminationSpec(
     SheetBendTerminationTreatment Treatment,double? Setback=null,double? Depth=null,double? Radius=null);
 public sealed record AuthoredSheetCutSpec(
     string Name, string RegionName, SheetFeatureKind Kind, double X, double Y,
-    double? Diameter, double? Width, double? Length, bool ExactCapsule = false);
+    double? Diameter, double? Width, double? Length, bool ExactCapsule = false)
+{
+    public ResolvedProfile2D? Profile { get; init; }
+}
 public sealed record SheetMetalConstructionSpec(
     string Name, double Thickness, string? Material, double KFactor, AuthoredSheetBaseSpec Base,
     IReadOnlyList<AuthoredSheetFlangeSpec> Flanges, IReadOnlyList<AuthoredSheetCutSpec> Cuts,
@@ -48,14 +51,11 @@ public sealed record SheetMetalConstructionSpec(
 internal static class AuthoredSheetMetalCompiler
 {
     private const RegexOptions Rx = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline;
-    private const string Number = @"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)";
 
     public static SheetMetalAuthoringResult Compile(string source, string sourcePath)
     {
         var parseStarted=Stopwatch.GetTimestamp();
         var diagnostics = new List<SheetMetalDiagnostic>();
-        var header = Regex.Match(source, @"\bSheetMetal\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)(?:\s*:\s*(?<concept>[A-Za-z_][A-Za-z0-9_]*))?\s*\{", Rx);
-        if (!header.Success) return Fail("Expected `SheetMetal <Name> { ... }`.");
         var modelStyleHole = Regex.Match(source, @"\bHole\s*<\s*(?<variant>[A-Za-z_][A-Za-z0-9_]*)\s*>", Rx);
         if (modelStyleHole.Success)
             return Fail(
@@ -65,24 +65,54 @@ internal static class AuthoredSheetMetalCompiler
             return Fail(
                 "Sheet Metal PMI does not use the Model-domain `Datum` record or axis-face targets. Add a `Manufacturing <Release> { ... }` block and declare `DatumFeature <Label> { Target: <named-sheet-region>; }` inside `Pmi`; for example, `DatumFeature A { Target: Base; }`.",
                 "sheetmetal-pmi-domain-syntax");
-        if (!Scalar(source, "Thickness", "mm", out var thickness) || thickness <= 0)
+        var syntax = FirmamentSyntaxParser.Parse(source);
+        var syntaxErrors = new List<string>();
+        var owners = syntax.Document.Statements.OfType<DeclarationSyntax>()
+            .Where(d => d.Type.Name.Text == "SheetMetal" && d.Body is not null && d.Modifiers.Count == 0).ToArray();
+        if (owners.Length != 1) return Fail($"Expected one concrete SheetMetal document; found {owners.Length}.");
+        var owner = owners[0];
+        if (owner.Body is null || owner.Name is null) return Fail("Expected one named SheetMetal document.");
+        var documentName = owner.Name.Text;
+        // ProfileDelta and semantic-layout declarations retain their domain owners.
+        // Their syntax is admitted there; this owner closes its actual sheet body.
+        var bodyErrors = syntax.Diagnostics.Where(d => d.SourceSpan is { } span && span.Start >= owner.Span.Start
+            && span.Start < owner.Span.Start + owner.Span.Length).ToArray();
+        if (bodyErrors.Length > 0) return Fail(string.Join("\n", bodyErrors.Select(d => d.Message)), "sheetmetal-syntax-invalid");
+        var root = new FirmamentSyntaxFields(owner with { Annotation = null,
+            Body = owner.Body with { Statements = owner.Body.Statements.OfType<FieldSyntax>().Cast<StatementSyntax>().ToArray() } }, syntaxErrors);
+        if (!root.Measure("Thickness", "mm", out var thickness) || thickness <= 0)
             return Fail("Thickness must be a positive millimetre value.");
-        var material = Quoted(source, "Material");
-        var k = Scalar(source, "KFactor", null, out var parsedK) ? parsedK : SheetMetalFlattenPolicy.Default.KFactor;
-        if (k is < 0 or > 1) return Fail("KFactor must be between zero and one.");
-
-        AuthoredSheetBaseSpec? baseSpec = null;
-        var legacyBase = Regex.Match(source, $@"\bBase\s*:\s*Rectangle\s*\(\s*(?<w>{Number})\s*mm\s*,\s*(?<d>{Number})\s*mm\s*\)\s*;", Rx);
-        if (legacyBase.Success) baseSpec = new("Base", Num(legacyBase, "w"), Num(legacyBase, "d"));
+        var material = root.Reference("Material");
+        var k = root.Number("KFactor", "", SheetMetalFlattenPolicy.Default.KFactor);
+        if (!double.IsFinite(k) || k is < 0 or > 1) return Fail("KFactor must be between zero and one.");
+        var legacyBaseValue = root.Take("Base");
+        var intent = root.Reference("Intent");
+        if (intent is not (null or "Authored" or "Reconstructed" or "Manufacturing")
+            && !syntax.Document.Statements.OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text == "Struct"
+                && d.Modifiers.Any(m => m.Name.Text == "Concept") && d.Name?.Text == intent))
+            return Fail("Intent requires Authored, Reconstructed, Manufacturing or a declared Concept Struct layout.");
+        root.Complete();
+        foreach (var statement in owner.Body.Statements.Where(s => s is not FieldSyntax))
+            if (statement is not DeclarationSyntax declaration || !(declaration.Type.Name.Text is "Base" or "Flange" or "Hole" or "Cut" or "Manufacturing" or "Pmi"
+                || SheetMetalSemanticLayoutParser.OwnsDeclaration(declaration.Type.Name.Text)))
+                syntaxErrors.Add($"sheetmetal-statement-unknown: Unknown statement in SheetMetal '{owner.Name?.Text}': {(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}.");
+        var legacyBase = legacyBaseValue is not null;
+        AuthoredSheetBaseSpec? baseSpec;
+        var bases = Blocks(source, "Base", syntaxErrors);
+        if (bases.Count > 1 || legacyBase && bases.Count > 0)
+            return Fail("Declare exactly one Base; do not combine the legacy Base field with a named Base.", "sheetmetal-base-duplicate");
+        if (legacyBaseValue is CallSyntax { Target: ReferenceSyntax { Name.Text: "Rectangle" }, Arguments.Count: 2 } rectangle
+            && rectangle.Arguments.All(a => a.Name is null && a.Default is null)
+            && FirmamentSyntaxValues.TryMeasure(rectangle.Arguments[0].Value, "mm", out var w)
+            && FirmamentSyntaxValues.TryMeasure(rectangle.Arguments[1].Value, "mm", out var d))
+            baseSpec = new("Base", w, d);
         else
         {
-            var named = Blocks(source, "Base").SingleOrDefault();
-            if (named is not null && Scalar(named.Body, "Width", "mm", out var width) &&
-                (Scalar(named.Body, "Height", "mm", out var depth) || Scalar(named.Body, "Depth", "mm", out depth)))
-                baseSpec = new AuthoredSheetBaseSpec(named.Name, width, depth) { Origin = Point3(named.Body, "Origin") ?? Point3D.Origin };
+            var named = bases.SingleOrDefault();
+            baseSpec = named is null ? null : SheetMetalProfileBinding.Base(source, named.Name, named.Fields, syntaxErrors);
         }
         if (baseSpec is null || baseSpec.Width <= 0 || baseSpec.Depth <= 0)
-            return Fail("A positive rectangular base is required (`Base: Rectangle(w, d)` or named `Base <Name> { Profile: Rectangle { Width; Height; } }`).");
+            return Fail(syntaxErrors.Count > 0 ? string.Join("\n", syntaxErrors) : "A positive rectangular base Profile is required.", "sheetmetal-base-profile-invalid");
 
         // Attachment paths are resolved fully by the semantic-layout pass after
         // all region dimensions are known.  This small pre-scan exists only so
@@ -101,14 +131,14 @@ internal static class AuthoredSheetMetalCompiler
         }
 
         var flanges = new List<AuthoredSheetFlangeSpec>();
-        foreach (var block in Blocks(source, "Flange"))
+        foreach (var block in Blocks(source, "Flange", syntaxErrors))
         {
-            var from = Regex.Match(block.Body, @"\bFrom\s*:\s*(?<region>[A-Za-z_][A-Za-z0-9_]*)\.(?<edge>[A-Za-z_][A-Za-z0-9_]*)\s*;", Rx);
-            var hasLength = Scalar(block.Body, "Length", "mm", out var length) || Scalar(block.Body, "Height", "mm", out length);
-            var hasRadius = Scalar(block.Body, "InsideRadius", "mm", out var radius) || Scalar(block.Body, "Radius", "mm", out radius);
-            if (!from.Success || !hasLength || !Scalar(block.Body, "Angle", "deg", out var degrees) || !hasRadius)
+            var from = Token(block, "From")?.Split('.');
+            var hasLength = Scalar(block, "Length", "mm", out var length) || Scalar(block, "Height", "mm", out length);
+            var hasRadius = Scalar(block, "InsideRadius", "mm", out var radius) || Scalar(block, "Radius", "mm", out radius);
+            if (from is not { Length: 2 } || !hasLength || !Scalar(block, "Angle", "deg", out var degrees) || !hasRadius)
                 return Fail($"Flange '{block.Name}' requires From, Length/Height, Angle, and InsideRadius/Radius.");
-            var parentName=from.Groups["region"].Value;var authoredMember=from.Groups["edge"].Value;
+            var parentName=from[0];var authoredMember=from[1];
             if(parentName.Equals(baseSpec.Name,StringComparison.OrdinalIgnoreCase)&&authoredMember.Equals("Center",StringComparison.OrdinalIgnoreCase))
                 return Fail($"`{parentName}.Center` has capability PointCapable; `Flange.From` requires FlangeAttachable SheetEdge. Available public edge members: Front, Right, Rear, Left.","sheetmetal-incompatible-edge-capability");
             var available=parentName.Equals(baseSpec.Name,StringComparison.OrdinalIgnoreCase)?SheetMetalConceptPaths.AvailableMembers("SheetRegion.Rectangle"):SheetMetalConceptPaths.AvailableMembers("SheetFlange");
@@ -118,22 +148,27 @@ internal static class AuthoredSheetMetalCompiler
                 : new[]{"Outer","Top"}.Contains(authoredMember,StringComparer.OrdinalIgnoreCase);
             if(isAttachmentPath)allowed=true;
             if(!allowed)return Fail($"`{parentName}.{authoredMember}` is not a FlangeAttachable public member. Available public members: {string.Join(", ",available)}.","sheetmetal-concept-member-not-exposed");
-            var direction = Token(block.Body, "Direction")?.Equals("Down", StringComparison.OrdinalIgnoreCase) == true ? SheetBendDirection.Down : SheetBendDirection.Up;
-            var corner = Token(block.Body, "Corner")?.ToLowerInvariant() switch
+            var directionToken = Token(block, "Direction")?.ToLowerInvariant();
+            if (directionToken is not (null or "up" or "down")) return Fail($"Flange '{block.Name}' Direction requires Up or Down.", "sheetmetal-flange-direction-invalid");
+            var direction = directionToken == "down" ? SheetBendDirection.Down : SheetBendDirection.Up;
+            var cornerToken = Token(block, "Corner")?.ToLowerInvariant();
+            if (cornerToken is not (null or "open" or "miter" or "mitered" or "relief")) return Fail($"Flange '{block.Name}' Corner requires Open, Miter or Relief.", "sheetmetal-flange-corner-invalid");
+            var corner = cornerToken switch
             {
                 "miter" or "mitered" => SheetCornerPolicy.Mitered,
                 "relief" => SheetCornerPolicy.Relief,
                 _ => SheetCornerPolicy.Open
             };
-            var reliefToken = Token(block.Body, "Relief")?.ToLowerInvariant();
+            var reliefToken = Token(block, "Relief")?.ToLowerInvariant();
+            if (reliefToken is not (null or "none" or "auto" or "rectangular" or "rectangle" or "round")) return Fail($"Flange '{block.Name}' Relief requires None, Auto, Rectangular or Round.", "sheetmetal-flange-relief-invalid");
             var relief = reliefToken switch { "auto" => SheetReliefPolicy.Auto, "rectangular" or "rectangle" => SheetReliefPolicy.Rectangular, "round" => SheetReliefPolicy.Round, _ => SheetReliefPolicy.None };
-            Scalar(block.Body, "ReliefWidth", "mm", out var reliefWidth);
-            Scalar(block.Body, "ReliefDepth", "mm", out var reliefDepth);
-            var hasSpan=Scalar(block.Body, "Span", "mm", out var spanLength);
-            var hasSpanOffset=Scalar(block.Body, "SpanOffset", "mm", out var spanOffset);
+            Scalar(block, "ReliefWidth", "mm", out var reliefWidth);
+            Scalar(block, "ReliefDepth", "mm", out var reliefDepth);
+            var hasSpan=Scalar(block, "Span", "mm", out var spanLength);
+            var hasSpanOffset=Scalar(block, "SpanOffset", "mm", out var spanOffset);
             AuthoredSheetTerminationSpec? Termination(string end)
             {
-                var token=Token(block.Body,$"{end}Termination");if(token is null)return null;
+                var token=Token(block,$"{end}Termination");if(token is null)return null;
                 var treatment=token.ToLowerInvariant() switch
                 {
                     "natural" or "none"=>SheetBendTerminationTreatment.Natural,
@@ -142,19 +177,20 @@ internal static class AuthoredSheetMetalCompiler
                     "auto"=>SheetBendTerminationTreatment.Auto,
                     _=>throw new FormatException($"Flange '{block.Name}' has unsupported {end}Termination '{token}'. Supported: Natural, Trimmed, Rounded, Auto.")
                 };
-                Scalar(block.Body,$"{end}TerminationSetback","mm",out var setback);
-                Scalar(block.Body,$"{end}TerminationDepth","mm",out var depth);
-                Scalar(block.Body,$"{end}TerminationRadius","mm",out var terminationRadius);
+                Scalar(block,$"{end}TerminationSetback","mm",out var setback);
+                Scalar(block,$"{end}TerminationDepth","mm",out var depth);
+                Scalar(block,$"{end}TerminationRadius","mm",out var terminationRadius);
                 return new(treatment,setback>0?setback:null,depth>0?depth:null,terminationRadius>0?terminationRadius:null);
             }
             AuthoredSheetTerminationSpec? startTermination;AuthoredSheetTerminationSpec? endTermination;
             try{startTermination=Termination("Start");endTermination=Termination("End");}
             catch(FormatException ex){return Fail(ex.Message,"sheetmetal-bend-termination-treatment-invalid");}
             if(radius<0||degrees is <=0 or >=180)return Fail($"Flange '{block.Name}' has an invalid radius or bend angle.");
-            if(length<=radius+thickness)return Fail($"Flange '{block.Name}' length {length:G6} mm is not greater than inside radius + thickness ({radius+thickness:G6} mm). Increase `{block.Name}` Height/Length above {radius+thickness:G6} mm.",legacyBase.Success?"sheetmetal-firmament-invalid":SheetMetalDiagnosticCodes.FlangeBelowMinimum);
+            if(length<=radius+thickness)return Fail($"Flange '{block.Name}' length {length:G6} mm is not greater than inside radius + thickness ({radius+thickness:G6} mm). Increase `{block.Name}` Height/Length above {radius+thickness:G6} mm.",legacyBase?"sheetmetal-firmament-invalid":SheetMetalDiagnosticCodes.FlangeBelowMinimum);
             if(hasSpan&&spanLength<=0)return Fail($"Flange '{block.Name}' Span must be positive when supplied.","sheetmetal-flange-span-invalid");
             if(hasSpanOffset&&!hasSpan)return Fail($"Flange '{block.Name}' SpanOffset requires Span.","sheetmetal-flange-span-invalid");
             if(isAttachmentPath&&(hasSpan||hasSpanOffset))return Fail($"Flange '{block.Name}' consumes bounded path '{parentName}.{authoredMember}'; put Span and SpanOffset on the AttachmentPath, not the flange.","sheetmetal-attachment-path-span-conflict");
+            block.Fields.Complete();
             flanges.Add(new(block.Name, parentName, NormalizeEdge(authoredMember), length,
                 degrees * Math.PI / 180d, radius, direction, corner, relief,
                 reliefWidth > 0 ? reliefWidth : null, reliefDepth > 0 ? reliefDepth : null,
@@ -168,53 +204,42 @@ internal static class AuthoredSheetMetalCompiler
             return Fail($"Multiple flanges target {duplicate.First().ParentRegion}.{duplicate.First().EdgeName}.", SheetMetalDiagnosticCodes.DuplicateFlange);
         if (flanges.Select(f => f.Name).Append(baseSpec.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != flanges.Count + 1)
             return Fail("Base and flange names must be unique.", SheetMetalDiagnosticCodes.ImpossibleTopology);
-        foreach(Match extension in Regex.Matches(source,@"\bExtend\s+SheetMetal\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{",Rx))
-            if(!extension.Groups["name"].Value.Equals(header.Groups["name"].Value,StringComparison.Ordinal))
-                return Fail($"Sheet Metal extension targets '{extension.Groups["name"].Value}', but the specialized part is '{header.Groups["name"].Value}'.","sheetmetal-extension-target-mismatch");
+        foreach (var extension in syntax.Document.Statements.OfType<DeclarationSyntax>()
+            .Where(d => d.Type.Name.Text == "SheetMetal" && d.Modifiers.Any(m => m.Name.Text == "Extend")))
+            if (extension.Name?.Text != documentName)
+                return Fail($"Sheet Metal extension targets '{extension.Name?.Text}', but the specialized part is '{documentName}'.", "sheetmetal-extension-target-mismatch");
 
         var cuts = new List<AuthoredSheetCutSpec>();
-        foreach (var block in Blocks(source, "Hole"))
+        foreach (var block in Blocks(source, "Hole", syntaxErrors))
         {
-            var on = Token(block.Body, "On");
-            var at = Point(block.Body, "Center");
-            if (on is null || at is null || !Scalar(block.Body, "Diameter", "mm", out var diameter) || diameter <= 0)
+            var on = Token(block, "On");
+            var at = Point(block, "Center");
+            if (on is null || at is null || !Scalar(block, "Diameter", "mm", out var diameter) || diameter <= 0)
                 return Fail($"Hole '{block.Name}' requires On, Center, and positive Diameter.");
+            block.Fields.Complete();
             cuts.Add(new(block.Name, on, SheetFeatureKind.CircularHole, at.Value.X, at.Value.Y, diameter, null, null));
         }
-        foreach (var block in Blocks(source, "Cut"))
+        foreach (var block in Blocks(source, "Cut", syntaxErrors))
         {
-            var on = Token(block.Body, "On");
-            var at = Point(block.Body, "At") ?? Point(block.Body, "Center");
-            var circle = Regex.IsMatch(block.Body, @"\bProfile\s*:\s*Circle\b", Rx);
-            var slot = Regex.IsMatch(block.Body, @"\bProfile\s*:\s*(?:Slot|Rectangle)\b", Rx);
-            if (on is null || at is null || (!circle && !slot)) return Fail($"Cut '{block.Name}' requires On, At, and a Circle/Slot/Rectangle profile.");
-            if (circle)
-            {
-                if (!Scalar(block.Body, "Diameter", "mm", out var diameter) || diameter <= 0) return Fail($"Cut '{block.Name}' requires positive Diameter.");
-                cuts.Add(new(block.Name, on, SheetFeatureKind.CircularHole, at.Value.X, at.Value.Y, diameter, null, null));
-            }
-            else
-            {
-                if (!Scalar(block.Body, "Width", "mm", out var cutWidth) || !Scalar(block.Body, "Length", "mm", out var cutLength) || cutWidth <= 0 || cutLength <= 0)
-                    return Fail($"Cut '{block.Name}' requires positive Width and Length.");
-                cuts.Add(new(block.Name, on, SheetFeatureKind.Slot, at.Value.X, at.Value.Y, null, cutWidth, cutLength));
-            }
+            var cut = SheetMetalProfileBinding.Cut(source, block.Name, block.Fields, syntaxErrors);
+            if (cut is not null) cuts.Add(cut);
         }
+        if (syntaxErrors.Count > 0) return Fail(string.Join("\n", syntaxErrors), "sheetmetal-authoring-invalid");
 
         var semanticStarted=Stopwatch.GetTimestamp();
         var semanticLayout=SheetMetalSemanticLayoutParser.Parse(source,baseSpec,flanges,cuts);
         var semanticMs=Stopwatch.GetElapsedTime(semanticStarted).TotalMilliseconds;
         if(!semanticLayout.IsSuccess)return new(false,null,null,null,semanticLayout.Diagnostics);
-        var manufacturing = SheetMetalManufacturingParser.Parse(source, header.Groups["name"].Value, baseSpec, flanges, semanticLayout.Layout);
+        var manufacturing = SheetMetalManufacturingParser.Parse(source, documentName, baseSpec, flanges, semanticLayout.Layout);
         if(!manufacturing.IsSuccess)return new(false,null,null,null,manufacturing.Diagnostics);
         cuts.AddRange(semanticLayout.GeneratedCuts);
         var duplicateCut=cuts.GroupBy(x=>x.Name,StringComparer.Ordinal).FirstOrDefault(x=>x.Count()>1);
         if(duplicateCut is not null)return Fail($"Semantic feature path '{duplicateCut.Key}' is declared more than once.","sheetmetal-semantic-duplicate-feature");
 
-        var authority = Regex.IsMatch(source, @"\bIntent\s*:\s*Reconstructed\s*;", Rx)
-            ? SheetMetalProvenanceCategory.Reconstructed : SheetMetalProvenanceCategory.Authored;
-        var concept=header.Groups["concept"].Success?header.Groups["concept"].Value:null;
-        var spec = new SheetMetalConstructionSpec(header.Groups["name"].Value, thickness, material, k, baseSpec, flanges, cuts, authority, legacyBase.Success,concept)
+        var authority = intent == "Reconstructed" ? SheetMetalProvenanceCategory.Reconstructed : SheetMetalProvenanceCategory.Authored;
+        var concept = FirmamentSyntaxValues.Reference(owner.Annotation);
+        if (owner.Annotation is not null && concept is null) return Fail("SheetMetal requires a named Concept contract after ':'.");
+        var spec = new SheetMetalConstructionSpec(documentName, thickness, material, k, baseSpec, flanges, cuts, authority, legacyBase,concept)
         { SemanticLayout=semanticLayout.Layout, Manufacturing=manufacturing.Definition };
         if(concept is not null&&SheetMetalConceptContracts.Validate(source,spec) is { } conformanceFailure)
             return Fail(conformanceFailure.Message,conformanceFailure.Code);
@@ -228,38 +253,22 @@ internal static class AuthoredSheetMetalCompiler
             new(false, null, null, null, [new(code, SheetMetalDiagnosticSeverity.Error, message)]);
     }
 
-    private sealed record Block(string Name, string Body);
-    private static IReadOnlyList<Block> Blocks(string source, string keyword)
+    private sealed record Block(string Name, string Body, FirmamentSyntaxFields Fields);
+    private static IReadOnlyList<Block> Blocks(string source, string keyword, List<string>? diagnostics = null) =>
+        FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
+            .Where(d => d.Type.Name.Text == keyword && d.Name is not null && d.Body is not null)
+            .Select(d => new Block(d.Name!.Text, source.Substring(d.Body!.ContentSpan.Start, d.Body.ContentSpan.Length),
+                new(d, diagnostics ?? []))).ToArray();
+    private static bool Scalar(Block block, string name, string? unit, out double value)
     {
-        var result = new List<Block>();
-        var matches = Regex.Matches(source, $@"\b{Regex.Escape(keyword)}\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{{", Rx);
-        foreach (Match match in matches)
-        {
-            var open = source.IndexOf('{', match.Index); var depth = 0; var close = -1;
-            for (var i = open; i < source.Length; i++) { if (source[i] == '{') depth++; else if (source[i] == '}' && --depth == 0) { close = i; break; } }
-            if (close > open) result.Add(new(match.Groups["name"].Value, source[(open + 1)..close]));
-        }
-        return result;
+        value = 0;
+        var expression = block.Fields.Take(name);
+        if (expression is null) return false;
+        if (FirmamentSyntaxValues.TryMeasure(expression, unit ?? "", out value)) return true;
+        block.Fields.Invalid(name); return false;
     }
-    private static bool Scalar(string text, string name, string? unit, out double value)
-    {
-        var suffix = unit is null ? "" : @"\s*" + Regex.Escape(unit);
-        var m = Regex.Match(text, $@"\b{Regex.Escape(name)}\s*:\s*(?<v>{Number}){suffix}\s*;", Rx);
-        value = m.Success ? Num(m, "v") : 0; return m.Success;
-    }
-    private static (double X, double Y)? Point(string text, string name)
-    {
-        var m = Regex.Match(text, $@"\b{Regex.Escape(name)}\s*:\s*\(\s*(?<x>{Number})\s*mm\s*,\s*(?<y>{Number})\s*mm\s*\)\s*;", Rx);
-        return m.Success ? (Num(m, "x"), Num(m, "y")) : null;
-    }
-    private static Point3D? Point3(string text,string name)
-    {
-        var m=Regex.Match(text,$@"\b{Regex.Escape(name)}\s*:\s*\(\s*(?<x>{Number})\s*mm\s*,\s*(?<y>{Number})\s*mm\s*,\s*(?<z>{Number})\s*mm\s*\)\s*;",Rx);
-        return m.Success?new Point3D(Num(m,"x"),Num(m,"y"),Num(m,"z")):null;
-    }
-    private static string? Token(string text, string name) { var m = Regex.Match(text, $@"\b{Regex.Escape(name)}\s*:\s*(?<v>[A-Za-z_][A-Za-z0-9_]*)\s*;", Rx); return m.Success ? m.Groups["v"].Value : null; }
-    private static string? Quoted(string text, string name) { var m = Regex.Match(text, $"\\b{Regex.Escape(name)}\\s*:\\s*\"(?<v>[^\"]+)\"\\s*;", Rx); return m.Success ? m.Groups["v"].Value : null; }
-    private static double Num(Match m, string group) => double.Parse(m.Groups[group].Value, NumberStyles.Float, CultureInfo.InvariantCulture);
+    private static string? Token(Block block, string name) => block.Fields.Reference(name);
+    private static (double X, double Y)? Point(Block block, string name) => SheetMetalProfileBinding.Point(block.Fields.Take(name));
     private static string NormalizeEdge(string edge) => edge.Equals("Top", StringComparison.OrdinalIgnoreCase) ? "Outer" : edge;
 }
 
@@ -550,7 +559,26 @@ internal static class AuthoredSheetMetalLowering
                 return Failure($"Cut '{cut.Name}' reaches or crosses the boundary/bend zone of region '{cut.RegionName}'.",SheetMetalDiagnosticCodes.CutCrossesBend);
             var center = plane.Origin + plane.UAxis * cut.X + plane.VAxis * cut.Y;
             IReadOnlyList<Point3D> loop;PlanarContour2? exactFeature=null;
-            if(cut.Kind==SheetFeatureKind.CircularHole)loop=[];
+            if (cut.Profile is { } profile)
+            {
+                exactFeature = PlanarContourKernel.FromResolvedProfile(profile, $"SheetMetal cut {cut.Name} from Profile {profile.Name}");
+                exactFeature = exactFeature with { StableId = cut.Name, OuterLoop = exactFeature.OuterLoop with
+                {
+                    StableId = cut.Name + ".Outer",
+                    Segments = exactFeature.OuterLoop.Segments.Select((segment, index) => segment with
+                    {
+                        StableId = $"{cut.Name}.Boundary{index}",
+                        Provenance = segment.Provenance with { StableId = $"{cut.Name}.Boundary{index}", TracedFrom = segment.StableId }
+                    }).ToArray()
+                } };
+                loop = profile.Loops[0].Segments.Select(segment => segment.Geometry switch
+                {
+                    LineArcLineSegment2D line => line.Start,
+                    LineArcCircularArc2D arc => (X: arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians), Y: arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians)),
+                    _ => throw new InvalidOperationException("Unadmitted sheet cut profile.")
+                }).Select(p => plane.Origin + plane.UAxis * p.X + plane.VAxis * p.Y).ToArray();
+            }
+            else if(cut.Kind==SheetFeatureKind.CircularHole)loop=[];
             else if(cut.Kind==SheetFeatureKind.Slot&&cut.ExactCapsule)
             {
                 var capsule=Capsule(cut.Name,cut.X,cut.Y,cut.Length!.Value,cut.Width!.Value,plane);

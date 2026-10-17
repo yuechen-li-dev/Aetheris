@@ -1,5 +1,15 @@
 # October 2026 Firmament language decision register
 
+Shared Profile amendment (2026-10-16):
+[mechanical / sheet-metal reconciliation](FIRMAMENT-SHEET-METAL-SYNTAX-2026-10.md)
+admits compact `Profile name = Rect2/Circle2/Slot2 { ... }` through the existing
+boundary owner and lets native sheet Base/Cut consume named ordinary Profiles.
+Canonical camelCase fields retain PascalCase compatibility. Legacy sheet Slot
+cuts preserve rectangular geometry; modern Slot2 uses overall capsule length.
+Nonrectangular bases, non-XY sheet profiles and unsupported cut curves reject.
+Semantic-layout/manufacturing productions and the overloaded Intent compatibility
+field remain explicitly bounded follow-up work; no kernel capability is implied.
+
 Compile-time choices amendment (2026-10-16):
 [implementation and qualification](FIRMAMENT-COMPILE-TIME-CHOICES-RFC.md) supersedes
 the earlier enum-Static/total-Match deferral for the qualified engineering value

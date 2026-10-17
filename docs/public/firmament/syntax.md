@@ -412,6 +412,26 @@ See [Templates](templates.md) for typed specialization.
 Use a `Concept Struct` for design geometry, trace its named guides into a
 `Profile`, then consume that Profile. The layout itself creates no material.
 
+A simple closed boundary can use a typed constructor directly:
+
+```firmament
+Model Plate {
+  units: mm
+  Profile outline = Rect2 { center: [0mm, 0mm]; size: [80mm, 50mm] }
+  Extrude stock { profile: outline; from: 0mm; to: 2mm }
+}
+```
+
+This compact form uses the same 2D shape fields and exact boundary binder as a
+named `Rect2`, `Circle2`, `Slot2` or other admitted constructor. It does not create
+a second profile representation. `Profile copy = outline` derives an immutable
+boundary from a named Profile or closed shape. Use the explicit loop form below
+when assembling segments, naming inner loops or choosing trace order.
+[Sheet Metal](sheet-metal.md) can consume the same named Profiles for its Base and
+Cut operations, subject to the sheet owner's rectangular-base and line/arc-cut
+capabilities. This brings compact sheet authoring to mechanical profiles while
+sharing closure, dimension and unknown-field checking.
+
 **Complete file — a profile extruded from Z = 0 to 12mm:**
 
 ```firmament

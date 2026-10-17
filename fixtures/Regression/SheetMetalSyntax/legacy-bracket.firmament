@@ -1,0 +1,8 @@
+SheetMetal Bracket {
+  Thickness: 1.5mm;
+  Material: "5052-H32 Aluminum";
+  KFactor: 0.42;
+  Base deck { Profile: Rectangle { Width: 80mm; Height: 50mm; }; }
+  Flange wall { From: deck.Rear; Length: 30mm; Angle: 90deg; InsideRadius: 2mm; Direction: Up; }
+  Cut port { On: deck; Profile: Rectangle { Length: 12mm; Width: 6mm; }; At: (30mm, 20mm); }
+}

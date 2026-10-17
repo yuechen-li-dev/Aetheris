@@ -1,16 +1,16 @@
 Model ControllerCover {
-  Units: mm
+  units: mm
 
   BodyState Base {
     Size: [100mm, 80mm, 20mm]
-    Hole H1 { Center: [-20mm, -12mm]
-      Diameter: 4mm }
-    Hole H2 { Center: [20mm, -12mm]
-      Diameter: 4mm }
-    Hole H3 { Center: [20mm, 12mm]
-      Diameter: 4mm }
-    Hole H4 { Center: [-20mm, 12mm]
-      Diameter: 4mm }
+    Hole H1 { center: [-20mm, -12mm]
+      diameter: 4mm }
+    Hole H2 { center: [20mm, -12mm]
+      diameter: 4mm }
+    Hole H3 { center: [20mm, 12mm]
+      diameter: 4mm }
+    Hole H4 { center: [-20mm, 12mm]
+      diameter: 4mm }
   }
 
   SculptState CrownRaised {

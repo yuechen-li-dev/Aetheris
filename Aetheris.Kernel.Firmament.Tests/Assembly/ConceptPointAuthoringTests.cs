@@ -5,8 +5,8 @@ namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
 public sealed class ConceptPointAuthoringTests
 {
-    private static string Source => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(
-        "fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/concept-points.firmament"));
+    private static string Source => FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(
+        "fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/concept-points.firmament")));
 
     [Fact]
     public void CheckedLocalPointsExpandThroughOrdinaryAssemblyAndExport()
@@ -55,7 +55,7 @@ public sealed class ConceptPointAuthoringTests
             return result.Ir!;
         }
         var before = Compile(Source);
-        var after = Compile(Source.Replace("628mm", "630mm"));
+        var after = Compile(Source.ReplaceRequired("628mm", "630mm"));
         Assert.Equal(before.ConceptPoints!.SelectMany(c => c.Points).Select(p => p.StableId),
             after.ConceptPoints!.SelectMany(c => c.Points).Select(p => p.StableId));
         foreach (var occurrence in before.Instances)
@@ -90,7 +90,7 @@ public sealed class ConceptPointAuthoringTests
     [InlineData("Function Distance", "Comptime Function Distance")]
     public void InvalidRecipesAndImpureOrUnboundedFunctionsFailClosed(string from, string to)
     {
-        var result = new AssemblyM0Parser().Parse(Source.Replace(from, to));
+        var result = new AssemblyM0Parser().Parse(Source.ReplaceRequired(from, to));
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, d => d.Code == "assembly-pattern-invalid"
             && d.Message.Contains("firmament-concept-points-", StringComparison.Ordinal)
@@ -100,16 +100,16 @@ public sealed class ConceptPointAuthoringTests
     [Fact]
     public void FunctionsAreAvailableToPartAuthoringWithoutAComptimeKeyword()
     {
-        var parsed = FirmamentV2Parser.Parse(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(
-            "fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/scalar-functions-part.firmament")));
+        var parsed = FirmamentV2Parser.Parse(FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(
+            "fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/scalar-functions-part.firmament"))));
         Assert.True(parsed.IsSuccess, string.Join("\n", parsed.Diagnostics));
     }
 
     [Fact]
     public void PointCollectionsAlsoRemainTypedAndErasedInPartAuthoring()
     {
-        var parsed = FirmamentV2Parser.Parse(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(
-            "fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/concept-points-part.firmament")));
+        var parsed = FirmamentV2Parser.Parse(FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(
+            "fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/concept-points-part.firmament"))));
         Assert.True(parsed.IsSuccess, string.Join("\n", parsed.Diagnostics));
         var points = Assert.Single(parsed.Document!.StaticAuthoring!.ConceptPoints!);
         Assert.Equal("Point2", points.ElementType);
@@ -119,7 +119,7 @@ public sealed class ConceptPointAuthoringTests
     [Fact]
     public void TinyFunctionResultsRoundTripIntoPhysicalPlacement()
     {
-        var source = "Function Tiny() -> Length = 1e-20mm;\n" + Source.Replace("Nut.Crossings.Bass.X", "Tiny()");
+        var source = "Function Tiny() -> Length = 1e-20mm;\n" + Source.ReplaceRequired("Nut.Crossings.Bass.X", "Tiny()");
         var result = new AssemblyM1Pipeline().Compile(source);
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
         var bass = result.Ir!.Instances.Single(i => i.Path.ToString() == "PointWitness.Bass");
@@ -130,11 +130,11 @@ public sealed class ConceptPointAuthoringTests
     public void EvaluationBudgetsStopDeepSyntaxAndBranchingFunctionGraphs()
     {
         var nested = new string('(', 130) + "scale" + new string(')', 130);
-        var deep = new AssemblyM0Parser().Parse(Source.Replace("scale * (1.0 - Pow(2.0, -n / 12.0))", nested));
+        var deep = new AssemblyM0Parser().Parse(Source.ReplaceRequired("scale * (1.0 - Pow(2.0, -n / 12.0))", nested));
         Assert.False(deep.IsSuccess);
         var graph = string.Join("\n", Enumerable.Range(0, 20).Select(n =>
             $"Function Branch{n}(x: Length) -> Length = " + (n == 19 ? "x;" : $"Branch{n+1}(x) + Branch{n+1}(x);")));
-        var excessive = new AssemblyM0Parser().Parse(graph + "\n" + Source.Replace("PadHeight(1mm)", "Branch0(1mm)"));
+        var excessive = new AssemblyM0Parser().Parse(graph + "\n" + Source.ReplaceRequired("PadHeight(1mm)", "Branch0(1mm)"));
         Assert.False(excessive.IsSuccess);
         Assert.Contains(excessive.Diagnostics, d => d.Message.Contains("function-call-invalid", StringComparison.Ordinal));
     }

@@ -1,3 +1,5 @@
+Profile deckProfile = Rect2 { center: [(100mm) / 2, (50mm) / 2]; size: [100mm, 50mm] }
+
 Use Profile.Modifications;
 
 Static AddedTab: ProfileTabSpec = ProfileTabSpec {
@@ -8,8 +10,8 @@ Static AddedTab: ProfileTabSpec = ProfileTabSpec {
 ProfileDelta ServiceTab = Tab < P: AddedTab, Owner: Wall.Outer >
 
 SheetMetal TabHoleAreaWitness {
-  Thickness: 1mm;
-  Base Deck { Profile: Rectangle { Width: 100mm; Height: 50mm; }; }
-  Flange Wall { From: Deck.Front; Height: 35mm; Angle: 90deg; Radius: 2mm; }
-  Hole Mount { On: Deck; Center: (50mm, 25mm); Diameter: 8mm; }
+  thickness: 1mm;
+  Base Deck { profile: deckProfile; }
+  Flange Wall { from: Deck.Front; height: 35mm; angle: 90deg; radius: 2mm; }
+  Hole Mount { on: Deck; center: Point2(50mm, 25mm); diameter: 8mm; }
 }

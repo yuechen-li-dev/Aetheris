@@ -18,7 +18,7 @@ Assembly RelativeFrames {
       Semantic Input { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
     </Part>
   </Assembly>
-  Interface<Revolute> Base { A: RelativeFrames.Ground.Frame; B: RelativeFrames.Rotor.Input.Frame; }
-  Interface<Revolute> Elbow { A: RelativeFrames.Rigid.Output.Frame; B: RelativeFrames.Tip.Input.Frame; }
+  Interface<Revolute> Base { a: RelativeFrames.Ground.Frame; b: RelativeFrames.Rotor.Input.Frame; }
+  Interface<Revolute> Elbow { a: RelativeFrames.Rigid.Output.Frame; b: RelativeFrames.Tip.Input.Frame; }
   anchor: RelativeFrames;
 }

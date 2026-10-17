@@ -13,13 +13,13 @@ Template < Spec: CellBlockSpec >
 Struct CellBlock: CellBlockConcept {
     Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.Height > 0mm
     Concept Struct Design: CellBlockConcept {
-        Bounds: Box3 { Size: [Spec.Width, Spec.Depth, Spec.Height] }
+        Bounds: Box3 { size: [Spec.Width, Spec.Depth, Spec.Height] }
         Axis: Bounds.Center.Axis(+Z)
         Seat: Bounds.Face(+Z)
         Base: Bounds.Face(-Z)
         Height: Spec.Height
     }
-    Box Body { Bounds: Design.Bounds }
+    Box Body { bounds: Design.Bounds }
     Modify Body {
         EdgeFinish ProofBreak {
             Face: Design.Seat
@@ -28,7 +28,7 @@ Struct CellBlock: CellBlockConcept {
             Distance: 1mm
         }
     }
-    Expose {
+    expose {
         Bounds: Design.Bounds
         Axis: Design.Axis
         Seat: Design.Seat
@@ -43,6 +43,6 @@ Subassembly ExecutableCell {
             Semantic Port { Axis Axis = [0,0,0] -> [0,0,1]; }
         </Part>
     </Assembly>
-    Anchor: ExecutableCell.Body.Port;
-    Expose { Semantic Port = Body.Port; }
+    anchor: ExecutableCell.Body.Port;
+    expose { Semantic Port = Body.Port; }
 }

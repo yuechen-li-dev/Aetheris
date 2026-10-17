@@ -1,6 +1,6 @@
 Model SteelCantilever {
-    Units: mm
-    Box Beam { Size: [100mm, 30mm, 15mm] }
+    units: mm
+    Box Beam { size: [100mm, 30mm, 15mm] }
 
     Analysis LinearElastic ServiceLoad {
         Body: Beam

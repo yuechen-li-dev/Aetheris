@@ -1,32 +1,32 @@
 schema Mechanical
 Model BossPocketFeature {
-    Units: mm
+    units: mm
     Feature RaisedPad(Shape: Profile, Height: Length) -> Boss {
-        return Boss { On: Top Profile: Shape Height: Height }
+        return Boss { on: Top profile: Shape height: Height }
     }
     Feature Recess(Shape: Profile, Depth: Length, Floor: Length = 2mm) -> Pocket {
-        return Pocket { On: Top Profile: Shape Depth: Depth MinimumFloorThickness: Floor }
+        return Pocket { on: Top profile: Shape depth: Depth MinimumFloorThickness: Floor }
     }
-    Concept Struct Layout On XY {
-        Rect2 Stock { Center: [0mm, 0mm] Size: [40mm, 24mm] }
-        Rect2 Pad { Center: [-10mm, 0mm] Size: [8mm, 8mm] }
-        Rect2 Cutout { Center: [10mm, 0mm] Size: [8mm, 8mm] }
+    Concept Struct Layout on XY {
+        Rect2 Stock { center: [0mm, 0mm] size: [40mm, 24mm] }
+        Rect2 Pad { center: [-10mm, 0mm] size: [8mm, 8mm] }
+        Rect2 Cutout { center: [10mm, 0mm] size: [8mm, 8mm] }
     }
-    Profile BaseProfile Using Layout { Loop Outer {
+    Profile BaseProfile using Layout { Loop Outer {
      Stock.Bottom
      |> Stock.Right
      |> Stock.Top
      |> Stock.Left
      |> Close
  } }
-    Profile PadProfile Using Layout { Loop Outer {
+    Profile PadProfile using Layout { Loop Outer {
      Pad.Bottom
      |> Pad.Right
      |> Pad.Top
      |> Pad.Left
      |> Close
  } }
-    Profile CutoutProfile Using Layout { Loop Outer {
+    Profile CutoutProfile using Layout { Loop Outer {
      Cutout.Bottom
      |> Cutout.Right
      |> Cutout.Top
@@ -35,7 +35,7 @@ Model BossPocketFeature {
  } }
     Struct Product {
         Compose Body {
-            Base Stock { Profile: BaseProfile From: 0mm To: 10mm Role: Stock }
+            Base Stock { profile: BaseProfile from: 0mm to: 10mm role: Stock }
             RaisedPad(Shape: PadProfile, Height: 5mm)
             Recess(Shape: CutoutProfile, Depth: 4mm)
         }

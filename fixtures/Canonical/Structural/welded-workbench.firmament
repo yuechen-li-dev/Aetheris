@@ -1,5 +1,5 @@
 Model WeldedWorkbench {
-    Units: mm
+    units: mm
 
     Structure WorkbenchFrame {
         Node FLL = [0mm, 0mm, 0mm];

@@ -1,3 +1,6 @@
+Profile acInletProfile = Rect2 { center: [0mm, 0mm]; size: [20mm, 28mm] }
+Profile dcOutletProfile = Rect2 { center: [0mm, 0mm]; size: [14mm, 24mm] }
+
 Use SheetMetal.ProductFamilies;
 
 Static PsuSpec: EnclosureSpec = EnclosureSpec {
@@ -14,10 +17,10 @@ Static PsuSpec: EnclosureSpec = EnclosureSpec {
 SheetMetal PsuEnclosure = ElectronicsEnclosure < Spec: PsuSpec >
 
 Extend SheetMetal PsuEnclosure {
-    Cut AcInlet { On: Rear; At: (32mm, 21mm); Profile: Rectangle; Width: 28mm; Length: 20mm; }
-    Cut DcOutlet { On: Front; At: (115mm, 21mm); Profile: Rectangle; Width: 24mm; Length: 14mm; }
-    Hole Mount1 { On: Body; Center: (20mm, 20mm); Diameter: 4mm; }
-    Hole Mount2 { On: Body; Center: (130mm, 20mm); Diameter: 4mm; }
-    Hole Mount3 { On: Body; Center: (20mm, 80mm); Diameter: 4mm; }
-    Hole Mount4 { On: Body; Center: (130mm, 80mm); Diameter: 4mm; }
+    Cut AcInlet { on: Rear; at: Point2(32mm, 21mm); profile: acInletProfile; }
+    Cut DcOutlet { on: Front; at: Point2(115mm, 21mm); profile: dcOutletProfile; }
+    Hole Mount1 { on: Body; center: Point2(20mm, 20mm); diameter: 4mm; }
+    Hole Mount2 { on: Body; center: Point2(130mm, 20mm); diameter: 4mm; }
+    Hole Mount3 { on: Body; center: Point2(20mm, 80mm); diameter: 4mm; }
+    Hole Mount4 { on: Body; center: Point2(130mm, 80mm); diameter: 4mm; }
 }

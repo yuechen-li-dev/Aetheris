@@ -4,7 +4,7 @@ include "../construction";
 Struct SpringRetainer {
   Struct Stock = AnnulusStock<rout: 12mm, rin: 4.2mm, zmin: -1.5mm, zmax: 1.5mm>
 
-  Expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+  expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
 
 
 }

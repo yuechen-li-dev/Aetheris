@@ -1,5 +1,5 @@
 Model PlasticShellBasic {
-  Units: mm
+  units: mm
   PlasticShell Cup {
     Exterior: Frustum
     BottomRadius: 30 mm

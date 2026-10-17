@@ -1,17 +1,17 @@
 Model CapsuleSlotPart {
-    Units: mm
-    Concept Struct SlotLayout On XY {
-        Rect2 Stock { Center: [0mm, 0mm]; Size: [200mm, 100mm] }
+    units: mm
+    Concept Struct SlotLayout on XY {
+        Rect2 Stock { center: [0mm, 0mm]; size: [200mm, 100mm] }
     }
-    Profile Plate Using SlotLayout { Loop Outer {
-     Stock.Bottom As South
-     |> Stock.Right As East
-     |> Stock.Top As North
-     |> Stock.Left As West
+    Profile Plate using SlotLayout { Loop Outer {
+     Stock.Bottom as South
+     |> Stock.Right as East
+     |> Stock.Top as North
+     |> Stock.Left as West
      |> Close
  } }
     Struct SlotFixture { Compose SlotBody {
-        Base Stock { Profile: Plate; From: -10mm; To: 10mm; Role: Stock }
+        Base Stock { profile: Plate; from: -10mm; to: 10mm; role: Stock }
         Slot<Capsule> Relief { Center: Point2(0mm, 0mm); Direction: Vector2(1, 0); Length: 80mm; Width: 40mm; Extent: ThroughAll; Role: ThroughSlot }
     } }
     Selection ReliefEntry { Target: SlotEntry Source: Slot(Relief) Require: ClosedLoop }

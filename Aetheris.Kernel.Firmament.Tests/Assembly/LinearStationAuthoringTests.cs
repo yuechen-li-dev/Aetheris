@@ -4,8 +4,8 @@ namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
 public sealed class LinearStationAuthoringTests
 {
-    private static string Source => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(
-        "fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/linear-stations.firmament"));
+    private static string Source => FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(
+        "fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/linear-stations.firmament")));
 
     private static AssemblyIr Compile(string source)
     {
@@ -32,7 +32,7 @@ public sealed class LinearStationAuthoringTests
         Assert.Equal(18, first.ResolvedTransform.Matrix[13], 10);
         Assert.Equal(20, first.ResolvedTransform.Matrix[14], 10);
         // A board placement change propagates via its port, not station coordinates.
-        var moved = new AssemblyM1Pipeline().Compile(Source.Replace("20mm,30mm", "20mm,37mm"));
+        var moved = new AssemblyM1Pipeline().Compile(Source.ReplaceRequired("20mm,30mm", "20mm,37mm"));
         Assert.True(moved.IsSuccess, string.Join("\n", moved.Diagnostics));
         foreach (var inlay in result.Ir.Instances.Where(i => i.Path.ToString().EndsWith(".Inlay", StringComparison.Ordinal)))
         {
@@ -49,7 +49,7 @@ public sealed class LinearStationAuthoringTests
     public void ReorderingAndEditingStationsPreserveKeyedIdentitiesAndMoveOnlyEditedStation()
     {
         var before = Compile(Source);
-        var after = Compile(Source.Replace("First: 10mm; Second: 23.5mm; Third: -4mm;", "Third: -4mm; Second: 24mm; First: 10mm;"));
+        var after = Compile(Source.ReplaceRequired("First: 10mm; Second: 23.5mm; Third: -4mm;", "Third: -4mm; Second: 24mm; First: 10mm;"));
         var points = Assert.Single(after.ConceptPoints!).Points;
         Assert.Equal(new[] { "Third", "Second", "First" }, points.Select(p => p.Key));
         Assert.Equal(new[] { 0, 1, 2 }, points.Select(p => p.Ordinal));
@@ -67,7 +67,7 @@ public sealed class LinearStationAuthoringTests
     [Fact]
     public void Point3StationsAndLargeFiniteDirectionsUseTheSameBoundedRecipe()
     {
-        var result = Compile(Source.Replace("Points<Point2>", "Points<Point3>").Replace("Point2(0mm,0mm)", "Point3(1mm,2mm,3mm)")
+        var result = Compile(Source.ReplaceRequired("Points<Point2>", "Points<Point3>").Replace("Point2(0mm,0mm)", "Point3(1mm,2mm,3mm)")
             .Replace("[0,-2]", "[0,0,-1e308]"));
         var points = Assert.Single(result.ConceptPoints!).Points;
         Assert.Equal(new[] { 1d, 2, -7 }, points[0].Coordinates);
@@ -77,7 +77,7 @@ public sealed class LinearStationAuthoringTests
     [Fact]
     public void NestedScalarCallsInDirectionAndStationDistancesStayDimensionChecked()
     {
-        var result = Compile(Source.Replace("[0,-2]", "[0,-Pow(2,3)]").Replace("First: 10mm", "First: 5mm * Pow(2,1)"));
+        var result = Compile(Source.ReplaceRequired("[0,-2]", "[0,-Pow(2,3)]").Replace("First: 10mm", "First: 5mm * Pow(2,1)"));
         Assert.Equal(-10, Assert.Single(result.ConceptPoints!).Points[0].Coordinates[1]);
     }
 
@@ -94,7 +94,7 @@ public sealed class LinearStationAuthoringTests
     [InlineData("First: 10mm; Second: 23.5mm; Third: -4mm;", "")]
     public void InvalidStationRecipesFailClosed(string from, string to)
     {
-        var parsed = new AssemblyM0Parser().Parse(Source.Replace(from, to));
+        var parsed = new AssemblyM0Parser().Parse(Source.ReplaceRequired(from, to));
         Assert.False(parsed.IsSuccess);
         Assert.Contains(parsed.Diagnostics, d => d.Message.Contains("firmament-concept-points-"));
     }
@@ -103,8 +103,8 @@ public sealed class LinearStationAuthoringTests
     public void TooManyStationsAndCoordinateOverflowAreRejected()
     {
         var many = string.Join(";", Enumerable.Range(0, 1025).Select(i => $"Station{i}: {i}mm")) + ";";
-        Assert.False(new AssemblyM0Parser().Parse(Source.Replace("First: 10mm; Second: 23.5mm; Third: -4mm;", many)).IsSuccess);
-        Assert.False(new AssemblyM0Parser().Parse(Source.Replace("Point2(0mm,0mm)", "Point2(0mm,-1e308mm)")
+        Assert.False(new AssemblyM0Parser().Parse(Source.ReplaceRequired("First: 10mm; Second: 23.5mm; Third: -4mm;", many)).IsSuccess);
+        Assert.False(new AssemblyM0Parser().Parse(Source.ReplaceRequired("Point2(0mm,0mm)", "Point2(0mm,-1e308mm)")
             .Replace("First: 10mm", "First: 1e308mm")).IsSuccess);
     }
 }

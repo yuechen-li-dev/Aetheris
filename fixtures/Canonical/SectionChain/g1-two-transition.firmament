@@ -1,5 +1,5 @@
 Model G1TwoTransition {
- Units: mm
+ units: mm
  Concept Struct Stations {
   D0: Plane { Origin: [0mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
   D1: Plane { Origin: [20mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
@@ -8,28 +8,28 @@ Model G1TwoTransition {
  Construction Plane F0 { Trace: Stations.D0 }
  Construction Plane F1 { Trace: Stations.D1 }
  Construction Plane F2 { Trace: Stations.D2 }
- Concept Path Small { Start: Point2(-4mm,-3mm) Heading: 0deg Line Bottom { Length: 8mm } Line Right { Turn: 90deg; Length: 6mm } Line Top { Turn: 90deg; Length: 8mm } Close Left }
- Concept Path Large { Start: Point2(-10mm,-7mm) Heading: 0deg Line Bottom { Length: 20mm } Line Right { Turn: 90deg; Length: 14mm } Line Top { Turn: 90deg; Length: 20mm } Close Left }
- Profile PSmall From Small
- Profile PLarge From Large
+ Path Small { start: Point2(-4mm,-3mm) heading: 0deg Line Bottom { length: 8mm } Line Right { Turn: 90deg; length: 6mm } Line Top { Turn: 90deg; length: 8mm } Close Left }
+ Path Large { start: Point2(-10mm,-7mm) heading: 0deg Line Bottom { length: 20mm } Line Right { Turn: 90deg; length: 14mm } Line Top { Turn: 90deg; length: 20mm } Close Left }
+ Profile PSmall from Small
+ Profile PLarge from Large
  SectionChain G1TwoTransition {
-  Continuity: G1
+  continuity: G1
   Section A {
-   Frame: F0
-   Profile: PSmall
-   Seam: Bottom
+   frame: F0
+   profile: PSmall
+   seam: Bottom
   }
   Section B {
-   Frame: F1
-   Profile: PLarge
-   Seam: Bottom
+   frame: F1
+   profile: PLarge
+   seam: Bottom
   }
   Section C {
-   Frame: F2
-   Profile: PSmall
-   Seam: Bottom
+   frame: F2
+   profile: PSmall
+   seam: Bottom
   }
-  Start: Cap
-  End: Cap
+  start: Cap
+  end: Cap
  }
 }

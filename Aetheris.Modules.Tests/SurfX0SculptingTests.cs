@@ -7,6 +7,27 @@ namespace Aetheris.Modules.Tests;
 public sealed class SurfX0SculptingTests
 {
     [Fact]
+    public void PreferredFieldAliasesPreserveHousingIdentityAndExactStep()
+    {
+        var path = Path.Combine(RepositoryRoot(), "fixtures/Canonical/Sculpting/sculpted-housing.firmament");
+        var source = File.ReadAllText(path);
+        var preferred = source.Replace("Units:", "units:").Replace("Size:", "size:")
+            .Replace("Center:", "center:").Replace("Diameter:", "diameter:")
+            .Replace("Input:", "input:").Replace("Output:", "output:");
+        var first = SculptingAuthoring.Compile(source);
+        var second = SculptingAuthoring.Compile(preferred);
+        Assert.True(first.IsSuccess, string.Join(';', first.Diagnostics));
+        Assert.True(second.IsSuccess, string.Join(';', second.Diagnostics));
+        Assert.Equal(first.OutputState!.StateId, second.OutputState!.StateId);
+        Assert.Equal(SculptStepExporter.Export(first.OutputState, first.ModelName).Step,
+            SculptStepExporter.Export(second.OutputState, second.ModelName).Step);
+        var malformed = SculptingAuthoring.Compile(preferred.Replace("center:", "heigth:"));
+        Assert.False(malformed.IsSuccess);
+        Assert.Contains(malformed.Diagnostics, d => d.Code == "sculpt-field-invalid");
+        Assert.Empty(malformed.States);
+    }
+
+    [Fact]
     public void CanonicalOffsetRegionProducesImmutableSinglePredecessorStateAndInspectableDelta()
     {
         var result = Compile("Canonical/Sculpting/sculpted-housing.firmament");

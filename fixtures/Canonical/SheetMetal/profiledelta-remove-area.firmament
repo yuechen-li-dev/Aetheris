@@ -1,16 +1,18 @@
+Profile deckProfile = Rect2 { center: [(100mm) / 2, (50mm) / 2]; size: [100mm, 50mm] }
+
 ProfileDelta ServiceNotch {
-  On: Wall.Outer;
-  Anchor: CenteredAt 50mm;
-  Side: Inward;
-  Level Carrier { Offset: 0mm; }
-  Level Cut { Offset: 6mm; }
-  Transition Enter { Kind: Step; To: Cut; }
-  Span Land { Run: 15mm; At: Cut; }
-  Transition Exit { Kind: Step; To: Carrier; }
+  on: Wall.Outer;
+  anchor: CenteredAt(50mm);
+  side: Inward;
+  Level Carrier { offset: 0mm; }
+  Level Cut { offset: 6mm; }
+  Transition Enter { kind: Step; to: Cut; }
+  Span Land { run: 15mm; at: Cut; }
+  Transition Exit { kind: Step; to: Carrier; }
 }
 
 SheetMetal NotchAreaWitness {
-  Thickness: 1mm;
-  Base Deck { Profile: Rectangle { Width: 100mm; Height: 50mm; }; }
-  Flange Wall { From: Deck.Front; Height: 35mm; Angle: 90deg; Radius: 2mm; }
+  thickness: 1mm;
+  Base Deck { profile: deckProfile; }
+  Flange Wall { from: Deck.Front; height: 35mm; angle: 90deg; radius: 2mm; }
 }

@@ -138,7 +138,7 @@ public sealed class FirmamentLanguageOutlineTests
         Assert.Contains("AtlasIndustrial/AtlasIndustrial/Base -> base.firmament::AtlasBase", cross);
         Assert.Contains("AtlasIndustrial/AtlasIndustrial/Gripper -> gripper.firmament::GripperBody", cross);
         Assert.Contains("AtlasIndustrial/AtlasIndustrial/Gripper -> materials.firmament::BlackPaint", cross);
-        Assert.Contains(outline.Edges, e => e.From == "AtlasIndustrial/Shoulder" && e.Via == "field:A"
+        Assert.Contains(outline.Edges, e => e.From == "AtlasIndustrial/Shoulder" && e.Via == "field:a"
             && e.To == "AtlasIndustrial/AtlasIndustrial/Base" && e.Member == "Hinge");
         Assert.True(Assert.Single(outline.Nodes, n => n.Id == "AtlasIndustrial/AtlasIndustrial/Gripper").Occurrence);
         Assert.Empty(outline.Externals);

@@ -12,6 +12,9 @@
 | `scoped-table.firmament` | Accepted: local Table/schema/value names shadow outer declarations; a selected row produces 30 × 20 × 6 mm stock. |
 | `sibling-data.invalid.firmament` | Rejected: the sibling Static secret is invisible; validate/build reject at its authored reference. |
 | `panel-radians.firmament` | Existing radian-valued Panel arc admission retains exact sampled surface coordinates. Normal solid STEP export still reports its existing panel-only capability limitation. |
+| `traceloop-rect2.firmament` | Accepted: original source formerly mislabeled as an invalid non-loop. A Rect2 is a closed boundary and TraceLoop is now supported. The Invalid/Pipeline witness now uses an actual open Line2. |
+| `piping-field-casing.pending.firmament` | Known defect: validate/build accept, but inspection reports Generic for requested lowercase `connectionType: Weld`. Not qualified as correct behavior. |
+| `piping-field-unknown.pending.firmament` | Known defect: an unknown optional Port field is ignored. It must reject after Piping's owning field reader migrates to AST consumption. |
 
 The component tests compare accepted geometry to concrete/renamed equivalents,
 check generated identities, and retain source-located private-name rejection explicitly.

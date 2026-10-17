@@ -1,5 +1,5 @@
 Model ThreeDimensionalBentWire {
-    Units: mm
+    units: mm
     WireForm BentWire3D {
         Diameter: 1mm
         Material: Standard.Materials.StainlessSteel.304_Annealed

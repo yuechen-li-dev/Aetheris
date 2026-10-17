@@ -1,5 +1,5 @@
 Model TrefoilThin {
-    Units: mm
+    units: mm
     WireForm TrefoilThin {
         Diameter: 3mm
         Material: Standard.Materials.StainlessSteel.304_Annealed

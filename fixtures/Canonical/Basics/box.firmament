@@ -1,8 +1,8 @@
 Model BareBox {
-    Units: mm
+    units: mm
 
     Box Base {
-        Size: [80mm, 50mm, 25mm]
+        size: [80mm, 50mm, 25mm]
     }
     Assert Volume Base {
         Expected: 100000mm^3

@@ -1,4 +1,5 @@
 schema Mechanical
-Rect2 Stock { Center: [0mm, 0mm]; Size: [10mm, 4mm] }
+// TraceLoop requires a closed boundary; an open Line2 is not one.
+Line2 Stock { from: Point2(0mm, 0mm); to: Point2(10mm, 0mm) }
 Profile Plate { Loop Outer { Stock |> TraceLoop } }
 Extrude Solid { Profile: Plate; From: 0mm; To: 1mm }

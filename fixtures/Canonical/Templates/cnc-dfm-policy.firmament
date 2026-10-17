@@ -40,20 +40,20 @@ Struct CncCoupon: CncCouponContract {
         MinimumHoleDiameter: Policy.MinimumHoleDiameter
     }
     Concept Struct Layout: CncCouponContract {
-        Bounds: Box3 { Size: [30mm, 20mm, 6mm] }
+        Bounds: Box3 { size: [30mm, 20mm, 6mm] }
         TopPlane: Bounds.Face(+Z)
-        ProbePoints: Grid { Within: Bounds.Face(+Z).Inset(5mm); Columns: 1; Rows: 1 }
+        ProbePoints: Grid { within: Bounds.Face(+Z).Inset(5mm); columns: 1; rows: 1 }
     }
-    Box Coupon { Bounds: Layout.Bounds }
+    Box Coupon { bounds: Layout.Bounds }
     Modify Coupon {
         Hole<Shaft> Probe {
-            On: Coupon.Top
-            Center: Layout.ProbePoints[0]
-            Diameter: 4mm
-            End: ThroughAll
+            on: Coupon.Top
+            center: Layout.ProbePoints[0]
+            diameter: 4mm
+            end: ThroughAll
         }
     }
-    Expose {
+    expose {
         Bounds: Layout.Bounds
         TopPlane: Coupon.Top
         ProbePoints: Layout.ProbePoints

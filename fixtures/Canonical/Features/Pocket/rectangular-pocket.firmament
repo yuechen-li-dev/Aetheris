@@ -1,19 +1,19 @@
 // Pocket is finite. Use Hole or Slot when material must be removed through-all.
 Model RectangularPocket {
-    Units: mm
+    units: mm
 
-    Concept Struct Layout On XY {
-        Rect2 Stock { Center: [0mm, 0mm]; Size: [50mm, 32mm] }
-        Rect2 Recess { Center: [0mm, 0mm]; Size: [24mm, 14mm] }
+    Concept Struct Layout on XY {
+        Rect2 Stock { center: [0mm, 0mm]; size: [50mm, 32mm] }
+        Rect2 Recess { center: [0mm, 0mm]; size: [24mm, 14mm] }
     }
-    Profile BaseProfile Using Layout { Loop Outer {
+    Profile BaseProfile using Layout { Loop Outer {
      Stock.Bottom
      |> Stock.Right
      |> Stock.Top
      |> Stock.Left
      |> Close
  } }
-    Profile PocketProfile Using Layout { Loop Outer {
+    Profile PocketProfile using Layout { Loop Outer {
      Recess.Bottom
      |> Recess.Right
      |> Recess.Top
@@ -23,8 +23,8 @@ Model RectangularPocket {
 
     Struct MachinedBlock {
         Compose Body {
-            Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
-            Pocket Recess { On: Top; Profile: PocketProfile; Depth: 4mm; MinimumFloorThickness: 3mm }
+            Base Stock { profile: BaseProfile; from: 0mm; to: 10mm; role: Stock }
+            Pocket Recess { on: Top; profile: PocketProfile; depth: 4mm; MinimumFloorThickness: 3mm }
         }
     }
 }

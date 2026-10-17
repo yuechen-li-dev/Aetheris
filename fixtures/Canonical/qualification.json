@@ -1,50 +1,615 @@
 {
   "schemaVersion": 1,
   "expectedDiagnostics": [
-    { "path": "Garment/garmentcode-dress-guided.firmament", "codes": ["garment-fit-body-required"] },
-    { "path": "Garment/tshirt-dress.firmament", "codes": ["garment-fit-body-required"] },
-    { "path": "Garment/sundress.firmament", "codes": ["garment-fit-body-required"] },
-    { "path": "Garment/sundress-posed.firmament", "codes": ["garment-fit-body-required"] },
-    { "path": "PlasticShell/plastic-shell-autorib-materialized.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] },
-    { "path": "PlasticShell/plastic-shell-enclosure.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] },
-    { "path": "PlasticShell/plastic-shell-materialized-enclosure.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] },
-    { "path": "PlasticShell/plastic-shell-materialized-rib.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] },
-    { "path": "PlasticShell/plastic-shell-materialized-standoff.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] },
-    { "path": "PlasticShell/plastic-shell-rib-standoff-junction.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] }
+    {
+      "path": "PlasticShell/plastic-shell-autorib-materialized.firmament",
+      "codes": [
+        "plastic-shell-constant-section-feature-zero-draft"
+      ]
+    },
+    {
+      "path": "PlasticShell/plastic-shell-enclosure.firmament",
+      "codes": [
+        "plastic-shell-constant-section-feature-zero-draft"
+      ]
+    },
+    {
+      "path": "PlasticShell/plastic-shell-materialized-enclosure.firmament",
+      "codes": [
+        "plastic-shell-constant-section-feature-zero-draft"
+      ]
+    },
+    {
+      "path": "PlasticShell/plastic-shell-materialized-rib.firmament",
+      "codes": [
+        "plastic-shell-constant-section-feature-zero-draft"
+      ]
+    },
+    {
+      "path": "PlasticShell/plastic-shell-materialized-standoff.firmament",
+      "codes": [
+        "plastic-shell-constant-section-feature-zero-draft"
+      ]
+    },
+    {
+      "path": "PlasticShell/plastic-shell-rib-standoff-junction.firmament",
+      "codes": [
+        "plastic-shell-constant-section-feature-zero-draft"
+      ]
+    }
   ],
   "actions": [
-    { "path": "Garment", "operation": "validate" },
-    { "path": "Assembly", "operation": "assembly-inspect" },
-    { "path": "AssemblyInterfaces", "operation": "assembly-inspect" },
-    { "path": "Drawings", "operation": "drawing-compile" },
-    { "path": "FEA", "operation": "fea-solve" },
-    { "path": "Materials", "operation": "fea-solve" },
-    { "path": "SheetMetal", "operation": "sheet-metal-flatten" },
-    { "path": "Sculpting", "operation": "build-step" },
-    { "path": "BodyState", "operation": "build-step" },
-    { "path": "SectionChain", "operation": "section-chain-build" },
-    { "path": "Structural", "operation": "build-step" },
-    { "path": "Piping", "operation": "build-step" },
-    { "path": "GearInterfaces", "operation": "validate" },
-    { "path": "Gears", "operation": "build-step" },
-    { "path": "WireForm", "operation": "build-step" },
-    { "path": "PlasticShell", "operation": "build-step" },
-    { "path": "Basics", "operation": "build-step" },
-    { "path": "Primitives", "operation": "build-step" },
-    { "path": "Profiles", "operation": "build-step" },
-    { "path": "Pipeline", "operation": "build-step" },
-    { "path": "Features", "operation": "build-step" },
-    { "path": "Feature", "operation": "build-step" },
-    { "path": "Schema", "operation": "build-step" },
-    { "path": "Patterns", "operation": "build-step" },
-    { "path": "Set", "operation": "build-step" },
-    { "path": "Span", "operation": "build-step" },
-    { "path": "Boundary2", "operation": "build-step" },
-    { "path": "Revolve", "operation": "build-step" },
-    { "path": "Symmetry", "operation": "build-step" },
-    { "path": "Offset", "operation": "build-step" },
-    { "path": "PMI", "operation": "build-step" },
-    { "path": "Templates", "operation": "build-step" },
-    { "path": "Integration", "operation": "build-step" }
+    {
+      "path": "AssemblyInterfaces/articulated-motion.firmament",
+      "operation": "build-step"
+    },
+    {
+      "path": "AssemblyInterfaces/IndustrialAtlas/upper-housing.firmament",
+      "operation": "build-step"
+    },
+    {
+      "path": "AssemblyInterfaces/IndustrialAtlas/fore-housing.firmament",
+      "operation": "build-step"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/string-low-e.firmament",
+      "operation": "build-step"
+    },
+    {
+      "path": "AssemblyInterfaces/AuthoringFoundation/scalar-functions-part.firmament",
+      "operation": "build-step"
+    },
+    {
+      "path": "AssemblyInterfaces/AuthoringFoundation/concept-points-part.firmament",
+      "operation": "build-step"
+    },
+    {
+      "path": "WebSdk/shared-block-assembly.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "ThreeDm/lamp-visible-intent.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Scene/WarmModernHouse/media.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Scene/WarmModernHouse/living.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Scene/WarmModernHouse/kitchen.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Scene/WarmModernHouse/island.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Scene/WarmModernHouse/entry.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Scene/WarmModernHouse/dining.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Scene/FactoryX0/robot-island.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Scene/FactoryX0/production-line.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Scene/FactoryX0/packout.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Scene/FactoryX0/logistics.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Scene/FactoryX0/hall-structure.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Scene/FactoryX0/cart.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "EditableV8/scene.firmament",
+      "operation": "scene-inspect"
+    },
+    {
+      "path": "DisplayProjection/scene.firmament",
+      "operation": "scene-inspect"
+    },
+    {
+      "path": "DisplayProjection/mixed.firmament",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Garment",
+      "operation": "validate"
+    },
+    {
+      "path": "Assembly",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "AssemblyInterfaces",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Drawings",
+      "operation": "drawing-compile"
+    },
+    {
+      "path": "FEA",
+      "operation": "fea-solve"
+    },
+    {
+      "path": "Materials",
+      "operation": "fea-solve"
+    },
+    {
+      "path": "SheetMetal",
+      "operation": "sheet-metal-flatten"
+    },
+    {
+      "path": "Sculpting",
+      "operation": "build-step"
+    },
+    {
+      "path": "BodyState",
+      "operation": "build-step"
+    },
+    {
+      "path": "SectionChain",
+      "operation": "section-chain-build"
+    },
+    {
+      "path": "Structural",
+      "operation": "build-step"
+    },
+    {
+      "path": "Piping",
+      "operation": "build-step"
+    },
+    {
+      "path": "GearInterfaces",
+      "operation": "inspect"
+    },
+    {
+      "path": "Gears",
+      "operation": "build-step"
+    },
+    {
+      "path": "WireForm",
+      "operation": "build-step"
+    },
+    {
+      "path": "PlasticShell",
+      "operation": "build-step"
+    },
+    {
+      "path": "Basics",
+      "operation": "build-step"
+    },
+    {
+      "path": "Primitives",
+      "operation": "build-step"
+    },
+    {
+      "path": "Profiles",
+      "operation": "build-step"
+    },
+    {
+      "path": "Pipeline",
+      "operation": "build-step"
+    },
+    {
+      "path": "Features",
+      "operation": "build-step"
+    },
+    {
+      "path": "Feature",
+      "operation": "build-step"
+    },
+    {
+      "path": "Schema",
+      "operation": "build-step"
+    },
+    {
+      "path": "Patterns",
+      "operation": "build-step"
+    },
+    {
+      "path": "Set",
+      "operation": "build-step"
+    },
+    {
+      "path": "Span",
+      "operation": "build-step"
+    },
+    {
+      "path": "Boundary2",
+      "operation": "build-step"
+    },
+    {
+      "path": "Revolve",
+      "operation": "build-step"
+    },
+    {
+      "path": "Symmetry",
+      "operation": "build-step"
+    },
+    {
+      "path": "Offset",
+      "operation": "build-step"
+    },
+    {
+      "path": "PMI",
+      "operation": "build-step"
+    },
+    {
+      "path": "Templates",
+      "operation": "build-step"
+    },
+    {
+      "path": "Integration",
+      "operation": "build-step"
+    },
+    {
+      "path": "Concepts",
+      "operation": "build-step"
+    },
+    {
+      "path": "DisplayProjection",
+      "operation": "build-step"
+    },
+    {
+      "path": "EditableV8",
+      "operation": "assembly-inspect"
+    },
+    {
+      "path": "Perforation",
+      "operation": "build-step"
+    },
+    {
+      "path": "Presentation",
+      "operation": "build-step"
+    },
+    {
+      "path": "Scene",
+      "operation": "scene-inspect"
+    },
+    {
+      "path": "Surfacing",
+      "operation": "build-step"
+    },
+    {
+      "path": "ThreeDm",
+      "operation": "build-step"
+    },
+    {
+      "path": "WebSdk",
+      "operation": "build-step"
+    }
+  ],
+  "modules": [
+    {
+      "path": "AssemblyInterfaces/GuitarX0/CarvedMaple.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/IvoryBinding.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/MahoganyBack.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/Neck.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/body-assembly.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/body-outline.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/body-profile.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/bridge-assembly.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/electronics-assembly.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/hardware-definitions.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/hardware-layout.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/knob.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/materials.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/neck-assembly.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/neck-profile.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/pickup.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/pickups-assembly.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/selector.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/strings-assembly.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/tuner.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/GuitarX0/tuners-assembly.firmament",
+      "consumer": "AssemblyInterfaces/GuitarX0/guitar-x0.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/IndustrialAtlas/base.firmament",
+      "consumer": "AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/IndustrialAtlas/fore-arm.firmament",
+      "consumer": "AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/IndustrialAtlas/gripper.firmament",
+      "consumer": "AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/IndustrialAtlas/hardware.firmament",
+      "consumer": "AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/IndustrialAtlas/joint-covers.firmament",
+      "consumer": "AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/IndustrialAtlas/materials.firmament",
+      "consumer": "AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/IndustrialAtlas/upper-arm.firmament",
+      "consumer": "AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/digit-module.firmament",
+      "consumer": "AssemblyInterfaces/machine.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/executable-cell.firmament",
+      "consumer": "AssemblyInterfaces/executable-machine.firmament"
+    },
+    {
+      "path": "AssemblyInterfaces/register.firmament",
+      "consumer": "AssemblyInterfaces/machine.firmament"
+    },
+    {
+      "path": "EditableV8/assemblies/cam-left.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/assemblies/cam-right.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/assemblies/crankcase.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/assemblies/crankshaft.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/assemblies/cylinder.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/assemblies/stage-a.firmament",
+      "consumer": "EditableV8/stage-a.firmasm"
+    },
+    {
+      "path": "EditableV8/assemblies/stage-b.firmament",
+      "consumer": "EditableV8/stage-b.firmasm"
+    },
+    {
+      "path": "EditableV8/bank-rest-configurations.firmament",
+      "consumer": "EditableV8/bank.firmasm"
+    },
+    {
+      "path": "EditableV8/construction.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/cylinder-config.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/design.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/interfaces.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/Camshaft.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/ConnectingRod.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/CrankWeb.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/CrankcaseRail.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/Crankpin.firmament",
+      "consumer": "EditableV8/stage-a.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/CylinderHead.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/CylinderSleeve.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/ExhaustValve.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/Flywheel.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/IntakeValve.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/LongMainJournal.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/MainJournal.firmament",
+      "consumer": "EditableV8/stage-a.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/MainSupport.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/PairedCrankpin.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/ParameterizedValveSpring.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/PistonCrown.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/PistonLug.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/PistonSkirt.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/SpringRetainer.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/TimingLobe.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/ValveSpring.firmament",
+      "consumer": "EditableV8/stage-b.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/ValveStem.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/parts/WristPin.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "EditableV8/rest-configurations.firmament",
+      "consumer": "EditableV8/engine.firmasm"
+    },
+    {
+      "path": "Scene/FactoryX0/kit.firmament",
+      "consumer": "Scene/FactoryX0/factory.firmament"
+    },
+    {
+      "path": "Scene/WarmModernHouse/components.firmament",
+      "consumer": "Scene/WarmModernHouse/house.firmament"
+    }
+  ],
+  "expectedRejections": [
+    {
+      "path": "Garment/garmentcode-dress-guided.firmament",
+      "exitCode": 1,
+      "codes": [
+        "garment-fit-body-required"
+      ],
+      "level": "ExternalBodyRequired"
+    },
+    {
+      "path": "Garment/tshirt-dress.firmament",
+      "exitCode": 1,
+      "codes": [
+        "garment-fit-body-required"
+      ],
+      "level": "ExternalBodyRequired"
+    },
+    {
+      "path": "Garment/sundress.firmament",
+      "exitCode": 1,
+      "codes": [
+        "garment-fit-body-required"
+      ],
+      "level": "ExternalBodyRequired"
+    },
+    {
+      "path": "Garment/sundress-posed.firmament",
+      "exitCode": 1,
+      "codes": [
+        "garment-fit-body-required"
+      ],
+      "level": "ExternalBodyRequired"
+    }
   ]
 }

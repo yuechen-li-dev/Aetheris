@@ -1,6 +1,6 @@
 Use Standard.Piping
 Model StandardTeeWitness {
-    Units: mm
+    units: mm
     Let TeeProduct = Standard.Piping.Tee
     Let TeePolicy = Standard.Piping.TeePolicy
     PipingSystem TeeLibraryWitness {

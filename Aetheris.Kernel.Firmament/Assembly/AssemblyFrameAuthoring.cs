@@ -186,6 +186,11 @@ internal static class AssemblyFrameAuthoring
                 diagnostics.Add(new("assembly-placement-authority-conflict", $"Anchored occurrence '{path}' cannot also have authored placement."));
             bool DrivesOccurrence(MateSource mate)
             {
+                bool Inside(MateRoleAssignment role) => role.Participant.ToString() == path
+                    || role.Participant.ToString().StartsWith(path + ".", StringComparison.Ordinal);
+                // A child's mate does not drive placement of its container.
+                // Only endpoints owned by this occurrence can compete with it.
+                if (mate.Roles.All(Inside)) return false;
                 var definition = source.Interfaces.FirstOrDefault(d => d.Name == mate.InterfaceName);
                 var movingRole = "B";
                 if (definition?.Family == MechanicalInterfaceFamily.Fixed)
@@ -198,7 +203,9 @@ internal static class AssemblyFrameAuthoring
                         || source.Anchor.ToString().StartsWith(bOwner.Path + ".", StringComparison.Ordinal))) movingRole = "A";
                 }
                 return mate.Roles.Any(r => (r.Role == movingRole || r.Role == "Moving")
-                    && (r.Participant.ToString() == path || r.Participant.ToString().StartsWith(path + ".", StringComparison.Ordinal)));
+                    && original.Where(i => r.Participant.ToString() == i.Path.ToString()
+                        || r.Participant.ToString().StartsWith(i.Path + ".", StringComparison.Ordinal))
+                        .OrderByDescending(i => i.Path.Segments.Count).FirstOrDefault()?.StableId == owner.StableId);
             }
             if (member.ExplicitTransform is not null || source.Mates.Any(DrivesOccurrence))
                 diagnostics.Add(new("assembly-placement-authority-conflict", $"Occurrence '{path}' has both authored placement and another placement driver."));

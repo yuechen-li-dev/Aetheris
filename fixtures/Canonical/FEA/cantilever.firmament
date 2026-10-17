@@ -1,6 +1,6 @@
 Model CantileverWitness {
-    Units: mm
-    Box Beam { Size: [120mm, 20mm, 20mm] }
+    units: mm
+    Box Beam { size: [120mm, 20mm, 20mm] }
 
     Analysis LinearElastic Cantilever {
         Body: Beam

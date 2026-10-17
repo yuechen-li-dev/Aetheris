@@ -19,14 +19,14 @@ Template<L: Length, W: Length, H: Length> Struct Bin {
   Profile rim {
     Loop Outer { outer |> TraceLoop }
     Loop Inner {
-      Reverse inner.Bottom As InnerBottom
-        |> Reverse inner.BottomLeftCorner As InnerBottomLeftCorner
-        |> Reverse inner.Left As InnerLeft
-        |> Reverse inner.TopLeftCorner As InnerTopLeftCorner
-        |> Reverse inner.Top As InnerTop
-        |> Reverse inner.TopRightCorner As InnerTopRightCorner
-        |> Reverse inner.Right As InnerRight
-        |> Reverse inner.BottomRightCorner As InnerBottomRightCorner
+      Reverse inner.Bottom as InnerBottom
+        |> Reverse inner.BottomLeftCorner as InnerBottomLeftCorner
+        |> Reverse inner.Left as InnerLeft
+        |> Reverse inner.TopLeftCorner as InnerTopLeftCorner
+        |> Reverse inner.Top as InnerTop
+        |> Reverse inner.TopRightCorner as InnerTopRightCorner
+        |> Reverse inner.Right as InnerRight
+        |> Reverse inner.BottomRightCorner as InnerBottomRightCorner
         |> Close
     }
   }

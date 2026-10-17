@@ -1,17 +1,17 @@
 Template < R: Length > Struct Sleeve {
-    Circle2 Outside { Center: [0mm,0mm] Radius: R }
-    Circle2 Inside { Center: [0mm,0mm] Radius: 15mm }
-    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside As InnerBoundary |> TraceLoop } }
-    Extrude Body { Profile: Section From: -10mm To: 10mm }
+    Circle2 Outside { center: [0mm,0mm] radius: R }
+    Circle2 Inside { center: [0mm,0mm] radius: 15mm }
+    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside as InnerBoundary |> TraceLoop } }
+    Extrude Body { profile: Section from: -10mm to: 10mm }
 }
 Assembly AnnularPair {
     <Assembly AnnularPair>
         <Part First = Sleeve<R: 20mm>>
-            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+            Placement { from: Origin; to: Parent; }
         </Part>
         <Part Second = Sleeve<R: 20mm>>
-            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,60,0,0,1];
+            Placement { from: Origin; to: Parent; translateLocal: [60mm, 0mm, 0mm]; }
         </Part>
     </Assembly>
-    Anchor: AnnularPair;
+    anchor: AnnularPair;
 }

@@ -1,8 +1,8 @@
 schema Mechanical
 Model MirroredProfileExtrusion {
-    Units: mm
+    units: mm
     Concept Struct Supports {
-        Center: Plane { Origin: [0mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+        Center: Plane { origin: [0mm,0mm,0mm]; normal: [1,0,0]; up: [0,0,1] }
     }
     Construction Plane CenterPlane { Trace: Supports.Center }
 
@@ -14,6 +14,6 @@ Model MirroredProfileExtrusion {
     Profile LeftProfile {
         Loop Outer { LeftBoundary |> TraceLoop }
     }
-    Mirrored Profile RightProfile From LeftProfile { Across: CenterPlane }
-    Struct Body { Extrude RightPrism { Profile: RightProfile; From: 0mm; To: 8mm } }
+    Mirrored Profile RightProfile from LeftProfile { across: CenterPlane }
+    Struct Body { Extrude RightPrism { profile: RightProfile; from: 0mm; to: 8mm } }
 }

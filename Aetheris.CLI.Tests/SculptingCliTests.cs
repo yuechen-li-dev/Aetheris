@@ -5,6 +5,46 @@ namespace Aetheris.CLI.Tests;
 
 public sealed class SculptingCliTests
 {
+    [Theory]
+    [InlineData("surf-x3b-add-section-chain-grip")]
+    [InlineData("surf-x4-remove-section-chain-g1-duct")]
+    public void EmbeddedStationChainsStayWithSculptingOwner(string name)
+    {
+        var fixture = Path.Combine(Root(), "fixtures/Canonical/BodyState", name + ".firmament");
+        var directory = Path.Combine(Root(), "artifacts/local/tests/sculpting-owner", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var output = Path.Combine(directory, "part.step");
+        var mismatched = Path.Combine(directory, "mismatched.firmament");
+        try
+        {
+            foreach (var operation in new[] { "validate", "inspect", "build" })
+            {
+                var stdout = new StringWriter(); var stderr = new StringWriter();
+                string[] args = operation == "build" ? [operation, fixture, "--output", output, "--json"] : [operation, fixture, "--json"];
+                Assert.Equal(0, CliRunner.Run(args, stdout, stderr));
+                using var json = JsonDocument.Parse(stdout.ToString());
+                var result = operation == "validate" ? json.RootElement.GetProperty("firmamentV2Validation") : json.RootElement;
+                Assert.Equal("Sculpting", result.GetProperty("domain").GetString());
+            }
+            Assert.True(File.Exists(output));
+            File.WriteAllText(mismatched, "schema SectionChain\n" + File.ReadAllText(fixture));
+            var rejected = Path.Combine(directory, "rejected.step");
+            foreach (var operation in new[] { "validate", "build" })
+            {
+                var stdout = new StringWriter();
+                string[] args = operation == "build" ? [operation, mismatched, "--output", rejected, "--json"] : [operation, mismatched, "--json"];
+                Assert.NotEqual(0, CliRunner.Run(args, stdout, new StringWriter()));
+                Assert.Contains("firmament-schema-mismatch", stdout.ToString());
+                Assert.False(File.Exists(rejected));
+            }
+        }
+        finally
+        {
+            foreach (var path in Directory.GetFiles(directory)) File.Delete(path);
+            Directory.Delete(directory);
+        }
+    }
+
     [Fact]
     public void BuildInspectAndValidateExposeStructuredSculptStateEvidence()
     {

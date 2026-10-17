@@ -54,7 +54,7 @@ public sealed class CompositionLanguageTests
         var completion = FirmamentLanguageService.Complete(draft, "draft.firmament", "1", draft.Length);
         Assert.DoesNotContain(completion.Fields, f => f.Name == "Frame");
         Assert.Contains(completion.Fields, f => f.Name == "Profile");
-        var route = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/WireForm/line-guide.firmament");
+        var route = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/WireForm/line-guide.firmament"));
         Assert.Empty(FirmamentLanguageAnalysisService.Analyze(route, "guide.firmament", "1").Diagnostics);
         var invalid = FirmamentLanguageAnalysisService.Analyze(route.Replace("Distance: 60mm", "Distance: 100mm"), "guide.firmament", "2");
         Assert.Contains(invalid.Diagnostics, d => d.Message.Contains("guide-interval-invalid"));

@@ -73,7 +73,7 @@ public static class FirmamentFrontendSchemas
             return new($"firmament-feature-schema-unsupported:{schema}", "fatal", $"Feature recipes are not supported by schema {schema}.");
         var detected = DetectDistinctFrontend(source);
         if (detected is null && FirmamentV2Parser.MechanicalDeclarations(syntax.Statements)
-            .Any(d => FirmamentV2Parser.IsPrimitiveDeclaration(d) || d.Type.Name.Text is "Compose" or "Extrude" or "Revolve" || Enum.TryParse<GearFamily>(d.Type.Name.Text, out _)))
+            .Any(d => FirmamentV2Parser.IsPrimitiveDeclaration(d) || d.Type.Name.Text is "Compose" or "Extrude" or "Revolve" or "BodyState" or "SculptState" || Enum.TryParse<GearFamily>(d.Type.Name.Text, out _)))
             detected = FirmamentFrontendSchema.Mechanical;
         return detected is not null && detected != schema
             ? new($"firmament-schema-mismatch:declared={schema}:source={detected}", "fatal", $"Schema {schema} cannot compile a {detected} document.") : null;

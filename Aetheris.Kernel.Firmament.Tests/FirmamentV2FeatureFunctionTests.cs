@@ -200,8 +200,8 @@ public sealed class FirmamentV2FeatureFunctionTests
     {
         var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
             "../../../../fixtures/Canonical/Feature/boss-pocket-feature.firmament"));
-        var source = File.ReadAllText(path)
-            .Replace("Feature RaisedPad", "Feature PadProfile", StringComparison.Ordinal)
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(path))
+            .ReplaceRequired("Feature RaisedPad", "Feature PadProfile", StringComparison.Ordinal)
             .Replace("RaisedPad(Shape:", "PadProfile(Shape:", StringComparison.Ordinal)
             .Replace("    Concept Struct Layout On XY", "    Record LegacySpec { Center: Point2 }\n    Template<spec: LegacySpec> LegacyMount { Hole<Shaft> Item { On: +Z Center: spec.Center Diameter: 4mm End: ThroughAll } }\n    Concept Struct Layout On XY", StringComparison.Ordinal);
         var selection = FirmamentFrontendSchemas.Select(source);

@@ -2,7 +2,7 @@ SheetMetal NativeUChannel {
     Thickness: 1.5mm;
     Material: "Standard.Materials.Aluminum.5052_H32";
     KFactor: 0.42;
-    Base Base { Profile: Rectangle { Width: 100mm; Height: 60mm; }; }
+    Base Base { profile: Rectangle { Width: 100mm; Height: 60mm; }; }
     Flange LeftFlange {
         From: Base.Left;
         Length: 25mm;
@@ -17,8 +17,8 @@ SheetMetal NativeUChannel {
         InsideRadius: 2mm;
         Direction: Up;
     }
-    Hole MountA { On: Base; Center: (25mm, 30mm); Diameter: 8mm; }
-    Hole MountB { On: Base; Center: (75mm, 30mm); Diameter: 8mm; }
+    Hole MountA { on: Base; center: (25mm, 30mm); diameter: 8mm; }
+    Hole MountB { on: Base; center: (75mm, 30mm); diameter: 8mm; }
 }
 
 Analysis LinearElastic NativeUChannelLoad {

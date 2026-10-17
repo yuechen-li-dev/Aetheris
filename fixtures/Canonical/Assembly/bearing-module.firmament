@@ -59,7 +59,7 @@ Assembly BearingModule {
         </Assembly>
     </Assembly>
 
-    Anchor: BearingModule.FixedSupport.Housing.Bore;
+    anchor: BearingModule.FixedSupport.Housing.Bore;
 
     Mate ShaftInBearing: ShaftBore {
         Shaft: BearingModule.Rotor.Shaft.Journal;

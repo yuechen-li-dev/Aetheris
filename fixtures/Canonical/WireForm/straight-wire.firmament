@@ -1,5 +1,5 @@
 Model StraightWire {
-    Units: mm
+    units: mm
     WireForm Wire {
         Diameter: 1mm
         Material: Standard.Materials.StainlessSteel.304_Annealed

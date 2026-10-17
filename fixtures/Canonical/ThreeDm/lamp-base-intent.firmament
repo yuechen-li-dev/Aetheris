@@ -1,38 +1,38 @@
 Model LampBaseIntent {
-    Units: mm
+    units: mm
 
     // The large opening is the XY datum. Source XY is translated by (-38, 0) mm.
-    Concept Struct BaseSketch On XY {
-        Point2 Nose { Position: [-144.9mm, 0mm] }
-        Point2 UpperNoseHandle { Position: [-144.9mm, 53.96mm] }
-        Point2 UpperShoulderHandle { Position: [-47.32mm, 74.4mm] }
-        Point2 UpperShoulder { Position: [-5.5mm, 74.4mm] }
-        Point2 LowerShoulder { Position: [-5.5mm, -74.4mm] }
-        Point2 LowerShoulderHandle { Position: [-47.32mm, -74.4mm] }
-        Point2 LowerNoseHandle { Position: [-144.9mm, -53.96mm] }
-        Point2 RoundCenter { Position: [-5.5mm, 0mm] }
-        Point2 OpeningCenter { Position: [0mm, 0mm] }
-        Point2 PostMountCenter { Position: [-116mm, 0mm] }
-        Point2 AuxiliaryMountCenter { Position: [-82mm, -25mm] }
+    Concept Struct BaseSketch on XY {
+        Point2 Nose { position: [-144.9mm, 0mm] }
+        Point2 UpperNoseHandle { position: [-144.9mm, 53.96mm] }
+        Point2 UpperShoulderHandle { position: [-47.32mm, 74.4mm] }
+        Point2 UpperShoulder { position: [-5.5mm, 74.4mm] }
+        Point2 LowerShoulder { position: [-5.5mm, -74.4mm] }
+        Point2 LowerShoulderHandle { position: [-47.32mm, -74.4mm] }
+        Point2 LowerNoseHandle { position: [-144.9mm, -53.96mm] }
+        Point2 RoundCenter { position: [-5.5mm, 0mm] }
+        Point2 OpeningCenter { position: [0mm, 0mm] }
+        Point2 PostMountCenter { position: [-116mm, 0mm] }
+        Point2 AuxiliaryMountCenter { position: [-82mm, -25mm] }
 
-        CubicBezier2 UpperFlank { From: UpperShoulder; Control1: UpperShoulderHandle; Control2: UpperNoseHandle; To: Nose }
-        Circle2 RoundEnd { Center: RoundCenter; Radius: 74.4mm }
-        CubicBezier2 LowerFlank { From: Nose; Control1: LowerNoseHandle; Control2: LowerShoulderHandle; To: LowerShoulder }
-        Circle2 LargeOpening { Center: OpeningCenter; Radius: 61.6mm }
-        Circle2 PostMount { Center: PostMountCenter; Radius: 7mm }
-        Circle2 AuxiliaryMount { Center: AuxiliaryMountCenter; Radius: 3.5mm }
+        CubicBezier2 UpperFlank { from: UpperShoulder; control1: UpperShoulderHandle; control2: UpperNoseHandle; to: Nose }
+        Circle2 RoundEnd { center: RoundCenter; radius: 74.4mm }
+        CubicBezier2 LowerFlank { from: Nose; control1: LowerNoseHandle; control2: LowerShoulderHandle; to: LowerShoulder }
+        Circle2 LargeOpening { center: OpeningCenter; radius: 61.6mm }
+        Circle2 PostMount { center: PostMountCenter; radius: 7mm }
+        Circle2 AuxiliaryMount { center: AuxiliaryMountCenter; radius: 3.5mm }
     }
 
-    Profile PlateSection Using BaseSketch {
+    Profile PlateSection using BaseSketch {
         Loop Outer {
-            Segment Lower { Trace: LowerFlank; From: Nose; To: LowerShoulder }
-            Segment Round { Trace: RoundEnd; From: LowerShoulder; To: UpperShoulder; Sweep: CounterClockwise }
-            Segment Upper { Trace: UpperFlank; From: UpperShoulder; To: Nose }
+            Segment Lower { trace: LowerFlank; from: Nose; to: LowerShoulder }
+            Segment Round { trace: RoundEnd; from: LowerShoulder; to: UpperShoulder; sweep: CounterClockwise }
+            Segment Upper { trace: UpperFlank; from: UpperShoulder; to: Nose }
         }
-        Loop Inner { LargeOpening As OpeningBoundary |> TraceLoop }
-        Loop Inner { PostMount As PostBoundary |> TraceLoop }
-        Loop Inner { AuxiliaryMount As AuxiliaryBoundary |> TraceLoop }
+        Loop Inner { LargeOpening as OpeningBoundary |> TraceLoop }
+        Loop Inner { PostMount as PostBoundary |> TraceLoop }
+        Loop Inner { AuxiliaryMount as AuxiliaryBoundary |> TraceLoop }
     }
 
-    Struct Base { Extrude PrimaryPlate { Profile: PlateSection; From: 0mm; To: 12mm } }
+    Struct Base { Extrude PrimaryPlate { profile: PlateSection; from: 0mm; to: 12mm } }
 }

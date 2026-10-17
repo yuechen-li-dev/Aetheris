@@ -7,7 +7,7 @@ Template<H:Length> Struct Pin {
   Circle2 C { center: [0mm,0mm]; radius: 1mm }
   Profile P { Loop Outer { C |> TraceLoop } }
   Extrude Body { profile: P; from: 0mm; to: H }
-  Expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+  expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
 }
 Assembly SharedFrames {
   <Assembly SharedFrames><Part Cam = Pin<H:4mm>></Part></Assembly>

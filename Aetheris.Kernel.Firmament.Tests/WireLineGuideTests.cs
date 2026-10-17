@@ -5,7 +5,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class WireLineGuideTests
 {
-    private static string Source => FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/WireForm/line-guide.firmament");
+    private static string Source => FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/WireForm/line-guide.firmament"));
     [Fact]
     public void LockedGuideSurvivesAutomaticEntryAndExactStepRoundtrip()
     {
@@ -32,7 +32,7 @@ public sealed class WireLineGuideTests
     [InlineData("HarnessLayout.Groove", "HarnessLayout.Missing", "guide-unresolved")]
     public void UnsupportedGuideIntentHasNamedFailure(string from, string to, string diagnostic)
     {
-        var result = WireFormAuthoring.Parse(Source.Replace(from, to));
+        var result = WireFormAuthoring.Parse(Source.ReplaceRequired(from, to));
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, d => d.Message.Contains(diagnostic));
     }
@@ -40,7 +40,7 @@ public sealed class WireLineGuideTests
     [Fact]
     public void ReverseGuideKeepsTheRequestedIntervalAndTangentExit()
     {
-        var source = Source.Replace("Point3(0mm,-40mm,0mm)", "Point3(100mm,-40mm,0mm)")
+        var source = Source.ReplaceRequired("Point3(0mm,-40mm,0mm)", "Point3(100mm,-40mm,0mm)")
             .Replace("From: 20mm", "From: 80mm").Replace("Direction: Forward", "Direction: Reverse")
             .Replace("Point3(120mm,0mm,0mm)", "Point3(-20mm,0mm,0mm)");
         var parsed = WireFormAuthoring.Parse(source);

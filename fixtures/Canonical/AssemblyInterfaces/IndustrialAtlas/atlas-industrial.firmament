@@ -16,9 +16,9 @@ Assembly AtlasIndustrial {
   <Assembly RightJaw = AtlasRightJaw></Assembly>
  </Assembly>
  anchor: AtlasIndustrial.Base;
- Interface<Revolute> Shoulder { A: AtlasIndustrial.Base.Hinge; B: AtlasIndustrial.UpperArm.Input; }
- Interface<Revolute> Elbow { A: AtlasIndustrial.UpperArm.Output; B: AtlasIndustrial.ForeArm.Input; }
- Interface<Fixed> WristMount { A: AtlasIndustrial.ForeArm.Output; B: AtlasIndustrial.Gripper.Input.Frame; }
- Interface<Prismatic> GripLeft { A: AtlasIndustrial.Gripper.Left; B: AtlasIndustrial.LeftJaw.Slide; }
- Interface<Prismatic> GripRight { A: AtlasIndustrial.Gripper.Right; B: AtlasIndustrial.RightJaw.Slide; }
+ Interface<Revolute> Shoulder { a: AtlasIndustrial.Base.Hinge; b: AtlasIndustrial.UpperArm.Input; }
+ Interface<Revolute> Elbow { a: AtlasIndustrial.UpperArm.Output; b: AtlasIndustrial.ForeArm.Input; }
+ Interface<Fixed> WristMount { a: AtlasIndustrial.ForeArm.Output; b: AtlasIndustrial.Gripper.Input.Frame; }
+ Interface<Prismatic> GripLeft { a: AtlasIndustrial.Gripper.Left; b: AtlasIndustrial.LeftJaw.Slide; }
+ Interface<Prismatic> GripRight { a: AtlasIndustrial.Gripper.Right; b: AtlasIndustrial.RightJaw.Slide; }
 }

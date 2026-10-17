@@ -1,5 +1,5 @@
 Model SphereExample {
-    Units: mm
+    units: mm
 
     Sphere Body {
         Radius: 7.5mm

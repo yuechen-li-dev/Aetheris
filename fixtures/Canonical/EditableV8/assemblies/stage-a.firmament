@@ -47,5 +47,5 @@ Subassembly StageA {
   </Assembly>
   Mate InstallRod: JournalBoreSeat { Moving: StageA.Rod1.Mount; Fixed: StageA.Crankpin1.Mount; }
   Mate InstallPin: WristPinSeat { Moving: StageA.WristPin1.Mount; Fixed: StageA.Rod1.SmallEnd; }
-  Anchor: StageA;
+  anchor: StageA;
 }

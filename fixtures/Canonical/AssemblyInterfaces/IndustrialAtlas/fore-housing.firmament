@@ -1,6 +1,6 @@
 // Smooth, tapered mechanical housing. Exact capped SectionChain; millimetres.
 Model AtlasForeHousing {
- Units: mm
+ units: mm
  expose {
   Semantic Input { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,0,-1] z [0,1,0]; }
   Semantic Output { DatumFrame Frame = [180mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; }
@@ -17,43 +17,43 @@ Model AtlasForeHousing {
  Construction Plane FC { Trace: Stations.C }
  Construction Plane FD { Trace: Stations.D }
  Construction Plane FE { Trace: Stations.E }
- RoundedRect2 Root { Center: [0mm,0mm] Size: [48mm,52mm] Radius: 12mm }
- RoundedRect2 Belly { Center: [0mm,0mm] Size: [50mm,56mm] Radius: 12mm }
- RoundedRect2 Waist { Center: [0mm,0mm] Size: [34mm,34mm] Radius: 10mm }
- RoundedRect2 Tip { Center: [0mm,0mm] Size: [32mm,36mm] Radius: 10mm }
+ RoundedRect2 Root { center: [0mm,0mm] size: [48mm,52mm] radius: 12mm }
+ RoundedRect2 Belly { center: [0mm,0mm] size: [50mm,56mm] radius: 12mm }
+ RoundedRect2 Waist { center: [0mm,0mm] size: [34mm,34mm] radius: 10mm }
+ RoundedRect2 Tip { center: [0mm,0mm] size: [32mm,36mm] radius: 10mm }
  Profile PRoot { Loop Outer { Root |> TraceLoop } }
  Profile PBelly { Loop Outer { Belly |> TraceLoop } }
  Profile PWaist { Loop Outer { Waist |> TraceLoop } }
  Profile PTip { Loop Outer { Tip |> TraceLoop } }
  SectionChain Housing {
-  Continuity: G1
+  continuity: G1
   ApproximationTolerance: 0.0001mm
   Section A {
-   Frame: FA
-   Profile: PRoot
-   Seam: Bottom
+   frame: FA
+   profile: PRoot
+   seam: Bottom
   }
   Section B {
-   Frame: FB
-   Profile: PBelly
-   Seam: Bottom
+   frame: FB
+   profile: PBelly
+   seam: Bottom
   }
   Section C {
-   Frame: FC
-   Profile: PWaist
-   Seam: Bottom
+   frame: FC
+   profile: PWaist
+   seam: Bottom
   }
   Section D {
-   Frame: FD
-   Profile: PTip
-   Seam: Bottom
+   frame: FD
+   profile: PTip
+   seam: Bottom
   }
   Section E {
-   Frame: FE
-   Profile: PTip
-   Seam: Bottom
+   frame: FE
+   profile: PTip
+   seam: Bottom
   }
-  Start: Cap
-  End: Cap
+  start: Cap
+  end: Cap
  }
 }

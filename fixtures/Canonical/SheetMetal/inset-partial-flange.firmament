@@ -1,22 +1,24 @@
+Profile panelProfile = Rect2 { center: [(100mm) / 2, (60mm) / 2]; size: [100mm, 60mm] }
+
 // A bounded bend path is feature intent, not a free edge.
 SheetMetal InsetPartialFlange {
-    Thickness: 1mm;
-    KFactor: 0.5;
-    Base Panel { Profile: Rectangle { Width: 100mm; Height: 60mm; }; }
-    Flange Wall { From: Panel.Rear; Height: 20mm; Angle: 90deg; Radius: 2mm; }
+    thickness: 1mm;
+    kFactor: 0.5;
+    Base Panel { profile: panelProfile; }
+    Flange Wall { from: Panel.Rear; height: 20mm; angle: 90deg; radius: 2mm; }
 
     AttachmentPath ServiceFlangeAttachment {
-        On: Wall.Outer;
-        Inset: 2mm;
-        Span: 40mm;
-        SpanOffset: 5mm;
-        Release: ToCarrier;
+        on: Wall.Outer;
+        inset: 2mm;
+        span: 40mm;
+        spanOffset: 5mm;
+        release: ToCarrier;
     }
 
     Flange ServiceFlange {
-        From: Wall.ServiceFlangeAttachment;
-        Height: 12mm;
-        Angle: 45deg;
-        Radius: 2mm;
+        from: Wall.ServiceFlangeAttachment;
+        height: 12mm;
+        angle: 45deg;
+        radius: 2mm;
     }
 }

@@ -17,14 +17,14 @@ Subassembly DigitModule {
         </Part>
     </Assembly>
 
-    Anchor: DigitModule.Bearing.Joint;
+    anchor: DigitModule.Bearing.Joint;
 
     Interface<Revolute> ShaftBearing {
-        A: DigitModule.Shaft.Joint;
-        B: DigitModule.Bearing.Joint;
+        a: DigitModule.Shaft.Joint;
+        b: DigitModule.Bearing.Joint;
     }
 
-    Expose {
+    expose {
         Semantic Input = Bearing.Joint;
         Semantic Output = Shaft.Joint;
     }

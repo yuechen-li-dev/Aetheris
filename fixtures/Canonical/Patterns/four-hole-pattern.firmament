@@ -1,5 +1,5 @@
 Model FourHolePlate {
-    Units: mm
+    units: mm
 
     Record MountSpec { Center: Point2 Diameter: Length }
     Static Mounts: MountSpec[] = [
@@ -10,15 +10,15 @@ Model FourHolePlate {
     ]
     Template<spec: MountSpec> MountHole {
         Hole<Shaft> Mount {
-            On: +Z
-            Center: spec.Center
-            Diameter: spec.Diameter
-            End: ThroughAll
+            on: +Z
+            center: spec.Center
+            diameter: spec.Diameter
+            end: ThroughAll
         }
     }
 
-    Box Plate { Size: [80mm, 50mm, 8mm] }
+    Box Plate { size: [80mm, 50mm, 8mm] }
     Modify Plate {
-        Pattern MountPattern Over Mounts { MountHole<Current> }
+        Pattern MountPattern over Mounts { MountHole<Current> }
     }
 }

@@ -1,36 +1,38 @@
+Profile blankProfile = Rect2 { center: [(100mm) / 2, (60mm) / 2]; size: [100mm, 60mm] }
+
 // Minimal two-bend channel.
 SheetMetal SimpleUChannel {
-    Thickness: 1.5mm;
-    Material: "5052-H32 Aluminum";
-    KFactor: 0.42;
+    thickness: 1.5mm;
+    material: "5052-H32 Aluminum";
+    kFactor: 0.42;
 
-    Base: Rectangle(100mm, 60mm);
+    base: blankProfile;
 
     Flange LeftFlange {
-        From: Base.Left;
-        Length: 25mm;
-        Angle: 90deg;
-        InsideRadius: 2mm;
-        Direction: Up;
+        from: Base.Left;
+        length: 25mm;
+        angle: 90deg;
+        insideRadius: 2mm;
+        direction: Up;
     }
 
     Flange RightFlange {
-        From: Base.Right;
-        Length: 20mm;
-        Angle: 90deg;
-        InsideRadius: 2mm;
-        Direction: Up;
+        from: Base.Right;
+        length: 20mm;
+        angle: 90deg;
+        insideRadius: 2mm;
+        direction: Up;
     }
 
     Hole MountA {
-        On: Base;
-        Center: (25mm, 30mm);
-        Diameter: 8mm;
+        on: Base;
+        center: Point2(25mm, 30mm);
+        diameter: 8mm;
     }
 
     Hole MountB {
-        On: Base;
-        Center: (75mm, 30mm);
-        Diameter: 8mm;
+        on: Base;
+        center: Point2(75mm, 30mm);
+        diameter: 8mm;
     }
 }

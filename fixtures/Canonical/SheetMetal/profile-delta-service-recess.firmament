@@ -1,3 +1,5 @@
+Profile deckProfile = Rect2 { center: [(120mm) / 2, (80mm) / 2]; size: [120mm, 80mm] }
+
 Use Profile.Modifications;
 
 Static WallRecess: ProfileRecessSpec = ProfileRecessSpec {
@@ -11,7 +13,7 @@ Static WallRecess: ProfileRecessSpec = ProfileRecessSpec {
 ProfileDelta UserDefinedWallRecess = Recess < P: WallRecess, Owner: Wall.Outer >
 
 SheetMetal DeltaTray {
-    Thickness: 1mm;
-    Base Deck { Profile: Rectangle { Width: 120mm; Height: 80mm; }; }
-    Flange Wall { From: Deck.Front; Height: 20mm; Angle: 90deg; Radius: 2mm; }
+    thickness: 1mm;
+    Base Deck { profile: deckProfile; }
+    Flange Wall { from: Deck.Front; height: 20mm; angle: 90deg; radius: 2mm; }
 }

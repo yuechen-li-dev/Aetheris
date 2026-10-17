@@ -1,24 +1,24 @@
 Model GeneratedProfile {
-    Units: mm
+    units: mm
 
     Record ProfileSpec { Center: Point2 }
     Static Specs: ProfileSpec[] = [ ProfileSpec { Center: Point2(0mm, 0mm) } ]
 
     Template<spec: ProfileSpec> PlateProfile {
-        Profile Plate Using Layout {
+        Profile Plate using Layout {
             Loop Outer {
-                Stock.Bottom As South
-                |> Stock.Right As East
-                |> Stock.Top As North
-                |> Stock.Left As West
+                Stock.Bottom as South
+                |> Stock.Right as East
+                |> Stock.Top as North
+                |> Stock.Left as West
                 |> Close
             }
         }
     }
 
-    Concept Struct Layout On XY {
-        Rect2 Stock { Center: Specs[0].Center; Size: [20mm, 10mm] }
+    Concept Struct Layout on XY {
+        Rect2 Stock { center: Specs[0].Center; size: [20mm, 10mm] }
     }
     PlateProfile<Specs[0]>
-    Struct PlateBody { Extrude Plate { Profile: Plate; From: -2mm; To: 2mm } }
+    Struct PlateBody { Extrude Plate { profile: Plate; from: -2mm; to: 2mm } }
 }

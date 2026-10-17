@@ -1,6 +1,6 @@
 schema Mechanical
 Model PickupFunctional {
- Units: mm
+ units: mm
 // One exact pickup part; all construction coordinates are local to its Mount.
 Record PickupSpec {
  Width: Length; Depth: Length; BaseHeight: Length
@@ -15,38 +15,38 @@ Static StandardPickup: PickupSpec {
 Static BridgePickupSpec = StandardPickup with { PolePitch: 10.2mm }
 
 Feature Coil(Center: Point2, Width: Length, Depth: Length, Height: Length, Support: Plane) -> Boss {
- RoundedRect2 Outline { Center: Center; Size: [Width,Depth]; Radius: 3mm }
+ RoundedRect2 Outline { center: Center; size: [Width,Depth]; radius: 3mm }
  Profile Section { Loop Outer { Outline |> TraceLoop } }
- return Boss { On: Support; Profile: Section; Height: Height }
+ return Boss { on: Support; profile: Section; height: Height }
 }
 Feature Pole(Center: Point2, Support: Plane) -> Boss {
- Circle2 Outline { Center: Center; Radius: 2.2mm }
+ Circle2 Outline { center: Center; radius: 2.2mm }
  Profile Section { Loop Outer { Outline |> TraceLoop } }
- return Boss { On: Support; Profile: Section; Height: 1mm }
+ return Boss { on: Support; profile: Section; height: 1mm }
 }
 
 Template<Spec: PickupSpec> Struct Humbucker {
- Concept Struct Layout On XY {
-  Point2 UpperCenter { Position: [0mm,Spec.CoilOffset] }
-  Point2 LowerCenter { Position: [0mm,-Spec.CoilOffset] }
-  Axis2 Longitudinal { Origin: [0mm,0mm]; Direction: [1,0] }
-  Axis2 Transverse { Origin: [0mm,0mm]; Direction: [0,1] }
-  Point2 FirstPole { Position: [-2.5 * Spec.PolePitch,Spec.CoilOffset] }
-  RoundedRect2 BaseOutline { Center: [0mm,0mm]; Size: [Spec.Width,Spec.Depth]; Radius: 4mm }
+ Concept Struct Layout on XY {
+  Point2 UpperCenter { position: [0mm,Spec.CoilOffset] }
+  Point2 LowerCenter { position: [0mm,-Spec.CoilOffset] }
+  Axis2 Longitudinal { origin: [0mm,0mm]; direction: [1,0] }
+  Axis2 Transverse { origin: [0mm,0mm]; direction: [0,1] }
+  Point2 FirstPole { position: [-2.5 * Spec.PolePitch,Spec.CoilOffset] }
+  RoundedRect2 BaseOutline { center: [0mm,0mm]; size: [Spec.Width,Spec.Depth]; radius: 4mm }
  }
- Profile BaseProfile Using Layout { Loop Outer { BaseOutline |> TraceLoop } }
- Plane BaseTop { Origin: [0mm,0mm,Spec.BaseHeight]; Normal: [0,0,1]; Up: [0,1,0] }
- Plane CoilTop { Origin: [0mm,0mm,Spec.BaseHeight + Spec.CoilHeight]; Normal: [0,0,1]; Up: [0,1,0] }
+ Profile BaseProfile using Layout { Loop Outer { BaseOutline |> TraceLoop } }
+ Plane BaseTop { origin: [0mm,0mm,Spec.BaseHeight]; normal: [0,0,1]; up: [0,1,0] }
+ Plane CoilTop { origin: [0mm,0mm,Spec.BaseHeight + Spec.CoilHeight]; normal: [0,0,1]; up: [0,1,0] }
  Compose Body {
-  Base Housing { Profile: BaseProfile; From: 0mm; To: Spec.BaseHeight; Role: Stock }
+  Base Housing { profile: BaseProfile; from: 0mm; to: Spec.BaseHeight; role: Stock }
   Feature UpperCoil = Coil(Center: Layout.UpperCenter, Width: Spec.CoilWidth, Depth: Spec.CoilDepth, Height: Spec.CoilHeight, Support: BaseTop)
   Feature LowerCoil = Coil(Center: Layout.LowerCenter, Width: Spec.CoilWidth, Depth: Spec.CoilDepth, Height: Spec.CoilHeight, Support: BaseTop)
   Feature PoleSeed = Pole(Center: Layout.FirstPole, Support: CoilTop)
   Linear Pattern Poles {
-   Source: PoleSeed
-   Direction: Layout.Longitudinal.Direction
-   Count: 6
-   Spacing: Spec.PolePitch
+   source: PoleSeed
+   direction: Layout.Longitudinal.Direction
+   count: 6
+   spacing: Spec.PolePitch
   }
  }
 }

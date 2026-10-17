@@ -1,5 +1,5 @@
 Model StandardProductsOfficePaperclip {
-    Units: mm
+    units: mm
     Record PaperclipPolicy {
         WireDiameter: Length
         OuterLegLength: Length

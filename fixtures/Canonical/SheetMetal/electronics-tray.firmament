@@ -1,15 +1,19 @@
+Profile mainProfile = Rect2 { center: [(240mm) / 2, (180mm) / 2]; size: [240mm, 180mm] }
+Profile ventAProfile = Rect2 { center: [0mm, 0mm]; size: [50mm, 8mm] }
+Profile ventBProfile = Rect2 { center: [0mm, 0mm]; size: [50mm, 8mm] }
+
 // Four adjacent walls with automatic relief semantics, holes, and vent slots.
 SheetMetal ElectronicsTray {
-    Thickness: 1.2mm;
-    Material: "5052-H32 Aluminum";
-    KFactor: 0.42;
-    Base Main { Profile: Rectangle { Width: 240mm; Height: 180mm; }; }
-    Flange FrontWall { From: Main.Front; Height: 40mm; Angle: 90deg; Radius: 1.5mm; Relief: Auto; }
-    Flange RightWall { From: Main.Right; Height: 30mm; Angle: 90deg; Radius: 1.5mm; Relief: Auto; }
-    Flange RearWall { From: Main.Rear; Height: 40mm; Angle: 90deg; Radius: 1.5mm; Relief: Auto; }
-    Flange LeftWall { From: Main.Left; Height: 30mm; Angle: 90deg; Radius: 1.5mm; Relief: Auto; }
-    Hole MountA { On: Main; Center: (20mm, 20mm); Diameter: 4mm; }
-    Hole MountB { On: Main; Center: (220mm, 160mm); Diameter: 4mm; }
-    Cut VentA { On: Main; Profile: Slot { Length: 50mm; Width: 8mm; }; At: (90mm, 90mm); }
-    Cut VentB { On: Main; Profile: Slot { Length: 50mm; Width: 8mm; }; At: (150mm, 90mm); }
+    thickness: 1.2mm;
+    material: "5052-H32 Aluminum";
+    kFactor: 0.42;
+    Base Main { profile: mainProfile; }
+    Flange FrontWall { from: Main.Front; height: 40mm; angle: 90deg; radius: 1.5mm; relief: Auto; }
+    Flange RightWall { from: Main.Right; height: 30mm; angle: 90deg; radius: 1.5mm; relief: Auto; }
+    Flange RearWall { from: Main.Rear; height: 40mm; angle: 90deg; radius: 1.5mm; relief: Auto; }
+    Flange LeftWall { from: Main.Left; height: 30mm; angle: 90deg; radius: 1.5mm; relief: Auto; }
+    Hole MountA { on: Main; center: Point2(20mm, 20mm); diameter: 4mm; }
+    Hole MountB { on: Main; center: Point2(220mm, 160mm); diameter: 4mm; }
+    Cut VentA { on: Main; profile: ventAProfile; at: Point2(90mm, 90mm); }
+    Cut VentB { on: Main; profile: ventBProfile; at: Point2(150mm, 90mm); }
 }

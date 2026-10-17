@@ -10,7 +10,7 @@ public sealed class SemanticAuthorityConvergenceTests
     [Fact]
     public void SequentialBosses_ResolveTopAgainstCurrentFootprintSupport()
     {
-        var source=File.ReadAllText(Fixture("Canonical/Features/Composition/boss-stack-current-top.firmament"));
+        var source=FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture("Canonical/Features/Composition/boss-stack-current-top.firmament")));
         var parsed=PrismaticProfileCompositionParser.Parse(source);
         Assert.Empty(parsed.Diagnostics);
         var stack=Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed,out var diagnostics));
@@ -30,7 +30,7 @@ public sealed class SemanticAuthorityConvergenceTests
     [Fact]
     public void ExplicitBaseTop_RemainsDistinctFromRelativeCurrentTop()
     {
-        var source=File.ReadAllText(Fixture("Canonical/Features/Composition/boss-stack-current-top.firmament"))
+        var source=FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture("Canonical/Features/Composition/boss-stack-current-top.firmament")))
             .Replace("Boss Upper { On: Top;","Boss Upper { On: Base.Top;",StringComparison.Ordinal);
         var parsed=PrismaticProfileCompositionParser.Parse(source);Assert.Empty(parsed.Diagnostics);
         var upper=Assert.Single(parsed.Feature!.Bosses!,x=>x.Name=="Upper");
@@ -42,7 +42,7 @@ public sealed class SemanticAuthorityConvergenceTests
     [Fact]
     public void EqualCurrentTopSupports_FailWithTypedAmbiguity()
     {
-        var parsed=PrismaticProfileCompositionParser.Parse(File.ReadAllText(Fixture("Invalid/FeatureComposition/feature-support-top-ambiguous.firmament")));
+        var parsed=PrismaticProfileCompositionParser.Parse(FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture("Invalid/FeatureComposition/feature-support-top-ambiguous.firmament"))));
         Assert.Null(parsed.Feature);
         Assert.Contains(parsed.Diagnostics,x=>x.StartsWith("feature-support-ambiguous:Top:feature=Bridge:candidates=Left,Right",StringComparison.Ordinal));
     }
@@ -50,9 +50,9 @@ public sealed class SemanticAuthorityConvergenceTests
     [Fact]
     public void MultipleBaseRoles_FailTypedWithoutRawSingleException()
     {
-        var exception=Record.Exception(()=>PrismaticProfileCompositionParser.Parse(File.ReadAllText(Fixture("Invalid/FeatureComposition/compose-multiple-base.firmament"))));
+        var exception=Record.Exception(()=>PrismaticProfileCompositionParser.Parse(FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture("Invalid/FeatureComposition/compose-multiple-base.firmament")))));
         Assert.Null(exception);
-        var parsed=PrismaticProfileCompositionParser.Parse(File.ReadAllText(Fixture("Invalid/FeatureComposition/compose-multiple-base.firmament")));
+        var parsed=PrismaticProfileCompositionParser.Parse(FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture("Invalid/FeatureComposition/compose-multiple-base.firmament"))));
         Assert.Null(parsed.Feature);
         Assert.Contains("compose-role-cardinality:Base:expected=1:actual=2",parsed.Diagnostics);
     }
@@ -60,7 +60,7 @@ public sealed class SemanticAuthorityConvergenceTests
     [Fact]
     public void PrimitiveBoxCounterboreThenChamfer_UsesCombinedCurrentStatePlanAndRoundTrips()
     {
-        var build=FirmamentBuildAndExport.CompileSource(File.ReadAllText(Fixture("Canonical/Features/Composition/box-counterbore-chamfer.firmament")));
+        var build=FirmamentBuildAndExport.CompileSource(FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture("Canonical/Features/Composition/box-counterbore-chamfer.firmament"))));
         Assert.True(build.IsSuccess,string.Join("; ",build.Diagnostics.Select(x=>x.Message)));
         Assert.Equal("CombinedHoleEdgeFinish",build.Value!.Combined!.Route);
         var bottomArea=10d*15d;var topArea=8d*13d;
@@ -70,7 +70,7 @@ public sealed class SemanticAuthorityConvergenceTests
         var imported=Step242Importer.ImportBody(build.Value.StepText);Assert.True(imported.IsSuccess,string.Join("; ",imported.Diagnostics.Select(x=>x.Message)));
         Assert.True(BrepMassProperties.Evaluate(imported.Value!).IsEnclosed);
         Assert.True(build.Value.StepText.Contains("CYLINDRICAL_SURFACE",StringComparison.Ordinal));
-        var repeated=FirmamentBuildAndExport.CompileSource(File.ReadAllText(Fixture("Canonical/Features/Composition/box-counterbore-chamfer.firmament")));
+        var repeated=FirmamentBuildAndExport.CompileSource(FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture("Canonical/Features/Composition/box-counterbore-chamfer.firmament"))));
         Assert.True(repeated.IsSuccess,string.Join("; ",repeated.Diagnostics.Select(x=>x.Message)));
         Assert.Equal(build.Value.StepText,repeated.Value!.StepText);
     }

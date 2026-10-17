@@ -38,8 +38,16 @@ public static class SectionChainAuthoringParser
         return source is null || errors.Count != 0 ? new(false, null, null, errors.Select(d => d.Code + ":" + d.Message).ToArray())
             : Compile(source, materialize);
     }
-    public static bool IsSectionChainSource(string source) => FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements)
-        .Any(d => d.Type.Name.Text is "SectionChain" or "Loft");
+    public static bool IsSectionChainSource(string source)
+    {
+        var declarations = FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).ToArray();
+        var sculpting = declarations.Any(d => d.Type.Name.Text is "BodyState" or "SculptState");
+        // Surfacing owns its Station-shaped construction chains. Do not steal
+        // their containing document; ordinary Section/Loft productions still
+        // claim mixed documents so unsupported material cannot disappear.
+        return declarations.Any(d => d.Type.Name.Text == "Loft" || d.Type.Name.Text == "SectionChain"
+            && (!sculpting || d.Body?.Statements.OfType<DeclarationSyntax>().Any(s => s.Type.Name.Text == "Station") != true));
+    }
 
     public static SectionChainAuthoringResult Compile(string source, bool materialize = true)
     {

@@ -1,5 +1,5 @@
 Model GeneratedSlots {
-    Units: mm
+    units: mm
 
     Record SlotSpec { Center: Point2 Direction: Vector2 Length: Length Width: Length }
     Static Vents: SlotSpec[] = [
@@ -22,22 +22,22 @@ Model GeneratedSlots {
         }
     }
 
-    Concept Struct Layout On XY {
-        Rect2 Stock { Center: Point2(0mm, 0mm); Size: [200mm, 100mm] }
+    Concept Struct Layout on XY {
+        Rect2 Stock { center: Point2(0mm, 0mm); size: [200mm, 100mm] }
     }
-    Profile Plate Using Layout {
+    Profile Plate using Layout {
         Loop Outer {
-            Stock.Bottom As South
-            |> Stock.Right As East
-            |> Stock.Top As North
-            |> Stock.Left As West
+            Stock.Bottom as South
+            |> Stock.Right as East
+            |> Stock.Top as North
+            |> Stock.Left as West
             |> Close
         }
     }
     Struct Plate {
         Compose Body {
-            Base Stock { Profile: Plate; From: -10mm; To: 10mm; Role: Stock }
-            Pattern SlotPattern Over Vents { Vent<Current> }
+            Base Stock { profile: Plate; from: -10mm; to: 10mm; role: Stock }
+            Pattern SlotPattern over Vents { Vent<Current> }
         }
     }
 }

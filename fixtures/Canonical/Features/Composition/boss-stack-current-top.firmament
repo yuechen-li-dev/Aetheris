@@ -1,34 +1,34 @@
 Model BossStackCurrentTop {
-  Units: mm
-  Concept Struct Layout On XY {
-    Rect2 BaseRect { Center: [0mm, 0mm]; Size: [40mm, 30mm] }
-    Rect2 MiddleRect { Center: [0mm, 0mm]; Size: [24mm, 18mm] }
-    Rect2 UpperRect { Center: [0mm, 0mm]; Size: [12mm, 8mm] }
+  units: mm
+  Concept Struct Layout on XY {
+    Rect2 BaseRect { center: [0mm, 0mm]; size: [40mm, 30mm] }
+    Rect2 MiddleRect { center: [0mm, 0mm]; size: [24mm, 18mm] }
+    Rect2 UpperRect { center: [0mm, 0mm]; size: [12mm, 8mm] }
   }
-  Profile BaseProfile Using Layout { Loop Outer {
-     BaseRect.Bottom As B
-     |> BaseRect.Right As R
-     |> BaseRect.Top As T
-     |> BaseRect.Left As L
+  Profile BaseProfile using Layout { Loop Outer {
+     BaseRect.Bottom as B
+     |> BaseRect.Right as R
+     |> BaseRect.Top as T
+     |> BaseRect.Left as L
      |> Close
  } }
-  Profile MiddleProfile Using Layout { Loop Outer {
-     MiddleRect.Bottom As B
-     |> MiddleRect.Right As R
-     |> MiddleRect.Top As T
-     |> MiddleRect.Left As L
+  Profile MiddleProfile using Layout { Loop Outer {
+     MiddleRect.Bottom as B
+     |> MiddleRect.Right as R
+     |> MiddleRect.Top as T
+     |> MiddleRect.Left as L
      |> Close
  } }
-  Profile UpperProfile Using Layout { Loop Outer {
-     UpperRect.Bottom As B
-     |> UpperRect.Right As R
-     |> UpperRect.Top As T
-     |> UpperRect.Left As L
+  Profile UpperProfile using Layout { Loop Outer {
+     UpperRect.Bottom as B
+     |> UpperRect.Right as R
+     |> UpperRect.Top as T
+     |> UpperRect.Left as L
      |> Close
  } }
   Struct Part { Compose Body {
-    Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
-    Boss Middle { On: Top; Profile: MiddleProfile; Height: 6mm }
-    Boss Upper { On: Top; Profile: UpperProfile; Height: 4mm }
+    Base Stock { profile: BaseProfile; from: 0mm; to: 10mm; role: Stock }
+    Boss Middle { on: Top; profile: MiddleProfile; height: 6mm }
+    Boss Upper { on: Top; profile: UpperProfile; height: 4mm }
   } }
 }

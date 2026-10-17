@@ -131,7 +131,15 @@ feed them through the shared boundary authority.
 
 Existing `Base: Rectangle(w, d)` and named
 `Base deck { Profile: Rectangle { Width: 80mm; Height: 50mm; }; }` retain their
-geometry. Legacy cuts using `Profile: Rectangle`, `Circle` or `Slot`, including
+geometry. To modernize an implicit Base while preserving its established region
+and bend identities, use `base: blank` with a named rectangular Profile. This
+feeds the same Profile capability binder as `Base deck { profile: blank }`.
+Choosing a named Base changes the public identity family; it is not a cosmetic
+rewrite of the implicit Base field. The
+[compatibility witnesses](../../../fixtures/Compatibility/FirmamentV2/SheetMetal/README.md)
+check exact formed STEP, region/bend/feature IDs and flat hashes.
+
+Legacy cuts using `Profile: Rectangle`, `Circle` or `Slot`, including
 inline dimensions and tuple placement, remain admitted. **Legacy `Slot` cuts are
 rectangular** in this route; they are not silently converted into capsules. Use a
 named `Profile` built with `Slot2` when a rounded slot is intended.

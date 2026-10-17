@@ -7,10 +7,10 @@ namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 public sealed class CoaxialDatumTests
 {
     private const string Fixture = "fixtures/Canonical/AssemblyInterfaces/coaxial-knob.firmasm";
-    private static string Source => FirmamentV2.FirmamentSourceSpelling.Normalize(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/GuitarX0/materials.firmament"))
-        + File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/GuitarX0/hardware-definitions.firmament"))
-        + File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/GuitarX0/knob.firmament"))
-        + string.Join('\n', File.ReadAllLines(FirmamentCorpusHarness.ResolveFixtureFullPath(Fixture)).Where(l => !l.StartsWith("Include"))));
+    private static string Source => FirmamentV2.FirmamentSourceSpelling.Normalize(FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/GuitarX0/materials.firmament")))
+        + FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/GuitarX0/hardware-definitions.firmament")))
+        + FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/GuitarX0/knob.firmament")))
+        + string.Join('\n', File.ReadAllLines(FirmamentCorpusHarness.ResolveFixtureFullPath(Fixture)).Where(l => !l.StartsWith("include", StringComparison.OrdinalIgnoreCase))));
 
     [Fact]
     public void CompleteKnobRotatesAsOneRigidOccurrenceWithNoGeometryRebuild()
@@ -58,7 +58,7 @@ public sealed class CoaxialDatumTests
         using var session = new FirmamentCompilationSession();
         var first = session.Compile(Source);
         Assert.True(first.IsSuccess,Evidence(first.Diagnostics));
-        var shifted = session.Compile(Source.Replace("Origin: [3mm,4mm,5mm]","Origin: [13mm,4mm,5mm]").Replace("At: 7mm","At: -7mm"));
+        var shifted = session.Compile(Source.ReplaceRequired("Origin: [3mm,4mm,5mm]","Origin: [13mm,4mm,5mm]").Replace("At: 7mm","At: -7mm"));
         Assert.True(shifted.IsSuccess,Evidence(shifted.Diagnostics));
         Assert.Equal(3,shifted.Reuse!.ReusedDefinitions);
         Assert.Equal(6,Instance(shifted.Ir!.Instances,"Controls.VolumeKnob").ResolvedTransform!.Matrix[12],6);
@@ -68,7 +68,7 @@ public sealed class CoaxialDatumTests
     [Fact]
     public void CompositePublicAxisAndFrameFollowSolvedLocalChildPlacement()
     {
-        var source = Source.Replace("At: 0mm; Clocking: 0deg;","At: 2mm; Clocking: 0deg;");
+        var source = Source.ReplaceRequired("At: 0mm; Clocking: 0deg;","At: 2mm; Clocking: 0deg;");
         Assert.NotEqual(Source, source);
         var result = new AssemblyM0Compiler().Compile(new AssemblyM0Parser().Parse(source).Source!);
         Assert.True(result.IsSuccess,Evidence(result.Diagnostics));
@@ -85,7 +85,7 @@ public sealed class CoaxialDatumTests
     [Fact]
     public void OpposedDirectionReversesMemberAxisWithoutReversingStation()
     {
-        var source = Source.Replace("At: 7mm; Clocking: 30deg;","At: 7mm; Clocking: 30deg; Orientation: OpposedDirection;");
+        var source = Source.ReplaceRequired("At: 7mm; Clocking: 30deg;","At: 7mm; Clocking: 30deg; Orientation: OpposedDirection;");
         var result = new AssemblyM0Compiler().Compile(new AssemblyM0Parser().Parse(source).Source!);
         Assert.True(result.IsSuccess,Evidence(result.Diagnostics));
         var knob = Instance(result.Ir!.Instances,"Controls.VolumeKnob");
@@ -98,7 +98,7 @@ public sealed class CoaxialDatumTests
     [Fact]
     public void ClockingDefaultsToZeroAndReferenceProjectsPerpendicularToDirection()
     {
-        var source = Source.Replace("Clocking: 30deg;", "").Replace("Reference: [0,3,1]", "Reference: [9,3,1]");
+        var source = Source.ReplaceRequired("Clocking: 30deg;", "").Replace("Reference: [0,3,1]", "Reference: [9,3,1]");
         var result = new AssemblyM0Compiler().Compile(new AssemblyM0Parser().Parse(source).Source!);
         Assert.True(result.IsSuccess,Evidence(result.Diagnostics));
         var m=Instance(result.Ir!.Instances,"Controls.VolumeKnob").ResolvedTransform!.Matrix;
@@ -128,7 +128,7 @@ public sealed class CoaxialDatumTests
     public void InvalidAxisContractsFailClosed(string from,string to,string code)
     {
         Assert.Contains(from, Source);
-        var result = new AssemblyM0Parser().Parse(Source.Replace(from,to));
+        var result = new AssemblyM0Parser().Parse(Source.ReplaceRequired(from,to));
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics,d=>d.Code==code);
     }

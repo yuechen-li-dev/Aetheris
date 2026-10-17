@@ -1,18 +1,20 @@
+Profile blankProfile = Rect2 { center: [(70mm) / 2, (45mm) / 2]; size: [70mm, 45mm] }
+
 SheetMetal SensorBracket {
-    Thickness: 1.5mm;
-    Material: "5052-H32 Aluminum";
-    KFactor: 0.42;
-    Base: Rectangle(70mm, 45mm);
+    thickness: 1.5mm;
+    material: "5052-H32 Aluminum";
+    kFactor: 0.42;
+    base: blankProfile;
     Flange Upright {
-        From: Base.Rear;
-        Length: 25mm;
-        Angle: 90deg;
-        InsideRadius: 2mm;
-        Direction: Up;
+        from: Base.Rear;
+        length: 25mm;
+        angle: 90deg;
+        insideRadius: 2mm;
+        direction: Up;
     }
     Hole Mount {
-        On: Base;
-        Center: (35mm, 18mm);
-        Diameter: 6mm;
+        on: Base;
+        center: Point2(35mm, 18mm);
+        diameter: 6mm;
     }
 }

@@ -28,17 +28,17 @@ Feature TunicPanel(height: Length = 560mm) -> Profile {
   Line2 leftSideGuide { from: pitLeft; to: hemLeft }
   return Profile {
     Loop Outer {
-      Segment hem { Trace: hemGuide; From: hemLeft; To: hemRight }
-      Segment rightSide { Trace: rightSideGuide; From: hemRight; To: pitRight }
-      Segment rightArmLower { Trace: rightArmLowerGuide; From: pitRight; To: innerPitRight }
-      Segment rightArmUpper { Trace: rightArmUpperGuide; From: innerPitRight; To: shoulderRight }
-      Segment rightShoulder { Trace: rightShoulderGuide; From: shoulderRight; To: neckRightPoint }
-      Segment neckRight { Trace: neckRightGuide; From: neckRightPoint; To: neckBottom }
-      Segment neckLeft { Trace: neckLeftGuide; From: neckBottom; To: neckLeftPoint }
-      Segment leftShoulder { Trace: leftShoulderGuide; From: neckLeftPoint; To: shoulderLeft }
-      Segment leftArmUpper { Trace: leftArmUpperGuide; From: shoulderLeft; To: innerPitLeft }
-      Segment leftArmLower { Trace: leftArmLowerGuide; From: innerPitLeft; To: pitLeft }
-      Segment leftSide { Trace: leftSideGuide; From: pitLeft; To: hemLeft }
+      Segment hem { trace: hemGuide; from: hemLeft; to: hemRight }
+      Segment rightSide { trace: rightSideGuide; from: hemRight; to: pitRight }
+      Segment rightArmLower { trace: rightArmLowerGuide; from: pitRight; to: innerPitRight }
+      Segment rightArmUpper { trace: rightArmUpperGuide; from: innerPitRight; to: shoulderRight }
+      Segment rightShoulder { trace: rightShoulderGuide; from: shoulderRight; to: neckRightPoint }
+      Segment neckRight { trace: neckRightGuide; from: neckRightPoint; to: neckBottom }
+      Segment neckLeft { trace: neckLeftGuide; from: neckBottom; to: neckLeftPoint }
+      Segment leftShoulder { trace: leftShoulderGuide; from: neckLeftPoint; to: shoulderLeft }
+      Segment leftArmUpper { trace: leftArmUpperGuide; from: shoulderLeft; to: innerPitLeft }
+      Segment leftArmLower { trace: leftArmLowerGuide; from: innerPitLeft; to: pitLeft }
+      Segment leftSide { trace: leftSideGuide; from: pitLeft; to: hemLeft }
     }
   }
 }

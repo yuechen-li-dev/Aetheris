@@ -1,6 +1,6 @@
 Model ExperimentalThinPlate {
-    Units: mm
-    Box Plate { Size: [100mm, 20mm, 2mm] }
+    units: mm
+    Box Plate { size: [100mm, 20mm, 2mm] }
 
     Analysis LinearElastic ThinPlateCantilever {
         Mode: ExperimentalShell

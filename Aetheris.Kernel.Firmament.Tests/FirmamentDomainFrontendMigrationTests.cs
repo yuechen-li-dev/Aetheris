@@ -74,7 +74,7 @@ public sealed class FirmamentDomainFrontendMigrationTests
     [Fact]
     public void MultipleGearDefinitionsAreInspectableButNormalValidationDoesNotPromiseSingleBodyBuild()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/GearInterfaces/spur-pair.firmament");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/GearInterfaces/spur-pair.firmament"));
         Assert.True(GearAuthoring.Parse(source).IsSuccess);
         var parsed = FirmamentV2Parser.Parse(source);
         Assert.True(parsed.IsSuccess);
@@ -97,7 +97,7 @@ public sealed class FirmamentDomainFrontendMigrationTests
     [InlineData("two-section-ruled.firmament", "Seam: Bottom", "Seam: Bottom; Fillet Lost { Radius: 1mm }")]
     public void SectionOwnersConsumeAllFieldsAndStatements(string file, string before, string after)
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/" + file).Replace(before, after, StringComparison.Ordinal);
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/" + file)).Replace(before, after, StringComparison.Ordinal);
         Assert.False(SectionChainAuthoringParser.Compile(source, materialize: false).IsSuccess);
         var parsed = FirmamentV2Parser.Parse(source);
         Assert.False(parsed.IsSuccess); Assert.Equal("UnifiedSectionChain", parsed.ParserRoute);
@@ -107,7 +107,7 @@ public sealed class FirmamentDomainFrontendMigrationTests
     [Fact]
     public void LegacyUnitHeaderUsesMechanicalAstAndRetainsExactStep()
     {
-        var header = FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/FrontendMigration/legacy-unit-header.firmament");
+        var header = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/FrontendMigration/legacy-unit-header.firmament"));
         var explicitBody = "Model Old { Units: mm; " + header[(header.IndexOf('\n') + 1)..] + " }";
         var first = FirmamentBuildAndExport.CompileSource(header); var second = FirmamentBuildAndExport.CompileSource(explicitBody);
         Assert.True(first.IsSuccess); Assert.True(second.IsSuccess);
@@ -119,7 +119,7 @@ public sealed class FirmamentDomainFrontendMigrationTests
     [Fact]
     public void NamedSurfaceSectionSyntaxPreservesIdentityWithoutCapturingWith()
     {
-        var syntax = FirmamentSyntaxParser.Parse(FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/FrontendMigration/named-surface-section-syntax.firmament"));
+        var syntax = FirmamentSyntaxParser.Parse(FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/FrontendMigration/named-surface-section-syntax.firmament")));
         Assert.True(syntax.IsSuccess, string.Join("\n", syntax.Diagnostics));
         var items = Assert.IsType<SequenceSyntax>(Assert.Single(syntax.Document.Statements.OfType<DeclarationSyntax>()).Initializer).Items;
         Assert.Equal(["S0", "S1"], items.Select(i => Assert.IsType<ObjectSyntax>(i.Value).Name!.Text));
@@ -129,7 +129,7 @@ public sealed class FirmamentDomainFrontendMigrationTests
     [Fact]
     public void SurfaceExpressionMigrationPreservesWorldPointsAndBoundaryIdentities()
     {
-        var parsed = FirmamentV2Parser.Parse(FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/FrontendMigration/panel-parametric.firmament"));
+        var parsed = FirmamentV2Parser.Parse(FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/FrontendMigration/panel-parametric.firmament")));
         Assert.True(parsed.IsSuccess, string.Join("\n", parsed.Diagnostics));
         var panel = Assert.Single(parsed.Document!.Panels!);
         Assert.Equal("panel:Saddle", panel.StableId);
@@ -149,7 +149,7 @@ public sealed class FirmamentDomainFrontendMigrationTests
     [Fact]
     public void GearDefinitionExtractionLeavesAssemblyRequirementsWithTheirOwner()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/AssemblyInterfaces/gear-with-ordinary-part.firmament")
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/AssemblyInterfaces/gear-with-ordinary-part.firmament"))
             + "\nInterface<Axial> OptionalCapability { Role A requires AxisCapable; Role B requires AxisCapable; }";
         var definitions = GearAuthoring.ParseDefinitions(source);
         Assert.True(definitions.IsSuccess, string.Join("\n", definitions.Diagnostics));
@@ -182,7 +182,7 @@ public sealed class FirmamentDomainFrontendMigrationTests
     [InlineData("Plateau")]
     public void AdmittedAstCannotBeReroutedByConstructTextInComments(string domain)
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/FrontendMigration/incidental-domain-text.firmament").Replace("$domain", domain, StringComparison.Ordinal);
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/FrontendMigration/incidental-domain-text.firmament")).Replace("$domain", domain, StringComparison.Ordinal);
         var plain = source[..source.IndexOf("/*", StringComparison.Ordinal)];
         var first = FirmamentBuildAndExport.CompileSource(plain); var second = FirmamentBuildAndExport.CompileSource(source);
         Assert.True(first.IsSuccess, string.Join("\n", first.Diagnostics));
@@ -197,10 +197,10 @@ public sealed class FirmamentDomainFrontendMigrationTests
     [InlineData("Plateau Raised", "Plateau Raised On XZ")]
     public void PlateauIntentIsBoundBeforeItsAdmittedBaseCanExecute(string before, string after)
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament").Replace(before, after, StringComparison.Ordinal);
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament")).Replace(before, after, StringComparison.Ordinal);
         Assert.False(FirmamentV2Parser.Parse(source).IsSuccess);
         Assert.False(FirmamentBuildAndExport.CompileSource(source).IsSuccess);
     }
 
-    private static string Source(string kind) => FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/FrontendMigration/" + kind.ToLowerInvariant() + ".firmament");
+    private static string Source(string kind) => FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/FrontendMigration/" + kind.ToLowerInvariant() + ".firmament"));
 }

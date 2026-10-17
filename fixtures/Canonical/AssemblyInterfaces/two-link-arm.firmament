@@ -11,7 +11,7 @@ Assembly TwoLinkArm {
       Semantic Input { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
     </Part>
   </Assembly>
-  Anchor: TwoLinkArm.Base.Hinge;
-  Interface<Revolute> Shoulder { A: TwoLinkArm.Base.Hinge; B: TwoLinkArm.Link1.Input; }
-  Interface<Revolute> Elbow { A: TwoLinkArm.Link1.Output; B: TwoLinkArm.Link2.Input; }
+  anchor: TwoLinkArm.Base.Hinge;
+  Interface<Revolute> Shoulder { a: TwoLinkArm.Base.Hinge; b: TwoLinkArm.Link1.Input; }
+  Interface<Revolute> Elbow { a: TwoLinkArm.Link1.Output; b: TwoLinkArm.Link2.Input; }
 }

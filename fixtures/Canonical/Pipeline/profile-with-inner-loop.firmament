@@ -1,11 +1,11 @@
 schema Mechanical
 
-Rect2 Stock { Center: [0mm, 0mm]; Size: [40mm, 30mm] }
-Rect2 Cutout { Center: [0mm, 0mm]; Size: [16mm, 10mm] }
+Rect2 Stock { center: [0mm, 0mm]; size: [40mm, 30mm] }
+Rect2 Cutout { center: [0mm, 0mm]; size: [16mm, 10mm] }
 
 Profile Plate {
     Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close }
-    Loop Inner { Reverse Cutout.Bottom |> Reverse Cutout.Left |> Reverse Cutout.Top |> Reverse Cutout.Right |> Close }
+    Loop Inner { Reverse Cutout.Bottom as InnerBottom |> Reverse Cutout.Left as InnerLeft |> Reverse Cutout.Top as InnerTop |> Reverse Cutout.Right as InnerRight |> Close }
 }
 
-Extrude Solid { Profile: Plate; From: 0mm; To: 4mm }
+Extrude Solid { profile: Plate; from: 0mm; to: 4mm }

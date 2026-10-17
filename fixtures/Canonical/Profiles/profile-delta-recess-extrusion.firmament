@@ -1,5 +1,5 @@
 Model ProfileDeltaPlate {
-    Units: mm
+    units: mm
 
     Enum RecessKind { Cable Service }
     Record LocalRecessSpec {
@@ -37,10 +37,10 @@ Model ProfileDeltaPlate {
         Transition LeadOut { Kind: Diagonal; Run: P.Lead; To: Carrier; }
     }
 
-    Concept Struct Layout On XY {
-        Rect2 PlateBase { Center: [50mm, 20mm]; Size: [100mm, 40mm]; }
+    Concept Struct Layout on XY {
+        Rect2 PlateBase { center: [50mm, 20mm]; size: [100mm, 40mm]; }
     }
     ProfileDelta CableRelief = LocalRecess < P: PlateRecess, Owner: PlateBase.Bottom >
-    Profile Plate From PlateBase
-    Struct PlateBody { Extrude Solid { Profile: Plate; From: 0mm; To: 3mm; } }
+    Profile Plate from PlateBase
+    Struct PlateBody { Extrude Solid { profile: Plate; from: 0mm; to: 3mm; } }
 }

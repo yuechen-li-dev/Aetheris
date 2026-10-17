@@ -1,11 +1,11 @@
 schema Mechanical
 Model MirroredFeatureWithOverride {
-    Units: mm
-    Plane CenterPlane { Origin: [0mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
-    Box Plate { Size: [90mm, 44mm, 8mm] }
+    units: mm
+    Plane CenterPlane { origin: [0mm,0mm,0mm]; normal: [1,0,0]; up: [0,0,1] }
+    Box Plate { size: [90mm, 44mm, 8mm] }
     Modify Plate {
-        Hole<Shaft> LeftMount { On: +Z; Center: Point2(26mm, 0mm); Diameter: 6mm; End: ThroughAll }
-        Mirrored Feature RightMount From LeftMount { Across: CenterPlane }
+        Hole<Shaft> LeftMount { on: +Z; center: Point2(26mm, 0mm); diameter: 6mm; end: ThroughAll }
+        Mirrored Feature RightMount from LeftMount { across: CenterPlane }
         Feature RightMountCustom = RightMount with { Diameter: 8mm }
     }
 }

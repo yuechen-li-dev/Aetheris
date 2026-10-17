@@ -119,6 +119,22 @@ keeps authored names and members unchanged. Geometry operations `Reverse`,
 `Close` and `TraceLoop` remain PascalCase, like other constructs. See
 [language style](language-style.md) for formatter behavior and domain scope.
 
+The [current cookbook](../../../fixtures/Canonical/README.md) applies these
+conventions across the existing V2 corpus. `Path` and 2D shapes are construction
+declarations already; prefer `Path outline` and `Circle2 bore` to their redundant
+`Concept` aliases. Keep `Concept Requirement` for requirements and
+`Concept Struct layout` for grouped construction data. Existing published names
+remain stable even when their historical capitalization differs from new local
+style. Use `to: Parent` when replacing a relative transform; `to: World`
+explicitly means the assembly root frame.
+
+Domain property migration is still incomplete. Piping currently needs its
+documented `ConnectionType: Weld` spelling: the lowercase alias can silently
+default to Generic. This is a known compiler defect, tracked with reproductions
+in the [corpus report](../../development/FIRMAMENT-V2-CORPUS-MODERNIZATION-2026-10.md),
+and prevents declaring X2 complete. Follow each domain guide for its admitted
+properties; this style table does not add aliases to an independent owner.
+
 ### Whitespace, comments and terminators
 
 Use two-space indentation. Put ordinary fields on separate lines, or separate

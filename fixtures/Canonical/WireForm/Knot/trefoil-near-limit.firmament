@@ -1,5 +1,5 @@
 Model TrefoilNearLimit {
-    Units: mm
+    units: mm
     WireForm TrefoilNearLimit {
         Diameter: 22mm
         Material: Standard.Materials.StainlessSteel.304_Annealed

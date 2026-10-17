@@ -1,5 +1,5 @@
 Model Knot1Trefoil {
-    Units: mm
+    units: mm
     WireForm Knot1 {
         Diameter: 6mm
         Material: Standard.Materials.StainlessSteel.304_Annealed

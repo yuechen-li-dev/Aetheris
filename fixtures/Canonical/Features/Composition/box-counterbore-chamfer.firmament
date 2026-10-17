@@ -1,8 +1,8 @@
 Model BoxCounterboreChamfer {
-  Units: mm
-  Box Base { Size: [10mm, 15mm, 20mm] }
+  units: mm
+  Box Base { size: [10mm, 15mm, 20mm] }
   Modify Base {
-    Hole<Counterbore> Mount { On: +Z Center: Point2(0mm, 0mm) Diameter: 4mm CounterboreDiameter: 7mm CounterboreDepth: 3mm End: ThroughAll }
+    Hole<Counterbore> Mount { on: +Z center: Point2(0mm, 0mm) diameter: 4mm counterboreDiameter: 7mm counterboreDepth: 3mm end: ThroughAll }
     EdgeFinish TopBreak { Face: +Z Target: Boundary Kind: Chamfer Distance: 1mm }
   }
 }

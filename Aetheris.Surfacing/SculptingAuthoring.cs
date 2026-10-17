@@ -22,7 +22,7 @@ public static class SculptingAuthoring
         var patches = new Dictionary<string, BoundedSurfacePatch>(StringComparer.Ordinal);
         var sectionChains = new Dictionary<string, SectionChain>(StringComparer.Ordinal);
         var model = ModelHeader.Match(source); if (!model.Success) return Fail("<unknown>", "sculpt-source-malformed", "Sculpting source requires 'Model Name { ... }'.");
-        if (!Regex.IsMatch(source, @"\bUnits\s*:\s*mm\b", RegexOptions.CultureInvariant)) diagnostics.Add(new("sculpt-units-invalid", "SURF-X0 authoring requires millimetres."));
+        if (!Regex.IsMatch(source, @"\b[Uu]nits\s*:\s*mm\b", RegexOptions.CultureInvariant)) diagnostics.Add(new("sculpt-units-invalid", "SURF-X0 authoring requires millimetres."));
         foreach (var block in Blocks(source, "SurfacePatch"))
         {
             var degree = NumberVector(block.Body, "Degree", 2, diagnostics); var domain = NumberVector(block.Body, "Domain", 4, diagnostics);
@@ -59,8 +59,9 @@ public static class SculptingAuthoring
         var baseClock = Stopwatch.StartNew();
         foreach (var block in Blocks(source, "BodyState"))
         {
+            var errorsBefore = diagnostics.Count;
             var size = Vector(block.Body, "Size", 3, diagnostics); var holes = ParseHoles(block.Body, diagnostics);
-            if (size is null) continue;
+            if (size is null || diagnostics.Count != errorsBefore) continue;
             var created = SculptedHousingFactory.CreateBase(block.Name, size[0], size[1], size[2], holes);
             if (!created.IsSuccess || created.OutputState is null) diagnostics.AddRange(created.Diagnostics);
             else if (!states.TryAdd(block.Name, created.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"BodyState '{block.Name}' is declared more than once."));
@@ -247,20 +248,24 @@ public static class SculptingAuthoring
         return result;
     }
     private static int MatchingBrace(string source, int open) { var depth = 0; var quoted = false; for (var i = open; i < source.Length; i++) { if (source[i] == '"' && (i == 0 || source[i - 1] != '\\')) quoted = !quoted; if (quoted) continue; if (source[i] == '{') depth++; else if (source[i] == '}' && --depth == 0) return i; } return -1; }
-    private static string? ScalarText(string body, string field) { var m = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(field)}\s*:\s*(?<v>[A-Za-z_]\w*)\s*$", RegexOptions.CultureInvariant); return m.Success ? m.Groups["v"].Value : null; }
+    // Alias only the first character of an owned field; authored values,
+    // semantic paths and enum symbols remain case-sensitive.
+    private static string FieldSpelling(string field) =>
+        $"(?:{Regex.Escape(field)}|{Regex.Escape(char.ToLowerInvariant(field[0]) + field[1..])})";
+    private static string? ScalarText(string body, string field) { var m = Regex.Match(body, $@"(?m)^\s*{FieldSpelling(field)}\s*:\s*(?<v>[A-Za-z_]\w*)\s*$", RegexOptions.CultureInvariant); return m.Success ? m.Groups["v"].Value : null; }
     private static int? Integer(string body, string field)
     {
-        var match = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(field)}\s*:\s*(?<v>\d+)\s*$", RegexOptions.CultureInvariant);
+        var match = Regex.Match(body, $@"(?m)^\s*{FieldSpelling(field)}\s*:\s*(?<v>\d+)\s*$", RegexOptions.CultureInvariant);
         return match.Success && int.TryParse(match.Groups["v"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : null;
     }
     private static double? Length(string body, string field, List<SculptDiagnostic> diagnostics)
     {
-        var m = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(field)}\s*:\s*(?<v>[-+]?\d+(?:\.\d+)?)mm\s*$", RegexOptions.CultureInvariant);
+        var m = Regex.Match(body, $@"(?m)^\s*{FieldSpelling(field)}\s*:\s*(?<v>[-+]?\d+(?:\.\d+)?)mm\s*$", RegexOptions.CultureInvariant);
         if (m.Success) return double.Parse(m.Groups["v"].Value, CultureInfo.InvariantCulture); diagnostics.Add(new("sculpt-field-invalid", $"Field '{field}' requires a millimetre length.")); return null;
     }
     private static double[]? Vector(string body, string field, int count, List<SculptDiagnostic> diagnostics)
     {
-        var m = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(field)}\s*:\s*\[(?<v>[^\]]+)\]\s*$", RegexOptions.CultureInvariant);
+        var m = Regex.Match(body, $@"(?m)^\s*{FieldSpelling(field)}\s*:\s*\[(?<v>[^\]]+)\]\s*$", RegexOptions.CultureInvariant);
         if (m.Success)
         {
             var values = m.Groups["v"].Value.Split(',').Select(x => Regex.Match(x.Trim(), @"^(?<v>[-+]?\d+(?:\.\d+)?)mm$", RegexOptions.CultureInvariant)).ToArray();
@@ -270,7 +275,7 @@ public static class SculptingAuthoring
     }
     private static IReadOnlyList<string> List(string body, string field)
     {
-        var m = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(field)}\s*:\s*\[(?<v>[^\]]*)\]\s*$", RegexOptions.CultureInvariant);
+        var m = Regex.Match(body, $@"(?m)^\s*{FieldSpelling(field)}\s*:\s*\[(?<v>[^\]]*)\]\s*$", RegexOptions.CultureInvariant);
         return m.Success ? m.Groups["v"].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) : [];
     }
     private static PreservationContract Preservation(string entity) => new(entity, entity == SculptedHousingFactory.MountingHolePattern ? PreservationMode.PatternPlacementAndDiameter : PreservationMode.ExactGeometry);
@@ -288,7 +293,7 @@ public static class SculptingAuthoring
     }
     private static double[]? NumberVectorAny(string body, string field, List<SculptDiagnostic> diagnostics)
     {
-        var match = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(field)}\s*:\s*\[(?<v>[^\]]+)\]\s*$", RegexOptions.CultureInvariant);
+        var match = Regex.Match(body, $@"(?m)^\s*{FieldSpelling(field)}\s*:\s*\[(?<v>[^\]]+)\]\s*$", RegexOptions.CultureInvariant);
         if (!match.Success) { diagnostics.Add(new("sculpt-field-invalid", $"Field '{field}' requires a dimensionless number list.")); return null; }
         var tokens = match.Groups["v"].Value.Split(',', StringSplitOptions.TrimEntries); var values = new double[tokens.Length];
         for (var i = 0; i < tokens.Length; i++) if (!double.TryParse(tokens[i], NumberStyles.Float, CultureInfo.InvariantCulture, out values[i]))

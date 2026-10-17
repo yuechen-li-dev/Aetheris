@@ -5,6 +5,29 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class FirmamentConventionTests
 {
+    [Theory]
+    [InlineData("fixtures/Regression/FrontendX2/traceloop-rect2.firmament", true)]
+    [InlineData("fixtures/Invalid/Pipeline/traceloop-non-loop.firmament", false)]
+    public void TraceLoopAdmissionDependsOnBoundaryClosure(string path, bool admitted)
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText(path);
+        Assert.Equal(admitted, FirmamentV2Parser.Parse(source).IsSuccess);
+        Assert.Equal(admitted, FirmamentBuildAndExport.CompileSource(source).IsSuccess);
+    }
+
+    [Fact]
+    public void CookbookInnerLoopBuildsWithDistinctSegmentIdentities()
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Pipeline/profile-with-inner-loop.firmament");
+        var built = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(built.IsSuccess, string.Join("\n", built.Diagnostics));
+        var imported = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(built.Value.StepText);
+        Assert.True(imported.IsSuccess);
+        var mass = Aetheris.Kernel.Core.Brep.Verification.BrepMassProperties.Evaluate(imported.Value);
+        Assert.True(mass.IsEnclosed);
+        Assert.Equal((40 * 30 - 16 * 10) * 4, mass.AbsoluteVolume, 8);
+    }
+
     [Fact]
     public void MechanicalPassPreservesAuthoredDataArgumentsMembersAndOpaqueText()
     {

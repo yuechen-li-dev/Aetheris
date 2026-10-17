@@ -1,5 +1,5 @@
 Model TaperedBoss {
-    Units: mm
+    units: mm
 
     Frustum Base {
         BottomRadius: 20mm

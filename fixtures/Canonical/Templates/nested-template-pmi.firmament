@@ -1,5 +1,5 @@
 Model NestedTemplatePmi {
-    Units: mm
+    units: mm
 
     Concept MountingPlateContract {
         Bounds: Box3
@@ -9,24 +9,24 @@ Model NestedTemplatePmi {
 
     Template<> Struct PmiPlate {
         Concept Struct Design: MountingPlateContract {
-            Bounds: Box3 { Size: [40mm, 30mm, 8mm] }
+            Bounds: Box3 { size: [40mm, 30mm, 8mm] }
             TopPlane: Bounds.Face(+Z)
             MountPoints: Grid {
-                Within: Bounds.Face(+Z).Inset(10mm)
-                Columns: 1
-                Rows: 1
+                within: Bounds.Face(+Z).Inset(10mm)
+                columns: 1
+                rows: 1
             }
         }
-        Box Base { Bounds: Design.Bounds }
+        Box Base { bounds: Design.Bounds }
         Modify Base {
             Hole<Shaft> Mount {
-                On: Base.Top
-                Center: Design.MountPoints[0]
-                Diameter: 6mm
-                End: ThroughAll
+                on: Base.Top
+                center: Design.MountPoints[0]
+                diameter: 6mm
+                end: ThroughAll
             }
         }
-        Expose {
+        expose {
             Bounds: Design.Bounds
             TopPlane: Base.Top
             MountPoints: Design.MountPoints

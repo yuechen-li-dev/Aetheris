@@ -1,21 +1,23 @@
-SheetMetal MountingBracket {
-    Thickness: 1.5mm;
-    Material: "5052-H32 Aluminum";
-    KFactor: 0.42;
+Profile blankProfile = Rect2 { center: [(80mm) / 2, (50mm) / 2]; size: [80mm, 50mm] }
 
-    Base: Rectangle(80mm, 50mm);
+SheetMetal MountingBracket {
+    thickness: 1.5mm;
+    material: "5052-H32 Aluminum";
+    kFactor: 0.42;
+
+    base: blankProfile;
 
     Flange Upright {
-        From: Base.Rear;
-        Length: 30mm;
-        Angle: 90deg;
-        InsideRadius: 2mm;
-        Direction: Up;
+        from: Base.Rear;
+        length: 30mm;
+        angle: 90deg;
+        insideRadius: 2mm;
+        direction: Up;
     }
 
     Hole Mount {
-        On: Base;
-        Center: (40mm, 20mm);
-        Diameter: 8mm;
+        on: Base;
+        center: Point2(40mm, 20mm);
+        diameter: 8mm;
     }
 }

@@ -1,14 +1,14 @@
 Model NamedMountingPoints {
-    Units: mm
+    units: mm
 
     Feature M8Counterbore(Center: Point2) -> Hole<Counterbore> {
         return Hole<Counterbore> {
-            On: MountingArea
-            Center: Center
-            Diameter: 8mm
-            CounterboreDiameter: 16mm
-            CounterboreDepth: 3mm
-            End: ThroughAll
+            on: MountingArea
+            center: Center
+            diameter: 8mm
+            counterboreDiameter: 16mm
+            counterboreDepth: 3mm
+            end: ThroughAll
         }
     }
 
@@ -20,28 +20,28 @@ Model NamedMountingPoints {
     }
 
     Concept Struct Supports {
-        Top: Plane { Origin: [0mm,0mm,8mm]; Normal: [0,0,1]; Up: [0,1,0] }
+        Top: Plane { origin: [0mm,0mm,8mm]; normal: [0,0,1]; up: [0,1,0] }
     }
     Construction Plane TopSupport { Trace: Supports.Top }
-    Concept Struct Layout On XY {
-        Rect2 Stock { Center: [0mm,0mm]; Size: [100mm,80mm] }
+    Concept Struct Layout on XY {
+        Rect2 Stock { center: [0mm,0mm]; size: [100mm,80mm] }
         Polygon2<Rhombus> MountBoundaryShape {
             Center: [0mm,0mm]
             Diagonals: [90mm,64mm]
         }
     }
-    Profile StockProfile Using Layout {
+    Profile StockProfile using Layout {
         Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close }
     }
-    Profile MountBoundary Using Layout {
+    Profile MountBoundary using Layout {
         Loop Outer { MountBoundaryShape |> TraceLoop }
     }
     Span<Plane> MountingArea { On: TopSupport; Boundary: MountBoundary }
 
     Struct Part {
         Compose Plate {
-            Base StockBody { Profile: StockProfile; From: 0mm; To: 8mm; Role: Stock }
-            Pattern Mounts Over MountPoints {
+            Base StockBody { profile: StockProfile; from: 0mm; to: 8mm; role: Stock }
+            Pattern Mounts over MountPoints {
                 point => M8Counterbore(Center: point)
             }
         }

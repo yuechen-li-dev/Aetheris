@@ -45,7 +45,17 @@ Helix Winding {
 }
 ```
 
-`SurfaceCoil` generates a wire centerline by winding around a known support surface while maintaining a requested side and clearance. The author specifies winding intent; Aetheris derives the changing 3D path. X1 admits authored analytic `Cylinder`, `Frustum`/`Cone`, and `Sphere` supports. Cylinder/frustum winding uses `AxialPitch`. Sphere winding uses honest linear-latitude progression between `StartLatitude` and `EndLatitude`; it does not claim equal geodesic spacing and excludes the exact poles.
+`SurfaceCoil` has an evaluable centerline law for analytic `Cylinder`,
+`Frustum`/`Cone`, and `Sphere` supports. This is currently **internal centerline
+qualification**, not an admitted multi-body Model recipe. Declaring support
+solids alongside a WireForm fails normal validate/build admission; the compiler
+does not silently discard those solids. An explicit nonmaterial support binding
+is still needed. The preserved [regression witnesses](../../../fixtures/Regression/WireFormSurfaceSupport/README.md)
+record the boundary. Cylinder/frustum winding uses `AxialPitch`. Sphere winding
+uses linear-latitude progression between `StartLatitude` and `EndLatitude`,
+without equal-geodesic-spacing claims and excluding the exact poles.
+
+**Internal centerline fragment — this is not a complete buildable Model:**
 
 ```firmament
 Frustum CupInnerFrustum { BottomRadius: 18mm; TopRadius: 30mm; Height: 60mm }
@@ -65,7 +75,11 @@ The semantic/evaluable winding law remains authoritative. Coil-containing forms 
 
 X1 coils remain continuous, unbranched, open paths. WIRE-X2 adds a distinct closed `Knot` operation for named mathematical knot families; it does not turn coils into closed paths or force Straight/Bend through spline approximation. See [Mathematical Knots](mathematical-knots.md). Arbitrary/freeform supports, variable pitch or section, intentional contact, spring mechanics, contact dynamics, and branching remain unsupported. Surface support identity is authored rather than imported-face-ID based. Direct `Concept Path` plus `Sweep` remains the lower-level choice for explicitly authored line/arc trajectories.
 
-See the canonical [Helix](../../../fixtures/Canonical/WireForm/helix.firmament), [AxisCoil compatibility fixture](../../../fixtures/Canonical/WireForm/axis-coil.firmament), [frustum SurfaceCoil](../../../fixtures/Canonical/WireForm/frustum-surface-coil.firmament), [sphere SurfaceCoil](../../../fixtures/Canonical/WireForm/sphere-surface-coil.firmament), [composed Straight/Coil/Straight](../../../fixtures/Canonical/WireForm/straight-coil-straight.firmament), [90-degree bend](../../../fixtures/Canonical/WireForm/single-bend-90.firmament), and [Paperclip](../../../fixtures/Canonical/WireForm/paperclip.firmament).
+See the canonical [Helix](../../../fixtures/Canonical/WireForm/helix.firmament),
+[AxisCoil compatibility fixture](../../../fixtures/Canonical/WireForm/axis-coil.firmament),
+[composed Straight/Coil/Straight](../../../fixtures/Canonical/WireForm/straight-coil-straight.firmament),
+[90-degree bend](../../../fixtures/Canonical/WireForm/single-bend-90.firmament),
+and [Paperclip](../../../fixtures/Canonical/WireForm/paperclip.firmament).
 
 `aetheris inspect source.firmament --json` reports the semantic `wireForm` object, including `operations`, `totalStraightLength`, `totalBendLength`, and compiler-derived `totalWireLength`. A materializing `build --json` adds volume, mass, surface inventory, manifold/reimport status, rational/faceted counts, and the STEP hash.
 

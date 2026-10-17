@@ -1,5 +1,5 @@
 Model TableTemplateConceptPathCompose {
-    Units: mm
+    units: mm
     Enum PlateKind { Small Large }
     Record PlateStandard {
         Kind: PlateKind
@@ -26,17 +26,17 @@ Model TableTemplateConceptPathCompose {
     Template<Spec: PlateSpec>
     Struct PlateTemplate {
         Require Positive => Spec.Standard.Width > 0mm && Spec.Standard.Height > 0mm && Spec.Thickness > 0mm
-        Concept Path Outline {
-            Start: Point2(0mm, 0mm)
-            Heading: 0deg
-            Line South { Length: Spec.Standard.Width }
-            Line East { Turn: 90deg; Length: Spec.Standard.Height }
-            Line North { Turn: 90deg; Length: Spec.Standard.Width }
+        Path Outline {
+            start: Point2(0mm, 0mm)
+            heading: 0deg
+            Line South { length: Spec.Standard.Width }
+            Line East { Turn: 90deg; length: Spec.Standard.Height }
+            Line North { Turn: 90deg; length: Spec.Standard.Width }
             Close West
         }
-        Profile PlateProfile From Outline
+        Profile PlateProfile from Outline
         Compose Body {
-            Base Stock { Profile: PlateProfile; From: 0mm; To: Spec.Thickness; Role: Stock }
+            Base Stock { profile: PlateProfile; from: 0mm; to: Spec.Thickness; role: Stock }
         }
         Selection TopBoundary {
             Target: TopBoundary

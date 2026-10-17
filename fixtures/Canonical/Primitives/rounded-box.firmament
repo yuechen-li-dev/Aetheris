@@ -1,5 +1,5 @@
 Model RoundedEnclosure {
-    Units: mm
+    units: mm
 
     RoundedBox Base {
         Size: [80mm, 50mm, 25mm]

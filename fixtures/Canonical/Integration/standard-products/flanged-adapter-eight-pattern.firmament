@@ -1,5 +1,5 @@
 Model ImportedEightHoleFlange {
-    Units: mm
+    units: mm
     Use Standard.Products.Mechanical
 
     Static EightHoleFlange = Standard.Products.Mechanical.StandardFlangedAdapter with {

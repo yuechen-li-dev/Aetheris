@@ -1,5 +1,5 @@
 Model TwoSectionRuled {
-    Units: mm
+    units: mm
 
     Concept Struct Stations {
         StartDatum: Plane { Origin: [0mm, 0mm, 0mm]; Normal: [1, 0, 0]; Up: [0, 0, 1] }
@@ -8,38 +8,38 @@ Model TwoSectionRuled {
     Construction Plane StartFrame { Trace: Stations.StartDatum }
     Construction Plane EndFrame { Trace: Stations.EndDatum }
 
-    Concept Path StartOutline {
-        Start: Point2(-10mm, -6mm)
-        Heading: 0deg
-        Line Bottom { Length: 20mm }
-        Line Right { Turn: 90deg; Length: 12mm }
-        Line Top { Turn: 90deg; Length: 20mm }
+    Path StartOutline {
+        start: Point2(-10mm, -6mm)
+        heading: 0deg
+        Line Bottom { length: 20mm }
+        Line Right { Turn: 90deg; length: 12mm }
+        Line Top { Turn: 90deg; length: 20mm }
         Close Left
     }
-    Concept Path EndOutline {
-        Start: Point2(-8mm, -5mm)
-        Heading: 0deg
-        Line Bottom { Length: 16mm }
-        Line Right { Turn: 90deg; Length: 10mm }
-        Line Top { Turn: 90deg; Length: 16mm }
+    Path EndOutline {
+        start: Point2(-8mm, -5mm)
+        heading: 0deg
+        Line Bottom { length: 16mm }
+        Line Right { Turn: 90deg; length: 10mm }
+        Line Top { Turn: 90deg; length: 16mm }
         Close Left
     }
-    Profile StartProfile From StartOutline
-    Profile EndProfile From EndOutline
+    Profile StartProfile from StartOutline
+    Profile EndProfile from EndOutline
 
     SectionChain TwoSectionRuled {
         Transition: Ruled
         Section Start {
-            Frame: StartFrame
-            Profile: StartProfile
-            Seam: Bottom
+            frame: StartFrame
+            profile: StartProfile
+            seam: Bottom
         }
         Section End {
-            Frame: EndFrame
-            Profile: EndProfile
-            Seam: Bottom
+            frame: EndFrame
+            profile: EndProfile
+            seam: Bottom
         }
-        Start: Cap
-        End: Cap
+        start: Cap
+        end: Cap
     }
 }

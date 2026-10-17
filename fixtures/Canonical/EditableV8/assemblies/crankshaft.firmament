@@ -73,5 +73,5 @@ Subassembly Crankshaft {
     Semantic Pin3 = Crankpin3.Mount;
     Semantic Pin4 = Crankpin4.Mount;
   }
-  Anchor: Crankshaft;
+  anchor: Crankshaft;
 }

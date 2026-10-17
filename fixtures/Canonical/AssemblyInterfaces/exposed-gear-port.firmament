@@ -15,12 +15,12 @@ Subassembly DigitModule {
             Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 60,0,0,1];
         </Part>
     </Assembly>
-    Anchor: DigitModule.InputGear;
+    anchor: DigitModule.InputGear;
     Interface<Gear> InternalMesh {
-        A: DigitModule.InputGear;
-        B: DigitModule.OutputGear;
+        a: DigitModule.InputGear;
+        b: DigitModule.OutputGear;
     }
-    Expose {
+    expose {
         Gear Input = InputGear;
         Gear Output = OutputGear;
     }
@@ -33,9 +33,9 @@ Assembly Register {
             Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 120,0,0,1];
         </Assembly>
     </Assembly>
-    Anchor: Register.Digit0.Output;
+    anchor: Register.Digit0.Output;
     Interface<Gear> Transfer {
-        A: Register.Digit0.Output;
-        B: Register.Digit1.Input;
+        a: Register.Digit0.Output;
+        b: Register.Digit1.Input;
     }
 }

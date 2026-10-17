@@ -1,7 +1,7 @@
 schema WireForm
 
 Model StandardUWire {
-    Units: mm
+    units: mm
     WireForm UWire {
         Diameter: 1mm
         Material: Standard.Materials.StainlessSteel.304_Annealed

@@ -1,3 +1,10 @@
+Profile rearPowerInletProfile = Rect2 { center: [0mm, 0mm]; size: [12mm, 18mm] }
+Profile rearEthernetProfile = Rect2 { center: [0mm, 0mm]; size: [14mm, 16mm] }
+Profile leftVentAProfile = Rect2 { center: [0mm, 0mm]; size: [18mm, 3mm] }
+Profile leftVentBProfile = Rect2 { center: [0mm, 0mm]; size: [18mm, 3mm] }
+Profile rightVentAProfile = Rect2 { center: [0mm, 0mm]; size: [18mm, 3mm] }
+Profile rightVentBProfile = Rect2 { center: [0mm, 0mm]; size: [18mm, 3mm] }
+
 Use SheetMetal.ProductFamilies;
 
 Static NetworkSpec: EnclosureSpec = EnclosureSpec {
@@ -15,16 +22,16 @@ SheetMetal NetworkAppliance = ElectronicsEnclosure < Spec: NetworkSpec >
 
 // Ordinary downstream authoring against the specialized object's semantic regions.
 Extend SheetMetal NetworkAppliance {
-    Hole FrontIndicatorGreen { On: Front; Center: (45mm, 18mm); Diameter: 3mm; }
-    Hole FrontIndicatorAmber { On: Front; Center: (55mm, 18mm); Diameter: 3mm; }
-    Cut RearPowerInlet { On: Rear; At: (35mm, 18mm); Profile: Rectangle; Width: 18mm; Length: 12mm; }
-    Cut RearEthernet { On: Rear; At: (80mm, 18mm); Profile: Rectangle; Width: 16mm; Length: 14mm; }
-    Cut LeftVentA { On: Left; At: (30mm, 15mm); Profile: Slot; Width: 3mm; Length: 18mm; }
-    Cut LeftVentB { On: Left; At: (55mm, 15mm); Profile: Slot; Width: 3mm; Length: 18mm; }
-    Cut RightVentA { On: Right; At: (30mm, 15mm); Profile: Slot; Width: 3mm; Length: 18mm; }
-    Cut RightVentB { On: Right; At: (55mm, 15mm); Profile: Slot; Width: 3mm; Length: 18mm; }
-    Hole MountA { On: Body; Center: (25mm, 25mm); Diameter: 3.2mm; }
-    Hole MountB { On: Body; Center: (135mm, 25mm); Diameter: 3.2mm; }
-    Hole MountC { On: Body; Center: (25mm, 85mm); Diameter: 3.2mm; }
-    Hole MountD { On: Body; Center: (135mm, 85mm); Diameter: 3.2mm; }
+    Hole FrontIndicatorGreen { on: Front; center: Point2(45mm, 18mm); diameter: 3mm; }
+    Hole FrontIndicatorAmber { on: Front; center: Point2(55mm, 18mm); diameter: 3mm; }
+    Cut RearPowerInlet { on: Rear; at: Point2(35mm, 18mm); profile: rearPowerInletProfile; }
+    Cut RearEthernet { on: Rear; at: Point2(80mm, 18mm); profile: rearEthernetProfile; }
+    Cut LeftVentA { on: Left; at: Point2(30mm, 15mm); profile: leftVentAProfile; }
+    Cut LeftVentB { on: Left; at: Point2(55mm, 15mm); profile: leftVentBProfile; }
+    Cut RightVentA { on: Right; at: Point2(30mm, 15mm); profile: rightVentAProfile; }
+    Cut RightVentB { on: Right; at: Point2(55mm, 15mm); profile: rightVentBProfile; }
+    Hole MountA { on: Body; center: Point2(25mm, 25mm); diameter: 3.2mm; }
+    Hole MountB { on: Body; center: Point2(135mm, 25mm); diameter: 3.2mm; }
+    Hole MountC { on: Body; center: Point2(25mm, 85mm); diameter: 3.2mm; }
+    Hole MountD { on: Body; center: Point2(135mm, 85mm); diameter: 3.2mm; }
 }

@@ -33,7 +33,7 @@ public sealed class SurfX2BlendBoundaryTests
     [Fact]
     public void CandidateSetWinnerDeltaAndStepAreDeterministic()
     {
-        var source = File.ReadAllText(Fixture("Canonical", "Sculpting", "surf-x2-judged-housing.firmament"));
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture("Canonical", "Sculpting", "surf-x2-judged-housing.firmament")));
         var first = SculptingAuthoring.Compile(source); var second = SculptingAuthoring.Compile(source);
 
         Assert.True(first.IsSuccess); Assert.True(second.IsSuccess);
@@ -62,7 +62,7 @@ public sealed class SurfX2BlendBoundaryTests
     [Fact]
     public void ExplicitFallbackAndEligibleManualOverrideAreVisible()
     {
-        var source = File.ReadAllText(Fixture("Canonical", "Sculpting", "surf-x2-judged-housing.firmament"));
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture("Canonical", "Sculpting", "surf-x2-judged-housing.firmament")));
         var fallback = SculptingAuthoring.Compile(source.Replace("Minimum: G2", "Minimum: G1", StringComparison.Ordinal).Replace("MaximumDegree: 10", "MaximumDegree: 4", StringComparison.Ordinal));
         Assert.True(fallback.IsSuccess, string.Join(" | ", fallback.Diagnostics.Select(item => item.Message)));
         Assert.Equal("PowerM2Degree4", fallback.OutputState!.BlendJudgment!.SelectedCandidateId);

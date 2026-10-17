@@ -1,5 +1,5 @@
 Model RatchetBasic {
-    Units: mm
+    units: mm
     RatchetGear IndexWheel {
         Teeth: 60
         OutsideDiameter: 40mm

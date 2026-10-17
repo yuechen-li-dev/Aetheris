@@ -1,13 +1,13 @@
 schema Mechanical
 
-Concept Path Outline {
-    Start: Point2(0mm, 0mm)
-    Heading: 0deg
-    Line Bottom { Length: 30mm }
-    Line Right { Turn: 90deg; Length: 20mm }
-    Line Top { Turn: 90deg; Length: 30mm }
+Path Outline {
+    start: Point2(0mm, 0mm)
+    heading: 0deg
+    Line Bottom { length: 30mm }
+    Line Right { Turn: 90deg; length: 20mm }
+    Line Top { Turn: 90deg; length: 30mm }
     Close Left
 }
 
 Profile Plate { Outline |> TraceLoop }
-Extrude Solid { Profile: Plate; From: 0mm; To: 5mm }
+Extrude Solid { profile: Plate; from: 0mm; to: 5mm }

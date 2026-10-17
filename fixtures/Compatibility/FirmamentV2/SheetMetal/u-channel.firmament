@@ -1,0 +1,36 @@
+// Minimal two-bend channel.
+SheetMetal SimpleUChannel {
+    Thickness: 1.5mm;
+    Material: "5052-H32 Aluminum";
+    KFactor: 0.42;
+
+    Base: Rectangle(100mm, 60mm);
+
+    Flange LeftFlange {
+        From: Base.Left;
+        Length: 25mm;
+        Angle: 90deg;
+        InsideRadius: 2mm;
+        Direction: Up;
+    }
+
+    Flange RightFlange {
+        From: Base.Right;
+        Length: 20mm;
+        Angle: 90deg;
+        InsideRadius: 2mm;
+        Direction: Up;
+    }
+
+    Hole MountA {
+        On: Base;
+        Center: (25mm, 30mm);
+        Diameter: 8mm;
+    }
+
+    Hole MountB {
+        On: Base;
+        Center: (75mm, 30mm);
+        Diameter: 8mm;
+    }
+}

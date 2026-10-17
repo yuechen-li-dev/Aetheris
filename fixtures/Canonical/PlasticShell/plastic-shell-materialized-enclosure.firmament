@@ -1,6 +1,6 @@
 // X0a flagship alias: the physical result is generated from the same manufacturing intent as MOLD-X0.
 Model MoldX0aMaterializedEnclosure {
-  Units: mm
+  units: mm
   PlasticShell EnclosureHalf {
     Exterior: Frustum BottomRadius: 55 mm TopRadius: 57 mm Height: 20 mm Material: ABS
     ToolingDirection: [0, 0, 1] MinimumDraftAngle: 3 deg Preserve: [ExteriorDesignSurface, MountingInterface]

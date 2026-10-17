@@ -1,5 +1,5 @@
 Units: mm
-Include "../../DifferenceEngine/parts/Storage.firmament";
+include "../../DifferenceEngine/parts/Storage.firmament";
 SpurGear Drive { Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 8mm BoreDiameter: 8.4mm }
 Assembly IndexedGear {
     <Assembly IndexedGear>
@@ -8,5 +8,5 @@ Assembly IndexedGear {
             Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,10,1];
         </Part>
     </Assembly>
-    Anchor: IndexedGear.Wheel;
+    anchor: IndexedGear.Wheel;
 }

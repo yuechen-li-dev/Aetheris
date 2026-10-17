@@ -6,7 +6,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class FunctionalPickupTests
 {
-    private static string Source => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Feature/pickup-functional.firmament"));
+    private static string Source => FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Feature/pickup-functional.firmament")));
 
     [Fact]
     public void PickupHasEightNamedBossesPrivateProfilesAndOneExactClosedBody()
@@ -97,7 +97,7 @@ public sealed class FunctionalPickupTests
     [InlineData("Point2 LowerCenter", "Point2 WrongCenter", "firmament-boundary2-invalid-dimensions")]
     public void InvalidPickupStopsAtTheOwningSemanticBoundary(string before, string after, string diagnostic)
     {
-        var result = FirmamentBuildAndExport.CompileSource(Source.Replace(before, after));
+        var result = FirmamentBuildAndExport.CompileSource(Source.ReplaceRequired(before, after));
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, d => d.Message.StartsWith(diagnostic, StringComparison.Ordinal));
     }
@@ -105,7 +105,7 @@ public sealed class FunctionalPickupTests
     [Fact]
     public void WithOverrideChangesPoleSpacingAndExpansionRemainsDeterministic()
     {
-        var source = Source.Replace("Humbucker<Spec: StandardPickup>", "Humbucker<Spec: BridgePickupSpec>")
+        var source = Source.ReplaceRequired("Humbucker<Spec: StandardPickup>", "Humbucker<Spec: BridgePickupSpec>")
             .Replace("with { PolePitch: 10.2mm }", "with { PolePitch: 10.4mm }");
         var first = FirmamentBuildAndExport.CompileSource(source);
         var second = FirmamentBuildAndExport.CompileSource(source);

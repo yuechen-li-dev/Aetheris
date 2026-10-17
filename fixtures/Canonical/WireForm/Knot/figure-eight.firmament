@@ -1,5 +1,5 @@
 Model KnotFigureEight {
-    Units: mm
+    units: mm
     WireForm FigureEightSculpture {
         Diameter: 6mm
         Material: Standard.Materials.StainlessSteel.304_Annealed

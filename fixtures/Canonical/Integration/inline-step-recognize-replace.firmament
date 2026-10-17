@@ -1,5 +1,5 @@
 Model InlineStepRecognizeReplace {
-    Units: mm
+    units: mm
 
     InlineStep Source {
         Path: "../../../testdata/firmament/inline-step/canonical-through-hole.step"
@@ -19,10 +19,10 @@ Model InlineStepRecognizeReplace {
     }
 
     Replace Source.MountHole With Hole<Shaft> MountHole {
-        On: Source.Face(7)
-        Center: Point2(0mm, 0mm)
-        Diameter: 2mm
-        End: ThroughAll
+        on: Source.Face(7)
+        center: Point2(0mm, 0mm)
+        diameter: 2mm
+        end: ThroughAll
         HostSize: [10mm, 8mm, 6mm]
     }
 }

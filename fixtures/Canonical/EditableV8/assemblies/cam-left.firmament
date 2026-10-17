@@ -38,5 +38,5 @@ Subassembly CamLeft {
     </Part>
     Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
   </Assembly>
-  Anchor: CamLeft;
+  anchor: CamLeft;
 }

@@ -81,7 +81,8 @@ public sealed class AssemblySiteAuthoringTests
     [InlineData("Across: YZ;", "Across: YZ; Across: XZ;")]
     public void InvalidSiteRecipesFailAtAuthoringBoundary(string oldValue, string newValue)
     {
-        var parsed = new AssemblyM0Parser().Parse(File.ReadAllText(Fixture).Replace(oldValue, newValue));
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture));
+        var parsed = new AssemblyM0Parser().Parse(source.ReplaceRequired(oldValue, newValue));
         Assert.False(parsed.IsSuccess);
         Assert.Contains(parsed.Diagnostics, d => d.Code == "assembly-pattern-invalid" && d.Message.Contains("assembly-sites-invalid"));
     }

@@ -4,7 +4,7 @@ include "../construction";
 Struct ExhaustValve {
   Struct Stock = DiscStock<r: 14mm, zmin: -2mm, zmax: 2mm>
 
-  Expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+  expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
 
 
 }

@@ -1,5 +1,5 @@
 Model ConeExample {
-    Units: mm
+    units: mm
 
     Cone Body {
         BottomRadius: 10mm

@@ -10,5 +10,5 @@ Assembly SliderCrankStageA {
       Placement { from: Origin; to: World; translateLocal: [0mm,0mm,35mm]; }
     </Assembly>
   </Assembly>
-  Anchor: SliderCrankStageA;
+  anchor: SliderCrankStageA;
 }

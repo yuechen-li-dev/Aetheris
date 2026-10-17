@@ -1,5 +1,5 @@
 Model TorusKnot35 {
-    Units: mm
+    units: mm
     WireForm TorusKnotSculpture {
         Diameter: 5mm
         Material: Standard.Materials.StainlessSteel.304_Annealed

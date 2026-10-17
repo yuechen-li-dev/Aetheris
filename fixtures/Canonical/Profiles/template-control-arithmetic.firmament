@@ -1,23 +1,23 @@
 Template<W: Length,H: Length> Profile ControlRectangle {
- Point2 A { Position: [-W / 2,-H / 2] }
- Point2 B { Position: [W / 2,-H / 2] }
- Point2 C { Position: [W / 2,H / 2] }
- Point2 D { Position: [-W / 2,H / 2] }
- Point2 HandleA { Position: [-W / 6,-H / 2] }
- Point2 HandleB { Position: [W / 6,-H / 2] }
- CubicBezier2 Bottom { From: A; Control1: HandleA; Control2: HandleB; To: B }
- Line2 Right { From: B; To: C }
- Line2 Top { From: C; To: D }
- Line2 Left { From: D; To: A }
+ Point2 A { position: [-W / 2,-H / 2] }
+ Point2 B { position: [W / 2,-H / 2] }
+ Point2 C { position: [W / 2,H / 2] }
+ Point2 D { position: [-W / 2,H / 2] }
+ Point2 HandleA { position: [-W / 6,-H / 2] }
+ Point2 HandleB { position: [W / 6,-H / 2] }
+ CubicBezier2 Bottom { from: A; control1: HandleA; control2: HandleB; to: B }
+ Line2 Right { from: B; to: C }
+ Line2 Top { from: C; to: D }
+ Line2 Left { from: D; to: A }
  Loop Outer {
-  Segment Bottom { Trace: Bottom; From: A; To: B }
-  Segment Right { Trace: Right; From: B; To: C }
-  Segment Top { Trace: Top; From: C; To: D }
-  Segment Left { Trace: Left; From: D; To: A }
+  Segment Bottom { trace: Bottom; from: A; to: B }
+  Segment Right { trace: Right; from: B; to: C }
+  Segment Top { trace: Top; from: C; to: D }
+  Segment Left { trace: Left; from: D; to: A }
  }
 }
 Model ControlArithmetic {
- Units: mm
+ units: mm
  Profile P = ControlRectangle<W:40mm,H:20mm>
- Struct Body { Extrude Plate { Profile: P; From: 0mm; To: 2mm } }
+ Struct Body { Extrude Plate { profile: P; from: 0mm; to: 2mm } }
 }

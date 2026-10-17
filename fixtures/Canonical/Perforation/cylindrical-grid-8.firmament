@@ -7,15 +7,15 @@ Struct CylindricalGrid8 {
   }
   Modify Body {
     Perforation Vents {
-      On: OuterWall
-      Diameter: 5mm
-      Layout: CylindricalGrid
-      Pitch: 14mm
-      CircumferentialPitch: 18.5mm
-      MarginTop: 26mm
-      MarginBottom: 26mm
-      MinimumLigament: 2mm
-      StartAngle: 0deg
+      on: OuterWall
+      diameter: 5mm
+      layout: CylindricalGrid
+      pitch: 14mm
+      circumferentialPitch: 18.5mm
+      marginTop: 26mm
+      marginBottom: 26mm
+      minimumLigament: 2mm
+      startAngle: 0deg
     }
   }
 }

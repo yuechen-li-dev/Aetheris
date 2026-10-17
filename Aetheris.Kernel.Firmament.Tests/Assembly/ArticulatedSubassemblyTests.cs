@@ -82,11 +82,11 @@ public sealed class ArticulatedSubassemblyTests
     }
 
     [Theory]
-    [InlineData("B: Articulated.First.Mount", "B: Articulated.First.Tool")]
+    [InlineData("b: Articulated.First.Mount", "b: Articulated.First.Tool")]
     [InlineData("from: Mount;", "from: Tool;")]
     public void MovingInternalPortsCannotSilentlyBecomeRigidInstallationMounts(string from, string to)
     {
-        var source = File.ReadAllText(Fixture("articulated-subassemblies.firmament")).Replace(from, to);
+        var source = File.ReadAllText(Fixture("articulated-subassemblies.firmament")).ReplaceRequired(from, to);
         var parsed = new AssemblyM0Parser().Parse(source);
         Assert.True(parsed.IsSuccess, Evidence(parsed.Diagnostics));
         var compiled = new AssemblyM0Compiler().Compile(parsed.Source!);
@@ -179,7 +179,7 @@ public sealed class ArticulatedSubassemblyTests
     [InlineData("translateLocal:", "translateLocla:", "firmament-v2-canonical-field-unknown")]
     public void InvalidDerivedFramesAreRejected(string from, string to, string code)
     {
-        var source = File.ReadAllText(Fixture("derived-datum-frames.firmament")).Replace(from, to);
+        var source = File.ReadAllText(Fixture("derived-datum-frames.firmament")).ReplaceRequired(from, to);
         var parsed = new AssemblyM0Parser().Parse(source, "derived-datum-frames.firmament");
         Assert.False(parsed.IsSuccess);
         Assert.Contains(parsed.Diagnostics, d => d.Code == code);

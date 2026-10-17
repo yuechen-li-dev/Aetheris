@@ -397,3 +397,26 @@ sheet audit. This is an implementation follow-up, not another shadow milestone.
   Boolean-composable domain EqualPitch/Mirror intrinsics remain separate work.
   Legacy domain checks are AST-owned; ordinary predicate/bundle Concepts use the
   common checker. These limits do not grant apparent successful admission.
+
+## V2 corpus modernization follow-up (2026-10-17)
+
+The [corpus report](FIRMAMENT-V2-CORPUS-MODERNIZATION-2026-10.md) records the
+current-source sweep, original outcomes, qualification levels and remaining
+compiler-honesty failure. This does not close X2.
+
+| Decision | Disposition | Rationale |
+| --- | --- | --- |
+| CORPUS-01: Preferred vocabulary | Applied | Use admitted camelCase fields/lowercase links and bare construction Path/2D shapes. Keep PascalCase aliases and authored/public identities. |
+| CORPUS-02: Sheet boundaries | Applied | Shared Rect2 Profiles replace legacy rectangular boundaries without changing Slot geometry. Points and anchors use ordinary constructor calls. |
+| CORPUS-03: Implicit Base identity | Fixed | Permit `base: profile` through the shared Base Profile binder. Preserve implicit region/bend IDs; a named Base is a distinct identity choice. Original source/geometry witnesses remain under Compatibility. |
+| CORPUS-04: Relative assembly placement | Fixed | Use Parent for relative placement. Child-owned mates do not drive their containing occurrence; retain competing-authority rejection on the actual owner. |
+| CORPUS-05: Surfacing casing/crash | Fixed, AST migration remains | Existing owner reads first-character field aliases and stops before construction after bad mounting data. A shared structural parse is not proof this independent reader is migrated. |
+| CORPUS-06: Inner-loop segment identity | Fixed source | Give inner segments explicit aliases; preserve 4160 mm3 intended volume. |
+| CORPUS-07: SurfaceCoil supports | Separate semantic/capability prerequisite | Preserve centerline-only witnesses outside Canonical. Define nonmaterial analytic support binding before admitting support solids plus wire output; never erase material implicitly. |
+| CORPUS-08: Fixture qualification levels | Applied | Qualify modules through real consumers; inspect gear interfaces; record missing garment bodies separately. Solver-invalid and DFM-warning specimens are not syntax failures. Preserve the now-valid Rect2 TraceLoop specimen and use an open Line2 for the actual negative. |
+| CORPUS-09: Piping optional fields | Open, next AST owner migration | Both lowercase connectionType and unknown fields currently disappear; validate/build accept. Migrate Piping's existing construct/field ownership to shared AST consumption before its casing sweep. Two pending source witnesses are intentionally not counted as correct admission. |
+| CORPUS-10: Legacy semantic-panel Pattern | Deferred identity reconciliation | Keep existing PanelLayout.MountingHoles[index] public paths. Decide explicit identity projection when migrating this Count/Pitch bundle to keyed Feature expansion; do not change IDs for presentation alone. |
+| CORPUS-11: Embedded BodyState chains | Fixed ownership | Station-shaped SectionChain construction data belongs to the containing surfacing document. Ordinary Section/Loft and explicit schema guards retain their own rejection behavior; validate/build/inspect must select the same owner. |
+
+No additional fatality allowlist, source macro system or parallel frontend was
+introduced. No decision above grants missing geometry or blanket X2 acceptance.

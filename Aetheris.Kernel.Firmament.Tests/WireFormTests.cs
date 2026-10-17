@@ -111,13 +111,13 @@ public sealed class WireFormTests
     [Fact]
     public void CylinderSurfaceCoil_IsAxisCoilEquivalentAndSurfaceFamiliesRetainClearanceLaw()
     {
-        var surface = WireFormAuthoring.Parse(File.ReadAllText(Fixture("Canonical", "WireForm", "cylinder-surface-coil.firmament"))).Value;
+        var surface = WireFormAuthoring.Parse(File.ReadAllText(Fixture("Regression", "WireFormSurfaceSupport", "cylinder-surface-coil.firmament"))).Value;
         var cylinder = Assert.IsType<WireSurfaceCoilAir>(surface.Operations[0]); Assert.Equal("Cylinder", cylinder.SupportKind); Assert.Equal(1d, cylinder.MeasuredSupportClearanceMm);
         var axisSource = File.ReadAllText(Fixture("Canonical", "WireForm", "axis-coil.firmament")).Replace("Radius: 12mm", "Radius: 12mm").Replace("Turns: 8", "Turns: 6").Replace("Pitch: 5mm", "Pitch: 5mm");
         var axis = Assert.IsType<WireAxisCoilAir>(WireFormAuthoring.Parse(axisSource).Value.Operations[0]);
         for (var i = 0; i <= 100; i++) Assert.True((axis.Evaluate(i / 100d) - cylinder.Evaluate(i / 100d)).Length < 1e-9);
-        foreach (var fixture in new[] { "frustum-surface-coil", "sphere-surface-coil" }) { var parsed = WireFormAuthoring.Parse(File.ReadAllText(Fixture("Canonical", "WireForm", fixture + ".firmament"))); Assert.True(parsed.IsSuccess); var coil = Assert.IsType<WireSurfaceCoilAir>(parsed.Value.Operations[0]); Assert.Equal(1d, coil.MeasuredSupportClearanceMm); Assert.True(coil.MinimumSelfClearanceMm > 0d); Assert.True(coil.ApproximationError.MaxMm <= coil.ApproximationToleranceMm); }
-        var blender = Assert.IsType<WireSurfaceCoilAir>(WireFormAuthoring.Parse(File.ReadAllText(Fixture("Canonical", "WireForm", "blender-ball-coil.firmament"))).Value.Operations[0]);
+        foreach (var fixture in new[] { "frustum-surface-coil", "sphere-surface-coil" }) { var parsed = WireFormAuthoring.Parse(File.ReadAllText(Fixture("Regression", "WireFormSurfaceSupport", fixture + ".firmament"))); Assert.True(parsed.IsSuccess); var coil = Assert.IsType<WireSurfaceCoilAir>(parsed.Value.Operations[0]); Assert.Equal(1d, coil.MeasuredSupportClearanceMm); Assert.True(coil.MinimumSelfClearanceMm > 0d); Assert.True(coil.ApproximationError.MaxMm <= coil.ApproximationToleranceMm); }
+        var blender = Assert.IsType<WireSurfaceCoilAir>(WireFormAuthoring.Parse(File.ReadAllText(Fixture("Regression", "WireFormSurfaceSupport", "blender-ball-coil.firmament"))).Value.Operations[0]);
         Assert.Equal("Sphere", blender.SupportKind); Assert.Equal("CaptiveBallProxy", blender.SupportName); Assert.Equal("LatitudeProgression", blender.ProgressionLaw);
     }
 

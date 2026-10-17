@@ -1,36 +1,36 @@
 Model BossPocketMountingBlock {
-    Units: mm
+    units: mm
 
-    Concept Struct Layout On XY {
-        Rect2 Stock { Center: [0mm, 0mm]; Size: [40mm, 24mm] }
-        Point2 BossCenter { Position: [-12mm, 0mm] }
-        Point2 BossEast { Position: [-6mm, 0mm] }
-        Point2 BossNorth { Position: [-12mm, 6mm] }
-        Point2 BossWest { Position: [-18mm, 0mm] }
-        Point2 BossSouth { Position: [-12mm, -6mm] }
-        Circle2 BossCircle { Center: BossCenter; Radius: 6mm }
-        Rect2 BossPad { Center: [-12mm, 0mm]; Size: [10mm, 10mm] }
-        Rect2 Recess { Center: [10mm, 0mm]; Size: [8mm, 8mm] }
+    Concept Struct Layout on XY {
+        Rect2 Stock { center: [0mm, 0mm]; size: [40mm, 24mm] }
+        Point2 BossCenter { position: [-12mm, 0mm] }
+        Point2 BossEast { position: [-6mm, 0mm] }
+        Point2 BossNorth { position: [-12mm, 6mm] }
+        Point2 BossWest { position: [-18mm, 0mm] }
+        Point2 BossSouth { position: [-12mm, -6mm] }
+        Circle2 BossCircle { center: BossCenter; radius: 6mm }
+        Rect2 BossPad { center: [-12mm, 0mm]; size: [10mm, 10mm] }
+        Rect2 Recess { center: [10mm, 0mm]; size: [8mm, 8mm] }
     }
 
-    Profile BaseProfile Using Layout { Loop Outer {
+    Profile BaseProfile using Layout { Loop Outer {
         Stock.Bottom
         |> Stock.Right
         |> Stock.Top
         |> Stock.Left
         |> Close
     } }
-    Profile BossProfile Using Layout { Loop Outer {
+    Profile BossProfile using Layout { Loop Outer {
         BossCircle |> TraceLoop
     } }
-    Profile PocketProfile Using Layout { Loop Outer {
+    Profile PocketProfile using Layout { Loop Outer {
         Recess.Bottom
         |> Recess.Right
         |> Recess.Top
         |> Recess.Left
         |> Close
     } }
-    Profile RectBossProfile Using Layout { Loop Outer {
+    Profile RectBossProfile using Layout { Loop Outer {
         BossPad.Bottom
         |> BossPad.Right
         |> BossPad.Top
@@ -40,10 +40,10 @@ Model BossPocketMountingBlock {
 
     Struct MountingBlock {
         Compose Body {
-            Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
-            Boss MountBoss { On: Top; Profile: BossProfile; Height: 6mm }
-            Pocket ElectronicsRecess { On: Top; Profile: PocketProfile; Depth: 4mm; MinimumFloorThickness: 2mm }
-            Hole<Shaft> MountHole { On: +Z; Center: [-12mm, 0mm]; Diameter: 6mm; End: ThroughAll; Role: MountingHole }
+            Base Stock { profile: BaseProfile; from: 0mm; to: 10mm; role: Stock }
+            Boss MountBoss { on: Top; profile: BossProfile; height: 6mm }
+            Pocket ElectronicsRecess { on: Top; profile: PocketProfile; depth: 4mm; MinimumFloorThickness: 2mm }
+            Hole<Shaft> MountHole { on: +Z; center: [-12mm, 0mm]; diameter: 6mm; end: ThroughAll; Role: MountingHole }
         }
     }
 }

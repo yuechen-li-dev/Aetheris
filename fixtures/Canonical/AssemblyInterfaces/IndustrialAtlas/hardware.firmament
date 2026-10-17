@@ -8,7 +8,7 @@ Template<R: Length, H: Length> Struct Drum {
 Template<R: Length, Bore: Length, H: Length> Struct Ring {
  Circle2 Outside { center: [0mm,0mm]; radius: R }
  Circle2 Inside { center: [0mm,0mm]; radius: Bore }
- Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside As BoreBoundary |> TraceLoop } }
+ Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside as BoreBoundary |> TraceLoop } }
  Extrude Body { profile: Section; from: 0mm; to: H }
  expose { Semantic BottomSeat { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; } }
 }

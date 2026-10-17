@@ -8,7 +8,7 @@ public sealed class SectionChainAuthoringTests
     [Fact]
     public void SolidLoftBuildsCappedRuledCircleToEllipse()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/solid-loft-common-ray.firmament");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/solid-loft-common-ray.firmament"));
         var result = SectionChainAuthoringParser.Compile(source);
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.Equal(4, result.Chain!.Sections[0].Profile.Spans.Count);
@@ -21,7 +21,7 @@ public sealed class SectionChainAuthoringTests
     [Fact]
     public void HollowLoftCommonRayRemovesLampShadePhaseTwist()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/ThreeDm/lamp-shade-loft.firmament");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/ThreeDm/lamp-shade-loft.firmament"));
         var result = SectionChainAuthoringParser.Compile(source);
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.Equal(SectionTransitionPolicy.Ruled, result.Chain!.TransitionPolicy);
@@ -41,7 +41,7 @@ public sealed class SectionChainAuthoringTests
     [Fact]
     public void HollowLoftTwistBuildsRuledHyperboloidWithMeasuredWaist()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/hollow-loft-twist.firmament");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/hollow-loft-twist.firmament"));
         var result = SectionChainAuthoringParser.Compile(source);
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics));
         var rear = result.Chain!.Sections[0];
@@ -61,7 +61,7 @@ public sealed class SectionChainAuthoringTests
     [Fact]
     public void HollowLoftRejectsTwistBeyondBound()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/hollow-loft-twist.firmament")
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/hollow-loft-twist.firmament"))
             .Replace("Twist: 63deg", "Twist: 181deg", StringComparison.Ordinal);
         var result = SectionChainAuthoringParser.Compile(source);
         Assert.False(result.IsSuccess);
@@ -71,7 +71,7 @@ public sealed class SectionChainAuthoringTests
     [Fact]
     public void HollowLoftRejectsMalformedTwistInsteadOfUsingZero()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/hollow-loft-twist.firmament")
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/hollow-loft-twist.firmament"))
             .Replace("Twist: 63deg", "Twist: accidental", StringComparison.Ordinal);
         var result = SectionChainAuthoringParser.Compile(source);
         Assert.False(result.IsSuccess);
@@ -81,7 +81,7 @@ public sealed class SectionChainAuthoringTests
     [Fact]
     public void ExplicitSketchProfilesSupportTiltedRuledTransitions()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/explicit-sketch-ruled.firmament");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/explicit-sketch-ruled.firmament"));
         var result = SectionChainAuthoringParser.Compile(source);
 
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics));
@@ -97,7 +97,7 @@ public sealed class SectionChainAuthoringTests
     [InlineData(64, 44, 9, 27)]
     public void SmoothCornersRemoveFootprintCurvatureJump(double width, double height, double extent, double rotation)
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/smooth-corner-sections.firmament")
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/smooth-corner-sections.firmament"))
             .Replace("Size: [60mm,40mm] CornerExtent: 8mm", FormattableString.Invariant($"Size: [{width}mm,{height}mm] CornerExtent: {extent}mm Rotation: {rotation}deg"));
         var result = SectionChainAuthoringParser.Compile(source);
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
@@ -118,7 +118,7 @@ public sealed class SectionChainAuthoringTests
     [InlineData("21mm")]
     public void SmoothCornersRejectDegenerateSideSpans(string extent)
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/smooth-corner-sections.firmament")
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/smooth-corner-sections.firmament"))
             .Replace("CornerExtent: 8mm", "CornerExtent: " + extent);
         var result = SectionChainAuthoringParser.Compile(source);
         Assert.False(result.IsSuccess);
@@ -129,8 +129,8 @@ public sealed class SectionChainAuthoringTests
     [Fact]
     public void RoundedProfileNormalizationReachesStepAndReportsRealCurvatureJump()
     {
-        var result = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.ReadFixtureText(
-            "fixtures/Canonical/SectionChain/normalized-rounded-sections.firmament"));
+        var result = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText(
+            "fixtures/Canonical/SectionChain/normalized-rounded-sections.firmament")));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
         Assert.Equal(12, result.Materialization!.ProfileNormalization!.Curves.Count);
         Assert.All(result.Materialization.GeometricJoins.Where(j => j.BoundaryKind == "NeighboringProfileSpans"), j =>
@@ -147,8 +147,8 @@ public sealed class SectionChainAuthoringTests
     [Fact]
     public void G2RequestIsNotSilentlyDowngradedToNormalizedG1()
     {
-        var result = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.ReadFixtureText(
-            "fixtures/Canonical/SectionChain/normalized-rounded-sections.firmament").Replace("Continuity: G1", "Continuity: G2"));
+        var result = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText(
+            "fixtures/Canonical/SectionChain/normalized-rounded-sections.firmament")).Replace("Continuity: G1", "Continuity: G2"));
         Assert.False(result.IsSuccess);
         Assert.Contains("section-chain-continuity-invalid:G2", result.Diagnostics);
         Assert.Null(result.Materialization);
@@ -163,7 +163,7 @@ public sealed class SectionChainAuthoringTests
     [InlineData("g0-explicit-ruled.firmament", 2, SectionTermination.Cap, SectionTermination.Cap)]
     public void CanonicalFixtureCorpusQualifies(string name, int count, SectionTermination start, SectionTermination end)
     {
-        var result = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/" + name));
+        var result = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/" + name)));
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics));
         Assert.Equal(count, result.Chain!.Sections.Count);
         Assert.Equal(start, result.Chain.StartTermination);
@@ -173,8 +173,8 @@ public sealed class SectionChainAuthoringTests
     [Fact]
     public void ContinuityIntentSelectsTheSeparatedTransitionLaw()
     {
-        var g1 = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/g1-two-transition.firmament"));
-        var g0 = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/g0-explicit-ruled.firmament"));
+        var g1 = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/g1-two-transition.firmament")));
+        var g0 = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/g0-explicit-ruled.firmament")));
         Assert.True(g1.IsSuccess, string.Join(Environment.NewLine, g1.Diagnostics));
         Assert.True(g0.IsSuccess, string.Join(Environment.NewLine, g0.Diagnostics));
         Assert.Equal(SectionChainContinuity.G1, g1.Chain!.Continuity);
@@ -186,7 +186,7 @@ public sealed class SectionChainAuthoringTests
     [Fact]
     public void InvalidFoldoverFixtureFailsBeforeAnyStepArtifact()
     {
-        var result = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Invalid/SectionChain/transition-foldover.firmament"));
+        var result = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Invalid/SectionChain/transition-foldover.firmament")));
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.StartsWith("section-chain-transition-foldover:A->B/", StringComparison.Ordinal));
         Assert.Null(result.Materialization?.Body);
@@ -195,7 +195,7 @@ public sealed class SectionChainAuthoringTests
     [Fact]
     public void CanonicalConceptPathsLowerThroughSemanticSectionChainIrAndMaterialize()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/two-section-ruled.firmament");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/two-section-ruled.firmament"));
         var result = SectionChainAuthoringParser.Compile(source);
 
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics));
@@ -212,7 +212,7 @@ public sealed class SectionChainAuthoringTests
     [Fact]
     public void DuplicateExplicitTargetCorrespondenceFailsBeforeMaterialization()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/two-section-ruled.firmament")
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/two-section-ruled.firmament"))
             .Replace("Start: Cap", "Correspond Bad {\n From: Start\n To: End\n Bottom -> Bottom\n Right -> Bottom\n Top -> Top\n Left -> Left\n }\n Start: Cap", StringComparison.Ordinal);
         var result = SectionChainAuthoringParser.Compile(source);
         Assert.False(result.IsSuccess);

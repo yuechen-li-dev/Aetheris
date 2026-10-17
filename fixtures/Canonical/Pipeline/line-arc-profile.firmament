@@ -1,11 +1,11 @@
 schema Mechanical
 
-Concept Path Stadium {
-    Start: Point2(0mm, 0mm)
-    Heading: 0deg
-    Line Bottom { Length: 30mm }
+Path Stadium {
+    start: Point2(0mm, 0mm)
+    heading: 0deg
+    Line Bottom { length: 30mm }
     Arc Right { Radius: 8mm; Turn: 180deg }
-    Line Top { Length: 30mm }
+    Line Top { length: 30mm }
     Arc Left { Radius: 8mm; Turn: 180deg }
 }
 
@@ -19,4 +19,4 @@ Profile StadiumProfile {
     }
 }
 
-Extrude Solid { Profile: StadiumProfile; From: 0mm; To: 5mm }
+Extrude Solid { profile: StadiumProfile; from: 0mm; to: 5mm }

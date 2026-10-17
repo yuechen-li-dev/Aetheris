@@ -1,5 +1,5 @@
 Model EightSectionErgonomic {
- Units: mm
+ units: mm
  Concept Struct Stations {
   D0: Plane { Origin: [0mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
   D1: Plane { Origin: [12mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
@@ -18,41 +18,41 @@ Model EightSectionErgonomic {
  Construction Plane F5 { Trace: Stations.D5 }
  Construction Plane F6 { Trace: Stations.D6 }
  Construction Plane F7 { Trace: Stations.D7 }
- Concept Path Small { Start: Point2(-4mm,-3mm) Heading: 0deg Line Bottom { Length: 8mm } Line Right { Turn: 90deg; Length: 6mm } Line Top { Turn: 90deg; Length: 8mm } Close Left }
- Concept Path Medium { Start: Point2(-10mm,-7mm) Heading: 0deg Line Bottom { Length: 20mm } Line Right { Turn: 90deg; Length: 14mm } Line Top { Turn: 90deg; Length: 20mm } Close Left }
- Concept Path Large { Start: Point2(-14mm,-10mm) Heading: 0deg Line Bottom { Length: 28mm } Line Right { Turn: 90deg; Length: 20mm } Line Top { Turn: 90deg; Length: 28mm } Close Left }
- Concept Path Peak { Start: Point2(-16mm,-11mm) Heading: 0deg Line Bottom { Length: 32mm } Line Right { Turn: 90deg; Length: 22mm } Line Top { Turn: 90deg; Length: 32mm } Close Left }
- Profile PSmall From Small
- Profile PMedium From Medium
- Profile PLarge From Large
- Profile PPeak From Peak
+ Path Small { start: Point2(-4mm,-3mm) heading: 0deg Line Bottom { length: 8mm } Line Right { Turn: 90deg; length: 6mm } Line Top { Turn: 90deg; length: 8mm } Close Left }
+ Path Medium { start: Point2(-10mm,-7mm) heading: 0deg Line Bottom { length: 20mm } Line Right { Turn: 90deg; length: 14mm } Line Top { Turn: 90deg; length: 20mm } Close Left }
+ Path Large { start: Point2(-14mm,-10mm) heading: 0deg Line Bottom { length: 28mm } Line Right { Turn: 90deg; length: 20mm } Line Top { Turn: 90deg; length: 28mm } Close Left }
+ Path Peak { start: Point2(-16mm,-11mm) heading: 0deg Line Bottom { length: 32mm } Line Right { Turn: 90deg; length: 22mm } Line Top { Turn: 90deg; length: 32mm } Close Left }
+ Profile PSmall from Small
+ Profile PMedium from Medium
+ Profile PLarge from Large
+ Profile PPeak from Peak
  SectionChain EightSectionErgonomic {
   Transition: Ruled
-  Section Nose { Frame: F0
-   Profile: PSmall
-   Seam: Bottom }
-  Section Front { Frame: F1
-   Profile: PMedium
-   Seam: Bottom }
-  Section PalmFront { Frame: F2
-   Profile: PLarge
-   Seam: Bottom }
-  Section Rise { Frame: F3
-   Profile: PPeak
-   Seam: Bottom }
-  Section Peak { Frame: F4
-   Profile: PPeak
-   Seam: Bottom }
-  Section PalmRear { Frame: F5
-   Profile: PLarge
-   Seam: Bottom }
-  Section Rear { Frame: F6
-   Profile: PMedium
-   Seam: Bottom }
-  Section Tail { Frame: F7
-   Profile: PSmall
-   Seam: Bottom }
-  Start: Cap
-  End: Cap
+  Section Nose { frame: F0
+   profile: PSmall
+   seam: Bottom }
+  Section Front { frame: F1
+   profile: PMedium
+   seam: Bottom }
+  Section PalmFront { frame: F2
+   profile: PLarge
+   seam: Bottom }
+  Section Rise { frame: F3
+   profile: PPeak
+   seam: Bottom }
+  Section Peak { frame: F4
+   profile: PPeak
+   seam: Bottom }
+  Section PalmRear { frame: F5
+   profile: PLarge
+   seam: Bottom }
+  Section Rear { frame: F6
+   profile: PMedium
+   seam: Bottom }
+  Section Tail { frame: F7
+   profile: PSmall
+   seam: Bottom }
+  start: Cap
+  end: Cap
  }
 }

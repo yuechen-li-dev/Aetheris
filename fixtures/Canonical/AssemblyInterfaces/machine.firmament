@@ -1,4 +1,4 @@
-Include "register.firmament";
+include "register.firmament";
 
 Assembly DifferenceEngineReadiness {
     <Assembly DifferenceEngineReadiness>
@@ -6,11 +6,11 @@ Assembly DifferenceEngineReadiness {
         <Assembly RegisterB = Register></Assembly>
     </Assembly>
 
-    Anchor: DifferenceEngineReadiness.RegisterA.Output;
+    anchor: DifferenceEngineReadiness.RegisterA.Output;
 
     // The parent sees only public ports; no Digit or Shaft path crosses the boundary.
     Interface<Axial> RegisterCarry {
-        A: DifferenceEngineReadiness.RegisterB.Input;
-        B: DifferenceEngineReadiness.RegisterA.Output;
+        a: DifferenceEngineReadiness.RegisterB.Input;
+        b: DifferenceEngineReadiness.RegisterA.Output;
     }
 }

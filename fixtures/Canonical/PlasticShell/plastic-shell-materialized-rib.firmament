@@ -1,5 +1,5 @@
 Model PlasticShellMaterializedRib {
-  Units: mm
+  units: mm
   PlasticShell Housing {
     Exterior: Frustum BottomRadius: 42 mm TopRadius: 44 mm Height: 18 mm Material: ABS
     ToolingDirection: [0, 0, 1] MinimumDraftAngle: 3 deg Preserve: [ExteriorDesignSurface]

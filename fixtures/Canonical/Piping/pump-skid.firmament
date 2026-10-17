@@ -1,5 +1,5 @@
 Model X3PumpCoolingSkid {
-    Units: mm
+    units: mm
     PipingSystem CoolingSkid {
         PipePolicy Pipe25 { OuterDiameter: 25mm; WallThickness: 2mm; Material: "Standard.Materials.StainlessSteel.304_Annealed"; }
         Port PumpDischarge { Position: [100mm,100mm,250mm]; Direction: [1,0,0]; PipePolicy: Pipe25; ConnectionType: Flange; Equipment: Pump; NozzleLength: 50mm; }

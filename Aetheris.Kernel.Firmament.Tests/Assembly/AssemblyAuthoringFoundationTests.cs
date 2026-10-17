@@ -10,7 +10,7 @@ public sealed class AssemblyAuthoringFoundationTests
     public void PublishedOriginsEvaluateLengthArithmetic(string expression, double height)
     {
         var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/published-ports.firmament");
-        var source = File.ReadAllText(path).Replace("[0mm,0mm,H]", $"[0mm,0mm,{expression}]");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(path)).ReplaceRequired("[0mm,0mm,H]", $"[0mm,0mm,{expression}]");
         var result = new AssemblyM1Pipeline().Compile(source, path);
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
         Assert.Equal(height, result.Ir!.Instances.Single(i => i.Path.ToString() == "PublishedPorts.Child").ResolvedTransform!.Matrix[14], 7);
@@ -23,7 +23,7 @@ public sealed class AssemblyAuthoringFoundationTests
     public void PublishedOriginsRejectInvalidLengthExpressions(string expression)
     {
         var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/published-ports.firmament");
-        var source = File.ReadAllText(path).Replace("[0mm,0mm,H]", $"[0mm,0mm,{expression}]");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(path)).ReplaceRequired("[0mm,0mm,H]", $"[0mm,0mm,{expression}]");
         var result = new AssemblyM1Pipeline().Compile(source, path);
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, d => d.Code == "assembly-port-frame-origin-invalid");
@@ -64,7 +64,7 @@ public sealed class AssemblyAuthoringFoundationTests
     public void FixedSeatingRequiresFrameMembersRatherThanCompositePorts()
     {
         var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/published-ports.firmament");
-        var source = File.ReadAllText(path).Replace("Placement { From: Bottom.Frame; To: PublishedPorts.Base.Top.Frame; }", "");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(path)).ReplaceRequired("Placement { From: Bottom.Frame; To: PublishedPorts.Base.Top.Frame; }", "");
         source = source.Insert(source.LastIndexOf('}'), "Interface<Fixed> Seat { A: PublishedPorts.Base.Top; B: PublishedPorts.Child.Bottom.Frame; Gap: 0mm; }");
         var result = new AssemblyM1Pipeline().Compile(source, path);
         Assert.False(result.IsSuccess);
@@ -99,7 +99,7 @@ public sealed class AssemblyAuthoringFoundationTests
     public void PublishedPortsRejectUnresolvedAndDuplicateMembers(string extra, string code)
     {
         var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/published-ports.firmament");
-        var source = File.ReadAllText(path).Replace("Semantic Top {", "Semantic Top { " + extra);
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(path)).ReplaceRequired("Semantic Top {", "Semantic Top { " + extra);
         var result = new AssemblyM1Pipeline().Compile(source, path);
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, d => d.Code == code);
@@ -138,7 +138,7 @@ public sealed class AssemblyAuthoringFoundationTests
     public void FixedSeatingIsOneRelationAndZeroPosePreservesGapAndClocking()
     {
         var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/published-ports.firmament");
-        var source = File.ReadAllText(path).Replace("Placement { From: Bottom.Frame; To: PublishedPorts.Base.Top.Frame; }", "");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(path)).ReplaceRequired("Placement { From: Bottom.Frame; To: PublishedPorts.Base.Top.Frame; }", "");
         var index=source.LastIndexOf('}');
         source=source.Insert(index,"Interface<Fixed> Seat { A: PublishedPorts.Base.Top.Frame; B: PublishedPorts.Child.Bottom.Frame; Gap: 2mm; Clocking: 90deg; Orientation: OpposedDirection; }");
         var compiled=new AssemblyM1Pipeline().Compile(source,path);

@@ -1,5 +1,5 @@
 Model MaximumPaperclips {
-    Units: mm
+    units: mm
     Record PaperclipPolicy { WireDiameter: Length OuterLegLength: Length InnerLegLength: Length OuterBendRadius: Length InnerBendRadius: Length Material: String }
     Static StandardPaperclip: PaperclipPolicy = PaperclipPolicy {
         WireDiameter: 1mm OuterLegLength: 15mm InnerLegLength: 14mm OuterBendRadius: 5mm InnerBendRadius: 3mm

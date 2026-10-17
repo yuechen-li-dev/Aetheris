@@ -1,5 +1,5 @@
 Model ProfileComposeLBracketCounterborePmi {
-    Units: mm
+    units: mm
 
     Record MountSpec { Center: Point2 Diameter: Length }
     Static Mounts: MountSpec[] = [
@@ -8,40 +8,40 @@ Model ProfileComposeLBracketCounterborePmi {
     ]
     Template<spec: MountSpec> ShaftHole {
         Hole<Shaft> Mount {
-            On: +Z
-            Center: spec.Center
-            Diameter: spec.Diameter
-            End: ThroughAll
+            on: +Z
+            center: spec.Center
+            diameter: spec.Diameter
+            end: ThroughAll
         }
     }
 
-    Concept Struct Layout On XY {
-        Rect2 Horizontal { Center: [0mm, -10mm]; Size: [80mm, 20mm] }
-        Rect2 Vertical { Center: [-30mm, 10mm]; Size: [20mm, 60mm] }
-        Point2 Notch { Position: [-20mm, 0mm] }
+    Concept Struct Layout on XY {
+        Rect2 Horizontal { center: [0mm, -10mm]; size: [80mm, 20mm] }
+        Rect2 Vertical { center: [-30mm, 10mm]; size: [20mm, 60mm] }
+        Point2 Notch { position: [-20mm, 0mm] }
     }
 
-    Profile Bracket Using Layout { Loop Outer {
-        Horizontal.Bottom As South
-            |> Horizontal.Right As East
-            |> Horizontal.Top To Notch As Inner
-            |> Vertical.Right To Vertical.TopRight As Upright
-            |> Vertical.Top As North
-            |> Vertical.Left To Horizontal.BottomLeft As West
+    Profile Bracket using Layout { Loop Outer {
+        Horizontal.Bottom as South
+            |> Horizontal.Right as East
+            |> Horizontal.Top to Notch as Inner
+            |> Vertical.Right to Vertical.TopRight as Upright
+            |> Vertical.Top as North
+            |> Vertical.Left to Horizontal.BottomLeft as West
             |> Close
     } }
 
     Struct BracketBody {
         Compose BracketBody {
-            Base Stock { Profile: Bracket; From: 0mm; To: 12mm; Role: Stock }
-            Pattern MountPattern Over Mounts { ShaftHole<Current> }
+            Base Stock { profile: Bracket; from: 0mm; to: 12mm; role: Stock }
+            Pattern MountPattern over Mounts { ShaftHole<Current> }
             Hole<Counterbore> CounterboredMount {
-                On: +Z
-                Center: Point2(-30mm, -10mm)
-                Diameter: 8mm
-                CounterboreDiameter: 14mm
-                CounterboreDepth: 4mm
-                End: ThroughAll
+                on: +Z
+                center: Point2(-30mm, -10mm)
+                diameter: 8mm
+                counterboreDiameter: 14mm
+                counterboreDepth: 4mm
+                end: ThroughAll
             }
         }
     }

@@ -1,12 +1,12 @@
 Model CurvedBodyForceWitness {
-    Units: mm
-    Box Patch { Size: [400mm, 139.626340159546mm, 2mm] }
+    units: mm
+    Box Patch { size: [400mm, 139.626340159546mm, 2mm] }
     Modify Patch {
         Hole<Shaft> Opening {
-            On: +Z
-            Center: Point2(0mm, 0mm)
-            Diameter: 60mm
-            End: ThroughAll
+            on: +Z
+            center: Point2(0mm, 0mm)
+            diameter: 60mm
+            end: ThroughAll
         }
     }
 

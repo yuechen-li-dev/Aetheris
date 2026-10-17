@@ -16,6 +16,14 @@ internal static class SheetMetalProfileBinding
         var origin = fields.Take("Origin");
         var offset = Vector3(origin) ?? Point3D.Origin;
         if (origin is not null && Vector3(origin) is null) errors.Add($"sheetmetal-base-origin-invalid: Base '{name}' origin requires three Length coordinates.");
+        var result = Base(source, name, value, offset, errors, binding);
+        fields.Complete();
+        return result;
+    }
+
+    internal static AuthoredSheetBaseSpec? Base(string source, string name, ExpressionSyntax? value,
+        Point3D offset, List<string> errors, FirmamentDomainBinding? binding = null)
+    {
         AuthoredSheetBaseSpec? result = null;
         if (value is ObjectSyntax { Type: ReferenceSyntax { Name.Text: "Rectangle" } } legacy)
         {
@@ -37,7 +45,6 @@ internal static class SheetMetalProfileBinding
                     { Origin = new(offset.X + bounds.MinX, offset.Y + bounds.MinY, offset.Z) };
             else errors.Add($"sheetmetal-base-profile-unsupported: Base '{name}' requires one axis-aligned rectangular Profile; arbitrary blank boundaries are not admitted by the formed/flat lowerer.");
         }
-        fields.Complete();
         return result;
     }
 

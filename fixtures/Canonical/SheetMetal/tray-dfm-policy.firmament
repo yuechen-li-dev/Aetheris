@@ -1,8 +1,10 @@
+Profile mainProfile = Rect2 { center: [(80mm) / 2, (60mm) / 2]; size: [80mm, 60mm] }
+
 // Repair from semantic DFM suggestion: width >= thickness, depth >= radius + thickness.
 SheetMetal FixedTrayDfm {
-    Thickness: 1.2mm;
-    KFactor: 0.42;
-    Base Main { Profile: Rectangle { Width: 80mm; Height: 60mm; }; }
-    Flange Front { From: Main.Front; Height: 12mm; Angle: 90deg; Radius: 1.5mm; Relief: Rectangular; ReliefWidth: 1.2mm; ReliefDepth: 2.7mm; }
-    Flange Right { From: Main.Right; Height: 12mm; Angle: 90deg; Radius: 1.5mm; Relief: Rectangular; ReliefWidth: 1.2mm; ReliefDepth: 2.7mm; }
+    thickness: 1.2mm;
+    kFactor: 0.42;
+    Base Main { profile: mainProfile; }
+    Flange Front { from: Main.Front; height: 12mm; angle: 90deg; radius: 1.5mm; relief: Rectangular; reliefWidth: 1.2mm; reliefDepth: 2.7mm; }
+    Flange Right { from: Main.Right; height: 12mm; angle: 90deg; radius: 1.5mm; relief: Rectangular; reliefWidth: 1.2mm; reliefDepth: 2.7mm; }
 }

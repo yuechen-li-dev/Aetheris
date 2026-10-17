@@ -1,10 +1,12 @@
+Profile baseProfile = Rect2 { center: [(80mm) / 2, (60mm) / 2]; size: [80mm, 60mm] }
+
 SheetMetal FourReliefTray {
-    Thickness: 1.2mm;
-    KFactor: 0.42;
-    Material: "5052-H32";
-    Base Base { Profile: Rectangle { Width: 80mm; Height: 60mm; }; }
-    Flange Front { From: Base.Front; Height: 18mm; Angle: 90deg; Radius: 1.5mm; Relief: Rectangular; }
-    Flange Right { From: Base.Right; Height: 18mm; Angle: 90deg; Radius: 1.5mm; Relief: Rectangular; }
-    Flange Rear { From: Base.Rear; Height: 18mm; Angle: 90deg; Radius: 1.5mm; Relief: Rectangular; }
-    Flange Left { From: Base.Left; Height: 18mm; Angle: 90deg; Radius: 1.5mm; Relief: Rectangular; }
+    thickness: 1.2mm;
+    kFactor: 0.42;
+    material: "5052-H32";
+    Base Base { profile: baseProfile; }
+    Flange Front { from: Base.Front; height: 18mm; angle: 90deg; radius: 1.5mm; relief: Rectangular; }
+    Flange Right { from: Base.Right; height: 18mm; angle: 90deg; radius: 1.5mm; relief: Rectangular; }
+    Flange Rear { from: Base.Rear; height: 18mm; angle: 90deg; radius: 1.5mm; relief: Rectangular; }
+    Flange Left { from: Base.Left; height: 18mm; angle: 90deg; radius: 1.5mm; relief: Rectangular; }
 }

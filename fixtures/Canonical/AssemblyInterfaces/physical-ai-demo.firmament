@@ -1,38 +1,38 @@
 // ATLAS: exact Aetheris SCARA demonstrator. Appearance is a downstream USD override.
 Template<R: Length, H: Length> Struct Pedestal {
- Circle2 Outside { Center: [0mm,0mm] Radius: R }
- Circle2 Inside { Center: [0mm,0mm] Radius: 36mm }
- Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside As InnerBoundary |> TraceLoop } }
- Extrude Body { Profile: Section From: 0mm To: H }
+ Circle2 Outside { center: [0mm,0mm] radius: R }
+ Circle2 Inside { center: [0mm,0mm] radius: 36mm }
+ Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside as InnerBoundary |> TraceLoop } }
+ Extrude Body { profile: Section from: 0mm to: H }
 }
 Template<L: Length, W: Length, H: Length> Struct GuardLink {
- Rect2 Stock { Center: [70mm,0mm] Size: [L,W] }
- Circle2 Vent1 { Center: [40mm,0mm] Radius: 7mm }
- Circle2 Vent2 { Center: [60mm,0mm] Radius: 7mm }
- Circle2 Vent3 { Center: [80mm,0mm] Radius: 7mm }
+ Rect2 Stock { center: [70mm,0mm] size: [L,W] }
+ Circle2 Vent1 { center: [40mm,0mm] radius: 7mm }
+ Circle2 Vent2 { center: [60mm,0mm] radius: 7mm }
+ Circle2 Vent3 { center: [80mm,0mm] radius: 7mm }
  Profile Section {
   Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close }
-  Loop Vent1 { Vent1 As Vent1Boundary |> TraceLoop }
-  Loop Vent2 { Vent2 As Vent2Boundary |> TraceLoop }
-  Loop Vent3 { Vent3 As Vent3Boundary |> TraceLoop }
+  Loop Vent1 { Vent1 as Vent1Boundary |> TraceLoop }
+  Loop Vent2 { Vent2 as Vent2Boundary |> TraceLoop }
+  Loop Vent3 { Vent3 as Vent3Boundary |> TraceLoop }
  }
- Extrude Body { Profile: Section From: 0mm To: H }
+ Extrude Body { profile: Section from: 0mm to: H }
 }
 Template<R: Length> Struct JointRing {
- Circle2 Outside { Center: [0mm,0mm] Radius: R }
- Circle2 Inside { Center: [0mm,0mm] Radius: 13mm }
- Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside As InnerBoundary |> TraceLoop } }
- Extrude Body { Profile: Section From: -3mm To: 3mm }
+ Circle2 Outside { center: [0mm,0mm] radius: R }
+ Circle2 Inside { center: [0mm,0mm] radius: 13mm }
+ Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside as InnerBoundary |> TraceLoop } }
+ Extrude Body { profile: Section from: -3mm to: 3mm }
 }
 Template<W: Length> Struct GripperHead {
- Rect2 Stock { Center: [0mm,0mm] Size: [28mm,W] }
+ Rect2 Stock { center: [0mm,0mm] size: [28mm,W] }
  Profile Section { Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close } }
- Extrude Body { Profile: Section From: 0mm To: 18mm }
+ Extrude Body { profile: Section from: 0mm to: 18mm }
 }
 Template<L: Length> Struct Finger {
- Rect2 Stock { Center: [22.5mm,0mm] Size: [L,8mm] }
+ Rect2 Stock { center: [22.5mm,0mm] size: [L,8mm] }
  Profile Section { Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close } }
- Extrude Body { Profile: Section From: -20mm To: 0mm }
+ Extrude Body { profile: Section from: -20mm to: 0mm }
 }
 Assembly Atlas {
  <Assembly Atlas>
@@ -40,7 +40,7 @@ Assembly Atlas {
    Semantic Hinge { DatumFrame Frame = [0,0,60] x [1,0,0] y [0,1,0] z [0,0,1]; }
   </Part>
   <Assembly UpperArm>
-   Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+   Placement { from: Origin; to: Parent; }
    <Part Housing = GuardLink<L: 160mm, W: 44mm, H: 22mm>>
     Semantic Input { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
     Semantic Output { DatumFrame Frame = [150,0,24] x [1,0,0] y [0,1,0] z [0,0,1]; }
@@ -54,7 +54,7 @@ Assembly Atlas {
    </Part>
   </Assembly>
   <Assembly ForeArm>
-   Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+   Placement { from: Origin; to: Parent; }
    <Part Housing = GuardLink<L: 130mm, W: 34mm, H: 16mm>>
     Semantic Input { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
     Semantic Output { DatumFrame Frame = [130,0,20] x [1,0,0] y [0,1,0] z [0,0,1]; }
@@ -76,13 +76,13 @@ Assembly Atlas {
    Semantic Slide { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,0,1] z [0,-1,0]; }
   </Part>
  </Assembly>
- Anchor: Atlas.Base.Hinge;
- Interface<Revolute> Shoulder { A: Atlas.Base.Hinge; B: Atlas.UpperArm.Housing.Input; }
- Interface<Revolute> Elbow { A: Atlas.UpperArm.Housing.Output; B: Atlas.ForeArm.Housing.Input; }
- Interface<Fixed> WristMount { A: Atlas.ForeArm.Housing.Output; B: Atlas.Wrist.Mount; }
- Interface<Prismatic> GripLeft { A: Atlas.Wrist.Left; B: Atlas.LeftFinger.Slide; }
- Interface<Prismatic> GripRight { A: Atlas.Wrist.Right; B: Atlas.RightFinger.Slide; }
- Interface<Fixed> ShoulderTrim { A: Atlas.UpperArm.Housing.Collar; B: Atlas.UpperArm.ShoulderCollar.Mount; }
- Interface<Fixed> ElbowTrim { A: Atlas.UpperArm.Housing.Output; B: Atlas.UpperArm.ElbowCollar.Mount; }
- Interface<Fixed> WristTrim { A: Atlas.ForeArm.Housing.Output; B: Atlas.ForeArm.WristCollar.Mount; }
+ anchor: Atlas.Base.Hinge;
+ Interface<Revolute> Shoulder { a: Atlas.Base.Hinge; b: Atlas.UpperArm.Housing.Input; }
+ Interface<Revolute> Elbow { a: Atlas.UpperArm.Housing.Output; b: Atlas.ForeArm.Housing.Input; }
+ Interface<Fixed> WristMount { a: Atlas.ForeArm.Housing.Output; b: Atlas.Wrist.Mount; }
+ Interface<Prismatic> GripLeft { a: Atlas.Wrist.Left; b: Atlas.LeftFinger.Slide; }
+ Interface<Prismatic> GripRight { a: Atlas.Wrist.Right; b: Atlas.RightFinger.Slide; }
+ Interface<Fixed> ShoulderTrim { a: Atlas.UpperArm.Housing.Collar; b: Atlas.UpperArm.ShoulderCollar.Mount; }
+ Interface<Fixed> ElbowTrim { a: Atlas.UpperArm.Housing.Output; b: Atlas.UpperArm.ElbowCollar.Mount; }
+ Interface<Fixed> WristTrim { a: Atlas.ForeArm.Housing.Output; b: Atlas.ForeArm.WristCollar.Mount; }
 }

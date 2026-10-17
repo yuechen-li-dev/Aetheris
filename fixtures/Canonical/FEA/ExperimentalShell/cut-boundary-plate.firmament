@@ -1,12 +1,12 @@
 Model ExperimentalPerforatedPlate {
-    Units: mm
-    Box Plate { Size: [4000mm, 4000mm, 1000mm] }
+    units: mm
+    Box Plate { size: [4000mm, 4000mm, 1000mm] }
     Modify Plate {
         Hole<Shaft> Opening {
-            On: +Z
-            Center: Point2(0mm, 0mm)
-            Diameter: 2000mm
-            End: ThroughAll
+            on: +Z
+            center: Point2(0mm, 0mm)
+            diameter: 2000mm
+            end: ThroughAll
         }
     }
 

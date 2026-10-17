@@ -12,6 +12,13 @@ The router is a design assistant. `RouteProposal` is inspectable; acceptance cop
 
 ## Ports and logical connections
 
+Use the documented PascalCase piping properties in this guide. The corpus
+modernization pass found that `connectionType: Weld` is currently ignored and
+becomes Generic, and unknown optional Port fields can also be ignored. These are
+open compiler defects, not admitted aliases. Their source specimens and the AST
+owner migration prerequisite are recorded in the
+[corpus report](../../development/FIRMAMENT-V2-CORPUS-MODERNIZATION-2026-10.md).
+
 `Port` is the piping specialization of an Assembly Interface. It has stable identity, a position/DatumFrame, an outward axis direction, a `PipePolicy`, and a bounded connection style.
 
 ```firmament

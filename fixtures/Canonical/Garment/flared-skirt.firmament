@@ -14,10 +14,10 @@ Feature SkirtPanel(topWidth: Length = 502.654825mm, bottomWidth: Length = 738.27
   Line2 leftGuide { from: upperLeft; to: lowerLeft }
   return Profile {
     Loop Outer {
-      Segment Bottom { Trace: hemGuide; From: lowerLeft; To: lowerRight }
-      Segment Right { Trace: rightGuide; From: lowerRight; To: upperRight }
-      Segment Top { Trace: waistGuide; From: upperRight; To: upperLeft }
-      Segment Left { Trace: leftGuide; From: upperLeft; To: lowerLeft }
+      Segment Bottom { trace: hemGuide; from: lowerLeft; to: lowerRight }
+      Segment Right { trace: rightGuide; from: lowerRight; to: upperRight }
+      Segment Top { trace: waistGuide; from: upperRight; to: upperLeft }
+      Segment Left { trace: leftGuide; from: upperLeft; to: lowerLeft }
     }
   }
 }

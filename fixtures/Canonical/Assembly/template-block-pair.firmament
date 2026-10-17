@@ -20,13 +20,13 @@ Template < Spec: BlockSpec >
 Struct AssemblyBlock: AssemblyBlockConcept {
     Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.Height > 0mm
     Concept Struct Design: AssemblyBlockConcept {
-        Bounds: Box3 { Size: [Spec.Width, Spec.Depth, Spec.Height] }
+        Bounds: Box3 { size: [Spec.Width, Spec.Depth, Spec.Height] }
         Axis: Bounds.Center.Axis(+Z)
         Seat: Bounds.Face(+Z)
         Base: Bounds.Face(-Z)
         Height: Spec.Height
     }
-    Box Body { Bounds: Design.Bounds }
+    Box Body { bounds: Design.Bounds }
     Modify Body {
         EdgeFinish ProofBreak {
             Face: Design.Seat
@@ -35,7 +35,7 @@ Struct AssemblyBlock: AssemblyBlockConcept {
             Distance: 1mm
         }
     }
-    Expose {
+    expose {
         Bounds: Design.Bounds
         Axis: Design.Axis
         Seat: Design.Seat
@@ -59,7 +59,7 @@ Assembly TemplateBlockPair {
         <Part Moving = AssemblyBlock<Spec: MovingSpec>></Part>
     </Assembly>
 
-    Anchor: TemplateBlockPair.Fixed.Interface;
+    anchor: TemplateBlockPair.Fixed.Interface;
 
     Mate Seat: SeatedAxis {
         Fixed: TemplateBlockPair.Fixed.Interface;

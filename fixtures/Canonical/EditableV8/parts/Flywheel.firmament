@@ -4,7 +4,7 @@ include "../construction";
 Struct Flywheel {
   Struct Stock = DiscStock<r: 75mm, zmin: -8mm, zmax: 8mm>
 
-  Expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+  expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
 
 
 }

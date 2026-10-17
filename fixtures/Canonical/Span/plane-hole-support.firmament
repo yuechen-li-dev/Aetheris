@@ -1,10 +1,10 @@
 schema Mechanical
 
 Model PlaneHoleSupport {
-    Units: mm
+    units: mm
 
     Concept Struct Supports {
-        Top: Plane { Origin: [0mm,0mm,8mm]; Normal: [0,0,1]; Up: [0,1,0] }
+        Top: Plane { origin: [0mm,0mm,8mm]; normal: [0,0,1]; up: [0,1,0] }
     }
     Construction Plane TopSupport { Trace: Supports.Top }
 
@@ -17,31 +17,31 @@ Model PlaneHoleSupport {
     ]
     Template<spec: MountSpec> M8Counterbore {
         Hole<Counterbore> Mount {
-            On: MountingArea
-            Center: spec.Center
-            Diameter: 8mm
-            CounterboreDiameter: 16mm
-            CounterboreDepth: 3mm
-            End: ThroughAll
+            on: MountingArea
+            center: spec.Center
+            diameter: 8mm
+            counterboreDiameter: 16mm
+            counterboreDepth: 3mm
+            end: ThroughAll
         }
     }
 
-    Concept Struct Layout On XY {
-        Rect2 Stock { Center: [0mm,0mm]; Size: [100mm,80mm] }
-        Point2 South { Position: [0mm,-32mm] }
-        Point2 East { Position: [45mm,0mm] }
-        Point2 North { Position: [0mm,32mm] }
-        Point2 West { Position: [-45mm,0mm] }
-        Line2 SE { From: South; To: East }
-        Line2 EN { From: East; To: North }
-        Line2 NW { From: North; To: West }
-        Line2 WS { From: West; To: South }
+    Concept Struct Layout on XY {
+        Rect2 Stock { center: [0mm,0mm]; size: [100mm,80mm] }
+        Point2 South { position: [0mm,-32mm] }
+        Point2 East { position: [45mm,0mm] }
+        Point2 North { position: [0mm,32mm] }
+        Point2 West { position: [-45mm,0mm] }
+        Line2 SE { from: South; to: East }
+        Line2 EN { from: East; to: North }
+        Line2 NW { from: North; to: West }
+        Line2 WS { from: West; to: South }
     }
 
-    Profile StockProfile Using Layout {
+    Profile StockProfile using Layout {
         Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close }
     }
-    Profile MountBoundary Using Layout {
+    Profile MountBoundary using Layout {
         Loop Outer { SE |> EN |> NW |> WS |> Close }
     }
 
@@ -49,8 +49,8 @@ Model PlaneHoleSupport {
 
     Struct Part {
         Compose Plate {
-            Base StockBody { Profile: StockProfile; From: 0mm; To: 8mm; Role: Stock }
-            Pattern MountPattern Over Mounts { M8Counterbore<Current> }
+            Base StockBody { profile: StockProfile; from: 0mm; to: 8mm; role: Stock }
+            Pattern MountPattern over Mounts { M8Counterbore<Current> }
         }
     }
 }

@@ -3,7 +3,7 @@ SheetMetal LBracket {
     Thickness: 1.5mm;
     Material: "Standard.Materials.Aluminum.5052_H32";
     KFactor: 0.42;
-    Base Main { Profile: Rectangle { Width: 80mm; Height: 40mm; }; }
+    Base Main { profile: Rectangle { Width: 80mm; Height: 40mm; }; }
     Flange Wall {
         From: Main.Left;
         Length: 25mm;

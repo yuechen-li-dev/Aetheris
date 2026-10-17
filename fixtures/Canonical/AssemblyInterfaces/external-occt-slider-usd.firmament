@@ -10,6 +10,6 @@ Assembly ExternalSlider {
       Semantic Slide { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
     </Part>
   </Assembly>
-  Anchor: ExternalSlider.Rail.Slide;
-  Interface<Prismatic> Travel { A: ExternalSlider.Rail.Slide; B: ExternalSlider.Carriage.Slide; }
+  anchor: ExternalSlider.Rail.Slide;
+  Interface<Prismatic> Travel { a: ExternalSlider.Rail.Slide; b: ExternalSlider.Carriage.Slide; }
 }

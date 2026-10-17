@@ -1,9 +1,9 @@
 Model GenericG2Plateau {
- Units: mm
+ units: mm
  Struct Part {
- Rect2 BaseBoundary { Center: [0mm,0mm] Size: [100mm,80mm] }
+ Rect2 BaseBoundary { center: [0mm,0mm] size: [100mm,80mm] }
  Profile BaseSection { Loop Outer { BaseBoundary |> TraceLoop } }
- Extrude Body { Profile: BaseSection From: 0mm To: 5mm }
+ Extrude Body { profile: BaseSection from: 0mm to: 5mm }
  SmoothRoundedRect2 Footprint { Center: [0mm,0mm] Size: [60mm,40mm] CornerExtent: 8mm }
  Profile PlateauFootprint { Loop Outer { Footprint |> TraceLoop } }
  Plateau Raised {

@@ -5,6 +5,22 @@ namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 public sealed class NestedOccurrenceFrameTests
 {
     [Fact]
+    public void ParentPlacementAndInternalMatePreserveNestedWorldTransforms()
+    {
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/fixed-nested-usd.firmament");
+        var compiled = new AssemblyM1Pipeline().CompileFile(source);
+        Assert.True(compiled.IsSuccess, string.Join("\n", compiled.Diagnostics));
+        var first = Assert.Single(compiled.Ir!.Instances, i => i.Path.ToString() == "FixedNested.Module.First");
+        var second = Assert.Single(compiled.Ir.Instances, i => i.Path.ToString() == "FixedNested.Module.Second");
+        Assert.Equal(40, first.ResolvedTransform!.Matrix[12], 9);
+        Assert.Equal(10, first.ResolvedTransform.Matrix[13], 9);
+        Assert.Equal(3, first.ResolvedTransform.Matrix[14], 9);
+        Assert.Equal(40 + 60 / Math.Sqrt(2), second.ResolvedTransform!.Matrix[12], 9);
+        Assert.Equal(10 + 60 / Math.Sqrt(2), second.ResolvedTransform.Matrix[13], 9);
+        Assert.True(AssemblyIrAp242Exporter.Export(compiled).IsSuccess);
+    }
+
+    [Fact]
     public void TranslatedNestedMembersComposeOnceUnderARotatedParent()
     {
         var source=FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/nested-occurrence-frames.firmament");

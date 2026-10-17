@@ -1,5 +1,5 @@
 Model ImportedMountingPlate {
-    Units: mm
+    units: mm
     Use Standard.Products.Mechanical
 
     Static MyPlate = Standard.Products.Mechanical.StandardMountingPlate with {

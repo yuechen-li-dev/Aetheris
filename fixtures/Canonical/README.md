@@ -7,10 +7,10 @@ Everything in this directory is current authoring guidance. Examples progress fr
 | create a box | `Basics/box.firmament` | `Model`, `Units`, named `Box`, `Assert` |
 | create a cylinder | `Basics/cylinder.firmament` | direct `Cylinder` |
 | create analytic primitives | `Primitives/` | `Frustum`, `RoundedBox`, `Sphere`, `Cone`, `Torus` |
-| draw a readable local profile | `Profiles/concept-path-line-arc-profile.firmament` | `Concept Path`, line, arc, closed profile, extrusion |
+| draw a readable local profile | `Profiles/concept-path-line-arc-profile.firmament` | `Path`, line, arc, closed profile, extrusion |
 | derive a semantic profile variant | `Profiles/profile-delta-recess-extrusion.firmament` | Table, `with`, `Template`, `ProfileDelta`, ordinary extrusion |
 | add a rectangular boss | `Features/Boss/rectangular-boss.firmament` | first-class finite `Boss` |
-| sweep a circular profile | `Features/Sweep/circular-planar-path-sweep.firmament` | bounded planar `Concept Path`, line/arc, constant circular `Sweep` |
+| sweep a circular profile | `Features/Sweep/circular-planar-path-sweep.firmament` | bounded planar `Path`, line/arc, constant circular `Sweep` |
 | make wire geometry | `Features/Sweep/` | tangent open paths, analytic cylinders/tori, capped solid |
 | author formed wire or rod | `WireForm/` | stock, `StartFrame`, ordered `Straight`/`Bend`, 3D frame transport, derived cut length |
 | add a boss and bore | `Features/Boss/circular-boss-through-hole.firmament` | circular `Boss`, through shaft `Hole` |
@@ -36,7 +36,29 @@ Everything in this directory is current authoring guidance. Examples progress fr
 | route a piping system | `Piping/pump-skid.firmament` | logical Connection, equipment-owned nozzle Interfaces/mates, scoped owner exemption, explicit/accepted Routes, strict foreign KeepOut clearance, fittings, BOM/Cut List |
 | combine machining operations | `Integration/machined-mounting-block.firmament` | Boss, Pocket, holes, counterbores, chamfer, PMI |
 
-`Pocket` never means through-all; use a supported `Hole` or `Slot` for through removal. Bounded two-section [`Loft` and `Loft<Hollow>`](../../docs/public/firmament/loft.md) and WireForm [`Helix`](WireForm/helix.firmament) are admitted; general smooth/rail loft, arbitrary Boolean authoring, and freeform surface features are not in Preview 3; see [`docs/public/reference/supported-features.md`](../../docs/public/reference/supported-features.md).
+`Pocket` never means through-all; use a supported `Hole` or `Slot` for through removal. Bounded two-section [`Loft` and `Loft<Hollow>`](../../docs/public/firmament/loft.md), WireForm [`Helix`](WireForm/helix.firmament), and the explicitly bounded freeform replacement examples above are admitted. Check the current [supported-feature boundaries](../../docs/public/reference/supported-features.md) before extending a recipe.
+
+## Current style and qualification levels
+
+Built-in fields use camelCase and linking words use lowercase. `Path` and 2D
+shape declarations need no `Concept` prefix. Requirement Concepts and
+`Concept Struct` construction layouts keep their distinct roles. Published
+Record members, Template arguments, semantic ports and occurrence names preserve
+their identities; a style pass does not rename a library API.
+
+Sheet-metal blanks and rectangular openings use named shared `Profile`/`Rect2`
+boundaries. The migrated legacy sheet `Slot` cuts remain rectangular; making them
+rounded would be an engineering change. Slot2 means an overall-length capsule.
+
+Not every file is a standalone STEP product. `qualification.json` declares the
+real owner operation and names a consuming product for reusable modules.
+Gear-interface examples qualify inspection, garment examples qualify their
+documented validation level, and scenes qualify scene compilation. Four
+figure-bound garment sources explicitly expect the missing-external-body
+diagnostic; those are recorded as boundaries, not successful products. A module's
+consumer must itself pass. Geometry regressions and compatibility witnesses live
+outside this cookbook. In particular, SurfaceCoil centerline-only witnesses are
+under `Regression/WireFormSurfaceSupport`, pending normal support admission.
 
 ## Ownership
 

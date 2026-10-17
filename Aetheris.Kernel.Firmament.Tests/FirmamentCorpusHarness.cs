@@ -30,6 +30,20 @@ internal static class FirmamentCorpusHarness
         return NormalizeLf(File.ReadAllText(fullPath, Encoding.UTF8));
     }
 
+    // Some historical mutation tests intentionally inject the PascalCase aliases.
+    // Normalize their input explicitly; ordinary fixture reads and the CLI corpus
+    // continue to exercise the current authored spelling without this adapter.
+    public static string CanonicalMutationSource(string source) =>
+        FirmamentV2.FirmamentSourceSpelling.Normalize(source);
+
+    public static string ReplaceRequired(this string source, string before, string after,
+        StringComparison comparison = StringComparison.Ordinal)
+    {
+        Assert.True(source.Contains(before, comparison), $"Mutation target was absent: {before}");
+        Assert.NotEqual(before, after);
+        return source.Replace(before, after, comparison);
+    }
+
     public static string NormalizeLf(string value) => value.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);
 
     public static string RepoRoot()

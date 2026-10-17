@@ -11,7 +11,7 @@ public sealed class PlanarPlateauTests
     [Fact]
     public void MixedFootprintProducesExactContactsAndG2PatchJoins()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/smooth-corner-sections.firmament");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/smooth-corner-sections.firmament"));
         var input = SectionChainAuthoringParser.Compile(source, materialize: false);
         Assert.True(input.IsSuccess, string.Join("\n", input.Diagnostics));
         var section = input.Chain!.Sections[0];
@@ -23,7 +23,7 @@ public sealed class PlanarPlateauTests
     [Fact]
     public void MixedPlateauGraftsTrimmedManifoldAndPreservesBaseTopology()
     {
-        var input = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/smooth-corner-sections.firmament"), false).Chain!.Sections[0];
+        var input = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/smooth-corner-sections.firmament")), false).Chain!.Sections[0];
         var source = BrepPrimitives.CreateBox(100, 80, 5).Value;
         var top = source.Bindings.FaceBindings.Single(b => source.Geometry.GetSurface(b.SurfaceGeometryId).Plane is { } p && p.Normal.ToVector().Z > .99);
         var frame = input.Frame with { Origin = new Point3D(0, 0, 2.5) };
@@ -62,7 +62,7 @@ public sealed class PlanarPlateauTests
     [InlineData(10)]
     public void SemanticPlateauWorksAtSeveralScales(double scale)
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament"));
         source = System.Text.RegularExpressions.Regex.Replace(source, @"([-+]?\d+(?:\.\d+)?)mm", m =>
             (double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) * scale).ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "mm");
         var built = FirmamentBuildAndExport.CompileSource(source);
@@ -80,7 +80,7 @@ public sealed class PlanarPlateauTests
     [InlineData("Size: [60mm,40mm]", "Size: [120mm,40mm]", "plateau-contact-outside-support")]
     public void InvalidPlateausFailBeforeExport(string from, string to, string error)
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament").Replace(from, to);
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament")).Replace(from, to);
         var result = FirmamentBuildAndExport.CompileSource(source);
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, d => d.Message == error);
@@ -89,7 +89,7 @@ public sealed class PlanarPlateauTests
     [Fact]
     public void TightCornersAndStraightOnlyLoopsShareTheSamePath()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament"));
         var tight = FirmamentBuildAndExport.CompileSource(source.Replace("CornerExtent: 8mm", "CornerExtent: 1mm"));
         Assert.True(tight.IsSuccess, string.Join("\n", tight.Diagnostics.Select(d => d.Message)));
         Assert.All(tight.Value.Plateau!.Contacts.Joins, j => Assert.Equal("G2WithinSampledTolerance", j.Status));
@@ -107,7 +107,7 @@ public sealed class PlanarPlateauTests
     [InlineData("Rect2 BaseBoundary { Center: [0mm,0mm] Size: [100mm,80mm] }", "RoundedRect2 BaseBoundary { Center: [0mm,0mm] Size: [100mm,80mm] Radius: 18mm }")]
     public void ParametersRegenerateThroughOrdinaryPipeline(string from, string to)
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament"));
         Assert.Contains(from, source);
         var result = FirmamentBuildAndExport.CompileSource(source.Replace(from, to));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
@@ -131,7 +131,7 @@ public sealed class PlanarPlateauTests
     [Fact]
     public void PolynomialPcurvesKeepDegreeKnotsAndExactPlaneParameters()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament");
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament"));
         var built = FirmamentBuildAndExport.CompileSource(source);
         Assert.True(built.IsSuccess);
         Assert.True(built.Value.Plateau!.Pcurves.MaximumReconstructionDeviation < 1e-9);

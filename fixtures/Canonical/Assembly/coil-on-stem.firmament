@@ -1,14 +1,14 @@
 Template < R: Length > Struct Stem {
-    Circle2 Outside { Center: [0mm,0mm] Radius: R }
+    Circle2 Outside { center: [0mm,0mm] radius: R }
     Profile Section { Loop Outer { Outside |> TraceLoop } }
-    Extrude Body { Profile: Section From: -10mm To: 60mm }
+    Extrude Body { profile: Section from: -10mm to: 60mm }
 }
 Template < P: Length > Struct Spring {
     WireForm SpringWire {
         Diameter: 2mm
         Material: Standard.Materials.StainlessSteel.304_Annealed
         StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [1,0,0]; Up: [0,0,1] }
-        AxisCoil Winding { Radius: 9mm; Turns: 6; Pitch: P; Handedness: RightHanded; StartPhase: 0deg }
+        Helix Winding { radius: 9mm; turns: 6; pitch: P; handedness: RightHanded; startPhase: 0deg }
     }
 }
 Interface SpringOnRod {
@@ -29,6 +29,6 @@ Assembly GuidedSpring {
         </Part>
         <Part Coil = Spring<P: 6mm>> </Part>
     </Assembly>
-    Anchor: GuidedSpring.Rod.SpringSeat;
+    anchor: GuidedSpring.Rod.SpringSeat;
     Mate Install: SpringOnRod { Spring: GuidedSpring.Coil.Winding; Rod: GuidedSpring.Rod.SpringSeat; }
 }

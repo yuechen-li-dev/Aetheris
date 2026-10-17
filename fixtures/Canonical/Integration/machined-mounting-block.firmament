@@ -1,27 +1,27 @@
 Model MachinedMountingBlock {
-    Units: mm
+    units: mm
 
-    Concept Struct Layout On XY {
-        Rect2 Stock { Center: [0mm, 0mm]; Size: [70mm, 44mm] }
-        Rect2 BossPad { Center: [-16mm, 0mm]; Size: [14mm, 14mm] }
-        Rect2 Recess { Center: [10mm, 0mm]; Size: [20mm, 16mm] }
+    Concept Struct Layout on XY {
+        Rect2 Stock { center: [0mm, 0mm]; size: [70mm, 44mm] }
+        Rect2 BossPad { center: [-16mm, 0mm]; size: [14mm, 14mm] }
+        Rect2 Recess { center: [10mm, 0mm]; size: [20mm, 16mm] }
     }
 
-    Profile BaseProfile Using Layout { Loop Outer {
+    Profile BaseProfile using Layout { Loop Outer {
      Stock.Bottom
      |> Stock.Right
      |> Stock.Top
      |> Stock.Left
      |> Close
  } }
-    Profile BossProfile Using Layout { Loop Outer {
+    Profile BossProfile using Layout { Loop Outer {
      BossPad.Bottom
      |> BossPad.Right
      |> BossPad.Top
      |> BossPad.Left
      |> Close
  } }
-    Profile PocketProfile Using Layout { Loop Outer {
+    Profile PocketProfile using Layout { Loop Outer {
      Recess.Bottom
      |> Recess.Right
      |> Recess.Top
@@ -31,26 +31,26 @@ Model MachinedMountingBlock {
 
     Struct MountingBlock {
         Compose Body {
-            Base Stock { Profile: BaseProfile; From: 0mm; To: 12mm; Role: Stock }
-            Boss ConnectorBoss { On: Top; Profile: BossProfile; Height: 6mm }
-            Pocket ElectronicsRecess { On: Top; Profile: PocketProfile; Depth: 4mm; MinimumFloorThickness: 3mm }
-            Hole<Shaft> ConnectorBore { On: +Z; Center: [-16mm, 0mm]; Diameter: 6mm; End: ThroughAll; Role: Connector }
+            Base Stock { profile: BaseProfile; from: 0mm; to: 12mm; role: Stock }
+            Boss ConnectorBoss { on: Top; profile: BossProfile; height: 6mm }
+            Pocket ElectronicsRecess { on: Top; profile: PocketProfile; depth: 4mm; MinimumFloorThickness: 3mm }
+            Hole<Shaft> ConnectorBore { on: +Z; center: [-16mm, 0mm]; diameter: 6mm; end: ThroughAll; Role: Connector }
             Hole<Counterbore> MountNorth {
-                On: +Z
-                Center: [26mm, 13mm]
-                Diameter: 6mm
-                CounterboreDiameter: 11mm
-                CounterboreDepth: 3mm
-                End: ThroughAll
+                on: +Z
+                center: [26mm, 13mm]
+                diameter: 6mm
+                counterboreDiameter: 11mm
+                counterboreDepth: 3mm
+                end: ThroughAll
                 Role: MountingHole
             }
             Hole<Counterbore> MountSouth {
-                On: +Z
-                Center: [26mm, -13mm]
-                Diameter: 6mm
-                CounterboreDiameter: 11mm
-                CounterboreDepth: 3mm
-                End: ThroughAll
+                on: +Z
+                center: [26mm, -13mm]
+                diameter: 6mm
+                counterboreDiameter: 11mm
+                counterboreDepth: 3mm
+                end: ThroughAll
                 Role: MountingHole
             }
         }

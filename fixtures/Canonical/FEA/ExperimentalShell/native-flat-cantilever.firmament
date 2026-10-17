@@ -2,7 +2,7 @@ SheetMetal NativeFlatPlate {
     Thickness: 2mm;
     Material: "Standard.Materials.Steel.ASTM_A36";
     KFactor: 0.42;
-    Base Plate { Profile: Rectangle { Width: 100mm; Height: 20mm; }; }
+    Base Plate { profile: Rectangle { Width: 100mm; Height: 20mm; }; }
 }
 
 Analysis LinearElastic NativeFlatCantilever {

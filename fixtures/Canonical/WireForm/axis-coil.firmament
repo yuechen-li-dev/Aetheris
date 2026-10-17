@@ -1,5 +1,5 @@
 Model AxisCoilWitness {
-    Units: mm
+    units: mm
     WireForm AxisSpring {
         Diameter: 2mm
         Material: Standard.Materials.StainlessSteel.304_Annealed

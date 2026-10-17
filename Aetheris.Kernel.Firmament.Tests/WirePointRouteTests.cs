@@ -5,7 +5,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class WirePointRouteTests
 {
-    private static string Source => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/WireForm/point-route.firmament"));
+    private static string Source => FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/WireForm/point-route.firmament")));
 
     [Fact]
     public void ArbitraryPlaneRouteDerivesTangentFilletAndExportsExactManifold()
@@ -32,7 +32,7 @@ public sealed class WirePointRouteTests
     [Fact]
     public void ExplicitPoint2LiftingUsesSharedFrameTranslationAndRotation()
     {
-        var source = Source.Replace("At: Point3(20mm,30mm,20mm);", "At: Point2(20mm,20mm); On { From: World; TranslateLocal: [0mm,30mm,0mm]; RotateLocal: { Axis: X; Angle: 90deg } }");
+        var source = Source.ReplaceRequired("At: Point3(20mm,30mm,20mm);", "At: Point2(20mm,20mm); On { From: World; TranslateLocal: [0mm,30mm,0mm]; RotateLocal: { Axis: X; Angle: 90deg } }");
         var parsed = WireFormAuthoring.Parse(source);
         Assert.True(parsed.IsSuccess, string.Join("\n", parsed.Diagnostics));
         Assert.True((parsed.Value.EndState.Position - new Point3D(20, 30, 20)).Length < 1e-12);
@@ -50,7 +50,7 @@ public sealed class WirePointRouteTests
     [InlineData("At: Point3(20mm,30mm,20mm);", "At: Point2(20mm,20mm);", "point-invalid")]
     public void InvalidOrUnsupportedIntentProducesNamedDiagnostic(string before, string after, string code)
     {
-        var parsed = WireFormAuthoring.Parse(Source.Replace(before, after));
+        var parsed = WireFormAuthoring.Parse(Source.ReplaceRequired(before, after));
         Assert.False(parsed.IsSuccess);
         Assert.Contains(parsed.Diagnostics, d => d.Message.Contains("wire-route-" + code));
     }

@@ -38,7 +38,7 @@ public sealed class AssemblyDisplayMeshTests
     public void ExplicitObliquePlacementKeepsDoublePrecision()
     {
         var fixture = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Assembly/annular-pair.firmament");
-        var source = File.ReadAllText(fixture).Replace("1,0,0,0,0,1,0,0,0,0,1,0,60,0,0,1", "0.7071067811865476,0.7071067811865475,0,0,-0.7071067811865475,0.7071067811865476,0,0,0,0,1,0,60,0,0,1", StringComparison.Ordinal);
+        var source = File.ReadAllText(fixture).ReplaceRequired("Placement { from: Origin; to: Parent; translateLocal: [60mm, 0mm, 0mm]; }", "Placement LegacyExplicit = [0.7071067811865476,0.7071067811865475,0,0,-0.7071067811865475,0.7071067811865476,0,0,0,0,1,0,60,0,0,1];");
         var compilation = new AssemblyM1Pipeline().Compile(source, fixture);
         Assert.True(compilation.IsSuccess, string.Join("\n", compilation.Diagnostics.Select(d => d.Message)));
         var transform = compilation.Ir!.Instances.Single(i => i.Path.ToString() == "AnnularPair.Second").ResolvedTransform!.Matrix;

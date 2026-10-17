@@ -1,17 +1,17 @@
 schema Sweep
 
 Model PipelineSweep {
-    Units: mm
+    units: mm
 
-    Concept Path Source {
-        Start: Point2(0mm, 0mm)
-        Heading: 90deg
-        Line LeftLeg { Length: 25mm }
+    Path Source {
+        start: Point2(0mm, 0mm)
+        heading: 90deg
+        Line LeftLeg { length: 25mm }
         Arc Return { Radius: 6mm; Turn: -180deg }
-        Line RightLeg { Length: 25mm }
+        Line RightLeg { length: 25mm }
     }
 
-    Concept Path Centerline {
+    Path Centerline {
         Source.LeftLeg
         |> Source.Return
         |> Source.RightLeg

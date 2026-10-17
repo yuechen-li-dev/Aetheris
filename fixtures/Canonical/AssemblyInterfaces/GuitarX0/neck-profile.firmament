@@ -27,12 +27,12 @@ Profile NeckBack {
  CubicBezier2 SeatTreble { from: Right; control1: SeatRight; control2: SeatA; to: SeatMiddle }
  CubicBezier2 SeatBass { from: SeatMiddle; control1: SeatB; control2: SeatLeft; to: Left }
  Loop Outer {
-  Segment Edge0 { Trace: BassShoulder; From: Left; To: LeftMid }
-  Segment Edge1 { Trace: BassBack; From: LeftMid; To: Back }
-  Segment Edge2 { Trace: TrebleBack; From: Back; To: RightMid }
-  Segment Edge3 { Trace: TrebleShoulder; From: RightMid; To: Right }
-  Segment Edge4 { Trace: SeatTreble; From: Right; To: SeatMiddle }
-  Segment Edge5 { Trace: SeatBass; From: SeatMiddle; To: Left }
+  Segment Edge0 { trace: BassShoulder; from: Left; to: LeftMid }
+  Segment Edge1 { trace: BassBack; from: LeftMid; to: Back }
+  Segment Edge2 { trace: TrebleBack; from: Back; to: RightMid }
+  Segment Edge3 { trace: TrebleShoulder; from: RightMid; to: Right }
+  Segment Edge4 { trace: SeatTreble; from: Right; to: SeatMiddle }
+  Segment Edge5 { trace: SeatBass; from: SeatMiddle; to: Left }
  }
 }
 
@@ -43,18 +43,18 @@ Template<HalfWidth: Length, Depth: Length> Profile HeadRoot {
  Point2 RightBottom { position: [HalfWidth,-Depth] }
  Point2 RightTop { position: [HalfWidth,0mm] }
  Point2 Seat { position: [0mm,0mm] }
- Line2 Left { From: LeftTop; To: LeftBottom }
- Line2 BassBack { From: LeftBottom; To: Back }
- Line2 TrebleBack { From: Back; To: RightBottom }
- Line2 Right { From: RightBottom; To: RightTop }
- Line2 TrebleSeat { From: RightTop; To: Seat }
- Line2 BassSeat { From: Seat; To: LeftTop }
+ Line2 Left { from: LeftTop; to: LeftBottom }
+ Line2 BassBack { from: LeftBottom; to: Back }
+ Line2 TrebleBack { from: Back; to: RightBottom }
+ Line2 Right { from: RightBottom; to: RightTop }
+ Line2 TrebleSeat { from: RightTop; to: Seat }
+ Line2 BassSeat { from: Seat; to: LeftTop }
  Loop Outer {
-  Segment Edge0 { Trace: Left; From: LeftTop; To: LeftBottom }
-  Segment Edge1 { Trace: BassBack; From: LeftBottom; To: Back }
-  Segment Edge2 { Trace: TrebleBack; From: Back; To: RightBottom }
-  Segment Edge3 { Trace: Right; From: RightBottom; To: RightTop }
-  Segment Edge4 { Trace: TrebleSeat; From: RightTop; To: Seat }
-  Segment Edge5 { Trace: BassSeat; From: Seat; To: LeftTop }
+  Segment Edge0 { trace: Left; from: LeftTop; to: LeftBottom }
+  Segment Edge1 { trace: BassBack; from: LeftBottom; to: Back }
+  Segment Edge2 { trace: TrebleBack; from: Back; to: RightBottom }
+  Segment Edge3 { trace: Right; from: RightBottom; to: RightTop }
+  Segment Edge4 { trace: TrebleSeat; from: RightTop; to: Seat }
+  Segment Edge5 { trace: BassSeat; from: Seat; to: LeftTop }
  }
 }

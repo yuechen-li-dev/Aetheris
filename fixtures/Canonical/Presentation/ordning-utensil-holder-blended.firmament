@@ -8,15 +8,15 @@ Struct OrdningInspiredBlendedBlank {
   }
   Modify Body {
     Perforation SideVents {
-      On: OuterWall
-      Diameter: 9mm
-      Layout: CylindricalGrid
-      Pitch: 15mm
-      CircumferentialPitch: 18mm
-      MarginTop: 12mm
-      MarginBottom: 20mm
-      MinimumLigament: 2mm
-      StartAngle: 9deg
+      on: OuterWall
+      diameter: 9mm
+      layout: CylindricalGrid
+      pitch: 15mm
+      circumferentialPitch: 18mm
+      marginTop: 12mm
+      marginBottom: 20mm
+      minimumLigament: 2mm
+      startAngle: 9deg
     }
   }
 }

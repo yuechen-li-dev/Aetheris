@@ -110,7 +110,7 @@ public sealed class FirmamentDirectiveAndCasingTests
     [InlineData("Normal: [1,0,0]", "Normal: [1,0,0]; typo: 3", "typo")]
     public void AstSymmetryClosesItsConsumedScopes(string oldText, string newText, string code)
     {
-        var source = File.ReadAllText(Canonical("Symmetry/mirrored-hole")).Replace(oldText, newText, StringComparison.Ordinal);
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Canonical("Symmetry/mirrored-hole"))).ReplaceRequired(oldText, newText);
         Assert.False(FirmamentV2Parser.Parse(source).IsSuccess);
         Assert.False(FirmamentBuildAndExport.CompileSource(source).IsSuccess);
         Assert.Contains(FirmamentV2Parser.Parse(source).Diagnostics, d => d.Contains(code, StringComparison.Ordinal));

@@ -1,5 +1,5 @@
 Model InternalSpurBasic {
-    Units: mm
+    units: mm
     InternalSpurGear Ring {
         Module: 0.5mm
         Teeth: 100

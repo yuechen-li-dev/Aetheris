@@ -1,4 +1,4 @@
-Include "digit-module.firmament";
+include "digit-module.firmament";
 
 // One definition contains two occurrences of the shared DigitModule definition.
 Subassembly Register {
@@ -7,11 +7,11 @@ Subassembly Register {
         <Assembly Digit1 = DigitModule></Assembly>
     </Assembly>
 
-    Anchor: Register.Digit0.Output;
+    anchor: Register.Digit0.Output;
 
     Interface<Custom> CarryLink {
-        A: Register.Digit1.Input;
-        B: Register.Digit0.Output;
+        a: Register.Digit1.Input;
+        b: Register.Digit0.Output;
         Mate AxisCoincident A.Axis B.Axis;
         Mate PlaneCoincident A.Seat B.Seat;
         Mate PointCoincident A.Locator B.Locator;
@@ -19,7 +19,7 @@ Subassembly Register {
         Allow rotation:about-axis;
     }
 
-    Expose {
+    expose {
         Semantic Input = Digit0.Input;
         Semantic Output = Digit1.Output;
     }

@@ -1,6 +1,6 @@
 schema Mechanical
 
-Rect2 Stock { Center: [0mm, 0mm]; Size: [40mm, 24mm] }
+Rect2 Stock { center: [0mm, 0mm]; size: [40mm, 24mm] }
 
 Profile BaseProfile {
     Loop Outer {
@@ -12,4 +12,4 @@ Profile BaseProfile {
     }
 }
 
-Extrude Solid { Profile: BaseProfile; From: 0mm; To: 8mm }
+Extrude Solid { profile: BaseProfile; from: 0mm; to: 8mm }

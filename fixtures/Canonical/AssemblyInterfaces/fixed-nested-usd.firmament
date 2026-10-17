@@ -1,18 +1,18 @@
 Template < R: Length > Struct Sleeve {
-    Circle2 Outside { Center: [0mm,0mm] Radius: R }
-    Circle2 Inside { Center: [0mm,0mm] Radius: 15mm }
-    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside As InnerBoundary |> TraceLoop } }
-    Extrude Body { Profile: Section From: -10mm To: 10mm }
+    Circle2 Outside { center: [0mm,0mm] radius: R }
+    Circle2 Inside { center: [0mm,0mm] radius: 15mm }
+    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside as InnerBoundary |> TraceLoop } }
+    Extrude Body { profile: Section from: -10mm to: 10mm }
 }
 Assembly FixedNested {
  <Assembly FixedNested>
   <Part Base = Sleeve<R: 20mm>>
-   Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+   Placement { from: Origin; to: Parent; }
   </Part>
   <Assembly Module>
-   Placement LegacyExplicit = [0.7071067811865476,0.7071067811865475,0,0,-0.7071067811865475,0.7071067811865476,0,0,0,0,1,0,40,10,3,1];
+   Placement { from: Origin; to: Parent; translateLocal: [40mm, 10mm, 3mm]; rotateLocal: { axis: Z; angle: 45deg; }; }
    <Part First = Sleeve<R: 20mm>>
-    Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+    Placement { from: Origin; to: Parent; }
     Semantic Mount { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
     Semantic Output { DatumFrame Frame = [60,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
    </Part>
@@ -21,6 +21,6 @@ Assembly FixedNested {
    </Part>
   </Assembly>
  </Assembly>
- Anchor: FixedNested;
- Interface<Fixed> Seat { A: FixedNested.Module.First.Output; B: FixedNested.Module.Second.Mount; }
+ anchor: FixedNested;
+ Interface<Fixed> Seat { a: FixedNested.Module.First.Output; b: FixedNested.Module.Second.Mount; }
 }

@@ -117,6 +117,8 @@ internal static class AuthoredSheetMetalCompiler
             && FirmamentSyntaxValues.TryMeasure(rectangle.Arguments[0].Value, "mm", out var w)
             && FirmamentSyntaxValues.TryMeasure(rectangle.Arguments[1].Value, "mm", out var d))
             baseSpec = new("Base", w, d);
+        else if (legacyBaseValue is not null)
+            baseSpec = SheetMetalProfileBinding.Base(source, "Base", legacyBaseValue, Point3D.Origin, syntaxErrors, binding);
         else
         {
             var named = bases.SingleOrDefault();

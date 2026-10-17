@@ -1,9 +1,9 @@
 Model StraightWire {
-    Units: mm
-    Concept Path Centerline {
-        Start: Point2(0mm, 0mm)
-        Heading: 0deg
-        Line Stock { Length: 40mm }
+    units: mm
+    Path Centerline {
+        start: Point2(0mm, 0mm)
+        heading: 0deg
+        Line Stock { length: 40mm }
     }
     Sweep Wire {
         Path: Centerline

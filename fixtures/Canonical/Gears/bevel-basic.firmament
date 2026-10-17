@@ -1,5 +1,5 @@
 Model BevelBasic {
-    Units: mm
+    units: mm
     BevelGear RedirectGear {
         Module: 1mm
         Teeth: 45

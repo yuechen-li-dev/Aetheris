@@ -1,4 +1,4 @@
 Model RetainedTorus {
-    Units: mm
+    units: mm
     Torus Base { MajorRadius: 20mm; MinorRadius: 5mm }
 }

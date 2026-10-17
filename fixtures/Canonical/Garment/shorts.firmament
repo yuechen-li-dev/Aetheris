@@ -18,18 +18,18 @@ Feature ShortsPanel(length: Length = 400mm) -> Profile {
   Line2 innerLegGuide { from: crotch; to: hemInner }
   return Profile {
     Loop Outer {
-      Segment hem { Trace: hemGuide; From: hemInner; To: hemOuter }
-      Segment outerLeg { Trace: outerLegGuide; From: hemOuter; To: hipOuter }
-      Segment outerHip { Trace: outerHipGuide; From: hipOuter; To: waistOuter }
-      Segment waist { Trace: waistGuide; From: waistOuter; To: waistInner }
-      Segment rise { Trace: riseGuide; From: waistInner; To: crotch }
-      Segment innerLeg { Trace: innerLegGuide; From: crotch; To: hemInner }
+      Segment hem { trace: hemGuide; from: hemInner; to: hemOuter }
+      Segment outerLeg { trace: outerLegGuide; from: hemOuter; to: hipOuter }
+      Segment outerHip { trace: outerHipGuide; from: hipOuter; to: waistOuter }
+      Segment waist { trace: waistGuide; from: waistOuter; to: waistInner }
+      Segment rise { trace: riseGuide; from: waistInner; to: crotch }
+      Segment innerLeg { trace: innerLegGuide; from: crotch; to: hemInner }
     }
   }
 }
 Feature frontCut = ShortsPanel();
 Plane center { origin: [0mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
-Mirrored Profile backCut From frontCut { Across: center }
+Mirrored Profile backCut from frontCut { across: center }
 
 Garment BasicShorts {
   meshSize: 60mm;

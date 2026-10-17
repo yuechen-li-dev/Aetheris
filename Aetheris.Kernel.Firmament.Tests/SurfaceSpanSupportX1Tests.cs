@@ -73,8 +73,8 @@ public sealed class SurfaceSpanSupportX1Tests
     [Fact]
     public void CounterborePattern_ValidatesEveryExpandedInstanceAndIdentifiesFailure()
     {
-        var validSource = File.ReadAllText(Fixture("Canonical", "Span", "plane-hole-support.firmament"));
-        var invalidSource = File.ReadAllText(Fixture("Invalid", "Span", "plane-hole-footprint-crossing.firmament"));
+        var validSource = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture("Canonical", "Span", "plane-hole-support.firmament")));
+        var invalidSource = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture("Invalid", "Span", "plane-hole-footprint-crossing.firmament")));
 
         var valid = FirmamentBuildAndExport.CompileSource(validSource);
         Assert.True(valid.IsSuccess, string.Join(Environment.NewLine, valid.Diagnostics.Select(item => item.Message)));
@@ -140,8 +140,8 @@ public sealed class SurfaceSpanSupportX1Tests
     [Fact]
     public void SpanSupportAndEquivalentWholePlaneSupport_ExportIdenticalGeometry()
     {
-        var boundedSource = File.ReadAllText(Fixture("Canonical", "Span", "plane-hole-support.firmament"));
-        var wholePlaneSource = boundedSource.Replace("On: MountingArea", "On: +Z", StringComparison.Ordinal);
+        var boundedSource = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture("Canonical", "Span", "plane-hole-support.firmament")));
+        var wholePlaneSource = boundedSource.ReplaceRequired("On: MountingArea", "On: +Z", StringComparison.Ordinal);
         var bounded = FirmamentBuildAndExport.CompileSource(boundedSource);
         var whole = FirmamentBuildAndExport.CompileSource(wholePlaneSource);
 

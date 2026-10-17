@@ -1,5 +1,5 @@
 Model SpurBasic {
-    Units: mm
+    units: mm
     SpurGear DriveGear {
         Module: 2mm
         Teeth: 24

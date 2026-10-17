@@ -23,19 +23,19 @@ Template<H: Length> Struct Board {
  expose { Semantic MarkerOrigin { DatumFrame Frame = [0mm,658mm,H] x [1,0,0] y [0,1,0] z [0,0,1]; } }
  Point2 RightNut { position: [21.5mm,660mm] }
  Point2 LeftNut { position: [-21.5mm,660mm] }
- Concept Path Outline { start: Point2(-28mm,120mm) heading: 0deg
+ Path Outline { start: Point2(-28mm,120mm) heading: 0deg
   Line End { length: 56mm }
   Line Right { to: RightNut }
   Line Nut { to: LeftNut }
   Close Left
  }
- Profile P From Outline
+ Profile P from Outline
  Extrude Body { profile: P from: 0mm to: H }
 }
 // Short solid scarf under the veneer, behind the nut. The rounded back is
 // supplied by Neck's section chain; this closes the front of the angled join.
 Template<L: Length> Struct HeadstockScarf {
- Concept Path Side {
+ Path Side {
   start: Point2(-1.5mm,6.8mm); heading: 0deg
   Line Back { to: BackEnd }
   Line Shoulder { to: FrontEnd }
@@ -45,7 +45,7 @@ Template<L: Length> Struct HeadstockScarf {
  Point2 NutCorner { position: [-3.1mm,14mm] }
  Point2 FrontEnd { position: [8mm,14mm] }
  Point2 BackEnd { position: [8mm,7mm] }
- Profile P From Side
+ Profile P from Side
  Extrude Body { profile: P; from: -L / 2; to: L / 2 }
  expose { Semantic Mount { DatumFrame Frame = [0mm,0mm,0mm] x [0,0,1] y [1,0,0] z [0,1,0]; } }
 }
@@ -59,7 +59,7 @@ Template<H: Length, RootStart: Length = 0mm, RootHalfWidth: Length = 21.5mm, Roo
  Point2 LCrown { position: [-12mm,160mm] }
  Point2 LSide { position: [-39mm,154mm] }
  Point2 LFlare { position: [-34mm,40mm] }
- Concept Path Outline { start: Point2(-RootHalfWidth,RootStart) heading: 0deg
+ Path Outline { start: Point2(-RootHalfWidth,RootStart) heading: 0deg
   Line Base { length: RootWidth }
   Line FlareR { to: RFlare }
   Line SideR { to: RSide }
@@ -69,7 +69,7 @@ Template<H: Length, RootStart: Length = 0mm, RootHalfWidth: Length = 21.5mm, Roo
   Line SideL { to: LFlare }
   Close FlareL
  }
- Profile P From Outline
+ Profile P from Outline
  Extrude Body { profile: P from: 0mm to: H }
 }
 

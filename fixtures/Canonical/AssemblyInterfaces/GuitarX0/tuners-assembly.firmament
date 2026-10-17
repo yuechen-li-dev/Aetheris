@@ -6,7 +6,7 @@ Linear Sites BassTunerSites {
  start: [-27mm,58mm,0mm];
  step: [0mm,36mm,0mm];
 }
-Mirrored Sites TrebleTunerSites From BassTunerSites { Across: YZ; }
+Mirrored Sites TrebleTunerSites from BassTunerSites { Across: YZ; }
 
 Subassembly GuitarTuners {
  <Assembly GuitarTuners>

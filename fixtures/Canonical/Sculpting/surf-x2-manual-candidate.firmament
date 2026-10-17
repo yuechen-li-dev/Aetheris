@@ -1,9 +1,9 @@
 Model ManualEligibleBlendCandidate {
-  Units: mm
+  units: mm
   BodyState Base {
     Size: [100mm, 80mm, 20mm]
-    Hole H1 { Center: [-47mm, -32mm]
-      Diameter: 4mm }
+    Hole H1 { center: [-47mm, -32mm]
+      diameter: 4mm }
   }
   SculptState ManualCrown {
     Input: Base

@@ -165,8 +165,8 @@ public sealed class FirmamentTypedToleranceTests
     [InlineData("fixtures/Canonical/WireForm/axis-coil.firmament")]
     public void UnqualifiedScalarConsumersCannotSilentlyDiscardTheDeclaration(string fixture)
     {
-        var sweep = File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(fixture))
-            .Replace("Units: mm", "Units: mm\n Static unusedRequirement: Length = 8mm tol 0.1mm", StringComparison.Ordinal);
+        var sweep = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(fixture)))
+            .ReplaceRequired("Units: mm", "Units: mm\n Static unusedRequirement: Length = 8mm tol 0.1mm", StringComparison.Ordinal);
         var result = FirmamentBuildAndExport.CompileSource(sweep, null);
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, d => d.Message.Contains("static-scalar-consumer-unsupported", StringComparison.Ordinal));

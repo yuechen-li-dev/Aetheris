@@ -1,8 +1,8 @@
 Model BentWireArc {
-    Units: mm
-    Concept Path Centerline {
-        Start: Point2(0mm, 0mm)
-        Heading: 0deg
+    units: mm
+    Path Centerline {
+        start: Point2(0mm, 0mm)
+        heading: 0deg
         Arc Bend { Radius: 8mm; Turn: 180deg }
     }
     Sweep Wire {

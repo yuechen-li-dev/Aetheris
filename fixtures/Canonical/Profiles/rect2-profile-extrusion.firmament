@@ -1,13 +1,13 @@
-Concept Struct Rect2Layout On XY {
-    Rect2 Base { Center: [0mm, 0mm]; Size: [20mm, 10mm]; Role: ProfileGuide }
+Concept Struct Rect2Layout on XY {
+    Rect2 Base { center: [0mm, 0mm]; size: [20mm, 10mm]; Role: ProfileGuide }
 }
-Profile MainPlate Using Rect2Layout {
+Profile MainPlate using Rect2Layout {
     Loop Outer {
-        Base.Bottom As South
-        |> Base.Right As East
-        |> Base.Top As North
-        |> Base.Left As West
+        Base.Bottom as South
+        |> Base.Right as East
+        |> Base.Top as North
+        |> Base.Left as West
         |> Close
     }
 }
-Struct Plate { Extrude MainPlate { Profile: MainPlate; From: 0mm; To: 5mm } }
+Struct Plate { Extrude MainPlate { profile: MainPlate; from: 0mm; to: 5mm } }

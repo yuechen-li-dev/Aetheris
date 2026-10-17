@@ -1,6 +1,6 @@
 Model CatalogMaterialCoupon {
-    Units: mm
-    Box Coupon { Size: [80mm, 20mm, 2mm] }
+    units: mm
+    Box Coupon { size: [80mm, 20mm, 2mm] }
 
     Analysis LinearElastic CouponPull {
         Body: Coupon

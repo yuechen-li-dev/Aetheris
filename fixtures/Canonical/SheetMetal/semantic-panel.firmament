@@ -1,3 +1,5 @@
+Profile panelProfile = Rect2 { center: [(100mm) / 2, (60mm) / 2]; size: [100mm, 60mm] }
+
 Concept SemanticPanelIntent {
     Panel: SheetRegion
     MountingHoles: SheetPattern
@@ -5,19 +7,19 @@ Concept SemanticPanelIntent {
 }
 
 Concept Struct PanelLayout {
-    Datum MountingPatternCenter { On: Panel; At: Panel.Center; }
+    Datum MountingPatternCenter { on: Panel; at: Panel.Center; }
     Pattern MountingHoles {
-        On: Panel;
-        Feature: Circle { Diameter: 6mm; };
-        Center: MountingPatternCenter;
-        Count: 4;
-        Pitch: (20mm, 0mm);
+        on: Panel;
+        feature: Circle { diameter: 6mm; };
+        center: MountingPatternCenter;
+        count: 4;
+        pitch: (20mm, 0mm);
     }
 }
 
 SheetMetal SemanticPanel : SemanticPanelIntent {
-    Thickness: 1.5mm;
-    KFactor: 0.42;
-    Base Panel { Profile: Rectangle { Width: 100mm; Height: 60mm; }; }
-    Flange RearLip { From: Panel.Rear; Height: 15mm; Angle: 90deg; Radius: 2mm; Direction: Up; }
+    thickness: 1.5mm;
+    kFactor: 0.42;
+    Base Panel { profile: panelProfile; }
+    Flange RearLip { from: Panel.Rear; height: 15mm; angle: 90deg; radius: 2mm; direction: Up; }
 }

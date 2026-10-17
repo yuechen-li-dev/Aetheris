@@ -1,5 +1,5 @@
 Model RotatedTrefoil {
-    Units: mm
+    units: mm
     WireForm RotatedTrefoil {
         Diameter: 6mm
         Material: Standard.Materials.StainlessSteel.304_Annealed

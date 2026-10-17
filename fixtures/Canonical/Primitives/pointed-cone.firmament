@@ -1,5 +1,5 @@
 Model PointedConeExample {
-    Units: mm
+    units: mm
 
     Cone Body {
         BottomRadius: 6mm

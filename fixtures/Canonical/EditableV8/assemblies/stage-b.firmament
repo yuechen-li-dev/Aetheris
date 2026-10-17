@@ -80,7 +80,7 @@ Subassembly StageB {
   </Assembly>
   Mate InstallRod: JournalBoreSeat { Moving: StageB.Rod1.Mount; Fixed: StageB.Crankpin1.Mount; }
   Mate InstallPin: WristPinSeat { Moving: StageB.WristPin1.Mount; Fixed: StageB.Rod1.SmallEnd; }
-  Anchor: StageB;
+  anchor: StageB;
   Mate InstallIntakeSpring1: SpringStemFit { Spring: StageB.IntakeSpring1.Winding; Stem: StageB.IntakeStem1.Mount; }
   Mate InstallExhaustSpring1: SpringStemFit { Spring: StageB.ExhaustSpring1.Winding; Stem: StageB.ExhaustStem1.Mount; }
 }

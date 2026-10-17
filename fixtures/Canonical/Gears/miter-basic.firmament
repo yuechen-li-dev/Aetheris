@@ -1,5 +1,5 @@
 Model MiterBasic {
-    Units: mm
+    units: mm
     MiterGear EqualRedirect {
         Module: 1.5mm
         Teeth: 20

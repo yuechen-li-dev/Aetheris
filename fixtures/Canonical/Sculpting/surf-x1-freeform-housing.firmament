@@ -1,5 +1,5 @@
 Model FreeformControllerCover {
-  Units: mm
+  units: mm
 
   SurfacePatch CrownPatch {
     Degree: [3, 3]
@@ -24,14 +24,14 @@ Model FreeformControllerCover {
 
   BodyState Base {
     Size: [100mm, 80mm, 20mm]
-    Hole H1 { Center: [-38mm, -28mm]
-      Diameter: 4mm }
-    Hole H2 { Center: [38mm, -28mm]
-      Diameter: 4mm }
-    Hole H3 { Center: [38mm, 28mm]
-      Diameter: 4mm }
-    Hole H4 { Center: [-38mm, 28mm]
-      Diameter: 4mm }
+    Hole H1 { center: [-38mm, -28mm]
+      diameter: 4mm }
+    Hole H2 { center: [38mm, -28mm]
+      diameter: 4mm }
+    Hole H3 { center: [38mm, 28mm]
+      diameter: 4mm }
+    Hole H4 { center: [-38mm, 28mm]
+      diameter: 4mm }
   }
 
   SculptState FreeformCrown {

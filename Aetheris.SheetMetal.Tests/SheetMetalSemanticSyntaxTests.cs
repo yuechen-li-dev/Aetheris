@@ -5,6 +5,23 @@ namespace Aetheris.SheetMetal.Tests;
 
 public sealed class SheetMetalSemanticSyntaxTests
 {
+    [Theory]
+    [InlineData("l-bracket-with-hole")]
+    [InlineData("l-bracket-multiple-holes")]
+    [InlineData("sensor-bracket")]
+    [InlineData("u-channel")]
+    public void SharedProfileOnImplicitBasePreservesLegacyGeometryAndIdentities(string name)
+    {
+        var original = SheetMetalFirmament.CompileFile(Path.Combine(Repo, "fixtures/Compatibility/FirmamentV2/SheetMetal", name + ".firmament"));
+        var modern = SheetMetalFirmament.CompileFile(Path.Combine(Repo, "fixtures/Canonical/SheetMetal", name + ".firmament"));
+        Assert.Equal(Step(original), Step(modern));
+        Assert.True(modern.Spec!.LegacySyntax);
+        Assert.Equal(original.Part!.Regions.Select(r => r.StableId), modern.Part!.Regions.Select(r => r.StableId));
+        Assert.Equal(original.Part.Bends.Select(b => b.StableId), modern.Part.Bends.Select(b => b.StableId));
+        Assert.Equal(original.Part.Features.Select(f => f.StableId), modern.Part.Features.Select(f => f.StableId));
+        Assert.Equal(original.FlatPattern!.DeterministicHash, modern.FlatPattern!.DeterministicHash);
+    }
+
     private static string Repo
     {
         get

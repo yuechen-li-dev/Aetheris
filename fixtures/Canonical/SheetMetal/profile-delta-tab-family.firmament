@@ -1,3 +1,5 @@
+Profile deckProfile = Rect2 { center: [(100mm) / 2, (60mm) / 2]; size: [100mm, 60mm] }
+
 Use Profile.Modifications;
 
 Static Table TabStandards: ProfileTabSpec {
@@ -13,9 +15,9 @@ Static WideServiceTab: ProfileTabSpec = StandardServiceTab with {
 ProfileDelta ServiceTab = Tab < P: WideServiceTab, Owner: Wall.Outer >
 
 SheetMetal TabbedBracket {
-    Thickness: 1.5mm;
-    Material: "5052-H32 Aluminum";
-    KFactor: 0.42;
-    Base Deck { Profile: Rectangle { Width: 100mm; Height: 60mm; }; }
-    Flange Wall { From: Deck.Rear; Height: 24mm; Angle: 90deg; Radius: 2mm; }
+    thickness: 1.5mm;
+    material: "5052-H32 Aluminum";
+    kFactor: 0.42;
+    Base Deck { profile: deckProfile; }
+    Flange Wall { from: Deck.Rear; height: 24mm; angle: 90deg; radius: 2mm; }
 }

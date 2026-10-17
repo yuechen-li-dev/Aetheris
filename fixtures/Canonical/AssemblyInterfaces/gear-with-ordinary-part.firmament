@@ -1,9 +1,9 @@
 Units: mm
 SpurGear Drive { Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 8mm BoreDiameter: 8.4mm }
 Template < R: Length, H: Length > Struct Shaft {
-    Circle2 Outside { Center: [0mm,0mm] Radius: R }
+    Circle2 Outside { center: [0mm,0mm] radius: R }
     Profile Section { Loop Outer { Outside |> TraceLoop } }
-    Extrude Body { Profile: Section From: 0mm To: H }
+    Extrude Body { profile: Section from: 0mm to: H }
 }
 Subassembly GearAndShaft {
     <Assembly GearAndShaft>
@@ -13,8 +13,8 @@ Subassembly GearAndShaft {
             Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,-16,1];
         </Part>
     </Assembly>
-    Anchor: GearAndShaft.Wheel;
-    Expose { Gear Drive = Wheel; Semantic Mount = Axle.Mount; }
+    anchor: GearAndShaft.Wheel;
+    expose { Gear Drive = Wheel; Semantic Mount = Axle.Mount; }
 }
 Assembly MixedMechanism {
     <Assembly MixedMechanism>
@@ -23,6 +23,6 @@ Assembly MixedMechanism {
             Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 40,0,0,1];
         </Assembly>
     </Assembly>
-    Anchor: MixedMechanism.First.Mount;
-    Interface<Gear> Mesh { A: MixedMechanism.First.Drive; B: MixedMechanism.Second.Drive; }
+    anchor: MixedMechanism.First.Mount;
+    Interface<Gear> Mesh { a: MixedMechanism.First.Drive; b: MixedMechanism.Second.Drive; }
 }

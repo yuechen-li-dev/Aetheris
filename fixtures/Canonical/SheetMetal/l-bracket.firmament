@@ -1,14 +1,16 @@
+Profile mainProfile = Rect2 { center: [(80mm) / 2, (40mm) / 2]; size: [80mm, 40mm] }
+
 // Minimal source-independent single-bend bracket.
 SheetMetal LBracket {
-    Thickness: 1.5mm;
-    Material: "5052-H32 Aluminum";
-    KFactor: 0.42;
-    Base Main { Profile: Rectangle { Width: 80mm; Height: 40mm; }; }
+    thickness: 1.5mm;
+    material: "5052-H32 Aluminum";
+    kFactor: 0.42;
+    Base Main { profile: mainProfile; }
     Flange Wall {
-        From: Main.Left;
-        Length: 25mm;
-        Angle: 90deg;
-        InsideRadius: 2mm;
-        Direction: Up;
+        from: Main.Left;
+        length: 25mm;
+        angle: 90deg;
+        insideRadius: 2mm;
+        direction: Up;
     }
 }

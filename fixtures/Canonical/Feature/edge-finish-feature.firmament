@@ -1,12 +1,12 @@
 schema Mechanical
 Model EdgeFinishFeature {
-    Units: mm
+    units: mm
     Feature StandardTopChamfer(Size: Length = 1mm) -> EdgeFinish {
         return EdgeFinish { Face: +Z Target: Boundary Kind: Chamfer Distance: Size }
     }
-    Box Plate { Size: [30mm, 20mm, 8mm] }
+    Box Plate { size: [30mm, 20mm, 8mm] }
     Modify Plate {
-        Hole<Shaft> Mount { On: +Z Center: Point2(0mm, 0mm) Diameter: 5mm End: ThroughAll }
+        Hole<Shaft> Mount { on: +Z center: Point2(0mm, 0mm) diameter: 5mm end: ThroughAll }
         StandardTopChamfer()
     }
 }

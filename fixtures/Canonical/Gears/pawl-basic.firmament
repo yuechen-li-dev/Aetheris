@@ -1,5 +1,5 @@
 Model PawlBasic {
-    Units: mm
+    units: mm
     Pawl StopPawl {
         Width: 16mm
         Length: 38mm

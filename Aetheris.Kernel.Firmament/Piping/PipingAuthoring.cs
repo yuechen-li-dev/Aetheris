@@ -1,8 +1,8 @@
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Geometry;
@@ -13,16 +13,20 @@ using Aetheris.Kernel.StandardLibrary.Materials;
 namespace Aetheris.Kernel.Firmament.Piping;
 
 /// <summary>Bounded X3 semantic piping front end for explicit and accepted orthogonal routes.</summary>
-public static class PipingAuthoring
+public static partial class PipingAuthoring
 {
     private const double Tol=1e-7;
-    public static bool IsPipingSource(string source)=>Regex.IsMatch(source,@"\bPipingSystem\s+[A-Za-z_]\w*\s*\{",RegexOptions.CultureInvariant);
+    public static bool IsPipingSource(string source) => source.Contains("PipingSystem", StringComparison.Ordinal)
+        && FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements)
+            .Any(d => d.Type.Name.Text == "PipingSystem");
 
     public static PipingCompilationResult Compile(string source,string sourceIdentity="memory")
     {
         var diagnostics=new List<string>();var parseClock=System.Diagnostics.Stopwatch.StartNew();
-        var parsed=Parse(source,sourceIdentity,diagnostics);parseClock.Stop();
-        if(parsed is null||diagnostics.Count>0)return new(false,null,null,diagnostics);
+        var located = new List<FirmamentV2ValidationDiagnostic>();
+        var parsed=Parse(source,sourceIdentity,diagnostics,located);parseClock.Stop();
+        if(parsed is null||diagnostics.Count>0)return new(false,null,null,diagnostics)
+            { FrontendDiagnostics = located.Select(d => d with { SourceFile = sourceIdentity, IsOriginalSource = true }).ToArray() };
         ValidateNozzleContracts(parsed,diagnostics);
         if(diagnostics.Count>0)return new(false,null,null,diagnostics);
         var obstacleClock=System.Diagnostics.Stopwatch.StartNew();var obstacles=parsed.KeepOuts;obstacleClock.Stop();
@@ -47,6 +51,7 @@ public static class PipingAuthoring
         }
         routeClock.Stop();
         ValidateRoutes(routes,parsed,diagnostics);
+        if (routes.Count == 0) diagnostics.Add("piping-route-required: Declare an explicit Route or accept a RouteRequest with acceptAs before compiling engineering geometry.");
         if(diagnostics.Count>0)return new(false,null,null,diagnostics);
 
         var simplifyClock=System.Diagnostics.Stopwatch.StartNew();
@@ -143,24 +148,6 @@ public static class PipingAuthoring
     private sealed record Parsed(string Name,IReadOnlyList<PipePolicyIr> Policies,IReadOnlyList<PipingEquipmentIr> Equipment,IReadOnlyList<PipingPortInterfaceIr> Ports,IReadOnlyList<PipingConnectionIr> Connections,IReadOnlyList<KeepOutIr> KeepOuts,IReadOnlyList<RouteIr> Routes,IReadOnlyList<AcceptedRequest> Requests,IReadOnlyList<RerouteSpec> Reroutes,double DefaultClearance);
     private sealed record AcceptedRequest(RouteRequestIr Request,string AcceptAs);
     private sealed record RerouteSpec(string Name,string Route,int FromAnchor,int ToAnchor,IReadOnlyList<string>Avoid,double Clearance);
-    private readonly record struct Block(string Name,string Body);
-
-    private static Parsed? Parse(string source,string sourceIdentity,List<string>d)
-    {
-        var systems=Blocks(source,"PipingSystem");if(systems.Count!=1){d.Add("piping-system-cardinality: exactly one PipingSystem is required");return null;}var system=systems[0];
-        var defaultClear=Blocks(source,"RouteSpace").Select(x=>Length(Field(x.Body,"Clearance",false),25,d,"route-space:"+x.Name)).FirstOrDefault();if(defaultClear==0)defaultClear=25;
-        var policies=new List<PipePolicyIr>();foreach(var b in Blocks(source,"PipePolicy")){var od=Length(Field(b.Body,"OuterDiameter"),0,d,b.Name);var wall=Length(Field(b.Body,"WallThickness"),0,d,b.Name);var material=Field(b.Body,"Material").Trim('"');if(od<=0||wall<=0)d.Add($"piping-pipe-policy-positive:{b.Name}");if(2*wall>=od)d.Add($"piping-pipe-wall-too-thick:{b.Name}");var resolved=new MaterialResolver().Resolve(material);if(!resolved.IsSuccess)d.Add($"piping-material-unresolved:{b.Name}:{material}");policies.Add(new($"standard:piping:pipe:{Q(od)}:{Q(wall)}:{material}",b.Name,od,wall,material));}Duplicates(policies.Select(x=>x.Name),"pipe-policy",d);
-        var keepouts=new List<KeepOutIr>();foreach(var b in Blocks(source,"KeepOut")){var min=Point(Field(b.Body,"Min"),d,"keepout:"+b.Name);var max=Point(Field(b.Body,"Max"),d,"keepout:"+b.Name);if(max.X<=min.X||max.Y<=min.Y||max.Z<=min.Z)d.Add($"piping-keepout-invalid-bounds:{b.Name}");keepouts.Add(new($"concept:keepout:{b.Name}",b.Name,min,max,Field(b.Body,"Concept",false) is var c&&c.Length>0?c:"KeepOut"));}Duplicates(keepouts.Select(x=>x.Name),"keepout",d);
-        var equipment=new List<PipingEquipmentIr>();foreach(var b in Blocks(source,"Equipment")){var keepOut=Field(b.Body,"KeepOut");if(!keepouts.Any(x=>x.Name==keepOut))d.Add($"piping-equipment-unknown-keepout:{b.Name}:{keepOut}");equipment.Add(new($"equipment:{b.Name}",b.Name,keepOut));}Duplicates(equipment.Select(x=>x.Name),"equipment",d);
-        var ports=new List<PipingPortInterfaceIr>();foreach(var b in Blocks(source,"Port")){var policy=Field(b.Body,"PipePolicy");if(!policies.Any(x=>x.Name==policy))d.Add($"piping-port-unknown-policy:{b.Name}:{policy}");var position=Point(Field(b.Body,"Position"),d,"port:"+b.Name);var direction=Vector(Field(b.Body,"Direction"),d,"port:"+b.Name);if(!Axis(direction))d.Add($"piping-port-direction-nonorthogonal:{b.Name}");if(!Enum.TryParse<PipingConnectionType>(Field(b.Body,"ConnectionType",false) is var ct&&ct.Length>0?ct:"Generic",out var type))d.Add($"piping-port-connection-type-unsupported:{b.Name}");var owner=Field(b.Body,"Equipment",false);var nozzleLength=Length(Field(b.Body,"NozzleLength",false),0,d,"port:"+b.Name);string? ownerKeepOut=null;if(owner.Length>0){var e=equipment.SingleOrDefault(x=>x.Name==owner);if(e is null)d.Add($"piping-port-unknown-equipment:{b.Name}:{owner}");else ownerKeepOut=e.KeepOut;if(nozzleLength<=0)d.Add($"piping-nozzle-length-invalid:{b.Name}");}else if(nozzleLength>0)d.Add($"piping-nozzle-owner-required:{b.Name}");ports.Add(new($"interface:port:{b.Name}",b.Name,position,direction,policy,type,$"datum-frame:port:{b.Name}",owner.Length>0?owner:null,ownerKeepOut,nozzleLength));}Duplicates(ports.Select(x=>x.Name),"port",d);
-        var connections=new List<PipingConnectionIr>();foreach(var b in Blocks(source,"Connection")){var from=Field(b.Body,"From");var to=Field(b.Body,"To");var policy=Field(b.Body,"PipePolicy");var fp=ports.SingleOrDefault(x=>x.Name==from);var tp=ports.SingleOrDefault(x=>x.Name==to);if(fp is null||tp is null){d.Add($"piping-connection-unknown-port:{b.Name}");continue;}if(!policies.Any(x=>x.Name==policy)){d.Add($"piping-connection-unknown-policy:{b.Name}:{policy}");continue;}var reducer=fp.PipePolicy!=tp.PipePolicy;var adapter=fp.ConnectionType!=tp.ConnectionType;if(reducer&&!Bool(Field(b.Body,"Reducer",false)))d.Add($"piping-incompatible-port:{b.Name}: different pipe policies require Reducer: true");if(adapter&&!Bool(Field(b.Body,"Adapter",false)))d.Add($"piping-incompatible-port:{b.Name}: connection styles require Adapter: true");connections.Add(new($"connection:{b.Name}",b.Name,from,to,policy,Field(b.Body,"Service",false).Trim('"') is var s&&s.Length>0?s:null,reducer,adapter));}Duplicates(connections.Select(x=>x.Name),"connection",d);
-        var routes=new List<RouteIr>();foreach(var b in Blocks(source,"Route")){var connection=connections.SingleOrDefault(x=>x.Name==Field(b.Body,"Connection"));if(connection is null){d.Add($"piping-route-unknown-connection:{b.Name}");continue;}var points=Points(Field(b.Body,"Through"),d,"route:"+b.Name);var from=ports.Single(x=>x.Name==connection.FromPort);var to=ports.Single(x=>x.Name==connection.ToPort);if(points.Count==0||!Near(points[0],from.Position)||!Near(points[^1],to.Position))d.Add($"piping-route-endpoints-mismatch:{b.Name}");var anchors=points.Select((p,i)=>new RouteAnchorIr($"route:{b.Name}:anchor:{i}",i,p,i==0||i==points.Count-1?RouteAnchorKind.Endpoint:RouteAnchorKind.HardWaypoint)).ToArray();var locks=Ints(Field(b.Body,"LockedSegments",false));var provenance=Enum.TryParse<RouteProvenance>(Field(b.Body,"Provenance",false),out var pv)?pv:RouteProvenance.Explicit;var bend=Length(Field(b.Body,"BendRadius",false),Math.Max(50,policies.Single(x=>x.Name==connection.PipePolicy).OuterDiameterMm*2),d,b.Name);routes.Add(OrthogonalAutoRouter.BuildRoute(b.Name,connection.Name,from.StableId,to.StableId,anchors,bend,provenance,sourceIdentity,locks));}
-        var provisional=new Parsed(system.Name,policies,equipment,ports,connections,keepouts,routes,[],[],defaultClear);
-        var requests=new List<AcceptedRequest>();foreach(var b in Blocks(source,"RouteRequest")){var connection=connections.SingleOrDefault(x=>x.Name==Field(b.Body,"Connection"));if(connection is null){d.Add($"piping-route-request-unknown-connection:{b.Name}");continue;}var clearance=Length(Field(b.Body,"Clearance",false),defaultClear,d,b.Name);var bend=Length(Field(b.Body,"BendRadius",false),Math.Max(50,policies.Single(x=>x.Name==connection.PipePolicy).OuterDiameterMm*2),d,b.Name);var req=RequestFor(connection,provisional,b.Name,clearance) with{HardWaypoints=Points(Field(b.Body,"HardWaypoints",false),d,"request:"+b.Name),BendRadiusMm=bend};requests.Add(new(req,Field(b.Body,"AcceptAs",false)));}
-        var reroutes=new List<RerouteSpec>();foreach(var b in Blocks(source,"LocalReroute")){if(!int.TryParse(Field(b.Body,"FromAnchor"),out var from)||!int.TryParse(Field(b.Body,"ToAnchor"),out var to)){d.Add($"piping-local-reroute-anchor-invalid:{b.Name}");continue;}reroutes.Add(new(b.Name,Field(b.Body,"Route"),from,to,Names(Field(b.Body,"Avoid",false)),Length(Field(b.Body,"Clearance",false),defaultClear,d,b.Name)));}
-        return provisional with{Requests=requests,Reroutes=reroutes};
-    }
-
     private static RouteRequestIr RequestFor(PipingConnectionIr c,Parsed p,string name,double clearance)=>new($"route-request:{name}",name,c.Name,p.Ports.Single(x=>x.Name==c.FromPort),p.Ports.Single(x=>x.Name==c.ToPort),p.Policies.Single(x=>x.Name==c.PipePolicy),p.KeepOuts,clearance,[]);
     private static void ValidateNozzleContracts(Parsed p,List<string>d)
     {
@@ -205,16 +192,6 @@ public static class PipingAuthoring
     private static IReadOnlyList<PipeCutListEntry> BuildCutList(IReadOnlyList<PipePolicyIr>p,IReadOnlyList<PipeSegmentComponentIr>s)=>s.GroupBy(x=>new{x.PipePolicy,x.Material,Length=Q(x.CutLengthMm)}).Select((g,i)=>{var policy=p.Single(x=>x.StableId==g.Key.PipePolicy);return new PipeCutListEntry($"pipe-cut-group:{i+1}",g.Key.PipePolicy,policy.OuterDiameterMm,policy.WallThicknessMm,g.Key.Material,g.First().CutLengthMm,g.Count(),g.Select(x=>x.StableId).Order().ToArray());}).OrderBy(x=>x.PipePolicy).ThenBy(x=>x.CutLengthMm).ToArray();
     private static IEnumerable<Point3D> BodyPoints(BrepBody b)=>b.Topology.Vertices.Select(v=>b.TryGetVertexPoint(v.Id,out var p)?p:default);
     private static bool IsEnclosed(BrepBody b)=>b.ShellRepresentation is not null&&b.Topology.Edges.All(e=>{var uses=b.Topology.Coedges.Count(c=>c.EdgeId==e.Id);return uses>=2&&uses%2==0;});
-    private static IReadOnlyList<Block> Blocks(string source,string keyword){var result=new List<Block>();foreach(Match m in Regex.Matches(source,$@"\b{keyword}\s+(?<n>[A-Za-z_]\w*)\s*\{{",RegexOptions.CultureInvariant)){var open=m.Index+m.Length-1;var close=Matching(source,open);if(close>open)result.Add(new(m.Groups["n"].Value,source[(open+1)..close]));}return result;}
-    private static int Matching(string s,int open){var depth=0;for(var i=open;i<s.Length;i++){if(s[i]=='{')depth++;else if(s[i]=='}'&&--depth==0)return i;}return-1;}
-    private static string Field(string body,string name,bool required=true){var m=Regex.Match(body,$@"\b{Regex.Escape(name)}\s*:\s*(?<v>[^;]+);",RegexOptions.CultureInvariant);return m.Success?m.Groups["v"].Value.Trim():required?"":"";}
-    private static double Length(string value,double fallback,List<string>d,string owner){if(string.IsNullOrWhiteSpace(value))return fallback;var n=value.Replace("mm","",StringComparison.Ordinal).Trim();if(double.TryParse(n,NumberStyles.Float,CultureInfo.InvariantCulture,out var x)&&double.IsFinite(x))return x;d.Add($"piping-length-invalid:{owner}:{value}");return fallback;}
-    private static Point3D Point(string value,List<string>d,string owner){var v=Vector(value,d,owner);return new(v.X,v.Y,v.Z);}
-    private static Vector3D Vector(string value,List<string>d,string owner){var parts=value.Trim().Trim('[',']').Split(',',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries);if(parts.Length!=3){d.Add($"piping-vector-invalid:{owner}:{value}");return default;}var values=parts.Select(x=>Length(x,0,d,owner)).ToArray();return new(values[0],values[1],values[2]);}
-    private static IReadOnlyList<Point3D> Points(string value,List<string>d,string owner)=>Regex.Matches(value??"",@"\[(?<p>[^\[\]]+)\]").Select(m=>Point(m.Groups["p"].Value,d,owner)).ToArray();
-    private static IReadOnlyList<int> Ints(string v)=>v.Trim().Trim('[',']').Split(',',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries).Select(x=>int.TryParse(x,out var n)?n:-1).Where(x=>x>=0).ToArray();
-    private static IReadOnlyList<string> Names(string v)=>v.Trim().Trim('[',']').Split(',',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries).Select(x=>x.Trim('"')).ToArray();
-    private static bool Bool(string v)=>string.Equals(v,"true",StringComparison.OrdinalIgnoreCase);
     private static bool Axis(Vector3D v)=>new[]{Math.Abs(v.X)>Tol,Math.Abs(v.Y)>Tol,Math.Abs(v.Z)>Tol}.Count(x=>x)==1;
     private static bool Parallel(Vector3D a,Vector3D b)=>a.Cross(b).Length<=Tol;
     private static double Dot(Vector3D a,Vector3D b)=>a.Dot(b);

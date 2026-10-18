@@ -1452,9 +1452,7 @@ Model CanonicalPanel {
         var frontend = FirmamentFrontendSchemas.Select(source);
         if (!frontend.IsSuccess)
         {
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "inspect", success = false, input = fullPath, diagnostics = frontend.Diagnostics }, JsonOptions));
-            else foreach (var diagnostic in frontend.Diagnostics) stderr.WriteLine("error: " + diagnostic);
-            return 1;
+            return WriteFrontendRejection(frontend, source, fullPath, "inspect", json, stdout, stderr);
         }
         source = frontend.Source;
         if (SheetMetalFirmament.LooksLikeSheetMetal(source))
@@ -1488,9 +1486,9 @@ Model CanonicalPanel {
         if (PipingAuthoring.IsPipingSource(source))
         {
             var piping = PipingAuthoring.Compile(source, fullPath);
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "inspect", success = piping.IsSuccess, input = fullPath, domain = "Piping", piping = piping.Report, diagnostics = piping.Diagnostics }, JsonOptions));
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "inspect", success = piping.IsSuccess, input = fullPath, domain = "Piping", piping = piping.Report, diagnostics = piping.KernelDiagnostics().Select(d => FirmamentBuildAdmissionValidation.Present(d, fullPath, source)).ToArray() }, JsonOptions));
             else if (piping.IsSuccess && piping.Report is { } pipingReport) stdout.WriteLine($"Piping system {pipingReport.PipingSystem}: {pipingReport.Connections.Count} connections, {pipingReport.Routes.Count} routes, {pipingReport.PipeSegments.Count} pipe segments, {pipingReport.Fittings.Count} fittings, {pipingReport.Nozzles.Count} equipment nozzles, {pipingReport.Mates.Count} endpoint mates");
-            else foreach (var diagnostic in piping.Diagnostics) stderr.WriteLine($"error: {diagnostic}");
+            else foreach (var diagnostic in piping.KernelDiagnostics().Select(d => FirmamentBuildAdmissionValidation.Present(d, fullPath, source))) stderr.WriteLine($"{diagnostic.SourceFile}:{diagnostic.Line}:{diagnostic.Column}: {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}");
             return piping.IsSuccess ? 0 : 1;
         }
         if (StructuralAuthoring.IsStructuralSource(source))
@@ -2437,9 +2435,13 @@ Model CanonicalPanel {
         if (PipingAuthoring.IsPipingSource(validationSource))
         {
             var piping = PipingAuthoring.Compile(validationSource, Path.GetFullPath(sourcePath));
-            var payload = new { source = sourcePath, status = piping.IsSuccess ? "valid" : "invalid", domain = "Piping", summary = new { fatalDiagnosticCount = piping.Diagnostics.Count, warningDiagnosticCount = 0, connections = piping.Report?.Connections.Count ?? 0, routes = piping.Report?.Routes.Count ?? 0 }, diagnostics = piping.Diagnostics };
+            var payload = new { source = sourcePath, status = piping.IsSuccess ? "valid" : "invalid", domain = "Piping", validationLevel = piping.IsSuccess ? "Built" : "BuildRejected", parserRoute = "UnifiedPiping", summary = new { fatalDiagnosticCount = piping.Diagnostics.Count, warningDiagnosticCount = 0, connections = piping.Report?.Connections.Count ?? 0, routes = piping.Report?.Routes.Count ?? 0 }, diagnostics = piping.KernelDiagnostics().Select(d => FirmamentBuildAdmissionValidation.Present(d, Path.GetFullPath(sourcePath), validationSource)).ToArray() };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
-            else stdout.WriteLine($"Firmament V2 Piping validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+            else
+            {
+                stdout.WriteLine($"Firmament V2 Piping validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+                foreach (var d in payload.diagnostics) stderr.WriteLine($"{d.SourceFile}:{d.Line}:{d.Column}: {d.Severity} {d.Code}: {d.Message}");
+            }
             return piping.IsSuccess ? 0 : 1;
         }
         if (StructuralAuthoring.IsStructuralSource(validationSource))

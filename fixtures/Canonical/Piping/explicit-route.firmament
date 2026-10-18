@@ -1,10 +1,10 @@
 Model ExplicitRouteWitness {
     units: mm
     PipingSystem ExplicitWitness {
-        PipePolicy Pipe25 { OuterDiameter: 25mm; WallThickness: 2mm; Material: "Standard.Materials.StainlessSteel.304_Annealed"; }
-        Port PumpDischarge { Position: [0mm,0mm,100mm]; Direction: [1,0,0]; PipePolicy: Pipe25; ConnectionType: Flange; }
-        Port CoolerInlet { Position: [700mm,350mm,100mm]; Direction: [0,-1,0]; PipePolicy: Pipe25; ConnectionType: Flange; }
-        Connection Supply { From: PumpDischarge; To: CoolerInlet; PipePolicy: Pipe25; Service: "CoolingSupply"; }
-        Route SupplyRoute { Connection: Supply; Through: [[0mm,0mm,100mm],[400mm,0mm,100mm],[400mm,200mm,100mm],[700mm,200mm,100mm],[700mm,350mm,100mm]]; BendRadius: 50mm; Provenance: Explicit; }
+        PipePolicy Pipe25 { outerDiameter: 25mm; wallThickness: 2mm; material: "Standard.Materials.StainlessSteel.304_Annealed"; }
+        Port PumpDischarge { position: [0mm,0mm,100mm]; direction: [1,0,0]; pipePolicy: Pipe25; connectionType: Flange; }
+        Port CoolerInlet { position: [700mm,350mm,100mm]; direction: [0,-1,0]; pipePolicy: Pipe25; connectionType: Flange; }
+        Connection Supply { from: PumpDischarge; to: CoolerInlet; pipePolicy: Pipe25; service: "CoolingSupply"; }
+        Route SupplyRoute { connection: Supply; through: [[0mm,0mm,100mm],[400mm,0mm,100mm],[400mm,200mm,100mm],[700mm,200mm,100mm],[700mm,350mm,100mm]]; bendRadius: 50mm; provenance: Explicit; }
     }
 }

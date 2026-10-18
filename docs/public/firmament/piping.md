@@ -12,40 +12,40 @@ The router is a design assistant. `RouteProposal` is inspectable; acceptance cop
 
 ## Ports and logical connections
 
-Use the documented PascalCase piping properties in this guide. The corpus
-modernization pass found that `connectionType: Weld` is currently ignored and
-becomes Generic, and unknown optional Port fields can also be ignored. These are
-open compiler defects, not admitted aliases. Their source specimens and the AST
-owner migration prerequisite are recorded in the
-[corpus report](../../development/FIRMAMENT-V2-CORPUS-MODERNIZATION-2026-10.md).
+Piping uses PascalCase constructs, camelCase fields and preserved catalogue/enum
+symbols. Historical PascalCase field aliases remain admitted through the same AST
+binder: `connectionType: Weld` and `connectionType: Weld` mean exactly the same
+thing. Unknown fields, duplicate aliases, nested foreign statements and unsupported
+placement clauses reject with source-located errors. Optional defaults apply only
+when a field is absent; malformed authored values never select the default.
 
 `Port` is the piping specialization of an Assembly Interface. It has stable identity, a position/DatumFrame, an outward axis direction, a `PipePolicy`, and a bounded connection style.
 
 ```firmament
 PipePolicy Pipe25 {
-    OuterDiameter: 25mm;
-    WallThickness: 2mm;
-    Material: "Standard.Materials.StainlessSteel.304_Annealed";
+    outerDiameter: 25mm;
+    wallThickness: 2mm;
+    material: "Standard.Materials.StainlessSteel.304_Annealed";
 }
 Port PumpDischarge {
-    Position: [100mm,100mm,250mm];
-    Direction: [1,0,0];
-    PipePolicy: Pipe25;
-    ConnectionType: Flange;
-    Equipment: Pump;
-    NozzleLength: 50mm;
+    position: [100mm,100mm,250mm];
+    direction: [1,0,0];
+    pipePolicy: Pipe25;
+    connectionType: Flange;
+    equipment: Pump;
+    nozzleLength: 50mm;
 }
 Connection Supply {
-    From: PumpDischarge;
-    To: CoolerInlet;
-    PipePolicy: Pipe25;
-    Service: "CoolingSupply";
+    from: PumpDischarge;
+    to: CoolerInlet;
+    pipePolicy: Pipe25;
+    service: "CoolingSupply";
 }
 ```
 
-Connections exist before routes. Different port policies require `Reducer: true`; different connection styles require `Adapter: true`. X3 records those requirements but does not claim a standards database.
+Connections exist before routes. Different port policies require `reducer: true`; different connection styles require `adapter: true`. X3 records those requirements but does not claim a standards database.
 
-Direct `PipePolicy` declarations require all three fields: `OuterDiameter`, `WallThickness`, and `Material`; there are no implicit dimensional or material defaults. Both dimensions must be positive and twice the wall thickness must be less than the OD.
+Direct `PipePolicy` declarations require all three fields: `outerDiameter`, `wallThickness`, and `material`; there are no implicit dimensional or material defaults. Both dimensions must be positive and twice the wall thickness must be less than the OD.
 
 ## Equipment-owned nozzles and endpoint mates
 
@@ -53,22 +53,22 @@ X3a associates a port with one equipment proxy and materializes the gap between 
 
 ```firmament
 KeepOut PumpBody {
-    Min: [0mm,0mm,0mm];
-    Max: [50mm,300mm,350mm];
-    Concept: EquipmentProxy;
+    min: [0mm,0mm,0mm];
+    max: [50mm,300mm,350mm];
+    concept: EquipmentProxy;
 }
-Equipment Pump { KeepOut: PumpBody; }
+Equipment Pump { keepOut: PumpBody; }
 Port PumpDischarge {
-    Position: [100mm,100mm,250mm];
-    Direction: [1,0,0];
-    PipePolicy: Pipe25;
-    ConnectionType: Flange;
-    Equipment: Pump;
-    NozzleLength: 50mm;
+    position: [100mm,100mm,250mm];
+    direction: [1,0,0];
+    pipePolicy: Pipe25;
+    connectionType: Flange;
+    equipment: Pump;
+    nozzleLength: 50mm;
 }
 ```
 
-`Position` is the pipe-side mating plane. The nozzle root is `Position - Direction × NozzleLength` and must lie exactly on the outward face of the equipment's KeepOut. The nozzle exposes `EquipmentMate` at its root and the stable port Interface as `PipeMate` at its tip. The first or last pipe segment exposes its own endpoint Interface at the same position with the opposite outward direction; `PipingMateIr` records that coincidence and opposition explicitly.
+`position` is the pipe-side mating plane. The nozzle root is `position - direction × nozzleLength` and must lie exactly on the outward face of the equipment's KeepOut. The nozzle exposes `EquipmentMate` at its root and the stable port Interface as `PipeMate` at its tip. The first or last pipe segment exposes its own endpoint Interface at the same position with the opposite outward direction; `PipingMateIr` records that coincidence and opposition explicitly.
 
 The only clearance exemption is an inspectable `PipingKeepOutExemptionIr` scoped as `NozzleEnvelopeOnly` for that port's nozzle against that port's owning equipment KeepOut. It does not apply to the route, another port, another nozzle, or any foreign KeepOut. Thus a nozzle may touch its own equipment face while route and nozzle clearance remain fully enforced everywhere else.
 
@@ -80,17 +80,17 @@ An explicit route is an ordered axis-aligned 3D path. The first run must follow 
 
 ```firmament
 Route SupplyRoute {
-    Connection: Supply;
-    Through: [[0mm,0mm,0mm],[300mm,0mm,0mm],[300mm,500mm,0mm]];
-    BendRadius: 50mm;
-    LockedSegments: [1];
-    Provenance: Explicit;
+    connection: Supply;
+    through: [[0mm,0mm,0mm],[300mm,0mm,0mm],[300mm,500mm,0mm]];
+    bendRadius: 50mm;
+    lockedSegments: [1];
+    provenance: Explicit;
 }
 ```
 
 Interior anchors become semantic 90-degree turns. Straight intervals lower to hollow `PipeSegment` components using the declared OD and wall. Each turn lowers to a hollow analytic-torus `Standard.Piping.Elbow90` occurrence with named `Inlet` and `Outlet` Interfaces. Pipe segments stop at elbow tangent points; cut length is therefore distinct from corner-to-corner route length.
 
-For the admitted 90-degree route, a segment's cut length is its corner-to-corner interval minus one `BendRadius` for each adjacent interior turn: one radius at an end interval and two on an interval between two elbows. Validation rejects routes whose anchor spacing cannot accommodate those tangent setbacks.
+For the admitted 90-degree route, a segment's cut length is its corner-to-corner interval minus one `bendRadius` for each adjacent interior turn: one radius at an end interval and two on an interval between two elbows. Validation rejects routes whose anchor spacing cannot accommodate those tangent setbacks.
 
 ## KeepOut, clearance, and autorouting
 
@@ -99,23 +99,23 @@ An existing structural body is not implicitly routable space: author or generate
 
 ```firmament
 KeepOut Frame {
-    Min: [400mm,-100mm,-100mm];
-    Max: [600mm,100mm,100mm];
-    Concept: StructureMember;
+    min: [400mm,-100mm,-100mm];
+    max: [600mm,100mm,100mm];
+    concept: StructureMember;
 }
-RouteSpace SkidRouting { Clearance: 30mm; }
+RouteSpace SkidRouting { clearance: 30mm; }
 RouteRequest SupplyRequest {
-    Connection: Supply;
-    Clearance: 30mm;
-    BendRadius: 50mm;
-    HardWaypoints: [];
-    AcceptAs: SupplyRoute;
+    connection: Supply;
+    clearance: 30mm;
+    bendRadius: 50mm;
+    hardWaypoints: [];
+    acceptAs: SupplyRoute;
 }
 ```
 
 Forbidden centerline space is the obstacle bound inflated by pipe radius plus required clearance. Candidate search conservatively adds one bend radius to that planning inflation so an elbow torus cannot cut inside an otherwise valid sharp corner; the reported final clearance is then recomputed against the actual trimmed straights and torus centerlines without that extra planning margin. The deterministic router builds coordinates from endpoints, hard waypoints, and inflated obstacle faces, then searches the adjacent 3D coordinate graph with A*. Cost is route length plus a 1000 mm penalty per elbow, so small length savings do not add fittings. Neighbor order and priority tie-breaking are stable. Collinear search points are removed before the proposal is exposed.
 
-`RouteSpace.Clearance` is the system default. `RouteRequest.Clearance`, when present, is the request-local value used for proposal and final verification; current fixtures repeat it deliberately so generated state remains self-evident. `AcceptAs` performs the explicit acceptance step and names the materialized ordinary route. Omit `AcceptAs` to inspect a proposal without adding route geometry. Search neighbor order is `+X, -X, +Y, -Y, +Z, -Z`; exact anchors also depend on port positions/directions, policy radius, bend radius, hard waypoints, and obstacle bounds.
+`RouteSpace.clearance` is the system default. `RouteRequest.clearance`, when present, is the request-local value used for proposal and final verification; current fixtures repeat it deliberately so generated state remains self-evident. `acceptAs` performs the explicit acceptance step and names the materialized ordinary route. Omit `acceptAs` to retain a proposal without adding its route geometry when the system also has an explicit or accepted route. A system containing only unaccepted requests rejects normal engineering compilation with `piping-route-required`; proposal-only compilation is not admitted. Search neighbor order is `+X, -X, +Y, -Y, +Z, -Z`; exact anchors also depend on port positions/directions, policy radius, bend radius, hard waypoints, and obstacle bounds.
 
 `aetheris inspect source.firmament --json` reports proposals separately from accepted routes. A successful proposal includes anchors, length, elbow count, minimum clearance, cost, and diagnostics. Failures distinguish endpoint direction, hard-waypoint reachability, excessive clearance, disconnection, and lock conflicts.
 
@@ -125,17 +125,17 @@ Forbidden centerline space is the obstacle bound inflated by pipe radius plus re
 
 ```firmament
 LocalReroute AroundMotor {
-    Route: SupplyRoute;
-    FromAnchor: 0;
-    ToAnchor: 2;
-    Avoid: [Motor];
-    Clearance: 25mm;
+    route: SupplyRoute;
+    fromAnchor: 0;
+    toAnchor: 2;
+    avoid: [Motor];
+    clearance: 25mm;
 }
 ```
 
-The prefix before `FromAnchor` and suffix after `ToAnchor` are copied unchanged. Locks outside the interval are shifted only by the number of replacement anchors; a lock inside the interval fails with `piping-local-reroute-crosses-lock`. The resulting ordinary route has `LocallyRerouted` provenance.
+The prefix before `fromAnchor` and suffix after `toAnchor` are copied unchanged. Locks outside the interval are shifted only by the number of replacement anchors; a lock inside the interval fails with `piping-local-reroute-crosses-lock`. The resulting ordinary route has `LocallyRerouted` provenance.
 
-Anchor and segment ordinals are zero-based. The authorized interval includes both boundary anchors but only segments with ordinals `FromAnchor .. ToAnchor-1`; the `ToAnchor` and the segment leaving it begin the preserved suffix. `LocalReroute` updates the named route in place and retains its identity—there is no `AcceptAs` because the operation is already an explicit authored edit. `LocalReroute.Clearance` overrides the RouteSpace default for the replacement interval. All system KeepOuts remain active; `Avoid` adds/names edit-specific obstacles and never disables unlisted KeepOuts.
+Anchor and segment ordinals are zero-based. The authorized interval includes both boundary anchors but only segments with ordinals `FromAnchor .. ToAnchor-1`; the `toAnchor` and the segment leaving it begin the preserved suffix. `LocalReroute` updates the named route in place and retains its identity—there is no `acceptAs` because the operation is already an explicit authored edit. `LocalReroute.clearance` overrides the RouteSpace default for the replacement interval. All system KeepOuts remain active; `avoid` adds/names edit-specific obstacles and never disables unlisted KeepOuts.
 
 ## Build and fabrication output
 
@@ -148,7 +148,7 @@ Build emits an AP242 occurrence assembly plus sibling `.routing.json`, `.cutlist
 
 ## Bounded support
 
-Supported:
+supported:
 
 - logical Connections independent of geometry;
 - stable port Interfaces and endpoint directions;
@@ -168,3 +168,30 @@ Not supported:
 - stress, flow, gravity-slope, or plant-scale optimization.
 
 Copy the [autorouted connection fixture](../../../fixtures/Canonical/Piping/autorouted-connection.firmament), [local reroute fixture](../../../fixtures/Canonical/Piping/local-reroute.firmament), or [pump skid fixture](../../../fixtures/Canonical/Piping/pump-skid.firmament) as current examples.
+
+## Frontend admission
+
+`schema Piping` is optional. A conflicting explicit schema rejects; Piping does
+not reinterpret another domain's source. The parser route in validation reports is
+`UnifiedPiping`, and `valid` has validation level `Built`: validate uses the same
+binding, routing, capability and geometry path as build without writing artifacts.
+Validate, inspect and build expose structured diagnostics with codes, messages and
+source locations. Existing raw diagnostic strings remain on the .NET compilation
+result for compatibility.
+
+Lengths accept mm quantities and historical bare numbers interpreted as mm.
+Omitting document units retains the historical mm convention; an explicit
+conflicting unit rejects.
+Direction components are dimensionless. `connectionType` admits `Generic`,
+`Flange`, `Weld` and `Threaded`; enum symbols remain case-sensitive. Index lists
+must contain valid nonnegative integer segment indices. One optional `RouteSpace`
+sets the system default; multiple defaults reject rather than choosing the first.
+
+Direct system children belong to their documented production owners. The existing
+Standard catalogue resolves `Use` directives and compile-time catalogue `Let`
+aliases; declaring such an alias does not instantiate its product. In particular,
+the shipped `tee.firmament` catalogue witness builds its explicitly authored
+straight route, not a three-way fitting. Record/Static data and existing compile-
+time expansion bind through the shared
+domain value owner, including the specialized configuration emitted by Forge.
+Unknown or incomplete record fields reject; unsupported declarations still reject.

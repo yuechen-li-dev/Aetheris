@@ -1,5 +1,9 @@
 # Firmament V2 corpus modernization — 2026-10-17
 
+Follow-up: the Piping defects recorded below were subsequently repaired by the
+[Piping AST admission pass](FIRMAMENT-PIPING-AST-ADMISSION-2026-10.md). This report
+retains the original reproduction and qualification snapshot.
+
 ## Result and scope
 
 **Meaningful progression.** The current cookbook has been mechanically

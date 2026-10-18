@@ -4,10 +4,10 @@ Model StandardTeeWitness {
     Let TeeProduct = Standard.Piping.Tee
     Let TeePolicy = Standard.Piping.TeePolicy
     PipingSystem TeeLibraryWitness {
-        PipePolicy Pipe25 { OuterDiameter: 25mm; WallThickness: 2mm; Material: "Standard.Materials.StainlessSteel.304_Annealed"; }
-        Port Inlet { Position: [0mm,0mm,0mm]; Direction: [1,0,0]; PipePolicy: Pipe25; ConnectionType: Weld; }
-        Port Outlet { Position: [300mm,0mm,0mm]; Direction: [-1,0,0]; PipePolicy: Pipe25; ConnectionType: Weld; }
-        Connection Run { From: Inlet; To: Outlet; PipePolicy: Pipe25; Service: "TeeLibraryWitness"; }
-        Route RunRoute { Connection: Run; Through: [[0mm,0mm,0mm],[300mm,0mm,0mm]]; BendRadius: 50mm; Provenance: Explicit; }
+        PipePolicy Pipe25 { outerDiameter: 25mm; wallThickness: 2mm; material: "Standard.Materials.StainlessSteel.304_Annealed"; }
+        Port Inlet { position: [0mm,0mm,0mm]; direction: [1,0,0]; pipePolicy: Pipe25; connectionType: Weld; }
+        Port Outlet { position: [300mm,0mm,0mm]; direction: [-1,0,0]; pipePolicy: Pipe25; connectionType: Weld; }
+        Connection Run { from: Inlet; to: Outlet; pipePolicy: Pipe25; service: "TeeLibraryWitness"; }
+        Route RunRoute { connection: Run; through: [[0mm,0mm,0mm],[300mm,0mm,0mm]]; bendRadius: 50mm; provenance: Explicit; }
     }
 }

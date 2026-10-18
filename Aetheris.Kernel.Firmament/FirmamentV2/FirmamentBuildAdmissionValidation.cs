@@ -34,6 +34,10 @@ public static class FirmamentBuildAdmissionValidation
             ? diagnostic.Message[..separator]
             : diagnostic.Message.All(character => char.IsLetterOrDigit(character) || character is '-' or '_' or '.')
                 ? diagnostic.Message : diagnostic.Code.ToString();
+        if (diagnostic.OriginalSourceSpan is { } authored)
+            return Locate(new(code, diagnostic.Severity switch
+                { KernelDiagnosticSeverity.Error => "error", KernelDiagnosticSeverity.Warning => "warning", _ => "info" }, diagnostic.Message)
+                { SourceSpan = new(authored.Start, authored.Length), LocationNote = authored.LocationNote, Source = diagnostic.Source, Stage = diagnostic.Source }, source, sourceFile);
         if (source is not null)
         {
             var parsed = FirmamentV2Parser.Parse(source);

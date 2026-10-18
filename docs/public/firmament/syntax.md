@@ -128,12 +128,11 @@ remain stable even when their historical capitalization differs from new local
 style. Use `to: Parent` when replacing a relative transform; `to: World`
 explicitly means the assembly root frame.
 
-Domain property migration is still incomplete. Piping currently needs its
-documented `ConnectionType: Weld` spelling: the lowercase alias can silently
-default to Generic. This is a known compiler defect, tracked with reproductions
-in the [corpus report](../../development/FIRMAMENT-V2-CORPUS-MODERNIZATION-2026-10.md),
-and prevents declaring X2 complete. Follow each domain guide for its admitted
-properties; this style table does not add aliases to an independent owner.
+Piping now binds fields through the shared AST: `connectionType: Weld` and its
+historical `ConnectionType: Weld` alias retain the same connection style. Unknown
+fields and malformed optional values reject instead of defaulting. Other domain
+migrations remain individually qualified; see the [piping guide](piping.md) and
+[corpus report](../../development/FIRMAMENT-V2-CORPUS-MODERNIZATION-2026-10.md).
 
 ### Whitespace, comments and terminators
 
@@ -899,9 +898,11 @@ remain within the selected domain; it cannot change the schema after admission.
 | `Sweep` | [Circular-section sweeps](sweep.md). |
 | `SectionChain` | [Framed section chains](section-chains.md). |
 | `Garment` | [Panels, stitch interfaces and fitting](garments.md). |
+| `Piping` | [Ports, connections and routing](piping.md). |
 
 This selector does not list every Firmament root or product domain. Assembly,
-Scene, SheetMetal, structural and piping sources have their own entry forms.
+Scene, SheetMetal and structural sources have their own entry forms. Piping
+uses its documented Model/PipingSystem form, optionally with `schema Piping`.
 Do not invent `schema Assembly` or wrap arbitrary domain declarations in a Model.
 
 | Authoring task | Start here |

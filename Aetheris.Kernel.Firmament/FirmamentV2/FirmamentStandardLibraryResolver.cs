@@ -42,6 +42,11 @@ public static class FirmamentStandardLibraryResolver
         new("Standard.Piping", "PumpSkid", "PumpSkidTemplate", "PumpSkidPolicy", "StandardPumpSkid"),
     ];
 
+    internal static bool IsModule(string module) => Exports.Any(e => e.Module == module);
+    private static Export? FindExport(string module, string symbol) => Exports.FirstOrDefault(e => e.Module == module
+        && (e.PublicName == symbol || e.RecordName == symbol || e.StaticName == symbol));
+    internal static bool IsExport(string module, string symbol) => FindExport(module, symbol) is not null;
+
     public static FirmamentLibraryResolution? Resolve(string source, out IReadOnlyList<string> diagnostics)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -75,8 +80,7 @@ public static class FirmamentStandardLibraryResolver
                 errors.Add($"{MissingUse}:{module}:{reference}");
                 continue;
             }
-            var export = Exports.FirstOrDefault(item => item.Module == module
-                && (item.PublicName == symbol || item.RecordName == symbol || item.StaticName == symbol));
+            var export = FindExport(module, symbol);
             if (export is null)
             {
                 errors.Add($"{UnknownDeclaration}:{reference}");

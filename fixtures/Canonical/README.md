@@ -70,7 +70,7 @@ under `Regression/WireFormSurfaceSupport`, pending normal support admission.
 | Sculpting | `Aetheris.Modules.Tests` and `Aetheris.CLI.Tests` |
 | FEA and Materials | `Aetheris.FEA.Tests` |
 | Assembly | `Aetheris.Kernel.Firmament.Tests` assembly suite |
-| Piping | `PipingX3Tests` |
+| Piping | `PipingX3Tests`, `PipingAstAdmissionTests`, `PipingAdmissionCliTests` (shared AST fields, compatibility and validate/build agreement) |
 | Drawings | `Aetheris.CLI.Tests` drawing suite |
 
 The compact action map is `qualification.json`; `coverage.json` is the public-operation guard. Generated outputs go to `artifacts/local/`, never beside these sources.

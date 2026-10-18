@@ -6,7 +6,7 @@ namespace Aetheris.Kernel.Firmament;
 
 /// <summary>Program-level selection of an existing Firmament frontend.  This is deliberately
 /// not a second parser or semantic IR: it only makes the current parser boundary explicit.</summary>
-public enum FirmamentFrontendSchema { Mechanical, WireForm, Sweep, SectionChain, Garment }
+public enum FirmamentFrontendSchema { Mechanical, WireForm, Sweep, SectionChain, Garment, Piping }
 
 public sealed record FirmamentFrontendSelection(FirmamentFrontendSchema? Schema, string Source, IReadOnlyList<string> Diagnostics)
 {
@@ -22,7 +22,7 @@ public sealed record FirmamentFrontendSelection(FirmamentFrontendSchema? Schema,
 
 public static class FirmamentFrontendSchemas
 {
-    public static readonly IReadOnlyList<string> Names = ["Mechanical", "WireForm", "Sweep", "SectionChain", "Garment"];
+    public static readonly IReadOnlyList<string> Names = ["Mechanical", "WireForm", "Sweep", "SectionChain", "Garment", "Piping"];
 
     public static FirmamentFrontendSelection Select(string source)
     {
@@ -88,6 +88,7 @@ public static class FirmamentFrontendSchemas
     }
 
     private static FirmamentFrontendSchema? DetectDistinctFrontend(string source) =>
+        Piping.PipingAuthoring.IsPipingSource(source) ? FirmamentFrontendSchema.Piping :
         Garment.GarmentAuthoring.HasRoot(source) ? FirmamentFrontendSchema.Garment :
         WireFormAuthoring.IsWireFormSource(source) ? FirmamentFrontendSchema.WireForm :
         CircularSweepAuthoring.IsSweepSource(source) ? FirmamentFrontendSchema.Sweep :

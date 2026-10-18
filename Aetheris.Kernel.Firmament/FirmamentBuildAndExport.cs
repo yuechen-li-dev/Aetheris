@@ -41,7 +41,7 @@ public static class FirmamentBuildAndExport
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
 
         var fullSourcePath = Path.GetFullPath(sourcePath);
-        var sourceText = NormalizeLf(File.ReadAllText(fullSourcePath, Encoding.UTF8));
+        var sourceText = File.ReadAllText(fullSourcePath, Encoding.UTF8);
         var frontend = FirmamentFrontendSchemas.Select(sourceText);
         if (!frontend.IsSuccess) return KernelResult<FirmamentBuildAndExportResult>.Failure(frontend.LocatedDiagnostics.Select(d => SchemaDiagnostic(d.Code + ": " + d.Message)).ToArray());
         sourceText = frontend.Source;
@@ -49,8 +49,7 @@ public static class FirmamentBuildAndExport
         {
             var piping = PipingAuthoring.Compile(sourceText, fullSourcePath);
             if (!piping.IsSuccess || piping.StepText is null || piping.Report is null)
-                return KernelResult<FirmamentBuildAndExportResult>.Failure(piping.Diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
-                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "Piping.X3")).ToArray());
+                return KernelResult<FirmamentBuildAndExportResult>.Failure(piping.KernelDiagnostics());
             var pipingOutputPath = string.IsNullOrWhiteSpace(outputPath) ? ResolveDefaultOutputPath(fullSourcePath) : Path.GetFullPath(outputPath);
             Directory.CreateDirectory(Path.GetDirectoryName(pipingOutputPath)!);
             File.WriteAllText(pipingOutputPath, piping.StepText, new UTF8Encoding(false));
@@ -63,6 +62,7 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentBuildAndExportResult>.Success(new(fullSourcePath, pipingOutputPath,
                 new(piping.StepText, "piping-system:" + report.PipingSystem, -1, "Assembly", "PipingSystem", Piping: report)));
         }
+        sourceText = NormalizeLf(sourceText);
         if (StructuralAuthoring.IsStructuralSource(sourceText))
         {
             var structural = StructuralAuthoring.Compile(sourceText, fullSourcePath);
@@ -125,7 +125,7 @@ public static class FirmamentBuildAndExport
         string? sourceDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(sourceText);
-        var normalized = NormalizeLf(sourceText);
+        var normalized = sourceText;
         var frontend = FirmamentFrontendSchemas.Select(normalized);
         if (!frontend.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(frontend.LocatedDiagnostics.Select(d => SchemaDiagnostic(d.Code + ": " + d.Message)).ToArray());
         normalized = frontend.Source;
@@ -134,9 +134,9 @@ public static class FirmamentBuildAndExport
             var piping = PipingAuthoring.Compile(normalized, sourceDirectory ?? "memory");
             return piping.IsSuccess && piping.StepText is not null && piping.Report is not null
                 ? KernelResult<FirmamentStepExportResult>.Success(new(piping.StepText, "piping-system:" + piping.Report.PipingSystem, -1, "Assembly", "PipingSystem", Piping: piping.Report))
-                : KernelResult<FirmamentStepExportResult>.Failure(piping.Diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
-                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "Piping.X3")).ToArray());
+                : KernelResult<FirmamentStepExportResult>.Failure(piping.KernelDiagnostics());
         }
+        normalized = NormalizeLf(normalized);
         if (StructuralAuthoring.IsStructuralSource(normalized))
         {
             var structural = StructuralAuthoring.Compile(normalized, sourceDirectory ?? "memory");

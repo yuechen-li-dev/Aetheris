@@ -48,6 +48,12 @@ public static class FirmamentSourceSpelling
                 if (SemanticSymmetryAuthoring.FieldsFor(declaration).FirstOrDefault(name => FirmamentSyntaxFields.SameField(field.Name.Text, name)) is { } canonical)
                     symmetryFields[field.Name.Span.Start] = canonical;
         }
+        // Use the piping owner's vocabulary, scoped to its actual system children.
+        foreach (var system in FirmamentV2Parser.MechanicalDeclarations(syntax.Statements).Where(d => d.Type.Name.Text == "PipingSystem"))
+            foreach (var child in system.Body?.Statements.OfType<DeclarationSyntax>() ?? [])
+                foreach (var field in child.Body?.Statements.OfType<FieldSyntax>() ?? [])
+                    if (Piping.PipingAuthoring.FieldsFor(child).FirstOrDefault(name => FirmamentSyntaxFields.SameField(field.Name.Text, name)) is { } canonical)
+                        symmetryFields[field.Name.Span.Start] = canonical;
         var aliasPositions = tokens.Any(t => t.Text is "As" or "as") ? FirmamentSyntaxTraversal
             .Expressions(FirmamentSyntaxParser.Parse(source).Document)
             .OfType<AliasSyntax>()

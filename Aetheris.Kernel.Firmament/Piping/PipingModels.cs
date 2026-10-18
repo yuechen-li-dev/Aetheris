@@ -115,4 +115,21 @@ public sealed record PipingCompilationResult(
     bool IsSuccess, string? StepText, PipingReport? Report, IReadOnlyList<string> Diagnostics,
     IReadOnlyList<PipeSegmentComponentIr>? RealizedSegments = null,
     IReadOnlyList<PipingFittingComponentIr>? RealizedFittings = null,
-    IReadOnlyList<EquipmentNozzleComponentIr>? RealizedNozzles = null);
+    IReadOnlyList<EquipmentNozzleComponentIr>? RealizedNozzles = null)
+{
+    public IReadOnlyList<FirmamentV2.FirmamentV2ValidationDiagnostic> FrontendDiagnostics { get; init; } = [];
+
+    public IReadOnlyList<Core.Diagnostics.KernelDiagnostic> KernelDiagnostics()
+    {
+        var spans = FrontendDiagnostics.GroupBy(d => d.Code.Split(':')[0])
+            .ToDictionary(g => g.Key, g => new Queue<FirmamentV2.FirmamentV2ValidationDiagnostic>(g));
+        return Diagnostics.Select(message =>
+        {
+            var code = message.Split(':')[0];
+            var located = spans.TryGetValue(code, out var pending) && pending.Count > 0 ? pending.Dequeue() : null;
+            return new Core.Diagnostics.KernelDiagnostic(Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+                Core.Diagnostics.KernelDiagnosticSeverity.Error, located is null ? message : code + ": " + located.Message, "Firmament.Piping")
+            { OriginalSourceSpan = located?.SourceSpan is { } span ? new(span.Start, span.Length) { LocationNote = located.LocationNote } : null };
+        }).ToArray();
+    }
+}

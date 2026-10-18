@@ -1,29 +1,40 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
+using Block = Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FirmamentSyntaxScope;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Surfacing;
 
-public sealed record SculptingTimingEvidence(double BasePreparationMilliseconds, double OperationConstructionMilliseconds, double LocalityAndPreservationMilliseconds, double BrepValidationMilliseconds, double StepExportMilliseconds);
-public sealed record SculptingCompileResult(bool IsSuccess, string ModelName, BodyState? OutputState, IReadOnlyDictionary<string, BodyState> States, IReadOnlyList<SculptDiagnostic> Diagnostics, SculptingTimingEvidence Timings);
-
 public static class SculptingAuthoring
 {
-    private static readonly Regex ModelHeader = new(@"\bModel\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
+    public static bool IsSculptingSource(string source) => (source.Contains("BodyState", StringComparison.Ordinal) || source.Contains("SculptState", StringComparison.Ordinal))
+        && FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).Any(d => d.Type.Name.Text is "BodyState" or "SculptState");
+    public static SculptingCompileResult CompileFile(string path) => Compile(File.ReadAllText(path), path);
 
-    public static bool IsSculptingSource(string source) => Regex.IsMatch(source, @"\b(?:BodyState|SculptState)\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant);
-    public static SculptingCompileResult CompileFile(string path) => Compile(File.ReadAllText(path));
+    public static IReadOnlyList<Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic> KernelDiagnostics(SculptingCompileResult result) =>
+        result.Diagnostics.Select(d=>new Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic(
+            Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+            d.Code+": "+d.Message,"Firmament.Sculpting"){OriginalSourceSpan=d.SourceSpan}).ToArray();
 
-    public static SculptingCompileResult Compile(string source)
+    public static SculptingCompileResult Compile(string source, string sourceFile = "memory")
     {
         var total = Stopwatch.StartNew(); var diagnostics = new List<SculptDiagnostic>(); var states = new Dictionary<string, BodyState>(StringComparer.Ordinal);
         var patches = new Dictionary<string, BoundedSurfacePatch>(StringComparer.Ordinal);
         var sectionChains = new Dictionary<string, SectionChain>(StringComparer.Ordinal);
-        var model = ModelHeader.Match(source); if (!model.Success) return Fail("<unknown>", "sculpt-source-malformed", "Sculpting source requires 'Model Name { ... }'.");
-        if (!Regex.IsMatch(source, @"\b[Uu]nits\s*:\s*mm\b", RegexOptions.CultureInvariant)) diagnostics.Add(new("sculpt-units-invalid", "SURF-X0 authoring requires millimetres."));
-        foreach (var block in Blocks(source, "SurfacePatch"))
+        var binding = new FirmamentDomainBinding(source, sourceFile, "BodyState", new HashSet<string>(StringComparer.Ordinal));
+        diagnostics.AddRange(binding.Diagnostics.Select(d => Located(d)));
+        if (diagnostics.Count != 0) return new(false, "<unknown>", null, states, diagnostics, new(0,0,0,0,0));
+        var models = binding.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Model").ToArray();
+        if (models.Length != 1) return Fail("<unknown>", "sculpt-source-malformed", "Sculpting source requires exactly one Model.");
+        var model = new Block(models[0], binding.Source, sourceFile, binding.Nominal, binding.OriginalSpan);
+        foreach (var statement in binding.Document.Statements.Where(s => !ReferenceEquals(s, models[0])))
+            if (statement is not DeclarationSyntax data || !binding.OwnsData(data)) diagnostics.Add(new("sculpt-statement-unknown", "Unsupported statement outside the sculpting Model."));
+        foreach (var data in models[0].Body?.Statements.OfType<DeclarationSyntax>().Where(binding.OwnsData) ?? []) model.Consume(data);
+        if (model.Word("Units") != "mm") diagnostics.Add(new("sculpt-units-invalid", "Sculpting authoring requires units: mm."));
+        foreach (var block in Blocks(model, "SurfacePatch"))
         {
             var degree = NumberVector(block.Body, "Degree", 2, diagnostics); var domain = NumberVector(block.Body, "Domain", 4, diagnostics);
             var knotsU = NumberVectorAny(block.Body, "KnotsU", diagnostics); var knotsV = NumberVectorAny(block.Body, "KnotsV", diagnostics);
@@ -44,7 +55,7 @@ public static class SculptingAuthoring
                 diagnostics.Add(new("surf-patch-invalid", $"SurfacePatch '{block.Name}' is invalid: {exception.Message}", block.Name));
             }
         }
-        foreach (var block in Blocks(source, "SectionChain"))
+        foreach (var block in Blocks(model, "SectionChain"))
         {
             var chain = ParseSectionChain(block, diagnostics);
             if (chain is null) continue;
@@ -57,7 +68,7 @@ public static class SculptingAuthoring
             if (!sectionChains.TryAdd(block.Name, chain)) diagnostics.Add(new("section-chain-duplicate", $"SectionChain '{block.Name}' is declared more than once.", block.Name));
         }
         var baseClock = Stopwatch.StartNew();
-        foreach (var block in Blocks(source, "BodyState"))
+        foreach (var block in Blocks(model, "BodyState"))
         {
             var errorsBefore = diagnostics.Count;
             var size = Vector(block.Body, "Size", 3, diagnostics); var holes = ParseHoles(block.Body, diagnostics);
@@ -67,17 +78,17 @@ public static class SculptingAuthoring
             else if (!states.TryAdd(block.Name, created.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"BodyState '{block.Name}' is declared more than once."));
         }
         baseClock.Stop(); var opConstruction = TimeSpan.Zero; var verification = TimeSpan.Zero; var brep = TimeSpan.Zero;
-        foreach (var block in Blocks(source, "SculptState"))
+        foreach (var block in Blocks(model, "SculptState"))
         {
             var operationClock = Stopwatch.StartNew();
             var inputName = ScalarText(block.Body, "Input");
             if (inputName is null || !states.TryGetValue(inputName, out var input)) { diagnostics.Add(new("sculpt-predecessor-unresolved", $"SculptState '{block.Name}' must name one previously accepted Input state.")); continue; }
-            var operationBlock = Blocks(block.Body, "OffsetRegion").SingleOrDefault();
-            var replaceBlock = Blocks(block.Body, "ReplaceRegion").SingleOrDefault();
-            var blendBlock = Blocks(block.Body, "BlendBoundary").SingleOrDefault();
-            var holeBlock = Blocks(block.Body, "HoleFeature").SingleOrDefault();
-            var addChainBlock = Blocks(block.Body, "AddSectionChain").SingleOrDefault();
-            var removeChainBlock = Blocks(block.Body, "RemoveSectionChain").SingleOrDefault();
+            var operationBlock = Single(block.Body, "OffsetRegion", diagnostics);
+            var replaceBlock = Single(block.Body, "ReplaceRegion", diagnostics);
+            var blendBlock = Single(block.Body, "BlendBoundary", diagnostics);
+            var holeBlock = Single(block.Body, "HoleFeature", diagnostics);
+            var addChainBlock = Single(block.Body, "AddSectionChain", diagnostics);
+            var removeChainBlock = Single(block.Body, "RemoveSectionChain", diagnostics);
             if (new[] { operationBlock, replaceBlock, blendBlock, holeBlock, addChainBlock, removeChainBlock }.Count(x => x is not null) != 1) { diagnostics.Add(new("sculpt-operation-unsupported", $"SculptState '{block.Name}' requires exactly one OffsetRegion, ReplaceRegion, BlendBoundary, HoleFeature, AddSectionChain, or RemoveSectionChain operation.")); continue; }
             if (addChainBlock is not null)
             {
@@ -147,7 +158,9 @@ public static class SculptingAuthoring
             if (blendBlock is not null)
             {
                 var between = List(blendBlock.Body, "Between"); var regionName = ScalarText(blendBlock.Body, "Region") ?? string.Empty;
-                var preferredText = ScalarText(blendBlock.Body, "Preferred") ?? ScalarText(blendBlock.Body, "Continuity") ?? "G2";
+                var preferredInput = ScalarText(blendBlock.Body, "Preferred"); var legacyContinuity = ScalarText(blendBlock.Body, "Continuity");
+                if (preferredInput is not null && legacyContinuity is not null) blendBlock.Invalid("Continuity", "Use preferred or the compatibility continuity field, not both.");
+                var preferredText = preferredInput ?? legacyContinuity ?? "G2";
                 var minimumText = ScalarText(blendBlock.Body, "Minimum") ?? preferredText;
                 var size = Vector(blendBlock.Body, "RegionSize", 2, diagnostics); var height = Length(blendBlock.Body, "Height", diagnostics);
                 var blendEnvelope = Vector(blendBlock.Body, "InfluenceEnvelope", 6, diagnostics);
@@ -186,17 +199,18 @@ public static class SculptingAuthoring
             if (!result.IsSuccess || result.OutputState is null) diagnostics.AddRange(result.Diagnostics);
             else if (!states.TryAdd(block.Name, result.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"State '{block.Name}' is declared more than once."));
         }
-        var outputName = ScalarText(source, "Output");
+        var outputName = ScalarText(model, "Output");
         BodyState? output = null;
         if (outputName is null || !states.TryGetValue(outputName, out output)) diagnostics.Add(new("sculpt-output-unresolved", "Output must name one accepted BodyState or SculptState."));
+        diagnostics.AddRange(model.CompleteTree().Select(Located));
         total.Stop();
-        return new(diagnostics.Count == 0 && output is not null, model.Groups["name"].Value, output, states, diagnostics,
+        return new(diagnostics.Count == 0 && output is not null, model.Name, output, states, diagnostics,
             new(baseClock.Elapsed.TotalMilliseconds, opConstruction.TotalMilliseconds, verification.TotalMilliseconds, brep.TotalMilliseconds, 0d));
 
         SculptingCompileResult Fail(string name, string code, string message) => new(false, name, null, states, [new(code, message)], new(0, 0, 0, 0, 0));
     }
 
-    private static IReadOnlyList<HousingHole> ParseHoles(string body, List<SculptDiagnostic> diagnostics)
+    private static IReadOnlyList<HousingHole> ParseHoles(Block body, List<SculptDiagnostic> diagnostics)
     {
         var result = new List<HousingHole>();
         foreach (var hole in Blocks(body, "Hole"))
@@ -237,46 +251,38 @@ public static class SculptingAuthoring
             start, end, continuity);
     }
 
-    private static IReadOnlyList<Block> Blocks(string source, string keyword)
+    private static IReadOnlyList<Block> Blocks(Block scope, string kind) => scope.Children(kind);
+    private static Block? Single(Block scope, string kind, List<SculptDiagnostic> diagnostics)
     {
-        var result = new List<Block>(); var regex = new Regex($@"\b{Regex.Escape(keyword)}(?:\s+(?<name>[A-Za-z_]\w*))?\s*\{{", RegexOptions.CultureInvariant);
-        for (var start = 0; start < source.Length;)
-        {
-            var match = regex.Match(source, start); if (!match.Success) break; var open = source.IndexOf('{', match.Index + match.Length - 1); var close = MatchingBrace(source, open);
-            if (close < 0) break; result.Add(new(match.Groups["name"].Success ? match.Groups["name"].Value : keyword, source[(open + 1)..close])); start = close + 1;
-        }
-        return result;
+        var found = scope.Children(kind);
+        if (found.Count > 1) diagnostics.Add(new("sculpt-operation-cardinality", $"Only one {kind} is allowed per state.", scope.Name));
+        return found.Count == 1 ? found[0] : null;
     }
-    private static int MatchingBrace(string source, int open) { var depth = 0; var quoted = false; for (var i = open; i < source.Length; i++) { if (source[i] == '"' && (i == 0 || source[i - 1] != '\\')) quoted = !quoted; if (quoted) continue; if (source[i] == '{') depth++; else if (source[i] == '}' && --depth == 0) return i; } return -1; }
-    // Alias only the first character of an owned field; authored values,
-    // semantic paths and enum symbols remain case-sensitive.
-    private static string FieldSpelling(string field) =>
-        $"(?:{Regex.Escape(field)}|{Regex.Escape(char.ToLowerInvariant(field[0]) + field[1..])})";
-    private static string? ScalarText(string body, string field) { var m = Regex.Match(body, $@"(?m)^\s*{FieldSpelling(field)}\s*:\s*(?<v>[A-Za-z_]\w*)\s*$", RegexOptions.CultureInvariant); return m.Success ? m.Groups["v"].Value : null; }
-    private static int? Integer(string body, string field)
+    private static SculptDiagnostic Located(FirmamentV2ValidationDiagnostic d) => new(d.Code, d.Message, d.Target)
+        { SourceFile = d.SourceFile, SourceSpan = d.SourceSpan is {} span ? new(span.Start,span.Length) { LocationNote=d.LocationNote } : null };
+    private static string? ScalarText(Block body, string field) => body.Word(field);
+    private static int? Integer(Block body, string field)
     {
-        var match = Regex.Match(body, $@"(?m)^\s*{FieldSpelling(field)}\s*:\s*(?<v>\d+)\s*$", RegexOptions.CultureInvariant);
-        return match.Success && int.TryParse(match.Groups["v"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : null;
+        var value=body.Take(field); if(value is null)return null;
+        if(FirmamentSyntaxValues.TryMeasure(value,"",out var number) && double.IsFinite(number) && number>=0 && number<=int.MaxValue && number==Math.Truncate(number)) return (int)number;
+        body.Invalid(field); return null;
     }
-    private static double? Length(string body, string field, List<SculptDiagnostic> diagnostics)
+    private static double? Length(Block body, string field, List<SculptDiagnostic> diagnostics)
     {
-        var m = Regex.Match(body, $@"(?m)^\s*{FieldSpelling(field)}\s*:\s*(?<v>[-+]?\d+(?:\.\d+)?)mm\s*$", RegexOptions.CultureInvariant);
-        if (m.Success) return double.Parse(m.Groups["v"].Value, CultureInfo.InvariantCulture); diagnostics.Add(new("sculpt-field-invalid", $"Field '{field}' requires a millimetre length.")); return null;
+        if(FirmamentSyntaxValues.TryMeasure(body.Take(field),"mm",out var value) && double.IsFinite(value))return value;
+        body.Invalid(field); diagnostics.Add(new("sculpt-field-invalid", $"Field '{field}' requires a millimetre length."));return null;
     }
-    private static double[]? Vector(string body, string field, int count, List<SculptDiagnostic> diagnostics)
+    private static double[]? Vector(Block body,string field,int count,List<SculptDiagnostic> diagnostics)
     {
-        var m = Regex.Match(body, $@"(?m)^\s*{FieldSpelling(field)}\s*:\s*\[(?<v>[^\]]+)\]\s*$", RegexOptions.CultureInvariant);
-        if (m.Success)
-        {
-            var values = m.Groups["v"].Value.Split(',').Select(x => Regex.Match(x.Trim(), @"^(?<v>[-+]?\d+(?:\.\d+)?)mm$", RegexOptions.CultureInvariant)).ToArray();
-            if (values.Length == count && values.All(x => x.Success)) return values.Select(x => double.Parse(x.Groups["v"].Value, CultureInfo.InvariantCulture)).ToArray();
-        }
-        diagnostics.Add(new("sculpt-field-invalid", $"Field '{field}' requires {count} comma-separated millimetre lengths.")); return null;
+        if(FirmamentSyntaxValues.Vector(body.Take(field),"mm",out var values) && values.Length==count && values.All(double.IsFinite))return values;
+        body.Invalid(field);diagnostics.Add(new("sculpt-field-invalid",$"Field '{field}' requires {count} millimetre lengths."));return null;
     }
-    private static IReadOnlyList<string> List(string body, string field)
+    private static IReadOnlyList<string> List(Block body,string field)
     {
-        var m = Regex.Match(body, $@"(?m)^\s*{FieldSpelling(field)}\s*:\s*\[(?<v>[^\]]*)\]\s*$", RegexOptions.CultureInvariant);
-        return m.Success ? m.Groups["v"].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) : [];
+        var value=body.Take(field); if(value is null)return [];
+        if(value is SequenceSyntax { Kind:SequenceKind.List } list && list.Items.All(i=>i.Name is null && i.Default is null && FirmamentSyntaxValues.Reference(i.Value) is not null))
+            return list.Items.Select(i=>FirmamentSyntaxValues.Reference(i.Value)!).ToArray();
+        body.Invalid(field);return [];
     }
     private static PreservationContract Preservation(string entity) => new(entity, entity == SculptedHousingFactory.MountingHolePattern ? PreservationMode.PatternPlacementAndDiameter : PreservationMode.ExactGeometry);
     private static IReadOnlyList<SculptRequirement> ParseRequirements(IReadOnlyList<string> values, List<SculptDiagnostic> diagnostics)
@@ -286,36 +292,33 @@ public static class SculptingAuthoring
             if (Enum.TryParse<SculptRequirement>(value, out var requirement)) parsed.Add(requirement); else diagnostics.Add(new("sculpt-requirement-unsupported", $"Requirement '{value}' is not supported."));
         return parsed;
     }
-    private static double[]? NumberVector(string body, string field, int count, List<SculptDiagnostic> diagnostics)
+    private static double[]? NumberVector(Block body, string field, int count, List<SculptDiagnostic> diagnostics)
     {
         var values = NumberVectorAny(body, field, diagnostics); if (values is not null && values.Length == count) return values;
         if (values is not null) diagnostics.Add(new("sculpt-field-invalid", $"Field '{field}' requires {count} dimensionless numbers.")); return null;
     }
-    private static double[]? NumberVectorAny(string body, string field, List<SculptDiagnostic> diagnostics)
+    private static double[]? NumberVectorAny(Block body,string field,List<SculptDiagnostic> diagnostics)
     {
-        var match = Regex.Match(body, $@"(?m)^\s*{FieldSpelling(field)}\s*:\s*\[(?<v>[^\]]+)\]\s*$", RegexOptions.CultureInvariant);
-        if (!match.Success) { diagnostics.Add(new("sculpt-field-invalid", $"Field '{field}' requires a dimensionless number list.")); return null; }
-        var tokens = match.Groups["v"].Value.Split(',', StringSplitOptions.TrimEntries); var values = new double[tokens.Length];
-        for (var i = 0; i < tokens.Length; i++) if (!double.TryParse(tokens[i], NumberStyles.Float, CultureInfo.InvariantCulture, out values[i]))
-        { diagnostics.Add(new("sculpt-field-invalid", $"Field '{field}' contains invalid number '{tokens[i]}'.")); return null; }
-        return values;
+        if(FirmamentSyntaxValues.Vector(body.Take(field),"",out var values) && values.All(double.IsFinite))return values;
+        body.Invalid(field);diagnostics.Add(new("sculpt-field-invalid",$"Field '{field}' requires a dimensionless number list."));return null;
     }
-    private static IReadOnlyList<IReadOnlyList<Point3D>>? ControlRows(string body, List<SculptDiagnostic> diagnostics)
+    private static IReadOnlyList<IReadOnlyList<Point3D>>? ControlRows(Block body,List<SculptDiagnostic> diagnostics)
     {
-        var matches = Regex.Matches(body, @"(?m)^\s*ControlRow\s*:\s*\[(?<v>.*)\]\s*$", RegexOptions.CultureInvariant);
-        var rows = new List<IReadOnlyList<Point3D>>();
-        foreach (Match match in matches)
+        var rows=new List<IReadOnlyList<Point3D>>();
+        foreach(var field in body.TakeAll("ControlRow"))
         {
-            var points = new List<Point3D>();
-            foreach (Match point in Regex.Matches(match.Groups["v"].Value, @"\[\s*(?<x>[-+]?\d+(?:\.\d+)?)mm\s*,\s*(?<y>[-+]?\d+(?:\.\d+)?)mm\s*,\s*(?<z>[-+]?\d+(?:\.\d+)?)mm\s*\]", RegexOptions.CultureInvariant))
-                points.Add(new(double.Parse(point.Groups["x"].Value, CultureInfo.InvariantCulture), double.Parse(point.Groups["y"].Value, CultureInfo.InvariantCulture), double.Parse(point.Groups["z"].Value, CultureInfo.InvariantCulture)));
-            if (points.Count == 0) { diagnostics.Add(new("surf-control-row-invalid", "Each ControlRow requires one or more [xmm, ymm, zmm] points.")); return null; }
+            if(field.Value is not SequenceSyntax {Kind:SequenceKind.List} row){body.Invalid("ControlRow");continue;}
+            var points=new List<Point3D>();
+            foreach(var item in row.Items)
+                if(item.Name is null && item.Default is null && FirmamentSyntaxValues.Vector(item.Value,"mm",out var p) && p.Length==3 && p.All(double.IsFinite))points.Add(new(p[0],p[1],p[2]));
+                else body.Invalid("ControlRow");
+            if(points.Count==0)body.Invalid("ControlRow");
             rows.Add(points);
         }
-        if (rows.Count == 0) { diagnostics.Add(new("surf-control-net-required", "A non-rational SurfacePatch requires explicit ControlRow entries.")); return null; }
+        if(rows.Count==0){diagnostics.Add(new("surf-control-net-required","A non-rational SurfacePatch requires explicit controlRow entries."));return null;}
         return rows;
     }
-    private static IReadOnlyList<PatchBoundaryCorrespondence>? ParseBoundaries(string body, List<SculptDiagnostic> diagnostics)
+    private static IReadOnlyList<PatchBoundaryCorrespondence>? ParseBoundaries(Block body, List<SculptDiagnostic> diagnostics)
     {
         var result = new List<PatchBoundaryCorrespondence>();
         foreach (var block in Blocks(body, "Boundary"))
@@ -341,5 +344,4 @@ public static class SculptingAuthoring
         }
         return (multiplicities, values);
     }
-    private sealed record Block(string Name, string Body);
 }

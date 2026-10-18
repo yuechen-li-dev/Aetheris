@@ -225,6 +225,8 @@ public static class PlasticShellCompiler
         var ring = Enumerable.Range(0, s.Length).Select(i => Edge(s[i], s[(i + 1) % s.Length], "perimeter")).ToArray();
         var chord = s.Where(v => v.StandoffId != fanRoot.StandoffId).Select(v => Edge(fanRoot, v, "fan")).ToArray();
         var candidates = new[] { Candidate("perimeter-network", ring), Candidate("gate-oriented-fan", chord) };
+        foreach(var unknown in request.KeepOuts.Except(candidates.Select(c=>c.CandidateId),StringComparer.Ordinal))
+            diagnostics.Add(new(PlasticDiagnosticCodes.SourceInvalid,PlasticDiagnosticSeverity.Error,$"Unknown AutoRib keepOut '{unknown}'. Use an admitted candidate network identity.",request.RequestId));
         var engineCandidates = candidates.Select((candidate, index) => new JudgmentCandidate<IReadOnlyDictionary<string, RibCandidateEvidence>>(
             candidate.CandidateId, context => context[candidate.CandidateId].Eligible, context => context[candidate.CandidateId].Metrics.Utility,
             context => string.Join("; ", context[candidate.CandidateId].RejectionReasons), index)).ToArray();

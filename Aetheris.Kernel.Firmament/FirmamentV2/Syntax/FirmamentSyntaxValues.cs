@@ -92,15 +92,15 @@ public sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<st
         return value;
     }
     public bool Vector(string name, string unit, out double[] values) => FirmamentSyntaxValues.Vector(Take(name), unit, out values, implicitUnit);
-    public void Complete()
+    public void Complete(IReadOnlySet<StatementSyntax>? consumedStatements = null, bool admitAnnotation = false, bool admitInitializer = false, bool admitPlacement = false)
     {
-        if (declaration.Occurrence || declaration.Parameters.Count > 0 || declaration.Annotation is not null || declaration.ResultType is not null || declaration.Initializer is not null)
+        if (declaration.Occurrence || declaration.Parameters.Count > 0 || (!admitAnnotation && declaration.Annotation is not null) || declaration.ResultType is not null || (!admitInitializer && declaration.Initializer is not null))
             diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:{declaration.Type.Name.Text}:header");
-        if (declaration.Clauses.Count > 0)
+        if (!admitPlacement && declaration.Clauses.Count > 0)
             diagnostics.Add($"firmament-v2-placement-unsupported:{declaration.Type.Name.Text}:{declaration.Name?.Text}: This field-based construct does not admit header placement clauses; use its documented fields.");
         foreach (var field in declaration.Body?.Statements.OfType<FieldSyntax>() ?? [])
             if (!consumed.Contains(field)) diagnostics.Add($"{FirmamentV2Parser.CanonicalFieldUnknown}:{declaration.Type.Name.Text}:{field.Name.Text}");
-        foreach (var statement in declaration.Body?.Statements.Where(s => s is not FieldSyntax) ?? [])
+        foreach (var statement in declaration.Body?.Statements.Where(s => s is not FieldSyntax && consumedStatements?.Contains(s) != true) ?? [])
             diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:{declaration.Type.Name.Text}:{(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}");
     }
     public static FirmamentSyntaxFields Object(ObjectSyntax value, string? name, List<string> diagnostics)
@@ -111,7 +111,8 @@ public sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<st
         return new(new(new(typeName, [], typeName.Span), value.Name ?? (name is null ? null : new(name, value.Span)),
             [], [], null, null, [], null, value.Body, false, value.Span), diagnostics);
     }
-    public static bool SameField(string authored, string canonical) => authored == canonical || authored == FirmamentSourceSpelling.PreferredField(canonical);
+    public static bool SameField(string authored, string canonical) => authored == canonical || authored == FirmamentSourceSpelling.PreferredField(canonical)
+        || canonical.Length>0 && authored == char.ToLowerInvariant(canonical[0])+canonical[1..];
     public IReadOnlyList<FirmamentV2AuthoredField> AuthoredFields => (declaration.Body?.Statements.OfType<FieldSyntax>() ?? [])
         .Select(f => new FirmamentV2AuthoredField(f.Name.Text, f.Span, f.Value.Span)).ToArray();
 }

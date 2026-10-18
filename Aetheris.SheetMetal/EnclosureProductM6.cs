@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Semantics;
+using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.SheetMetal;
 
@@ -183,9 +185,12 @@ public static class EnclosureProductFamilies
             && !identity.StartsWith("RemovablePanLid<", StringComparison.Ordinal)) return null;
         var resolved = ResolveProjectedRecord(identity, declarations ?? string.Empty);
         concreteName = "Assembly" + (resolved.StartsWith("ElectronicsEnclosure", StringComparison.Ordinal) ? "Body" : "Lid");
-        var partDeclarations = Regex.Replace(declarations ?? string.Empty, @"\bConcept\s+EnclosureProduct\s*\{[^}]*\}", string.Empty, RegexOptions.CultureInvariant);
-        partDeclarations = Regex.Replace(partDeclarations, @"\bRecord\s+EnclosureProductSpec\s*\{[^}]*\}", string.Empty, RegexOptions.CultureInvariant);
-        partDeclarations = Regex.Replace(partDeclarations, @"\bStatic\s+\w+\s*:\s*EnclosureProductSpec\s*=\s*EnclosureProductSpec\s*\{[^}]*\}", string.Empty, RegexOptions.CultureInvariant);
+        var partDeclarations=declarations??string.Empty;
+        var productDeclarations=FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(partDeclarations).Document)
+            .Where(d=>d.Type.Name.Text=="Concept" && d.Name?.Text=="EnclosureProduct"
+                || d.Type.Name.Text=="Record" && d.Name?.Text=="EnclosureProductSpec"
+                || d.Type.Name.Text=="Static" && FirmamentSyntaxValues.Reference(d.Annotation)=="EnclosureProductSpec").ToArray();
+        partDeclarations=Erase(partDeclarations,productDeclarations);
         partDeclarations = SelectPartExtensions(partDeclarations, concreteName.EndsWith("Body", StringComparison.Ordinal) ? "Body" : "Lid", concreteName);
         var concreteSource = partDeclarations + Environment.NewLine + $"SheetMetal {concreteName} = {resolved}" + Environment.NewLine;
         var compiled = SheetMetalFirmament.Compile(concreteSource, sourceIdentity + "#" + concreteName);
@@ -255,33 +260,33 @@ public static class EnclosureProductFamilies
             fit.NominalState, fit.VariationEnvelopeState, contributions);
     }
 
-    private static string ResolveProjectedRecord(string identity, string declarations)
+    private static string ResolveProjectedRecord(string identity,string declarations)
     {
-        var application = Regex.Match(identity, @"^(?<template>\w+)<Spec:\s*(?<outer>\w+)\.(?<field>\w+)>$", RegexOptions.CultureInvariant);
-        if (!application.Success) return identity;
-        var record = Regex.Match(declarations, $@"\bStatic\s+{Regex.Escape(application.Groups["outer"].Value)}\s*:\s*\w+\s*=\s*\w+\s*\{{(?<body>.*?)\}}", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-        var field = record.Success ? Regex.Match(record.Groups["body"].Value, $@"\b{Regex.Escape(application.Groups["field"].Value)}\s*:\s*(?<value>\w+)", RegexOptions.CultureInvariant) : Match.Empty;
-        if (!field.Success) throw new InvalidOperationException($"Projected product Record argument '{application.Groups["outer"].Value}.{application.Groups["field"].Value}' could not be resolved.");
-        return $"{application.Groups["template"].Value}<Spec: {field.Groups["value"].Value}>";
+        var syntax=FirmamentSyntaxParser.ParseExpression(identity);
+        if(syntax.Expression is not SpecializationSyntax {Arguments.Count:1} app || app.Arguments[0].Name?.Text!="Spec" || app.Arguments[0].Value is not MemberSyntax member)return identity;
+        var name=FirmamentSyntaxValues.Reference(member.Target);
+        var module=FirmamentTemplateHostBridge.InspectModule(declarations,out var errors);
+        if(errors.Count>0)throw new InvalidOperationException(string.Join("; ",errors));
+        var records=module.StaticRecords.Where(r=>r.Name==name).ToArray();
+        if(records.Length!=1 || !records[0].Fields.TryGetValue(member.Member.Text,out var value))
+            throw new InvalidOperationException($"Projected product Record argument '{name}.{member.Member.Text}' could not be resolved.");
+        return $"{FirmamentSyntaxValues.Reference(app.Target)}<Spec: {value}>";
     }
-
-    private static string SelectPartExtensions(string source, string semanticPartName, string concreteName)
+    private static string SelectPartExtensions(string source,string semanticPartName,string concreteName)
     {
-        var chars = source.ToCharArray(); var selected = new List<string>();
-        foreach (Match header in Regex.Matches(source, @"\bExtend\s+SheetMetal\s+(?<name>\w+)\s*\{", RegexOptions.CultureInvariant))
+        var declarations=FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
+            .Where(d=>d.Type.Name.Text=="SheetMetal" && d.Modifiers.Any(m=>m.Name.Text=="Extend")).ToArray();
+        var selected=declarations.Where(d=>d.Name?.Text==semanticPartName).Select(d=>
         {
-            var open = header.Index + header.Length - 1; var depth = 0; var close = -1;
-            for (var index = open; index < source.Length; index++)
-            {
-                if (source[index] == '{') depth++;
-                else if (source[index] == '}' && --depth == 0) { close = index; break; }
-            }
-            if (close < 0) continue;
-            if (header.Groups["name"].Value == semanticPartName)
-                selected.Add("Extend SheetMetal " + concreteName + source[(open - 1)..(close + 1)].TrimStart());
-            Array.Fill(chars, ' ', header.Index, close - header.Index + 1);
-        }
-        return new string(chars) + Environment.NewLine + string.Join(Environment.NewLine, selected);
+            var name=d.Name!;
+            return source.Substring(d.Span.Start,d.Span.Length).Remove(name.Span.Start-d.Span.Start,name.Span.Length).Insert(name.Span.Start-d.Span.Start,concreteName);
+        });
+        return Erase(source,declarations)+Environment.NewLine+string.Join(Environment.NewLine,selected);
+    }
+    private static string Erase(string source,IEnumerable<DeclarationSyntax> declarations)
+    {
+        var chars=source.ToCharArray();foreach(var d in declarations)for(var i=d.Span.Start;i<d.Span.Start+d.Span.Length;i++)if(chars[i] is not ('\r' or '\n'))chars[i]=' ';
+        return new(chars);
     }
 
     private static string BuildSource(EnclosureProductSpec spec, string instanceName)

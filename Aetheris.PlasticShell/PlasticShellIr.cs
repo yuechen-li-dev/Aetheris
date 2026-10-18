@@ -35,7 +35,11 @@ public static class PlasticDiagnosticCodes
     public const string EjectorRibCollision = "plastic-shell-ejector-rib-collision";
 }
 
-public sealed record PlasticDiagnostic(string Code, PlasticDiagnosticSeverity Severity, string Message, string? Entity = null);
+public sealed record PlasticDiagnostic(string Code, PlasticDiagnosticSeverity Severity, string Message, string? Entity = null)
+{
+    public string? SourceFile { get; init; }
+    public Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticSourceSpan? SourceSpan { get; init; }
+}
 public sealed record PlasticWallPolicy(double NominalThickness, double MinimumThickness, double MaximumThickness, double ThicknessTolerance);
 public sealed record PlasticPartingPlane(string StableId, Point3D Origin, Direction3D Normal);
 public sealed record PlasticGate(string GateId, Point3D Location, string TargetRegion, GateKind Kind, double? Size);

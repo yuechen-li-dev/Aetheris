@@ -1,5 +1,14 @@
 # PlasticShell
 
+The authoring reader consumes the unified AST. Prefer camelCase fields;
+historical PascalCase fields remain aliases. Unknown statements, fields,
+duplicate aliases and unsupported placements reject before manufacturing.
+An optional `schema PlasticShell` selects the same owner. Compile-time data
+uses the shared Record/Static/Template binder. For AutoRib `keepOut`, quote
+network identities such as `"perimeter-network"` and `"gate-oriented-fan"`;
+the historical unquoted hyphenated forms remain bounded compatibility aliases.
+Unknown network names reject instead of having no effect.
+
 `PlasticShell` is Aetheris's manufacturing-first domain for injection-molded product definitions. Wall thickness, tooling direction, parting, and reinforcement intent live in the domain model rather than as a sequence of cleanup features.
 
 ```firmament

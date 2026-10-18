@@ -9,13 +9,14 @@ using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Semantics;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Collaboration;
 
 namespace Aetheris.Kernel.Firmament.Drawing;
 
 /// <summary>Drawing M0B compiler. Part and Assembly products share one DrawingIR and sibling
 /// SVG/React/PDF presentation contract. Assembly occurrences remain independently projected.</summary>
-public static class FirmamentDrawingCompiler
+public static partial class FirmamentDrawingCompiler
 {
     public const string DrawingMissing = "drawing-missing-declaration";
     public const string DrawingSourceUnknown = "drawing-source-product-unknown";
@@ -34,15 +35,27 @@ public static class FirmamentDrawingCompiler
         Converters = { new JsonStringEnumConverter() }
     };
 
+    public static bool IsDrawingSource(string source)=>source.Contains("Drawing",StringComparison.Ordinal)
+        && FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).Any(d=>d.Type.Name.Text=="Drawing" && d.Modifiers.Count==0);
+
     public static DrawingCompileResult Compile(string sourcePath, string outputDirectory)
+    {
+        var frontend=new List<FirmamentV2ValidationDiagnostic>();
+        return CompileCore(sourcePath,outputDirectory,frontend) with {FrontendDiagnostics=frontend};
+    }
+    private static DrawingCompileResult CompileCore(string sourcePath,string outputDirectory,List<FirmamentV2ValidationDiagnostic> frontend)
     {
         var fullSourcePath = Path.GetFullPath(sourcePath); var output = Path.GetFullPath(outputDirectory);
         if (!File.Exists(fullSourcePath)) return Failure($"drawing-source-file-missing: {fullSourcePath}");
         Directory.CreateDirectory(output);
-        var source = File.ReadAllText(fullSourcePath, Encoding.UTF8).Replace("\r\n", "\n", StringComparison.Ordinal);
+        var source = File.ReadAllText(fullSourcePath, Encoding.UTF8);
         var reviewScan = FirmamentReviewCompiler.Compile(source, fullSourcePath);
         var drawingSourceText = FirmamentReviewCompiler.EraseDeclarations(source, reviewScan.SourceRanges);
-        var parse = ParseDrawingLanguage(drawingSourceText);
+        var dataBinding=new FirmamentDataBinding(drawingSourceText);
+        if(dataBinding.Diagnostics.Count>0)return new(false,null,dataBinding.Diagnostics.Select(d=>d.Code+": "+d.Message).ToArray());
+        drawingSourceText=dataBinding.Source;
+        var parse = ParseDrawingLanguage(drawingSourceText,fullSourcePath,frontend);
+        for(var i=0;i<frontend.Count;i++)if(frontend[i].SourceSpan is {} span)frontend[i]=frontend[i] with {SourceSpan=dataBinding.OriginalSpan(span)};
         if (parse.Diagnostics.Count > 0 || parse.Drawing is null) return new(false, null, parse.Diagnostics);
         var drawingSource = parse.Drawing;
         var metadataResult = ResolveMetadata(drawingSourceText, drawingSource);
@@ -57,7 +70,7 @@ public static class FirmamentDrawingCompiler
         DrawingBomIr? bom = null;
         var bomMilliseconds = 0d;
         string sourceKind;
-        var isAssembly = Regex.IsMatch(geometrySource, $@"\bAssembly\s+{Regex.Escape(drawingSource.Source)}\s*\{{", RegexOptions.CultureInvariant);
+        var isAssembly = FirmamentSyntaxParser.Parse(geometrySource).Document.Statements.OfType<DeclarationSyntax>().Any(d=>d.Type.Name.Text=="Assembly" && d.Name?.Text==drawingSource.Source);
         if (isAssembly)
         {
             sourceKind = "Assembly";
@@ -101,6 +114,7 @@ public static class FirmamentDrawingCompiler
         if (unknownPmi.Length > 0) return Failure($"{DrawingPmiUnknown}: {string.Join(", ", unknownPmi)}");
         var reviewTargets = pmi.ToDictionary(pair => pair.Key, pair => ((string?)pair.Value.Display, (IReadOnlyList<string>)["PMI", "Dimensional"]), StringComparer.Ordinal);
         var reviewResult = FirmamentReviewCompiler.Compile(source, fullSourcePath, reviewTargets);
+        frontend.AddRange(reviewResult.SourceDiagnostics.Select(d=>new FirmamentV2ValidationDiagnostic(d.Code,"error",d.Message){SourceFile=fullSourcePath,SourceSpan=new(d.Span.Start,d.Span.Length),Stage="Review binding"}));
         if (!reviewResult.IsSuccess) return new(false, null, reviewResult.Diagnostics);
         var conceptFailures = ValidateConcept(drawingSource, parse.Concept, metadata);
         if (conceptFailures.Count > 0) return new(false, null, conceptFailures);
@@ -331,7 +345,7 @@ public static class FirmamentDrawingCompiler
         var diagnostics = new List<string>(); var fields = new Dictionary<string, string>(StringComparer.Ordinal); string? provenance = null;
         if (drawing.Metadata is not null)
         {
-            var records = ParseStaticRecords(source); if (!records.TryGetValue(drawing.Metadata, out var record)) return new(null, [$"{DrawingMetadataUnknown}: {drawing.Metadata}"]);
+            var records = ParseStaticRecords(source,diagnostics); if(diagnostics.Count>0)return new(null,diagnostics); if (!records.TryGetValue(drawing.Metadata, out var record)) return new(null, [$"{DrawingMetadataUnknown}: {drawing.Metadata}"]);
             fields = new(record.Fields, StringComparer.Ordinal); provenance = record.Provenance;
             var missing = new[] { "Company", "Author", "PartNumber", "Revision", "Date", "Description" }.Where(field => !fields.ContainsKey(field)).ToArray();
             if (missing.Length > 0) diagnostics.Add($"{DrawingMetadataRequiredFieldMissing}: {drawing.Metadata}: {string.Join(",", missing)}");
@@ -347,81 +361,6 @@ public static class FirmamentDrawingCompiler
         return new(metadata, diagnostics);
     }
 
-    private static Dictionary<string, StaticRecord> ParseStaticRecords(string source)
-    {
-        var result = new Dictionary<string, StaticRecord>(StringComparer.Ordinal);
-        foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\s*=\s*\k<type>\s*\{", RegexOptions.CultureInvariant))
-        {
-            var block = ReadBlock(source, source.IndexOf('{', header.Index)); if (block is null) continue;
-            result[header.Groups["name"].Value] = new(ParseFields(block.Value.Body), "StaticRecord:" + header.Groups["name"].Value);
-        }
-        var pending = Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*(?::\s*[A-Za-z_]\w*)?\s*=\s*(?<base>[A-Za-z_]\w*)\s+with\s*\{", RegexOptions.CultureInvariant).Cast<Match>().ToList();
-        while (pending.Count > 0)
-        {
-            var progressed = false;
-            foreach (var item in pending.ToArray())
-            {
-                if (!result.TryGetValue(item.Groups["base"].Value, out var basis)) continue;
-                var block = ReadBlock(source, source.IndexOf('{', item.Index)); if (block is null) { pending.Remove(item); continue; }
-                var next = new Dictionary<string, string>(basis.Fields, StringComparer.Ordinal); foreach (var field in ParseFields(block.Value.Body)) next[field.Key] = field.Value;
-                result[item.Groups["name"].Value] = new(next, basis.Provenance + "; derivedFrom:" + item.Groups["base"].Value + "; overrides:" + string.Join(",", ParseFields(block.Value.Body).Keys.Order(StringComparer.Ordinal)));
-                pending.Remove(item); progressed = true;
-            }
-            if (!progressed) break;
-        }
-        return result;
-    }
-
-    private static Dictionary<string, string> ParseFields(string body) => Regex.Matches(body, "\\b(?<name>[A-Za-z_]\\w*)\\s*:\\s*(?<value>\"[^\"]*\"|\\d+\\.\\d+\\.\\d+|\\d{4}-\\d{2}-\\d{2}|[^;\\n}]+)", RegexOptions.CultureInvariant)
-        .Cast<Match>().ToDictionary(match => match.Groups["name"].Value, match => match.Groups["value"].Value.Trim(), StringComparer.Ordinal);
-
-    private static ParseResult ParseDrawingLanguage(string source)
-    {
-        var diagnostics = new List<string>(); var ranges = new List<(int Start, int Length)>(); ParsedConcept? concept = null;
-        var conceptMatch = Regex.Match(source, @"\bConcept\s+Drawing\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
-        if (conceptMatch.Success) { var block = ReadBlock(source, conceptMatch.Index + conceptMatch.Length - 1); if (block is null) diagnostics.Add("drawing-concept-malformed"); else { concept = new(conceptMatch.Groups["name"].Value, Regex.Matches(block.Value.Body, @"\bRequire\s+(?<name>[A-Za-z_]\w*)\s*;?").Select(item => item.Groups["name"].Value).ToArray()); ranges.Add((conceptMatch.Index, block.Value.End - conceptMatch.Index + 1)); } }
-        ParsedTemplate? template = null;
-        var templateMatch = Regex.Match(source, @"\bTemplate\s*<(?<parameters>[^>]+)>\s*Drawing\s+(?<name>[A-Za-z_]\w*)\s*(?::\s*(?<concept>[A-Za-z_]\w*))?\s*\{", RegexOptions.CultureInvariant);
-        if (templateMatch.Success) { var block = ReadBlock(source, templateMatch.Index + templateMatch.Length - 1); if (block is null) diagnostics.Add("drawing-template-malformed"); else { var parameters = Regex.Matches(templateMatch.Groups["parameters"].Value, @"(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)").Cast<Match>().ToDictionary(item => item.Groups["name"].Value, item => item.Groups["type"].Value, StringComparer.Ordinal); template = new(templateMatch.Groups["name"].Value, parameters, templateMatch.Groups["concept"].Value, block.Value.Body); ranges.Add((templateMatch.Index, block.Value.End - templateMatch.Index + 1)); } }
-        ParsedDrawing? drawing = null;
-        var application = Regex.Match(source, @"\bDrawing\s+(?<name>[A-Za-z_]\w*)\s*=\s*(?<template>[A-Za-z_]\w*)\s*<(?<arguments>[^>]+)>\s*;?", RegexOptions.CultureInvariant);
-        if (application.Success && template is not null)
-        {
-            var args = Regex.Matches(application.Groups["arguments"].Value, @"(?<name>[A-Za-z_]\w*)\s*:\s*(?<value>[A-Za-z_]\w*)").Cast<Match>().ToDictionary(item => item.Groups["name"].Value, item => item.Groups["value"].Value, StringComparer.Ordinal);
-            if (application.Groups["template"].Value != template.Name) diagnostics.Add("drawing-template-unknown");
-            else { var body = template.Body; foreach (var parameter in template.Parameters.Keys) if (args.TryGetValue(parameter, out var value)) body = Regex.Replace(body, $@"\b{Regex.Escape(parameter)}\b", value); drawing = ParseDrawingBody(application.Groups["name"].Value, template.Name, template.Concept, args.GetValueOrDefault("Product") ?? args.GetValueOrDefault("Item"), args.GetValueOrDefault("Metadata"), body, diagnostics); }
-            ranges.Add((application.Index, application.Length));
-        }
-        else
-        {
-            var literal = Regex.Match(source, @"\bDrawing\s+(?<name>[A-Za-z_]\w*)\s*(?::\s*(?<concept>[A-Za-z_]\w*))?\s*\{", RegexOptions.CultureInvariant);
-            if (literal.Success) { var block = ReadBlock(source, literal.Index + literal.Length - 1); if (block is not null) { drawing = ParseDrawingBody(literal.Groups["name"].Value, "Literal", literal.Groups["concept"].Value, null, null, block.Value.Body, diagnostics); ranges.Add((literal.Index, block.Value.End - literal.Index + 1)); } }
-        }
-        if (drawing is null && diagnostics.Count == 0) diagnostics.Add(DrawingMissing); return new(drawing, concept, ranges, diagnostics);
-    }
-
-    private static ParsedDrawing ParseDrawingBody(string name, string template, string concept, string? product, string? metadata, string body, List<string> diagnostics)
-    {
-        string? Field(string field) => Regex.Match(body, $@"\b{Regex.Escape(field)}\s*:\s*(?<value>[^;\n}}]+)") is { Success: true } match ? TrimValue(match.Groups["value"].Value) : null;
-        var source = product ?? Field("Source"); if (string.IsNullOrWhiteSpace(source)) diagnostics.Add("drawing-source-required");
-        var views = new List<ParsedView>();
-        foreach (Match match in Regex.Matches(body, @"\bView\s+(?<name>[A-Za-z_]\w*)\s*\{"))
-        {
-            var block = ReadBlock(body, match.Index + match.Length - 1); if (block is null) continue;
-            var directionMatch = Regex.Match(block.Value.Body, @"\bDirection\s*:\s*(?<direction>\[[^\]]+\]|[+-][XYZ])"); if (!directionMatch.Success) { diagnostics.Add("drawing-view-direction-required:" + match.Groups["name"].Value); continue; }
-            var direction = ParseDirection(directionMatch.Groups["direction"].Value); var projection = Regex.IsMatch(block.Value.Body, @"\bProjection\s*:\s*Isometric") || direction.Count(value => Math.Abs(value) > 1e-12) > 1 ? DrawingProjectionKind.Isometric : DrawingProjectionKind.Orthographic;
-            var hidden = Regex.IsMatch(block.Value.Body, @"\bHiddenLines\s*:\s*VisibleAndHidden") ? DrawingHiddenLinePolicy.VisibleAndHidden : DrawingHiddenLinePolicy.VisibleOnly;
-            var assignedMatch = Regex.Match(block.Value.Body, @"\bPMI\s*:\s*\[(?<items>[^\]]*)\]", RegexOptions.IgnoreCase); var assigned = assignedMatch.Success ? assignedMatch.Groups["items"].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) : [];
-            views.Add(new(match.Groups["name"].Value, direction, projection, hidden, assigned));
-        }
-        if (views.Count == 0) diagnostics.Add(DrawingViewMissing);
-        var notesMatch = Regex.Match(body, @"\bNotes\s*:\s*\[(?<items>[^\]]*)\]"); var notes = notesMatch.Success ? Regex.Matches(notesMatch.Groups["items"].Value, "\"(?<text>[^\"]*)\"").Select(item => item.Groups["text"].Value).ToArray() : [];
-        return new(name, template, concept, source ?? "", Field("Orientation") == "Portrait" ? DrawingPageOrientation.Portrait : DrawingPageOrientation.Landscape, views,
-            Field("Title"), Field("PartNumber"), Field("Revision"), Field("Material"), Field("Table"), notes, metadata ?? Field("Metadata"), string.Equals(Field("BOM"), "true", StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static IReadOnlyList<double> ParseDirection(string source) => source.Trim() switch { "+X" => [1, 0, 0], "-X" => [-1, 0, 0], "+Y" => [0, 1, 0], "-Y" => [0, -1, 0], "+Z" => [0, 0, 1], "-Z" => [0, 0, -1], _ => source.Trim().Trim('[', ']').Split(',', StringSplitOptions.TrimEntries).Select(value => double.Parse(value, CultureInfo.InvariantCulture)).ToArray() };
-    private static (string Body, int End)? ReadBlock(string source, int open) { if (open < 0 || open >= source.Length || source[open] != '{') return null; var depth = 0; var quoted = false; for (var index = open; index < source.Length; index++) { if (source[index] == '"' && (index == 0 || source[index - 1] != '\\')) quoted = !quoted; if (quoted) continue; if (source[index] == '{') depth++; else if (source[index] == '}' && --depth == 0) return (source[(open + 1)..index], index); } return null; }
     private static string EraseDrawingDeclarations(string source, IReadOnlyList<(int Start, int Length)> ranges) { var chars = source.ToCharArray(); foreach (var range in ranges) for (var index = range.Start; index < range.Start + range.Length; index++) if (chars[index] != '\n') chars[index] = ' '; return new(chars); }
     private static string TrimValue(string value) => value.Trim().Trim('"');
     private static string StableHash(string value) => HashBytes(Encoding.UTF8.GetBytes(value));
@@ -432,7 +371,6 @@ public static class FirmamentDrawingCompiler
     private sealed record StaticRecord(IReadOnlyDictionary<string, string> Fields, string Provenance);
     private sealed record MetadataResult(DrawingMetadataIr? Metadata, IReadOnlyList<string> Diagnostics);
     private sealed record ParsedConcept(string Name, IReadOnlyList<string> Requirements);
-    private sealed record ParsedTemplate(string Name, IReadOnlyDictionary<string, string> Parameters, string Concept, string Body);
     private sealed record ParsedView(string Name, IReadOnlyList<double> Direction, DrawingProjectionKind Projection, DrawingHiddenLinePolicy HiddenLines, IReadOnlyList<string> Pmi);
     private sealed record ParsedDrawing(string Name, string Template, string Concept, string Source, DrawingPageOrientation Orientation, IReadOnlyList<ParsedView> Views,
         string? Title, string? PartNumber, string? Revision, string? Material, string? Table, IReadOnlyList<string> Notes, string? Metadata, bool Bom);

@@ -48,6 +48,16 @@ Normal mechanical validation performs engineering compilation in memory.
 `--explain` adds developer information about admission and the chosen frontend.
 See [diagnostics](../reference/diagnostics.md) for interpreting failures.
 
+Analysis is a deliberate exception to a geometry-only validation claim:
+`validate` binds its geometry, material, selections and analysis settings and
+reports `BoundNotSolved` (`status: "bound-not-solved"`). `build` runs the same
+analysis compiler and the existing solver, writing analysis artifacts to the
+`--out` directory. `fea --out-dir` remains the dedicated spelling. Static binding
+does not promise solver convergence. Drawing sources also dispatch through their production owner in `validate` and
+`build`; `drawing compile --out-dir` remains available. Their output is a
+manufacturing drawing artifact directory. Passing a `.step` output path to an
+Analysis or Drawing build rejects explicitly; export the geometry source separately.
+
 ## How to read the language
 
 The useful organizing analogy is `Model` as a class-like artifact owner, `Struct`
@@ -899,9 +909,13 @@ remain within the selected domain; it cannot change the schema after admission.
 | `SectionChain` | [Framed section chains](section-chains.md). |
 | `Garment` | [Panels, stitch interfaces and fitting](garments.md). |
 | `Piping` | [Ports, connections and routing](piping.md). |
+| `Structural` | [Nodes, straight members and weldments](structural.md). |
+| `Sculpting` | [Immutable body and surfacing states](sculpting.md). |
+| `PlasticShell` | [Molded shell manufacturing intent](plastic-shell.md). |
+| `Analysis` | [Linear-elastic analysis](fea.md). |
 
 This selector does not list every Firmament root or product domain. Assembly,
-Scene, SheetMetal and structural sources have their own entry forms. Piping
+Scene, SheetMetal and Drawing have their own entry forms. Piping
 uses its documented Model/PipingSystem form, optionally with `schema Piping`.
 Do not invent `schema Assembly` or wrap arbitrary domain declarations in a Model.
 
@@ -1095,6 +1109,21 @@ Validate the consuming artifact after formatting.
 
 ## Current language seams
 
+Structural, Sculpting, PlasticShell, Analysis, Drawing and Review now consume
+the same recursive-descent syntax tree as ordinary mechanical source. Their
+semantic owners retain distinct engineering capabilities and close their own
+statement/field scopes. Unknown fields, duplicate aliases, unknown statements
+and unsupported header placements reject; shared parsing does not make every
+operation legal in every domain.
+
+Use `pmi` and `bom` for acronym fields. Historical `PMI`/`BOM` and the old
+first-letter-only `pMI`/`bOM` aliases remain admitted by the common field reader.
+Record member names remain authored, case-sensitive data; do not blindly change
+Drawing metadata members such as `PartNumber` or structural Table column names.
+Some older domain fixtures and domain-specific formatter vocabularies still use
+PascalCase field aliases. The compiler admits camelCase directly; formatting
+is not a semantic migration or an admission check.
+
 The preferred style is more consistent than the grammar enforced by every
 owner. Author-visible differences remain in casing, points/lists, Pattern
 binders, terminators, root/scope rules, frame/selector types, and meanings of
@@ -1107,6 +1136,12 @@ and open decisions. The include, schema-header and symmetry casing repairs are
 described in the [implementation report](../../release/FIRMAMENT-DIRECTIVES-AND-CASING.md).
 The [decision register](../../development/FIRMAMENT-LANGUAGE-DECISIONS-2026-10.md)
 preserves the original authoring audit and later migration dispositions.
+
+The [remaining-domain AST report](../../development/FIRMAMENT-REMAINING-DOMAIN-AST-2026-10-18.md)
+records scope, compatibility evidence and remaining semantic inconsistencies,
+including the two distinct SectionChain forms, Drawing policy Concepts, and
+Structural table-role conventions. These are explicit design follow-ups, not
+permission to silently discard source.
 
 Use [supported features](../reference/supported-features.md) for capability
 boundaries and the linked domain guides for detailed syntax. Proposals and

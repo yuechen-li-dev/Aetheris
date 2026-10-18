@@ -18,11 +18,15 @@ public sealed class FirmamentDomainBinding
     public IReadOnlyList<ConceptIrTemplateInstantiation> Instantiations { get; }
     public IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics => errors.Concat(concepts.Diagnostics.Select(d=>d with
         { SourceFile=Document.SourceFile,SourceSpan=d.SourceSpan is {} span?OriginalSpan(span):null,
-          LocationNote=IsExpanded?"Location identifies the original enclosing declaration; the check evaluated expanded values.":d.LocationNote })).ToArray();
+          LocationNote=IsExpanded?"Location identifies the original enclosing declaration; the check evaluated expanded values.":d.LocationNote })).DistinctBy(d=>(d.Code,d.SourceSpan,d.Message)).ToArray();
     private readonly List<FirmamentV2ValidationDiagnostic> errors = [];
 
     public FirmamentDomainBinding(string source, string sourceFile, string ownerType, IReadOnlySet<string> domainResults, string? originalSource=null)
     {
+        originalSource ??= source;
+        var frontend=FirmamentFrontendSchemas.Select(source);
+        errors.AddRange(frontend.LocatedDiagnostics.Select(d=>d with {SourceFile=sourceFile}));
+        source=frontend.Source;
         values = new(source);
         var codes = new List<string>();
         var expansion = FirmamentV2TemplateExpansion.Expand(source, codes, values);
@@ -63,6 +67,8 @@ public sealed class FirmamentDomainBinding
     public bool OwnsConstruction(DeclarationSyntax declaration) => ClosedBoundary2Authoring.IsBoundaryType(declaration.Type.Name.Text)
         || ProfileAuthoringParser.OwnsConstructionGuide(declaration.Type.Name.Text);
     public bool OwnsProfileData(DeclarationSyntax declaration) => ProfileAuthoringParser.OwnsDeclaration(declaration);
+    internal FirmamentV2TemplateExpansion.DataCatalog DataCatalog(List<string> diagnostics) => FirmamentV2TemplateExpansion.ReadDataCatalog(Source, diagnostics, values);
+    internal string DataName(string identity) => values.DataBindings.FirstOrDefault(d => d.Identity == identity)?.Name ?? identity;
     public bool OwnsData(DeclarationSyntax declaration) => FirmamentDataBinding.NamespaceFor(declaration) is not null;
     public FirmamentV2SourceSpan? OriginalSpan(FirmamentV2SourceSpan span)
     {

@@ -14,6 +14,27 @@ Review DFM-004 {
 }
 """;
 
+    [Theory]
+    [InlineData("unknownIntent: true;")]
+    [InlineData("Fillet Lost { radius: 1mm }")]
+    [InlineData("status: Open;")]
+    public void ReviewCannotDiscardUnknownOrDuplicateIntent(string intent)
+    {
+        var at=Source.IndexOf('{')+1;var result=FirmamentReviewCompiler.Compile(Source.Insert(at,intent),"review.firmament");
+        Assert.False(result.IsSuccess);Assert.NotEmpty(result.Diagnostics);
+        Assert.Contains(result.SourceDiagnostics,d=>d.Span.Start>0 && d.Span.Length>0);
+    }
+
+    [Fact]
+    public void QuotedReviewTextPreservesEmbeddedSemicolons()
+    {
+        const string text="Accepted; this review does not mutate PMI.";
+        var source=Source.Replace("Accepted for the next authoritative revision.",text,StringComparison.Ordinal);
+        var result=FirmamentReviewCompiler.Compile(source,"review.firmament");
+        Assert.True(result.IsSuccess,string.Join(";",result.Diagnostics));
+        Assert.Equal(text,result.Review!.Threads.Single().Entries.Single(e=>e.Kind==ReviewEntryKind.Resolution).Text);
+    }
+
     [Fact]
     public void CompilesTypedThreadAndProposalWithoutMutatingCurrentValue()
     {

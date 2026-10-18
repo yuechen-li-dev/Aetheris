@@ -211,4 +211,8 @@ public sealed record DrawingCompileArtifacts(
 public sealed record DrawingCompileResult(
     bool IsSuccess,
     DrawingCompileArtifacts? Artifacts,
-    IReadOnlyList<string> Diagnostics);
+    IReadOnlyList<string> Diagnostics)
+{
+    public IReadOnlyList<FirmamentV2.FirmamentV2ValidationDiagnostic> FrontendDiagnostics { get; init; } = [];
+    public IReadOnlyList<Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic> KernelDiagnostics()=>FirmamentV2.FirmamentDomainDiagnostics.Present(Diagnostics,FrontendDiagnostics,"Firmament.Drawing");
+}

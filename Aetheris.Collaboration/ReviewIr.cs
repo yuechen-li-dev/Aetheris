@@ -54,4 +54,8 @@ public sealed record ReviewCompilationResult(
     bool IsSuccess,
     ReviewIr? Review,
     IReadOnlyList<string> Diagnostics,
-    IReadOnlyList<(int Start, int Length)> SourceRanges);
+    IReadOnlyList<(int Start, int Length)> SourceRanges)
+{
+    public IReadOnlyList<ReviewSourceDiagnostic> SourceDiagnostics { get; init; } = [];
+}
+public sealed record ReviewSourceDiagnostic(string Code,string Message,Aetheris.Semantics.SemanticSourceSpan Span);

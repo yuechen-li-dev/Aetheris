@@ -30,11 +30,18 @@ public static class FirmamentLanguageAnalysisService
     {
         ArgumentNullException.ThrowIfNull(source);
         var lexemes = Lex(FirmamentSourceSpelling.Normalize(source));
-        var documentSyntax = Syntax.FirmamentSyntaxParser.Parse(source).Document;
+        var syntaxReport = Syntax.FirmamentSyntaxParser.Parse(source,document);
+        var documentSyntax = syntaxReport.Document;
         var hasConcreteRoot = documentSyntax.Statements.OfType<Syntax.DeclarationSyntax>().Any(d =>
             d.Type.Name.Text is "Model" or "model" or "Struct" && !d.Modifiers.Any(m => m.Name.Text is "Template" or "Concept"));
         var tokens = lexemes.Select((lexeme, index) => new FirmamentLanguageToken(
             lexeme.Start, lexeme.Length, Classify(lexemes, index))).ToArray();
+        if(Structural.StructuralAuthoring.IsStructuralSource(source))
+            return new(document,revision,tokens,Structural.StructuralAuthoring.Analyze(source,document).Select(d=>
+            {
+                var located=FirmamentBuildAdmissionValidation.Present(d,document,source);
+                return new FirmamentLanguageDiagnostic(located.Severity,located.Code,located.Message,located.SourceSpan?.Start??0,located.SourceSpan?.Length??0);
+            }).ToArray());
         if (Garment.GarmentAuthoring.HasRoot(source))
         {
             var garment = Garment.GarmentCompiler.Compile(source, document);
@@ -56,6 +63,16 @@ public static class FirmamentLanguageAnalysisService
         {
             var assembly = new AssemblyM0Parser().Parse(source, document);
             return new(document, revision, tokens, assembly.Diagnostics.Select(d => new FirmamentLanguageDiagnostic(d.Severity == AssemblyDiagnosticSeverity.Error ? "error" : "information", d.Code, d.Message, 0, 0)).ToArray());
+        }
+        if(Syntax.FirmamentSyntaxTraversal.Declarations(documentSyntax).FirstOrDefault(d=>d.Type.Name.Text is "PlasticShell" or "BodyState" or "SculptState"
+            || d.Type.Name.Text=="LinearElastic" && d.Modifiers.Any(m=>m.Name.Text is "Analysis" or "analysis")) is {} externalDomain)
+        {
+            // Editor analysis never materializes sculpt states or runs engineering.
+            // The owning compilation supplies semantic/capability diagnostics.
+            var messages=syntaxReport.Diagnostics.Select(d=>new FirmamentLanguageDiagnostic(d.Severity=="warning"?"warning":"error",d.Code,d.Message,d.SourceSpan?.Start??0,d.SourceSpan?.Length??0)).ToList();
+            if(syntaxReport.IsSuccess)messages.Add(new("information","firmament-language-domain-context-required",
+                "Shared syntax checked only. Use this domain's build/validate compiler for semantic, capability and geometry diagnostics.",externalDomain.Span.Start,externalDomain.Span.Length));
+            return new(document,revision,tokens,messages);
         }
         if (SectionChainAuthoringParser.IsSectionChainSource(source))
         {

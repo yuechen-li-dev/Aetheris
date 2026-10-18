@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Kernel.Core\Aetheris.Kernel.Core.csproj" />
     <ProjectReference Include="..\Aetheris.Modules\Aetheris.Modules.csproj" />
+    <ProjectReference Include="..\Aetheris.Kernel.Firmament\Aetheris.Kernel.Firmament.csproj" />
     <ProjectReference Include="..\Aetheris.Surfacing\Aetheris.Surfacing.csproj" />
   </ItemGroup>
 </Project>

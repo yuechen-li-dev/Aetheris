@@ -75,14 +75,15 @@ public sealed class DrawingM0BTests
     }
 
     [Theory]
-    [InlineData("Revision: 1.1.0", "Revision: 01.1.0", FirmamentDrawingCompiler.DrawingRevisionInvalid)]
-    [InlineData("Date: 2026-08-10", "Date: 2026-02-30", FirmamentDrawingCompiler.DrawingDateInvalid)]
-    public void DrawingInfo_RejectsInvalidVersionAndDate(string before, string after, string diagnostic)
+    [InlineData("Revision: 1.1.0", "Revision: 01.1.0", "Revision")]
+    [InlineData("Date: 2026-08-10", "Date: 2026-02-30", "Date")]
+    public void DrawingInfo_RejectsInvalidVersionAndDate(string before, string after, string field)
     {
         using var temporary = new TemporaryDirectory(); var source = File.ReadAllText(Fixture()).Replace(before, after, StringComparison.Ordinal);
         var path = Path.Combine(temporary.Path, "invalid-metadata.firmament"); File.WriteAllText(path, source);
         var result = FirmamentDrawingCompiler.Compile(path, Path.Combine(temporary.Path, "out"));
-        Assert.False(result.IsSuccess); Assert.Contains(result.Diagnostics, item => item.StartsWith(diagnostic, StringComparison.Ordinal));
+        Assert.False(result.IsSuccess); Assert.Null(result.Artifacts);
+        Assert.Contains(result.Diagnostics,item=>item.StartsWith("firmament-template-record-field-type-mismatch:",StringComparison.Ordinal) && item.Contains("."+field+":",StringComparison.Ordinal));
     }
 
     [Fact]
@@ -95,7 +96,8 @@ public sealed class DrawingM0BTests
         var path = Path.Combine(temporary.Path, "missing-author.firmament"); File.WriteAllText(path, source);
         var result = FirmamentDrawingCompiler.Compile(path, Path.Combine(temporary.Path, "out"));
         Assert.False(result.IsSuccess);
-        Assert.Contains(result.Diagnostics, item => item.StartsWith(FirmamentDrawingCompiler.DrawingMetadataRequiredFieldMissing, StringComparison.Ordinal));
+        Assert.Null(result.Artifacts);
+        Assert.Contains(result.Diagnostics, item => item.StartsWith("firmament-template-record-missing-field:", StringComparison.Ordinal) && item.EndsWith(":Author",StringComparison.Ordinal));
     }
 
     [Fact]

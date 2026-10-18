@@ -284,7 +284,12 @@ public sealed record RemoveSectionChainOperation(
     public string Canonical => $"{StableId}|{Chain.StableId}|{SectionChainCanonical.Fingerprint(Chain)}|{string.Join(',', SupportRegions)}|{string.Join(',', MayModify.Order(StringComparer.Ordinal))}|{InfluenceEnvelope.MinX:R},{InfluenceEnvelope.MinY:R},{InfluenceEnvelope.MinZ:R},{InfluenceEnvelope.MaxX:R},{InfluenceEnvelope.MaxY:R},{InfluenceEnvelope.MaxZ:R}|{string.Join(',', Preserves.OrderBy(item => item.EntityId, StringComparer.Ordinal).Select(item => $"{item.EntityId}:{item.Mode}"))}|{string.Join(',', Requirements.Order())}";
 }
 
-public sealed record SculptDiagnostic(string Code, string Message, string? Entity = null);
+public sealed record SculptDiagnostic(string Code, string Message, string? Entity = null)
+{
+    public string Severity => "error";
+    public string? SourceFile { get; init; }
+    public Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticSourceSpan? SourceSpan { get; init; }
+}
 public sealed record SculptResult(bool IsSuccess, BodyState? OutputState, GeometricDelta? Delta, IReadOnlyList<SculptValidationEvidence> Evidence, IReadOnlyList<SculptDiagnostic> Diagnostics)
 {
     public static SculptResult Failure(IEnumerable<SculptDiagnostic> diagnostics, IEnumerable<SculptValidationEvidence>? evidence = null)

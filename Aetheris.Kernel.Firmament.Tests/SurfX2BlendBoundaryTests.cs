@@ -77,7 +77,11 @@ public sealed class SurfX2BlendBoundaryTests
     [Fact]
     public void RequiredG2FailsWhenDegreeGateLeavesOnlyG1()
     {
-        var result = SculptingAuthoring.CompileFile(Fixture("Invalid", "Sculpting", "surf-x2-g2-unsatisfied.firmament"));
+        var source=File.ReadAllText(Fixture("Invalid", "Sculpting", "surf-x2-g2-unsatisfied.firmament"));
+        // Preserve the historical accidental diff marker as invalid-source evidence.
+        Assert.StartsWith("+Model",source);
+        Assert.Contains(SculptingAuthoring.Compile(source).Diagnostics,d=>d.Code=="firmament-syntax-statement");
+        var result = SculptingAuthoring.Compile(source[1..]);
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, item => item.Code == "surf-blend-no-eligible-candidates");
     }

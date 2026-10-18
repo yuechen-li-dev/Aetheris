@@ -410,7 +410,7 @@ compiler-honesty failure. This does not close X2.
 | CORPUS-02: Sheet boundaries | Applied | Shared Rect2 Profiles replace legacy rectangular boundaries without changing Slot geometry. Points and anchors use ordinary constructor calls. |
 | CORPUS-03: Implicit Base identity | Fixed | Permit `base: profile` through the shared Base Profile binder. Preserve implicit region/bend IDs; a named Base is a distinct identity choice. Original source/geometry witnesses remain under Compatibility. |
 | CORPUS-04: Relative assembly placement | Fixed | Use Parent for relative placement. Child-owned mates do not drive their containing occurrence; retain competing-authority rejection on the actual owner. |
-| CORPUS-05: Surfacing casing/crash | Fixed, AST migration remains | Existing owner reads first-character field aliases and stops before construction after bad mounting data. A shared structural parse is not proof this independent reader is migrated. |
+| CORPUS-05: Surfacing casing/crash | Fixed; production AST admission migrated 2026-10-18 | Existing owner reads first-character field aliases and stops before construction after bad mounting data. A shared structural parse is not proof this independent reader is migrated. |
 | CORPUS-06: Inner-loop segment identity | Fixed source | Give inner segments explicit aliases; preserve 4160 mm3 intended volume. |
 | CORPUS-07: SurfaceCoil supports | Separate semantic/capability prerequisite | Preserve centerline-only witnesses outside Canonical. Define nonmaterial analytic support binding before admitting support solids plus wire output; never erase material implicitly. |
 | CORPUS-08: Fixture qualification levels | Applied | Qualify modules through real consumers; inspect gear interfaces; record missing garment bodies separately. Solver-invalid and DFM-warning specimens are not syntax failures. Preserve the now-valid Rect2 TraceLoop specimen and use an open Line2 for the actual negative. |
@@ -420,3 +420,14 @@ compiler-honesty failure. This does not close X2.
 
 No additional fatality allowlist, source macro system or parallel frontend was
 introduced. No decision above grants missing geometry or blanket X2 acceptance.
+
+
+## Remaining-domain AST follow-up (2026-10-18)
+
+The [production migration and inconsistency register](FIRMAMENT-REMAINING-DOMAIN-AST-2026-10-18.md)
+records Structural, Sculpting/BodyState, Analysis, PlasticShell, Drawing/Review,
+and recovered/evidence-linked SheetMetal ownership. This supersedes the
+CORPUS-05 independent-reader qualification above. Unknown intent closes at the
+actual AST owner; no shadow-only admission path was added. DOMAIN-01 through
+DOMAIN-13 preserve the remaining semantic, expansion, units, provenance and
+metadata decisions. This does not mark X2 or separate geometry work complete.

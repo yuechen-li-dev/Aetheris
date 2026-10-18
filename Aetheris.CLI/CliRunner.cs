@@ -493,6 +493,18 @@ public static class CliRunner
             var source = File.ReadAllText(sourcePath);
             var frontend = FirmamentFrontendSchemas.Select(source);
             if (!frontend.IsSuccess) return WriteFrontendRejection(frontend, source, sourcePath, "build", json, stdout, stderr);
+            if((FirmamentDrawingCompiler.IsDrawingSource(source)||FirmamentAnalysisCompiler.IsAnalysisSource(source)) && outPath is not null && Path.GetExtension(outPath).Equals(".step",StringComparison.OrdinalIgnoreCase))
+            {
+                var diagnostic=FirmamentBuildAdmissionValidation.Present(new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed,KernelDiagnosticSeverity.Error,
+                    "firmament-product-output-directory-required: Drawing and Analysis builds produce artifact directories. Use --out <directory>; export the geometry source separately for STEP.","Firmament.Build"),sourcePath,source);
+                if(json)stdout.WriteLine(JsonSerializer.Serialize(new {command="build",success=false,diagnostics=new[]{diagnostic}},JsonOptions));
+                else stderr.WriteLine($"{sourcePath}:{diagnostic.Line}:{diagnostic.Column}: {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}");
+                return 1;
+            }
+            if(FirmamentDrawingCompiler.IsDrawingSource(source))
+                return RunDrawing(["compile",sourcePath,"--out-dir",outPath??Path.GetFullPath(Path.Combine("artifacts","local","drawing",Path.GetFileNameWithoutExtension(sourcePath))),..(json?new[]{"--json"}:[])],stdout,stderr);
+            if (FirmamentAnalysisCompiler.IsAnalysisSource(source))
+                return RunFea([sourcePath,"--out-dir",outPath??Path.GetFullPath(Path.Combine("artifacts","local","analysis",Path.GetFileNameWithoutExtension(sourcePath))),..(json?new[]{"--json"}:[])],stdout,stderr);
             if (Aetheris.Kernel.Firmament.Garment.GarmentAuthoring.HasRoot(source))
             { stderr.WriteLine("garment-step-export-unsupported: Fabric is a material-space surface; use garment build or garment drape."); return 1; }
             if (Aetheris.Kernel.Firmament.Scene.SceneAuthoring.HasRoot(source))
@@ -787,19 +799,26 @@ public static class CliRunner
         return 0;
     }
 
+    private static void WriteFrontendDiagnostics(IEnumerable<FirmamentV2ValidationDiagnostic> diagnostics,TextWriter writer)
+    {
+        foreach(var d in diagnostics)writer.WriteLine($"{d.SourceFile}:{d.Line}:{d.Column}: {d.Severity} {d.Code}: {d.Message}");
+    }
+
     private static int RunSculptingBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
     {
         var compile = SculptingAuthoring.CompileFile(sourcePath);
+        var sourceText=File.ReadAllText(sourcePath);
+        var presented=SculptingAuthoring.KernelDiagnostics(compile).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,sourceText)).ToArray();
         if (!compile.IsSuccess || compile.OutputState is null)
         {
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = false, input = Path.GetFullPath(sourcePath), domain = "Sculpting", diagnostics = compile.Diagnostics }, JsonOptions));
-            else { stderr.WriteLine("Build failed:"); foreach (var diagnostic in compile.Diagnostics) stderr.WriteLine($"- [Error] {diagnostic.Code}: {diagnostic.Message}"); }
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = false, input = Path.GetFullPath(sourcePath), domain = "Sculpting", diagnostics = presented }, JsonOptions));
+            else { stderr.WriteLine("Build failed:"); WriteFrontendDiagnostics(presented,stderr); }
             return 1;
         }
         var exportClock = Stopwatch.StartNew(); var export = SculptStepExporter.Export(compile.OutputState, compile.ModelName); exportClock.Stop();
         if (!export.IsSuccess || export.Step is null)
         {
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = false, input = Path.GetFullPath(sourcePath), domain = "Sculpting", diagnostics = export.Diagnostics, surfaceInventory = export.Inventory }, JsonOptions));
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = false, input = Path.GetFullPath(sourcePath), domain = "Sculpting", diagnostics = SculptingAuthoring.KernelDiagnostics(compile with {Diagnostics=export.Diagnostics}).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,sourceText)).ToArray(), surfaceInventory = export.Inventory }, JsonOptions));
             else foreach (var diagnostic in export.Diagnostics) stderr.WriteLine($"- [Error] {diagnostic.Code}: {diagnostic.Message}");
             return 1;
         }
@@ -823,7 +842,7 @@ public static class CliRunner
             command = "build", success = true, input = Path.GetFullPath(sourcePath), output, domain = "Sculpting", model = compile.ModelName,
             state = DescribeSculptState(compile.OutputState), states = compile.States.Values.Select(DescribeSculptState), geometricDelta = compile.OutputState.Delta,
             validationEvidence = compile.OutputState.ValidationEvidence, surfacePatches = compile.OutputState.SurfacePatches, blendJudgment = compile.OutputState.BlendJudgment, surfaceInventory = export.Inventory, rationalNurbs = export.Inventory.RationalNurbs,
-            deltaArtifact = deltaPath, timingsMilliseconds = compile.Timings with { StepExportMilliseconds = exportClock.Elapsed.TotalMilliseconds }, diagnostics = compile.Diagnostics
+            deltaArtifact = deltaPath, timingsMilliseconds = compile.Timings with { StepExportMilliseconds = exportClock.Elapsed.TotalMilliseconds }, diagnostics = presented
         }, JsonOptions));
         else
         {
@@ -842,23 +861,25 @@ public static class CliRunner
     private static int RunPlasticShellBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
     {
         var compile = PlasticShellFirmament.CompileFile(sourcePath);
+        var sourceText=File.ReadAllText(sourcePath);
+        var presented=PlasticShellFirmament.KernelDiagnostics(compile).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,sourceText)).ToArray();
         if (!compile.IsSuccess || compile.State is null)
         {
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = false, input = Path.GetFullPath(sourcePath), domain = "PlasticShell", diagnostics = compile.Diagnostics }, JsonOptions));
-            else { stderr.WriteLine("Build failed:"); foreach (var diagnostic in compile.Diagnostics) stderr.WriteLine($"- [{diagnostic.Severity}] {diagnostic.Code}: {diagnostic.Message}"); }
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = false, input = Path.GetFullPath(sourcePath), domain = "PlasticShell", diagnostics = presented }, JsonOptions));
+            else { stderr.WriteLine("Build failed:"); WriteFrontendDiagnostics(presented,stderr); }
             return 1;
         }
         var export = PlasticShellStepExporter.Export(compile.State, compile.ModelName);
         if (!export.IsSuccess || export.Step is null)
         {
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = false, input = Path.GetFullPath(sourcePath), domain = "PlasticShell", diagnostics = export.Diagnostics, surfaceInventory = export.Inventory }, JsonOptions));
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = false, input = Path.GetFullPath(sourcePath), domain = "PlasticShell", diagnostics = PlasticShellFirmament.KernelDiagnostics(compile with {Diagnostics=export.Diagnostics}).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,sourceText)).ToArray(), surfaceInventory = export.Inventory }, JsonOptions));
             else foreach (var diagnostic in export.Diagnostics) stderr.WriteLine($"- [{diagnostic.Severity}] {diagnostic.Code}: {diagnostic.Message}");
             return 1;
         }
         var output = Path.GetFullPath(outPath ?? Path.ChangeExtension(sourcePath, ".step")); Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.WriteAllText(output, export.Step);
         var evidencePath = Path.ChangeExtension(output, ".plastic-shell.json");
         File.WriteAllText(evidencePath, JsonSerializer.Serialize(new { compile.ModelName, compile.State.Intent, compile.State.StateId, compile.State.Delta, compile.State.Evidence, surfaceInventory = export.Inventory, productBoundary = new { bodies = compile.State.Body.Topology.Bodies.Count(), shells = compile.State.Body.Topology.Shells.Count(), rationalProductSurfaces = export.Inventory.RationalProductSurfaces } }, JsonOptions));
-        var report = new { command = "build", success = true, input = Path.GetFullPath(sourcePath), output, evidence = evidencePath, domain = "PlasticShell", model = compile.ModelName, plasticShell = compile.State.Intent, state = compile.State.StateId, geometricDelta = compile.State.Delta, manufacturingEvidence = compile.State.Evidence, surfaceInventory = export.Inventory, rationalProductSurfaces = export.Inventory.RationalProductSurfaces, diagnostics = compile.Diagnostics };
+        var report = new { command = "build", success = true, input = Path.GetFullPath(sourcePath), output, evidence = evidencePath, domain = "PlasticShell", model = compile.ModelName, plasticShell = compile.State.Intent, state = compile.State.StateId, geometricDelta = compile.State.Delta, manufacturingEvidence = compile.State.Evidence, surfaceInventory = export.Inventory, rationalProductSurfaces = export.Inventory.RationalProductSurfaces, diagnostics = presented };
         if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
         else { stdout.WriteLine($"Built {Path.GetFileName(sourcePath)}"); stdout.WriteLine($"STEP: {output}"); stdout.WriteLine($"PlasticShell: {compile.State.Intent.PlasticShellId}; wall {compile.State.Evidence.WallThickness.Minimum:G6}..{compile.State.Evidence.WallThickness.Maximum:G6} mm; selected ribs {compile.State.Evidence.RibNetwork?.SelectedCandidate ?? "none"}"); stdout.WriteLine($"Manufacturing evidence: {evidencePath}"); }
         return 0;
@@ -1158,8 +1179,8 @@ Model CanonicalPanel {
         var result = FirmamentDrawingCompiler.Compile(source, output);
         if (!result.IsSuccess)
         {
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { success = false, diagnostics = result.Diagnostics }, JsonOptions));
-            else foreach (var diagnostic in result.Diagnostics) stderr.WriteLine(diagnostic);
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { success = false, diagnostics = result.KernelDiagnostics().Select(d=>FirmamentBuildAdmissionValidation.Present(d,source,File.Exists(source)?File.ReadAllText(source):null)).ToArray() }, JsonOptions));
+            else WriteFrontendDiagnostics(result.KernelDiagnostics().Select(d=>FirmamentBuildAdmissionValidation.Present(d,source,File.Exists(source)?File.ReadAllText(source):null)),stderr);
             return 1;
         }
         var artifacts = result.Artifacts!;
@@ -1198,10 +1219,10 @@ Model CanonicalPanel {
                     command = "fea",
                     success = false,
                     input,
-                    diagnostics = compiled.Diagnostics.Select(diagnostic => new { diagnostic.Code, severity = diagnostic.Severity.ToString(), diagnostic.Message })
+                    diagnostics = FirmamentAnalysisCompiler.KernelDiagnostics(compiled).Select(d=>FirmamentBuildAdmissionValidation.Present(d,input,File.ReadAllText(input))).ToArray()
                 }, JsonOptions));
             else
-                foreach (var diagnostic in compiled.Diagnostics) stderr.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+                WriteFrontendDiagnostics(FirmamentAnalysisCompiler.KernelDiagnostics(compiled).Select(d=>FirmamentBuildAdmissionValidation.Present(d,input,File.ReadAllText(input))),stderr);
             return 1;
         }
         if(latticeOverride is { } requestedLattice)compiled=compiled with{Analysis=compiled.Analysis with{Lattice=new Aetheris.Continuum.Lattice.LatticeSpec(compiled.Analysis.Body.ContinuumRegion.Bounds,requestedLattice.X,requestedLattice.Y,requestedLattice.Z)}};
@@ -1461,7 +1482,7 @@ Model CanonicalPanel {
         {
             var plastic = PlasticShellFirmament.Compile(source, fullPath);
             var plasticReport = new { command = "inspect", success = plastic.IsSuccess, input = fullPath, domain = "PlasticShell", model = plastic.ModelName,
-                plasticShell = plastic.Intent, state = plastic.State?.StateId, geometricDelta = plastic.State?.Delta, manufacturingEvidence = plastic.State?.Evidence, diagnostics = plastic.Diagnostics };
+                plasticShell = plastic.Intent, state = plastic.State?.StateId, geometricDelta = plastic.State?.Delta, manufacturingEvidence = plastic.State?.Evidence, diagnostics = PlasticShellFirmament.KernelDiagnostics(plastic).Select(d=>FirmamentBuildAdmissionValidation.Present(d,fullPath,source)).ToArray() };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(plasticReport, JsonOptions));
             else if (plastic.IsSuccess && plastic.State is { } state)
             {
@@ -1469,18 +1490,18 @@ Model CanonicalPanel {
                 if (state.Evidence.RibNetwork is { } ribs)
                     foreach (var candidate in ribs.Candidates) stdout.WriteLine($"  {candidate.CandidateId}: eligible={candidate.Eligible}; support={candidate.Metrics.SupportProxy:F6}; flow={candidate.Metrics.FlowCompatibility:F6}; sink={candidate.Metrics.SinkProxy:F6}; length={candidate.Metrics.RibLength:F6}; complexity={candidate.Metrics.Complexity:F6}; utility={candidate.Metrics.Utility:F6}");
             }
-            else foreach (var diagnostic in plastic.Diagnostics) stderr.WriteLine($"error: {diagnostic.Code}: {diagnostic.Message}");
+            else WriteFrontendDiagnostics(PlasticShellFirmament.KernelDiagnostics(plastic).Select(d=>FirmamentBuildAdmissionValidation.Present(d,fullPath,source)),stderr);
             return plastic.IsSuccess ? 0 : 1;
         }
         if (SculptingAuthoring.IsSculptingSource(source))
         {
-            var sculpt = SculptingAuthoring.Compile(source);
+            var sculpt = SculptingAuthoring.Compile(source,fullPath);
             var sculptReport = new { command = "inspect", success = sculpt.IsSuccess, input = fullPath, domain = "Sculpting", model = sculpt.ModelName,
                 states = sculpt.States.Values.Select(state => new { state = DescribeSculptState(state), geometricDelta = state.Delta, validationEvidence = state.ValidationEvidence }),
-                outputState = sculpt.OutputState?.StateId, timingsMilliseconds = sculpt.Timings, diagnostics = sculpt.Diagnostics };
+                outputState = sculpt.OutputState?.StateId, timingsMilliseconds = sculpt.Timings, diagnostics = SculptingAuthoring.KernelDiagnostics(sculpt).Select(d=>FirmamentBuildAdmissionValidation.Present(d,fullPath,source)).ToArray() };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(sculptReport, JsonOptions));
             else if (sculpt.IsSuccess) { stdout.WriteLine($"Sculpting model {sculpt.ModelName}: {sculpt.States.Count} immutable states; output {sculpt.OutputState!.AuthoredName} ({sculpt.OutputState.StateId})"); foreach (var state in sculpt.States.Values) stdout.WriteLine($"State {state.AuthoredName}: {state.StateId} <- {state.PredecessorStateId?.Value ?? "<initial>"}"); }
-            else foreach (var diagnostic in sculpt.Diagnostics) stderr.WriteLine($"error: {diagnostic.Code}: {diagnostic.Message}");
+            else WriteFrontendDiagnostics(SculptingAuthoring.KernelDiagnostics(sculpt).Select(d=>FirmamentBuildAdmissionValidation.Present(d,fullPath,source)),stderr);
             return sculpt.IsSuccess ? 0 : 1;
         }
         if (PipingAuthoring.IsPipingSource(source))
@@ -1494,9 +1515,9 @@ Model CanonicalPanel {
         if (StructuralAuthoring.IsStructuralSource(source))
         {
             var structural = StructuralAuthoring.Compile(source, fullPath);
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "inspect", success = structural.IsSuccess, input = fullPath, domain = "Structural", structural = structural.Report, diagnostics = structural.Diagnostics }, JsonOptions));
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "inspect", success = structural.IsSuccess, input = fullPath, domain = "Structural", structural = structural.Report, diagnostics = structural.KernelDiagnostics().Select(d=>FirmamentBuildAdmissionValidation.Present(d,fullPath,source)).ToArray() }, JsonOptions));
             else if (structural.IsSuccess && structural.Report is { } structuralReport) stdout.WriteLine($"Structure {structuralReport.Structure}: {structuralReport.Members.Count} members, {structuralReport.Joints.Count} joints, {structuralReport.Welds.Count} welds, {structuralReport.CutList.Count} cut-list groups");
-            else foreach (var diagnostic in structural.Diagnostics) stderr.WriteLine($"error: {diagnostic}");
+            else WriteFrontendDiagnostics(structural.KernelDiagnostics().Select(d=>FirmamentBuildAdmissionValidation.Present(d,fullPath,source)),stderr);
             return structural.IsSuccess ? 0 : 1;
         }
         if (frontend.Schema == FirmamentFrontendSchema.SectionChain)
@@ -2378,6 +2399,29 @@ Model CanonicalPanel {
         var authoredValidationSource = validationSource;
         var frontend = FirmamentFrontendSchemas.Select(validationSource);
         if (!frontend.IsSuccess) return WriteFrontendRejection(frontend, validationSource, sourcePath, "validate", json, stdout, stderr);
+        if(FirmamentDrawingCompiler.IsDrawingSource(validationSource))
+        {
+            var output=Path.GetFullPath(Path.Combine("artifacts","local","drawing-validation",Guid.NewGuid().ToString("N")));
+            try
+            {
+                var drawing=FirmamentDrawingCompiler.Compile(sourcePath,output);
+                var diagnostics=drawing.KernelDiagnostics().Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,validationSource)).ToArray();
+                var payload=new {source=sourcePath,status=drawing.IsSuccess?"valid":"invalid",domain="Drawing",validationLevel=drawing.IsSuccess?"Built":"BuildRejected",parserRoute="UnifiedDrawing",diagnostics};
+                if(json)stdout.WriteLine(JsonSerializer.Serialize(new {firmamentV2Validation=payload},JsonOptions));
+                else {stdout.WriteLine(drawing.IsSuccess?"Drawing admitted.":"Drawing rejected.");foreach(var d in diagnostics)stderr.WriteLine($"{d.SourceFile}:{d.Line}:{d.Column}: {d.Severity} {d.Code}: {d.Message}");}
+                return drawing.IsSuccess?0:1;
+            }
+            finally {if(Directory.Exists(output))Directory.Delete(output,true);}
+        }
+        if (FirmamentAnalysisCompiler.IsAnalysisSource(validationSource))
+        {
+            var analysis=FirmamentAnalysisCompiler.Compile(frontend.Source,Path.GetFullPath(sourcePath),Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
+            var diagnostics=FirmamentAnalysisCompiler.KernelDiagnostics(analysis).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,validationSource)).ToArray();
+            var payload=new {source=sourcePath,status=analysis.IsSuccess?"bound-not-solved":"invalid",domain="Analysis",validationLevel=analysis.IsSuccess?"BoundNotSolved":"BindingRejected",parserRoute="UnifiedAnalysis",diagnostics};
+            if(json)stdout.WriteLine(JsonSerializer.Serialize(new {firmamentV2Validation=payload},JsonOptions));
+            else {stdout.WriteLine(analysis.IsSuccess?"Analysis bound; solver execution has not been validated.":"Analysis rejected.");foreach(var d in diagnostics)stderr.WriteLine($"{d.SourceFile}:{d.Line}:{d.Column}: {d.Severity} {d.Code}: {d.Message}");}
+            return analysis.IsSuccess?0:1;
+        }
         if (Aetheris.Kernel.Firmament.Garment.GarmentAuthoring.HasRoot(validationSource)
             || frontend.Schema == FirmamentFrontendSchema.Garment)
             return GarmentCommand.Run(["inspect", sourcePath, .. (json ? new[] { "--json" } : Array.Empty<string>())], stdout, stderr);
@@ -2411,17 +2455,17 @@ Model CanonicalPanel {
         if (PlasticShellFirmament.LooksLikePlasticShell(validationSource))
         {
             var plastic = PlasticShellFirmament.Compile(validationSource, Path.GetFullPath(sourcePath));
-            var payload = new { source = sourcePath, status = plastic.IsSuccess ? "valid" : "invalid", domain = "PlasticShell", summary = new { fatalDiagnosticCount = plastic.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Error), warningDiagnosticCount = plastic.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Warning), gates = plastic.Intent?.Gates.Count ?? 0, standoffs = plastic.Intent?.Standoffs.Count ?? 0, ejectors = plastic.Intent?.Ejectors.Count ?? 0, ribCandidates = plastic.State?.Evidence.RibNetwork?.Candidates.Count ?? 0 }, diagnostics = plastic.Diagnostics };
+            var payload = new { source = sourcePath, status = plastic.IsSuccess ? "valid" : "invalid", domain = "PlasticShell", summary = new { fatalDiagnosticCount = plastic.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Error), warningDiagnosticCount = plastic.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Warning), gates = plastic.Intent?.Gates.Count ?? 0, standoffs = plastic.Intent?.Standoffs.Count ?? 0, ejectors = plastic.Intent?.Ejectors.Count ?? 0, ribCandidates = plastic.State?.Evidence.RibNetwork?.Candidates.Count ?? 0 }, diagnostics = PlasticShellFirmament.KernelDiagnostics(plastic).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,authoredValidationSource)).ToArray() };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { plasticShellValidation = payload }, JsonOptions));
-            else stdout.WriteLine($"PlasticShell validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, {payload.summary.warningDiagnosticCount} warning)");
+            else {stdout.WriteLine($"PlasticShell validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, {payload.summary.warningDiagnosticCount} warning)");WriteFrontendDiagnostics(payload.diagnostics,stderr);}
             return plastic.IsSuccess ? 0 : 1;
         }
         if (SculptingAuthoring.IsSculptingSource(validationSource))
         {
-            var sculpt = SculptingAuthoring.Compile(validationSource);
-            var payload = new { source = sourcePath, status = sculpt.IsSuccess ? "valid" : "invalid", domain = "Sculpting", summary = new { fatalDiagnosticCount = sculpt.Diagnostics.Count, warningDiagnosticCount = 0, states = sculpt.States.Count }, diagnostics = sculpt.Diagnostics };
+            var sculpt = SculptingAuthoring.Compile(validationSource,Path.GetFullPath(sourcePath));
+            var payload = new { source = sourcePath, status = sculpt.IsSuccess ? "valid" : "invalid", domain = "Sculpting", validationLevel=sculpt.IsSuccess?"Built":"BuildRejected", parserRoute="UnifiedSculpting", summary = new { fatalDiagnosticCount = sculpt.Diagnostics.Count, warningDiagnosticCount = 0, states = sculpt.States.Count }, diagnostics = SculptingAuthoring.KernelDiagnostics(sculpt).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,authoredValidationSource)).ToArray() };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
-            else stdout.WriteLine($"Firmament V2 Sculpting validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+            else {stdout.WriteLine($"Firmament V2 Sculpting validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");WriteFrontendDiagnostics(payload.diagnostics,stderr);}
             return sculpt.IsSuccess ? 0 : 1;
         }
         if (PlateauAuthoring.IsSource(validationSource) && !System.Text.RegularExpressions.Regex.IsMatch(validationSource, @"\bAssembly\s+"))
@@ -2447,9 +2491,9 @@ Model CanonicalPanel {
         if (StructuralAuthoring.IsStructuralSource(validationSource))
         {
             var structural = StructuralAuthoring.Compile(validationSource, Path.GetFullPath(sourcePath));
-            var payload = new { source = sourcePath, status = structural.IsSuccess ? "valid" : "invalid", domain = "Structural", summary = new { fatalDiagnosticCount = structural.Diagnostics.Count, warningDiagnosticCount = 0, members = structural.Report?.Members.Count ?? 0, joints = structural.Report?.Joints.Count ?? 0 }, diagnostics = structural.Diagnostics };
+            var payload = new { source = sourcePath, status = structural.IsSuccess ? "valid" : "invalid", domain = "Structural", validationLevel=structural.IsSuccess?"Built":"BuildRejected", parserRoute="UnifiedStructural", summary = new { fatalDiagnosticCount = structural.Diagnostics.Count, warningDiagnosticCount = 0, members = structural.Report?.Members.Count ?? 0, joints = structural.Report?.Joints.Count ?? 0 }, diagnostics = structural.KernelDiagnostics().Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,authoredValidationSource)).ToArray() };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
-            else stdout.WriteLine($"Firmament V2 Structural validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+            else {stdout.WriteLine($"Firmament V2 Structural validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");WriteFrontendDiagnostics(payload.diagnostics,stderr);}
             return structural.IsSuccess ? 0 : 1;
         }
         if (frontend.Schema == FirmamentFrontendSchema.SectionChain)

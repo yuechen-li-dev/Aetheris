@@ -1,12 +1,20 @@
 # Structural members and weldments
 
-Aetheris X2 authors a weldment as a semantic structure, not as a Boolean union of intersecting solids:
+Firmament authors a weldment as a semantic structure, not as a Boolean union of intersecting solids:
 
 ```text
 Structure → Member AIR → Joint resolution → Assembly Interfaces → finished members → AP242 Assembly + Cut List
 ```
 
 The bounded X2 workflow supports explicit 3D nodes, straight paths, constant structural sections, member orientation, catalog material resolution, two-member butt and polygonal miter joints, fillet-weld requirements, and deterministic JSON cut lists. Curved members, tube coping, three-member miters, connection design, weld sizing, and structural FEA are future work.
+
+The shared AST admits a standalone Structural document or one nested `Model`/`Struct`
+owner chain, optionally selected with `schema Structural`. `Structure` owns its
+Nodes and Paths; Section, Member, Joint, Weld, Record and Static Table declarations
+are peers in the enclosing product scope. Nested names do not become global.
+Use camelCase compiler fields; historical PascalCase aliases remain supported.
+Unknown/duplicate fields and statements reject. Table schemas and values use the
+same checked Record/Static binder as other Firmament products.
 
 ## 1. Author the structure graph
 
@@ -28,20 +36,20 @@ X2 paths are straight segments and every path has exactly one Member assignment.
 
 Section geometry and material identity are separate. X2 admits `Standard.Structural.SquareTube`, `RectangularTube`, `RoundTube`, `Angle`, `FlatBar`, and `RoundBar`.
 
-Tube sections are genuinely hollow. Square/rectangular tube fields are `Width`, optional `Height`, and `Thickness`; round sections use `Diameter`; angles use `Width`, `Height`, and `Thickness`.
+Tube sections are genuinely hollow. Square tubes use `width` and `thickness`; an optional `height` must equal `width`. Rectangular tubes require `width`, `height` and `thickness`; round sections use `diameter`; angles use `width`, `height`, and `thickness`.
 
 ```firmament
 Section RHS {
-    Kind: Standard.Structural.SquareTube;
-    Width: 40mm;
-    Thickness: 3mm;
+    kind: Standard.Structural.SquareTube;
+    width: 40mm;
+    thickness: 3mm;
 }
 
 Member Horizontal {
-    Path: Horizontal;
-    Section: RHS;
-    Material: Standard.Materials.Steel.ASTM_A36;
-    Orientation: [0,0,1];
+    path: Horizontal;
+    section: RHS;
+    material: Standard.Materials.Steel.ASTM_A36;
+    orientation: [0,0,1];
 }
 ```
 

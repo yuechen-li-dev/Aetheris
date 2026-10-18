@@ -17,7 +17,13 @@ public static class FirmamentSourceSpelling
         ["Include"] = "include", ["Expose"] = "expose", ["Bind"] = "bind", ["From"] = "from", ["To"] = "to"
     };
 
-    public static string PreferredField(string name) => name.Length == 0 ? name : char.ToLowerInvariant(name[0]) + name[1..];
+    public static string PreferredField(string name)
+    {
+        var count=0;while(count<name.Length && char.IsUpper(name[count]))count++;
+        if(count>1 && count<name.Length)count--;
+        if(count==0)return name;
+        return name[..count].ToLowerInvariant()+name[count..];
+    }
     public static string Normalize(string source) => Rewrite(source, preferred: false);
     public static string Prefer(string source) => Rewrite(source, preferred: true);
 

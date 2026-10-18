@@ -76,7 +76,7 @@ public static class SheetMetalFirmament
         foreach(var token in FirmamentSyntaxParser.Parse(source).Document.Tokens.Where(t=>t.Kind==SyntaxTokenKind.Comment))
             for(var i=token.Span.Start;i<token.Span.Start+token.Span.Length;i++)if(cleanChars[i] is not ('\r' or '\n'))cleanChars[i]=' ';
         var clean=new string(cleanChars);
-        if(ReconstructedSheetMetalFirmament.IsReconstructed(clean)&&Regex.IsMatch(clean,@"\bEvidenceSource\s*:",Rx))return ReconstructedSheetMetalFirmament.Compile(clean,sourcePath);
+        if(ReconstructedSheetMetalFirmament.IsReconstructed(clean))return ReconstructedSheetMetalFirmament.Compile(clean,sourcePath);
         if(RecoveredSheetMetalFirmament.IsRecovered(clean))return RecoveredSheetMetalFirmament.Compile(clean,sourcePath);
         var result=AuthoredSheetMetalCompiler.Compile(clean,sourcePath,originalSource);
         return result;

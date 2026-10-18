@@ -1,5 +1,14 @@
 # Bounded mathematical sculpting and patch replacement
 
+Authoring uses the shared AST and compile-time value binder, with camelCase
+fields and historical PascalCase aliases. A single Model owns its states,
+SurfacePatch and compact SectionChain declarations and selects one `output`.
+Unknown statements/fields, duplicate singleton operations and unsupported header
+placements reject. `schema Sculpting` is optional. The current `BodyState`
+constructor remains the bounded housing witness with explicit holes; it is not
+a general arbitrary-body constructor. Its compact Station-based SectionChain
+form remains distinct from the framed Profile-based SectionChain frontend.
+
 SURF-X0 supports bounded mathematical sculpting and locality-preserving region modification. SURF-X1 adds direct rectangular patch replacement. SURF-X1a closes the trim path for the admitted housing: qualified surface intersections derive the outer boundary, face-local pcurves qualify every trim, circular inner loops preserve openings, and an imported `ADVANCED_FACE` can receive a bounded support-surface graft. SURF-X2 adds a qualified two-support crown-to-planar-shoulder `BlendBoundary` that generates and deterministically judges exact non-rational polynomial candidates. This is not full general surfacing.
 
 Sculpting is a lower-authority escape hatch for geometry that an engineering feature such as `Boss`, `Pocket`, `Hole`, `Sweep`, `Fillet`, or `Chamfer` cannot express. Prefer those features whenever they carry the intended engineering meaning.

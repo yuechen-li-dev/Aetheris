@@ -191,6 +191,12 @@ public static class FirmamentSyntaxParser
             // Lowercase from was already a legal authored name. It becomes a link
             // only after the declaration name, never a newly reserved identifier.
             if (Current.Kind == SyntaxTokenKind.Identifier && !LineBreak && (Current.Text == "from" || !IsClause(Current.Text))) name = Identifier();
+            // Loss-aware STEP recovery uses quoted, externally supplied identities.
+            if (name is null && type.Name.Text is "RecoveredRegion" or "RecoveredBend" or "RecoveredCut" && Current.Kind==SyntaxTokenKind.String)
+            {
+                var token=Current;at++;
+                name=new(System.Text.Json.JsonSerializer.Deserialize<string>(token.Text)!,token.Span);
+            }
             ExpressionSyntax? target = null;
             if (type.Name.Text is "CornerProfile" or "EdgeProfile" && name is not null)
             {
@@ -387,6 +393,11 @@ public static class FirmamentSyntaxParser
                     if (t.Kind == SyntaxTokenKind.Number && Current.Kind == SyntaxTokenKind.Number && Current.Text.StartsWith('.')
                         && (t.Span.Start + t.Span.Length) == Current.Span.Start && t.Text.Count(c => c == '.') == 1)
                     { at++; left = new LiteralSyntax(LiteralKind.Version, source[start..(Previous.Span.Start + Previous.Span.Length)], Span(start)); }
+                }
+                else if (Take("$"))
+                {
+                    // Forge resource identity. Domain binding must still resolve it.
+                    var resource=Identifier();left=new ReferenceSyntax(new("$"+resource.Text,Span(start)),Span(start));
                 }
                 else if (Take("#"))
                 {

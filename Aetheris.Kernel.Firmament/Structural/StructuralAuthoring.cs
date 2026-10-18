@@ -2,7 +2,9 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
+using Block = Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FirmamentSyntaxScope;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Diagnostics;
@@ -53,7 +55,11 @@ public sealed record StructuralReport(
 public sealed record StructuralMemberSummary(string StableId, string Path, string Section, string Material, double RawLengthMm, double FinishedLengthMm, string StartTreatment, string EndTreatment, double MassKilograms);
 
 public sealed record StructuralCompilationResult(bool IsSuccess, string? StepText, StructuralReport? Report, IReadOnlyList<string> Diagnostics,
-    IReadOnlyList<StructuralMemberIr>? RealizedMembers = null);
+    IReadOnlyList<StructuralMemberIr>? RealizedMembers = null)
+{
+    public IReadOnlyList<FirmamentV2ValidationDiagnostic> FrontendDiagnostics { get; init; } = [];
+    public IReadOnlyList<KernelDiagnostic> KernelDiagnostics() => FirmamentDomainDiagnostics.Present(Diagnostics,FrontendDiagnostics,"Firmament.Structural");
+}
 public readonly record struct StructuralEndPlane(double CenterDepth, double XCoefficient, double YCoefficient, StructuralEndTreatmentIr Treatment);
 
 /// <summary>
@@ -64,14 +70,19 @@ public readonly record struct StructuralEndPlane(double CenterDepth, double XCoe
 public static class StructuralAuthoring
 {
     private const double Tol = 1e-7;
-    public static bool IsStructuralSource(string source) => Regex.IsMatch(source, @"\bStructure\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant);
+    public static bool IsStructuralSource(string source) => source.Contains("Structure",StringComparison.Ordinal) && FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Any(d=>d.Type.Name.Text=="Structure");
 
     public static StructuralCompilationResult Compile(string source, string sourceIdentity = "memory")
+    {
+        var frontend=new List<FirmamentV2ValidationDiagnostic>();
+        return CompileCore(source,sourceIdentity,frontend) with {FrontendDiagnostics=frontend};
+    }
+    private static StructuralCompilationResult CompileCore(string source,string sourceIdentity,List<FirmamentV2ValidationDiagnostic> frontend)
     {
         var total = System.Diagnostics.Stopwatch.StartNew();
         var diagnostics = new List<string>();
         var parseClock = System.Diagnostics.Stopwatch.StartNew();
-        var parsed = Parse(source, sourceIdentity, diagnostics);
+        var parsed = Parse(source, sourceIdentity, diagnostics, frontend);
         parseClock.Stop();
         if (parsed is null) return new(false, null, null, diagnostics);
 
@@ -150,6 +161,13 @@ public static class StructuralAuthoring
         return new(true, step.Value, report, [], realized);
     }
 
+    public static IReadOnlyList<KernelDiagnostic> Analyze(string source,string sourceIdentity)
+    {
+        var messages=new List<string>();var frontend=new List<FirmamentV2ValidationDiagnostic>();
+        _=Parse(source,sourceIdentity,messages,frontend);
+        return FirmamentDomainDiagnostics.Present(messages,frontend,"Firmament.Structural");
+    }
+
     public static string CutListJson(StructuralReport report) => JsonSerializer.Serialize(new
     {
         schema = "aetheris:structural-cut-list:x2", structure = report.Structure, units = new { length = "mm", mass = "kg" }, entries = report.CutList
@@ -158,16 +176,47 @@ public static class StructuralAuthoring
     private sealed record Parsed(string Name, IReadOnlyList<StructuralNodeAir> Nodes, IReadOnlyList<StructuralPathAir> Paths, IReadOnlyList<StructuralSectionAir> Sections, IReadOnlyList<StructuralMemberAir> Members, IReadOnlyList<StructuralJointAir> Joints, IReadOnlyList<StructuralWeldAir> Welds, IReadOnlyDictionary<string, ResolvedMaterial> Materials);
     private sealed record MemberEnds(StructuralEndPlane Start, StructuralEndPlane End);
 
-    private static Parsed? Parse(string source, string sourceIdentity, List<string> d)
+    private static Parsed? Parse(string source, string sourceIdentity, List<string> d,List<FirmamentV2ValidationDiagnostic> frontend)
     {
-        var structure = Blocks(source, "Structure").SingleOrDefault();
-        if (structure == default) { d.Add("structural-missing-structure: exactly one Structure block is required"); return null; }
-        if (Blocks(source, "Structure").Count != 1) { d.Add("structural-multiple-structures-unsupported: X2 admits one Structure per model"); return null; }
-        var nodes = Regex.Matches(structure.Body, @"\bNode\s+(?<n>[A-Za-z_]\w*)\s*=\s*\[(?<v>[^\]]+)\]\s*;", RegexOptions.CultureInvariant)
-            .Select(m => new StructuralNodeAir($"structure:{structure.Name}:node:{m.Groups["n"].Value}", m.Groups["n"].Value, Point(Vector(m.Groups["v"].Value, d, "node:" + m.Groups["n"].Value)), sourceIdentity)).ToArray();
-        var paths = Regex.Matches(structure.Body, @"\bPath\s+(?<n>[A-Za-z_]\w*)\s*:\s*(?<a>[A-Za-z_]\w*)\s*->\s*(?<b>[A-Za-z_]\w*)\s*;", RegexOptions.CultureInvariant)
-            .Select(m => (Name:m.Groups["n"].Value, A:m.Groups["a"].Value, B:m.Groups["b"].Value)).ToArray();
-        Duplicates(nodes.Select(x => x.Name), "node", d); Duplicates(paths.Select(x => x.Name), "path", d);
+        var binding=new FirmamentDomainBinding(source,sourceIdentity,"Structure",new HashSet<string>(StringComparer.Ordinal));
+        frontend.AddRange(binding.Diagnostics);
+        d.AddRange(binding.Diagnostics.Select(e=>e.Code+": "+e.Message));if(d.Count>0)return null;
+        source=binding.Source;
+        var document=new DeclarationSyntax(new(new("document",binding.Document.Span),[],binding.Document.Span),null,[],[],null,null,[],null,new(binding.Document.Statements,binding.Document.Span),false,binding.Document.Span);
+        var root=new Block(document,source,sourceIdentity,binding.Nominal,binding.OriginalSpan);
+        var scopes=new List<Block>{root};var owner=root;
+        while(true)
+        {
+            var wrappers=owner.Children("Model").Concat(owner.Children("Struct")).ToArray();
+            if(wrappers.Length==0)break;
+            if(wrappers.Length!=1){d.Add("structural-owner-cardinality: use one structural product owner; sibling products are not pooled");return null;}
+            owner=wrappers[0];scopes.Add(owner);
+        }
+        foreach(var scope in scopes)
+        {
+            var units=scope.Word("Units");if(units is not null && units!="mm")d.Add("structural-units-invalid: structural authoring uses millimetres");
+            foreach(var data in scope.Declaration.Body?.Statements.OfType<DeclarationSyntax>().Where(binding.OwnsData)??[])scope.Consume(data);
+        }
+        IReadOnlyList<Block> Blocks(string kind)=>owner.Children(kind);
+        var structures=Blocks("Structure");
+        if(structures.Count!=1){d.Add("structural-missing-structure: exactly one Structure is required");return null;}
+        var structure=structures[0];
+        var nodes=new List<StructuralNodeAir>();
+        foreach(var node in structure.Children("Node"))
+        {
+            structure.Consume(node.Declaration);
+            if(node.Declaration.Initializer is not {} value || !FirmamentSyntaxValues.Vector(binding.Nominal(value),"mm",out var v,"mm") || v.Length!=3 || !v.All(double.IsFinite))
+                d.Add("structural-vector-invalid:node:"+node.Name);
+            else nodes.Add(new($"structure:{structure.Name}:node:{node.Name}",node.Name,new(v[0],v[1],v[2]),sourceIdentity));
+            node.AdmitInitializer();
+        }
+        var paths=new List<(string Name,string A,string B)>();
+        foreach(var path in structure.Children("Path"))
+            if(path.Declaration.Annotation is BinarySyntax {Operator:BinaryOperator.Direction} arrow && FirmamentSyntaxValues.Reference(arrow.Left) is {} a && FirmamentSyntaxValues.Reference(arrow.Right) is {} b)
+            { paths.Add((path.Name,a,b)); path.AdmitAnnotation(); }
+            else d.Add("structural-path-invalid:"+path.Name);
+        Duplicates(nodes.Select(x=>x.Name),"node",d);Duplicates(paths.Select(x=>x.Name),"path",d);
+        if(d.Count>0)return null;
         var nodeByName = nodes.ToDictionary(x => x.Name, StringComparer.Ordinal);
         var pathAir = new List<StructuralPathAir>();
         foreach (var p in paths)
@@ -177,14 +226,34 @@ public static class StructuralAuthoring
             pathAir.Add(new($"structure:{structure.Name}:path:{p.Name}", p.Name, p.A, p.B, delta / delta.Length, delta.Length, sourceIdentity));
         }
 
+        var catalog=binding.DataCatalog(d);if(d.Count>0)return null;var tableRows=new List<StructuralRow>();
+        IReadOnlyList<IReadOnlyDictionary<string,string>> TableRows(FirmamentDomainBinding context,string rowType,List<string> errors)
+        {
+            var result=new List<IReadOnlyDictionary<string,string>>();
+            foreach(var table in catalog.Tables.Values.Where(t=>context.DataName(t.RowType)==rowType))
+            {
+                var count=table.Columns.Values.FirstOrDefault().Length;
+                for(var i=0;i<count;i++)
+                {
+                    var row=new StructuralRow(table.Name,table.Columns.ToDictionary(c=>c.Key,c=>c.Value[i],StringComparer.Ordinal));
+                    tableRows.Add(row);result.Add(row);
+                }
+            }
+            return result;
+        }
         var sections = new List<StructuralSectionAir>();
-        foreach (var block in Blocks(source, "Section"))
+        foreach (var block in Blocks("Section"))
         {
             var kindText = Field(block.Body, "Kind");
             if (kindText.StartsWith("Standard.Structural.", StringComparison.Ordinal)) kindText = kindText["Standard.Structural.".Length..];
-            if (!Enum.TryParse<StructuralSectionKind>(kindText, out var kind)) { d.Add($"structural-section-kind-unsupported:{block.Name}: '{kindText}'"); continue; }
+            if ((!Enum.TryParse<StructuralSectionKind>(kindText, out var kind)||!Enum.IsDefined(kind))) { d.Add($"structural-section-kind-unsupported:{block.Name}: '{kindText}'"); continue; }
             var width = LengthField(block.Body, kind == StructuralSectionKind.RoundTube || kind == StructuralSectionKind.RoundBar ? "Diameter" : "Width", d, block.Name);
             var height = kind is StructuralSectionKind.SquareTube ? width : kind is StructuralSectionKind.RoundTube or StructuralSectionKind.RoundBar ? width : LengthField(block.Body, "Height", d, block.Name);
+            if(kind==StructuralSectionKind.SquareTube && block.Take("Height") is not null)
+            {
+                var declaredHeight=LengthField(block,"Height",d,block.Name);
+                if(Math.Abs(declaredHeight-width)>Tol)d.Add($"structural-square-section-height-invalid:{block.Name}: height must equal width; use RectangularTube for unequal dimensions");
+            }
             var thickness = kind is StructuralSectionKind.FlatBar or StructuralSectionKind.RoundBar ? 0 : LengthField(block.Body, "Thickness", d, block.Name);
             if (width <= 0 || height <= 0) d.Add($"structural-section-invalid-dimensions:{block.Name}: dimensions must be positive");
             if (kind is StructuralSectionKind.SquareTube or StructuralSectionKind.RectangularTube or StructuralSectionKind.RoundTube && (thickness <= 0 || thickness * 2 >= Math.Min(width, height))) d.Add($"structural-section-wall-too-large:{block.Name}");
@@ -195,12 +264,13 @@ public static class StructuralAuthoring
 
         var resolver = new MaterialResolver(); var materials = new Dictionary<string, ResolvedMaterial>(StringComparer.Ordinal);
         var members = new List<StructuralMemberAir>();
-        foreach (var block in Blocks(source, "Member"))
+        foreach (var block in Blocks("Member"))
         {
             AddMember(block.Name, Field(block.Body, "Path"), Field(block.Body, "Section"), Field(block.Body, "Material"), Field(block.Body, "Orientation", required:false));
         }
-        var defaultMaterial = Blocks(source,"StructuralDefaults").Select(x=>Field(x.Body,"Material",required:false)).FirstOrDefault(x=>!string.IsNullOrWhiteSpace(x)) ?? "";
-        foreach (var row in TableRows(source, "StructuralMemberRow", d))
+        var defaults=Blocks("StructuralDefaults");if(defaults.Count>1)d.Add("structural-defaults-duplicate: only one default material block is admitted");
+        var defaultMaterial=defaults.Select(x=>Field(x.Body,"Material",required:false)).FirstOrDefault(x=>!string.IsNullOrWhiteSpace(x))??"";
+        foreach (var row in TableRows(binding, "StructuralMemberRow", d))
             AddMember(Cell(row,"Name"),Cell(row,"Path"),Cell(row,"Section"),Cell(row,"Material",false) is var tableMaterial && tableMaterial.Length>0?tableMaterial:defaultMaterial,Cell(row,"Orientation",false));
         void AddMember(string name,string path,string section,string materialValue,string orientationText)
         {
@@ -218,20 +288,20 @@ public static class StructuralAuthoring
         if (members.GroupBy(x => x.Path).Any(g => g.Count() != 1)) d.Add("structural-path-member-cardinality: each Path must have exactly one Member");
 
         var joints = new List<StructuralJointAir>();
-        foreach (var block in Blocks(source, "Joint"))
+        foreach (var block in Blocks("Joint"))
         {
             var endpoints = Field(block.Body, "Members").Trim('[',']').Split(',', StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries);
             if (endpoints.Length != 2 || !TryEndpoint(endpoints[0], out var a, out var ae) || !TryEndpoint(endpoints[1], out var b, out var be)) { d.Add($"structural-joint-endpoints-invalid:{block.Name}: exactly two Member.Start/End references are required"); continue; }
             AddJoint(block.Name,Field(block.Body,"Type"),a,ae,b,be,Field(block.Body,"Primary",required:false));
         }
-        foreach(var row in TableRows(source,"StructuralJointRow",d))
+        foreach(var row in TableRows(binding,"StructuralJointRow",d))
         {
             if(!Enum.TryParse<StructuralEnd>(Cell(row,"FirstEnd"),out var ae)||!Enum.TryParse<StructuralEnd>(Cell(row,"SecondEnd"),out var be)){d.Add($"structural-joint-endpoints-invalid:{Cell(row,"Name")}");continue;}
             AddJoint(Cell(row,"Name"),Cell(row,"Type"),Cell(row,"FirstMember"),ae,Cell(row,"SecondMember"),be,Cell(row,"Primary",false));
         }
         void AddJoint(string name,string type,string a,StructuralEnd ae,string b,StructuralEnd be,string primary)
         {
-            if (!Enum.TryParse<StructuralJointKind>(type, out var kind)) { d.Add($"structural-joint-kind-unsupported:{name}: '{type}'"); return; }
+            if ((!Enum.TryParse<StructuralJointKind>(type, out var kind)||!Enum.IsDefined(kind))) { d.Add($"structural-joint-kind-unsupported:{name}: '{type}'"); return; }
             if (!members.Any(x => x.Name == a) || !members.Any(x => x.Name == b)) { d.Add($"structural-joint-unknown-member:{name}"); return; }
             if (string.IsNullOrEmpty(primary)) primary = a;
             if (kind == StructuralJointKind.Butt && primary != a && primary != b) d.Add($"structural-butt-primary-invalid:{name}: Primary must name a participant");
@@ -247,16 +317,20 @@ public static class StructuralAuthoring
         if (occupied.Length > 0) d.Add("structural-multiple-joints-at-end-unsupported: " + string.Join(", ", occupied));
 
         var welds = new List<StructuralWeldAir>();
-        foreach (var block in Blocks(source, "Weld"))
+        foreach (var block in Blocks("Weld"))
         {
             AddWeld(block.Name,Field(block.Body,"Joint"),Field(block.Body,"Type"),Field(block.Body,"Size"));
         }
-        foreach(var row in TableRows(source,"StructuralWeldRow",d))AddWeld(Cell(row,"Name"),Cell(row,"Joint"),Cell(row,"Type"),Cell(row,"Size"));
+        foreach(var row in TableRows(binding,"StructuralWeldRow",d))AddWeld(Cell(row,"Name"),Cell(row,"Joint"),Cell(row,"Type"),Cell(row,"Size"));
         void AddWeld(string name,string joint,string type,string sizeText)
         {
             var size=ParseLength(sizeText,d,name+".Size");var j=joints.FirstOrDefault(x=>x.Name==joint);if(j is null)d.Add($"structural-weld-unknown-joint:{name}: '{joint}'");if(type!="Fillet")d.Add($"structural-weld-type-unsupported:{name}: X2 admits Fillet");welds.Add(new($"weld:{name}",name,"joint:"+joint,type,size,j is null?[]:[j.FirstMember,j.SecondMember]));
         }
-        return d.Count == 0 ? new(structure.Name, nodes, pathAir, sections, members, joints, welds, materials) : null;
+        if(members.Count==0)d.Add("structural-member-required: declare at least one material Member");
+        var closed=root.CompleteTree();frontend.AddRange(closed);d.AddRange(closed.Select(e=>e.Code+": "+e.Message));
+        foreach(var row in tableRows)foreach(var duplicate in row.DuplicateRoles)d.Add("structural-table-field-duplicate:"+row.Table+":"+duplicate);
+        foreach(var row in tableRows)foreach(var column in row.Unconsumed)d.Add($"structural-table-field-unconsumed:{row.Table}:{column}");
+        return d.Count == 0 ? new(structure.Name, nodes.ToArray(), pathAir, sections, members, joints, welds, materials) : null;
     }
 
     private static Dictionary<string, MemberEnds> ResolveJoints(Parsed p, List<string> d)
@@ -411,32 +485,51 @@ public static class StructuralAuthoring
         var projected=hint-z.ToVector()*hint.Dot(z.ToVector()); if(!Direction3D.TryCreate(projected,out var y)){d.Add($"structural-member-orientation-parallel:{member}");return null;} var x=Direction3D.Create(y.ToVector().Cross(z.ToVector())); y=Direction3D.Create(z.ToVector().Cross(x.ToVector()));return(x,y);
     }
     private static bool TryEndpoint(string text,out string member,out StructuralEnd end){var parts=text.Split('.',StringSplitOptions.TrimEntries);member=parts.ElementAtOrDefault(0)??"";end=default;return parts.Length==2&&Enum.TryParse(parts[1],out end);}
-    private static string Field(string body,string name,bool required=true){var m=Regex.Match(body,$@"\b{Regex.Escape(name)}\s*:\s*(?<v>[^;\r\n]+)\s*;",RegexOptions.CultureInvariant);return m.Success?m.Groups["v"].Value.Trim():required?"":"";}
-    private static double LengthField(string body,string name,List<string>d,string owner)=>ParseLength(Field(body,name),d,owner+"."+name);
-    private static double ParseLength(string value,List<string>d,string owner){var m=Regex.Match(value,@"^(?<n>[+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*mm$",RegexOptions.CultureInvariant);if(!m.Success||!double.TryParse(m.Groups["n"].Value,NumberStyles.Float,CultureInfo.InvariantCulture,out var n)){d.Add($"structural-length-invalid:{owner}: '{value}'");return 0;}return n;}
-    private static Vector3D Orientation(string value,List<string>d,string owner)=>value.Trim().Trim('"') switch{"" or "Auto"=>Vector3D.Zero,"UpX"=>new(1,0,0),"UpY"=>new(0,1,0),"UpZ"=>new(0,0,1),var raw=>Vector(raw.Trim('[',']'),d,"orientation:"+owner)};
-    private static Vector3D Vector(string value,List<string>d,string owner){var parts=value.Split(',',StringSplitOptions.TrimEntries);if(parts.Length!=3||parts.Any(x=>!TryScalar(x,out _))){d.Add($"structural-vector-invalid:{owner}: '{value}'");return Vector3D.Zero;}return new(Scalar(parts[0]),Scalar(parts[1]),Scalar(parts[2]));}
-    private static bool TryScalar(string expression,out double value)
+    private static string Field(Block body,string name,bool required=true)
     {
-        value=0;var normalized=expression.Replace("mm",string.Empty,StringComparison.Ordinal).Trim();var tokens=Regex.Split(normalized,@"\s*([*/])\s*",RegexOptions.CultureInvariant).Where(x=>x.Length>0).ToArray();if(tokens.Length==0||!double.TryParse(tokens[0],NumberStyles.Float,CultureInfo.InvariantCulture,out value))return false;for(var i=1;i+1<tokens.Length;i+=2){if(!double.TryParse(tokens[i+1],NumberStyles.Float,CultureInfo.InvariantCulture,out var operand))return false;if(tokens[i]=="*")value*=operand;else if(tokens[i]=="/"&&Math.Abs(operand)>Tol)value/=operand;else return false;}return tokens.Length%2==1&&double.IsFinite(value);
+        var value=body.Raw(name);if(value is null&&required)body.Invalid(name,"Required field is missing.");return value??"";
     }
-    private static double Scalar(string expression){TryScalar(expression,out var value);return value;}
+    private static double LengthField(Block body,string name,List<string>d,string owner)=>ParseLength(Field(body,name),d,owner+"."+name);
+    private static double ParseLength(string text,List<string> diagnostics,string owner)
+    {
+        var expression=FirmamentSyntaxParser.ParseExpression(text);
+        if(expression.Diagnostics.Count==0 && FirmamentSyntaxValues.TryMeasure(expression.Expression,"mm",out var value) && double.IsFinite(value))return value;
+        diagnostics.Add($"structural-length-invalid:{owner}: '{text}' requires a millimetre length");return 0;
+    }
+    private static Vector3D Orientation(string value,List<string> diagnostics,string owner)=>value.Trim().Trim('"') switch
+    {
+        "" or "Auto"=>Vector3D.Zero,"UpX"=>new(1,0,0),"UpY"=>new(0,1,0),"UpZ"=>new(0,0,1),var raw=>Vector(raw,diagnostics,"orientation:"+owner)
+    };
+    private static Vector3D Vector(string text,List<string> diagnostics,string owner)
+    {
+        var parsed=FirmamentSyntaxParser.ParseExpression(text);
+        if(parsed.Diagnostics.Count==0 && FirmamentSyntaxValues.Vector(parsed.Expression,"",out var values) && values.Length==3 && values.All(double.IsFinite))return new(values[0],values[1],values[2]);
+        diagnostics.Add($"structural-vector-invalid:{owner}: '{text}' requires three dimensionless components");return Vector3D.Zero;
+    }
     private static Point3D Point(Vector3D v)=>new(v.X,v.Y,v.Z);
     private static void Duplicates(IEnumerable<string> values,string kind,List<string>d){foreach(var g in values.GroupBy(x=>x,StringComparer.Ordinal).Where(x=>x.Count()>1))d.Add($"structural-duplicate-{kind}:{g.Key}");}
     private static long Q(double x)=>(long)Math.Round(x*1_000_000,MidpointRounding.AwayFromZero);
-    private readonly record struct Block(string Name,string Body);
-    private static string Cell(IReadOnlyDictionary<string,string> row,string name,bool required=true)=>row.TryGetValue(name,out var value)?value.Trim().Trim('"'):required?"":"";
-    private static IReadOnlyList<IReadOnlyDictionary<string,string>> TableRows(string source,string rowType,List<string>d)
+    private static string Cell(IReadOnlyDictionary<string,string> row,string name,bool required=true)=>row.TryGetValue(name,out var value)?value.Trim().Trim('"'):"";
+    private sealed class StructuralRow(string table,IReadOnlyDictionary<string,string> values):IReadOnlyDictionary<string,string>
     {
-        var rows=new List<IReadOnlyDictionary<string,string>>();var pattern=$@"\bStatic\s+Table\s+(?<name>[A-Za-z_]\w*)\s*:\s*{Regex.Escape(rowType)}(?:\s+Key\s*:\s*[A-Za-z_]\w*)?\s*\{{";
-        foreach(Match match in Regex.Matches(source,pattern,RegexOptions.CultureInvariant)){var open=match.Index+match.Length-1;var close=Matching(source,open,'{','}');if(close<0){d.Add($"structural-table-malformed:{match.Groups["name"].Value}");continue;}var body=source[(open+1)..close];var columns=new Dictionary<string,string[]>(StringComparer.Ordinal);foreach(Match column in Regex.Matches(body,@"\b(?<name>[A-Za-z_]\w*)\s*:\s*\[",RegexOptions.CultureInvariant)){var arrayOpen=column.Index+column.Length-1;var arrayClose=Matching(body,arrayOpen,'[',']');if(arrayClose<0)continue;var values=body[(arrayOpen+1)..arrayClose].Split(',',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries);columns[column.Groups["name"].Value]=values;}var lengths=columns.Values.Select(x=>x.Length).Distinct().ToArray();if(lengths.Length!=1){d.Add($"structural-table-unequal-column-length:{match.Groups["name"].Value}");continue;}for(var i=0;i<lengths[0];i++)rows.Add(columns.ToDictionary(x=>x.Key,x=>x.Value[i],StringComparer.Ordinal));}
-        return rows;
+        private readonly HashSet<string> consumed=[];
+        public string Table=>table;
+        public HashSet<string> DuplicateRoles { get; }=[];
+        public IEnumerable<string> Unconsumed=>values.Keys.Where(k=>!consumed.Contains(k));
+        public string this[string key]=>TryGetValue(key,out var value)?value:throw new KeyNotFoundException(key);
+        public IEnumerable<string> Keys=>values.Keys;public IEnumerable<string> Values=>values.Values;public int Count=>values.Count;
+        public bool ContainsKey(string key)=>values.ContainsKey(key);
+        public bool TryGetValue(string key,out string value)
+        {
+            var matches=values.Keys.Where(k=>FirmamentSyntaxFields.SameField(k,key)).ToArray();
+            foreach(var name in matches)consumed.Add(name);
+            if(matches.Length>1)DuplicateRoles.Add(key);
+            if(matches.Length==1){value=values[matches[0]];return true;}value="";return false;
+        }
+        public IEnumerator<KeyValuePair<string,string>> GetEnumerator()=>values.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()=>GetEnumerator();
     }
-    private static int Matching(string source,int open,char opening,char closing){var depth=0;for(var i=open;i<source.Length;i++){if(source[i]==opening)depth++;else if(source[i]==closing&&--depth==0)return i;}return-1;}
-    private static IReadOnlyList<Block> Blocks(string source,string keyword)
-    {
-        var result=new List<Block>();foreach(Match m in Regex.Matches(source,$@"\b{keyword}\s+(?<n>[A-Za-z_]\w*)\s*\{{",RegexOptions.CultureInvariant)){var open=m.Index+m.Length-1;var depth=0;var close=-1;for(var i=open;i<source.Length;i++){if(source[i]=='{')depth++;else if(source[i]=='}'&&--depth==0){close=i;break;}}if(close>open)result.Add(new(m.Groups["n"].Value,source[(open+1)..close]));}return result;
-    }
+
 }
 
 internal static class StructuralMemberBrepEmitter

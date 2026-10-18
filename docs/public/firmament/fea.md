@@ -5,29 +5,29 @@ Preview 3's production FEA path is `Analysis LinearElastic` with the `LinearElas
 Run the qualified aluminum cantilever:
 
 ```powershell
-aetheris fea fixtures/Canonical/FEA/cantilever.firmament --out-dir artifacts/cantilever --json
+aetheris fea fixtures/Canonical/FEA/cantilever.firmament --out-dir artifacts/local/cantilever --json
 ```
 
 The complete canonical shape is:
 
 ```firmament
 Model CantileverWitness {
-    Units: mm
-    Box Beam { Size: [120mm, 20mm, 20mm] }
+    units: mm
+    Box Beam { size: [120mm, 20mm, 20mm] }
 
     Analysis LinearElastic Cantilever {
-        Body: Beam
-        Material: Standard.Materials.Aluminum.6061_T6
+        body: Beam
+        material: Standard.Materials.Aluminum.6061_T6
         Fixed Root {
-            Region: Beam.face(-X)
-            Components: [X, Y, Z]
+            region: Beam.face(-X)
+            components: [X, Y, Z]
         }
         Force Tip {
-            Region: Beam.face(+X)
-            Vector: [0N, -100N, 0N]
+            region: Beam.face(+X)
+            vector: [0N, -100N, 0N]
         }
-        Results: [Displacement, Strain, Stress, ReactionForce]
-        Lattice: [12, 2, 2]
+        results: [Displacement, Strain, Stress, ReactionForce]
+        lattice: [12, 2, 2]
     }
 }
 ```
@@ -40,7 +40,7 @@ Native selectors preserve the body identifier: the example uses `Beam.face(-X)` 
 
 Native Box analysis also consumes one canonical face-local `Hole<Shaft>` with `On: +Z` or `On: -Z` and `End: ThroughAll`. The analysis compiler uses the parsed diameter and center, so the opening removes occupied material. It maps the Box-centered CAD coordinates into the existing native analysis `[0, Size]` coordinate frame. Multiple semantic holes, side holes, counterbores, blind holes, construction-plane placements, and mixed hole/edge-finish modifications require the exported STEP analysis route and fail with `firmament-analysis-native-feature-unsupported` in this native lane. The complete [investor plate witness](../../../fixtures/InvestorPitch/loaded-plate-native.firmament) exercises this path.
 
-The `build` command consumes geometry sources, while `fea` consumes sources containing `Analysis`. For a shared geometry and analysis demonstration, export the geometry file first and analyze that exact file with `inlineSTEP`; the report records the geometry hash. See [the reproducible investor demonstration](../investor-pitch.md).
+`validate` binds an Analysis through its production AST owner and reports `BoundNotSolved`, not unqualified geometry/solver success. `build` recognizes the same Analysis source and runs the existing solver; its `--out` is an analysis artifact directory. `fea --out-dir` remains supported. Unknown settings, malformed geometry, unsupported native features and unresolved selections reject before solving. Solver convergence still requires execution. For a shared geometry and analysis demonstration, export the geometry file first and analyze that exact file with `inlineSTEP`; the report records the geometry hash. See [the reproducible investor demonstration](../investor-pitch.md).
 
 ## Experimental thin-wall analysis of native Sheet Metal
 

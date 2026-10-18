@@ -121,15 +121,6 @@ public sealed record PipingCompilationResult(
 
     public IReadOnlyList<Core.Diagnostics.KernelDiagnostic> KernelDiagnostics()
     {
-        var spans = FrontendDiagnostics.GroupBy(d => d.Code.Split(':')[0])
-            .ToDictionary(g => g.Key, g => new Queue<FirmamentV2.FirmamentV2ValidationDiagnostic>(g));
-        return Diagnostics.Select(message =>
-        {
-            var code = message.Split(':')[0];
-            var located = spans.TryGetValue(code, out var pending) && pending.Count > 0 ? pending.Dequeue() : null;
-            return new Core.Diagnostics.KernelDiagnostic(Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
-                Core.Diagnostics.KernelDiagnosticSeverity.Error, located is null ? message : code + ": " + located.Message, "Firmament.Piping")
-            { OriginalSourceSpan = located?.SourceSpan is { } span ? new(span.Start, span.Length) { LocationNote = located.LocationNote } : null };
-        }).ToArray();
+        return FirmamentV2.FirmamentDomainDiagnostics.Present(Diagnostics, FrontendDiagnostics, "Firmament.Piping");
     }
 }

@@ -4,6 +4,24 @@ import type { DisplayScene } from "../viewer/displayRenderables";
 import type { AssemblyDisplayPacketDto } from "../api/aetherisApi";
 
 describe("Cadmata Telos packet adapter", () => {
+  it("adds gold guides only when Concepts is enabled, preserving material and transforms", () => {
+    const transform = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 60, 0, 0, 1];
+    const packet: AssemblyDisplayPacketDto = {
+      schema: "test", name: "Concepts", rootOccurrenceStableId: "root", definitions: [], occurrences: [],
+      mates: [], toleranceStackups: [], bounds: { minimum: [0, 0, 0], maximum: [80, 50, 25] }, diagnostics: [], performance: {},
+      display: {
+        definitions: [{ id: "part", positions: [], normals: [], indices: [], concepts: [
+          { id: "Design.Axis", owner: "Design", kind: "Axis", points: [0, 0, 0, 0, 0, 20], provenance: "compiler" },
+        ] }], occurrences: [{ id: "second", definitionId: "part", semanticEntityId: "part", transform }],
+      },
+    };
+    const before = cadmataTelosScene({ assemblyPacket: packet });
+    const after = cadmataTelosScene({ assemblyPacket: packet, showConcepts: true });
+    expect(before.lines).toHaveLength(0); expect(after.lines).toHaveLength(2);
+    expect(after.meshes).toEqual(before.meshes);
+    expect(after.lines[0].transform).toBe(transform);
+    expect(after.lines.every(l => l.overlay && l.pickable === false)).toBe(true);
+  });
   it("shares kernel edge buffers across occurrence transforms and selection changes", () => {
     const first = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 0, 0, 1];
     const second = [...first]; second[12] = 9;

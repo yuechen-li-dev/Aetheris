@@ -5,6 +5,7 @@ import type { CadmataLayerVisibility } from "./cadmataLayers";
 import type { PmiVisibility } from "./pmiPresentation";
 import type { ViewportTheme } from "./viewportTheme";
 export interface AetherisViewportProps {
+  showConcepts?: boolean;
   busyMessage?: string | null;
   errorMessage?: string | null;
   /** Bounded shared Telos developer comparison controls; spatial AA remains the default. */

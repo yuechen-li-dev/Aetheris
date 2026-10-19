@@ -232,6 +232,7 @@ function App() {
 	const [isResetting, setIsResetting] = useState(false);
 	const [isGridVisible, setIsGridVisible] = useState(true);
 	const [isCoordVisible, setIsCoordVisible] = useState(true);
+	const [showConcepts, setShowConcepts] = useState(false);
 	const [cadmataArtifact, setCadmataArtifact] = useState<CadmataVisualizationArtifact | null>(null);
 	const [cadmataLayers, setCadmataLayers] =
 		useState<CadmataLayerVisibility>(DEFAULT_CADMATA_LAYERS);
@@ -1067,6 +1068,9 @@ function App() {
 				<section className="viewport-column" {...machinaRegion("viewport")}>
 					<div className="viewport-frame">
 						<div className="viewport-controls" role="group" aria-label="Viewport display controls">
+							<button type="button" className={`viewport-segmented__button${showConcepts ? " is-active" : ""}`} aria-pressed={showConcepts}
+								disabled={!assemblyPacket?.display?.definitions.some(d => d.concepts?.length) && !assemblyPacket?.display?.occurrences.some(o => o.concepts?.length)}
+								title="Show Concept Structs as gold construction wireframes" onClick={() => setShowConcepts(value => !value)}>Concepts</button>
 							<button
 								type="button"
 								className={
@@ -1172,6 +1176,7 @@ function App() {
 							</label>
 						</div>
 						<AetherisViewport
+							showConcepts={showConcepts}
 							busyMessage={status === "loading" ? statusMessage : null}
 							errorMessage={status === "error" ? statusMessage : null}
 							displayScene={displayScene.displayScene}

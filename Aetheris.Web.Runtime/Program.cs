@@ -526,7 +526,7 @@ public static partial class Program
             mappingPhase.Dispose();
             var meshPhase = BuildPerfTrace.Phase("web.mesh-build");
             var mesh = WebMeshBuilder.Build(Name, definitionId, entityId, displayBody,
-                build.Value.RuntimeCorrespondence, boxSource, Revision + 1, featureSources, build.Value.Cir);
+                build.Value.RuntimeCorrespondence, boxSource, Revision + 1, featureSources, build.Value.Cir, Aetheris.Kernel.Firmament.Visualization.ConceptDisplayProjection.Project(build.Value));
             meshPhase.Dispose();
             var meshMs = watch.Elapsed.TotalMilliseconds;
             var featureNodes = (build.Value.EngineeringFeatures ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true,
@@ -725,7 +725,7 @@ internal static class WebMeshBuilder
     public static object Build(string name, string definitionId, string entityId, BrepBody body,
         Aetheris.Kernel.Firmament.Materializer.SemanticTopologyCorrespondence? correspondence = null,
         WebSourceRef? source = null, int buildRevision = 0, IReadOnlyDictionary<string, WebSourceRef?>? featureSources = null,
-        FirmamentCirRetention? cir = null)
+        FirmamentCirRetention? cir = null, IReadOnlyList<Aetheris.Kernel.Firmament.Visualization.ConceptDisplayWire>? concepts = null)
     {
         // Browser WASM has no blocking monitor wait. Use the existing synchronous
         // tessellator authority; the Worker transport supplies UI responsiveness.
@@ -767,6 +767,7 @@ internal static class WebMeshBuilder
             units = "mm",
             definitions = new[] { new { id = definitionId, identity = entityId, positions = positions.ToArray(), normals = normals.ToArray(), indices = indices.ToArray(), ranges,
                 cir, shader, geometryRevision = definitionId, displayPath = shader.Artifact is not null ? "cir" : "mesh", fallbackReason = shader.Reason,
+                concepts = concepts ?? [],
                 edges = tessellation.Value.EdgePolylines.Select(edge =>
                 {
                     Aetheris.Kernel.Firmament.Materializer.SemanticTopologyDescendant? semanticEdge = null;

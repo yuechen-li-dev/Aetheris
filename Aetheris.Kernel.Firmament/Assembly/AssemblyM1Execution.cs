@@ -22,6 +22,7 @@ public sealed record AssemblyExecutedGeometry(
     IReadOnlyDictionary<string, BrepBody> InstanceBodies)
 {
     public IReadOnlyDictionary<string, FirmamentCirRetention> DefinitionCir { get; init; } = new Dictionary<string, FirmamentCirRetention>();
+    public IReadOnlyDictionary<string, IReadOnlyList<ConceptIrStructInstance>> DefinitionConcepts { get; init; } = new Dictionary<string, IReadOnlyList<ConceptIrStructInstance>>();
 }
 
 public sealed record AssemblyM1CompilationResult(
@@ -64,7 +65,10 @@ internal sealed record MaterializedAssemblyDefinition(
     string? CanonicalStep = null,
     FirmamentCirRetention? Cir = null,
     string? InputKey = null,
-    string? DeclarationScope = null);
+    string? DeclarationScope = null)
+{
+    public IReadOnlyList<ConceptIrStructInstance> Concepts { get; init; } = [];
+}
 
 /// <summary>
 /// M1's definition seam: specialize through the ordinary Firmament compiler, then
@@ -317,7 +321,8 @@ internal static partial class AssemblyDefinitionMaterializer
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(build.Value.StepText)));
         var stableId = "assembly-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(definitionIdentity)))[..16];
         var artifact = new AssemblyDefinitionArtifactIr(stableId, definitionIdentity, specialization, hash, Metrics(import.Value), provenance);
-        return new(definitionIdentity, specialization, import.Value, semantics, artifact, build.Value.StepText, build.Value.Cir);
+        return new(definitionIdentity, specialization, import.Value, semantics, artifact, build.Value.StepText, build.Value.Cir)
+        { Concepts = build.Value.ConceptDisplayValues };
     }
 
     private static IEnumerable<SemanticValue> WindingSemantics(FirmamentWireFormReport? wire,
@@ -566,6 +571,7 @@ public sealed class AssemblyM1Pipeline
         var artifact = new AssemblyGeometryArtifactIr("aetheris/assembly-geometry/m1", definitionsIr, instanceArtifacts, residuals, hash, datumSeats);
         return new(artifact, definitions.ToDictionary(pair => pair.Key, pair => pair.Value.Body, StringComparer.Ordinal), instances)
         {
+            DefinitionConcepts = definitions.Where(p => p.Value.Concepts.Count > 0).ToDictionary(p => p.Key, p => p.Value.Concepts, StringComparer.Ordinal),
             DefinitionCir = definitions.Where(p => p.Value.Cir is not null)
                 .ToDictionary(p => p.Key, p => p.Value.Cir! with { DefinitionId = p.Value.Artifact.StableId }, StringComparer.Ordinal)
         };

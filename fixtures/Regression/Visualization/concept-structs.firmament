@@ -1,0 +1,22 @@
+// Gold construction guides are compile-time intent, not additional material.
+Struct GoldenScaffold {
+  Concept Struct Design {
+    Bounds: Box3 { size: [80mm, 50mm, 25mm] }
+    TopPlane: Bounds.Face(+Z)
+    CenterAxis: Bounds.Center.Axis(+Z)
+    MountPoints: Grid {
+      within: Bounds.Face(+Z).Inset(10mm)
+      columns: 2
+      rows: 1
+    }
+  }
+  Box Stock { bounds: Design.Bounds }
+  Modify Stock {
+    EdgeFinish TopBreak {
+      face: Design.TopPlane
+      target: Boundary
+      kind: Chamfer
+      distance: 1.5mm
+    }
+  }
+}

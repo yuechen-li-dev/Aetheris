@@ -169,7 +169,9 @@ public static class FirmamentBuildAndExport
     {
         var parsed = ParseSemanticSource(source, sourceDirectory);
         if (!parsed.IsSuccess || parsed.Document is null) return export;
-        export = export with { DocumentName = parsed.Document.ModelName, RuntimeAdmissionDocument = parsed.Document };
+        export = export with { DocumentName = parsed.Document.ModelName, RuntimeAdmissionDocument = parsed.Document,
+            ConceptDisplayValues = parsed.Document.ConceptIr?.Structs
+                ?? ConceptIrResolver.RetainSpatialStructs(parsed.DiagnosticSource ?? parsed.BoundSource ?? source) };
 
         var edgeFinishes = (parsed.Document.ModifyBlocks ?? [])
             .SelectMany(modification => (modification.EdgeFinishes ?? []).Select(finish => new FirmamentEngineeringFeatureReport(

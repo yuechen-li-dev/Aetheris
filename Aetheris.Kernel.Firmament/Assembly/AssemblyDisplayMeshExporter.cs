@@ -10,6 +10,7 @@ public sealed record DisplayProjectionEdge(string EdgeId, double[][] Points, boo
 public sealed record AssemblyDisplayMeshDefinition(string Id, string Identity, double[] Positions, double[] Normals, int[] Indices,
     string MeshPipeline = "LegacyTessellator", IReadOnlyList<AssemblyDisplayMeshRange>? Ranges = null)
 {
+    public IReadOnlyList<Visualization.ConceptDisplayWire> Concepts { get; init; } = [];
     public FirmamentCirRetention? Cir { get; init; }
     public string? GeometryRevision { get; init; }
     public CirShaderBinding? Shader { get; init; }
@@ -21,6 +22,7 @@ public sealed record AssemblyDisplayMeshDefinition(string Id, string Identity, d
 public sealed record AssemblyDisplayMeshOccurrence(string Id, string Path, string? ParentId, string? DefinitionId, double[] Transform,
     string? SemanticEntityId = null)
 {
+    public IReadOnlyList<Visualization.ConceptDisplayWire> Concepts { get; init; } = [];
     public ResolvedDisplayMaterial? Material { get; init; }
     public string? Kind { get; init; }
 }
@@ -78,7 +80,8 @@ public static class AssemblyDisplayMeshExporter
             var artifact = geometry.Artifact.Definitions.Single(d => d.DefinitionIdentity == identity);
             var externalStep = artifact.Provenance.Any(p => p.Stage == "imported-step-definition");
             definitions.Add(definition(() => PrepareDefinition(ids[identity], identity, body, options, externalStep) with
-            { Cir = geometry.DefinitionCir.GetValueOrDefault(identity), Shader = CirShaderArtifactProvider.Resolve(geometry.DefinitionCir.GetValueOrDefault(identity)), GeometryRevision = artifact.StepSha256 }, identity));
+            { Cir = geometry.DefinitionCir.GetValueOrDefault(identity), Shader = CirShaderArtifactProvider.Resolve(geometry.DefinitionCir.GetValueOrDefault(identity)), GeometryRevision = artifact.StepSha256,
+                Concepts = Visualization.ConceptDisplayProjection.Project(geometry.DefinitionConcepts.GetValueOrDefault(identity) ?? []) }, identity));
         }
         var occurrences = (pose?.Instances ?? compilation.Ir.Instances).OrderBy(i => i.Path.ToString(), StringComparer.Ordinal).Select(instance =>
         {
@@ -87,7 +90,8 @@ public static class AssemblyDisplayMeshExporter
             if (instance.ResolvedTransform is null || instance.ResolvedTransform.Matrix.Length != 16 || instance.ResolvedTransform.Matrix.Any(v => !double.IsFinite(v)))
                 throw new InvalidOperationException($"assembly-mesh-unresolved-transform:{instance.Path}");
             return new AssemblyDisplayMeshOccurrence(instance.StableId, instance.Path.ToString(), instance.ParentStableId, id, instance.ResolvedTransform.Matrix.ToArray(), instance.StableId)
-            { Material = DisplayProjection.Material(instance.Appearance), Kind = instance.Kind.ToString() };
+            { Material = DisplayProjection.Material(instance.Appearance), Kind = instance.Kind.ToString(),
+                Concepts = Visualization.ConceptDisplayProjection.Project(instance.SemanticRoot) };
         }).ToArray();
         return new("aetheris/assembly-display-mesh/1", compilation.Ir.Name, "mm", definitions, occurrences);
     }

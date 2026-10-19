@@ -103,7 +103,8 @@ public static class AssemblyDisplayService
             }
             if (body is null) { error = "display-part-brep-unavailable"; return false; }
             var id = part.Value.Cir?.DefinitionId ?? "part-definition:"+part.Value.ExportedFeatureId;
-            var definition = AssemblyDisplayMeshExporter.PrepareDefinition(id, part.Value.ExportedFeatureId, body) with { Cir = part.Value.Cir, Shader = CirShaderArtifactProvider.Resolve(part.Value.Cir), GeometryRevision = part.Value.Cir?.DefinitionId };
+            var definition = AssemblyDisplayMeshExporter.PrepareDefinition(id, part.Value.ExportedFeatureId, body) with { Cir = part.Value.Cir, Shader = CirShaderArtifactProvider.Resolve(part.Value.Cir), GeometryRevision = part.Value.Cir?.DefinitionId,
+                Concepts = Aetheris.Kernel.Firmament.Visualization.ConceptDisplayProjection.Project(part.Value) };
             packet = FromDisplay(new("aetheris/display-mesh/1", Path.GetFileNameWithoutExtension(path), "mm", [definition],
                 [new("part", Path.GetFileNameWithoutExtension(path), null, id, Transform3D.Identity.ToRowMajor(), part.Value.ExportedFeatureId)]));
             return true;

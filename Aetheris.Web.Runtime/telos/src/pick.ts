@@ -126,7 +126,7 @@ export class TelosPick {
       priority = -1;
     for (const line of [...this.dynamicLines, ...this.lines]) {
       if (
-        line.visible === false ||
+        line.visible === false || line.pickable === false ||
         (mode !== "edge" && !line.identity.overlayId)
       )
         continue;

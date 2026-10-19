@@ -1,5 +1,31 @@
 # Three Telos display
 
+## Concept Struct wireframes
+
+The **Concepts** button in Helios and Cadmata toggles gold construction wireframes.
+It starts off and is disabled when the built model has no retained geometric
+Concept values. In Cadmata, open the Firmament source rather than only its STEP:
+compile-time scaffolds are erased from manufacturing output.
+
+Box3 bounds, planes, axes, Region2 boundaries and resolved 3D points/point sets are
+projected from the compiler's typed values. Assembly datum frames and published
+geometric semantics also provide guides. They follow occurrence placement and
+sampled motion, independently of shaded/wireframe material display. Plain Boolean
+requirements, scalar members and types without a retained spatial value have no
+wireframe. A local 2D point without a spatial frame is not silently lifted to XY.
+
+The overlay is visible through material so interior layout remains legible.
+WebGPU adds a subtle static gold halo; WebGL fallback draws the same crisp gold
+guides. Infinite planes and axes use finite 40 mm guides, frames use 20 mm axes,
+and point marks span 2 mm; these are display sizes, not dimensions of a part.
+The guides do not intercept engineering picks, add bodies, alter STEP/STL output
+or recompile when toggled. Failed builds retain the last valid model's guides.
+
+The admitted example is
+`fixtures/Regression/Visualization/concept-structs.firmament`.
+
+## Shared renderer
+
 Cadmata's model, assembly, authoring overlays and PMI presentation share the Three Telos WebGPU host with Helios. It owns the camera, grid, mesh drawing, semantic topology lines, GPU leaders, selection projection and GPU resources. A supported browser/GPU is required for that path.
 
 The shared mesh and line shaders live in standalone `.wgsl` files, loaded through TypeScript during host initialization. Builds carry the shader assets with the package; WebGPU validates their code. CIR field shaders continue through Copeland's typed Visual TypeScript compiler.

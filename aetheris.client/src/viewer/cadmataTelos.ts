@@ -2,6 +2,7 @@ import {
   materialFromAppearance,
   fromDisplayMesh,
   identityTransform,
+  conceptWireframe,
   type TelosScene,
   type TelosMesh,
   type TelosLine,
@@ -43,7 +44,7 @@ export function cadmataTelosScene(props: AetherisViewportProps): TelosScene {
         })),
         ...overlays.meshes,
       ],
-      lines: [...scene.lines, ...overlays.lines],
+      lines: [...scene.lines, ...overlays.lines, ...(props.showConcepts ? conceptWireframe(props.assemblyPacket.display) : [])],
     };
   }
   const theme = props.theme ?? ATELIER_VIEWPORT_THEME;

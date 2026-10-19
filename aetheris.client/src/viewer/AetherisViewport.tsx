@@ -95,6 +95,7 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
     current.setAA(value.aaMode ?? "SpatialOnly", value.aaDebug ?? "color");
     current.setPresentation(telosPresentation(theme));
     current.setScene(inspectSurfaces(cadmataTelosScene(value), inspection.current.mode, inspection.current.face));
+    canvas.current?.setAttribute("data-concept-wires", String(current.scene.lines.filter(line => line.id.startsWith("concept:") && !line.id.endsWith(":halo")).length));
     current.background = clearColor(theme.sceneBackground);
     current.grid = value.showGrid !== false && theme.gridStyle.enabled;
     const model = value.assemblyPacket ?? value.displayScene;

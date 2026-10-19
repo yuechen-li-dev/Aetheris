@@ -46,6 +46,7 @@ public sealed record FirmamentStepExportResult(
     // from diagnostic feature ids such as "gear:Name" and primitive bridge names.
     [JsonIgnore] public string? RuntimeBodySourceName { get; init; }
     [JsonIgnore] internal Aetheris.Kernel.Firmament.FirmamentV2.FirmamentV2Document? RuntimeAdmissionDocument { get; init; }
+    [JsonIgnore] internal IReadOnlyList<Aetheris.Kernel.Firmament.FirmamentV2.ConceptIrStructInstance> ConceptDisplayValues { get; init; } = [];
     public FirmamentCirRetention? Cir { get; init; }
     public FirmamentMakerMarkReport? MakerMark { get; init; }
     public ProfileEdgeFinishEvidence? EdgeFinishPlanning { get; init; }

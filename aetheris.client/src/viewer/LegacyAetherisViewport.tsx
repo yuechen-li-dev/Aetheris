@@ -28,6 +28,7 @@ import type { AssemblyDisplayPacketDto } from "../api/aetherisApi";
 import { mapFacePatchToRenderFacePatch } from "./tessellationMapper";
 import { buildAdaptiveGridPlan, type GridBounds } from "./logarithmicGrid";
 import { CadmataOverlay } from "./LegacyCadmataOverlay";
+import { conceptWireframeGroup, disposeConceptWireframe, type DisplayPacket } from "@aetheris/three-telos";
 
 import { ATELIER_VIEWPORT_THEME, type ViewportTheme } from "./viewportTheme";
 import { PmiAnnotationLayer } from "./LegacyPmiAnnotationLayer";
@@ -541,7 +542,18 @@ function RendererConfiguration({ theme }: { theme: ViewportTheme }) {
 	return null;
 }
 
+function ConceptWires({ packet }: { packet: DisplayPacket }) {
+	const parent = useRef<import("three").Group>(null);
+	useEffect(() => {
+		const group = conceptWireframeGroup(packet);
+		parent.current?.add(group);
+		return () => disposeConceptWireframe(group);
+	}, [packet]);
+	return <group ref={parent} />;
+}
+
 export function LegacyAetherisViewport({
+	showConcepts = false,
 	displayScene = null,
 	highlightedFaceId = null,
 	highlightedEdgeId = null,
@@ -668,6 +680,7 @@ export function LegacyAetherisViewport({
 					theme={theme}
 				/>
 			) : null}
+			{showConcepts && assemblyPacket?.display ? <ConceptWires packet={assemblyPacket.display} /> : null}
 			{cadmataLayers ? (
 				<CadmataOverlay
 					artifact={cadmataArtifact}

@@ -206,6 +206,31 @@ internal static class ConceptIrResolver
 
     public static ConceptPhase3Resolution? Resolve(string source, List<string> diagnostics) => Resolve(source, diagnostics, null);
 
+    /// <summary>Presentation retention uses the same value evaluator without imposing the
+    /// Phase3 Box/Modify materialization shape on other admitted construction families.</summary>
+    internal static IReadOnlyList<ConceptIrStructInstance> RetainSpatialStructs(string source)
+    {
+        var declarations = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
+            .Where(d => d.Type.Name.Text == "Struct" && d.Modifiers.Any(m => m.Name.Text == "Concept") && d.Body is not null && d.Name is not null).ToArray();
+        if (declarations.Length == 0) return [];
+        var scalars = new FirmamentCompileTimeValues(source);
+        var initialization = new List<string>();
+        scalars.Initialize(new Dictionary<string, TemplateRecordTypeIr>(), initialization);
+        var instances = new List<ConceptIrStructInstance>();
+        foreach (var declaration in declarations)
+        {
+            var span = declaration.Body!.ContentSpan;
+            var diagnostics = new List<string>();
+            var members = ResolveMembers(declaration.Name!.Text, source.Substring(span.Start, span.Length), span.Start,
+                "", [], [], diagnostics, scalars);
+            // Nonspatial requirements remain compile-time values, not invented geometry.
+            // Retain only values the existing resolver actually produced.
+            instances.Add(new(declaration.Name.Text, [], members, false, "CompileTimeOnlyErased",
+                new(declaration.Span.Start, declaration.Span.Length)));
+        }
+        return instances;
+    }
+
     internal static ConceptPhase3Resolution? Resolve(string source, List<string> diagnostics, FirmamentCompileTimeValues? scalars)
     {
         // Match roles are compile-time conformance metadata. They deliberately do not lower to AIR,

@@ -46,6 +46,8 @@ export interface TelosMesh {
   triangleRange?: { startTriangle: number; triangleCount: number };
 }
 export interface TelosLine {
+  /** Presentation-only guides must not intercept engineering picks. */
+  pickable?: boolean;
   /** Fade finite reference-grid endpoints without changing engineering edge coverage. */
   fadeEnds?: boolean;
   id: string;
@@ -105,8 +107,16 @@ export interface TelosHit extends TelosIdentity {
   worldNormal: number[] | null;
   distance: number;
 }
+export interface ConceptDisplayWire {
+  readonly id: string;
+  readonly owner: string;
+  readonly kind: string;
+  readonly points: readonly number[];
+  readonly provenance: string;
+}
 export interface DisplayPacket {
   definitions: readonly (TelosGeometry & {
+    concepts?: readonly ConceptDisplayWire[];
     edges?: readonly {
       edgeId: string;
       points: readonly (readonly number[])[];
@@ -125,6 +135,7 @@ export interface DisplayPacket {
     } | null;
   })[];
   occurrences: readonly {
+    concepts?: readonly ConceptDisplayWire[];
     id: string;
     definitionId?: string;
     semanticEntityId: string;

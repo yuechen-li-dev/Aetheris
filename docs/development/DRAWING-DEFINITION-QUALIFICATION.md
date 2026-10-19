@@ -178,3 +178,47 @@ This is not a general manufacturing-release or process-capability certification.
 Qualified shop execution, stock form/finish, functional fit, inspection uncertainty
 and engineering signoff remain distinct from the successful drawing-definition
 gate. The implementation and public documentation preserve that distinction.
+
+## Coordinate zero and table limits follow-up (2026-10-19)
+
+The review correctly identified that naming reference edges in a note did not make
+their zeros immediately visible, and burying coordinate limits in general notes
+made the hole schedule harder to use. The shared dimension planner now projects
+X0 and Y0 leaders onto the exact left/bottom finished stock planes and marks their
+intersection `(0,0)` on the top face. These are drawing coordinate references;
+source datum A and AP242 PMI remain unchanged.
+
+Both table headers carry explicit independent bilateral limits (`X ±0.1`,
+`Y ±0.1` mm for the example). These define Cartesian entry-center intervals, not
+a circular GD&T position zone. `--linear-tolerance` remains the explicit authoring
+input; unspecified limits print `TOL?`. Header widths are checked alongside row
+values. Notes were shortened to retain missing-requirement warnings within the
+reserved area, including the case where diameter limits are absent too.
+
+Evidence is under `artifacts/local/drawing-coordinate-datums/`. Fifty focused
+drawing tests and seven CLI drawing tests pass. Coverage checks both zero leaders
+and the origin against the projected stock, the existing datum A, missing limits,
+and a nondefault ±0.025 mm input without changing nominal coordinates. Both PDFs
+were rendered and visually inspected; the regular and asymmetric variants have
+zero text/model, text/text or text/stroke collisions. Native PPTX validation passes.
+
+The independent PDF reader now obtains each axis limit from its table header and
+requires the zero labels in the view region separately from the explanatory notes.
+Eight missing-data mutations reject for each PDF, including each zero reference,
+the origin and each axis tolerance. Both frozen PDF-only reconstructions compile
+and match the reference topology, bounds, exact cylinder centers/radii and analytic
+volume. PDF/SVG/PPTX bytes match between part and STEP input. Original STEP content
+through the geometric entities is byte-identical to the pre-refactor baseline.
+
+The follow-up full solution regression passes 5,661 tests across 20 test assemblies,
+with zero failures/skips; FrictionLab still discovers no tests. The prescribed
+Core fast lane passes 1,087 tests. Logs are `full.log` and `fast.log` in the follow-up
+evidence directory. The final build completes with zero errors.
+
+FrontendX4 passes 32/32 (`corpus.log`), without recording new geometry baselines.
+The final code-quality pass confirms that the references, limits and provenance
+belong to the existing shared dimension planner; no renderer-specific inference,
+new drawing schema or body modification was introduced. `git diff --check` passes,
+and no dotnet, testhost, aetheris, MSBuild or VBCSCompiler hosts remain at closeout.
+This follow-up is **Success** for the requested coordinate-reference refinement;
+manufacturing approval and process capability remain unqualified.

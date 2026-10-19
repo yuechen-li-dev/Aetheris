@@ -69,13 +69,14 @@ public static partial class FirmamentDrawingCompiler
         var metadata = new DrawingMetadataIr(name + " - dimensioned plate", name, null, null, options.Material,
             name + "Drawing", "CompletePlateDimensions", Author: signoff?.Drawn.Name, Date: signoff?.Drawn.Date,
             Description: "Exact nominal dimensions; manufacturing release and process capability require engineering review") { Signoff = signoff };
-        var notes = new List<string> { "DIMENSIONS IN mm. DO NOT SCALE DRAWING.", "X FROM LEFT FINISHED EDGE; Y FROM BOTTOM FINISHED EDGE.",
-            options.LinearToleranceMillimetres is { } tol ? $"STOCK SIZES AND X/Y COORDINATES: ±{Number(tol)} mm." : "STOCK / COORDINATE TOLERANCES UNSPECIFIED - NOT FOR MANUFACTURE.",
-            options.AngularToleranceDegrees is { } a ? $"UNLESS SPECIFIED: ANGLES ±{Number(a)}°." : "ANGULAR TOLERANCE UNSPECIFIED - NOT FOR MANUFACTURE.",
+        var notes = new List<string> { "DIMENSIONS IN mm. DO NOT SCALE DRAWING.", "X0: LEFT FINISHED EDGE; Y0: BOTTOM FINISHED EDGE.",
+            "TABLE X/Y FROM X0/Y0; (0,0) AT THEIR INTERSECTION.",
+            options.LinearToleranceMillimetres.HasValue ? "TABLE X/Y LIMITS APPLY INDEPENDENTLY TO EACH AXIS." : "STOCK / X/Y LIMITS UNSPECIFIED - NOT FOR MANUFACTURE.",
+            options.AngularToleranceDegrees is { } a ? $"UNLESS SPECIFIED: ANGLES ±{Number(a)}°." : "ANGLE LIMITS UNSPECIFIED - NOT FOR MANUFACTURE.",
             "X/Y AT TOP FACE; HOLE AXES NOMINALLY NORMAL; THRU.",
-            "NOMINAL GEOMETRY COMPLETE. PROCESS CAPABILITY NOT VERIFIED." };
+            "NOMINAL GEOMETRY COMPLETE; PROCESS CAPABILITY UNVERIFIED." };
         if (string.IsNullOrWhiteSpace(options.Material)) notes.Add("MATERIAL UNSPECIFIED - NOT FOR MANUFACTURE.");
-        if (groups.Any(g => g.Plus is null || g.Minus is null)) notes.Add("HOLE SIZE TOLERANCES UNSPECIFIED - NOT FOR MANUFACTURE.");
+        if (groups.Any(g => g.Plus is null || g.Minus is null)) notes.Add("HOLE SIZE LIMITS UNSPECIFIED - NOT FOR MANUFACTURE.");
         var chunks = holes.Count == 0 ? new[] { Array.Empty<DrawingDefinedHoleIr>() } : holes.Chunk(12).ToArray();
         var pages = new List<DrawingPageIr>();
         var scale = StandardScale(Math.Min(Math.Min(105 / plate.Width, 75 / plate.Height), 12 / plate.Thickness));
@@ -89,6 +90,17 @@ public static partial class FirmamentDrawingCompiler
         annotations.Add(Measure("Width", "TOP", Linear(plate.Width), new(b.X, b.Y), new(b.Right, b.Y), b.Y - 9, true));
         annotations.Add(Measure("Height", "TOP", Linear(plate.Height), new(b.Right, b.Y), new(b.Right, b.Bottom), b.Right + 8, false));
         annotations.Add(Measure("Thickness", "FRONT", Linear(plate.Thickness), new(f.Right, f.Y), new(f.Right, f.Bottom), f.Right + 8, false));
+        // Drawing coordinate references, not additional source/GD&T datums. The exact
+        // stock planes establish zero; the source's datum PMI remains unchanged.
+        var xZero = Project(top, new(plate.Origin.X, plate.Origin.Y + plate.Height * .45, plate.Origin.Z + plate.Thickness));
+        var yZero = Project(top, new(plate.Origin.X + plate.Width * .6, plate.Origin.Y, plate.Origin.Z + plate.Thickness));
+        var origin = Project(top, new(plate.Origin.X, plate.Origin.Y, plate.Origin.Z + plate.Thickness));
+        annotations.Add(DefinedLabel("coordinate:X0", "TOP", "X0", new(b.X - 19, xZero.Y - 3),
+            [xZero, new(b.X - 9, xZero.Y)], xZero, $"Drawing X=0 reference: finished stock plane X={plate.Origin.X:R}; not additional AP242 PMI."));
+        annotations.Add(DefinedLabel("coordinate:Y0", "TOP", "Y0", new(yZero.X - 3, b.Bottom + 3),
+            [yZero, new(yZero.X, b.Bottom + 3)], yZero, $"Drawing Y=0 reference: finished stock plane Y={plate.Origin.Y:R}; not additional AP242 PMI."));
+        annotations.Add(DefinedLabel("coordinate:origin", "TOP", "(0,0)", new(b.X - 19, b.Bottom + 3),
+            [origin, new(b.X - 4, b.Bottom + 6)], origin, $"Top-face coordinate origin: ({plate.Origin.X:R}, {plate.Origin.Y:R}, {plate.Origin.Z + plate.Thickness:R}) mm."));
         var primitives = top.Primitives.ToList();
         foreach (var hole in holes)
         {
@@ -143,11 +155,12 @@ public static partial class FirmamentDrawingCompiler
         {
             var number = index + 1;
             var zones = Zones(297, 210);
-            IReadOnlyList<DrawingTableIr> tables = chunk.Length == 0 ? [] : [new("HOLE COORDINATES (mm)", ["HOLE", "X", "Y", "TYPE"],
+            var coordinateLimit = options.LinearToleranceMillimetres is { } tolerance ? " ±" + Number(tolerance) : " (TOL?)";
+            IReadOnlyList<DrawingTableIr> tables = chunk.Length == 0 ? [] : [new("HOLE COORDINATES (mm)", ["HOLE", "X" + coordinateLimit, "Y" + coordinateLimit, "TYPE"],
                 chunk.Select(h => (IReadOnlyList<string>)new[] { h.Identity, Number(h.X), Number(h.Y), h.Group }).ToArray(), name,
                 "Exact cylinder axes relative to finished stock planes; no sampled or chained dimensions.", DrawingTableKind.HoleCoordinates,
                 new(190, 30, 95, 7 * (chunk.Length + 1)), new(number, "B5"))];
-            if (tables.SelectMany(t => t.Rows).SelectMany(r => r).Any(value => DrawingInterFont.Load().MeasureMillimetres(value, 2.8) > 95d / 4 - 2))
+            if (tables.SelectMany(t => t.Rows.Prepend(t.Columns)).SelectMany(r => r).Any(value => DrawingInterFont.Load().MeasureMillimetres(value, 2.8) > 95d / 4 - 2))
                 return Failure("drawing-layout-impossible: A hole-schedule value exceeds its measured cell width. Use an authored wider schedule; values were not truncated.");
             var fields = new Dictionary<string, string> { ["Units"] = "mm", ["Scale"] = "×" + Number(scale), ["Sheet"] = $"{number}/{chunks.Length}",
                 ["Status"] = missing.Count == 0 ? "DIMENSIONED - REVIEW" : "INCOMPLETE REQUIREMENTS" };

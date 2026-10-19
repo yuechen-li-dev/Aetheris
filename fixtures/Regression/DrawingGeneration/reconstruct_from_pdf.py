@@ -18,6 +18,7 @@ import subprocess
 from pypdf import PdfReader
 
 NUMBER = r"(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][+-]?\d+)?"
+COORDINATE_LABELS = {'x_zero': r'(?<!\w)X0(?!\w)', 'y_zero': r'(?<!\w)Y0(?!\w)', 'origin': r'\(0,0\)'}
 
 
 def read_definition(text: str) -> dict:
@@ -27,8 +28,14 @@ def read_definition(text: str) -> dict:
     width, height, thickness = [float(pair[0]) for pair in sizes]
     if min(width, height, thickness) <= 0:
         raise ValueError('Stock dimensions must be positive.')
-    if 'X FROM LEFT FINISHED EDGE; Y FROM BOTTOM FINISHED EDGE.' not in text:
+    if 'X0: LEFT FINISHED EDGE; Y0: BOTTOM FINISHED EDGE.' not in text:
         raise ValueError('The coordinate reference edges are missing.')
+    # PDF extraction may concatenate distant labels on the same baseline. Require
+    # the labels in the view annotation region, independently of their later notes.
+    annotation_text = text.partition('HOLE COORDINATES (mm)')[0]
+    if 'TABLE X/Y FROM X0/Y0; (0,0) AT THEIR INTERSECTION.' not in text or any(
+            not re.search(pattern, annotation_text) for pattern in COORDINATE_LABELS.values()):
+        raise ValueError('The visible coordinate zero references or origin are missing.')
     if 'X/Y AT TOP FACE; HOLE AXES NOMINALLY NORMAL; THRU.' not in text:
         raise ValueError('Hole entry plane, orientation or extent is missing.')
     groups = {}
@@ -46,15 +53,21 @@ def read_definition(text: str) -> dict:
     for identity, specification in groups.items():
         if sum(h['group'] == identity for h in holes) != specification['count']:
             raise ValueError('The hole table does not account for the specified quantity.')
-    coordinates = re.search(rf'STOCK SIZES AND X/Y COORDINATES: ±({NUMBER}) mm\.', text)
+    # Table headers carry the actual Cartesian limits; a general note alone is insufficient.
+    coordinates = re.findall(rf'HOLE\s+X ±({NUMBER})\s+Y ±({NUMBER})\s+TYPE', text)
     angles = re.search(rf'UNLESS SPECIFIED: ANGLES ±({NUMBER})°\.', text)
-    if not coordinates or not angles:
+    if not coordinates or len(set(coordinates)) != 1 or not angles:
         raise ValueError('General dimensional acceptance requirements are missing.')
-    values = [width, height, thickness] + [float(v) for pair in sizes for v in pair] + [h[k] for h in holes for k in ('x', 'y', 'diameter', 'plus', 'minus')]
-    if not all(math.isfinite(v) for v in values):
-        raise ValueError('Nonfinite dimension.')
+    x_tolerance, y_tolerance = map(float, coordinates[0])
+    if x_tolerance != y_tolerance:
+        raise ValueError('This bounded drawing convention requires equal X and Y limits.')
+    values = [width, height, thickness, x_tolerance, y_tolerance] + [float(v) for pair in sizes for v in pair] + [h[k] for h in holes for k in ('x', 'y', 'diameter', 'plus', 'minus')]
+    if not all(math.isfinite(v) for v in values) or min(x_tolerance, y_tolerance) <= 0:
+        raise ValueError('Nonfinite dimension or nonpositive coordinate tolerance.')
     return {'width': width, 'height': height, 'thickness': thickness, 'stockTolerances': [float(pair[1]) for pair in sizes],
-            'coordinateTolerance': float(coordinates[1]), 'angularToleranceDegrees': float(angles[1]), 'groups': groups, 'holes': holes}
+            'coordinateTolerance': x_tolerance, 'xTolerance': x_tolerance, 'yTolerance': y_tolerance,
+            'coordinateOrigin': 'Intersection of X0 (left finished edge) and Y0 (bottom finished edge) at the top face',
+            'angularToleranceDegrees': float(angles[1]), 'groups': groups, 'holes': holes}
 
 
 def reconstruct(definition: dict) -> str:
@@ -78,12 +91,16 @@ def main():
     args = parser.parse_args()
     text = '\n'.join(page.extract_text() for page in PdfReader(args.pdf).pages)
     definition = read_definition(text)
+    annotation_text, table_title, remainder = text.partition('HOLE COORDINATES (mm)')
     # Missing stock sizes, centers, extent and location tolerance must fail reconstruction.
     mutations = {
         'missing_stock_size': re.sub(rf'(?m)^{NUMBER}\s+±{NUMBER}\s*$', '', text, count=1),
         'missing_hole_row': re.sub(rf'(?m)^[A-Za-z_]\w* {NUMBER} {NUMBER} D\d+\s*$', '', text, count=1),
         'missing_extent': text.replace(' THRU', ''),
-        'missing_coordinate_tolerance': text.replace('STOCK SIZES AND X/Y COORDINATES:', 'REFERENCE COORDINATES:'),
+        'missing_x_tolerance': re.sub(rf'X ±{NUMBER}', 'X', text),
+        'missing_y_tolerance': re.sub(rf'Y ±{NUMBER}', 'Y', text),
+        **{f'missing_{name}': re.sub(pattern, '', annotation_text) + table_title + remainder
+           for name, pattern in COORDINATE_LABELS.items()},
     }
     for name, mutant in mutations.items():
         try:

@@ -84,7 +84,8 @@ public sealed class DrawingGenerationTests
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
         Assert.True(result.Artifacts!.Drawing.DefinitionEvidence!.NominalGeometryComplete);
         Assert.False(result.Artifacts.Drawing.DefinitionEvidence.DimensionalTolerancesComplete);
-        Assert.Contains(result.Artifacts.Drawing.Pages[0].Notes, n => n.Contains("TOLERANCES UNSPECIFIED", StringComparison.Ordinal));
+        Assert.Contains(result.Artifacts.Drawing.DefinitionEvidence.MissingRequirements, n => n.Contains("tolerances are unspecified", StringComparison.Ordinal));
+        Assert.Contains(result.Artifacts.Drawing.Pages[0].Notes, n => n.Contains("NOT FOR MANUFACTURE", StringComparison.Ordinal));
     }
 
     [Fact]

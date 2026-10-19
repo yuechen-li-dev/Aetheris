@@ -31,6 +31,9 @@ A qualified plate receives:
   view. These values come from stock planes, not sampled display bounds.
 - Hole center marks and IDs, a coordinate schedule from the left and bottom
   finished edges, entry-face/orientation information, and explicit THRU extents.
+  Visible X0 and Y0 leaders identify those zero edges; `(0,0)` marks their
+  intersection on the top face. The table's X and Y headers each state their
+  bilateral tolerance, for example `X ±0.1` and `Y ±0.1` (mm).
 - Grouped diameter/limit callouts only when size, limits and extent agree.
   Original PMI names, targets and face identities remain in provenance.
 - A datum indication on the actual associated plane in a useful view. Coordinate
@@ -50,6 +53,13 @@ values reject instead of clipping, shrinking or omitting engineering information
 coordinate limits. `--angular-tolerance <degrees>` specifies the general angular
 allowance. `--material <name>` supplies the material for the drawing. These are
 not defaults and never override existing diameter PMI.
+
+Each table coordinate is measured from its marked zero edge with its own ± limit;
+the two limits define independent Cartesian intervals, not a circular GD&T position
+zone. X0/Y0 are drawing coordinate references, distinct from authored datum PMI
+such as A. They do not silently add B/C datum requirements to the source or AP242.
+An unspecified coordinate tolerance prints `TOL?` in each header and remains an
+incomplete requirement.
 
 Without these inputs, nominal dimensions are still complete for a recognized part,
 but the sheet prominently identifies missing requirements and is not for

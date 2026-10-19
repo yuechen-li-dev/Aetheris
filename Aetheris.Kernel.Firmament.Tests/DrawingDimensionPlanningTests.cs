@@ -21,6 +21,7 @@ public sealed class DrawingDimensionPlanningTests
         Assert.Contains(page.Annotations, a => a.Identity == "dimension:Height" && a.EngineeringDisplay == "70 ±0.1");
         Assert.Contains(page.Annotations, a => a.Identity == "dimension:Thickness" && a.EngineeringDisplay == "8 ±0.1");
         var table = Assert.Single(page.Tables); Assert.Equal(DrawingTableKind.HoleCoordinates, table.Kind);
+        Assert.Equal(new[] { "HOLE", "X ±0.1", "Y ±0.1", "TYPE" }, table.Columns);
         Assert.Equal(10, table.Rows.Count);
         Assert.Contains(table.Rows, r => r.SequenceEqual(new[] { "H1", "14", "17", "D1" }));
         Assert.Contains(table.Rows, r => r.SequenceEqual(new[] { "H10", "86", "53", "D1" }));
@@ -30,6 +31,22 @@ public sealed class DrawingDimensionPlanningTests
         Assert.Equal(10, front.Primitives.Count(p => p.Kind == DrawingPrimitiveKind.Hidden));
         var datum = page.Annotations.Single(a => a.Kind == DrawingAnnotationKind.Datum);
         Assert.Equal("FRONT", datum.AssignedView); Assert.Equal(front.GeometryBounds.Y, datum.ProjectedAnchor.Y, 8);
+        var top = page.Views.Single(v => v.Identity == "TOP");
+        var xZero = Assert.Single(page.Annotations, a => a.Identity == "coordinate:X0");
+        var yZero = Assert.Single(page.Annotations, a => a.Identity == "coordinate:Y0");
+        var origin = Assert.Single(page.Annotations, a => a.Identity == "coordinate:origin");
+        Assert.Equal("X0", xZero.EngineeringDisplay); Assert.Equal("Y0", yZero.EngineeringDisplay);
+        Assert.Equal(top.GeometryBounds.X, xZero.ProjectedAnchor.X, 8);
+        Assert.Equal(top.GeometryBounds.Bottom, yZero.ProjectedAnchor.Y, 8);
+        Assert.Equal(top.GeometryBounds.X, origin.ProjectedAnchor.X, 8);
+        Assert.Equal(top.GeometryBounds.Bottom, origin.ProjectedAnchor.Y, 8);
+        Assert.Equal("(0,0)", origin.EngineeringDisplay);
+        foreach (var reference in new[] { xZero, yZero, origin })
+        {
+            Assert.Equal("TOP", reference.AssignedView);
+            Assert.Equal(reference.ProjectedAnchor, reference.SelectedCandidate.Leader[0]);
+            Assert.NotEmpty(reference.Strokes);
+        }
         Assert.Equal(0, drawing.LayoutEvidence.TextTextCollisionsAfter + drawing.LayoutEvidence.TextModelCollisionsAfter + drawing.LayoutEvidence.TextLeaderCollisionsAfter);
         using var presentation = DocumentFormat.OpenXml.Packaging.PresentationDocument.Open(result.Artifacts.PptxPath, false);
         Assert.Empty(new DocumentFormat.OpenXml.Validation.OpenXmlValidator().Validate(presentation));
@@ -46,6 +63,18 @@ public sealed class DrawingDimensionPlanningTests
         var hole = result.Artifacts!.Drawing.DefinitionEvidence!.Holes.Single(h => h.Identity == "H1");
         Assert.Equal(15.875, hole.X, 8); Assert.Equal(17.75, hole.Y, 8);
         Assert.Contains(result.Artifacts.Drawing.Pages.Single().Tables.Single().Rows, r => r.SequenceEqual(new[] { "H1", "15.875", "17.75", "D1" }));
+    }
+
+    [Fact]
+    public void TableLimitsFollowTheExplicitToleranceWithoutChangingNominalCoordinates()
+    {
+        using var scratch = new Scratch();
+        var result = FirmamentDrawingCompiler.Generate(Fixture(), scratch.Path, null, new(false, .025, "6061-T6 aluminium", .5));
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
+        var table = Assert.Single(result.Artifacts!.Drawing.Pages.Single().Tables);
+        Assert.Equal(new[] { "HOLE", "X ±0.025", "Y ±0.025", "TYPE" }, table.Columns);
+        Assert.Contains(table.Rows, row => row.SequenceEqual(new[] { "H1", "14", "17", "D1" }));
+        Assert.Contains(result.Artifacts.Drawing.Pages.Single().Notes, note => note == "TABLE X/Y LIMITS APPLY INDEPENDENTLY TO EACH AXIS.");
     }
 
     [Theory]
@@ -73,6 +102,7 @@ public sealed class DrawingDimensionPlanningTests
         Assert.True(evidence.NominalGeometryComplete); Assert.False(evidence.DimensionalTolerancesComplete);
         Assert.False(evidence.MaterialSpecified); Assert.Null(evidence.LinearToleranceMillimetres); Assert.Null(evidence.AngularToleranceDegrees);
         Assert.Equal(3, evidence.MissingRequirements.Count);
+        Assert.Equal(new[] { "HOLE", "X (TOL?)", "Y (TOL?)", "TYPE" }, result.Artifacts.Drawing.Pages[0].Tables.Single().Columns);
         Assert.Contains(result.Artifacts.Drawing.Pages[0].Notes, n => n.Contains("NOT FOR MANUFACTURE", StringComparison.Ordinal));
     }
 

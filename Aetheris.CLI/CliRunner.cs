@@ -135,7 +135,7 @@ public static class CliRunner
         int? RigidRootCount = null);
     private const string TopLevelUsage = "Usage: aetheris <command> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament|file.firmasm> [--output <path>] [--json]";
-    private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.firmasm|file.step> [--format stl|obj|assembly-json] [--output <path>] [--debug-ir <path>] [--json]";
+    private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.firmasm|file.step> [--format stl|obj|glb|assembly-json] [--output <path>] [--debug-ir <path>] [--json] (glb: MeshState sources)";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--parse-only] [--explain] [--shadow [--ast]] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
     private const string InspectSpansUsage = "Usage: aetheris inspect-spans <file.firmament> --json";
@@ -326,6 +326,7 @@ public static class CliRunner
             else if (SculptingAuthoring.IsSculptingSource(sourceText))
             {
                 var sculpt = SculptingAuthoring.Compile(sourceText);
+                if (sculpt.OutputMesh is not null) return MeshSculptCommand.Write(sculpt, stepPath, null, "step", "verify", json, stdout, stderr);
                 var sculptExport = sculpt.OutputState is null ? null : SculptStepExporter.Export(sculpt.OutputState, sculpt.ModelName);
                 if (!sculpt.IsSuccess || sculptExport?.IsSuccess != true || sculptExport.Step is null)
                 {
@@ -808,6 +809,8 @@ public static class CliRunner
     private static int RunSculptingBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
     {
         var compile = SculptingAuthoring.CompileFile(sourcePath);
+        if (compile.OutputMesh is not null)
+            return MeshSculptCommand.Write(compile, sourcePath, outPath, Path.GetExtension(outPath ?? ".step").TrimStart('.').ToLowerInvariant(), "build", json, stdout, stderr);
         var sourceText=File.ReadAllText(sourcePath);
         var presented=SculptingAuthoring.KernelDiagnostics(compile).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,sourceText)).ToArray();
         if (!compile.IsSuccess || compile.OutputState is null)
@@ -903,7 +906,12 @@ public static class CliRunner
             })
         },
         realizedHousingEvidence = state.Construction is {} housing ? new { housing.Width, housing.Depth, housing.BaseHeight, housing.CrownWidth, housing.CrownDepth, housing.CrownOffset, housing.FinalHeight } : null,
-        semanticInventory = state.SemanticInventory.Values, surfacePatches = state.SurfacePatches, blendJudgment = state.BlendJudgment, hasDelta = state.Delta is not null
+        semanticInventory = state.SemanticInventory.Values, geometryAssociations = state.GeometryAssociations,
+        faceBoundaries = state.Construction is null ? state.Body.Topology.Faces.Select(f => new { handle = "Face" + f.Id.Value,
+            loops = f.LoopIds.Select(l => state.Body.GetCoedgeIds(l).Select(state.Body.Topology.GetCoedge).Select(c => {
+                var edge = state.Body.Topology.GetEdge(c.EdgeId); state.Body.TryGetVertexPoint(edge.StartVertexId, out var start); state.Body.TryGetVertexPoint(edge.EndVertexId, out var end);
+                return new { handle = "Edge" + c.EdgeId.Value, start, end }; }).ToArray()).ToArray() }).ToArray() : null,
+        surfacePatches = state.SurfacePatches, blendJudgment = state.BlendJudgment, hasDelta = state.Delta is not null
     };
 
     private static int RunSheetMetalAuthoredBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
@@ -1335,6 +1343,19 @@ Model CanonicalPanel {
             }
             catch (InvalidOperationException error) { return WriteMeshFailure([error.Message], json, input, stdout, stderr); }
         }
+        string? sculptStep = null;
+        if (File.Exists(input) && Path.GetExtension(input).Equals(".firmament", StringComparison.OrdinalIgnoreCase) && SculptingAuthoring.IsSculptingSource(File.ReadAllText(input)))
+        {
+            var sculpt = SculptingAuthoring.CompileFile(input);
+            if (sculpt.OutputMesh is not null || !sculpt.IsSuccess)
+            {
+                if (debugIr is not null) sculpt = sculpt with { IsSuccess = false, Diagnostics = [..sculpt.Diagnostics, new("mesh-sculpt-debug-ir-unsupported", "Use inspect --json for cage identities and provenance; SurfaceMeshIR debug output belongs to BRep tessellation.")] };
+                return MeshSculptCommand.Write(sculpt, input, output, format.ToLowerInvariant(), "mesh", json, stdout, stderr);
+            }
+            var exact = SculptStepExporter.Export(sculpt.OutputState!, sculpt.ModelName);
+            if (!exact.IsSuccess) return WriteMeshFailure(exact.Diagnostics.Select(d => d.Code + ": " + d.Message), json, input, stdout, stderr);
+            sculptStep = exact.Step;
+        }
         if (!string.Equals(format, "stl", StringComparison.OrdinalIgnoreCase) && !string.Equals(format, "obj", StringComparison.OrdinalIgnoreCase))
         {
             stderr.WriteLine("Mesh supports binary STL, topology-preserving OBJ, and assembly-json definition/occurrence meshes.");
@@ -1342,7 +1363,8 @@ Model CanonicalPanel {
         }
         var fullInput = Path.GetFullPath(input);
         string stepText;
-        if (string.Equals(Path.GetExtension(fullInput), ".firmament", StringComparison.OrdinalIgnoreCase) || string.Equals(Path.GetExtension(fullInput), ".firmfixture", StringComparison.OrdinalIgnoreCase))
+        if (sculptStep is not null) stepText = sculptStep;
+        else if (string.Equals(Path.GetExtension(fullInput), ".firmament", StringComparison.OrdinalIgnoreCase) || string.Equals(Path.GetExtension(fullInput), ".firmfixture", StringComparison.OrdinalIgnoreCase))
         {
             var build = FirmamentBuildAndExport.Run(fullInput);
             if (!build.IsSuccess) return WriteMeshFailure(build.Diagnostics.Select(d => d.Message), json, fullInput, stdout, stderr);
@@ -1499,9 +1521,9 @@ Model CanonicalPanel {
             var sculpt = SculptingAuthoring.Compile(source,fullPath);
             var sculptReport = new { command = "inspect", success = sculpt.IsSuccess, input = fullPath, domain = "Sculpting", model = sculpt.ModelName,
                 states = sculpt.States.Values.Select(state => new { state = DescribeSculptState(state), geometricDelta = state.Delta, validationEvidence = state.ValidationEvidence }),
-                outputState = sculpt.OutputState?.StateId, timingsMilliseconds = sculpt.Timings, diagnostics = SculptingAuthoring.KernelDiagnostics(sculpt).Select(d=>FirmamentBuildAdmissionValidation.Present(d,fullPath,source)).ToArray() };
+                outputState = sculpt.OutputState?.StateId, meshStates = sculpt.MeshStates, outputMesh = sculpt.OutputMesh, timingsMilliseconds = sculpt.Timings, diagnostics = SculptingAuthoring.KernelDiagnostics(sculpt).Select(d=>FirmamentBuildAdmissionValidation.Present(d,fullPath,source)).ToArray() };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(sculptReport, JsonOptions));
-            else if (sculpt.IsSuccess) { stdout.WriteLine($"Sculpting model {sculpt.ModelName}: {sculpt.States.Count} immutable states; output {sculpt.OutputState!.AuthoredName} ({sculpt.OutputState.StateId})"); foreach (var state in sculpt.States.Values) stdout.WriteLine($"State {state.AuthoredName}: {state.StateId} <- {state.PredecessorStateId?.Value ?? "<initial>"}"); }
+            else if (sculpt.IsSuccess) { stdout.WriteLine($"Sculpting model {sculpt.ModelName}: output {sculpt.OutputState?.AuthoredName ?? sculpt.OutputMesh!.Name} ({sculpt.OutputState?.StateId.Value ?? sculpt.OutputMesh!.StateId})"); foreach (var state in sculpt.States.Values) stdout.WriteLine($"State {state.AuthoredName}: {state.StateId} <- {state.PredecessorStateId?.Value ?? "<initial>"}"); }
             else WriteFrontendDiagnostics(SculptingAuthoring.KernelDiagnostics(sculpt).Select(d=>FirmamentBuildAdmissionValidation.Present(d,fullPath,source)),stderr);
             return sculpt.IsSuccess ? 0 : 1;
         }
@@ -1859,6 +1881,7 @@ Model CanonicalPanel {
             if (SculptingAuthoring.IsSculptingSource(viewSource))
             {
                 var sculpt = SculptingAuthoring.Compile(viewSource); var export = sculpt.OutputState is null ? null : SculptStepExporter.Export(sculpt.OutputState, sculpt.ModelName);
+                if (sculpt.OutputMesh is not null) return MeshSculptCommand.Write(sculpt, fullInput, null, "step", "view", json, stdout, stderr);
                 if (!sculpt.IsSuccess || export?.IsSuccess != true || export.Step is null)
                 {
                     var messages = sculpt.Diagnostics.Select(x => $"{x.Code}: {x.Message}").Concat(export?.Diagnostics.Select(x => $"{x.Code}: {x.Message}") ?? []).ToArray();
@@ -2491,7 +2514,7 @@ Model CanonicalPanel {
         {
             if (parseOnly) return RejectParseOnly("Sculpting");
             var sculpt = SculptingAuthoring.Compile(validationSource,Path.GetFullPath(sourcePath));
-            var payload = new { source = sourcePath, status = sculpt.IsSuccess ? "valid" : "invalid", domain = "Sculpting", validationLevel=sculpt.IsSuccess?"Built":"BuildRejected", parserRoute="UnifiedSculpting", summary = new { fatalDiagnosticCount = sculpt.Diagnostics.Count, warningDiagnosticCount = 0, states = sculpt.States.Count }, diagnostics = SculptingAuthoring.KernelDiagnostics(sculpt).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,authoredValidationSource)).ToArray() };
+            var payload = new { source = sourcePath, status = sculpt.IsSuccess ? "valid" : "invalid", domain = "Sculpting", validationLevel=sculpt.IsSuccess?(sculpt.OutputMesh is null?"Built":"MeshBuilt"):"BuildRejected", artifactKind=sculpt.OutputMesh?.ArtifactKind ?? "BRep", stepExportAvailable=sculpt.OutputMesh is null, parserRoute="UnifiedSculpting", summary = new { fatalDiagnosticCount = sculpt.Diagnostics.Count, warningDiagnosticCount = 0, states = sculpt.States.Count + sculpt.MeshStates.Count }, diagnostics = SculptingAuthoring.KernelDiagnostics(sculpt).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,authoredValidationSource)).ToArray() };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
             else {stdout.WriteLine($"Firmament V2 Sculpting validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");WriteFrontendDiagnostics(payload.diagnostics,stderr);}
             return sculpt.IsSuccess ? 0 : 1;

@@ -61,28 +61,11 @@ public static class ImportedFaceRegionReplacer
         var face = importedState.Body.Topology.GetFace(selected.FaceId);
         if (face.LoopIds.Count == 0) return Failure("surf-inner-loop-invalid", "Selected imported face has no outer loop.");
 
-        var geometry = new BrepGeometryStore();
-        foreach (var curve in importedState.Body.Geometry.Curves) geometry.AddCurve(curve.Key, curve.Value);
-        foreach (var surface in importedState.Body.Geometry.Surfaces) geometry.AddSurface(surface.Key, surface.Value);
-        var newSurfaceId = new Aetheris.Kernel.Core.Geometry.SurfaceGeometryId(importedState.Body.Geometry.Surfaces.Select(item => item.Key.Value).DefaultIfEmpty().Max() + 1);
-        geometry.AddSurface(newSurfaceId, replacementPatch.Support);
-
-        var bindings = new BrepBindingModel();
-        foreach (var edge in importedState.Body.Bindings.EdgeBindings) bindings.AddEdgeBinding(edge);
-        foreach (var binding in importedState.Body.Bindings.FaceBindings)
-            bindings.AddFaceBinding(binding.FaceId == selected.FaceId
-                ? new FaceGeometryBinding(binding.FaceId, newSurfaceId, replacementPatch.ReversedOrientation, binding.SourceStepEntityId)
-                : binding);
-        var vertexPoints = importedState.Body.Topology.Vertices.Where(vertex => importedState.Body.TryGetVertexPoint(vertex.Id, out _))
-            .ToDictionary(vertex => vertex.Id, vertex => { importedState.Body.TryGetVertexPoint(vertex.Id, out var point); return point; });
-        var body = new BrepBody(importedState.Body.Topology, geometry, bindings, vertexPoints,
-            importedState.Body.SafeBooleanComposition, importedState.Body.ShellRepresentation);
-        var pcurveBuild = BoundedPcurveBuilder.Populate(body.Topology, geometry, bindings, tolerance);
-        if (!pcurveBuild.IsSuccess) return new(false, null, null, pcurveBuild.Diagnostics);
-        var pcurveEvidence = BrepPcurveValidator.Validate(body, tolerance, requireEveryCoedge: true);
-        if (!pcurveEvidence.IsValid) return Failure("surf-pcurve-invalid", string.Join(" | ", pcurveEvidence.Diagnostics));
-        var preflight = BrepExportPreflight.Validate(body);
-        if (!preflight.IsValid) return Failure("surf-imported-replacement-invalid", string.Join(" | ", preflight.Diagnostics.Where(item => item.Severity == BrepExportPreflightSeverity.Error).Select(item => item.Message)));
+        // Preserve this compatibility API's historical resolved-orientation contract.
+        var graft = BoundedFaceGraft.Apply(importedState.Body, selected.FaceId, replacementPatch, tolerance, new(replacementPatch.ReversedOrientation));
+        if (graft.Body is null) return new(false, null, null, graft.Diagnostics);
+        var body = graft.Body;
+        var pcurveEvidence = graft.Pcurves!;
 
         var construction = importedState.Construction with
         {
@@ -108,7 +91,7 @@ public static class ImportedFaceRegionReplacer
         if (!associationRemap.IsSuccess) return new(false, null, null, associationRemap.Diagnostics);
         var associations = associationRemap.Associations;
         var evidence = new ImportedFaceReplacementEvidence(sourceStepFaceEntityId, selected.FaceId.Value,
-            bindings.FaceBindings.Where(binding => binding.FaceId != selected.FaceId && binding.SourceStepEntityId.HasValue).Select(binding => binding.SourceStepEntityId!.Value).Order().ToArray(),
+            body.Bindings.FaceBindings.Where(binding => binding.FaceId != selected.FaceId && binding.SourceStepEntityId.HasValue).Select(binding => binding.SourceStepEntityId!.Value).Order().ToArray(),
             face.LoopIds.Count - 1, pcurveEvidence);
         var validations = SculptedHousingFactory.ValidateBody(body, tolerance).Append(new SculptValidationEvidence("ImportedFaceReplacement", true,
             LocalityEvidenceLevel.CertifiedBounded, 0d, tolerance, $"Retained topology and {evidence.PreservedNeighborSourceStepEntityIds.Count} neighboring imported face provenances; replaced support on current face {selected.FaceId.Value}.")).ToArray();

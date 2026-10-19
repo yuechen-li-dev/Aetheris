@@ -1,0 +1,27 @@
+Model ExactFaceGraft {
+    units: mm
+    Box stock { size: [20mm, 16mm, 8mm] }
+    BodyState exact { input: stock }
+    SurfacePatch crown {
+        degree: [3, 3]
+        domain: [0, 1, 0, 1]
+        knotsU: [0, 0, 0, 0, 1, 1, 1, 1]
+        knotsV: [0, 0, 0, 0, 1, 1, 1, 1]
+        controlRow: [[-10mm, -8mm, 8mm], [-10mm, -2.6666666666666665mm, 8mm], [-10mm, 2.6666666666666665mm, 8mm], [-10mm, 8mm, 8mm]]
+        controlRow: [[-3.3333333333333335mm, -8mm, 8mm], [-3.3333333333333335mm, -2.6666666666666665mm, 9mm], [-3.3333333333333335mm, 2.6666666666666665mm, 9mm], [-3.3333333333333335mm, 8mm, 8mm]]
+        controlRow: [[3.3333333333333335mm, -8mm, 8mm], [3.3333333333333335mm, -2.6666666666666665mm, 9mm], [3.3333333333333335mm, 2.6666666666666665mm, 9mm], [3.3333333333333335mm, 8mm, 8mm]]
+        controlRow: [[10mm, -8mm, 8mm], [10mm, -2.6666666666666665mm, 8mm], [10mm, 2.6666666666666665mm, 8mm], [10mm, 8mm, 8mm]]
+        Boundary South { existing: Edge2; continuity: G0 }
+        Boundary East { existing: Edge5; continuity: G0 }
+        Boundary North { existing: Edge8; continuity: G0 }
+        Boundary West { existing: Edge11; continuity: G0 }
+    }
+    SculptState raised {
+        input: exact
+        ReplaceRegion { target: Face2; patch: crown; influenceEnvelope: [-10mm, -8mm, 8mm, 10mm, 8mm, 9mm] }
+        mayModify: [Face2]
+        preserve: [Face1]
+        require: [ClosedManifold, OrientationConsistency]
+    }
+    output: raised
+}

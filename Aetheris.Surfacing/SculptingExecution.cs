@@ -241,7 +241,7 @@ public static class ReplaceRegionSculptor
     private static SculptResult ApplyCore(BodyState input, string outputName, ReplaceRegionOperation operation, SpatialInfluenceEnvelope? certifiedBounds)
     {
         ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(operation);
-        if (input.Construction is null) return SculptResult.Failure([BodyStateCapabilities.HousingRequired(input, operation.OperationKind)]);
+        if (input.Construction is null) return EngineeringFaceRegionReplacer.Apply(input, outputName, operation);
         if (BodyStateCapabilities.ImportedReconstruction(input, operation.OperationKind) is {} imported) return SculptResult.Failure([imported]);
         if (BodyStateCapabilities.UnretainedSectionChain(input, operation.OperationKind) is {} history) return SculptResult.Failure([history]);
         var diagnostics = operation.ReplacementPatch.Validate().ToList();

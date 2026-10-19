@@ -31,6 +31,7 @@
 | Edge finishes/hollow/lattice | Bounded | Documented admitted chamfer/fillet, hollow, and cubic-truss routes; not arbitrary topology |
 | Templates/Records/Static/Tables | Supported | Typed compile-time specialization, finite data, `with`, and `Require` |
 | STEP AP242 export | Bounded | Deterministic single-body routes plus semantic PMI; unsupported intent fails loudly |
+| Exact face graft / subdivision sculpting | Bounded | Native planar four-line face replacement by an outward bicubic graph; explicit box/sphere quad cages, Catmull-Clark refinement, creases, protected vertices, movement and scaling. MeshState exports STL/GLB with replay/provenance sidecars, never STEP; arbitrary BRep retopology and global mesh self-intersection proof are not implemented. See [sculpting](../firmament/sculpting.md). |
 | STEP import / inlineSTEP | Bounded | Canonical single-body topology and recognized identities; arbitrary containment and multi-root bodies are not native-part promises |
 | PMI authoring and presentation | Bounded | Model authoring qualifies plane Datum and toleranced shaft HoleDiameter; manufacturing AP242 workflows additionally qualify documented dimensions, position controls, annotations, and geometry associations; this is not general PMI authoring |
 | Sheet Metal authoring | Bounded | Base/flanges/bends and planar circular holes/cuts, formed STEP, flat STEP/SVG, K-factor, DFM, semantic regions; Model `Hole<Counterbore>` / `Hole<Countersink>` syntax is rejected |

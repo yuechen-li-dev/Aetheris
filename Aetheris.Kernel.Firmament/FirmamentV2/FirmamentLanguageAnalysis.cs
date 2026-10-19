@@ -64,7 +64,7 @@ public static class FirmamentLanguageAnalysisService
             var assembly = new AssemblyM0Parser().Parse(source, document);
             return new(document, revision, tokens, assembly.Diagnostics.Select(d => new FirmamentLanguageDiagnostic(d.Severity == AssemblyDiagnosticSeverity.Error ? "error" : "information", d.Code, d.Message, 0, 0)).ToArray());
         }
-        if(Syntax.FirmamentSyntaxTraversal.Declarations(documentSyntax).FirstOrDefault(d=>d.Type.Name.Text is "PlasticShell" or "BodyState" or "SculptState"
+        if(Syntax.FirmamentSyntaxTraversal.Declarations(documentSyntax).FirstOrDefault(d=>d.Type.Name.Text is "PlasticShell" or "BodyState" or "SculptState" or "MeshState"
             || d.Type.Name.Text=="LinearElastic" && d.Modifiers.Any(m=>m.Name.Text is "Analysis" or "analysis")) is {} externalDomain)
         {
             // Editor analysis never materializes sculpt states or runs engineering.

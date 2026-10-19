@@ -4,6 +4,32 @@ Generic V2 build/validation errors use structured objects with `code`, `severity
 
 Unknown canonical statements and Box fields are errors. `profile-layout-placement-unsupported` rejects unsupported Concept Struct layout planes instead of substituting XY. Use a traced Construction Plane for supported oriented profile workflows. `SemanticSourceNotFound` preserves the missing source and the provenance explanation. An accidental through-depth Pocket fails; explicit `end: ThroughAll` selects the admitted through cut. Box top-boundary Fillet with disjoint ThroughAll shaft/counterbore holes is supported; `CombinedFeatureInteractionUnsupported` identifies a hole touching the finish band or another hole. Unsupported combined selectors retain `CombinedFeatureSelectionLost` at the EdgeFinish declaration.
 
+## Exact face grafts and subdivision meshes
+
+- `surf-face-pmi-projection-unsupported` / `surf-face-associated-target-unsupported`:
+  this edit cannot retain the required PMI/interface meaning. The predecessor
+  remains authoritative; no metadata is silently dropped.
+- `surf-face-boundary-mismatch` / `surf-face-graph-unsupported`: retain the named
+  four-line boundary and affine parameter grid, or use explicit mesh sculpting
+  for the broader deformation. `FaceN` handles become stale after replacement.
+- `mesh-conversion-deviation-exceeded`: increase sphere cage segments or
+  explicitly authorize a larger finite conversion budget.
+- `mesh-vertex-unresolved` / `mesh-edge-unresolved`: inspect the current cage;
+  historical handles are not rebound by proximity.
+- `mesh-preservation-failed` / `mesh-local-foldover`: the edit violates its
+  protected vertex contract or reverses a predecessor face triangle.
+- `mesh-subdivision-budget-exceeded`: refinement exceeds 24,576 faces.
+- `sculpt-mesh-export-format-unsupported`: the selected MeshState produces STL
+  or GLB, not STEP. Validation reports `MeshBuilt` and
+  `stepExportAvailable: false`; select an exact state for STEP.
+- `mesh-export-precision-exhausted`: 32-bit coordinates cannot retain a finite
+  closed output mesh. No new artifact is emitted.
+- `mesh-export-precision-budget-exceeded`: coordinate quantization exceeds the
+  inherited `maximumDeviation` budget, even though topology may remain closed.
+
+Global mesh self-intersection remains `NotCertified`, independent of successful
+topology and local foldover checks.
+
 ## Profile rim finishes
 
 - `ProfileBoundaryEdgeFinishSequenceUnsupported`: this Profile/Compose owner

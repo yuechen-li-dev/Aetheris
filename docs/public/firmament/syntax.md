@@ -976,6 +976,96 @@ The existing surface-edit materializers still have explicit topology/support
 requirements. An unsupported edit or history combination rejects before it can
 replace earlier geometry. See the [operation boundaries](sculpting.md).
 
+### Exact face editing and explicit mesh sculpting
+
+`ReplaceRegion` can now graft a bounded patch onto an engineering-source
+BodyState. Inspect the state for current `FaceN` and `EdgeN` handles, then bind
+every patch side explicitly. The initial adapter admits an outward, non-rational
+bicubic Bezier graph over a planar four-line face. It retains all topology,
+edge curves, vertices and neighboring supports. A replaced face handle becomes
+stale; its named SurfacePatch is the successor. Raw STEP PMI that lacks a complete
+editable projection rejects before editing. See the complete
+[exact-face example](../../../fixtures/Regression/GenericSculpting/exact-face.firmament).
+Imported engineering sources and edits to PMI/interface-bearing faces remain
+outside this native adapter's qualified contract.
+
+Use `MeshState` for explicit conversion to an editable subdivision control cage.
+It produces a mesh artifact, not an exact BodyState. There is no automatic
+mesh fallback when an exact edit fails.
+
+**Complete file — convert a box, soften its creases and edit its cage:**
+
+```firmament
+Model CageSculpt {
+  units: mm
+  Box stock { size: [20mm, 16mm, 8mm] }
+  BodyState exact { input: stock }
+  MeshState cage {
+    input: exact
+    cage: Box
+    segments: 1
+    maximumDeviation: 0.01mm
+  }
+  MeshState smooth {
+    input: cage
+    Crease { edges: [All]; mode: Smooth }
+  }
+  MeshState refined { input: smooth; Subdivide { levels: 2 } }
+  MeshState edited {
+    input: refined
+    preserve: [v1]
+    Move { vertices: [v0]; offset: [0mm, 0mm, 1mm] }
+  }
+  output: edited
+}
+```
+
+`cage: Box` requires a pure axis-aligned box, and starts with sharp stock edges.
+`cage: Sphere` requires a pure exact spherical support; it creates a welded
+cube-sphere quad cage. `segments` is 1..16 per cube side (default 1 for Box,
+4 for Sphere). Required `maximumDeviation` bounds the finite conversion's
+radial error for Sphere, including output quantization; the native Box cage
+retains its exact boundary. The same budget limits 32-bit coordinate
+quantization for every selected mesh successor. It does not constrain an
+explicit Move/Scale to stay near the original body. A tighter
+sphere budget may require more segments. This is not arbitrary BRep retopology
+or a certificate for the infinite subdivision limit surface.
+
+Each successor has exactly one operation:
+
+| Operation | Fields | Meaning |
+| --- | --- | --- |
+| `Subdivide` | `levels: 1` | Finite Catmull-Clark refinement, 1..4 levels per operation |
+| `Move` | `vertices: [v0]`, `offset: [0mm, 0mm, 1mm]` | Move selected current cage vertices in world space |
+| `Scale` | `vertices: [All]`, `factor: [1.5, 1, 0.75]`, `origin: [0mm, 0mm, 0mm]` | Explicit positive scale about a required origin; factors are dimensionless |
+| `Crease` | `edges: [All]`, `mode: Sharp` or `Smooth` | Mark or unmark current cage edges as sharp |
+
+Use `inspect --json` for current vertex/edge identities; edge handles are
+derived from their endpoint identities. `[All]` is an explicit whole-cage
+selection. Existing vertex IDs survive refinement; new edge/face points have
+parent-derived IDs. Old edge handles are replaced by their child edges.
+Optional `preserve: [v1]` requires those input vertices to retain their exact
+coordinates and identities in that successor. A conflict rejects atomically.
+There are at most 64 mesh states/operations and 24,576 cage faces.
+
+The [sphere example](../../../fixtures/Regression/GenericSculpting/sphere-cage.firmament)
+uses `Scale` to create an ellipsoid-like subdivision mesh. Its original sphere
+remains an unchanged exact BodyState. Mesh states carry their source body,
+conversion evidence, typed construction recipe and edit history. Finite meshes
+are checked for enclosure, directed winding and local edit foldover. Global
+self-intersection is **not certified**; unsupported requirements are errors.
+
+Export a mesh output with `aetheris mesh part.firmament --format glb` or
+`--format stl`, or `build --out artifacts/local/part.glb`. GLB is binary glTF 2.0.
+Each output has a `.sculpt.json` sidecar with the cage and replayable construction.
+STL does not embed those semantics, so retain its sidecar. GLB uses the existing
+millimeter/Z-up to meter/Y-up projection and finite, flat-shaded triangles.
+Both formats use 32-bit coordinates; export reports quantization and rejects
+precision collapse. `validate` reports `MeshBuilt`, `SubdivisionMesh` and
+`stepExportAvailable: false`. A normal STEP build of that output rejects;
+select the retained exact state as `output` when STEP is required. The existing
+STEP-based `view`/`verify` commands explicitly reject mesh-only outputs.
+
 ### Inventory: organize module dependencies
 
 Use a short `include "parts/bolt";` when shared declarations are convenient. For

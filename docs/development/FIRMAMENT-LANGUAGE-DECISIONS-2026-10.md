@@ -450,3 +450,17 @@ a new structural collection language or complete expansion source maps. Those
 remain explicit capability/consolidation boundaries under the no-new-features
 constraint. See the report for qualification, compatibility changes and the
 concrete remaining housing-materializer coupling.
+
+## Exact face and subdivision representation follow-up (2026-10-18)
+
+The [generic sculpting foundation](FIRMAMENT-GENERIC-SCULPTING-2026-10-18.md)
+separates exact BRep successors from explicitly requested mesh successors.
+This extends the bounded DOMAIN-02 capability disposition; it does not erase
+the remaining imported-product/PMI projection prerequisite.
+
+| Decision | Disposition |
+| --- | --- |
+| Native exact face editing | Reuse the shared bounded support graft with current face/edge bindings, a bicubic graph, preservation contracts and typed replay. No housing reconstruction. Unsupported metadata/continuity/intersection claims reject. |
+| `MeshState` | Explicit box/sphere cage conversion and finite Catmull-Clark editing under the existing Sculpting AST owner. One operation per successor, stable parent-derived handles and protected vertices. |
+| Output and precision | Mesh successors are STL/GLB artifacts, never implicit STEP. Validation reports `MeshBuilt` and unavailable STEP output. `maximumDeviation` bounds conversion and inherited output quantization; deformations remain explicit. |
+| Future boundaries | Arbitrary BRep retopology, new cage constructors, full PMI/import metadata succession, global mesh self-intersection proof and interactive editing remain separate qualification work. No silent fallback or implied X2 closure. |

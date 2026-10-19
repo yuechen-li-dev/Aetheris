@@ -16,6 +16,14 @@ Sculpting is a lower-authority escape hatch for geometry that an engineering fea
 
 ## Body states
 
+There are now two explicit representations. `BodyState` / `SculptState` retain
+exact BRep authority and can export STEP within their admitted capabilities.
+`MeshState` converts a qualified box or sphere into a real subdivision control
+cage, then supports finite Catmull-Clark refinement, creases, vertex movement
+and positive scaling. It exports STL or GLB with a replay/provenance sidecar;
+it cannot export STEP. The source exact body remains unchanged. See the
+[complete syntax and examples](syntax.md#exact-face-editing-and-explicit-mesh-sculpting).
+
 Every accepted operation consumes exactly one immutable semantic `BodyState` and produces a new one:
 
 ```text
@@ -56,12 +64,40 @@ ordinary engineering source for production annotation policy.
 | HoleFeature | Housing top/footprint frame; retains an existing east-attached SectionChain across repeated holes. |
 | AddSectionChain / RemoveSectionChain | One qualified housing attachment or through-duct construction. |
 
-These materializers do not yet graft arbitrary operations onto arbitrary BReps.
+These housing materializers do not graft arbitrary operations onto arbitrary BReps.
 They reject engineering-source bodies with
 `bodystate-operation-capability-unsupported`. A reconstruction that cannot
 retain an earlier SectionChain rejects with
 `bodystate-history-capability-unsupported`; the predecessor remains authoritative.
 No operation may silently remove an earlier attachment or duct.
+
+The engineering-source `ReplaceRegion` adapter has a bounded exact graft owner.
+It admits a full-domain non-rational bicubic Bezier graph over one native planar
+four-line face, with outward displacement on its unchanged affine parameter
+grid. `inspect --json` reports current `FaceN` handles, `EdgeN` boundaries and
+endpoint positions. Bind all four patch boundaries explicitly, authorize the
+target with `mayModify`, and name unaffected face associations in `preserve`.
+The [complete example](../../../fixtures/Regression/GenericSculpting/exact-face.firmament)
+retains all edge curves, vertices, topology, neighboring supports and source face
+provenance. Its replaced face alias becomes stale; the named patch is the
+current successor. Replay uses the existing typed `ReplaceRegion` operation.
+
+This source-level adapter rejects imported engineering sources, raw STEP PMI
+without an editable projection, and edits to faces carrying qualified PMI or
+assembly interfaces. The predecessor keeps its complete source/PMI. It does not
+pretend to preserve associations by proximity or by changing a dimension's
+meaning. The older bounded imported-face API retains its separate compatibility
+contract. G1/G2 face grafts, holes in the edited face, arbitrary control-net
+deformation and global `NoSelfIntersection` proof are outside this adapter;
+those requests reject explicitly. Exact graph edits check control-hull locality,
+boundary correspondence, pcurves, orientation and BRep export preflight.
+
+Mesh sculpting likewise reports `selfIntersectionStatus: NotCertified`.
+Enclosure, directed winding, connected vertex fans and local foldover checks
+are useful checks, not a global collision certificate. Protected cage vertices
+are exact successor contracts. Finite evaluated quads become triangles at
+export; GLB uses flat per-triangle normals so crease boundaries remain visible.
+No source is silently reconstructed as a housing or converted to a mesh.
 
 The direct C# imported-face adapter retains imported topology/provenance and
 supports its bounded support-surface graft. It does not carry a replayable

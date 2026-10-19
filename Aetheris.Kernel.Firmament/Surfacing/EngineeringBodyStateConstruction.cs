@@ -12,7 +12,7 @@ namespace Aetheris.Surfacing;
 internal static class EngineeringBodyStateConstruction
 {
     internal static bool IsStateDeclaration(StatementSyntax statement) => statement is DeclarationSyntax d
-        && d.Type.Name.Text is "BodyState" or "SculptState" or "SurfacePatch" or "SectionChain";
+        && d.Type.Name.Text is "BodyState" or "SculptState" or "MeshState" or "SurfacePatch" or "SectionChain";
 
     internal static SculptResult Realize(EngineeringSourceConstruction recipe)
     {
@@ -79,6 +79,12 @@ internal static class EngineeringBodyStateConstruction
             [bodyId] = new(bodyId, SculptEntityKind.Body, id.Value, "Admitted engineering body; no prototype regions inferred.")
         };
         var associations = new List<PersistentGeometryAssociation>();
+        foreach (var face in realized.Topology.Faces)
+        {
+            var handle = "Face" + face.Id.Value;
+            if (inventory.TryAdd(handle, new(handle, SculptEntityKind.Region, id.Value + ":" + handle, "Current body face handle; inspect EdgeN boundary identities before grafting.")))
+                associations.Add(new(handle, PersistentAssociationState.Preserved, [face.Id.Value], "Exact topology identity; no proximity lookup."));
+        }
         foreach (var group in export.RuntimeCorrespondence?.Descendants.GroupBy(d => d.SourceStableId) ?? [])
         {
             var faces = group.Where(d => d.Face is not null).Select(d => d.Face!.Value.Value).Distinct().Order().ToArray();
@@ -96,6 +102,7 @@ internal static class EngineeringBodyStateConstruction
         var authority = new ConstructionState(ConstructionState.CurrentSchemaId, ConstructionState.CurrentSchemaVersion, recipe, []);
         return new(true, new(id, null, bodyId, recipe.BaseId, realized, null, inventory, null, evidence,
             associations, ConstructionAuthority: authority, RealizedStepText: export.StepText)
-            { RealizedStepProductName = export.DocumentName ?? model.Name?.Text }, null, evidence, []);
+            { RealizedStepProductName = export.DocumentName ?? model.Name?.Text,
+              HasImportedEngineeringSource = FirmamentV2Parser.MechanicalDeclarations(model.Body?.Statements ?? []).Any(d => d.Type.Name.Text == "InlineStep") }, null, evidence, []);
     }
 }

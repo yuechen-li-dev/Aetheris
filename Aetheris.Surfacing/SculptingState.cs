@@ -174,9 +174,11 @@ public sealed record BodyState(
     string? RealizedStepText = null)
 {
     public string? RealizedStepProductName { get; init; }
+    public bool HasImportedEngineeringSource { get; init; }
+    public IReadOnlyList<SurfacePatchMetadata> ExactFacePatches { get; init; } = [];
     public IReadOnlyList<SurfacePatchMetadata> SurfacePatches => Construction?.ReplacementPatch is { } patch
         ? [SurfacePatchMetadata.From(patch, Body.Topology.Faces.FirstOrDefault(face =>
-            Body.TryGetFaceSurfaceGeometry(face.Id, out var support) && Equals(support, patch.Support))?.LoopIds.Count ?? 1)] : [];
+            Body.TryGetFaceSurfaceGeometry(face.Id, out var support) && Equals(support, patch.Support))?.LoopIds.Count ?? 1)] : ExactFacePatches;
 }
 
 public sealed record OffsetRegionOperation(

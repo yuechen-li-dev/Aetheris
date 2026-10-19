@@ -1,0 +1,10 @@
+Model CageSculpt {
+    units: mm
+    Box stock { size: [20mm, 16mm, 8mm] }
+    BodyState exact { input: stock }
+    MeshState cage { input: exact; cage: Box; segments: 1; maximumDeviation: 0.01mm }
+    MeshState smooth { input: cage; Crease { edges: [All]; mode: Smooth } }
+    MeshState refined { input: smooth; Subdivide { levels: 2 } }
+    MeshState edited { input: refined; preserve: [v1]; Move { vertices: [v0]; offset: [0mm, 0mm, 1mm] } }
+    output: edited
+}

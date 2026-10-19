@@ -1,0 +1,12 @@
+Model EllipsoidSculpt {
+    units: mm
+    Sphere stock { radius: 10mm }
+    BodyState exact { input: stock }
+    MeshState cage { input: exact; cage: Sphere; segments: 4; maximumDeviation: 1mm }
+    MeshState refined { input: cage; Subdivide { levels: 1 } }
+    MeshState stretched {
+        input: refined
+        Scale { vertices: [All]; factor: [1.5, 1, 0.75]; origin: [0mm, 0mm, 0mm] }
+    }
+    output: stretched
+}

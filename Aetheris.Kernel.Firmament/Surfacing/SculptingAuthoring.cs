@@ -8,11 +8,11 @@ using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Surfacing;
 
-public static class SculptingAuthoring
+public static partial class SculptingAuthoring
 {
-    public static bool IsSculptingSource(string source) => (source.Contains("BodyState", StringComparison.Ordinal) || source.Contains("SculptState", StringComparison.Ordinal))
-        && FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).Any(d => d.Type.Name.Text is "BodyState" or "SculptState");
-    public static SculptingCompileResult CompileFile(string path) => Compile(File.ReadAllText(path), path);
+    public static bool IsSculptingSource(string source) => (source.Contains("BodyState", StringComparison.Ordinal) || source.Contains("SculptState", StringComparison.Ordinal) || source.Contains("MeshState", StringComparison.Ordinal))
+        && FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).Any(d => d.Type.Name.Text is "BodyState" or "SculptState" or "MeshState");
+    public static SculptingCompileResult CompileFile(string path) => Compile(File.ReadAllText(path), Path.GetFullPath(path));
 
     public static IReadOnlyList<Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic> KernelDiagnostics(SculptingCompileResult result) =>
         result.Diagnostics.Select(d=>new Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic(
@@ -172,7 +172,7 @@ public static class SculptingAuthoring
                 var replaceOperation = new ReplaceRegionOperation(block.Name + ".ReplaceRegion", replaceTarget, patch, replaceMayModify,
                     new(replaceEnvelope[0], replaceEnvelope[1], replaceEnvelope[2], replaceEnvelope[3], replaceEnvelope[4], replaceEnvelope[5]), replaceContracts, replaceRequirements);
                 var replaceApplyClock = Stopwatch.StartNew(); var replaceResult = ReplaceRegionSculptor.Apply(input, block.Name, replaceOperation); replaceApplyClock.Stop(); verification += replaceApplyClock.Elapsed;
-                if (!replaceResult.IsSuccess || replaceResult.OutputState is null) diagnostics.AddRange(replaceResult.Diagnostics);
+                if (!replaceResult.IsSuccess || replaceResult.OutputState is null) diagnostics.AddRange(replaceResult.Diagnostics.Select(d => d with { Entity = block.Name }));
                 else if (!states.TryAdd(block.Name, replaceResult.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"State '{block.Name}' is declared more than once."));
                 continue;
             }
@@ -220,12 +220,24 @@ public static class SculptingAuthoring
             if (!result.IsSuccess || result.OutputState is null) diagnostics.AddRange(result.Diagnostics);
             else if (!states.TryAdd(block.Name, result.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"State '{block.Name}' is declared more than once."));
         }
+        var meshStates = BindMeshStates(model, states, diagnostics);
         var outputName = ScalarText(model, "Output");
         BodyState? output = null;
-        if (outputName is null || !states.TryGetValue(outputName, out output))
+        MeshSculptState? outputMesh = null;
+        if (outputName is not null) meshStates.TryGetValue(outputName, out outputMesh);
+        if (outputMesh is not null)
+        {
+            try { SubdivisionSculptor.PrepareExport(outputMesh.Cage, outputMesh.Construction.MaximumDeviationMm); }
+            catch (InvalidOperationException error)
+            {
+                var separator = error.Message.IndexOf(':');
+                diagnostics.Add(new(separator > 0 ? error.Message[..separator] : "mesh-export-preflight-failed", error.Message, outputMesh.Name));
+            }
+        }
+        if ((outputName is null || !states.TryGetValue(outputName, out output)) && outputMesh is null)
         {
             var failedDeclaration = models[0].Body?.Statements.OfType<DeclarationSyntax>()
-                .Any(d => d.Type.Name.Text is "BodyState" or "SculptState" && d.Name?.Text == outputName) == true;
+                .Any(d => d.Type.Name.Text is "BodyState" or "SculptState" or "MeshState" && d.Name?.Text == outputName) == true;
             if (outputName is null || !failedDeclaration || diagnostics.Count == 0)
                 diagnostics.Add(new("sculpt-output-unresolved", "Output must name one accepted BodyState or SculptState."));
         }
@@ -241,8 +253,9 @@ public static class SculptingAuthoring
                 { LocationNote = "Location identifies the enclosing declaration; the domain operation supplied no finer original-source span." } };
         }
         total.Stop();
-        return new(diagnostics.Count == 0 && output is not null, model.Name, output, states, diagnostics,
-            new(baseClock.Elapsed.TotalMilliseconds, opConstruction.TotalMilliseconds, verification.TotalMilliseconds, brep.TotalMilliseconds, 0d));
+        return new(diagnostics.Count == 0 && (output is not null || outputMesh is not null), model.Name, output, states, diagnostics,
+            new(baseClock.Elapsed.TotalMilliseconds, opConstruction.TotalMilliseconds, verification.TotalMilliseconds, brep.TotalMilliseconds, 0d))
+            { OutputMesh = outputMesh, MeshStates = meshStates };
 
         SculptingCompileResult Fail(string name, string code, string message) => new(false, name, null, states, [new(code, message)], new(0, 0, 0, 0, 0));
     }

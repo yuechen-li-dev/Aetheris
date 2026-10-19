@@ -49,3 +49,7 @@ Generic STEP analysis reports analytic placement and size information where it i
 ## Assembly display meshes
 
 `aetheris mesh <assembly.firmament|assembly.firmasm> --format assembly-json --output <file.mesh.json> --json` exports shared local definition meshes and stable world-space occurrences. Failed geometry is not omitted. The default destination is `artifacts/local/mesh/<name>.mesh.json`. See [editable mechanisms](../firmament/editable-mechanisms.md) for the schema and a working consumer.
+
+## Generate engineering drawings
+
+`aetheris drawing generate <part.firmament|model.step> --out-dir <directory> --json` creates PDF, SVG, editable PPTX, Drawing IR and validation evidence. See [drawing generation](../drawings.md) for PMI admission and layout boundaries. Use `drawing compile` for authored drawings and assembly BOMs.

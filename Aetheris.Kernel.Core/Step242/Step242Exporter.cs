@@ -545,7 +545,7 @@ public static class Step242Exporter
         var propertyDefinitionId = writer.AddEntity(
             "PROPERTY_DEFINITION",
             Step242TextWriter.String($"diameter:{hole.FeatureId}"),
-            Step242TextWriter.String("semantic PMI diameter"),
+            Step242TextWriter.String(hole.Name is null ? "semantic PMI diameter" : $"semantic PMI diameter name={hole.Name}"),
             Step242TextWriter.Ref(featureShapeAspectId));
         var measureItemId = writer.AddEntity(
             "MEASURE_REPRESENTATION_ITEM",

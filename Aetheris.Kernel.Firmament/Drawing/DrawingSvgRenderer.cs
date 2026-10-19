@@ -12,7 +12,7 @@ public static class DrawingSvgRenderer
         var height = drawing.Pages.Sum(page => page.HeightMillimetres + 8) - 8;
         var builder = new StringBuilder();
         builder.AppendLine($"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{F(width)}mm\" height=\"{F(height)}mm\" viewBox=\"0 0 {F(width)} {F(height)}\" data-drawing-schema=\"{drawing.SchemaVersion}\">");
-        builder.AppendLine("<style>.sheet{fill:white;stroke:#aab2bd;stroke-width:.25}.border,.zone-tick{fill:none;stroke:#334155;stroke-width:.25}.visible,.silhouette{fill:none;stroke:#111827;stroke-width:.35;stroke-linecap:round;stroke-linejoin:round}.silhouette{stroke-width:.5}.hidden{fill:none;stroke:#64748b;stroke-width:.25;stroke-dasharray:2 1}.leader{fill:none;stroke:#374151;stroke-width:.22}.annotation{font:3.2px Inter,Arial,sans-serif;fill:#111827}.label{font:600 3.2px Inter,Arial,sans-serif;fill:#334155}.meta,.zone-label{font:2.8px Inter,Arial,sans-serif;fill:#334155}.zone-label{font-size:2.4px}.table-header{font:600 3px Inter,Arial,sans-serif}.table-cell{font:2.8px Inter,Arial,sans-serif}.info-key{font:2px Inter,Arial,sans-serif;fill:#64748b}.info-value{font:2.6px Inter,Arial,sans-serif;fill:#111827}</style>");
+        builder.AppendLine("<style>.sheet{fill:white;stroke:#aab2bd;stroke-width:.25}.border,.zone-tick{fill:none;stroke:#334155;stroke-width:.25}.visible,.silhouette{fill:none;stroke:#111827;stroke-width:.35;stroke-linecap:round;stroke-linejoin:round}.silhouette{stroke-width:.5}.surfacegrid{fill:none;stroke:#94a3b8;stroke-width:.14}.hidden{fill:none;stroke:#64748b;stroke-width:.25;stroke-dasharray:2 1}.leader{fill:none;stroke:#374151;stroke-width:.22}.annotation{font:3.2px Inter,Arial,sans-serif;fill:#111827}.label{font:600 3.2px Inter,Arial,sans-serif;fill:#334155}.meta,.zone-label{font:2.8px Inter,Arial,sans-serif;fill:#334155}.zone-label{font-size:2.4px}.table-header{font:600 3px Inter,Arial,sans-serif}.table-cell{font:2.8px Inter,Arial,sans-serif}.info-key{font:2px Inter,Arial,sans-serif;fill:#64748b}.info-value{font:2.6px Inter,Arial,sans-serif;fill:#111827}</style>");
         var offset = 0d;
         foreach (var page in drawing.Pages)
         {
@@ -44,7 +44,25 @@ public static class DrawingSvgRenderer
 
     private static void RenderInformationBlock(StringBuilder builder, DrawingInformationBlockIr? block)
     {
-        if (block is null) return; builder.AppendLine($"<g data-information-block=\"true\" data-zone=\"{E(block.Location.Zone)}\"><rect x=\"{F(block.Bounds.X)}\" y=\"{F(block.Bounds.Y)}\" width=\"{F(block.Bounds.Width)}\" height=\"{F(block.Bounds.Height)}\" fill=\"#fff\" stroke=\"#334155\" stroke-width=\".3\"/>");
+        if (block is null) return;
+        if (block.Table is { } table)
+        {
+            builder.AppendLine($"<g role=\"table\" aria-label=\"Drawing title block\" data-title-block=\"true\" data-zone=\"{E(block.Location.Zone)}\">");
+            foreach (var row in table.Rows)
+            {
+                builder.AppendLine("<g role=\"row\">");
+                foreach (var cell in row.Cells)
+                {
+                    builder.AppendLine($"<g role=\"cell\" data-field=\"{E(cell.Key)}\"><rect x=\"{F(cell.Bounds.X)}\" y=\"{F(cell.Bounds.Y)}\" width=\"{F(cell.Bounds.Width)}\" height=\"{F(cell.Bounds.Height)}\" fill=\"{(cell.Emphasized ? "#f1f5f9" : "white")}\" stroke=\"#475569\" stroke-width=\".15\"/>");
+                    builder.AppendLine($"<text x=\"{F(cell.Bounds.X + 1)}\" y=\"{F(cell.Bounds.Y + 2.2)}\" fill=\"#64748b\" style=\"font:1.8px Inter,Arial,sans-serif\">{E(cell.Label)}</text>");
+                    for (var i = 0; i < cell.ValueLines.Count; i++) builder.AppendLine($"<text x=\"{F(cell.Bounds.X + 1)}\" y=\"{F(cell.Bounds.Y + 3 + cell.ValueSizeMillimetres + i * cell.ValueSizeMillimetres * 1.15)}\" fill=\"#111827\" style=\"font:{F(cell.ValueSizeMillimetres)}px Inter,Arial,sans-serif\">{E(cell.ValueLines[i])}</text>");
+                    builder.AppendLine("</g>");
+                }
+                builder.AppendLine("</g>");
+            }
+            builder.AppendLine($"<rect x=\"{F(block.Bounds.X)}\" y=\"{F(block.Bounds.Y)}\" width=\"{F(block.Bounds.Width)}\" height=\"{F(block.Bounds.Height)}\" fill=\"none\" stroke=\"#334155\" stroke-width=\".4\"/></g>");
+            return;
+        } builder.AppendLine($"<g data-information-block=\"true\" data-zone=\"{E(block.Location.Zone)}\"><rect x=\"{F(block.Bounds.X)}\" y=\"{F(block.Bounds.Y)}\" width=\"{F(block.Bounds.Width)}\" height=\"{F(block.Bounds.Height)}\" fill=\"#fff\" stroke=\"#334155\" stroke-width=\".3\"/>");
         var entries = block.Fields.ToArray(); var columns = 3; var cellWidth = block.Bounds.Width / columns; var rows = (int)Math.Ceiling(entries.Length / (double)columns); var cellHeight = block.Bounds.Height / rows;
         for (var i = 0; i < entries.Length; i++) { var x = block.Bounds.X + i % columns * cellWidth; var y = block.Bounds.Y + i / columns * cellHeight; builder.AppendLine($"<rect x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(cellWidth)}\" height=\"{F(cellHeight)}\" fill=\"none\" stroke=\"#94a3b8\" stroke-width=\".12\"/><text class=\"info-key\" x=\"{F(x + .8)}\" y=\"{F(y + 2.2)}\">{E(entries[i].Key.ToUpperInvariant())}</text><text class=\"info-value\" x=\"{F(x + .8)}\" y=\"{F(y + 5)}\">{E(entries[i].Value)}</text>"); }
         builder.AppendLine("</g>");
@@ -66,8 +84,9 @@ public static class DrawingSvgRenderer
     {
         var leader = string.Join(" ", annotation.SelectedCandidate.Leader.Select(point => $"{F(point.X)},{F(point.Y)}"));
         builder.AppendLine($"<g data-annotation=\"{E(annotation.Identity)}\" data-semantic-reference=\"{E(annotation.SemanticReference)}\">");
-        builder.AppendLine($"<polyline class=\"leader\" points=\"{leader}\"/>");
-        builder.AppendLine($"<rect x=\"{F(annotation.SelectedCandidate.Body.X)}\" y=\"{F(annotation.SelectedCandidate.Body.Y)}\" width=\"{F(annotation.SelectedCandidate.Body.Width)}\" height=\"{F(annotation.SelectedCandidate.Body.Height)}\" fill=\"white\" stroke=\"#374151\" stroke-width=\".18\"/>");
+        foreach (var stroke in DrawingAnnotationGeometry.Strokes(annotation))
+            builder.AppendLine($"<path class=\"leader\" d=\"M {F(stroke.Start.X)} {F(stroke.Start.Y)} L {F(stroke.End.X)} {F(stroke.End.Y)}\"/>");
+        builder.AppendLine($"<rect x=\"{F(annotation.SelectedCandidate.Body.X)}\" y=\"{F(annotation.SelectedCandidate.Body.Y)}\" width=\"{F(annotation.SelectedCandidate.Body.Width)}\" height=\"{F(annotation.SelectedCandidate.Body.Height)}\" fill=\"white\" stroke=\"{(annotation.Kind is DrawingAnnotationKind.Datum or DrawingAnnotationKind.FeatureControlFrame ? "#374151" : "none")}\" stroke-width=\".18\"/>");
         builder.AppendLine($"<text class=\"annotation\" x=\"{F(annotation.SelectedCandidate.Body.X + 1.2)}\" y=\"{F(annotation.SelectedCandidate.Body.Y + 4)}\">{E(annotation.EngineeringDisplay)}</text>");
         builder.AppendLine("</g>");
     }

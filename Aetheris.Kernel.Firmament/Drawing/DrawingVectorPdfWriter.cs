@@ -34,7 +34,7 @@ public static class DrawingVectorPdfWriter
         }
         objects[pagesObject] = Encoding.ASCII.GetBytes($"<< /Type /Pages /Count {pageObjects.Count} /Kids [{string.Join(" ", pageObjects.Select(value => $"{value} 0 R"))}] >>");
         var catalog = Add($"<< /Type /Catalog /Pages {pagesObject} 0 R >>");
-        var info = Add($"<< /Title ({PdfAscii(drawing.Metadata.Title)}) /Subject ({PdfAscii(drawing.Metadata.Description ?? drawing.Metadata.ProductName)}) /Author ({PdfAscii(drawing.Metadata.Author ?? "Aetheris")}) /Creator (Aetheris Drawing M0B) /Producer (Aetheris native vector PDF) /Keywords (Revision {drawing.Metadata.Revision?.ToString() ?? "-"}; Date {drawing.Metadata.Date ?? "-"}; Inter embedded) /CreationDate (D:20260810000000-07'00') /ModDate (D:20260810000000-07'00') >>");
+        var info = Add($"<< /Title ({PdfAscii(drawing.Metadata.Title)}) /Subject ({PdfAscii(drawing.Metadata.Description ?? drawing.Metadata.ProductName)}) /Author ({PdfAscii(drawing.Metadata.Signoff?.Drawn.Name ?? drawing.Metadata.Author ?? "Aetheris")}) /Creator (Aetheris Drawing M0B) /Producer (Aetheris native vector PDF) /Keywords (Revision {drawing.Metadata.Revision?.ToString() ?? "-"}; Date {drawing.Metadata.Date ?? "-"}; Inter embedded) {PdfDateMetadata(drawing.Metadata)} >>");
         using var output = new MemoryStream(); Write(output, "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n"); var offsets = new long[objects.Count];
         for (var index = 1; index < objects.Count; index++) { offsets[index] = output.Position; Write(output, $"{index} 0 obj\n"); output.Write(objects[index]); Write(output, "\nendobj\n"); }
         var xref = output.Position; Write(output, $"xref\n0 {objects.Count}\n0000000000 65535 f \n"); for (var index = 1; index < objects.Count; index++) Write(output, $"{offsets[index]:0000000000} 00000 n \n");
@@ -44,8 +44,8 @@ public static class DrawingVectorPdfWriter
     private static byte[] BuildPage(DrawingIr drawing, DrawingPageIr page)
     {
         var b = new StringBuilder(); var inter = DrawingInterFont.Load(); double X(double mm) => Pt(mm); double Y(double mm) => Pt(page.HeightMillimetres - mm);
-        void Line(DrawingPoint2 a, DrawingPoint2 c, double width = .25, bool dashed = false) => b.Append($"{F(width)} w {(dashed ? "[5 3] 0 d" : "[] 0 d")} {F(X(a.X))} {F(Y(a.Y))} m {F(X(c.X))} {F(Y(c.Y))} l S\n");
-        void Rect(DrawingRect rect, double width = .2, bool fill = false) => b.Append($"{F(width)} w {F(X(rect.X))} {F(Y(rect.Bottom))} {F(X(rect.Width))} {F(X(rect.Height))} re {(fill ? "B" : "S")}\n");
+        void Line(DrawingPoint2 a, DrawingPoint2 c, double width = .25, bool dashed = false) => b.Append($"{F(Pt(width))} w {(dashed ? "[5 3] 0 d" : "[] 0 d")} {F(X(a.X))} {F(Y(a.Y))} m {F(X(c.X))} {F(Y(c.Y))} l S\n");
+        void Rect(DrawingRect rect, double width = .2, bool fill = false) => b.Append($"{F(Pt(width))} w {F(X(rect.X))} {F(Y(rect.Bottom))} {F(X(rect.Width))} {F(X(rect.Height))} re {(fill ? "B" : "S")}\n");
         void Text(double x, double y, string text, double size = 8) => b.Append($"BT /F1 {F(size)} Tf {F(X(x))} {F(Y(y))} Td <{Utf16Hex(text)}> Tj ET\n");
         void RightText(double right, double y, string text, double size = 8) => Text(right - inter.MeasureMillimetres(text, size / PointsPerMillimetre), y, text, size);
         RenderZones(page, Line, Rect, Text);
@@ -53,12 +53,19 @@ public static class DrawingVectorPdfWriter
         foreach (var view in page.Views)
         {
             Text(view.Viewport.X, view.Viewport.Y + 3.5, $"{view.Identity}  SCALE ×{view.Scale:0.###}", 7);
-            foreach (var primitive in view.Primitives) for (var index = 1; index < primitive.Points.Count; index++) Line(primitive.Points[index - 1], primitive.Points[index], primitive.Kind == DrawingPrimitiveKind.Silhouette ? .55 : .35, primitive.Kind == DrawingPrimitiveKind.Hidden);
+            foreach (var primitive in view.Primitives)
+            {
+                b.Append(primitive.Kind == DrawingPrimitiveKind.SurfaceGrid ? "0.58 0.64 0.70 RG\n" : "0.07 0.09 0.12 RG\n");
+                for (var index = 1; index < primitive.Points.Count; index++) Line(primitive.Points[index - 1], primitive.Points[index], primitive.Kind == DrawingPrimitiveKind.SurfaceGrid ? .12 : primitive.Kind == DrawingPrimitiveKind.Silhouette ? .5 : .35, primitive.Kind == DrawingPrimitiveKind.Hidden);
+            }
+            b.Append("0 0 0 RG\n");
         }
         foreach (var annotation in page.Annotations)
         {
-            for (var index = 1; index < annotation.SelectedCandidate.Leader.Count; index++) Line(annotation.SelectedCandidate.Leader[index - 1], annotation.SelectedCandidate.Leader[index], .25);
-            b.Append("1 1 1 rg "); Rect(annotation.SelectedCandidate.Body, .25, true); b.Append("0 0 0 rg\n"); Text(annotation.SelectedCandidate.Body.X + 1, annotation.SelectedCandidate.Body.Y + 4.2, annotation.EngineeringDisplay, 7);
+            foreach (var stroke in DrawingAnnotationGeometry.Strokes(annotation)) Line(stroke.Start, stroke.End, .25);
+            b.Append("1 1 1 rg "); b.Append($"{F(X(annotation.SelectedCandidate.Body.X))} {F(Y(annotation.SelectedCandidate.Body.Bottom))} {F(X(annotation.SelectedCandidate.Body.Width))} {F(X(annotation.SelectedCandidate.Body.Height))} re f\n");
+            b.Append("0 0 0 rg\n");
+            if (annotation.Kind is DrawingAnnotationKind.Datum or DrawingAnnotationKind.FeatureControlFrame) Rect(annotation.SelectedCandidate.Body); Text(annotation.SelectedCandidate.Body.X + 1, annotation.SelectedCandidate.Body.Y + 4.2, annotation.EngineeringDisplay, 3.2 * PointsPerMillimetre);
         }
         foreach (var table in page.Tables) RenderTable(table, page.ContentRect, b, Rect, Text);
         foreach (var note in page.LocatedNotes ?? []) Text(note.Bounds.X, note.Bounds.Y + 3, note.Text, 7);
@@ -82,6 +89,20 @@ public static class DrawingVectorPdfWriter
 
     private static void RenderInformation(DrawingInformationBlockIr? block, StringBuilder b, Action<DrawingRect, double, bool> rect, Action<double, double, string, double> text)
     {
+        if (block is null) return;
+        if (block.Table is { } table)
+        {
+            b.Append("0 0 0 RG 1 1 1 rg "); rect(block.Bounds, .4, true);
+            foreach (var row in table.Rows) foreach (var cell in row.Cells)
+            {
+                b.Append(cell.Emphasized ? "0.94 0.96 0.98 rg " : "1 1 1 rg "); rect(cell.Bounds, .15, true);
+                b.Append("0.35 0.40 0.46 rg "); text(cell.Bounds.X + 1, cell.Bounds.Y + 2.2, cell.Label, Pt(1.8));
+                b.Append("0.07 0.09 0.12 rg ");
+                for (var i = 0; i < cell.ValueLines.Count; i++) text(cell.Bounds.X + 1, cell.Bounds.Y + 3 + cell.ValueSizeMillimetres + i * cell.ValueSizeMillimetres * 1.15, cell.ValueLines[i], Pt(cell.ValueSizeMillimetres));
+            }
+            b.Append("0 0 0 rg\n"); rect(block.Bounds, .4, false);
+            return;
+        }
         if (block is null) return; b.Append("1 1 1 rg "); rect(block.Bounds, .35, true); b.Append("0 0 0 rg\n"); var entries = block.Fields.ToArray(); const int columns = 3; var rows = (int)Math.Ceiling(entries.Length / 3d); var width = block.Bounds.Width / columns; var height = block.Bounds.Height / rows;
         for (var index = 0; index < entries.Length; index++) { var cell = new DrawingRect(block.Bounds.X + index % columns * width, block.Bounds.Y + index / columns * height, width, height); rect(cell, .12, false); text(cell.X + .8, cell.Y + 2.2, entries[index].Key.ToUpperInvariant(), 4.8); text(cell.X + .8, cell.Y + 5, entries[index].Value, 6.2); }
     }
@@ -104,6 +125,13 @@ public static class DrawingVectorPdfWriter
     private static string Utf16Hex(string value) => Convert.ToHexString(Encoding.BigEndianUnicode.GetBytes(value));
     private static double Pt(double millimetres) => millimetres * PointsPerMillimetre;
     private static string F(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+    private static string PdfDateMetadata(DrawingMetadataIr metadata)
+    {
+        var date = metadata.Signoff?.Drawn.Date ?? metadata.Date;
+        return DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var value)
+            ? $"/CreationDate (D:{value:yyyyMMdd}) /ModDate (D:{value:yyyyMMdd})" : "";
+    }
+
     private static string PdfAscii(string value) => string.Concat(value.Select(character => character is >= ' ' and <= '~' ? character : '?')).Replace("\\", "\\\\", StringComparison.Ordinal).Replace("(", "\\(", StringComparison.Ordinal).Replace(")", "\\)", StringComparison.Ordinal);
     private static void Write(Stream stream, string value) => stream.Write(Encoding.Latin1.GetBytes(value));
 }

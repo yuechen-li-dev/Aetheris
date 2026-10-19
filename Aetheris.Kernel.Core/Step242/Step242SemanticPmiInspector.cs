@@ -13,6 +13,9 @@ public sealed record Step242SemanticPmiInspectionItem(
     string? Text)
 {
     public IReadOnlyList<int> GeometricFaceEntityIds { get; init; } = [];
+    public string? DimensionKind { get; init; }
+    public string? AuthoredName { get; init; }
+    public double? Depth { get; init; }
 }
 
 public sealed record Step242SemanticPmiInspectionResult(
@@ -71,7 +74,9 @@ public static class Step242SemanticPmiInspector
                 target = propertyName["diameter:".Length..];
                 var nominal = representations.GetValueOrDefault(propertyName);
                 var tolerance = representations.GetValueOrDefault($"diameter_tolerance:{target}");
-                items.Add(new(entity.Id, "Diameter", propertyName, target, nominal?.FirstOrDefault(), tolerance?.ElementAtOrDefault(0), tolerance?.ElementAtOrDefault(1), Quantity(quantities, target), [], null));
+                var name = String(property, 1) is { } description && description.Length > 27 && description.StartsWith("semantic PMI diameter name=", StringComparison.Ordinal)
+                    ? description[27..] : null;
+                items.Add(new Step242SemanticPmiInspectionItem(entity.Id, "Diameter", propertyName, target, nominal is { Count: > 0 } ? nominal[0] : null, tolerance?.ElementAtOrDefault(0), tolerance?.ElementAtOrDefault(1), Quantity(quantities, target), [], null) { AuthoredName = name, Depth = representations.GetValueOrDefault($"depth:{target}") is { Count: > 0 } depths ? depths[0] : null });
             }
             else if (propertyName.StartsWith("dimension:", StringComparison.Ordinal))
             {
@@ -81,7 +86,9 @@ public static class Step242SemanticPmiInspector
                 target = parts[2];
                 var nominal = representations.GetValueOrDefault($"dimension:{name}");
                 var tolerance = representations.GetValueOrDefault($"dimension_tolerance:{name}");
-                items.Add(new(entity.Id, "Dimension", name, target, nominal?.FirstOrDefault(), tolerance?.ElementAtOrDefault(0), tolerance?.ElementAtOrDefault(1), Quantity(quantities, target), [], null));
+                items.Add(new Step242SemanticPmiInspectionItem(entity.Id, "Dimension", name, target, nominal is { Count: > 0 } ? nominal[0] : null, tolerance?.ElementAtOrDefault(0), tolerance?.ElementAtOrDefault(1), Quantity(quantities, target), [], null)
+                { DimensionKind = String(property, 1) is { } description && description.StartsWith("semantic PMI ", StringComparison.Ordinal)
+                    && description.Length > 23 && description.EndsWith(" dimension", StringComparison.Ordinal) ? description[13..^10] : null });
             }
             else if (propertyName.StartsWith("note:", StringComparison.Ordinal))
             {

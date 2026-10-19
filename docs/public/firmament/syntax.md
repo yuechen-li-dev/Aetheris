@@ -57,7 +57,7 @@ reports `BoundNotSolved` (`status: "bound-not-solved"`). `build` runs the same
 analysis compiler and the existing solver, writing analysis artifacts to the
 `--out` directory. `fea --out-dir` remains the dedicated spelling. Static binding
 does not promise solver convergence. Drawing sources also dispatch through their production owner in `validate` and
-`build`; `drawing compile --out-dir` remains available. Their output is a
+`build`; `drawing compile --out-dir` remains available. [Automatic drawing generation](../drawings.md) also accepts admitted parts and supported AP242 PMI through `drawing generate`. Their output is a
 manufacturing drawing artifact directory. Passing a `.step` output path to an
 Analysis or Drawing build rejects explicitly; export the geometry source separately.
 

@@ -5,6 +5,7 @@ using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Visualization;
 
 namespace Aetheris.Kernel.Firmament.Drawing;
 
@@ -43,18 +44,23 @@ internal static class DrawingProjectionEngine
         foreach (var projectionBody in bodies.OrderBy(body => body.OccurrenceIdentity, StringComparer.Ordinal))
         {
             var body = projectionBody.Body;
-            foreach (var edge in body.Topology.Edges.OrderBy(edge => edge.Id.Value))
+            var samples = BrepWireframeSvgRenderer.SampleGeometry(body, new(CurveSamples: 64, Density: 5));
+            unsupported.AddRange(samples.Evidence.UnsupportedCurveFamilies.Select(kind => $"{projectionBody.OccurrenceIdentity}:curve:{kind}"));
+            foreach (var line in samples.Boundaries)
             {
+                var edge = body.Topology.Edges.Single(e => e.Id.Value == line.EdgeId);
                 if (IsCoplanarInternalEdge(body, edge.Id)) continue;
-                if (!body.TryGetVertexPoint(edge.StartVertexId, out var start) || !body.TryGetVertexPoint(edge.EndVertexId, out var end)) continue;
-                IReadOnlyList<Point3D> points;
-                var curved = false;
-                if (body.TryGetEdgeCurveGeometry(edge.Id, out var curve) && curve?.Kind == CurveGeometryKind.Circle3 && curve.Circle3 is { } circle)
-                { points = Enumerable.Range(0, 65).Select(i => circle.Evaluate(i * Math.Tau / 64d)).ToArray(); curved = true; }
-                else if (body.TryGetEdgeCurveGeometry(edge.Id, out curve) && curve?.Kind == CurveGeometryKind.Ellipse3 && curve.Ellipse3 is { } ellipse)
-                { points = Enumerable.Range(0, 65).Select(i => ellipse.Evaluate(i * Math.Tau / 64d)).ToArray(); curved = true; }
-                else points = [start, end];
-                raw.Add(new($"edge:{edge.Id.Value}", projectionBody.OccurrenceIdentity, projectionBody.DefinitionIdentity, points.Select(Camera).ToArray(), curved));
+                var curved = body.TryGetEdgeCurveGeometry(edge.Id, out var curve) && curve?.Kind != CurveGeometryKind.Line3;
+                var points = curved ? line.Points : new[] { line.Points[0], line.Points[^1] };
+                raw.Add(new(line.Identity, projectionBody.OccurrenceIdentity, projectionBody.DefinitionIdentity, points.Select(Camera).ToArray(), curved));
+            }
+            if (hiddenPolicy == DrawingHiddenLinePolicy.Wireframe)
+            {
+                if (projection == DrawingProjectionKind.Isometric)
+                    foreach (var line in samples.Isolines)
+                        raw.Add(new(line.Identity, projectionBody.OccurrenceIdentity, projectionBody.DefinitionIdentity, line.Points.Select(Camera).ToArray(), false));
+                unsupported.AddRange(samples.Evidence.UnsupportedSurfaceFamilies.Select(kind => $"{projectionBody.OccurrenceIdentity}:surface:{kind}"));
+                continue;
             }
 
             // The admitted tessellator is the deterministic support-family bound. Avoid a
@@ -88,7 +94,16 @@ internal static class DrawingProjectionEngine
 
         var primitives = new List<DrawingProjectedPrimitiveIr>();
         var candidateSegments = 0; var visibleSegments = 0; var hiddenSegments = 0; var splitPoints = 0;
-        foreach (var edge in raw.OrderBy(edge => edge.Occurrence, StringComparer.Ordinal).ThenBy(edge => edge.Id, StringComparer.Ordinal))
+        if (hiddenPolicy == DrawingHiddenLinePolicy.Wireframe)
+        {
+            foreach (var edge in raw.OrderBy(edge => edge.Occurrence, StringComparer.Ordinal).ThenBy(edge => edge.Id, StringComparer.Ordinal))
+                primitives.Add(new($"{edge.Occurrence}:{edge.Id}:wireframe", edge.Id.StartsWith("face:", StringComparison.Ordinal) ? DrawingPrimitiveKind.SurfaceGrid : DrawingPrimitiveKind.Visible,
+                    edge.Points.Select(Page).ToArray(), edge.Occurrence, edge.Points.Average(p => p.Depth), edge.Definition,
+                    edge.Id.StartsWith("edge:", StringComparison.Ordinal) ? edge.Id : null));
+            candidateSegments = raw.Sum(edge => edge.Points.Count - 1);
+            visibleSegments = candidateSegments;
+        }
+        else foreach (var edge in raw.OrderBy(edge => edge.Occurrence, StringComparer.Ordinal).ThenBy(edge => edge.Id, StringComparer.Ordinal))
         for (var segment = 1; segment < edge.Points.Count; segment++)
         {
             candidateSegments++;
@@ -125,9 +140,11 @@ internal static class DrawingProjectionEngine
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(evidenceSource))).ToLowerInvariant();
         var evidence = new DrawingVisibilityEvidenceIr(candidateSegments, visibleSegments, hiddenSegments, splitPoints, triangles.Count,
             unsupported.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
-            "Exact B-rep edge intervals classified against deterministic bounded face triangles; depth epsilon 1e-5 mm.", hash);
-        return new(name, projection, hiddenPolicy, new(direction.X, direction.Y), directionSource, viewport, geometryBounds, scale,
-            primitives, anchors, pmi, location, evidence);
+            hiddenPolicy == DrawingHiddenLinePolicy.Wireframe ? "Trimmed BRep curves with optional sampled surface isolines; rear edges retained; no hidden-line classification."
+                : "Exact B-rep edge intervals classified against deterministic bounded face triangles; depth epsilon 1e-5 mm.", hash);
+        return new DrawingViewIr(name, projection, hiddenPolicy, new(direction.X, direction.Y), directionSource, viewport, geometryBounds, scale,
+            primitives, anchors, pmi, location, evidence)
+        { Camera = new([right.X, right.Y, right.Z], [up.X, up.Y, up.Z], originX, originY) };
     }
 
     private static void AddIntersection(CameraPoint a, CameraPoint b, CameraPoint c, CameraPoint d, List<double> values)

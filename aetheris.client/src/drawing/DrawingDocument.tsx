@@ -133,7 +133,7 @@ function DrawingPage({ drawing, page }: { drawing: DrawingIr; page: DrawingPageI
 							</aside>
 						)}
 			</section>
-			{page.informationBlock && (
+			{page.informationBlock?.table ? <DrawingTitleBlock block={page.informationBlock} /> : page.informationBlock && (
 				<dl
 					className="drawing-information-block"
 					data-zone={page.informationBlock.location.zone}
@@ -233,16 +233,30 @@ function DrawingZones({ page }: { page: DrawingPageIr }) {
 	);
 }
 
+function DrawingTitleBlock({ block }: { block: NonNullable<DrawingPageIr["informationBlock"]> }) {
+    return <table className="drawing-title-block" aria-label="Drawing title block" data-zone={block.location.zone}
+        style={{ left: `${block.bounds.x}mm`, top: `${block.bounds.y}mm`, width: `${block.bounds.width}mm`, height: `${block.bounds.height}mm` }}>
+        <colgroup>{block.table!.columnWidths.map((width, i) => <col key={i} style={{ width: `${width}mm` }} />)}</colgroup>
+        <tbody>{block.table!.rows.map((row, index) => <tr key={index} style={{ height: `${row.height}mm` }}>
+            {row.cells.map(cell => <td key={cell.key} colSpan={cell.columnSpan} data-field={cell.key} className={cell.emphasized ? "emphasized" : undefined}>
+                <span className="drawing-title-label">{cell.label}</span>
+                {cell.valueLines.map((line, i) => <div key={i} style={{ fontSize: `${cell.valueSizeMillimetres}mm`, lineHeight: 1.15 }}>{line}</div>)}
+            </td>)}
+        </tr>)}</tbody>
+    </table>;
+}
+
 function DrawingAnnotation({ annotation }: { annotation: DrawingAnnotationIr }) {
 	const body = annotation.selectedCandidate.body;
 	return (
 		<g data-semantic-reference={annotation.semanticReference}>
-			<polyline
-				className="leader"
-				points={annotation.selectedCandidate.leader.map((p) => `${p.x},${p.y}`).join(" ")}
-			/>
+			{annotation.strokes ? annotation.strokes.map((stroke, index) => (
+                <line key={index} className="leader" x1={stroke.start.x} y1={stroke.start.y} x2={stroke.end.x} y2={stroke.end.y} />
+            )) : <polyline className="leader" points={annotation.selectedCandidate.leader.map((p) => `${p.x},${p.y}`).join(" ")} />}
+
 			<rect
 				className="annotation-body"
+                style={annotation.kind && !["Datum", "FeatureControlFrame"].includes(annotation.kind) ? { stroke: "none" } : undefined}
 				x={body.x}
 				y={body.y}
 				width={body.width}

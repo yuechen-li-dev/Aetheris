@@ -38,12 +38,16 @@ public static partial class FirmamentDrawingCompiler
     public static bool IsDrawingSource(string source)=>source.Contains("Drawing",StringComparison.Ordinal)
         && FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).Any(d=>d.Type.Name.Text=="Drawing" && d.Modifiers.Count==0);
 
-    public static DrawingCompileResult Compile(string sourcePath, string outputDirectory)
+    public static DrawingCompileResult Compile(string sourcePath, string outputDirectory) => Compile(sourcePath, outputDirectory, null);
+
+    public static DrawingCompileResult Compile(string sourcePath, string outputDirectory, DrawingSignoffIr? signoff)
     {
         var frontend=new List<FirmamentV2ValidationDiagnostic>();
-        return CompileCore(sourcePath,outputDirectory,frontend) with {FrontendDiagnostics=frontend};
+        if (DrawingTitleBlockLayout.ValidateSignoff(signoff) is { } error) return Failure(error);
+        try { return CompileCore(sourcePath, outputDirectory, frontend, signoff) with { FrontendDiagnostics = frontend }; }
+        catch (InvalidOperationException e) when (e.Message.StartsWith("drawing-", StringComparison.Ordinal)) { return Failure(e.Message); }
     }
-    private static DrawingCompileResult CompileCore(string sourcePath,string outputDirectory,List<FirmamentV2ValidationDiagnostic> frontend)
+    private static DrawingCompileResult CompileCore(string sourcePath,string outputDirectory,List<FirmamentV2ValidationDiagnostic> frontend, DrawingSignoffIr? signoff)
     {
         var fullSourcePath = Path.GetFullPath(sourcePath); var output = Path.GetFullPath(outputDirectory);
         if (!File.Exists(fullSourcePath)) return Failure($"drawing-source-file-missing: {fullSourcePath}");
@@ -61,6 +65,7 @@ public static partial class FirmamentDrawingCompiler
         var metadataResult = ResolveMetadata(drawingSourceText, drawingSource);
         if (metadataResult.Diagnostics.Count > 0) return new(false, null, metadataResult.Diagnostics);
         var metadata = metadataResult.Metadata!;
+        if (signoff is not null) metadata = metadata with { Signoff = signoff, Author = signoff.Drawn.Name, Date = signoff.Drawn.Date };
         var geometrySource = EraseDrawingDeclarations(drawingSourceText, parse.Ranges);
 
         var sourceWatch = Stopwatch.StartNew();
@@ -139,13 +144,19 @@ public static partial class FirmamentDrawingCompiler
             new(sourceWatch.Elapsed.TotalMilliseconds, projectionWatch.Elapsed.TotalMilliseconds, layoutWatch.Elapsed.TotalMilliseconds, 0, 0, bomMilliseconds), [],
             "Exact B-rep occurrence edges; bounded segment-split occlusion against deterministic face tessellation. Unsupported patches are conservative and explicit.", typography, reviewResult.Review);
 
-        var stem = Sanitize(drawingSource.Name); var irPath = Path.Combine(output, $"{stem}.drawing.json");
+        return WriteArtifacts(preliminary, output, bodies.Count, bom?.Items.Count ?? 0);
+    }
+
+    private static DrawingCompileResult WriteArtifacts(DrawingIr preliminary, string output, int occurrenceCount, int bomRows)
+    {
+        Directory.CreateDirectory(output);
+        var stem = Sanitize(preliminary.Identity); var irPath = Path.Combine(output, $"{stem}.drawing.json");
         var svgPath = Path.Combine(output, $"{stem}.svg"); var pdfPath = Path.Combine(output, $"{stem}.pdf");
         var validationPath = Path.Combine(output, $"{stem}.validation.json");
         var pptxPath = Path.Combine(output, $"{stem}.pptx");
-        var reviewPptxPath = reviewResult.Review!.Threads.Count == 0 ? null : Path.Combine(output, $"{stem.Replace("Production", "Review", StringComparison.Ordinal)}.pptx");
-        var dfmPptxPath = reviewResult.Review.Threads.Count == 0 ? null : Path.Combine(output, $"{stem.Replace("Production", "DfmReview", StringComparison.Ordinal)}.pptx");
-        var reviewIrPath = reviewResult.Review.Threads.Count == 0 ? null : Path.Combine(output, $"{stem}.review.json");
+        var reviewPptxPath = (preliminary.Reviews?.Threads.Count ?? 0) == 0 ? null : Path.Combine(output, $"{stem.Replace("Production", "Review", StringComparison.Ordinal)}.pptx");
+        var dfmPptxPath = (preliminary.Reviews?.Threads.Count ?? 0) == 0 ? null : Path.Combine(output, $"{stem.Replace("Production", "DfmReview", StringComparison.Ordinal)}.pptx");
+        var reviewIrPath = (preliminary.Reviews?.Threads.Count ?? 0) == 0 ? null : Path.Combine(output, $"{stem}.review.json");
         var renderWatch = Stopwatch.StartNew(); File.WriteAllText(svgPath, DrawingSvgRenderer.Render(preliminary), new UTF8Encoding(false)); renderWatch.Stop();
         var pdfWatch = Stopwatch.StartNew(); DrawingVectorPdfWriter.Write(preliminary, pdfPath); pdfWatch.Stop();
         var measured = preliminary.Performance with { RenderMilliseconds = renderWatch.Elapsed.TotalMilliseconds, PdfMilliseconds = pdfWatch.Elapsed.TotalMilliseconds };
@@ -155,20 +166,21 @@ public static partial class FirmamentDrawingCompiler
         var reviewPptxMilliseconds = 0d; var dfmDeckMilliseconds = 0d;
         if (reviewPptxPath is not null) { var watch = Stopwatch.StartNew(); DrawingPptxWriter.WriteDrawing(drawing, reviewPptxPath, includeReviews: true); watch.Stop(); reviewPptxMilliseconds = watch.Elapsed.TotalMilliseconds; }
         if (dfmPptxPath is not null) { var watch = Stopwatch.StartNew(); DrawingPptxWriter.WriteDfmDeck(drawing, dfmPptxPath); watch.Stop(); dfmDeckMilliseconds = watch.Elapsed.TotalMilliseconds; }
-        if (reviewIrPath is not null) File.WriteAllText(reviewIrPath, JsonSerializer.Serialize(reviewResult.Review, JsonOptions), new UTF8Encoding(false));
+        if (reviewIrPath is not null) File.WriteAllText(reviewIrPath, JsonSerializer.Serialize(preliminary.Reviews, JsonOptions), new UTF8Encoding(false));
         var irHash = HashBytes(Encoding.UTF8.GetBytes(json)); var pdfHash = HashBytes(File.ReadAllBytes(pdfPath));
         var pptxHash = HashBytes(File.ReadAllBytes(pptxPath));
         var validation = new
         {
-            success = true, schema = drawing.SchemaVersion, authoritativeSource = drawing.Provenance.SourceProductIdentity, sourceKind,
+            success = true, schema = drawing.SchemaVersion, authoritativeSource = drawing.Provenance.SourceProductIdentity, sourceKind = drawing.Provenance.SourceKind,
             pageCount = drawing.Pages.Count, a4Only = drawing.Pages.All(page => (page.WidthMillimetres, page.HeightMillimetres) is (210, 297) or (297, 210)),
             vectorPdf = true, rasterImages = 0, embeddedFont = "Inter", searchableText = true,
+            titleBlockTables = drawing.Pages.Count(page => page.InformationBlock?.Table is not null), signoff = drawing.Metadata.Signoff,
             pptx = DrawingPptxWriter.Inspect(pptxPath), reviewPptx = reviewPptxPath is null ? null : DrawingPptxWriter.Inspect(reviewPptxPath),
-            occurrenceCount = bodies.Count, bomRows = bom?.Items.Count ?? 0,
+            occurrenceCount, bomRows,
             visibleSegments = drawing.Pages.SelectMany(page => page.Views).Sum(view => view.VisibilityEvidence?.VisibleSegments ?? 0),
             hiddenSegments = drawing.Pages.SelectMany(page => page.Views).Sum(view => view.VisibilityEvidence?.HiddenSegments ?? 0),
             splitPoints = drawing.Pages.SelectMany(page => page.Views).Sum(view => view.VisibilityEvidence?.SplitPointCount ?? 0),
-            drawing.LayoutEvidence.TextModelCollisionsAfter, drawing.LayoutEvidence.TextTextCollisionsAfter, drawing.LayoutEvidence.FailedAnnotationCount,
+            drawing.LayoutEvidence.TextModelCollisionsAfter, drawing.LayoutEvidence.TextTextCollisionsAfter, drawing.LayoutEvidence.TextLeaderCollisionsAfter, drawing.LayoutEvidence.FailedAnnotationCount,
             drawingIrSha256 = irHash, pdfSha256 = pdfHash, pptxSha256 = pptxHash, measuredPerformance = measured,
             pptxPerformance = new { drawingMilliseconds = pptxWatch.Elapsed.TotalMilliseconds, reviewProjectionMilliseconds = reviewPptxMilliseconds, dfmDeckMilliseconds }
         };
@@ -182,7 +194,7 @@ public static partial class FirmamentDrawingCompiler
         var landscape = drawing.Orientation == DrawingPageOrientation.Landscape;
         var width = landscape ? 297d : 210d; var height = landscape ? 210d : 297d;
         var content = new DrawingRect(10, 16, width - 20, height - 40); var scheme = Zones(width, height);
-        var viewAreaHeight = content.Height - 22; var columns = Math.Max(1, drawing.Views.Count <= 2 ? drawing.Views.Count : 2);
+        var viewAreaHeight = DrawingTitleBlockLayout.FooterTop(width, height) - content.Y - 6; var columns = Math.Max(1, drawing.Views.Count <= 2 ? drawing.Views.Count : 2);
         var rows = (int)Math.Ceiling(drawing.Views.Count / (double)columns); const double gap = 8;
         var cellWidth = (content.Width - gap * Math.Max(0, columns - 1)) / columns;
         var cellHeight = (viewAreaHeight - gap * Math.Max(0, rows - 1)) / Math.Max(1, rows);
@@ -194,9 +206,9 @@ public static partial class FirmamentDrawingCompiler
             var source = drawing.Views[index];
             views.Add(DrawingProjectionEngine.Project(bodies, source.Name, source.Projection, source.HiddenLines, source.Direction, source.Pmi, viewport, location));
         }
-        var notes = LocateNotes(drawing.Notes, 1, scheme, new DrawingRect(content.X, height - 31, Math.Max(20, content.Width - 100), 16));
+        var notes = LocateNotes(drawing.Notes, 1, scheme, DrawingTitleBlockLayout.NotesArea(width, height));
         var tables = new List<DrawingTableIr>(designTables); if (bom is not null) tables.Add(bom.Table);
-        var rowCapacity = Math.Max(1, (int)Math.Floor((content.Height - 25) / 7d) - 1);
+        var rowCapacity = Math.Max(1, (int)Math.Floor((DrawingTitleBlockLayout.FooterTop(width, height) - content.Y - 12) / 7d) - 1);
         var slices = new List<(DrawingTableIr Table, DrawingBomIr? Bom)>();
         foreach (var table in tables)
         {
@@ -215,7 +227,7 @@ public static partial class FirmamentDrawingCompiler
         for (var index = 0; index < slices.Count; index++)
         {
             var pageNumber = index + 2; var slice = slices[index];
-            var bounds = new DrawingRect(content.X, content.Y + 10, content.Width, Math.Min(content.Height - 25, 8 + slice.Table.Rows.Count * 7));
+            var bounds = new DrawingRect(content.X, content.Y + 10, content.Width, Math.Min(DrawingTitleBlockLayout.FooterTop(width, height) - content.Y - 12, 8 + slice.Table.Rows.Count * 7));
             var located = slice.Table with { Bounds = bounds, Location = new(pageNumber, ZoneAt(scheme, bounds.Center)) };
             pages.Add(new(pageNumber, drawing.Orientation, width, height, content, [], [], [located], [], scheme,
                 InfoBlock(metadata, drawing, views, pageNumber, width, height, scheme, totalPages), [], slice.Bom is null ? null : slice.Bom with { Table = located }));
@@ -240,7 +252,7 @@ public static partial class FirmamentDrawingCompiler
 
     private static DrawingInformationBlockIr InfoBlock(DrawingMetadataIr metadata, ParsedDrawing drawing, IReadOnlyList<DrawingViewIr> views, int page, double width, double height, DrawingPageZoneSchemeIr scheme, int pageCount)
     {
-        var bounds = new DrawingRect(width - 122, height - 34, 115, 22);
+        var bounds = DrawingTitleBlockLayout.Bounds(width, height);
         var scales = views.Count == 0 ? "-" : views.All(view => Math.Abs(view.Scale - views[0].Scale) < 1e-6) ? $"×{views[0].Scale:0.###}" : "MULTIPLE";
         var fields = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -248,11 +260,16 @@ public static partial class FirmamentDrawingCompiler
             ["Part"] = metadata.PartNumber ?? "-", ["Revision"] = metadata.Revision?.ToString() ?? "-", ["Author"] = metadata.Author ?? "-",
             ["Date"] = metadata.Date ?? "-", ["Scale"] = scales, ["Page"] = $"{page}/{pageCount}"
         };
-        return new(bounds, new(page, ZoneAt(scheme, bounds.Center)), fields);
+        return DrawingTitleBlockLayout.Create(metadata, fields, width, height, new(page, ZoneAt(scheme, bounds.Center)));
     }
 
-    private static IReadOnlyList<DrawingNoteIr> LocateNotes(IReadOnlyList<string> notes, int page, DrawingPageZoneSchemeIr scheme, DrawingRect area) => notes.Select((text, index) =>
-        new DrawingNoteIr($"note:{index + 1}", text, new(area.X, area.Y + index * 4, area.Width, 4), new(page, ZoneAt(scheme, new(area.X + area.Width / 2, area.Y + index * 4 + 2))))).ToArray();
+    private static IReadOnlyList<DrawingNoteIr> LocateNotes(IReadOnlyList<string> notes, int page, DrawingPageZoneSchemeIr scheme, DrawingRect area)
+    {
+        var lines = notes.SelectMany((text, index) => DrawingTitleBlockLayout.Wrap(text, area.Width, 2.8).Select((line, n) => (Text: line, Identity: $"note:{index + 1}:{n}"))).ToArray();
+        if (lines.Length * 4 > area.Height) throw new InvalidOperationException("drawing-notes-overflow: Notes exceed the reserved sheet area after wrapping. Use an authored notes/table sheet or shorten presentation notes.");
+        return lines.Select((line, i) => new DrawingNoteIr(line.Identity, line.Text, new(area.X, area.Y + i * 4, area.Width, 4),
+            new(page, ZoneAt(scheme, new(area.X + area.Width / 2, area.Y + i * 4 + 2))))).ToArray();
+    }
 
     private static IReadOnlyList<DrawingPageIr> LocateAnnotations(IReadOnlyList<DrawingPageIr> pages) => pages.Select(page => page with
     {
@@ -358,6 +375,10 @@ public static partial class FirmamentDrawingCompiler
         var date = Value("Date"); if (date is not null && !DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _)) diagnostics.Add($"{DrawingDateInvalid}: {date}");
         var metadata = new DrawingMetadataIr(Value("Title", drawing.Title ?? drawing.Name)!, drawing.Source, Value("PartNumber", drawing.PartNumber), revision,
             Value("Material", drawing.Material), drawing.Name, drawing.Template, Value("Company"), Value("Author"), date, Value("Description"), drawing.Metadata, provenance);
+        var signoff = new DrawingSignoffIr(new(Value("DrawnBy", metadata.Author), Value("DrawnDate", metadata.Date)),
+            new(Value("CheckedBy"), Value("CheckedDate")), new(Value("ApprovedBy"), Value("ApprovedDate")));
+        if (DrawingTitleBlockLayout.ValidateSignoff(signoff) is { } signoffError) diagnostics.Add(signoffError);
+        metadata = metadata with { Signoff = signoff };
         return new(metadata, diagnostics);
     }
 

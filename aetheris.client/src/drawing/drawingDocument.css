@@ -170,3 +170,19 @@
 		box-shadow: none;
 	}
 }
+
+.drawing-document .surfacegrid { fill: none; stroke: #94a3b8; stroke-width: .14; }
+
+.drawing-content svg .leader { fill: none; stroke: #374151; stroke-width: .22; }
+
+.drawing-page .drawing-title-block {
+    position: absolute;
+    table-layout: fixed;
+    border-collapse: collapse;
+    border: .4mm solid #334155;
+    background: white;
+    font-family: Inter, Arial, sans-serif;
+}
+.drawing-title-block td { border: .15mm solid #475569; padding: .3mm 1mm; vertical-align: top; color: #111827; }
+.drawing-title-block .emphasized { background: #f1f5f9; }
+.drawing-title-label { display: block; font-size: 1.8mm; line-height: 1.2; color: #64748b; margin-bottom: .4mm; }

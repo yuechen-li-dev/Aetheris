@@ -40,6 +40,11 @@ public sealed record BrepWireframeEvidence(
 
 public sealed record BrepWireframeResult(string Svg, BrepWireframeEvidence Evidence);
 
+/// <summary>World-space presentation samples; exact topology remains authority.</summary>
+public sealed record BrepWireframePolyline(string Identity, IReadOnlyList<Point3D> Points, int? EdgeId = null, int? FaceId = null);
+public sealed record BrepWireframeGeometry(IReadOnlyList<BrepWireframePolyline> Boundaries,
+    IReadOnlyList<BrepWireframePolyline> Isolines, BrepWireframeEvidence Evidence);
+
 /// <summary>
 /// Deterministic diagnostic SVG renderer for exact BRep models. Topology edges are sampled from
 /// their authoritative 3D curves. Face isolines are sampled from exact supports and clipped in UV
@@ -66,6 +71,17 @@ public static class BrepWireframeSvgRenderer
 
     public static BrepWireframeResult Render(BrepBody body, BrepWireframeOptions? options = null)
     {
+        options ??= new();
+        var geometry = SampleGeometry(body, options);
+        var boundaries = geometry.Boundaries.Select(line => line.Points).ToArray();
+        var iso = geometry.Isolines.Select(line => line.Points).ToArray();
+        var svg = ComposeSvg(boundaries.Concat(iso).SelectMany(points => points).ToArray(), iso, boundaries, options);
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(svg))).ToLowerInvariant();
+        return new(svg, geometry.Evidence with { Sha256 = hash });
+    }
+
+    public static BrepWireframeGeometry SampleGeometry(BrepBody body, BrepWireframeOptions? options = null)
+    {
         ArgumentNullException.ThrowIfNull(body);
         options ??= new();
         if (options.Density is < 2 or > 32) throw new ArgumentOutOfRangeException(nameof(options), "Wireframe density must be between 2 and 32.");
@@ -81,6 +97,8 @@ public static class BrepWireframeSvgRenderer
         var families = body.Topology.Faces.Select(face => body.TryGetFaceSurfaceGeometry(face.Id, out var surface) ? surface?.Kind.ToString() ?? "Unbound" : "Unbound")
             .GroupBy(name => name, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
         var trimmedFaces = 0;
+        var boundaryOwners = new List<int>();
+        var isoOwners = new List<int>();
 
         foreach (var edge in body.Topology.Edges.OrderBy(edge => edge.Id.Value))
         {
@@ -90,7 +108,7 @@ public static class BrepWireframeSvgRenderer
             var interval = binding.TrimInterval ?? CurveDomain(curve);
             if (interval is null) continue;
             var points = SampleCurve(curve, interval.Value, options.CurveSamples).ToArray();
-            if (points.Length > 1) boundaries.Add(points);
+            if (points.Length > 1) { boundaries.Add(points); boundaryOwners.Add(edge.Id.Value); }
         }
 
         foreach (var face in body.Topology.Faces.OrderBy(face => face.Id.Value))
@@ -113,15 +131,15 @@ public static class BrepWireframeSvgRenderer
                 var v = v0 + (v1 - v0) * line / options.Density;
                 AddTrimmedIso(iso, loops, options.CurveSamples, t => new(u0 + (u1 - u0) * t, v), point => Evaluate(surface, point.U, point.V));
             }
-            if (iso.Count > before) trimmedFaces++;
+            if (iso.Count > before) { trimmedFaces++; isoOwners.AddRange(Enumerable.Repeat(face.Id.Value, iso.Count - before)); }
         }
 
         var all = boundaries.Concat(iso).SelectMany(points => points).ToArray();
         if (all.Length == 0) throw new InvalidOperationException("The BRep contains no renderable bound curves or trimmed surface supports.");
-        var svg = ComposeSvg(all, iso, boundaries, options);
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(svg))).ToLowerInvariant();
-        return new(svg, new(options.View, options.Density, body.Topology.Faces.Count(), trimmedFaces,
-            body.Topology.Edges.Count(), iso.Count, boundaries.Count, families, unsupported.ToArray(), unsupportedCurves.ToArray(), hash));
+        return new(boundaries.Select((points, i) => new BrepWireframePolyline($"edge:{boundaryOwners[i]}", points, boundaryOwners[i])).ToArray(),
+            iso.Select((points, i) => new BrepWireframePolyline($"face:{isoOwners[i]}:iso:{i}", points, FaceId: isoOwners[i])).ToArray(),
+            new(options.View, options.Density, body.Topology.Faces.Count(), trimmedFaces,
+                body.Topology.Edges.Count(), iso.Count, boundaries.Count, families, unsupported.ToArray(), unsupportedCurves.ToArray(), ""));
     }
 
     private static IEnumerable<IReadOnlyList<SurfaceParameterPoint>> TrimLoops(BrepBody body, Face face)

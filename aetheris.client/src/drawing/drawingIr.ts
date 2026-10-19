@@ -35,6 +35,11 @@ export type DrawingPageIr = {
 		bounds: DrawingRect;
 		location: DrawingLocationIr;
 		fields: Record<string, string>;
+        table?: {
+            columnWidths: number[];
+            rows: { height: number; cells: { key: string; label: string; value: string; columnSpan: number;
+                bounds: DrawingRect; valueLines: string[]; valueSizeMillimetres: number; emphasized: boolean }[] }[];
+        };
 	};
 	locatedNotes?: {
 		identity: string;
@@ -59,7 +64,7 @@ export type DrawingViewIr = {
 	viewport: DrawingRect;
 	primitives: {
 		stableId: string;
-		kind: "Visible" | "Silhouette" | "Hidden";
+		kind: "Visible" | "Silhouette" | "Hidden" | "SurfaceGrid";
 		points: DrawingPoint2[];
 		occurrenceIdentity?: string;
 		definitionIdentity?: string;
@@ -70,6 +75,8 @@ export type DrawingViewIr = {
 export type DrawingAnnotationIr = {
 	identity: string;
 	semanticReference: string;
+	kind?: string;
+	strokes?: { start: DrawingPoint2; end: DrawingPoint2 }[];
 	engineeringDisplay: string;
 	selectedCandidate: { body: DrawingRect; leader: DrawingPoint2[] };
 };

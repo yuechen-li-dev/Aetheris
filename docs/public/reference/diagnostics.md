@@ -122,6 +122,11 @@ Common recovery patterns:
 | `firmament-v2-ellipsoid-radii-invalid` | Supply three finite positive X/Y/Z semiaxes with length units in `radii`. |
 | `firmament-v2-uniform-stock-fillet-unsupported` | Use one `EdgeFinish<Fillet>` with `target: AllEdges`, positive `radius` and no face selector on untouched direct Box or regular Polyhedron stock. Arbitrary bodies, hollow stock, other edits and construction adapters are outside this capability. |
 | `UniformFilletRadiusTooLarge` | Reduce the radius below the reported stock inradius; this construction requires positive remaining planar faces and edge spans. |
+| `drawing-pmi-target-unlocated` | The PMI needs a geometric face association. Automatic generation refuses a model-center leader. |
+| `drawing-pmi-value-unavailable` | Supply an admitted finite PMI nominal/depth; a missing measure is not interpreted as zero. |
+| `drawing-layout-impossible` | Use fewer PMI entries per authored view or a larger allocation; labels, strokes and sheet keepouts must remain clear. |
+| `drawing-title-block-overflow` / `drawing-notes-overflow` | Shorten presentation metadata/notes or use an additional authored sheet. Text was not truncated. |
+| `drawing-signoff-incomplete` | Provide both a role name and its ISO date, or leave both blank; unperformed reviews must remain blank. |
 | unknown material | one of the four exact catalog references in the materials guide |
 | unresolved PMI target | named hole/face selector exists in the same semantic domain |
 | invalid tolerance | `PlusMinus(plus, minus)` uses Length values for a diameter |

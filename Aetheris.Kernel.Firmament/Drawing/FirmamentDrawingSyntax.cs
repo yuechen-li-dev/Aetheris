@@ -118,7 +118,7 @@ public static partial class FirmamentDrawingCompiler
             var projection=view.Word("Projection");
             if(projection is not (null or "Orthographic" or "Isometric"))view.Invalid("Projection");
             var hidden=view.Word("HiddenLines")??"VisibleOnly";
-            if(hidden is not ("VisibleOnly" or "VisibleAndHidden"))view.Invalid("HiddenLines");
+            if(hidden is not ("VisibleOnly" or "VisibleAndHidden" or "Wireframe"))view.Invalid("HiddenLines");
             var pmi=List(view,"PMI",false);
             var kind=projection=="Isometric" || projection is null && direction.Count(v=>Math.Abs(v)>1e-12)>1?DrawingProjectionKind.Isometric:DrawingProjectionKind.Orthographic;
             views.Add(new(view.Name,direction,kind,hidden=="VisibleAndHidden"?DrawingHiddenLinePolicy.VisibleAndHidden:DrawingHiddenLinePolicy.VisibleOnly,pmi));

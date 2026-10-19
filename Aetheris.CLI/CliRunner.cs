@@ -167,7 +167,7 @@ public static class CliRunner
     private const string ExperimentalPrismaticCorpusUsage = "Usage: aetheris experimental prismatic-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticMapUsage = "Usage: aetheris experimental prismatic-map --case <case> --rows <N> --cols <N> --json";
     private const string FeaUsage = "Usage: aetheris fea <analysis.firmament> [--lattice <nx,ny,nz>] [--rotate <x,y,z-degrees>] [--experimental-preconditioner <identity|jacobi|block-jacobi|ic0>] [--experimental-equilibration <true|false>] [--out-dir <directory>] [--json]";
-    private const string DrawingUsage = "Usage: aetheris drawing compile <drawing.firmament> --out-dir <directory> [--json] | aetheris drawing <inspect|render|crop|notes> ...";
+    private const string DrawingUsage = "Usage: aetheris drawing <compile|generate> <drawing.firmament|part.firmament|model.step> --out-dir <directory> [--drawn-by <name> --date <yyyy-MM-dd>] [--checked-by <name> --checked-date <yyyy-MM-dd>] [--approved-by <name> --approved-date <yyyy-MM-dd>] [--json] | aetheris drawing <inspect|render|crop|notes> ...";
     private const string SheetMetalUsage = "Usage: aetheris sheetmetal recognize <part.step> [--plan <recognition.json>] [--json] | aetheris sheetmetal recover-flat <part.step> --out-dir <directory> [--recognition-plan <recognition.json>] [--json] | aetheris sheetmetal compare-flat <recovered-flat.json> <native.firmament> [--semantic] [--json] | aetheris sheetmetal inspect <part.step|part.firmament> [--k-factor <0..1>] [--json] | aetheris sheetmetal paths <part.firmament> [--json] | aetheris sheetmetal recover <part.step> --out-dir <directory> [--json] | aetheris sheetmetal compare <part.step|part.firmament> <intent.firmament> [--semantic] [--json] | aetheris sheetmetal flatten <part.step|part.firmament> [--step <flat.step>] [--firmament <recovered.firmament>] [--svg <flat.svg>] [--k-factor <0..1>] [--json]";
     private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
     private const string SculptureUsage = "Usage: aetheris sculpture build <sol-1.sculpture.json> [--out <sol-1.step>] [--evidence <sol-1.evidence.json>] [--preview <sol-1.preview.svg>] [--json]";
@@ -1164,13 +1164,13 @@ Model CanonicalPanel {
 
     private static int RunDrawing(string[] args, TextWriter stdout, TextWriter stderr)
     {
-        if (args.Length > 0 && args[0] is not "compile") return DrawingNotesCli.Run(args, stdout, stderr);
+        if (args.Length > 0 && args[0] is not ("compile" or "generate") && !IsHelpFlag(args[0])) return DrawingNotesCli.Run(args, stdout, stderr);
         if (args.Length == 0 || IsHelpFlag(args[0]))
         {
             (args.Length == 0 ? stderr : stdout).WriteLine(DrawingUsage);
             return args.Length == 0 ? 1 : 0;
         }
-        if (!string.Equals(args[0], "compile", StringComparison.Ordinal) || args.Length < 2)
+        if (args[0] is not ("compile" or "generate") || args.Length < 2)
         {
             stderr.WriteLine(DrawingUsage);
             return 1;
@@ -1178,14 +1178,21 @@ Model CanonicalPanel {
         var source = args[1];
         string? output = null;
         var json = false;
+        var signoffValues = new Dictionary<string, string>(StringComparer.Ordinal);
         for (var i = 2; i < args.Length; i++)
         {
             if (args[i] == "--out-dir" && i + 1 < args.Length) output = args[++i];
             else if (args[i] == "--json") json = true;
+            else if (args[i] is "--drawn-by" or "--date" or "--checked-by" or "--checked-date" or "--approved-by" or "--approved-date" && i + 1 < args.Length)
+                signoffValues[args[i]] = args[++i];
             else { stderr.WriteLine($"Unknown drawing option '{args[i]}'."); stderr.WriteLine(DrawingUsage); return 1; }
         }
-        output ??= Path.Combine(Path.GetDirectoryName(Path.GetFullPath(source))!, "drawing-output");
-        var result = FirmamentDrawingCompiler.Compile(source, output);
+        output ??= Path.GetFullPath(Path.Combine("artifacts", "local", "drawing", Path.GetFileNameWithoutExtension(source)));
+        DrawingSignoffIr? signoff = signoffValues.Count == 0 ? null : new(
+            new(signoffValues.GetValueOrDefault("--drawn-by"), signoffValues.GetValueOrDefault("--date")),
+            new(signoffValues.GetValueOrDefault("--checked-by"), signoffValues.GetValueOrDefault("--checked-date")),
+            new(signoffValues.GetValueOrDefault("--approved-by"), signoffValues.GetValueOrDefault("--approved-date")));
+        var result = args[0] == "generate" ? FirmamentDrawingCompiler.Generate(source, output, signoff) : FirmamentDrawingCompiler.Compile(source, output, signoff);
         if (!result.IsSuccess)
         {
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { success = false, diagnostics = result.KernelDiagnostics().Select(d=>FirmamentBuildAdmissionValidation.Present(d,source,File.Exists(source)?File.ReadAllText(source):null)).ToArray() }, JsonOptions));

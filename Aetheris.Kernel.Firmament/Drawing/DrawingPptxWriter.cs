@@ -16,7 +16,7 @@ public static partial class DrawingPptxWriter
     public static void WriteDrawing(DrawingIr drawing, string path, bool includeReviews)
     {
         var pages = drawing.Pages.Select((page, index) => DrawingSlide(drawing, page, index, includeReviews)).ToArray();
-        WritePackage(path, pages, drawing.Pages[0].WidthMillimetres, drawing.Pages[0].HeightMillimetres, drawing.Metadata.Title);
+        WritePackage(path, pages, drawing.Pages[0].WidthMillimetres, drawing.Pages[0].HeightMillimetres, drawing.Metadata.Title, drawing.Metadata);
     }
 
     public static void WriteDfmDeck(DrawingIr drawing, string path)
@@ -28,7 +28,7 @@ public static partial class DrawingPptxWriter
         var slides = entries.Length == 0
             ? [DfmSlide(drawing, null, null, 0, width, height)]
             : entries.Select((item, index) => DfmSlide(drawing, item.Thread, item.Entry, index, width, height)).ToArray();
-        WritePackage(path, slides, width, height, $"{drawing.Metadata.Title} — DFM Review");
+        WritePackage(path, slides, width, height, $"{drawing.Metadata.Title} — DFM Review", drawing.Metadata);
     }
 
     public static object Inspect(string path)
@@ -82,22 +82,27 @@ public static partial class DrawingPptxWriter
             {
                 foreach (var primitive in view.Primitives)
                     for (var index = 1; index < primitive.Points.Count; index++)
-                        group.Line($"View.{view.Identity}.Edge.{Safe(primitive.StableId)}.{index}", primitive.Points[index - 1], primitive.Points[index],
+                        group.Line($"View.{view.Identity}.Edge.{Safe(primitive.StableId)}.{index}", primitive.Points[index - 1].X, primitive.Points[index - 1].Y, primitive.Points[index].X, primitive.Points[index].Y,
+                            primitive.Kind == DrawingPrimitiveKind.SurfaceGrid ? "94A3B8" : "111111", primitive.Kind == DrawingPrimitiveKind.SurfaceGrid ? .12 : .35,
                             dashed: primitive.Kind == DrawingPrimitiveKind.Hidden);
             });
         foreach (var annotation in page.Annotations)
             slide.Group($"PMI.{Safe(annotation.Identity)}", group =>
             {
                 var leader = annotation.SelectedCandidate.Leader;
-                for (var index = 1; index < leader.Count; index++) group.Line($"PMI.{Safe(annotation.Identity)}.Leader.{index}", leader[index - 1], leader[index], arrowEnd: index == leader.Count - 1);
+                var strokeIndex = 0;
+                foreach (var stroke in DrawingAnnotationGeometry.Strokes(annotation))
+                    group.Line($"PMI.{Safe(annotation.Identity)}.Leader.{strokeIndex++}", stroke.Start, stroke.End);
                 var body = annotation.SelectedCandidate.Body;
-                group.Text($"PMI.{Safe(annotation.Identity)}.Text", annotation.EngineeringDisplay, body.X, body.Y, body.Width, body.Height, 2.8, centered: true, border: annotation.Kind is DrawingAnnotationKind.Datum or DrawingAnnotationKind.FeatureControlFrame);
+                group.Text($"PMI.{Safe(annotation.Identity)}.Text", annotation.EngineeringDisplay, body.X, body.Y, body.Width, body.Height, 3.2, centered: true, border: annotation.Kind is DrawingAnnotationKind.Datum or DrawingAnnotationKind.FeatureControlFrame);
             });
         foreach (var table in page.Tables) slide.Table($"Table.{(table.Kind == DrawingTableKind.BillOfMaterials ? "BOM" : "Design")}.{Safe(table.Identity)}", table);
         if (page.InformationBlock is not null)
             slide.Group("Metadata.DrawingInfo", group =>
             {
-                var block = page.InformationBlock; group.Rect("Metadata.DrawingInfo.Border", block.Bounds.X, block.Bounds.Y, block.Bounds.Width, block.Bounds.Height);
+                var block = page.InformationBlock;
+                if (block.Table is not null) { group.TitleBlockTable("Metadata.DrawingInfo.Table", block); return; }
+                group.Rect("Metadata.DrawingInfo.Border", block.Bounds.X, block.Bounds.Y, block.Bounds.Width, block.Bounds.Height);
                 var fields = block.Fields.ToArray(); var rowHeight = block.Bounds.Height / Math.Max(1, fields.Length);
                 for (var index = 0; index < fields.Length; index++)
                     group.Text($"Metadata.DrawingInfo.{Safe(fields[index].Key)}", $"{fields[index].Key}: {fields[index].Value}", block.Bounds.X + 1, block.Bounds.Y + index * rowHeight, block.Bounds.Width - 2, rowHeight, 2.2);
@@ -164,7 +169,7 @@ public static partial class DrawingPptxWriter
         return slide.Build();
     }
 
-    private static void WritePackage(string path, IReadOnlyList<string> slides, double widthMm, double heightMm, string title)
+    private static void WritePackage(string path, IReadOnlyList<string> slides, double widthMm, double heightMm, string title, DrawingMetadataIr? metadata = null)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         if (File.Exists(path)) File.Delete(path);
@@ -172,7 +177,7 @@ public static partial class DrawingPptxWriter
         Add(archive, "[Content_Types].xml", ContentTypes(slides.Count));
         Add(archive, "_rels/.rels", RootRelationships());
         Add(archive, "docProps/app.xml", AppProperties(slides.Count));
-        Add(archive, "docProps/core.xml", CoreProperties(title));
+        Add(archive, "docProps/core.xml", CoreProperties(title, metadata));
         Add(archive, "ppt/presentation.xml", Presentation(slides.Count, Mm(widthMm), Mm(heightMm)));
         Add(archive, "ppt/_rels/presentation.xml.rels", PresentationRelationships(slides.Count));
         Add(archive, "ppt/slideMasters/slideMaster1.xml", SlideMaster());
@@ -236,6 +241,23 @@ public static partial class DrawingPptxWriter
             var rowXml = $"<a:tr h=\"{Mm(table.Bounds.Height / rows)}\">{string.Concat(table.Columns.Select(value => Cell(value, true)))}</a:tr>" + string.Concat(table.Rows.Select(row => $"<a:tr h=\"{Mm(table.Bounds.Height / rows)}\">{string.Concat(row.Select(value => Cell(value, false)))}</a:tr>"));
             shapes.Append($"<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"{id++}\" name=\"{X(name)}\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x=\"{Mm(table.Bounds.X)}\" y=\"{Mm(table.Bounds.Y)}\"/><a:ext cx=\"{Mm(table.Bounds.Width)}\" cy=\"{Mm(table.Bounds.Height)}\"/></p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"><a:tbl><a:tblPr firstRow=\"1\" bandRow=\"1\"/><a:tblGrid>{grid}</a:tblGrid>{rowXml}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>");
         }
+        public void TitleBlockTable(string name, DrawingInformationBlockIr block)
+        {
+            var table = block.Table!;
+            string Paragraph(string value, double size, bool label, bool bold = false) =>
+                $"<a:p><a:pPr><a:lnSpc><a:spcPct val=\"115000\"/></a:lnSpc><a:spcBef><a:spcPts val=\"0\"/></a:spcBef><a:spcAft><a:spcPts val=\"0\"/></a:spcAft></a:pPr><a:r><a:rPr lang=\"en-US\" sz=\"{(int)Math.Round(size * 72 / 25.4 * 100)}\"{(bold ? " b=\"1\"" : "")}><a:solidFill><a:srgbClr val=\"{(label ? "64748B" : "111827")}\"/></a:solidFill><a:latin typeface=\"Inter\"/></a:rPr><a:t>{X(value)}</a:t></a:r><a:endParaRPr/></a:p>";
+            string Cell(DrawingTitleBlockCellIr cell)
+            {
+                var body = Paragraph(cell.Label, 1.8, true) + string.Concat(cell.ValueLines.Select(line => Paragraph(line, cell.ValueSizeMillimetres, false, cell.Emphasized)));
+                var borders = string.Concat(new[] { "L", "R", "T", "B" }.Select(edge => $"<a:ln{edge} w=\"5400\"><a:solidFill><a:srgbClr val=\"475569\"/></a:solidFill></a:ln{edge}>"));
+                var master = $"<a:tc gridSpan=\"{cell.ColumnSpan}\"><a:txBody><a:bodyPr/><a:lstStyle/>{body}</a:txBody><a:tcPr marL=\"{Mm(.8)}\" marR=\"{Mm(.8)}\" marT=\"{Mm(.1)}\" marB=\"0\" anchor=\"t\">{borders}<a:solidFill><a:srgbClr val=\"{(cell.Emphasized ? "F1F5F9" : "FFFFFF")}\"/></a:solidFill></a:tcPr></a:tc>";
+                return master + string.Concat(Enumerable.Range(1, cell.ColumnSpan - 1).Select(_ => "<a:tc hMerge=\"1\"><a:txBody><a:bodyPr/><a:lstStyle/><a:p/></a:txBody><a:tcPr/></a:tc>"));
+            }
+            var grid = string.Concat(table.ColumnWidths.Select(w => $"<a:gridCol w=\"{Mm(w)}\"/>"));
+            var rows = string.Concat(table.Rows.Select(row => $"<a:tr h=\"{Mm(row.Height)}\">{string.Concat(row.Cells.Select(Cell))}</a:tr>"));
+            shapes.Append($"<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"{id++}\" name=\"{X(name)}\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x=\"{Mm(block.Bounds.X)}\" y=\"{Mm(block.Bounds.Y)}\"/><a:ext cx=\"{Mm(block.Bounds.Width)}\" cy=\"{Mm(block.Bounds.Height)}\"/></p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"><a:tbl><a:tblPr/><a:tblGrid>{grid}</a:tblGrid>{rows}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>");
+        }
+
         public string Build() => $"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><p:sld xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"Slide\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>{shapes}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>";
     }
 
@@ -248,7 +270,15 @@ public static partial class DrawingPptxWriter
     private static string SlideLayout() => "<?xml version=\"1.0\" encoding=\"UTF-8\"?><p:sldLayout xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" type=\"blank\"><p:cSld name=\"Blank\"><p:spTree><p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"Layout\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>";
     private static string LayoutRelationships() => "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster\" Target=\"../slideMasters/slideMaster1.xml\"/></Relationships>";
     private static string SlideRelationships() => "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout\" Target=\"../slideLayouts/slideLayout1.xml\"/></Relationships>";
-    private static string CoreProperties(string title) => $"<?xml version=\"1.0\" encoding=\"UTF-8\"?><cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><dc:title>{X(title)}</dc:title><dc:creator>Aetheris</dc:creator><dcterms:created xsi:type=\"dcterms:W3CDTF\">2000-01-01T00:00:00Z</dcterms:created><dcterms:modified xsi:type=\"dcterms:W3CDTF\">2000-01-01T00:00:00Z</dcterms:modified></cp:coreProperties>";
+    private static string CoreProperties(string title, DrawingMetadataIr? metadata = null)
+    {
+        var creator = metadata?.Signoff?.Drawn.Name ?? metadata?.Author ?? "Aetheris";
+        var date = metadata?.Signoff?.Drawn.Date ?? metadata?.Date;
+        var dates = DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var value)
+            ? $"<dcterms:created xsi:type=\"dcterms:W3CDTF\">{value:yyyy-MM-dd}T00:00:00Z</dcterms:created><dcterms:modified xsi:type=\"dcterms:W3CDTF\">{value:yyyy-MM-dd}T00:00:00Z</dcterms:modified>" : "";
+        return $"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><dc:title>{X(title)}</dc:title><dc:creator>{X(creator)}</dc:creator>{dates}</cp:coreProperties>";
+    }
+
     private static string AppProperties(int count) => $"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\" xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\"><Application>Aetheris</Application><PresentationFormat>Custom</PresentationFormat><Slides>{count}</Slides><Notes>0</Notes><HiddenSlides>0</HiddenSlides><MMClips>0</MMClips><ScaleCrop>false</ScaleCrop></Properties>";
     private static string Theme() => "<?xml version=\"1.0\" encoding=\"UTF-8\"?><a:theme xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" name=\"Aetheris Inter\"><a:themeElements><a:clrScheme name=\"Aetheris\"><a:dk1><a:srgbClr val=\"111111\"/></a:dk1><a:lt1><a:srgbClr val=\"FFFFFF\"/></a:lt1><a:dk2><a:srgbClr val=\"333333\"/></a:dk2><a:lt2><a:srgbClr val=\"F7F8FA\"/></a:lt2><a:accent1><a:srgbClr val=\"185FA5\"/></a:accent1><a:accent2><a:srgbClr val=\"FF8A00\"/></a:accent2><a:accent3><a:srgbClr val=\"2E7D32\"/></a:accent3><a:accent4><a:srgbClr val=\"6A1B9A\"/></a:accent4><a:accent5><a:srgbClr val=\"00838F\"/></a:accent5><a:accent6><a:srgbClr val=\"C62828\"/></a:accent6><a:hlink><a:srgbClr val=\"0563C1\"/></a:hlink><a:folHlink><a:srgbClr val=\"954F72\"/></a:folHlink></a:clrScheme><a:fontScheme name=\"Inter\"><a:majorFont><a:latin typeface=\"Inter\"/><a:ea typeface=\"\"/><a:cs typeface=\"\"/></a:majorFont><a:minorFont><a:latin typeface=\"Inter\"/><a:ea typeface=\"\"/><a:cs typeface=\"\"/></a:minorFont></a:fontScheme><a:fmtScheme name=\"Aetheris\"><a:fillStyleLst><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w=\"12700\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill></a:ln><a:ln w=\"25400\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill></a:ln><a:ln w=\"38100\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>";
 }

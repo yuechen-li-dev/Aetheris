@@ -487,7 +487,7 @@ public static class FirmamentBuildAndExport
                 if (!support.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(support.Diagnostics);
                 var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
                 foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
-                semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], stack.Feature.Name, features, emitted.Correspondence).ToArray();
+                semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], stack.Feature.Name, features, emitted.Correspondence, completedBody).ToArray();
             }
             var step = Step242Exporter.ExportBody(completedBody, semanticPmi);
             if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
@@ -605,7 +605,7 @@ public static class FirmamentBuildAndExport
                 return KernelResult<FirmamentStepExportResult>.Failure(execution.Diagnostics);
             }
 
-            var semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], executedPrimitive.FeatureId);
+            var semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], executedPrimitive.FeatureId, body: executedPrimitive.Body);
             var step = Step242Exporter.ExportBody(executedPrimitive.Body, semanticPmi);
             if (!step.IsSuccess)
             {
@@ -1131,7 +1131,7 @@ public static class FirmamentBuildAndExport
                 if (!support.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(support.Diagnostics);
                 var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
                 foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
-                semanticPmi = BuildV2SemanticPmi(canonicalDocument, [], stack.Feature.Name, features, plannedEmission.Correspondence).ToArray();
+                semanticPmi = BuildV2SemanticPmi(canonicalDocument, [], stack.Feature.Name, features, plannedEmission.Correspondence, plannedEmission.Body).ToArray();
             }
             var plannedStep = Step242Exporter.ExportBody(plannedEmission.Body, semanticPmi, new Step242ExportOptions { ProductName = target.StableId, ApplicationName = "Aetheris.Firmament.ComposedProfileBoundaryChamfer.M3", BrepExportPreflightMode = BrepExportPreflightMode.Enforce, BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute });
             if (!plannedStep.IsSuccess || plannedStep.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(plannedStep.Diagnostics);
@@ -1494,7 +1494,7 @@ public static class FirmamentBuildAndExport
         {
             return KernelResult<FirmamentStepExportResult>.Failure(pmiSupport.Diagnostics);
         }
-        var semanticPmi = BuildV2SemanticPmi(document, holes, solid.Name);
+        var semanticPmi = BuildV2SemanticPmi(document, holes, solid.Name, body: body);
         var step = Step242Exporter.ExportBody(body, semanticPmi);
         if (!step.IsSuccess || step.Value is null)
         {
@@ -1575,7 +1575,7 @@ public static class FirmamentBuildAndExport
             return CombinedFailure("CombinedFeatureMaterializerDiverged: fillet boundary failed analytic export preflight.", preflight.Diagnostics.Select(d => d.Message), finish.SourceSpan);
         var pmiSupport = ValidateV2PmiExportSupport(document);
         if (!pmiSupport.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(pmiSupport.Diagnostics);
-        var step = Step242Exporter.ExportBody(built.Value, BuildV2SemanticPmi(document, [], solid.Name));
+        var step = Step242Exporter.ExportBody(built.Value, BuildV2SemanticPmi(document, [], solid.Name, body: built.Value));
         if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
         var imported = Step242Importer.ImportBody(step.Value);
         if (!imported.IsSuccess || imported.Value is null || !FirmamentManifoldChecker.IsManifold(imported.Value))
@@ -2290,7 +2290,7 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Failure(semanticPmiValidation.Diagnostics);
         }
 
-        var semanticPmi = BuildV2SemanticPmi(document, [], solid.Name);
+        var semanticPmi = BuildV2SemanticPmi(document, [], solid.Name, body: import.Value);
         var export = Step242Exporter.ExportBody(import.Value, semanticPmi, new Step242ExportOptions
         {
             ProductName = solid.Name,
@@ -2677,7 +2677,7 @@ public static class FirmamentBuildAndExport
             if (!resolution.Succeeded)
                 return SemanticHoleFailure([$"firmament-v2-hole-wall-role-unavailable:{selector.HoleName}:{resolution.Failure}"]);
         }
-        var semanticPmi = BuildV2SemanticPmi(document, semanticHoles, modifyTargets[0], correspondence: runtimeCorrespondence);
+        var semanticPmi = BuildV2SemanticPmi(document, semanticHoles, modifyTargets[0], correspondence: runtimeCorrespondence, body: body);
         // Semantic-hole/profile-stack and bounded-Boolean routes remain Audit until their
         // historical coincident/seam topology is remediated producer-by-producer.
         var step = Step242Exporter.ExportBody(body, semanticPmi);
@@ -2768,7 +2768,8 @@ public static class FirmamentBuildAndExport
         IReadOnlyList<Core.Air.AirHoleFeature> semanticHoles,
         string targetSolid,
         IReadOnlyDictionary<string, string>? explicitFeatureIds = null,
-        SemanticTopologyCorrespondence? correspondence = null)
+        SemanticTopologyCorrespondence? correspondence = null,
+        BrepBody? body = null)
     {
         if (document.Pmi is null || document.Pmi.Count == 0)
         {
@@ -2788,19 +2789,19 @@ public static class FirmamentBuildAndExport
                 var toleranceMinus = boundPmi?.DimensionTolerance?.Minus;
                 if (boundPmi?.HoleWallTarget is { } wallTarget && holeByName.TryGetValue(wallTarget.HoleName, out var wallHole))
                 {
-                    result.Add(new Step242SemanticPmiHole(wallHole.FeatureId, pmi.Value.Value, null, "explicit_v2_hole_wall_diameter", tolerancePlus, toleranceMinus));
+                    result.Add(new Step242SemanticPmiHole(wallHole.FeatureId, pmi.Value.Value, null, "explicit_v2_hole_wall_diameter", tolerancePlus, toleranceMinus) { Name = pmi.Name });
                 }
                 else if (holeByName.TryGetValue(pmi.Target, out var pmiHole))
                 {
-                    result.Add(new Step242SemanticPmiHole(pmiHole.FeatureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", tolerancePlus, toleranceMinus));
+                    result.Add(new Step242SemanticPmiHole(pmiHole.FeatureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", tolerancePlus, toleranceMinus) { Name = pmi.Name });
                 }
                 else if (explicitFeatureIds is not null && explicitFeatureIds.TryGetValue(pmi.Target, out var featureId))
                 {
-                    result.Add(new Step242SemanticPmiHole(featureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", tolerancePlus, toleranceMinus));
+                    result.Add(new Step242SemanticPmiHole(featureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", tolerancePlus, toleranceMinus) { Name = pmi.Name });
                 }
                 else if (TryResolveV2RecognizedRegionTarget(document, targetBinding, pmi.Target, out var importedTarget) || TryResolveV2ImportedFaceTarget(targetBinding, pmi.Target, out importedTarget))
                 {
-                    result.Add(new Step242SemanticPmiHole($"{targetSolid}.{pmi.Name}", pmi.Value.Value, null, $"imported_canonical_face:{importedTarget}", tolerancePlus, toleranceMinus));
+                    result.Add(new Step242SemanticPmiHole($"{targetSolid}.{pmi.Name}", pmi.Value.Value, null, $"imported_canonical_face:{importedTarget}", tolerancePlus, toleranceMinus) { Name = pmi.Name });
                 }
             }
             else if (pmi.Kind == FirmamentV2PmiKind.DatumPlane)
@@ -2810,10 +2811,11 @@ public static class FirmamentBuildAndExport
             }
         }
 
-        if (correspondence is null) return result;
         return result.Select(item => item with
         {
-            GeometricFaceIds = correspondence.Descendants
+            GeometricFaceIds = item is Step242SemanticPmiDatum datum && body is not null
+                ? FirmamentSelectorResolver.ResolveUniquePlanarFace(body, datum.Target).Select(id => id.Value).ToArray()
+                : (correspondence?.Descendants ?? [])
                 .Where(descendant => descendant.Face.HasValue
                     && (string.Equals(descendant.SourceStableId, item.FeatureId, StringComparison.Ordinal)
                         || string.Equals(descendant.ParentStableId, item.FeatureId, StringComparison.Ordinal)))

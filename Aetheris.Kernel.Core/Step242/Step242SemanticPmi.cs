@@ -13,7 +13,10 @@ public sealed record Step242SemanticPmiHole(
     string? HoleFamily,
     double? TolerancePlus,
     double? ToleranceMinus,
-    int? Quantity = null) : Step242SemanticPmi(FeatureId);
+    int? Quantity = null) : Step242SemanticPmi(FeatureId)
+{
+    public string? Name { get; init; }
+}
 
 public sealed record Step242SemanticPmiDimension(
     string FeatureId,

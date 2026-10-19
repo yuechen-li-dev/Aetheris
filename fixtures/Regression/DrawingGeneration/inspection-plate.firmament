@@ -1,0 +1,119 @@
+Model InspectionPlate {
+  units: mm
+  Box Stock { size: [100mm, 70mm, 8mm] }
+  Modify Stock {
+    Hole<Shaft> H1 {
+      on: +Z
+      center: Point2(-36mm, -18mm)
+      diameter: 4mm
+      end: ThroughAll
+    }
+    Hole<Shaft> H2 {
+      on: +Z
+      center: Point2(-18mm, -18mm)
+      diameter: 4mm
+      end: ThroughAll
+    }
+    Hole<Shaft> H3 {
+      on: +Z
+      center: Point2(0mm, -18mm)
+      diameter: 4mm
+      end: ThroughAll
+    }
+    Hole<Shaft> H4 {
+      on: +Z
+      center: Point2(18mm, -18mm)
+      diameter: 4mm
+      end: ThroughAll
+    }
+    Hole<Shaft> H5 {
+      on: +Z
+      center: Point2(36mm, -18mm)
+      diameter: 4mm
+      end: ThroughAll
+    }
+    Hole<Shaft> H6 {
+      on: +Z
+      center: Point2(-36mm, 18mm)
+      diameter: 4mm
+      end: ThroughAll
+    }
+    Hole<Shaft> H7 {
+      on: +Z
+      center: Point2(-18mm, 18mm)
+      diameter: 4mm
+      end: ThroughAll
+    }
+    Hole<Shaft> H8 {
+      on: +Z
+      center: Point2(0mm, 18mm)
+      diameter: 4mm
+      end: ThroughAll
+    }
+    Hole<Shaft> H9 {
+      on: +Z
+      center: Point2(18mm, 18mm)
+      diameter: 4mm
+      end: ThroughAll
+    }
+    Hole<Shaft> H10 {
+      on: +Z
+      center: Point2(36mm, 18mm)
+      diameter: 4mm
+      end: ThroughAll
+    }
+  }
+  Pmi {
+    Datum A { target: face(+Z) }
+    HoleDiameter Size1 {
+      target: face(H1.Wall)
+      value: 4mm
+      tolerance: PlusMinus(0.05mm, 0.02mm)
+    }
+    HoleDiameter Size2 {
+      target: face(H2.Wall)
+      value: 4mm
+      tolerance: PlusMinus(0.05mm, 0.02mm)
+    }
+    HoleDiameter Size3 {
+      target: face(H3.Wall)
+      value: 4mm
+      tolerance: PlusMinus(0.05mm, 0.02mm)
+    }
+    HoleDiameter Size4 {
+      target: face(H4.Wall)
+      value: 4mm
+      tolerance: PlusMinus(0.05mm, 0.02mm)
+    }
+    HoleDiameter Size5 {
+      target: face(H5.Wall)
+      value: 4mm
+      tolerance: PlusMinus(0.05mm, 0.02mm)
+    }
+    HoleDiameter Size6 {
+      target: face(H6.Wall)
+      value: 4mm
+      tolerance: PlusMinus(0.05mm, 0.02mm)
+    }
+    HoleDiameter Size7 {
+      target: face(H7.Wall)
+      value: 4mm
+      tolerance: PlusMinus(0.05mm, 0.02mm)
+    }
+    HoleDiameter Size8 {
+      target: face(H8.Wall)
+      value: 4mm
+      tolerance: PlusMinus(0.05mm, 0.02mm)
+    }
+    HoleDiameter Size9 {
+      target: face(H9.Wall)
+      value: 4mm
+      tolerance: PlusMinus(0.05mm, 0.02mm)
+    }
+    HoleDiameter Size10 {
+      target: face(H10.Wall)
+      value: 4mm
+      tolerance: PlusMinus(0.05mm, 0.02mm)
+    }
+  }
+}

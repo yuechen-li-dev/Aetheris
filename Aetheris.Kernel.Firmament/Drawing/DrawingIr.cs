@@ -4,8 +4,8 @@ namespace Aetheris.Kernel.Firmament.Drawing;
 
 public enum DrawingPageOrientation { Portrait, Landscape }
 public enum DrawingProjectionKind { Orthographic, Isometric }
-public enum DrawingHiddenLinePolicy { VisibleOnly, VisibleAndHidden }
-public enum DrawingPrimitiveKind { Visible, Silhouette, Hidden }
+public enum DrawingHiddenLinePolicy { VisibleOnly, VisibleAndHidden, Wireframe }
+public enum DrawingPrimitiveKind { Visible, Silhouette, Hidden, SurfaceGrid }
 public enum DrawingAnnotationKind { LinearDimension, DiameterDimension, RadiusDimension, Datum, FeatureControlFrame, Note }
 public enum DrawingTableKind { Design, BillOfMaterials }
 
@@ -36,7 +36,13 @@ public sealed record DrawingMetadataIr(
     string? Date = null,
     string? Description = null,
     string? StaticIdentity = null,
-    string? StaticProvenance = null);
+    string? StaticProvenance = null)
+{
+    public DrawingSignoffIr? Signoff { get; init; }
+}
+
+public sealed record DrawingSignoffEntryIr(string? Name = null, string? Date = null);
+public sealed record DrawingSignoffIr(DrawingSignoffEntryIr Drawn, DrawingSignoffEntryIr Checked, DrawingSignoffEntryIr Approved);
 
 public sealed record DrawingLocationIr(int Page, string Zone);
 public sealed record DrawingPageZoneIr(string Address, DrawingRect Bounds);
@@ -50,7 +56,15 @@ public sealed record DrawingPageZoneSchemeIr(
 public sealed record DrawingInformationBlockIr(
     DrawingRect Bounds,
     DrawingLocationIr Location,
-    IReadOnlyDictionary<string, string> Fields);
+    IReadOnlyDictionary<string, string> Fields)
+{
+    public DrawingTitleBlockTableIr? Table { get; init; }
+}
+
+public sealed record DrawingTitleBlockTableIr(IReadOnlyList<double> ColumnWidths, IReadOnlyList<DrawingTitleBlockRowIr> Rows);
+public sealed record DrawingTitleBlockRowIr(double Height, IReadOnlyList<DrawingTitleBlockCellIr> Cells);
+public sealed record DrawingTitleBlockCellIr(string Key, string Label, string Value, int ColumnSpan,
+    DrawingRect Bounds, IReadOnlyList<string> ValueLines, double ValueSizeMillimetres, bool Emphasized = false);
 
 public sealed record DrawingNoteIr(string Identity, string Text, DrawingRect Bounds, DrawingLocationIr Location);
 
@@ -95,7 +109,12 @@ public sealed record DrawingViewIr(
     IReadOnlyDictionary<string, DrawingPoint2> SemanticAnchors,
     IReadOnlyList<string> AssignedPmi,
     DrawingLocationIr? Location = null,
-    DrawingVisibilityEvidenceIr? VisibilityEvidence = null);
+    DrawingVisibilityEvidenceIr? VisibilityEvidence = null)
+{
+    public DrawingCameraIr? Camera { get; init; }
+}
+
+public sealed record DrawingCameraIr(IReadOnlyList<double> Right, IReadOnlyList<double> Up, double OriginX, double OriginY);
 
 public sealed record DrawingAnnotationCandidateIr(
     string Identity,
@@ -116,7 +135,13 @@ public sealed record DrawingAnnotationIr(
     DrawingAnnotationCandidateIr SelectedCandidate,
     IReadOnlyList<DrawingAnnotationCandidateIr> Candidates,
     string Provenance,
-    DrawingLocationIr? Location = null);
+    DrawingLocationIr? Location = null)
+{
+    public IReadOnlyList<DrawingDimensionLineIr> DimensionLines { get; init; } = [];
+    public IReadOnlyList<DrawingDimensionLineIr> Strokes => DrawingAnnotationGeometry.Strokes(this).ToArray();
+}
+
+public sealed record DrawingDimensionLineIr(DrawingPoint2 Start, DrawingPoint2 End, bool ArrowStart = false, bool ArrowEnd = false);
 
 public sealed record DrawingTableIr(
     string Identity,
@@ -165,7 +190,10 @@ public sealed record DrawingLayoutEvidenceIr(
     int TextTextCollisionsAfter,
     IReadOnlyDictionary<string, int> LaneOccupancy,
     int RejectedCandidateCount,
-    int FailedAnnotationCount);
+    int FailedAnnotationCount)
+{
+    public int TextLeaderCollisionsAfter { get; init; }
+}
 
 public sealed record DrawingTypographyIr(
     string Family,

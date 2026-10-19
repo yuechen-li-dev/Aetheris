@@ -1,5 +1,7 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Firmament.ParsedModel;
 using Aetheris.Kernel.Firmament.Validation;
@@ -8,6 +10,19 @@ namespace Aetheris.Kernel.Firmament.Execution;
 
 internal static class FirmamentSelectorResolver
 {
+    /// <summary>Resolve an existing axis-face port only when it denotes exactly one planar face.
+    /// A stepped body with multiple same-facing planes remains ambiguous.</summary>
+    internal static IReadOnlyList<FaceId> ResolveUniquePlanarFace(BrepBody body, string selector)
+    {
+        var port = selector[(selector.LastIndexOf('.') + 1)..];
+        Vector3D? axis = port switch { "top_face" => new(0, 0, 1), "bottom_face" => new(0, 0, -1),
+            "plus_x_face" => new(1, 0, 0), "minus_x_face" => new(-1, 0, 0), "plus_y_face" => new(0, 1, 0), "minus_y_face" => new(0, -1, 0), _ => null };
+        if (axis is null) return [];
+        var faces = body.Topology.Faces.Where(face => body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Plane is { } plane && plane.Normal.ToVector().Dot(axis.Value) > 1 - 1e-8).Select(face => face.Id).ToArray();
+        return faces.Length == 1 ? faces : [];
+    }
+
     public static bool TryResolve(
         string selectorTarget,
         IReadOnlyDictionary<string, BrepBody> featureBodies,

@@ -1,0 +1,4 @@
+Model Die8 {
+    units: mm
+    Polyhedron<8> stock { edgeLength: 20mm }
+}

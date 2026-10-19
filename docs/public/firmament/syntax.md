@@ -577,6 +577,60 @@ as Extrude. For a circular span and full material consumer, see the complete
 See [geometry](geometry.md), [spans](spans.md), [Concept derivation](concept-derivation.md)
 and [boundary edits](profile-boundary-edits.md) for detailed construction forms.
 
+## Regular polyhedra, ellipsoids and whole-stock rounding
+
+`Polyhedron<N>` constructs a **regular convex solid**. `N` is its face count,
+not its number of vertices or the side count of a prism. The admitted values
+are 4 (tetrahedron), 6 (cube), 8 (octahedron), 12 (dodecahedron) and 20
+(icosahedron). Required `edgeLength` sizes every original edge. Other counts
+reject: a ten-sided die needs a different construction family.
+
+`Ellipsoid` uses required `radii: [x, y, z]`: three positive local semiaxes,
+not full diameters. It is an exact native quadric, with exact rational patch
+projection for STEP interchange and native recovery on reimport. It is symmetric;
+an asymmetric egg still needs a separate construction or explicit mesh sculpt.
+
+Both new primitives are centered on their local origin. The regular solids use
+a deterministic coordinate orientation; Polyhedron<6> has axis-aligned faces,
+Polyhedron<8> has axis-aligned vertices. Box retains its existing bottom-on-XY
+stock frame. Place modular Parts through Assembly frames and mates.
+
+**Complete examples:**
+
+```firmament
+Model RoundedDie {
+  units: mm
+  Polyhedron<12> stock { edgeLength: 20mm }
+  Modify stock {
+    EdgeFinish<Fillet> rounding { target: AllEdges; radius: 1mm }
+  }
+}
+```
+
+```firmament
+Model Oval {
+  units: mm
+  Ellipsoid stock { radii: [18mm, 12mm, 25mm] }
+}
+```
+
+`target: AllEdges` currently admits **only an untouched Box or one of these
+regular Polyhedron stocks** (direct `size` / `edgeLength` construction, including
+bound compile-time values), with one `EdgeFinish<Fillet>`, a positive `radius`
+and no `face` selector. All edge blends and spherical corner patches are built
+together. Rounding removes material while retaining the original planar support
+planes; for a Box its outer dimensions stay unchanged. Radius must remain
+strictly below the stock inradius so planar faces and straight edge spans remain.
+
+Whole-stock rounding on arbitrary bodies, Ellipsoid, imported bodies, hollow
+stock, RoundedBox, profile extrusions or bodies with holes/other edits is currently
+unsupported. Combining this operation with other edits, repeating it or requesting
+an all-edge chamfer rejects explicitly. This is a bounded convex-stock capability,
+not a promise of general BRep blending. Existing `RoundedBox` continues to mean a
+rounded rectangular silhouette extruded with its existing rim behavior.
+The semantic `bounds` and Pattern construction adapters do not yet admit this
+whole-stock finish; they reject instead of dropping it.
+
 ## Adding and removing material
 
 `Modify` targets an existing body. `Compose` creates a profile-based body with a

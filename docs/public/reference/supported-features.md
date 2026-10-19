@@ -4,7 +4,8 @@
 
 | Area | Status | Preview 3 boundary |
 |---|---|---|
-| Firmament V2 native primitives/profiles | Bounded | Named Box/Cylinder/Frustum/RoundedBox and admitted line/arc profile construction/composition |
+| Firmament V2 native primitives/profiles | Bounded | Named Box/Cylinder/Frustum/RoundedBox, exact Ellipsoid, regular Polyhedron<4/6/8/12/20>, and admitted line/arc profile construction/composition |
+| Uniform stock fillet | Bounded | `EdgeFinish<Fillet> { target: AllEdges; radius: ... }` on untouched Box or regular Polyhedron stock; all edge/corner patches together. Arbitrary bodies and mixed edits reject. |
 | Profile rim fillet/chamfer | Bounded ordinary CAD | Top/bottom rims of convex polygons (including non-right-angle corners), admitted tangent line/arc loops, and circular segments formed by one arc and chord. Source-bound Judgment selects qualified construction; shared analytic-support intersections, certified finite fillet miter curves and exact quadratic chamfer miters. Collapsed caps and unqualified sharp curved junction families reject. See [fillets and chamfers](../firmament/fillet-profiles.md). |
 | Box top-boundary finish with holes | Bounded | One complete +Z Boundary Chamfer or constant-radius Fillet with disjoint ThroughAll shaft/counterbore holes; exact cylindrical fillets and elliptical corner seams. Intersecting holes/finish bands, other combined selectors and general feature chains remain unsupported. See [geometry](../firmament/geometry.md#box-top-fillet-with-holes). |
 | Gear Standard Library | Supported / bounded by family | Supported external/internal standard involute spur gears; bounded straight bevel/miter and ratchet/pawl; typed `Interface<Gear>` compatibility and ideal ratios; deterministic manifold AP242. No contact, dynamics, ratings, helical/worm, spiral-bevel, or qualified hub/keyway geometry. See the [gear guide](../firmament/gears.md). |

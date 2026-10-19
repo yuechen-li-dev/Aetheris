@@ -50,6 +50,10 @@ public static class Step242Exporter
             }
         }
 
+        foreach (var binding in body.Bindings.PcurveBindings)
+            if (body.TryGetFaceSurfaceGeometry(binding.FaceId, out var support) && support?.Ellipsoid is not null)
+                return Failure("EllipsoidPcurveProjectionUnsupported: native angular pcurves must be remapped to the rational STEP patch domain before export. The ellipsoid primitive exports its exact 3D edge curves without pcurves.", $"Face:{binding.FaceId.Value}");
+
         var preflight = options.BrepExportPreflightMode == BrepExportPreflightMode.Disabled
             ? null
             : BrepExportPreflight.Validate(body, options.ImportedRecoveryToleranceMillimetres,
@@ -803,6 +807,7 @@ public static class Step242Exporter
             SurfaceGeometryKind.Torus when surface.Torus is TorusSurface torus => KernelResult<string>.Success(BuildTorus(writer, torus)),
             SurfaceGeometryKind.LinearExtrusion when surface.LinearExtrusion is LinearExtrusionSurface linearExtrusion => BuildLinearExtrusionSurface(writer, linearExtrusion),
             SurfaceGeometryKind.SurfaceOfRevolution when surface.SurfaceOfRevolution is SurfaceOfRevolutionSurface surfaceOfRevolution => BuildSurfaceOfRevolutionSurface(writer, surfaceOfRevolution),
+            SurfaceGeometryKind.Ellipsoid when surface.Ellipsoid is { } ellipsoid => KernelResult<string>.Success(BuildBSplineSurfaceWithKnots(writer, ellipsoid.ToStepPatch())),
             SurfaceGeometryKind.BSplineSurfaceWithKnots when surface.BSplineSurfaceWithKnots is BSplineSurfaceWithKnots bSplineSurface => KernelResult<string>.Success(BuildBSplineSurfaceWithKnots(writer, bSplineSurface)),
             _ => Failure($"Unsupported surface kind '{surface.Kind}'.", $"Face:{faceId.Value}")
         };

@@ -464,3 +464,16 @@ the remaining imported-product/PMI projection prerequisite.
 | `MeshState` | Explicit box/sphere cage conversion and finite Catmull-Clark editing under the existing Sculpting AST owner. One operation per successor, stable parent-derived handles and protected vertices. |
 | Output and precision | Mesh successors are STL/GLB artifacts, never implicit STEP. Validation reports `MeshBuilt` and unavailable STEP output. `maximumDeviation` bounds conversion and inherited output quantization; deformations remain explicit. |
 | Future boundaries | Arbitrary BRep retopology, new cage constructors, full PMI/import metadata succession, global mesh self-intersection proof and interactive editing remain separate qualification work. No silent fallback or implied X2 closure. |
+
+## Exact convex-stock primitive follow-up (2026-10-18)
+
+| Decision | Disposition |
+| --- | --- |
+| `Polyhedron<N>` | N is the compile-time face count of a regular convex solid: 4, 6, 8, 12 or 20. Positive `edgeLength` supplies its size. Other face counts do not imply a unique regular construction and reject. |
+| `Ellipsoid` | Three positive `radii` are local X/Y/Z semiaxes. The native authority is an exact ellipsoid quadric split into eight octants. Rational patches are an exact STEP projection and recover to native quadrics through the existing Judgment recovery owner. An asymmetric egg is a separate construction. |
+| Whole-stock rounding | Reuse `EdgeFinish<Fillet>` with `target: AllEdges`, no face selector and a positive radius. Admit one operation on untouched direct size-based Box or regular Polyhedron stock. Realize all cylindrical rolls and spherical corners together from the inward-offset convex lattice. |
+| Geometry meaning | Box stock retains its frame and outer dimensions. Polyhedra retain original support planes; vertex extrema can recede under rounding. Radius stays below the inradius, leaving planar faces and straight spans. Existing RoundedBox silhouette geometry is unchanged. |
+| Capability boundary | Arbitrary-body all-edge blends, mixed edits, hollow stock, all-edge chamfer and semantic Bounds/Pattern construction adapters reject. General blending remains separate work. No implicit mesh conversion. |
+| Presentation and interchange | Rounded Box must not reuse a sharp Box CIR mirror. Use its actual BRep mesh. Native ellipsoid angular pcurves require explicit STEP-domain remapping before export; the primitive emits exact 3D edge curves without pcurves. General ellipsoid editing/pcurve succession remains outside this pass. |
+
+The STEP entity review confirmed that [`ELLIPSOID`](https://www.steptools.com/docs/stp_aim/html/t_ellipsoid.html) exists as a CSG primitive, while [`advanced_face_geometry_select`](https://www.steptools.com/docs/stp_aim/html/t_advanced_face_geometry_select.html) does not admit it as a BRep face surface. Direct CSG interchange needs separate qualification; this pass retains exact patch projection for BRep exchange. See [the qualification report](FIRMAMENT-CONVEX-STOCK-2026-10-18.md#step-entity-review-requested-during-qualification).

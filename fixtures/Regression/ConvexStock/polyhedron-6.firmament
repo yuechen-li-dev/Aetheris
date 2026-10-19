@@ -1,0 +1,4 @@
+Model Die6 {
+    units: mm
+    Polyhedron<6> stock { edgeLength: 20mm }
+}

@@ -141,7 +141,14 @@ public static partial class FirmamentV2Parser
         {
             // These names belong to their semantic owners, not scalar lookup.
             DeclarationSyntax { Type.Name.Text: "Static" or "Pmi" or "Concept" or "Feature" or "Template" } => s,
-            DeclarationSyntax d when d.Modifiers.Count == 0 => d with { Body = d.Body is null ? null : d.Body with { Statements = d.Body.Statements.Select(Project).ToArray() } },
+            DeclarationSyntax d when d.Modifiers.Count == 0 => d with
+            {
+                // Polyhedron's sole generic is a compile-time numeric face count;
+                // type/variant names in other owners must never become scalar lookups.
+                Type = d.Type.Name.Text == "Polyhedron" ? d.Type with
+                    { Arguments = d.Type.Arguments.Select(a => a with { Value = Nominal(a.Value) }).ToArray() } : d.Type,
+                Body = d.Body is null ? null : d.Body with { Statements = d.Body.Statements.Select(Project).ToArray() }
+            },
             FieldSyntax f => f with { Value = Nominal(f.Value) },
             _ => s
         };

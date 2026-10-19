@@ -94,6 +94,7 @@ public static class SurfaceMeshObjExporter
         SurfaceMeshSupportKind.Plane when patch.Support.Plane is { } plane => ((point - plane.Origin).Dot(plane.UAxis.ToVector()), (point - plane.Origin).Dot(plane.VAxis.ToVector())),
         SurfaceMeshSupportKind.Cylinder when patch.Support.Cylinder is { } cylinder => PolarUv(point - cylinder.Origin, cylinder.Axis.ToVector(), cylinder.XAxis.ToVector(), cylinder.YAxis.ToVector()),
         SurfaceMeshSupportKind.Cone when patch.Support.Cone is { } cone => ConeUv(cone, point),
+        SurfaceMeshSupportKind.Ellipsoid when patch.Support.Ellipsoid is { } ellipsoid => EllipsoidUv(ellipsoid, point),
         SurfaceMeshSupportKind.Sphere when patch.Support.Sphere is { } sphere => SphereUv(sphere, point),
         SurfaceMeshSupportKind.Torus when patch.Support.Torus is { } torus => TorusUv(torus, point),
         SurfaceMeshSupportKind.BoundedParametricPatch when patch.Support.BoundedPatch is { } bounded && bounded.TryProject(point, out var u, out var v) => (u, v),
@@ -107,12 +108,19 @@ public static class SurfaceMeshObjExporter
             SurfaceMeshSupportKind.Plane when patch.Support.Plane is { } plane => plane.Normal.ToVector(),
             SurfaceMeshSupportKind.Cylinder when patch.Support.Cylinder is { } cylinder => cylinder.Normal(PolarUv(point - cylinder.Origin, cylinder.Axis.ToVector(), cylinder.XAxis.ToVector(), cylinder.YAxis.ToVector()).U).ToVector(),
             SurfaceMeshSupportKind.Cone when patch.Support.Cone is { } cone => cone.Normal(ConeUv(cone, point).U).ToVector(),
+            SurfaceMeshSupportKind.Ellipsoid when patch.Support.Ellipsoid is { } ellipsoid => ellipsoid.Normal(point),
             SurfaceMeshSupportKind.Sphere when patch.Support.Sphere is { } sphere => Direction3D.Create(point - sphere.Center).ToVector(),
             SurfaceMeshSupportKind.Torus when patch.Support.Torus is { } torus => torus.Normal(TorusUv(torus, point).U, TorusUv(torus, point).V).ToVector(),
             SurfaceMeshSupportKind.BoundedParametricPatch when patch.Support.BoundedPatch is { } bounded && bounded.Evaluate(uv.U, uv.V).TryNormal(out var evaluated) => evaluated,
             _ => throw new InvalidOperationException($"Patch {patch.FaceId.Value} has no exact normal evaluator."),
         };
         return patch.IsAlignedWithSupport ? normal : -normal;
+    }
+
+    private static (double U, double V) EllipsoidUv(Geometry.Surfaces.EllipsoidSurface ellipsoid, Point3D point)
+    {
+        var q = ellipsoid.UnitCoordinates(point);
+        return (double.Atan2(q.Y, q.X), double.Atan2(q.Z, double.Sqrt(q.X * q.X + q.Y * q.Y)));
     }
 
     private static (double U, double V) PolarUv(Vector3D offset, Vector3D axis, Vector3D xAxis, Vector3D yAxis)

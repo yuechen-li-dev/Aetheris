@@ -179,6 +179,7 @@ public sealed class FirmasmAssemblyExecutor
                 transform.Apply(surface.Sphere.Value.Axis, ToleranceContext.Default),
                 surface.Sphere.Value.Radius,
                 transform.Apply(surface.Sphere.Value.XAxis, ToleranceContext.Default))),
+            SurfaceGeometryKind.Ellipsoid => SurfaceGeometry.FromEllipsoid(surface.Ellipsoid! with { Center = transform.Apply(surface.Ellipsoid.Center), Axis = transform.Apply(surface.Ellipsoid.Axis, ToleranceContext.Default), XAxis = transform.Apply(surface.Ellipsoid.XAxis, ToleranceContext.Default) }),
             SurfaceGeometryKind.Torus => SurfaceGeometry.FromTorus(new TorusSurface(
                 transform.Apply(surface.Torus!.Value.Center),
                 transform.Apply(surface.Torus.Value.Axis, ToleranceContext.Default),

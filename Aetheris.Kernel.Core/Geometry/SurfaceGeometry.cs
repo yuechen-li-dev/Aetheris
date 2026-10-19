@@ -12,6 +12,7 @@ public enum SurfaceGeometryKind
     LinearExtrusion,
     SurfaceOfRevolution,
     BSplineSurfaceWithKnots,
+    Ellipsoid,
 }
 
 /// <summary>
@@ -58,6 +59,10 @@ public sealed record SurfaceGeometry
     public SurfaceOfRevolutionSurface? SurfaceOfRevolution { get; }
 
     public BSplineSurfaceWithKnots? BSplineSurfaceWithKnots { get; }
+
+    public EllipsoidSurface? Ellipsoid { get; private init; }
+
+    public static SurfaceGeometry FromEllipsoid(EllipsoidSurface surface) => new(SurfaceGeometryKind.Ellipsoid, null, null, null, null, null, null, null, null) { Ellipsoid = surface };
 
     public SplineRecoveryProvenance? RecoveryProvenance { get; private init; }
 

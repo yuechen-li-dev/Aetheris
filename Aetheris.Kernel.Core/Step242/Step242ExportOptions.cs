@@ -38,7 +38,9 @@ public sealed class Step242ExportOptions
     public BrepExportPreflightMode BrepExportPreflightMode { get; init; } = BrepExportPreflightMode.Audit;
 
     /// <summary>
-    /// TrustedProductionRoute rejects rational B-spline supports and pcurves.
+    /// TrustedProductionRoute rejects rational B-spline supports and pcurves in
+    /// the native body. Native ellipsoid octants have exact rational STEP
+    /// projection and recover to the same native quadric on import.
     /// LegacyRoute retains interchange/debug compatibility, including rational evidence.
     /// </summary>
     public BrepExportPreflightPolicy BrepExportPreflightPolicy { get; init; } = BrepExportPreflightPolicy.LegacyRoute;

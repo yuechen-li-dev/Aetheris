@@ -286,11 +286,17 @@ public static class BrepExportPreflight
             SurfaceGeometryKind.Cylinder when surface.Cylinder is CylinderSurface cylinder => double.Abs(RadialDistance(point, cylinder.Origin, cylinder.Axis) - cylinder.Radius),
             SurfaceGeometryKind.Cone when surface.Cone is ConeSurface cone => double.Abs(RadialDistance(point, cone.Apex, cone.Axis) - double.Abs((point - cone.Apex).Dot(cone.Axis.ToVector())) * double.Tan(cone.SemiAngleRadians)),
             SurfaceGeometryKind.Sphere when surface.Sphere is SphereSurface sphere => double.Abs(Distance(point, sphere.Center) - sphere.Radius),
+            SurfaceGeometryKind.Ellipsoid when surface.Ellipsoid is { } ellipsoid => EllipsoidResidual(ellipsoid, point),
             SurfaceGeometryKind.Torus when surface.Torus is TorusSurface torus => double.Abs(double.Sqrt(double.Pow(RadialDistance(point, torus.Center, torus.Axis) - torus.MajorRadius, 2d) + double.Pow((point - torus.Center).Dot(torus.Axis.ToVector()), 2d)) - torus.MinorRadius),
             _ => Unsupported(out supported),
         };
     }
 
+    private static double EllipsoidResidual(EllipsoidSurface e, Point3D point)
+    {
+        var q = e.UnitCoordinates(point);
+        return (point - e.Evaluate(double.Atan2(q.Y, q.X), double.Atan2(q.Z, double.Sqrt(q.X * q.X + q.Y * q.Y)))).Length;
+    }
     private static double Unsupported(out bool supported) { supported = false; return 0d; }
     private static double RadialDistance(Point3D point, Point3D origin, Direction3D axis) { var v = point - origin; var axial = v.Dot(axis.ToVector()); return (v - axis.ToVector() * axial).Length; }
     private static double Distance(Point3D a, Point3D b) => (a - b).Length;

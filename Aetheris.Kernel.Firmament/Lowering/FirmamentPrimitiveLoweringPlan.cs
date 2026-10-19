@@ -60,13 +60,18 @@ public enum FirmamentLoweredPrimitiveKind
     StraightSlot,
     RoundedCornerBox,
     SlotCut,
-    LibraryPart
+    LibraryPart,
+    Ellipsoid,
+    Polyhedron
 }
 
 public abstract record FirmamentLoweredPrimitiveParameters;
 
 public sealed record FirmamentLoweredBoxParameters(double SizeX, double SizeY, double SizeZ)
-    : FirmamentLoweredPrimitiveParameters;
+    : FirmamentLoweredPrimitiveParameters
+{
+    public double? UniformFilletRadius { get; init; }
+}
 
 public sealed record FirmamentLoweredCylinderParameters(double Radius, double Height)
     : FirmamentLoweredPrimitiveParameters;
@@ -76,6 +81,10 @@ public sealed record FirmamentLoweredConeParameters(double BottomRadius, double 
 
 public sealed record FirmamentLoweredTorusParameters(double MajorRadius, double MinorRadius)
     : FirmamentLoweredPrimitiveParameters;
+
+public sealed record FirmamentLoweredEllipsoidParameters(double RadiusX, double RadiusY, double RadiusZ) : FirmamentLoweredPrimitiveParameters;
+
+public sealed record FirmamentLoweredPolyhedronParameters(int FaceCount, double EdgeLength, double? UniformFilletRadius = null) : FirmamentLoweredPrimitiveParameters;
 
 public sealed record FirmamentLoweredSphereParameters(double Radius)
     : FirmamentLoweredPrimitiveParameters;

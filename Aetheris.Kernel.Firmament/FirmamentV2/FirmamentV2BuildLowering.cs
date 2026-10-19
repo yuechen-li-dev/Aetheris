@@ -15,13 +15,16 @@ internal static class FirmamentV2BuildLowering
     {
         ArgumentNullException.ThrowIfNull(document);
 
-        if (document.ModifyBlocks is { Count: > 0 })
+        if (UniformStockFilletAdmission.Error(document.Solids, document.ModifyBlocks ?? [],
+            document.Threads is { Count: > 0 } || document.Replacements is { Count: > 0 }) is { } admissionError) return Failure(admissionError);
+        var rounding = (document.ModifyBlocks ?? []).SelectMany(m => m.EdgeFinishes ?? []).SingleOrDefault(f => f.Target == "AllEdges");
+        if (document.ModifyBlocks is { Count: > 0 } && rounding is null)
         {
             return Failure("Firmament V2 build/export currently admits only a single primitive solid with no modify blocks.");
         }
 
         var solid = document.Solid;
-        var primitive = ToLoweredPrimitive(solid);
+        var primitive = ToLoweredPrimitive(solid, rounding?.Distance);
         if (primitive is null)
         {
             return Failure($"Firmament V2 build/export does not admit primitive record '{solid.RecordType}'.");
@@ -30,14 +33,16 @@ internal static class FirmamentV2BuildLowering
         return KernelResult<FirmamentPrimitiveLoweringPlan>.Success(new FirmamentPrimitiveLoweringPlan([primitive], [], []));
     }
 
-    private static FirmamentLoweredPrimitive? ToLoweredPrimitive(FirmamentV2SolidBinding solid)
+    private static FirmamentLoweredPrimitive? ToLoweredPrimitive(FirmamentV2SolidBinding solid, double? rounding)
     {
         var lowered = solid.Primitive switch
         {
-            FirmamentV2BoxRecord box when box.Size.Count == 3 => (FirmamentLoweredPrimitiveKind.Box, (FirmamentLoweredPrimitiveParameters)new FirmamentLoweredBoxParameters(box.Size[0], box.Size[1], box.Size[2])),
+            FirmamentV2BoxRecord box when box.Size.Count == 3 => (FirmamentLoweredPrimitiveKind.Box, (FirmamentLoweredPrimitiveParameters)new FirmamentLoweredBoxParameters(box.Size[0], box.Size[1], box.Size[2]) { UniformFilletRadius = rounding }),
             FirmamentV2CylinderRecord cylinder => (FirmamentLoweredPrimitiveKind.Cylinder, new FirmamentLoweredCylinderParameters(cylinder.Radius, cylinder.Height)),
             FirmamentV2FrustumRecord frustum => (FirmamentLoweredPrimitiveKind.Cone, new FirmamentLoweredConeParameters(frustum.BottomRadius, frustum.TopRadius, frustum.Height)),
             FirmamentV2ConeRecord cone => (FirmamentLoweredPrimitiveKind.Cone, new FirmamentLoweredConeParameters(cone.BottomRadius, cone.TopRadius, cone.Height)),
+            FirmamentV2EllipsoidRecord ellipsoid => (FirmamentLoweredPrimitiveKind.Ellipsoid, new FirmamentLoweredEllipsoidParameters(ellipsoid.Radii[0], ellipsoid.Radii[1], ellipsoid.Radii[2])),
+            FirmamentV2PolyhedronRecord polyhedron => (FirmamentLoweredPrimitiveKind.Polyhedron, new FirmamentLoweredPolyhedronParameters(polyhedron.FaceCount, polyhedron.EdgeLength, rounding)),
             FirmamentV2SphereRecord sphere => (FirmamentLoweredPrimitiveKind.Sphere, new FirmamentLoweredSphereParameters(sphere.Radius)),
             FirmamentV2TorusRecord torus => (FirmamentLoweredPrimitiveKind.Torus, new FirmamentLoweredTorusParameters(torus.MajorRadius, torus.MinorRadius)),
             _ => default

@@ -1,0 +1,4 @@
+Model Die12 {
+    units: mm
+    Polyhedron<12> stock { edgeLength: 20mm }
+}

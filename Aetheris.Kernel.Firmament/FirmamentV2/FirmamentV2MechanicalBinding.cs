@@ -17,7 +17,7 @@ public static partial class FirmamentV2Parser
     }
 
     internal static bool IsPrimitiveDeclaration(DeclarationSyntax d) => d.Type.Name.Text is
-        "Box" or "Cylinder" or "Cone" or "Sphere" or "Torus" or "RoundedBox" or "Frustum" or "StandardPart" or "ExactCoaxialPart";
+        "Box" or "Cylinder" or "Cone" or "Sphere" or "Ellipsoid" or "Polyhedron" or "Torus" or "RoundedBox" or "Frustum" or "StandardPart" or "ExactCoaxialPart";
 
     private static FirmamentV2ParseResult? RejectMultipleMaterialBodies(IReadOnlyList<DeclarationSyntax> bodies,
         string model, List<string> diagnostics)
@@ -73,6 +73,18 @@ public static partial class FirmamentV2Parser
                 .Any(d => d.Type.Name.Text == "Hole" && d.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "From")
                     || FirmamentSyntaxFields.SameField(f.Name.Text, "Center") && f.Value is IndexSyntax) == true);
         var constructionConsumer = materialConstruction || semanticStock || primitives.Any(d => d.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Bounds")) == true);
+        var wholeStockFinish = declarations.Where(d => d.Type.Name.Text == "Modify")
+            .SelectMany(d => d.Body?.Statements.OfType<DeclarationSyntax>() ?? [])
+            .FirstOrDefault(d => d.Type.Name.Text == "EdgeFinish" && d.Body?.Statements.OfType<FieldSyntax>()
+                .Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Target") && FirmamentSyntaxValues.Reference(f.Value) == "AllEdges") == true);
+        if (constructionConsumer && wholeStockFinish is not null)
+        {
+            diagnostics.Add(UniformStockFilletAdmission.Code);
+            return CanonicalFailure(diagnostics, CanonicalDocumentMalformed) with
+            { SyntaxDiagnostics = [new(UniformStockFilletAdmission.Code, "fatal",
+                "target: AllEdges currently requires direct size-based Box or regular Polyhedron stock. Profile, Pattern and semantic Bounds construction adapters do not yet admit whole-stock rounding; arbitrary-body rounding is unsupported.")
+                { SourceSpan = wholeStockFinish.Span, Stage = "Capability" }] };
+        }
         if (constructions.Length > 1 && constructions.All(d => d.Type.Name.Text == "Extrude") && primitives.Length == 0)
             return BindMechanicalExtrusionStack(model, constructions, source, diagnostics);
         if (constructions.Length > 1 || materialConstruction && primitives.Length > 0)
@@ -102,14 +114,34 @@ public static partial class FirmamentV2Parser
             diagnostics.AddRange(pathDiagnostics);
         }
         var solids = new Dictionary<string, FirmamentV2SolidBinding>(StringComparer.Ordinal);
+        var fieldDiagnostics = new List<FirmamentV2ValidationDiagnostic>();
+        void CaptureFieldDiagnostics(DeclarationSyntax declaration, int start)
+        {
+            for (var index = start; index < diagnostics.Count; index++)
+            {
+                var diagnostic = diagnostics[index];
+                var parts = diagnostic.Split(": ", 2, StringSplitOptions.None);
+                var adapted = FirmamentInterop.FirmamentV2DiagnosticAdapter.FromParserDiagnosticCode(diagnostic);
+                var fieldName = parts[0].Split(':')[^1];
+                var field = declaration.Body?.Statements.OfType<FieldSyntax>().FirstOrDefault(f => FirmamentSyntaxFields.SameField(f.Name.Text, fieldName));
+                // Keep the stable code separate from its explanatory text. Both
+                // presentation and preflight consume this same owner-located error.
+                diagnostics[index] = parts[0];
+                fieldDiagnostics.Add(new(parts[0], adapted.Severity.ToString().ToLowerInvariant(), parts.Length == 2 ? parts[1] : adapted.Message,
+                    FieldName: field?.Name.Text, Target: declaration.Name?.Text)
+                { SourceSpan = field?.Name.Span ?? declaration.Span, Stage = "Binding" });
+            }
+        }
         foreach (var declaration in primitives)
         {
             var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+            var diagnosticStart = diagnostics.Count;
             var primitive = BindMechanicalPrimitive(fields, diagnostics);
             FirmamentV2HollowIntent? hollow = null;
-            if (declaration.Type.Arguments.Count > 0)
+            if (declaration.Type.Arguments.Count > 0 && declaration.Type.Name.Text != "Polyhedron")
                 hollow = BindMechanicalHollow(fields, primitive, diagnostics);
             fields.Complete();
+            CaptureFieldDiagnostics(declaration, diagnosticStart);
             if (primitive is null) { diagnostics.Add(CanonicalPrimitiveMalformed); continue; }
             if (declaration.Name is null || !solids.TryAdd(declaration.Name.Text, new(declaration.Name.Text,
                 declaration.Type.Name.Text, primitive, ConstructionPolicy: hollow is null ? FirmamentV2ConstructionPolicy.Solid : FirmamentV2ConstructionPolicy.Hollow, Hollow: hollow, SourceSpan: declaration.Span, AuthoredFields: fields.AuthoredFields))) diagnostics.Add(DuplicateName);
@@ -135,6 +167,7 @@ public static partial class FirmamentV2Parser
             {
                 if (statement is not DeclarationSyntax feature) { diagnostics.Add(CanonicalModifyMalformed); continue; }
                 var fields = new FirmamentSyntaxFields(feature, diagnostics);
+                var diagnosticStart = diagnostics.Count;
                 switch (feature.Type.Name.Text)
                 {
                     case "Hole":
@@ -149,6 +182,7 @@ public static partial class FirmamentV2Parser
                     default: diagnostics.Add($"{CanonicalDeclarationUnknown}:Modify:{feature.Type.Name.Text}"); break;
                 }
                 fields.Complete();
+                CaptureFieldDiagnostics(feature, diagnosticStart);
             }
             if (holes.Count > 0 && solid.Box is null) diagnostics.Add(ModifyTargetNotSolid);
             if (solid.ConstructionPolicy == FirmamentV2ConstructionPolicy.Hollow &&
@@ -157,6 +191,14 @@ public static partial class FirmamentV2Parser
                 diagnostics.Add("firmament-v2-hollow-modify-unsupported");
             modifies.Add(new(solid.Name, [], holes, finishes, perforations));
         }
+        if (UniformStockFilletAdmission.Error(solids.Values.ToArray(), modifies,
+            declarations.Any(d => d.Type.Name.Text is "Thread" or "Replace")) is { } stockError)
+        {
+            var operation = modifies.SelectMany(m => m.EdgeFinishes ?? []).First(f => f.Target == "AllEdges");
+            diagnostics.Add(UniformStockFilletAdmission.Code);
+            return CanonicalFailure(diagnostics, CanonicalDocumentMalformed) with
+            { SyntaxDiagnostics = [new(UniformStockFilletAdmission.Code, "fatal", stockError) { SourceSpan = operation.SourceSpan, Stage = "Capability" }] };
+        }
         var bodyText = source.Substring(model.Body.Span.Start + 1, model.Body.Span.Length - 2);
         var recognized = ParseCanonicalRecognizedRegions(bodyText, solids, diagnostics);
         var replacements = ParseCanonicalReplacements(bodyText, solids, recognized, diagnostics);
@@ -164,7 +206,7 @@ public static partial class FirmamentV2Parser
         ValidateCanonicalSelectionSources(bodyText, selections, [], diagnostics);
         var (pmi, pmiBlock, boundPmi) = ParsePmi(source, solids, modifies, recognized, staticValues.Values, [], diagnostics);
         var pmiDiagnostics = ValidateStaticPmi(pmiBlock, boundPmi, modifies, staticValues.Values, diagnostics);
-        var locatedDiagnostics = (compileTime?.Diagnostics ?? []).Concat(staticValues.Diagnostics).Concat(pmiDiagnostics).ToArray();
+        var locatedDiagnostics = (compileTime?.Diagnostics ?? []).Concat(staticValues.Diagnostics).Concat(pmiDiagnostics).Concat(fieldDiagnostics).ToArray();
         if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed)
             with { SyntaxDiagnostics = locatedDiagnostics };
         return FirmamentV2ParseResult.Success(new(model.Name!.Text, "mm", solids.Values.ToArray(), modifies,
@@ -269,6 +311,21 @@ public static partial class FirmamentV2Parser
                 var bottom = Length("BottomRadius"); var top = Length("TopRadius"); var coneHeight = Length("Height");
                 return bottom > 0 && top >= 0 && coneHeight > 0 ? new FirmamentV2ConeRecord(bottom, top, coneHeight) : null;
             case "Sphere": var sphere = Length("Radius"); return sphere > 0 ? new FirmamentV2SphereRecord(sphere) : null;
+            case "Ellipsoid":
+                if (!f.Vector("Radii", "mm", out var radii) || radii.Length != 3 || radii.Any(r => !double.IsFinite(r) || r <= 0))
+                { diagnostics.Add("firmament-v2-ellipsoid-radii-invalid: radii requires three finite positive X/Y/Z semiaxes in length units."); return null; }
+                return new FirmamentV2EllipsoidRecord(radii);
+            case "Polyhedron":
+                var arguments = f.Declaration.Type.Arguments;
+                var edgeLength = Length("EdgeLength");
+                if (arguments.Count != 1 || arguments[0].Name is not null || arguments[0].Default is not null
+                    || !FirmamentSyntaxValues.TryMeasure(arguments[0].Value, "", out var faceCount)
+                    || faceCount != double.Truncate(faceCount) || faceCount < 0 || faceCount > int.MaxValue
+                    || !Aetheris.Kernel.Core.Brep.ConvexStockPrimitives.IsRegularFaceCount((int)faceCount))
+                { diagnostics.Add("firmament-v2-polyhedron-face-count-unsupported: Polyhedron<N> uses a regular convex face count: 4, 6, 8, 12 or 20. Other dice families require a separate construction."); return null; }
+                if (!double.IsFinite(edgeLength) || edgeLength <= 0)
+                { diagnostics.Add("firmament-v2-polyhedron-edge-length-invalid: edgeLength must be a finite positive length."); return null; }
+                return new FirmamentV2PolyhedronRecord((int)faceCount, edgeLength);
             case "Torus":
                 var major = Length("MajorRadius"); var minor = Length("MinorRadius");
                 return major > minor && minor > 0 ? new FirmamentV2TorusRecord(major, minor) : null;
@@ -361,7 +418,9 @@ public static partial class FirmamentV2Parser
         var arguments = fields.Declaration.Type.Arguments;
         var generic = arguments.Count == 1 && arguments[0].Name is null && arguments[0].Default is null
             ? FirmamentSyntaxValues.Reference(arguments[0].Value) : null;
-        var alias = fields.Word("Kind");
+        var aliasExpression = fields.Take("Kind");
+        var alias = FirmamentSyntaxValues.Reference(aliasExpression);
+        if (aliasExpression is not null && alias is null) { fields.Invalid("Kind"); return null; }
         if (arguments.Count > 0 && generic is not ("Chamfer" or "Fillet") || generic is not null && alias is not null && generic != alias)
         { diagnostics.Add("firmament-v2-edgefinish-variant-conflict: Use EdgeFinish<Chamfer> or EdgeFinish<Fillet>; Kind, if supplied, must agree."); return null; }
         return generic ?? alias;
@@ -431,14 +490,16 @@ public static partial class FirmamentV2Parser
     private static FirmamentV2EdgeFinishDecl? BindMechanicalFinish(FirmamentSyntaxFields f, List<string> diagnostics)
     {
         var kind = MechanicalFinishKind(f, diagnostics);
-        var axis = f.Word("Face"); var target = f.Word("Target");
+        var face = f.Take("Face"); var axis = FirmamentSyntaxValues.Reference(face); var target = f.Word("Target");
         var distance = f.Take("Distance"); var radius = f.Take("Radius");
-        if ((distance is not null && radius is not null) || f.Declaration.Name is null || axis is null || target is null || kind is null
+        if (face is not null && (axis is null || target == "AllEdges")) { f.Invalid("Face"); return null; }
+        if (target == "AllEdges" && kind == "Fillet" && radius is null) { f.Invalid("Radius"); return null; }
+        if ((distance is not null && radius is not null) || f.Declaration.Name is null || axis is null && target != "AllEdges" || target is null || kind is null
             || !FirmamentSyntaxValues.TryMeasure(distance ?? radius, "mm", out var value))
         { diagnostics.Add(CanonicalModifyMalformed); return null; }
         // The selected feature admission owner diagnoses nonpositive distances and
         // radii with its existing capability-specific explanation during preflight.
-        return new(f.Declaration.Name.Text, axis, target, kind, value, f.Declaration.Span);
+        return new(f.Declaration.Name.Text, axis ?? "", target, kind, value, f.Declaration.Span);
     }
 
     private static FirmamentV2PerforationDecl? BindMechanicalPerforation(FirmamentSyntaxFields f, List<string> diagnostics)
@@ -508,7 +569,7 @@ public static partial class FirmamentV2Parser
                 case "Struct" when declaration.Annotation is not null: break;
                 case "Struct" when !declaration.Modifiers.Any(m => m.Name.Text == "Concept"):
                     BindMechanicalScope(declaration.Body?.Statements ?? [], diagnostics); break;
-                case "Box" or "Cylinder" or "Cone" or "Sphere" or "Torus" or "RoundedBox" or "Frustum" or "StandardPart" or "ExactCoaxialPart":
+                case "Box" or "Cylinder" or "Cone" or "Sphere" or "Ellipsoid" or "Polyhedron" or "Torus" or "RoundedBox" or "Frustum" or "StandardPart" or "ExactCoaxialPart":
                 case "Plane" or "Axis" or "Axis2" or "Point2" or "Line2" or "CubicBezier2" or "Rect2" or "Square2" or "Triangle2" or "Polygon2" or "RegularPolygon2" or "Circle2" or "Ellipse2" or "Ellipse2Guide" or "Slot2" or "RoundedRect2" or "SmoothRoundedRect2" or "Path":
                 case "Plateau" or "Concept" or "Struct" or "Profile" or "Span" or "Compose" or "Boss" or "Pocket" or "AddOffset" or "RemoveOffset" or "EdgeFinish" or "Extrude":
                 case "Enum" or "Expose" or "Record" or "Template" or "template" or "Feature" or "Pattern" or "ProfileDelta" or "Selection" or "InlineStep" or "Recognize" or "Replace" or "Pmi" or "Modify" or "Match" or "Require" or "Assert" or "Thread":

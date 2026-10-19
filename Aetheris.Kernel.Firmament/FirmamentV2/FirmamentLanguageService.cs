@@ -56,6 +56,8 @@ public static class FirmamentLanguageService
         }
         else if (LoftAuthoringParser.TryGetAuthoringFields(source, offset, out fields)) context = "Loft";
         else if (IsInsideConstruct(source, offset, "Box")) { fields = FirmamentSchemaAuthoringFields.For("Box"); context = "Box"; }
+        else if (IsInsideConstruct(source, offset, "Ellipsoid")) { fields = FirmamentSchemaAuthoringFields.For("Ellipsoid"); context = "Ellipsoid"; }
+        else if (IsInsideConstruct(source, offset, "Polyhedron")) { fields = FirmamentSchemaAuthoringFields.For("Polyhedron"); context = "Polyhedron"; }
         else if (IsInsideConstruct(source, offset, "Hole")) { fields = FirmamentSchemaAuthoringFields.For("Hole"); context = "Hole"; }
         else
         {

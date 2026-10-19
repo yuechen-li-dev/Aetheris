@@ -1,0 +1,4 @@
+Model Oval {
+    units: mm
+    Ellipsoid stock { radii: [18mm, 12mm, 25mm] }
+}

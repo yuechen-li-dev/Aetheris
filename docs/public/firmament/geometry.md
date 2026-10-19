@@ -1,5 +1,15 @@
 # Geometry and semantic features
 
+For exact regular solids, ellipsoids and the bounded whole-stock fillet, see
+[regular polyhedra and ellipsoids in the syntax guide](syntax.md#regular-polyhedra-ellipsoids-and-whole-stock-rounding).
+`target: AllEdges` currently applies only to untouched size-based Box and regular
+Polyhedron stock. It does not admit rounding all edges of an arbitrary body.
+
+Ellipsoid BRep export uses exact rational quadratic patches and reimports them as
+native exact quadrics. STEP also defines an [`ELLIPSOID` CSG primitive](https://www.steptools.com/docs/stp_aim/html/t_ellipsoid.html);
+that entity is outside the [BRep face-surface select](https://www.steptools.com/docs/stp_aim/html/t_advanced_face_geometry_select.html).
+The current exporter retains the BRep artifact contract.
+
 Preview 3 plus bounded X0/X1 additions support production routes, not an unrestricted general-purpose CAD kernel. Public native examples cover Box, Cylinder, Frustum, RoundedBox, line/arc profile extrusion and composition, bounded [Revolve](revolve.md), bounded [circular Sweep](sweep.md), ordered [Formed Wire](wire-form.md), semantic shaft/counterbore/countersink holes, slots, patterns, selected chamfer/fillet routes, hollow bodies, and a bounded cubic lattice. Consult the [support matrix](../reference/supported-features.md) before relying on a combination.
 
 Analytic single solids use the same direct named declaration family: `Sphere Body { Radius: 7.5mm }`, `Cone Body { ... }`, and `Torus Body { ... }`. `Cone` includes a pointed zero-radius end. These forms round-trip as analytic AP242 surfaces, but they do not imply arbitrary Boolean or profile-composition support. The older `solid Body: Sphere { radius: ... }` spelling remains a compatibility input, not canonical authoring. Use the qualified [sphere](../../../fixtures/Canonical/Primitives/sphere.firmament), [pointed cone](../../../fixtures/Canonical/Primitives/pointed-cone.firmament), and [torus](../../../fixtures/Canonical/Primitives/torus.firmament) sources as the boundary examples.

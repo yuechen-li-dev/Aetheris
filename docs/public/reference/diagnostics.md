@@ -118,6 +118,10 @@ Common recovery patterns:
 | unknown keyword/Template | spelling, `Use` declaration, and qualified Template name |
 | missing Template argument | the Template's typed parameter list or Forge `describe` output |
 | unit mismatch | use the required dimension (`mm`, `deg`, `N`) rather than a bare/wrong-dimension value |
+| `firmament-v2-polyhedron-face-count-unsupported` | `Polyhedron<N>` requires a compile-time regular convex face count: 4, 6, 8, 12 or 20; N is not the side count of a prism. |
+| `firmament-v2-ellipsoid-radii-invalid` | Supply three finite positive X/Y/Z semiaxes with length units in `radii`. |
+| `firmament-v2-uniform-stock-fillet-unsupported` | Use one `EdgeFinish<Fillet>` with `target: AllEdges`, positive `radius` and no face selector on untouched direct Box or regular Polyhedron stock. Arbitrary bodies, hollow stock, other edits and construction adapters are outside this capability. |
+| `UniformFilletRadiusTooLarge` | Reduce the radius below the reported stock inradius; this construction requires positive remaining planar faces and edge spans. |
 | unknown material | one of the four exact catalog references in the materials guide |
 | unresolved PMI target | named hole/face selector exists in the same semantic domain |
 | invalid tolerance | `PlusMinus(plus, minus)` uses Length values for a diameter |

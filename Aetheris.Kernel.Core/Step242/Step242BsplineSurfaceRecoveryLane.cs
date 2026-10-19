@@ -27,6 +27,7 @@ internal static class Step242BsplineSurfaceRecoveryLane
     private const string AnalyticConeCandidate = "analytic_cone";
     private const string AnalyticSphereCandidate = "analytic_sphere";
     private const string AnalyticTorusCandidate = "analytic_torus";
+    private const string AnalyticEllipsoidCandidate = "analytic_ellipsoid_octant";
     private const string RejectCandidate = "reject";
 
     /// <summary>Samples taken along one candidate circular section.</summary>
@@ -97,7 +98,8 @@ internal static class Step242BsplineSurfaceRecoveryLane
             Candidate(AnalyticCylinderCandidate, context => context.Cylinder, 103d, 0),
             Candidate(AnalyticConeCandidate, context => context.Cone, 102d, 1),
             Candidate(AnalyticSphereCandidate, context => context.Sphere, 101d, 2),
-            Candidate(AnalyticTorusCandidate, context => context.Torus, 100d, 3)
+            Candidate(AnalyticTorusCandidate, context => context.Torus, 100d, 3),
+            Candidate(AnalyticEllipsoidCandidate, context => context.Ellipsoid, 99d, 4)
         ];
     }
 
@@ -126,7 +128,8 @@ internal static class Step242BsplineSurfaceRecoveryLane
         SurfaceProbe Cylinder,
         SurfaceProbe Cone,
         SurfaceProbe Sphere,
-        SurfaceProbe Torus)
+        SurfaceProbe Torus,
+        SurfaceProbe Ellipsoid)
     {
         public SurfaceProbe Select(string candidateName) => candidateName switch
         {
@@ -134,6 +137,7 @@ internal static class Step242BsplineSurfaceRecoveryLane
             AnalyticConeCandidate => Cone,
             AnalyticSphereCandidate => Sphere,
             AnalyticTorusCandidate => Torus,
+            AnalyticEllipsoidCandidate => Ellipsoid,
             _ => SurfaceProbe.Rejected($"Unknown candidate '{candidateName}'.")
         };
 
@@ -174,7 +178,10 @@ internal static class Step242BsplineSurfaceRecoveryLane
                 torus = Preferred(torus, ProbeTorus(surface, sections, model));
             }
 
-            return new RecoveryContext(cylinder, cone, sphere, torus);
+            var ellipsoid = EllipsoidSurface.TryRecover(surface, out var recovered)
+                ? new SurfaceProbe(SurfaceGeometry.FromEllipsoid(recovered), 0, "exact canonical rational ellipsoid octant control net and weights")
+                : SurfaceProbe.Rejected("not an exact canonical ellipsoid octant");
+            return new RecoveryContext(cylinder, cone, sphere, torus, ellipsoid);
         }
     }
 

@@ -120,7 +120,7 @@ internal static class FirmamentCirLowerer
 
     private static SdfNode? LowerPrimitive(FirmamentLoweredPrimitive primitive, List<CirLoweringDiagnostic> diagnostics) => primitive switch
     {
-        { Kind: FirmamentLoweredPrimitiveKind.Box, Parameters: FirmamentLoweredBoxParameters box } => new SdfBoxNode(box.SizeX, box.SizeY, box.SizeZ),
+        { Kind: FirmamentLoweredPrimitiveKind.Box, Parameters: FirmamentLoweredBoxParameters { UniformFilletRadius: null } box } => new SdfBoxNode(box.SizeX, box.SizeY, box.SizeZ),
         { Kind: FirmamentLoweredPrimitiveKind.Cylinder, Parameters: FirmamentLoweredCylinderParameters cylinder } => new SdfCylinderNode(cylinder.Radius, cylinder.Height),
         { Kind: FirmamentLoweredPrimitiveKind.Sphere, Parameters: FirmamentLoweredSphereParameters sphere } => new SdfSphereNode(sphere.Radius),
         { Kind: FirmamentLoweredPrimitiveKind.Torus, Parameters: FirmamentLoweredTorusParameters torus } => new SdfTorusNode(torus.MajorRadius, torus.MinorRadius),

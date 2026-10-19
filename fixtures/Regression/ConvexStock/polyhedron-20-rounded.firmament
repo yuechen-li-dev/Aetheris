@@ -1,0 +1,5 @@
+Model Die20 {
+    units: mm
+    Polyhedron<20> stock { edgeLength: 20mm }
+    Modify stock { EdgeFinish<Fillet> rounding { target: AllEdges; radius: 1mm } }
+}

@@ -204,6 +204,7 @@ public static class BrepPcurveValidator
         SurfaceGeometryKind.Cone => surface.Cone!.Value.Evaluate(uv.U, uv.V),
         SurfaceGeometryKind.Sphere => surface.Sphere!.Value.Evaluate(uv.U, uv.V),
         SurfaceGeometryKind.Torus => surface.Torus!.Value.Evaluate(uv.U, uv.V),
+        SurfaceGeometryKind.Ellipsoid => surface.Ellipsoid!.Evaluate(uv.U, uv.V),
         SurfaceGeometryKind.BSplineSurfaceWithKnots => surface.BSplineSurfaceWithKnots!.Evaluate(uv.U, uv.V),
         _ => null
     };

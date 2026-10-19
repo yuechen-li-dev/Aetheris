@@ -70,7 +70,7 @@ public sealed record ForeignTrimResolution(
     double RecognitionTolerance,
     string Provenance);
 
-public enum SurfaceMeshSupportKind { Plane, Cylinder, Cone, Sphere, Torus, BoundedParametricPatch }
+public enum SurfaceMeshSupportKind { Plane, Cylinder, Cone, Sphere, Torus, BoundedParametricPatch, Ellipsoid }
 public enum SurfaceMeshCellKind { Quad, Triangle, BoundaryPolygon, Singular }
 public enum SurfaceMeshCellProvenance { Unclassified, FeatureBand, Bridge, CoarseRemainder, ResidualTransition }
 /// <summary>
@@ -102,7 +102,8 @@ public sealed record SurfaceMeshSupport(
     SphereSurface? Sphere = null,
     TorusSurface? Torus = null,
     [property: JsonIgnore] ISurfaceMeshBoundedPatch? BoundedPatch = null,
-    string? BoundedPatchStableId = null);
+    string? BoundedPatchStableId = null,
+    EllipsoidSurface? Ellipsoid = null);
 
 public abstract record SurfaceMeshCell(SurfaceMeshCellKind Kind, IReadOnlyList<int> VertexIds, int RefinementLevel = 0, int? ParentCellId = null)
 {
@@ -243,7 +244,7 @@ public static class SurfaceMeshIrTessellator
         var unsupportedSupports = 0;
         foreach (var face in body.Topology.Faces)
         {
-            if (body.TryGetFaceSurfaceGeometry(face.Id, out var surface) && surface?.Kind is SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus) analytic++;
+            if (body.TryGetFaceSurfaceGeometry(face.Id, out var surface) && surface?.Kind is SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus or SurfaceGeometryKind.Ellipsoid) analytic++;
             else unsupportedSupports++;
         }
         foreach (var edge in body.Topology.Edges.OrderBy(edge => edge.Id.Value))
@@ -413,10 +414,10 @@ public static class SurfaceMeshIrTessellator
         foreach (var face in body.Topology.Faces.OrderBy(f => f.Id.Value))
         {
             if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface is null ||
-                surface.Kind is not (SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus) ||
+                surface.Kind is not (SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus or SurfaceGeometryKind.Ellipsoid) ||
                 !body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding))
             {
-                failure = $"SurfaceMeshIR does not support face {face.Id.Value}: the face has no bound Plane/Cylinder/Cone/Sphere/Torus support.";
+                failure = $"SurfaceMeshIR does not support face {face.Id.Value}: the face has no bound Plane/Cylinder/Cone/Sphere/Torus/Ellipsoid support.";
                 return false;
             }
             switch (surface.Kind)
@@ -436,7 +437,20 @@ public static class SurfaceMeshIrTessellator
                     if (conePatch is null) { failure = $"SurfaceMeshIR does not support trim topology on conical face {face.Id.Value}."; return false; }
                     patches.Add(conePatch);
                     break;
+                case SurfaceGeometryKind.Ellipsoid:
+                    var ellipsoidPatch = TryBuildConvexQuadricPatch(body, face.Id, faceBinding.Orientation.IsAlignedWithSurface,
+                        new SurfaceMeshSupport(SurfaceMeshSupportKind.Ellipsoid, Ellipsoid: surface.Ellipsoid), byEdge, policy, vertices, ref nextVertexId);
+                    if (ellipsoidPatch is null) { failure = $"SurfaceMeshIR does not support chart/trim topology on ellipsoid face {face.Id.Value}."; return false; }
+                    patches.Add(ellipsoidPatch);
+                    break;
                 case SurfaceGeometryKind.Sphere:
+                    if (body.GetLoopIds(face.Id).Count > 0)
+                    {
+                        var cornerPatch = TryBuildConvexQuadricPatch(body, face.Id, faceBinding.Orientation.IsAlignedWithSurface,
+                            new SurfaceMeshSupport(SurfaceMeshSupportKind.Sphere, Sphere: surface.Sphere), byEdge, policy, vertices, ref nextVertexId);
+                        if (cornerPatch is null) { failure = $"SurfaceMeshIR does not support convex spherical trim on face {face.Id.Value}."; return false; }
+                        patches.Add(cornerPatch); break;
+                    }
                     if (!TryBuildSphereCharts(body, face.Id, faceBinding.Orientation.IsAlignedWithSurface, surface.Sphere!.Value, vertices, ref nextVertexId, out var spherePatches)) { failure = $"SurfaceMeshIR does not support chart/trim topology on spherical face {face.Id.Value}."; return false; }
                     patches.AddRange(spherePatches);
                     break;
@@ -1373,6 +1387,77 @@ public static class SurfaceMeshIrTessellator
         return new SurfacePatch(faceId, support, loops, cells, sameSense, HasPeriodicUSeam: hasPeriodicUSeam);
     }
 
+    // One bounded convex spherical chart, optionally transformed by the exact
+    // ellipsoid frame. Shared trim samples stay immutable; concentric inner rings
+    // refine only the face interior, so neighboring edge/face identities agree.
+    private static SurfacePatch? TryBuildConvexQuadricPatch(BrepBody body, FaceId face, bool sameSense,
+        SurfaceMeshSupport support, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans, SurfaceMeshPolicy policy,
+        List<SurfaceMeshVertex> vertices, ref int nextId)
+    {
+        var loops = body.GetLoopIds(face);
+        if (loops.Count != 1) return null;
+        var boundary = new List<SurfaceMeshVertex>();
+        foreach (var coedge in body.GetCoedgeIds(loops[0]).Select(body.Topology.GetCoedge))
+        {
+            var plan = plans[coedge.EdgeId];
+            if (plan.CurveKind is not (CurveGeometryKind.Circle3 or CurveGeometryKind.Ellipse3)) return null;
+            var reversed = coedge.IsReversed ^ !body.Bindings.GetEdgeBinding(coedge.EdgeId).OrientedEdgeSense;
+            var samples = reversed ? plan.Samples.Reverse().ToArray() : plan.Samples;
+            boundary.AddRange(samples.Take(samples.Count - 1));
+        }
+        if (boundary.Count < 3) return null;
+        var ellipsoid = support.Ellipsoid;
+        var sphere = support.Sphere;
+        Vector3D Unit(Point3D point) => ellipsoid is not null ? ellipsoid.UnitCoordinates(point)
+            : (point - sphere!.Value.Center) * (1 / sphere.Value.Radius);
+        Point3D World(Vector3D unit) => ellipsoid is not null ? ellipsoid.FromUnit(Point3D.Origin + unit)
+            : sphere!.Value.Center + unit * sphere.Value.Radius;
+        var directions = boundary.Select(p => Unit(p.Position)).ToArray();
+        if (directions.Any(v => double.Abs(v.Length - 1) > 1e-8)) return null;
+        var sum = directions.Aggregate(Vector3D.Zero, (a, b) => a + b);
+        if (!Direction3D.TryCreate(sum, out var direction)) return null;
+        var center = direction.ToVector();
+        if (directions.Any(d => center.Dot(d) < .1)) return null;
+        var area = Vector3D.Zero;
+        for (var i = 0; i < directions.Length; i++) area += directions[i].Cross(directions[(i + 1) % directions.Length]);
+        if (area.Dot(center) < 0) { boundary.Reverse(); Array.Reverse(directions); }
+        // A small convex normal polygon is the admitted domain. Concave or
+        // self-crossing loops cannot be replaced by this radial chart.
+        for (var i = 0; i < directions.Length; i++)
+        {
+            var normal = directions[i].Cross(directions[(i + 1) % directions.Length]);
+            if (normal.Length < 1e-12) continue;
+            if (directions.Any(d => normal.Dot(d) < -1e-9)) return null;
+        }
+        var maxRadius = ellipsoid is null ? sphere!.Value.Radius : double.Max(ellipsoid.RadiusX, double.Max(ellipsoid.RadiusY, ellipsoid.RadiusZ));
+        var minRadius = ellipsoid is null ? maxRadius : double.Min(ellipsoid.RadiusX, double.Min(ellipsoid.RadiusY, ellipsoid.RadiusZ));
+        var angle = double.Min(policy.TargetNormalErrorRadians * minRadius / maxRadius, double.Sqrt(8 * policy.TargetChordalError / maxRadius)) / 2;
+        if (!double.IsFinite(angle) || angle <= 0) return null;
+        var count = double.Ceiling(2 * directions.Max(d => double.Acos(double.Clamp(center.Dot(d), -1, 1))) / angle);
+        if (!double.IsFinite(count) || count > policy.MaxBoundarySamples) return null;
+        var rings = System.Math.Max(1, (int)count);
+        var centerId = nextId++; vertices.Add(new(centerId, World(center)));
+        var previous = Array.Empty<int>(); var cells = new List<SurfaceMeshCell>();
+        for (var ring = 1; ring <= rings; ring++)
+        {
+            var current = new int[boundary.Count]; var t = (double)ring / rings;
+            for (var i = 0; i < current.Length; i++)
+            {
+                if (ring == rings) { current[i] = boundary[i].Id; continue; }
+                var q = Direction3D.Create(center * (1 - t) + directions[i] * t).ToVector();
+                current[i] = nextId++; vertices.Add(new(current[i], World(q)));
+            }
+            for (var i = 0; i < current.Length; i++)
+            {
+                var j = (i + 1) % current.Length;
+                if (ring == 1) cells.Add(new TriangleCell(Orient([centerId, current[i], current[j]], sameSense)));
+                else cells.Add(new QuadCell(Orient([previous[i], current[i], current[j], previous[j]], sameSense)));
+            }
+            previous = current;
+        }
+        return new(face, support, loops, cells, sameSense, ChartId: "ConvexQuadricTrim");
+    }
+
     private static bool TryBuildSphereCharts(
         BrepBody body,
         FaceId faceId,
@@ -1935,6 +2020,8 @@ public static class SurfaceMeshIrTessellator
                 var exact = cone.Normal(angle).ToVector();
                 return patch.IsAlignedWithSupport ? exact : -exact;
             },
+            SurfaceMeshSupportKind.Ellipsoid when patch.Support.Ellipsoid is { } ellipsoid => p =>
+                patch.IsAlignedWithSupport ? ellipsoid.Normal(p) : -ellipsoid.Normal(p),
             SurfaceMeshSupportKind.Sphere when patch.Support.Sphere is { } sphere => p =>
             {
                 var exact = Direction3D.Create(p - sphere.Center).ToVector();

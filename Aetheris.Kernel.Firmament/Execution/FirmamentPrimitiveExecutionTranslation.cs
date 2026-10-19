@@ -20,6 +20,7 @@ internal static class FirmamentPrimitiveExecutionTranslation
             {
                 CurveGeometryKind.Line3 => CurveGeometry.FromLine(new Line3Curve(curveEntry.Value.Line3!.Value.Origin + translation, curveEntry.Value.Line3.Value.Direction)),
                 CurveGeometryKind.Circle3 => CurveGeometry.FromCircle(new Circle3Curve(curveEntry.Value.Circle3!.Value.Center + translation, curveEntry.Value.Circle3.Value.Normal, curveEntry.Value.Circle3.Value.Radius, curveEntry.Value.Circle3.Value.XAxis)),
+                CurveGeometryKind.Ellipse3 => CurveGeometry.FromEllipse(new Ellipse3Curve(curveEntry.Value.Ellipse3!.Value.Center + translation, curveEntry.Value.Ellipse3.Value.Normal, curveEntry.Value.Ellipse3.Value.MajorRadius, curveEntry.Value.Ellipse3.Value.MinorRadius, curveEntry.Value.Ellipse3.Value.XAxis)),
                 _ => curveEntry.Value
             });
         }
@@ -33,6 +34,7 @@ internal static class FirmamentPrimitiveExecutionTranslation
                 SurfaceGeometryKind.Cone => SurfaceGeometry.FromCone(new ConeSurface(surfaceEntry.Value.Cone!.Value.PlacementOrigin + translation, surfaceEntry.Value.Cone.Value.Axis, surfaceEntry.Value.Cone.Value.PlacementRadius, surfaceEntry.Value.Cone.Value.SemiAngleRadians, surfaceEntry.Value.Cone.Value.ReferenceAxis)),
                 SurfaceGeometryKind.Torus => SurfaceGeometry.FromTorus(new TorusSurface(surfaceEntry.Value.Torus!.Value.Center + translation, surfaceEntry.Value.Torus.Value.Axis, surfaceEntry.Value.Torus.Value.MajorRadius, surfaceEntry.Value.Torus.Value.MinorRadius, surfaceEntry.Value.Torus.Value.XAxis)),
                 SurfaceGeometryKind.Sphere => SurfaceGeometry.FromSphere(new SphereSurface(surfaceEntry.Value.Sphere!.Value.Center + translation, surfaceEntry.Value.Sphere.Value.Axis, surfaceEntry.Value.Sphere.Value.Radius, surfaceEntry.Value.Sphere.Value.XAxis)),
+                SurfaceGeometryKind.Ellipsoid => SurfaceGeometry.FromEllipsoid(surfaceEntry.Value.Ellipsoid! with { Center = surfaceEntry.Value.Ellipsoid.Center + translation }),
                 _ => surfaceEntry.Value
             });
         }

@@ -177,13 +177,14 @@ public static class FirmamentBuildAndExport
                 "EdgeFinish",
                 $"edgefinish:{finish.Name}",
                 modification.TargetSolid,
-                finish.FaceAxis,
-                finish.Target,
+                finish.Target == "AllEdges" ? "AllEdges" : finish.FaceAxis,
+                finish.Target == "AllEdges" ? "" : finish.Target,
                 finish.Distance,
                 string.Equals(finish.Kind, "Fillet", StringComparison.Ordinal) ? "Radius" : "Distance",
                 "Remove",
                 PolicySource: finish.Kind,
-                MaterializationRoute: "SemanticEdgeFinish")))
+                MaterializationRoute: finish.Target == "AllEdges" ? "ConvexStockRollingBall" : "SemanticEdgeFinish",
+                SupportSpan: finish.Target == "AllEdges" ? $"{finish.SourceSpan.Start}:{finish.SourceSpan.Length}" : null)))
             .ToArray();
         var patterns = (parsed.Document.StaticAuthoring?.Patterns ?? [])
             .Select(pattern => new FirmamentSemanticPatternReport(
@@ -593,7 +594,9 @@ public static class FirmamentBuildAndExport
             var execution = FirmamentPrimitiveExecutor.Execute(lowering.Value);
             if (!execution.IsSuccess)
             {
-                return KernelResult<FirmamentStepExportResult>.Failure(execution.Diagnostics);
+                var span = (v2Parse.Document.ModifyBlocks ?? []).SelectMany(m => m.EdgeFinishes ?? []).FirstOrDefault(f => f.Target == "AllEdges")?.SourceSpan ?? v2Parse.Document.Solid.SourceSpan;
+                return KernelResult<FirmamentStepExportResult>.Failure(execution.Diagnostics.Select(d => d with
+                { SourceSpan = span is { } location ? new(location.Start, location.Length) : d.SourceSpan }).ToArray());
             }
 
             var executedPrimitive = execution.Value.ExecutedPrimitives.LastOrDefault();
@@ -1592,7 +1595,7 @@ public static class FirmamentBuildAndExport
     private static KernelResult<FirmamentStepExportResult>? TryExportV2AirChamferBody(FirmamentV2Document document)
     {
         var finishes = (document.ModifyBlocks ?? []).SelectMany(m => (m.EdgeFinishes ?? []).Select(f => (Modify: m, Finish: f))).ToArray();
-        if (finishes.Length == 0) return null;
+        if (finishes.Length == 0 || finishes.Any(f => f.Finish.Target == "AllEdges")) return null;
         // A narrow finish-only route never owns a document that also has semantic holes.
         // CombinedHoleEdgeFinish is the only X1 route permitted to claim that shape.
         if ((document.ModifyBlocks ?? []).Any(m => m.SemanticHoles.Count > 0)) return null;

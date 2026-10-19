@@ -1,0 +1,7 @@
+Model Die {
+    units: mm
+    Box stock { size: [20mm, 20mm, 20mm] }
+    Modify stock {
+        EdgeFinish<Fillet> rounding { target: AllEdges; radius: 2mm }
+    }
+}

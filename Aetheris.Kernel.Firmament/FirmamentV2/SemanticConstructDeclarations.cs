@@ -6,6 +6,14 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 [FirmamentField("Bounds", "Bounds", FirmamentSchemaValueKind.Box3, Description = "A semantic Box3 bound instead of Size.")]
 public static class BoxSemanticDeclaration { }
 
+[FirmamentConstruct("Ellipsoid", "Ellipsoid", Context = "Model or Struct", Entry = "Ellipsoid Body { radii: [18mm, 12mm, 25mm] }", Description = "Exact centered ellipsoid; radii are local X/Y/Z semiaxes.")]
+[FirmamentField("Radii", "Radii", FirmamentSchemaValueKind.Vector, Unit = FirmamentUnitKind.Length, Required = true, Description = "Three positive X/Y/Z semiaxes, not diameters.")]
+public static class EllipsoidSemanticDeclaration { }
+
+[FirmamentConstruct("Polyhedron", "Polyhedron", Context = "Model or Struct", Entry = "Polyhedron<12> Body { edgeLength: 12mm }", Description = "Regular convex solid with 4, 6, 8, 12 or 20 faces, centered on its origin.")]
+[FirmamentField("EdgeLength", "EdgeLength", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true, Description = "Length of each original straight edge.")]
+public static class PolyhedronSemanticDeclaration { }
+
 [FirmamentConstruct("Hole", "Hole", Context = "Modify body", Entry = "Modify Body { Hole<Shaft> H { On: +Z; Center: Point2(0mm, 0mm); Diameter: 6mm; End: ThroughAll } }", Description = "Semantic drilled hole.")]
 [FirmamentField("On", "On", FirmamentSchemaValueKind.FaceSelector, Required = true, Description = "Entry face of the hole.")]
 [FirmamentField("Center", "Center", FirmamentSchemaValueKind.Point, Required = true, Description = "Center in the support face.")]

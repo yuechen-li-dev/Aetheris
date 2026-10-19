@@ -78,6 +78,8 @@ public sealed record FirmamentV2BoxRecord(IReadOnlyList<double> Size, IReadOnlyL
 public sealed record FirmamentV2CylinderRecord(double Radius, double Height) : FirmamentV2PrimitiveRecord;
 public sealed record FirmamentV2ConeRecord(double BottomRadius, double TopRadius, double Height) : FirmamentV2PrimitiveRecord;
 public sealed record FirmamentV2SphereRecord(double Radius) : FirmamentV2PrimitiveRecord;
+public sealed record FirmamentV2EllipsoidRecord(IReadOnlyList<double> Radii) : FirmamentV2PrimitiveRecord;
+public sealed record FirmamentV2PolyhedronRecord(int FaceCount, double EdgeLength) : FirmamentV2PrimitiveRecord;
 public sealed record FirmamentV2TorusRecord(double MajorRadius, double MinorRadius) : FirmamentV2PrimitiveRecord;
 /// <summary>Silhouette-defined rounded rectangle swept along +Z; CornerRadius is not an edge finish.</summary>
 public sealed record FirmamentV2RoundedBoxRecord(IReadOnlyList<double> Size, double CornerRadius) : FirmamentV2PrimitiveRecord;

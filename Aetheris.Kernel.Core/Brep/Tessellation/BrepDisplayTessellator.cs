@@ -42,7 +42,7 @@ public static class BrepDisplayTessellator
         var effectiveOptions = options ?? DisplayTessellationOptions.Default;
         return SurfaceMeshIrTessellator.TryTessellate(body, effectiveOptions, out var result)
             ? KernelResult<DisplayTessellationResult>.Success(result)
-            : KernelResult<DisplayTessellationResult>.Failure([CreateNotImplemented("SurfaceMeshIR M3 supports Plane/Cylinder, full circular-trim Cone strips, closed cube-chart Spheres, and doubly-periodic Toruses. General conic and arbitrary trimmed-patch remeshing remains on the explicit legacy route.", "Viewer.SurfaceMeshIr.Unsupported")]);
+            : KernelResult<DisplayTessellationResult>.Failure([CreateNotImplemented("SurfaceMeshIR supports admitted planar/conic bands, closed sphere charts, bounded convex sphere/ellipsoid trims and admitted torus patches. General arbitrary trimmed-patch remeshing remains unsupported by this route.", "Viewer.SurfaceMeshIr.Unsupported")]);
     }
 
     public static KernelResult<DisplayTessellationResult> TessellateBounded(
@@ -269,6 +269,7 @@ public static class BrepDisplayTessellator
             SurfaceGeometryKind.Cylinder => TessellateCylinderFace(body, faceId, surface.Cylinder!.Value, options, executionBudget),
             SurfaceGeometryKind.Cone => TessellateConeFace(body, faceId, surface.Cone!.Value, options, executionBudget),
             SurfaceGeometryKind.Sphere => TessellateSphereFace(body, faceId, surface.Sphere!.Value, options, executionBudget),
+            SurfaceGeometryKind.Ellipsoid => TessellateEllipsoidFace(body, faceId, surface.Ellipsoid!, options, executionBudget),
             SurfaceGeometryKind.Torus => TessellateTorusFace(body, faceId, surface.Torus!.Value, options, executionBudget),
             SurfaceGeometryKind.BSplineSurfaceWithKnots => TessellateBSplineSurfaceFace(body, faceId, surface.BSplineSurfaceWithKnots!, options, executionBudget),
             SurfaceGeometryKind.LinearExtrusion when surface.LinearExtrusion!.Value.Directrix.BSpline3 is { } curve
@@ -1858,6 +1859,36 @@ public static class BrepDisplayTessellator
         }
 
         return normalized;
+    }
+
+    private static KernelResult<DisplayFaceMeshPatch> TessellateEllipsoidFace(BrepBody body, FaceId faceId,
+        EllipsoidSurface ellipsoid, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? budget)
+    {
+        // Affine pullback to the existing spherical trim authority. Refinement's
+        // unit-sphere chord bound is tightened by the largest singular value.
+        var loops = new List<IReadOnlyList<Point3D>>();
+        foreach (var loop in body.GetLoopIds(faceId))
+        {
+            var coedges = body.GetCoedgeIds(loop).Select(body.Topology.GetCoedge).ToArray();
+            var lookup = BuildLoopVertexPointLookup(body, coedges, faceId);
+            if (!lookup.IsSuccess) return KernelResult<DisplayFaceMeshPatch>.Failure(lookup.Diagnostics);
+            var points = new List<Point3D>();
+            foreach (var use in coedges)
+            {
+                var samples = TrySampleCoedgeForTrimEvaluation(body, faceId, use, lookup.Value, options, budget, SurfaceGeometryKind.Ellipsoid);
+                if (!samples.IsSuccess) return KernelResult<DisplayFaceMeshPatch>.Failure(samples.Diagnostics);
+                points.AddRange(samples.Value.Skip(points.Count > 0 ? 1 : 0).Select(p => Point3D.Origin + ellipsoid.UnitCoordinates(p)));
+            }
+            loops.Add(points);
+        }
+        var unit = new SphereSurface(Point3D.Origin, Direction3D.Create(new Vector3D(0, 0, 1)), 1, Direction3D.Create(new Vector3D(1, 0, 0)));
+        var mesh = SphericalTrimTessellator.Tessellate(faceId, unit, loops, 0,
+            body.Bindings.GetFaceBinding(faceId).Orientation.IsAlignedWithSurface,
+            options with { ChordTolerance = options.ChordTolerance / double.Max(ellipsoid.RadiusX, double.Max(ellipsoid.RadiusY, ellipsoid.RadiusZ)) }, budget);
+        if (!mesh.IsSuccess) return mesh;
+        var positions = mesh.Value.Positions.Select(ellipsoid.FromUnit).ToArray();
+        return KernelResult<DisplayFaceMeshPatch>.Success(mesh.Value with
+        { Positions = positions, Normals = positions.Select(ellipsoid.Normal).ToArray() }, mesh.Diagnostics);
     }
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateSphereFace(BrepBody body, FaceId faceId, SphereSurface sphere, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)

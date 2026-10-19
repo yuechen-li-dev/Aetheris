@@ -54,7 +54,7 @@ internal static class FirmamentPrimitiveExecutor
             booleanExecutionBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.LegacyForBoolean;
             featureGraphStates[primitive.FeatureId] = primitive.Kind switch
             {
-                FirmamentLoweredPrimitiveKind.Box => FirmamentSafeSubtractFeatureGraphState.BoxRoot,
+                FirmamentLoweredPrimitiveKind.Box when primitive.Parameters is FirmamentLoweredBoxParameters { UniformFilletRadius: null } => FirmamentSafeSubtractFeatureGraphState.BoxRoot,
                 FirmamentLoweredPrimitiveKind.Cylinder => FirmamentSafeSubtractFeatureGraphState.CylinderRoot,
                 _ => FirmamentSafeSubtractFeatureGraphState.Other
             };
@@ -634,6 +634,7 @@ internal static class FirmamentPrimitiveExecutor
         if (primitive.Kind == FirmamentLoweredPrimitiveKind.Box)
         {
             var box = (FirmamentLoweredBoxParameters)primitive.Parameters;
+            if (box.UniformFilletRadius is { } rounding) return ConvexStockPrimitives.CreateRoundedBox(box.SizeX, box.SizeY, box.SizeZ, rounding);
             return BrepPrimitives.CreateBoxWithTopology(box.SizeX, box.SizeY, box.SizeZ, out boxTopology);
         }
         return primitive.Kind switch
@@ -641,6 +642,8 @@ internal static class FirmamentPrimitiveExecutor
             FirmamentLoweredPrimitiveKind.Cylinder => BrepPrimitives.CreateCylinder(((FirmamentLoweredCylinderParameters)primitive.Parameters).Radius, ((FirmamentLoweredCylinderParameters)primitive.Parameters).Height),
             FirmamentLoweredPrimitiveKind.Cone => ExecuteCone((FirmamentLoweredConeParameters)primitive.Parameters),
             FirmamentLoweredPrimitiveKind.Torus => BrepPrimitives.CreateTorus(((FirmamentLoweredTorusParameters)primitive.Parameters).MajorRadius, ((FirmamentLoweredTorusParameters)primitive.Parameters).MinorRadius),
+            FirmamentLoweredPrimitiveKind.Ellipsoid => EllipsoidPrimitive.Create(((FirmamentLoweredEllipsoidParameters)primitive.Parameters).RadiusX, ((FirmamentLoweredEllipsoidParameters)primitive.Parameters).RadiusY, ((FirmamentLoweredEllipsoidParameters)primitive.Parameters).RadiusZ),
+            FirmamentLoweredPrimitiveKind.Polyhedron => ConvexStockPrimitives.CreateRegular(((FirmamentLoweredPolyhedronParameters)primitive.Parameters).FaceCount, ((FirmamentLoweredPolyhedronParameters)primitive.Parameters).EdgeLength, ((FirmamentLoweredPolyhedronParameters)primitive.Parameters).UniformFilletRadius ?? 0),
             FirmamentLoweredPrimitiveKind.Sphere => BrepPrimitives.CreateSphere(((FirmamentLoweredSphereParameters)primitive.Parameters).Radius),
             FirmamentLoweredPrimitiveKind.TriangularPrism => BrepPrimitives.CreateTriangularPrism(
                 ((FirmamentLoweredTriangularPrismParameters)primitive.Parameters).BaseWidth,

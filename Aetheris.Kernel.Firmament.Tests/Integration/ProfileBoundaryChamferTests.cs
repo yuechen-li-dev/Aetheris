@@ -295,24 +295,24 @@ public sealed class ProfileBoundaryChamferTests
     }
 
     [Fact]
-    public void CurvedWholeLoopChamferMaterializesThroughTheMixedPlaneConeShell()
+    public void NonTangentCurvedLoopCannotBeReportedValidFromTopologyAlone()
     {
         const string chamfer = "Modify Body { EdgeFinish TopBreak { Target: Bracket.Outer On: Top Kind: Chamfer Distance: 4mm } }";
         Assert.True(ProfileBoundaryChamferSourceBinder.TryBind(chamfer, CurvedProfile(), "Bracket", out var chamferTarget, out var distance, out var chamferDiagnostic), chamferDiagnostic);
         var chamferPlan = ProfileBoundaryChamferPlanner.TryPlan(CurvedProfile(), chamferTarget!, distance);
-        Assert.True(chamferPlan.Succeeded, string.Join(Environment.NewLine, chamferPlan.Diagnostics));
-        Assert.NotNull(chamferPlan.Body);
-        Assert.Equal(1, chamferPlan.Body!.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Cone));
-        Assert.True(BrepMassProperties.Evaluate(chamferPlan.Body).IsEnclosed);
+        // The unchanged specimen has a 180-degree cusp entering the arc and a
+        // sharp unsupported arc/line exit. Its old IsEnclosed assertion proved
+        // incidence only, despite the trims missing their analytic supports.
+        Assert.False(chamferPlan.Succeeded);
+        Assert.Null(chamferPlan.Body);
+        Assert.Contains(chamferPlan.Diagnostics, d => d.StartsWith("ProfileEdgeFinishJunctionUnsupported", StringComparison.Ordinal));
 
         const string fillet = "Modify Body { EdgeFinish TopRound { Target: Bracket.Outer On: Top Kind: Fillet Radius: 4mm } }";
         Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(fillet, CurvedProfile(), "Bracket", out var filletTarget, out var radius, out var clearance, out var filletDiagnostic), filletDiagnostic);
         var filletPlan = ProfileFilletShellPlanner.TryPlan(CurvedProfile(), filletTarget!, radius, clearance);
-        Assert.True(filletPlan.Succeeded, string.Join(Environment.NewLine, filletPlan.Diagnostics));
-        Assert.NotNull(filletPlan.Body);
-        Assert.Equal(1, filletPlan.Body!.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Torus));
-        Assert.Equal(0, filletPlan.Body.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots));
-        Assert.True(BrepMassProperties.Evaluate(filletPlan.Body).IsEnclosed);
+        Assert.False(filletPlan.Succeeded);
+        Assert.Null(filletPlan.Body);
+        Assert.Contains(filletPlan.Diagnostics, d => d.StartsWith("ProfileEdgeFinishJunctionUnsupported", StringComparison.Ordinal));
     }
 
     [Fact]

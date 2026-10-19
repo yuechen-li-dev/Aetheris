@@ -23,7 +23,10 @@ public sealed record ProfileEdgeFinishMixedShellPlan(
     IReadOnlyList<string> DegenerateVertices,
     string TopCapPlan,
     string SideTrimPlan,
-    IReadOnlyList<string> Provenance);
+    IReadOnlyList<string> Provenance)
+{
+    public ProfileEdgeFinishJunctionDecision? JunctionDecision { get; init; }
+}
 
 public sealed record ProfileEdgeFinishMixedShellPlanResult(
     bool Succeeded,
@@ -164,6 +167,15 @@ public static class ProfileEdgeFinishMixedShellPlanner
         var end = profile.LocalEndDepth ?? 1d;
         if (finishSize >= end - start - Tolerance) return Fail("ProfileEdgeFinishMixedShellFinishExceedsHostThickness");
 
+        var junctionDecision = ProfileEdgeFinishJunctionPolicy.Evaluate(profile, loop, finishSize);
+        if (junctionDecision.Strategy is null)
+        {
+            var rejection = junctionDecision.Judgment.Candidates
+                .SelectMany(c => c.Rules).First(r => !r.Result.Passed &&
+                    (junctionDecision.CircularSegment is null || r.Result.Code == "ProfileEdgeFinishInsetCollapse"));
+            return Fail($"{rejection.Result.Code}: {rejection.Result.Evidence}");
+        }
+
         var frame = profile.EffectiveConstructionPlane;
         var signedArea = SignedArea(loop);
         if (Math.Abs(signedArea) <= Tolerance) return Fail("ProfileEdgeFinishMixedShellProfileDegenerate");
@@ -188,6 +200,11 @@ public static class ProfileEdgeFinishMixedShellPlanner
                     if (finishKind == ProfileEdgeFinishKind.Chamfer)
                     {
                         var normal = Direction3D.Create(tangent.ToVector().Cross((inward.ToVector() * finishSize) + (capOut.ToVector() * finishSize)));
+                        // The historical formula assumes CCW traversal and the
+                        // top cap. Keep that case byte-stable; reverse the plane
+                        // support sense for a bottom cap or reversed winding.
+                        var capDirection = target.Side == ProfileBoundaryChamferSide.Top ? 1 : -1;
+                        if (materialSign * capDirection < 0) normal = Direction3D.Create(-normal.ToVector());
                         patches.Add(new PlanarChamferPatch(stableId, segment.Name,
                             new PlaneSurface(startPoint, normal, tangent), Frame(tangent, inward, capOut), Descendants(segment)));
                     }
@@ -257,7 +274,8 @@ public static class ProfileEdgeFinishMixedShellPlanner
         return new(true, new ProfileEdgeFinishMixedShellPlan(target, finishKind, finishSize, patches, seams, degeneracies,
             finishKind == ProfileEdgeFinishKind.Chamfer ? "MixedInsetLineArcProfile" : "MixedCapContactLineArcProfile",
             finishKind == ProfileEdgeFinishKind.Chamfer ? "OriginalSideToPlaneConeTrim" : "OriginalSideToCylinderSphereTorusTrim",
-            ["ResolvedProfile2D", "ProfileEdgeFinishAnalyticPolicy", "ProfileEdgeFinishMixedShellPlan", "SourceOrder", "PreEmissionSeamCorrespondence"]), []);
+            ["ResolvedProfile2D", "ProfileEdgeFinishAnalyticPolicy", "ProfileEdgeFinishMixedShellPlan", "SourceOrder", "PreEmissionSeamCorrespondence"])
+            { JunctionDecision = junctionDecision }, []);
     }
 
     private static AnalyticEdgeFinishSeam CreateSeam(ProfileEdgeFinishKind kind, string id, AnalyticEdgeFinishPatch predecessor,
@@ -314,21 +332,9 @@ public static class ProfileEdgeFinishMixedShellPlanner
     private static string Frame(Direction3D x, Direction3D y, Direction3D z) =>
         string.Create(CultureInfo.InvariantCulture, $"x=({x.X:R},{x.Y:R},{x.Z:R});y=({y.X:R},{y.Y:R},{y.Z:R});z=({z.X:R},{z.Y:R},{z.Z:R})");
 
-    private static double SignedArea(ResolvedProfileLoop2D loop) => loop.Segments.Sum(segment => segment.Geometry switch
-    {
-        LineArcLineSegment2D line => line.Start.X * line.End.Y - line.End.X * line.Start.Y,
-        LineArcCircularArc2D arc => ArcContribution(arc),
-        _ => 0d
-    }) * .5d;
+    private static double SignedArea(ResolvedProfileLoop2D loop) =>
+        loop.Segments.Sum(segment => ResolvedProfile2DValidator.SignedAreaContribution(segment.Geometry));
 
-    private static double ArcContribution(LineArcCircularArc2D arc)
-    {
-        var a = arc.StartAngleRadians;
-        var b = a + arc.SweepAngleRadians;
-        return 2d * (arc.Center.X * arc.Radius * (Math.Sin(b) - Math.Sin(a))
-                     - arc.Center.Y * arc.Radius * (Math.Cos(b) - Math.Cos(a))
-                     + arc.Radius * arc.Radius * (b - a));
-    }
 }
 
 /// <summary>
@@ -345,14 +351,17 @@ public static class ProfileEdgeFinishMixedShellMaterializer
     {
         ProfileBoundaryChamferPlanResult Fail(string code) => new(false, null, null, target, [code]);
         if (plan.FinishKind != ProfileEdgeFinishKind.Chamfer) return Fail("ProfileEdgeFinishMixedShellChamferPlanRequired");
+        if (plan.JunctionDecision?.Strategy == "CircularSegmentMiter")
+            return CircularSegmentEdgeFinishMaterializer.TryMaterialize(profile, target, plan);
         var loop = profile.Loops.SingleOrDefault(x => x.Name == target.LoopId);
         if (loop is null || loop.Segments.Count != plan.OrderedPatches.Count) return Fail("ProfileEdgeFinishMixedShellPlanProfileMismatch");
         var frame = profile.EffectiveConstructionPlane;
-        var start = profile.LocalStartDepth ?? -1d;
+        var topSide = target.Side == ProfileBoundaryChamferSide.Top;
+        var start = topSide ? profile.LocalStartDepth ?? -1d : profile.LocalEndDepth ?? 1d;
         var end = profile.LocalEndDepth ?? 1d;
-        var transition = target.Side == ProfileBoundaryChamferSide.Top ? end - plan.FinishSize : start + plan.FinishSize;
-        var cap = target.Side == ProfileBoundaryChamferSide.Top ? end : start;
-        if (target.Side != ProfileBoundaryChamferSide.Top) return Fail("ProfileEdgeFinishMixedShellBottomChamferNotImplemented");
+        var transition = topSide ? end - plan.FinishSize : (profile.LocalStartDepth ?? -1d) + plan.FinishSize;
+        var cap = topSide ? end : profile.LocalStartDepth ?? -1d;
+        var capOut = topSide ? frame.AxisZ : Direction3D.Create(-frame.AxisZ.ToVector());
         var area = SignedArea(loop);
         if (Math.Abs(area) <= Tolerance) return Fail("ProfileEdgeFinishMixedShellProfileDegenerate");
 
@@ -442,6 +451,7 @@ public static class ProfileEdgeFinishMixedShellMaterializer
         Use Use(EdgeId edge, VertexId startVertex) => new(edge, builder.Model.Edges.Single(x => x.Id == edge).StartVertexId != startVertex);
         FaceId Face(string stableId, IReadOnlyList<Use> uses, SurfaceGeometry surface, SemanticTopologyRole role, string source)
         {
+            if (!topSide) uses = uses.Reverse().Select(u => new Use(u.Edge, !u.Reverse)).ToArray();
             var loopId = builder.AllocateLoopId();
             var coedges = uses.Select(_ => builder.AllocateCoedgeId()).ToArray();
             for (var i = 0; i < uses.Count; i++)
@@ -465,11 +475,11 @@ public static class ProfileEdgeFinishMixedShellMaterializer
 
         // Bottom cap is the source loop reversed; the top cap follows the mixed inset loop.
         Face($"{target.StableId}:bottom-cap", Enumerable.Range(0, count).Reverse().Select(i => Use(bottom[i], SectionVertex(i, true, start, false))).ToArray(),
-            SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((0d, 0d), start), Direction3D.Create(-frame.AxisZ.ToVector()), frame.AxisX)), SemanticTopologyRole.BottomFaceBoundaryLoop, $"profile:{profile.Name}.{loop.Name}");
+            SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((0d, 0d), start), Direction3D.Create(-capOut.ToVector()), frame.AxisX)), SemanticTopologyRole.BottomFaceBoundaryLoop, $"profile:{profile.Name}.{loop.Name}");
         var topUses = new List<Use>();
         for (var i = 0; i < count; i++)
             if (top[i] is { } edge) topUses.Add(Use(edge, SectionVertex(i, false, cap, true)));
-        Face($"{target.StableId}:top-cap", topUses, SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((0d, 0d), cap), frame.AxisZ, frame.AxisX)), SemanticTopologyRole.TopFaceBoundaryLoop, $"profile:{profile.Name}.{loop.Name}");
+        Face($"{target.StableId}:top-cap", topUses, SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((0d, 0d), cap), capOut, frame.AxisX)), SemanticTopologyRole.TopFaceBoundaryLoop, $"profile:{profile.Name}.{loop.Name}");
 
         for (var i = 0; i < count; i++)
         {
@@ -572,11 +582,7 @@ public static class ProfileEdgeFinishMixedShellMaterializer
         var t = (qx * sy - qy * sx) / cross;
         return (first.Start.X + t * rx, first.Start.Y + t * ry);
     }
-    private static double SignedArea(ResolvedProfileLoop2D loop) => loop.Segments.Sum(x => x.Geometry switch
-    {
-        LineArcLineSegment2D line => line.Start.X * line.End.Y - line.End.X * line.Start.Y,
-        LineArcCircularArc2D arc => 2d * (arc.Center.X * arc.Radius * (Math.Sin(arc.StartAngleRadians + arc.SweepAngleRadians) - Math.Sin(arc.StartAngleRadians)) - arc.Center.Y * arc.Radius * (Math.Cos(arc.StartAngleRadians + arc.SweepAngleRadians) - Math.Cos(arc.StartAngleRadians)) + arc.Radius * arc.Radius * arc.SweepAngleRadians),
-        _ => 0d
-    }) * .5d;
+    private static double SignedArea(ResolvedProfileLoop2D loop) =>
+        loop.Segments.Sum(segment => ResolvedProfile2DValidator.SignedAreaContribution(segment.Geometry));
     private readonly record struct Use(EdgeId Edge, bool Reverse);
 }

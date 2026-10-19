@@ -261,7 +261,8 @@ public static class FirmamentSourceSpelling
         Add("Segment", "Trace From To Sweep");
         Add("Replace", "On Range Through Derivatives Join StartTangent EndTangent Interpolation SpanNames");
         Add("Path", "Start Heading");
-        Add("Line", "Length To");
+        Add("Line", "Length To Turn Heading");
+        Add("Arc", "Radius Turn");
         Add("Extrude Base", "Profile From To Role");
         Add("Boss Pocket", "On Profile Height Depth");
         Add("Linear", "Source Direction Count Spacing Keys Start Step");

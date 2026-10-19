@@ -250,7 +250,7 @@ public static class SurfaceMeshIrTessellator
         {
             var family = body.TryGetEdgeCurveGeometry(edge.Id, out var curve) && curve is not null ? curve.Kind.ToString() : "Unbound";
             families[family] = families.GetValueOrDefault(family) + 1;
-            if (family is "Line3" or "Circle3" or "Hyperbola3") continue;
+            if (family is "Line3" or "Circle3" or "Ellipse3" or "Hyperbola3") continue;
             var usedFaces = body.Topology.Faces
                 .Where(face => body.GetLoopIds(face.Id).SelectMany(body.GetCoedgeIds).Any(coedgeId => body.Topology.GetCoedge(coedgeId).EdgeId == edge.Id))
                 .OrderBy(face => face.Id.Value).ToArray();
@@ -541,6 +541,24 @@ public static class SurfaceMeshIrTessellator
                         .ToList();
                 closed = false;
                 chordError = ComputePolylineChordDeviation(hyperbola.Evaluate, sampled);
+                break;
+            case CurveGeometryKind.Ellipse3 when curve.Ellipse3 is { } ellipse:
+                var ellipseSpan = interval.End - interval.Start;
+                // An ellipse is a linear image of a unit circle: its major
+                // radius bounds chord deviation, and a/b bounds tangent turn.
+                var ellipseSegments = int.Max(ResolveCircleSegments(ellipse.MajorRadius, ellipseSpan, policy), forcedSegments ?? 1);
+                var tangentSegments = double.Ceiling(double.Abs(ellipseSpan) * ellipse.MajorRadius / ellipse.MinorRadius / policy.TargetNormalErrorRadians);
+                if (!double.IsFinite(tangentSegments) || tangentSegments >= policy.MaxBoundarySamples) return false;
+                ellipseSegments = int.Max(ellipseSegments, (int)tangentSegments);
+                if (ellipseSegments + 1 > policy.MaxBoundarySamples) return false;
+                sampled = Enumerable.Range(0, ellipseSegments + 1).Select(i =>
+                {
+                    var parameter = interval.Start + ellipseSpan * i / ellipseSegments;
+                    return (parameter, ellipse.Evaluate(parameter));
+                }).ToList();
+                closed = double.Abs(double.Abs(ellipseSpan) - 2 * double.Pi) <= Epsilon;
+                chordError = ellipse.MajorRadius * (1 - double.Cos(double.Abs(ellipseSpan) / (2 * ellipseSegments)));
+                tangentError = double.Abs(ellipseSpan) * ellipse.MajorRadius / ellipse.MinorRadius / ellipseSegments;
                 break;
             case CurveGeometryKind.BSpline3 when curve.BSpline3 is { } spline:
                 var splineSampling = BSplineTrimSampler.Sample(spline, interval, policy);
@@ -1059,6 +1077,7 @@ public static class SurfaceMeshIrTessellator
             {
                 SurfaceMeshSupportKind.Cylinder when support.Cylinder is { } supportCylinder => supportCylinder.Evaluate(uv[index].U, uv[index].V),
                 SurfaceMeshSupportKind.Cone when support.Cone is { } cone => cone.Evaluate(uv[index].U, uv[index].V),
+                SurfaceMeshSupportKind.Torus when support.Torus is { } torus => torus.Evaluate(uv[index].U, uv[index].V),
                 _ => throw new InvalidOperationException("Sampled boundary triangulation requires an evaluable analytic support.")
             };
             if ((reconstructed - vertexById[outerIds[index]].Position).Length > policy.TargetChordalError) return null;
@@ -1512,7 +1531,26 @@ public static class SurfaceMeshIrTessellator
             .ToArray();
         if (seamPlans.Length != 2)
         {
-            return null;
+            // Bounded CAD miter: two contact circles and two shared spline
+            // intersections. Reuse the parameter-space trim owner and its
+            // boundary IDs; never turn this into a complete-torus fallback.
+            var boundary = body.GetCoedgeIds(body.GetLoopIds(faceId)[0])
+                .Select(body.Topology.GetCoedge).Select(c => plans[c.EdgeId]).ToArray();
+            if (boundary.Length != 4 ||
+                boundary.Count(p => p.CurveKind == CurveGeometryKind.Circle3) != 2 ||
+                boundary.Count(p => p.CurveKind == CurveGeometryKind.BSpline3) != 2) return null;
+            (double U, double V)? Project(Point3D point)
+            {
+                var uv = TryProjectPointToTorusUv(torus, point);
+                if (uv is not { } value) return null;
+                return (value.U, value.V > double.Pi ? value.V - 2 * double.Pi : value.V);
+            }
+            var projected = boundary.SelectMany(p => p.Samples).Select(s => Project(s.Position)).ToArray();
+            if (projected.Any(p => p is null || double.Abs(p.Value.V) > double.Pi / 2 + 1e-8))
+                return null; // Only the regular outer half-tube; no pole or periodic V crossing.
+            return TryBuildSampledBoundaryBand(body, faceId, sameSense,
+                new SurfaceMeshSupport(SurfaceMeshSupportKind.Torus, Torus: torus), plans, policy,
+                Project, vertices, ref nextVertexId);
         }
 
         var parameters = seamPlans

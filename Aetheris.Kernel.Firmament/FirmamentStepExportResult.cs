@@ -48,6 +48,7 @@ public sealed record FirmamentStepExportResult(
     [JsonIgnore] internal Aetheris.Kernel.Firmament.FirmamentV2.FirmamentV2Document? RuntimeAdmissionDocument { get; init; }
     public FirmamentCirRetention? Cir { get; init; }
     public FirmamentMakerMarkReport? MakerMark { get; init; }
+    public ProfileEdgeFinishEvidence? EdgeFinishPlanning { get; init; }
 }
 
 public sealed record FirmamentMakerMarkReport(string Content, double HeightMm, double DepthMm, int CounterCount);

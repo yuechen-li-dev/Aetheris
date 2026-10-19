@@ -92,8 +92,12 @@ public static class ProfileEdgeFinishAnalyticPolicy
             _ => 10d, _ => "Requires Convex ArcDerived Rs < F."),
         new("FilletConvexSphereLimit", c => Is(c, ProfileEdgeFinishKind.Fillet, ProfileEdgeFinishSourceFamily.ArcDerived, ProfileEdgeFinishMaterialSide.Convex) && NearlyEqual(c.SourceRadius, c.FinishSize),
             _ => 90d, _ => "Requires Convex ArcDerived Rs = F."),
-        new("FilletConvexHorn", c => Is(c, ProfileEdgeFinishKind.Fillet, ProfileEdgeFinishSourceFamily.ArcDerived, ProfileEdgeFinishMaterialSide.Convex) && c.SourceRadius > c.FinishSize + Tolerance,
-            _ => 80d, _ => "Requires Convex ArcDerived Rs > F."),
+        new("FilletConvexRing", c => Is(c, ProfileEdgeFinishKind.Fillet, ProfileEdgeFinishSourceFamily.ArcDerived, ProfileEdgeFinishMaterialSide.Convex) && c.SourceRadius > 2 * c.FinishSize + Tolerance,
+            _ => 100d, _ => "Requires Convex ArcDerived Rs > 2F."),
+        new("FilletConvexHorn", c => Is(c, ProfileEdgeFinishKind.Fillet, ProfileEdgeFinishSourceFamily.ArcDerived, ProfileEdgeFinishMaterialSide.Convex) && NearlyEqual(c.SourceRadius, 2 * c.FinishSize),
+            _ => 80d, _ => "Requires Convex ArcDerived Rs = 2F."),
+        new("FilletConvexSpindleSector", c => Is(c, ProfileEdgeFinishKind.Fillet, ProfileEdgeFinishSourceFamily.ArcDerived, ProfileEdgeFinishMaterialSide.Convex) && c.SourceRadius > c.FinishSize + Tolerance && c.SourceRadius < 2 * c.FinishSize - Tolerance,
+            _ => 80d, _ => "Requires Convex ArcDerived F < Rs < 2F with the existing outer-quarter trim."),
         new("FilletReflexRing", c => Is(c, ProfileEdgeFinishKind.Fillet, ProfileEdgeFinishSourceFamily.ArcDerived, ProfileEdgeFinishMaterialSide.Reflex),
             _ => 100d, _ => "Requires Reflex ArcDerived station.")
     ];
@@ -110,6 +114,8 @@ public static class ProfileEdgeFinishAnalyticPolicy
         "FilletConvexSpindle" => Policy(c, relation, "ArcFilletSpindleRejected", ProfileEdgeFinishSurfaceFamily.Torus, ProfileEdgeFinishRegularity.Invalid, ProfileEdgeFinishAdmission.UnsupportedWithTypedDiagnostic, utility, rejected, torus: ProfileEdgeFinishTorusRegime.Spindle, major: c.FinishSize - c.SourceRadius, minor: c.FinishSize, diagnostic: "ProfileBoundaryFilletSpindlePatchInvalid"),
         "FilletConvexSphereLimit" => Policy(c, relation, "ArcFilletSphereLimitPlan", ProfileEdgeFinishSurfaceFamily.Sphere, ProfileEdgeFinishRegularity.BoundedDegenerate, ProfileEdgeFinishAdmission.SupportedWithExplicitPolicy, utility, rejected),
         "FilletConvexHorn" => Policy(c, relation, "ArcFilletTorusPlan", ProfileEdgeFinishSurfaceFamily.Torus, ProfileEdgeFinishRegularity.InteropSensitive, ProfileEdgeFinishAdmission.SupportedWithExplicitPolicy, utility, rejected, torus: ProfileEdgeFinishTorusRegime.Horn, major: c.SourceRadius - c.FinishSize, minor: c.FinishSize),
+        "FilletConvexRing" => Policy(c, relation, "ArcFilletTorusPlan", ProfileEdgeFinishSurfaceFamily.Torus, ProfileEdgeFinishRegularity.Regular, ProfileEdgeFinishAdmission.Supported, utility, rejected, torus: ProfileEdgeFinishTorusRegime.Ring, major: c.SourceRadius - c.FinishSize, minor: c.FinishSize),
+        "FilletConvexSpindleSector" => Policy(c, relation, "ArcFilletTorusPlan", ProfileEdgeFinishSurfaceFamily.Torus, ProfileEdgeFinishRegularity.InteropSensitive, ProfileEdgeFinishAdmission.SupportedWithExplicitPolicy, utility, rejected, torus: ProfileEdgeFinishTorusRegime.Spindle, major: c.SourceRadius - c.FinishSize, minor: c.FinishSize),
         "FilletReflexRing" => Policy(c, relation, "ArcFilletTorusPlan", ProfileEdgeFinishSurfaceFamily.Torus, ProfileEdgeFinishRegularity.Regular, ProfileEdgeFinishAdmission.Supported, utility, rejected, torus: ProfileEdgeFinishTorusRegime.Ring, major: c.SourceRadius + c.FinishSize, minor: c.FinishSize),
         _ => throw new InvalidOperationException($"Unmapped Profile EdgeFinish policy candidate '{candidate}'.")
     };

@@ -19,6 +19,7 @@ using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.Execution;
 using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Kernel.StandardLibrary;
 using Aetheris.Kernel.Firmament.Structural;
@@ -504,7 +505,7 @@ public static class FirmamentBuildAndExport
             var emitted = ResolvedProfile2DValidator.Extrude(parsed.Profile, parsed.Height);
             if (emitted.Status != LineArcProfileExtrudeStatus.Succeeded || emitted.Body is null) return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.Profile")).ToArray());
             if (materializerSource.Contains("EdgeFinish", StringComparison.Ordinal))
-                return ExportProfileSemanticTopBoundaryChamfer(materializerSource, parsed.Profile, parsed.Height, emitted);
+                return ExportProfileSemanticTopBoundaryChamfer(materializerSource, parsed.Profile, parsed.Height, emitted, v2Parse.DiagnosticSource);
             var step = Step242Exporter.ExportBody(emitted.Body); if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, parsed.Profile.Name, 0, "profile-extrude", "line-arc-profile"));
         }
@@ -1094,6 +1095,7 @@ public static class FirmamentBuildAndExport
     {
         KernelResult<FirmamentStepExportResult> Fail(string code) => KernelResult<FirmamentStepExportResult>.Failure([
             new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.ComposeSemanticSelection")]);
+        if (ProfileBoundaryChamferSourceBinder.SequenceDiagnostic(source) is { } sequenceDiagnostic) return Fail(sequenceDiagnostic);
         if (ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(source))
         {
             if (ProfileBoundaryChamferSourceBinder.HasProfileBoundaryFillet(source))
@@ -1179,10 +1181,24 @@ public static class FirmamentBuildAndExport
         string source,
         ResolvedProfile2D profile,
         double height,
-        LineArcProfileExtrudeResult emitted)
+        LineArcProfileExtrudeResult emitted,
+        string? diagnosticSource)
     {
+        var finishes = ProfileBoundaryChamferSourceBinder.FinishDeclarations(source).ToArray();
+        // The legacy materializer transport removes the enclosing Model. Return
+        // the corresponding declaration in the frontend's retained source, so
+        // the common provenance mapper receives offsets in its own input.
+        // A sequence fails at the second requested operation. Recipes are not
+        // operations and must not displace a real operation's diagnostic anchor.
+        var rejectedFinish = finishes.ElementAtOrDefault(finishes.Length > 1 ? 1 : 0);
+        var anchors = diagnosticSource is null ? rejectedFinish is null ? [] : new[] { rejectedFinish }
+            : ProfileBoundaryChamferSourceBinder.FinishDeclarations(diagnosticSource)
+                .Where(d => rejectedFinish is not null && d.Name?.Text == rejectedFinish.Name?.Text).ToArray();
+        var finishSpan = anchors.Length == 1 ? anchors[0].Span : (FirmamentV2SourceSpan?)null;
         KernelResult<FirmamentStepExportResult> Fail(string code) => KernelResult<FirmamentStepExportResult>.Failure([
-            new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.SemanticSelection")]);
+            new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.SemanticSelection")
+            { SourceSpan = finishSpan is { } span ? new(span.Start, span.Length) { LocationNote = "EdgeFinish declaration; the planner reports the enclosing operation." } : null }]);
+        if (ProfileBoundaryChamferSourceBinder.SequenceDiagnostic(source) is { } sequenceDiagnostic) return Fail(sequenceDiagnostic);
         if (ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(source))
         {
             if (ProfileBoundaryChamferSourceBinder.HasProfileBoundaryFillet(source))
@@ -1216,7 +1232,14 @@ public static class FirmamentBuildAndExport
                         : fillet.Plan.Junction is ProfileReflexSphereSeamCompatibilityJunctionPlan
                             ? "profile-reflex-sphere-seam-compatibility"
                             : "profile-convex-fillet-junction";
-                return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(filletStep.Value, filletTarget.StableId, fillet.Correspondence.Descendants.Count, route, "source-grounded-profile-fillet"));
+                return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(filletStep.Value, filletTarget.StableId, fillet.Correspondence.Descendants.Count, route, "source-grounded-profile-fillet")
+                {
+                    RuntimeBody = fillet.Body, RuntimeCorrespondence = fillet.Correspondence,
+                    EdgeFinishPlanning = fillet.PlanningEvidence,
+                    EngineeringFeatures = [new(filletTarget.StableId["edgefinish:".Length..], "EdgeFinish", filletTarget.StableId,
+                        filletTarget.HostBodyId, filletTarget.Side.ToString(), $"{profile.Name}.{filletTarget.LoopId}", radius,
+                        "Radius", "Remove", PolicySource: "Fillet", MaterializationRoute: fillet.PlanningEvidence?.Decision.Strategy ?? route)]
+                });
             }
             if (!ProfileBoundaryChamferSourceBinder.TryBind(source, profile, profile.Name, out var target, out var distance, out var bindingDiagnostic))
                 return Fail(bindingDiagnostic ?? "ProfileBoundaryChamferBindingFailed");
@@ -1234,7 +1257,14 @@ public static class FirmamentBuildAndExport
             if (!plannedStep.IsSuccess || plannedStep.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(plannedStep.Diagnostics);
             var plannedReimport = Step242Importer.ImportBody(plannedStep.Value);
             if (!plannedReimport.IsSuccess || plannedReimport.Value is null || !FirmamentManifoldChecker.IsManifold(plannedReimport.Value)) return Fail("ProfileBoundaryChamferStepReimportFailed");
-            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(plannedStep.Value, target.StableId, 0, "profile-boundary-chamfer-section-stack", "source-grounded-profile-boundary-chamfer"));
+            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(plannedStep.Value, target.StableId, 0, "profile-boundary-chamfer-section-stack", "source-grounded-profile-boundary-chamfer")
+            {
+                RuntimeBody = planned.Body, RuntimeCorrespondence = planned.Correspondence,
+                EdgeFinishPlanning = planned.PlanningEvidence,
+                EngineeringFeatures = [new(target.StableId["edgefinish:".Length..], "EdgeFinish", target.StableId,
+                    target.HostBodyId, target.Side.ToString(), $"{profile.Name}.{target.LoopId}", distance,
+                    "Distance", "Remove", PolicySource: "Chamfer", MaterializationRoute: planned.PlanningEvidence?.Decision.Strategy ?? "ProfileBoundaryChamfer")]
+            });
         }
         if (emitted.Body is null || emitted.Correspondence is null) return Fail("NoMaterializedDescendants");
         if (!IsAdmittedPrimitiveBoundary(profile.Loops.Single().Segments.Select(segment => segment.Geometry).ToArray()))

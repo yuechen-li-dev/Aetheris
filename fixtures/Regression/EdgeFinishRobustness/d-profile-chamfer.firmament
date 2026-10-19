@@ -1,0 +1,14 @@
+Model DShape {
+    units: mm
+    Path Outline {
+        start: Point2(10mm, 0mm)
+        heading: 90deg
+        Arc Round { turn: 180deg; radius: 10mm }
+        Close Flat
+    }
+    Profile Section from Outline
+    Struct Body { Extrude Stock { profile: Section; from: 0mm; to: 8mm } }
+    Modify Body {
+        EdgeFinish Rim { target: Section.Outer; on: Top; kind: Chamfer; distance: 1mm }
+    }
+}

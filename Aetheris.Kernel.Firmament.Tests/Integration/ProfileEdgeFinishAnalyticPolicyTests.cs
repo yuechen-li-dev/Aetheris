@@ -62,6 +62,19 @@ public sealed class ProfileEdgeFinishAnalyticPolicyTests
         Assert.Equal("SphereSeamCompatibility", compatibility.CompatibilityOverride);
     }
 
+    [Theory]
+    [InlineData(12d, ProfileEdgeFinishTorusRegime.Ring, ProfileEdgeFinishRegularity.Regular)]
+    [InlineData(8d, ProfileEdgeFinishTorusRegime.Horn, ProfileEdgeFinishRegularity.InteropSensitive)]
+    [InlineData(6d, ProfileEdgeFinishTorusRegime.Spindle, ProfileEdgeFinishRegularity.InteropSensitive)]
+    public void ConvexTorusRegimeUsesBothRadii(double radius, ProfileEdgeFinishTorusRegime regime, ProfileEdgeFinishRegularity regularity)
+    {
+        var policy = ProfileEdgeFinishAnalyticPolicy.Classify(new("arc", ProfileEdgeFinishKind.Fillet,
+            ProfileEdgeFinishSourceFamily.ArcDerived, ProfileEdgeFinishMaterialSide.Convex, radius, 4));
+        Assert.Equal(regime, policy.TorusRegime);
+        Assert.Equal(regularity, policy.Regularity);
+        Assert.Equal(radius - 4, policy.TorusMajorRadius);
+    }
+
     private static object[] Row(string station, ProfileEdgeFinishSourceFamily source, ProfileEdgeFinishMaterialSide material, double radius, string planner, ProfileEdgeFinishSurfaceFamily surface, ProfileEdgeFinishRegularity regularity, ProfileEdgeFinishAdmission admission)
         => [station, source, material, radius, planner, surface, regularity, admission];
 

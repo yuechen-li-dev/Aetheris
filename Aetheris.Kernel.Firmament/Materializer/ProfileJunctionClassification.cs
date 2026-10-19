@@ -77,10 +77,9 @@ public static class ProfileJunctionClassifier
 
     private static double SignedArea(ResolvedProfileLoop2D loop)
     {
-        var points = loop.Segments.Select(segment => Start(segment.Geometry)).ToArray();
-        return points.Any(point => point is null)
-            ? 0d
-            : points.Select((point, index) => point!.Value.X * points[(index + 1) % points.Length]!.Value.Y - points[(index + 1) % points.Length]!.Value.X * point.Value.Y).Sum() / 2d;
+        // Integrate the directed boundary, rather than its endpoint polygon. An
+        // arc and chord enclose material even though their two endpoints do not.
+        return loop.Segments.Sum(segment => ResolvedProfile2DValidator.SignedAreaContribution(segment.Geometry));
     }
 
     private static bool TryStartTangent(LineArcProfileCurve2D geometry, out (double X, double Y) tangent) =>
@@ -105,13 +104,6 @@ public static class ProfileJunctionClassifier
                 return false;
         }
     }
-
-    private static (double X, double Y)? Start(LineArcProfileCurve2D geometry) => geometry switch
-    {
-        LineArcLineSegment2D line => line.Start,
-        LineArcCircularArc2D arc => (arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians)),
-        _ => null
-    };
 
     private static bool Normalize(double x, double y, out (double X, double Y) tangent)
     {

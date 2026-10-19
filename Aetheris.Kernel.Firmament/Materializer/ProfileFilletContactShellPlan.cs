@@ -441,8 +441,9 @@ public static class ProfileFilletContactShellPlanner
         if (Math.Abs(area) <= Tolerance) return Fail("ProfileFilletContactShellProfileDegenerate");
 
         var frame = profile.EffectiveConstructionPlane;
-        var cap = profile.LocalEndDepth ?? 1d;
-        var transition = cap - mixed.FinishSize;
+        var top = target.Side == ProfileBoundaryChamferSide.Top;
+        var cap = top ? profile.LocalEndDepth ?? 1d : profile.LocalStartDepth ?? -1d;
+        var transition = cap + (top ? -mixed.FinishSize : mixed.FinishSize);
         var components = new List<ProfileFilletComponentContactContract>(loop.Segments.Count);
         var interfaces = new List<ProfileFilletContactBoundary>(loop.Segments.Count);
         var caps = new List<ProfileFilletContactBoundary>(loop.Segments.Count);
@@ -566,10 +567,6 @@ public static class ProfileFilletContactShellPlanner
         _ => throw new NotSupportedException()
     };
     private static bool Oriented(LineArcProfileCurve2D curve) => curve is not LineArcCircularArc2D arc || arc.SweepAngleRadians >= 0d;
-    private static double SignedArea(ResolvedProfileLoop2D loop) => loop.Segments.Sum(x => x.Geometry switch
-    {
-        LineArcLineSegment2D line => line.Start.X * line.End.Y - line.End.X * line.Start.Y,
-        LineArcCircularArc2D arc => 2d * (arc.Center.X * arc.Radius * (Math.Sin(arc.StartAngleRadians + arc.SweepAngleRadians) - Math.Sin(arc.StartAngleRadians)) - arc.Center.Y * arc.Radius * (Math.Cos(arc.StartAngleRadians + arc.SweepAngleRadians) - Math.Cos(arc.StartAngleRadians)) + arc.Radius * arc.Radius * arc.SweepAngleRadians),
-        _ => 0d
-    }) * .5d;
+    private static double SignedArea(ResolvedProfileLoop2D loop) =>
+        loop.Segments.Sum(segment => ResolvedProfile2DValidator.SignedAreaContribution(segment.Geometry));
 }

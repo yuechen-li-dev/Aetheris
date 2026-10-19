@@ -618,6 +618,16 @@ or countersink holes in the same Modify. The hole entry circles must stay strict
 inset top face. Fillets retain sharp vertical stock corners and join their four
 cylindrical blends on exact elliptical seams; this is not a whole-box rounding.
 A profile-composed finish names its Profile boundary and support instead.
+For a bare extruded Profile, `target: Section.Outer; on: Top` or `on: Bottom`
+finishes its whole rim. Straight polygon corners need not be right angles;
+tangent line/arc rims and an arc closed by a chord also have qualified paths.
+The Profile/Compose materializer admits one finish operation per construction;
+multiple requested finishes reject explicitly rather than emitting only the
+first. Uncalled Feature/Template definitions do not count as operations.
+Finish size must leave a noncollapsing cap. Closed loops reject `endClearance`;
+that field belongs to open-chain endpoint termination. See
+[fillet/chamfer constructions and limits](fillet-profiles.md) for executable
+D-profile examples and the planner's Judgment evidence.
 The generic variant has the same capability checks as `kind`.
 A bare `Fillet corners { ... }` is not an alternative EdgeFinish declaration.
 For a combined countersink, its conical relief must end above a positive shaft

@@ -572,6 +572,7 @@ public static class CliRunner
                 assertions = build.Value.Export.Assertions,
                 features = build.Value.Export.Features,
                 engineeringFeatures = build.Value.Export.EngineeringFeatures,
+                edgeFinishPlanning = build.Value.Export.EdgeFinishPlanning,
                 patterns = build.Value.Export.Patterns,
                 perforation = build.Value.Export.Perforation,
                 structural = build.Value.Export.Structural,

@@ -1,0 +1,16 @@
+Model AngledPlate {
+    units: mm
+    Path Outline {
+        start: Point2(0mm, 0mm)
+        heading: 0deg
+        Line South { length: 30mm }
+        Line East { turn: 60deg; length: 20mm }
+        Line North { turn: 120deg; length: 30mm }
+        Close West
+    }
+    Profile Section from Outline
+    Struct Body { Extrude Stock { profile: Section; from: 0mm; to: 8mm } }
+    Modify Body {
+        EdgeFinish Rim { target: Section.Outer; on: Top; kind: Fillet; radius: 1mm }
+    }
+}

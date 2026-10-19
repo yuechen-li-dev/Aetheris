@@ -23,7 +23,6 @@ public static class ProfileFilletContactShellMaterializer
         ProfileFilletContactShellPlan contacts)
     {
         ProfileFilletShellPlanResult Fail(string diagnostic) => new(false, null, null, null, null, [diagnostic]);
-        if (target.Side != ProfileBoundaryChamferSide.Top) return Fail("ProfileFilletContactShellBottomNotImplemented");
         if (mixed.FinishKind != ProfileEdgeFinishKind.Fillet) return Fail("ProfileFilletContactShellFilletPlanRequired");
         if (!ReferenceEquals(target, contacts.Target) && target.StableId != contacts.Target.StableId) return Fail("ProfileFilletContactShellTargetMismatch");
         var contactValidation = ProfileFilletContactGraphValidator.Validate(contacts);
@@ -34,15 +33,20 @@ public static class ProfileFilletContactShellMaterializer
         if (Math.Abs(area) <= Tolerance) return Fail("ProfileFilletContactShellProfileDegenerate");
 
         var frame = profile.EffectiveConstructionPlane;
-        var lowerDepth = profile.LocalStartDepth ?? -1d;
-        var capDepth = profile.LocalEndDepth ?? 1d;
-        var transitionDepth = capDepth - mixed.FinishSize;
+        var top = target.Side == ProfileBoundaryChamferSide.Top;
+        var lowerDepth = top ? profile.LocalStartDepth ?? -1d : profile.LocalEndDepth ?? 1d;
+        var capDepth = top ? profile.LocalEndDepth ?? 1d : profile.LocalStartDepth ?? -1d;
+        var transitionDepth = capDepth + (top ? -mixed.FinishSize : mixed.FinishSize);
         var radius = mixed.FinishSize;
-        var capOut = frame.AxisZ;
+        var capOut = top ? frame.AxisZ : Direction3D.Create(-frame.AxisZ.ToVector());
         var axialInto = -capOut.ToVector();
         var count = loop.Segments.Count;
         var classifications = ProfileJunctionClassifier.Classify(profile, loop)
             .ToDictionary(item => (item.PredecessorSegmentId, item.SuccessorSegmentId));
+        if (loop.Segments.All(s => s.Geometry is LineArcLineSegment2D) &&
+            classifications.Values.All(j => j.Classification == ProfileJunctionKind.ConvexProfileJunction) &&
+            !ProfileBoundaryChamferPlanner.TryCreateInsetOuterProfile(profile, target, radius, out _, out var insetDiagnostic))
+            return Fail($"ProfileBoundaryFilletInsetInvalid: {insetDiagnostic}");
         var junctions = new Junction[count];
 
         for (var i = 0; i < count; i++)
@@ -68,7 +72,11 @@ public static class ProfileFilletContactShellMaterializer
             var depth = source + axialInto * radius;
             if (classification.Classification == ProfileJunctionKind.ConvexProfileJunction)
             {
-                var center = source + na.ToVector() * radius + nb.ToVector() * radius + axialInto * radius;
+                var dot = na.ToVector().Dot(nb.ToVector());
+                // Keep established right-angle construction byte-stable. For any
+                // other convex angle, intersect the two inset support lines.
+                var setback = Math.Abs(dot) <= Tolerance ? radius : radius / (1 + dot);
+                var center = source + na.ToVector() * setback + nb.ToVector() * setback + axialInto * radius;
                 var capJunction = center + capOut.ToVector() * radius;
                 var majorAxis = Direction3D.Create(depth - center);
                 var planeNormal = Direction3D.Create(majorAxis.ToVector().Cross(capOut.ToVector()));
@@ -77,6 +85,8 @@ public static class ProfileFilletContactShellMaterializer
             }
             else if (classification.Classification == ProfileJunctionKind.ReflexProfileJunction && target.ReflexJunctionStyle == ProfileReflexJunctionStyle.SphereSeamCompatibility)
             {
+                if (Math.Abs(classification.MaterialInteriorAngleRadians - 3 * Math.PI / 2) > Tolerance)
+                    return Fail("ProfileBoundaryFilletReflexAngleUnsupported");
                 var center = source + na.ToVector() * radius + nb.ToVector() * radius + axialInto * radius;
                 var capJunction = center + capOut.ToVector() * radius;
                 var sideA = center - na.ToVector() * radius;
@@ -86,6 +96,8 @@ public static class ProfileFilletContactShellMaterializer
             }
             else if (classification.Classification == ProfileJunctionKind.ReflexProfileJunction)
             {
+                if (Math.Abs(classification.MaterialInteriorAngleRadians - 3 * Math.PI / 2) > Tolerance)
+                    return Fail("ProfileBoundaryFilletReflexAngleUnsupported");
                 var centerA = depth + na.ToVector() * radius;
                 var centerB = depth + nb.ToVector() * radius;
                 var capA = source + na.ToVector() * radius;
@@ -93,6 +105,8 @@ public static class ProfileFilletContactShellMaterializer
                 junctions[i] = new(JunctionKind.ReflexHornTorus, source, depth, depth, depth, depth, depth, capA, capB,
                     centerA, centerB, depth, classification.VertexId, na, nb);
             }
+            else if (classification.Classification == ProfileJunctionKind.Collinear)
+                junctions[i] = Junction.Smooth(source, side, cap, incomingCenter, outgoingCenter);
             else return Fail($"ProfileFilletContactShellSharpJunctionUnsupported:vertex={classification.VertexId}:kind={classification.Classification}");
         }
 
@@ -137,9 +151,13 @@ public static class ProfileFilletContactShellMaterializer
                 new ParameterInterval(0d, angle), true);
         }
         EdgeId EllipseEdge(string key, VertexId start, VertexId end, Point3D center,
-            Direction3D majorAxis, Direction3D planeNormal, double minorRadius) => Edge(key, start, end,
-            CurveGeometry.FromEllipse(new Ellipse3Curve(center, planeNormal, minorRadius * Math.Sqrt(2d), minorRadius, majorAxis)),
-            new ParameterInterval(0d, Math.PI / 2d), true);
+            Direction3D majorAxis, Direction3D planeNormal, double minorRadius)
+        {
+            var majorRadius = (points[start] - center).Length;
+            if (Math.Abs(majorRadius - minorRadius * Math.Sqrt(2d)) <= Tolerance) majorRadius = minorRadius * Math.Sqrt(2d);
+            return Edge(key, start, end, CurveGeometry.FromEllipse(new Ellipse3Curve(center, planeNormal,
+                majorRadius, minorRadius, majorAxis)), new ParameterInterval(0d, Math.PI / 2d), true);
+        }
         Use UseFrom(EdgeId edge, VertexId start)
         {
             var reverse = builder.Model.Edges.Single(item => item.Id == edge).StartVertexId != start;
@@ -147,6 +165,7 @@ public static class ProfileFilletContactShellMaterializer
         }
         FaceId Face(string stableId, IReadOnlyList<Use> uses, SurfaceGeometry surface, SemanticTopologyRole role, string source)
         {
+            if (!top) uses = uses.Reverse().Select(u => new Use(u.Edge, !u.Reverse)).ToArray();
             if (uses.Count < 3) throw new InvalidOperationException($"ProfileFilletContactShellFaceBoundaryInvalid:face={stableId}");
             var loopId = builder.AllocateLoopId(); var coedges = uses.Select(_ => builder.AllocateCoedgeId()).ToArray();
             for (var index = 0; index < uses.Count; index++)
@@ -167,14 +186,33 @@ public static class ProfileFilletContactShellMaterializer
             var sideStarts = new VertexId[count]; var sideEnds = new VertexId[count];
             var capStarts = new VertexId[count]; var capEnds = new VertexId[count];
             var bottomEdges = new EdgeId[count]; var sideContacts = new EdgeId[count]; var capContacts = new EdgeId?[count];
+            string CapVertexKey(int junction, int component, bool start)
+            {
+                var previous = (junction + count - 1) % count;
+                if (mixed.OrderedPatches[junction] is SphericalFilletPatch && mixed.OrderedPatches[previous] is SphericalFilletPatch)
+                    throw new InvalidOperationException("ProfileFilletContactShellAdjacentSphereLimitsUnsupported");
+                // A sphere-limit component has a point cap contact. Both of its
+                // interfaces and the adjacent cap edges meet that one authored
+                // component apex, rather than two coincident junction vertices.
+                var sphere = mixed.OrderedPatches[junction] is SphericalFilletPatch ? junction
+                    : mixed.OrderedPatches[previous] is SphericalFilletPatch ? previous : -1;
+                if (sphere >= 0) return $"sphere-limit:{sphere}:cap";
+                return junctions[junction].Kind == JunctionKind.ReflexHornTorus
+                    ? $"component:{component}:cap:{(start ? "start" : "end")}" : $"junction:{junction}:cap";
+            }
             for (var i = 0; i < count; i++)
             {
                 var next = (i + 1) % count;
                 lowerVertices[i] = Vertex($"source-vertex:{i}:lower", frame.ToWorld(Start(loop.Segments[i].Geometry), lowerDepth));
-                sideStarts[i] = Vertex($"component:{i}:side:start", junctions[i].OutgoingSide);
-                sideEnds[i] = Vertex($"component:{i}:side:end", junctions[next].IncomingSide);
-                capStarts[i] = Vertex($"component:{i}:cap:start", junctions[i].OutgoingCap);
-                capEnds[i] = Vertex($"component:{i}:cap:end", junctions[next].IncomingCap);
+                // These are junction-owned contacts, shared by the two incident
+                // components. Distinct per-component vertex IDs at the same
+                // planned point produce geometrically closed, disconnected caps.
+                // A reflex torus alone has two distinct cap contacts and an arc
+                // joining them; retain those explicit identities.
+                sideStarts[i] = Vertex($"junction:{i}:depth", junctions[i].OutgoingSide);
+                sideEnds[i] = Vertex($"junction:{next}:depth", junctions[next].IncomingSide);
+                capStarts[i] = Vertex(CapVertexKey(i, i, true), junctions[i].OutgoingCap);
+                capEnds[i] = Vertex(CapVertexKey(next, i, false), junctions[next].IncomingCap);
                 bottomEdges[i] = ProfileEdge($"source:{i}:lower", loop.Segments[i].Geometry, lowerVertices[i],
                     Vertex($"source-vertex:{next}:lower", frame.ToWorld(End(loop.Segments[i].Geometry), lowerDepth)), lowerDepth, frame);
                 var plannedSide = contacts.SideContactChains[i].OrderedContacts.OfType<ProfileFilletSideContactEdge>().Single();
@@ -230,7 +268,7 @@ public static class ProfileFilletContactShellMaterializer
             }
 
             Face($"{target.StableId}:bottom-cap", Enumerable.Range(0, count).Reverse().Select(i => UseFrom(bottomEdges[i], lowerVertices[(i + 1) % count])).ToArray(),
-                SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((0d, 0d), lowerDepth), Direction3D.Create(-frame.AxisZ.ToVector()), frame.AxisX)),
+                SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((0d, 0d), lowerDepth), Direction3D.Create(-capOut.ToVector()), frame.AxisX)),
                 SemanticTopologyRole.BottomFaceBoundaryLoop, $"profile:{profile.Name}.{loop.Name}");
 
             var topUses = new List<Use>();
@@ -241,7 +279,7 @@ public static class ProfileFilletContactShellMaterializer
                 if (junctionCap[next] is { } capJunction) topUses.Add(UseFrom(capJunction, capEnds[i]));
             }
             Face($"{target.StableId}:top-cap", topUses,
-                SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((0d, 0d), capDepth), frame.AxisZ, frame.AxisX)),
+                SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((0d, 0d), capDepth), capOut, frame.AxisX)),
                 SemanticTopologyRole.TopFaceBoundaryLoop, $"profile:{profile.Name}.{loop.Name}");
 
             for (var i = 0; i < count; i++)
@@ -395,12 +433,8 @@ public static class ProfileFilletContactShellMaterializer
         return Direction3D.Create(frame.ToWorldDirection(normal));
     }
 
-    private static double SignedArea(ResolvedProfileLoop2D loop) => loop.Segments.Sum(segment => segment.Geometry switch
-    {
-        LineArcLineSegment2D line => line.Start.X * line.End.Y - line.End.X * line.Start.Y,
-        LineArcCircularArc2D arc => 2d * (arc.Center.X * arc.Radius * (Math.Sin(arc.StartAngleRadians + arc.SweepAngleRadians) - Math.Sin(arc.StartAngleRadians)) - arc.Center.Y * arc.Radius * (Math.Cos(arc.StartAngleRadians + arc.SweepAngleRadians) - Math.Cos(arc.StartAngleRadians)) + arc.Radius * arc.Radius * arc.SweepAngleRadians),
-        _ => 0d
-    }) * .5d;
+    private static double SignedArea(ResolvedProfileLoop2D loop) =>
+        loop.Segments.Sum(segment => ResolvedProfile2DValidator.SignedAreaContribution(segment.Geometry));
 
     private enum JunctionKind { Smooth, ConvexMiter, ReflexHornTorus, ReflexCompatibilitySphere }
 

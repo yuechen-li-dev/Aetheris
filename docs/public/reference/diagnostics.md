@@ -4,6 +4,29 @@ Generic V2 build/validation errors use structured objects with `code`, `severity
 
 Unknown canonical statements and Box fields are errors. `profile-layout-placement-unsupported` rejects unsupported Concept Struct layout planes instead of substituting XY. Use a traced Construction Plane for supported oriented profile workflows. `SemanticSourceNotFound` preserves the missing source and the provenance explanation. An accidental through-depth Pocket fails; explicit `end: ThroughAll` selects the admitted through cut. Box top-boundary Fillet with disjoint ThroughAll shaft/counterbore holes is supported; `CombinedFeatureInteractionUnsupported` identifies a hole touching the finish band or another hole. Unsupported combined selectors retain `CombinedFeatureSelectionLost` at the EdgeFinish declaration.
 
+## Profile rim finishes
+
+- `ProfileBoundaryEdgeFinishSequenceUnsupported`: this Profile/Compose owner
+  admits one finish operation. Multiple requested finishes cannot be compiled
+  as a first-operation-only result. Uncalled recipes do not count as operations.
+- `ProfileEdgeFinishInsetCollapse`: the requested circular-segment finish reaches
+  or exceeds its inradius. Reduce the radius/distance to retain a cap.
+- `ProfileBoundaryFilletInsetInvalid` / `ProfileBoundaryChamferInsetCollapse`:
+  an inset polygon edge collapses or reverses; reduce the finish size.
+- `ProfileEdgeFinishJunctionUnsupported`: a sharp curved junction lacks a
+  qualified shared intersection for this profile family. This does not require
+  ordinary CAD authors to supply a general surface blend.
+- `ProfileEdgeFinishMixedShellFinishExceedsHostThickness`: the finish consumes
+  the full thickness rather than leaving the admitted stock region.
+- `ProfileBoundaryFilletEndClearanceRequiresOpenChain`: remove `endClearance`
+  from a closed-loop finish, or select the intended open chain.
+- `ProfileEdgeFinishMiterNumericToleranceExhausted` / `ProfileEdgeFinishMiterRefinementLimit`:
+  the finite miter representation cannot meet its certified tolerance within the
+  bounded numerical budget. No artifact is admitted.
+
+When a planner reports one unambiguous EdgeFinish operation, the diagnostic uses
+that enclosing declaration's span; expanded provenance is mapped where retained.
+
 ## Circular Sweep (X0)
 
 - `firmament-sweep-section-invalid`: circular diameter is missing, non-finite, or non-positive.

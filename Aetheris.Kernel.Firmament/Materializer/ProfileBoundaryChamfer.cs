@@ -30,7 +30,10 @@ public sealed record ProfileBoundaryChamferTarget(
     ProfileReflexJunctionStyle ReflexJunctionStyle = ProfileReflexJunctionStyle.ToroidalRolling);
 public sealed record ProfileBoundaryChamferPlanResult(
     bool Succeeded, BrepBody? Body, SemanticTopologyCorrespondence? Correspondence,
-    ProfileBoundaryChamferTarget? Target, IReadOnlyList<string> Diagnostics);
+    ProfileBoundaryChamferTarget? Target, IReadOnlyList<string> Diagnostics)
+{
+    public ProfileEdgeFinishEvidence? PlanningEvidence { get; init; }
+}
 
 /// <summary>
 /// M1's source-selected round.  It is deliberately a separate, non-generic plan: it
@@ -50,7 +53,6 @@ public sealed record ProfileStraightEdgeFilletPlanResult(
 
 public static class ProfileBoundaryChamferSourceBinder
 {
-    private static readonly Regex EdgeFinishHeader = new(@"\bEdgeFinish\s+(?<name>\w+)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex Target = new(@"\bTarget\s*:\s*(?<value>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*){0,2})", RegexOptions.CultureInvariant);
     private static readonly Regex On = new(@"\bOn\s*:\s*(?<value>Top|Bottom)\b", RegexOptions.CultureInvariant);
     private static readonly Regex Kind = new(@"\bKind\s*:\s*(?<value>\w+)\b", RegexOptions.CultureInvariant);
@@ -58,23 +60,38 @@ public static class ProfileBoundaryChamferSourceBinder
     private static readonly Regex Radius = new(@"\bRadius\s*:\s*(?<value>[-+.\deE]+)mm\b", RegexOptions.CultureInvariant);
     private static readonly Regex EndClearance = new(@"\bEndClearance\s*:\s*(?<value>[-+.\deE]+)mm\b", RegexOptions.CultureInvariant);
     private static readonly Regex ReflexJunction = new(@"\bReflexJunction\s*:\s*(?<value>\w+)\b", RegexOptions.CultureInvariant);
-    private static readonly Regex SelectionHeader = new(@"\bSelection\s+(?<name>\w+)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex CanonicalSelection = new(@"\bSource\s*:\s*(?<profile>\w+)\.(?<loop>\w+)\.\[\s*(?<segments>[\w\s,]+)\s*\]", RegexOptions.CultureInvariant);
-    private static readonly Regex HistoricalSelection = new(@"\bSource\s*:\s*(?<profile>\w+)\.ProfileSegments\s*\(\s*\[(?<segments>[\w\s,]+)\]\s*\)", RegexOptions.CultureInvariant);
-    private static readonly Regex Require = new(@"\bRequire\s*:\s*(?<value>ConnectedChain|ClosedLoop)\b", RegexOptions.CultureInvariant);
 
     public static bool HasSemanticProfileBoundaryFinish(string source) =>
-        EdgeFinishHeader.Matches(source).Cast<Match>().Any(header =>
-        {
-            var body = Block(source, header.Index + header.Length - 1);
-            return body is not null && On.IsMatch(body);
-        });
+        FinishDeclarations(source).Any(d => d.Body?.Statements.OfType<FieldSyntax>()
+            .Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "On") &&
+                FirmamentSyntaxValues.Reference(f.Value) is "Top" or "Bottom") == true);
 
-    public static bool HasProfileBoundaryFillet(string source) => EdgeFinishHeader.Matches(source).Cast<Match>().Any(header =>
+    public static bool HasProfileBoundaryFillet(string source) => FinishDeclarations(source).Any(d =>
+        d.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "On") &&
+            FirmamentSyntaxValues.Reference(f.Value) is "Top" or "Bottom") == true &&
+        d.Body.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Kind") &&
+            FirmamentSyntaxValues.Reference(f.Value) == "Fillet"));
+
+    internal static IEnumerable<DeclarationSyntax> FinishDeclarations(string source)
     {
-        var body = Block(source, header.Index + header.Length - 1);
-        return body is not null && On.IsMatch(body) && string.Equals(Kind.Match(body).Groups["value"].Value, "Fillet", StringComparison.Ordinal);
-    });
+        // Reuse executable construction ownership. A Feature/Template definition
+        // describes a recipe; its uncalled body is not another requested finish.
+        foreach (var declaration in FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements))
+        {
+            if (declaration.Type.Name.Text == "EdgeFinish") yield return declaration;
+            if (declaration.Type.Name.Text is "Modify" or "Compose")
+                foreach (var finish in declaration.Body?.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "EdgeFinish") ?? [])
+                    yield return finish;
+        }
+    }
+
+    private static string Word(DeclarationSyntax declaration, string field) => declaration.Body?.Statements.OfType<FieldSyntax>()
+        .Where(f => FirmamentSyntaxFields.SameField(f.Name.Text, field)).Select(f => FirmamentSyntaxValues.Reference(f.Value)).FirstOrDefault() ?? "";
+
+    internal static string? SequenceDiagnostic(string source) => SequenceDiagnostic(FinishDeclarations(source).ToArray());
+    private static string? SequenceDiagnostic(IReadOnlyList<DeclarationSyntax> finishes) => finishes.Count > 1
+        ? "ProfileBoundaryEdgeFinishSequenceUnsupported: This Profile materializer admits one EdgeFinish operation; multiple requested finishes cannot be compiled as a first-operation-only result."
+        : null;
 
     /// <summary>
     /// Resolves the source-bound fillet target into Profile order.  This is shared
@@ -85,9 +102,11 @@ public static class ProfileBoundaryChamferSourceBinder
     public static bool TryBindFillet(string source, ResolvedProfile2D profile, string hostBodyId, out ProfileBoundaryChamferTarget? target, out double radius, out double endClearance, out string? diagnostic)
     {
         target = null; radius = 0d; endClearance = 0d; diagnostic = null;
-        var finish = EdgeFinishHeader.Matches(source).Cast<Match>().Select(match => (Match: match, Body: Block(source, match.Index + match.Length - 1))).FirstOrDefault(x => x.Body is not null && On.IsMatch(x.Body) && string.Equals(Kind.Match(x.Body).Groups["value"].Value, "Fillet", StringComparison.Ordinal));
-        if (finish.Body is null) { diagnostic = "ProfileBoundaryFilletBoundaryRequired"; return false; }
-        var fields = new FinishFields(source, finish.Match.Index, finish.Body);
+        var finishes = FinishDeclarations(source).ToArray();
+        if (SequenceDiagnostic(finishes) is { } sequenceDiagnostic) { diagnostic = sequenceDiagnostic; return false; }
+        var finish = finishes.FirstOrDefault(d => Word(d, "On") is "Top" or "Bottom" && Word(d, "Kind") == "Fillet");
+        if (finish?.Body is null) { diagnostic = "ProfileBoundaryFilletBoundaryRequired"; return false; }
+        var fields = new FinishFields(finish);
         fields.Read("Kind", Kind);
         var profileMode = fields.Read("Profile", new Regex(@"\bProfile\s*:\s*(?<mode>[^\s;}]+)", RegexOptions.CultureInvariant));
         if (profileMode.Success && profileMode.Groups["mode"].Value != "Circular")
@@ -112,18 +131,9 @@ public static class ProfileBoundaryChamferSourceBinder
         }
         else
         {
-            var selection = SelectionHeader.Matches(source).Cast<Match>()
-                .Select(match => (Match: match, Body: Block(source, match.Index + match.Length - 1)))
-                .FirstOrDefault(x => string.Equals(x.Match.Groups["name"].Value, rawTarget, StringComparison.Ordinal));
-            if (selection.Body is null) { diagnostic = "ProfileBoundaryFilletTargetUnknown"; return false; }
-            var canonical = CanonicalSelection.Match(selection.Body); var historical = HistoricalSelection.Match(selection.Body);
-            var selectionSource = canonical.Success ? canonical : historical; var requirement = Require.Match(selection.Body);
-            if (!selectionSource.Success || !requirement.Success) { diagnostic = "ProfileBoundaryFilletSelectionKindUnsupported"; return false; }
-            requestedProfile = selectionSource.Groups["profile"].Value;
-            requestedLoop = canonical.Success ? canonical.Groups["loop"].Value : "Outer";
-            requestedSegments = selectionSource.Groups["segments"].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            chainKind = string.Equals(requirement.Groups["value"].Value, "ClosedLoop", StringComparison.Ordinal)
-                ? ProfileBoundaryChamferChainKind.ClosedLoop : ProfileBoundaryChamferChainKind.OpenConnectedChain;
+            if (!TrySelection(source, rawTarget, out var selection, out diagnostic)) return false;
+            requestedProfile = selection!.Profile; requestedLoop = selection.Loop;
+            requestedSegments = selection.Segments; chainKind = selection.Kind;
             provenance = $"Selection:{rawTarget}";
         }
         if (!string.Equals(requestedProfile, profile.Name, StringComparison.Ordinal)) { diagnostic = "ProfileBoundaryFilletProfileUnknown"; return false; }
@@ -142,34 +152,39 @@ public static class ProfileBoundaryChamferSourceBinder
         else if (ordered.Count == 1) chainKind = ProfileBoundaryChamferChainKind.SingleSegment;
         var orderedSegments = ordered.Select(index => loop.Segments[index]).ToArray();
 
+        if (closed && clearanceMatch.Success) { diagnostic = "ProfileBoundaryFilletEndClearanceRequiresOpenChain: Closed loops have no endpoint clearance; remove endClearance."; return false; }
+
         endClearance = clearanceMatch.Success && double.TryParse(clearanceMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var explicitClearance) ? explicitClearance : radius;
         if (!double.IsFinite(endClearance) || endClearance <= 0d) { diagnostic = "ProfileBoundaryFilletEndClearanceMustBePositive"; return false; }
         var reflexJunctionMatch = fields.Read("ReflexJunction", ReflexJunction);
         var reflexJunctionStyle = ProfileReflexJunctionStyle.ToroidalRolling;
-        if (reflexJunctionMatch.Success && !Enum.TryParse(reflexJunctionMatch.Groups["value"].Value, ignoreCase: false, out reflexJunctionStyle))
+        if (reflexJunctionMatch.Success && (!Enum.TryParse(reflexJunctionMatch.Groups["value"].Value, ignoreCase: false, out reflexJunctionStyle) ||
+            !Enum.IsDefined(reflexJunctionStyle) || reflexJunctionMatch.Groups["value"].Value != reflexJunctionStyle.ToString()))
         {
             diagnostic = "ProfileBoundaryFilletReflexJunctionStyleUnsupported";
             return false;
         }
         if (!fields.Complete(out diagnostic)) return false;
-        target = new($"edgefinish:{finish.Match.Groups["name"].Value}", hostBodyId, profile.Name, loop.Name,
+        target = new($"edgefinish:{finish.Name?.Text}", hostBodyId, profile.Name, loop.Name,
             orderedSegments.Select(segment => segment.Name).ToArray(), Enum.Parse<ProfileBoundaryChamferSide>(on.Groups["value"].Value),
-            chainKind, $"offset:{finish.Match.Index}", provenance, reflexJunctionStyle);
+            chainKind, $"offset:{finish.Span.Start}", provenance, reflexJunctionStyle);
         return true;
     }
 
     public static bool TryBind(string source, ResolvedProfile2D profile, string hostBodyId, out ProfileBoundaryChamferTarget? target, out double distance, out string? diagnostic)
     {
         target = null; distance = 0d; diagnostic = null;
-        var finish = EdgeFinishHeader.Matches(source).Cast<Match>().Select(match => (Match: match, Body: Block(source, match.Index + match.Length - 1))).FirstOrDefault(x => x.Body is not null && On.IsMatch(x.Body));
-        if (finish.Body is null) { diagnostic = "ProfileBoundaryChamferBoundaryRequired"; return false; }
-        var name = finish.Match.Groups["name"].Value;
-        var fields = new FinishFields(source, finish.Match.Index, finish.Body);
+        var finishes = FinishDeclarations(source).ToArray();
+        if (SequenceDiagnostic(finishes) is { } sequenceDiagnostic) { diagnostic = sequenceDiagnostic; return false; }
+        var finish = finishes.FirstOrDefault(d => Word(d, "On") is "Top" or "Bottom");
+        if (finish?.Body is null) { diagnostic = "ProfileBoundaryChamferBoundaryRequired"; return false; }
+        var name = finish.Name?.Text;
+        var fields = new FinishFields(finish);
         var targetMatch = fields.Read("Target", Target); var on = fields.Read("On", On); var kind = fields.Read("Kind", Kind); var amount = fields.Read("Distance", Distance);
         if (!targetMatch.Success || !on.Success || !kind.Success) { diagnostic = "ProfileBoundaryChamferDeclarationInvalid"; return false; }
         if (string.Equals(kind.Groups["value"].Value, "Fillet", StringComparison.Ordinal))
         {
-            diagnostic = Radius.IsMatch(finish.Body) ? "ProfileBoundaryFilletNotMaterialized" : "ProfileBoundaryFilletRadiusRequired";
+            diagnostic = fields.Read("Radius", Radius).Success ? "ProfileBoundaryFilletNotMaterialized" : "ProfileBoundaryFilletRadiusRequired";
             return false;
         }
         if (!amount.Success) { diagnostic = "ProfileBoundaryChamferDeclarationInvalid"; return false; }
@@ -188,14 +203,9 @@ public static class ProfileBoundaryChamferSourceBinder
         }
         else
         {
-            var selection = SelectionHeader.Matches(source).Cast<Match>().Select(match => (Match: match, Body: Block(source, match.Index + match.Length - 1))).FirstOrDefault(x => x.Match.Groups["name"].Value == rawTarget);
-            if (selection.Body is null) { diagnostic = "ProfileBoundaryChamferTargetUnknown"; return false; }
-            var canonical = CanonicalSelection.Match(selection.Body); var historical = HistoricalSelection.Match(selection.Body); var sourceMatch = canonical.Success ? canonical : historical;
-            var require = Require.Match(selection.Body);
-            if (!sourceMatch.Success || !require.Success) { diagnostic = "ProfileBoundaryChamferSelectionKindUnsupported"; return false; }
-            requestedProfile = sourceMatch.Groups["profile"].Value; loop = canonical.Success ? canonical.Groups["loop"].Value : "Outer";
-            segments = sourceMatch.Groups["segments"].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            chainKind = string.Equals(require.Groups["value"].Value, "ClosedLoop", StringComparison.Ordinal) ? ProfileBoundaryChamferChainKind.ClosedLoop : ProfileBoundaryChamferChainKind.OpenConnectedChain;
+            if (!TrySelection(source, rawTarget, out var selection, out diagnostic)) return false;
+            requestedProfile = selection!.Profile; loop = selection.Loop;
+            segments = selection.Segments; chainKind = selection.Kind;
             provenance = $"Selection:{rawTarget}";
         }
         if (!string.Equals(requestedProfile, profile.Name, StringComparison.Ordinal)) { diagnostic = "ProfileBoundaryChamferProfileUnknown"; return false; }
@@ -214,35 +224,33 @@ public static class ProfileBoundaryChamferSourceBinder
         else if (ordered.Count == 1) chainKind = ProfileBoundaryChamferChainKind.SingleSegment;
         if (!fields.Complete(out diagnostic)) return false;
         target = new($"edgefinish:{name}", hostBodyId, profile.Name, loop, ordered.Select(index => resolvedLoop.Segments[index].Name).ToArray(),
-            Enum.Parse<ProfileBoundaryChamferSide>(on.Groups["value"].Value), chainKind, $"offset:{finish.Match.Index}", provenance);
+            Enum.Parse<ProfileBoundaryChamferSide>(on.Groups["value"].Value), chainKind, $"offset:{finish.Span.Start}", provenance);
         return true;
     }
 
     private sealed class FinishFields
     {
         private readonly List<string> diagnostics = [];
-        private readonly FirmamentSyntaxFields? fields;
-        private readonly string body;
-        internal FinishFields(string source, int start, string body)
+        private readonly FirmamentSyntaxFields fields;
+        internal FinishFields(DeclarationSyntax declaration)
         {
-            this.body = body;
-            var declaration = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
-                .FirstOrDefault(d => d.Type.Name.Text == "EdgeFinish" && d.Span.Start == start);
-            if (declaration is not null)
-            {
-                fields = new(declaration, diagnostics);
-                fields.Take("PatternIdentity"); // Compiler-owned finite expansion receipt.
-            }
+            fields = new(declaration, diagnostics);
+            fields.Take("PatternIdentity"); // Compiler-owned finite expansion receipt.
         }
         internal Match Read(string name, Regex reader)
         {
-            fields?.Take(name);
-            return reader.Match(body);
+            var value = fields.Take(name);
+            if (value is null) return Match.Empty;
+            var text = name + ": " + FirmamentSyntaxWriter.Expression(value);
+            var match = reader.Match(text);
+            if (match.Success && match.Index == 0 && match.Length == text.Length) return match;
+            fields.Invalid(name); // Optional malformed fields must not disappear into defaults.
+            return Match.Empty;
         }
         internal bool Complete(out string? diagnostic)
         {
-            fields?.Complete();
-            diagnostic = fields is null ? "ProfileBoundaryEdgeFinishDeclarationInvalid" : diagnostics.FirstOrDefault();
+            fields.Complete();
+            diagnostic = diagnostics.FirstOrDefault();
             return diagnostic is null;
         }
     }
@@ -258,11 +266,31 @@ public static class ProfileBoundaryChamferSourceBinder
         while (selected.Contains(current)) { result.Add(current); current = (current + 1) % count; }
         return result.Count == selected.Count ? result : null;
     }
-    private static string? Block(string text, int open)
+    private sealed record BoundarySelection(string Profile, string Loop, IReadOnlyList<string> Segments, ProfileBoundaryChamferChainKind Kind);
+
+    private static bool TrySelection(string source, string name, out BoundarySelection? result, out string? diagnostic)
     {
-        var depth = 0;
-        for (var i = open; i < text.Length; i++) { if (text[i] == '{') depth++; else if (text[i] == '}' && --depth == 0) return text[(open + 1)..i]; }
-        return null;
+        result = null; diagnostic = null;
+        var declaration = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
+            .FirstOrDefault(d => d.Type.Name.Text == "Selection" && d.Name?.Text == name);
+        if (declaration is null) { diagnostic = "ProfileBoundaryEdgeFinishTargetUnknown:" + name; return false; }
+        var diagnostics = new List<string>(); var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+        var selection = fields.Take("Source"); var requirement = fields.Word("Require");
+        var target = fields.Word("Target"); // Historical TopBoundary spelling, still admitted.
+        var profile = ""; var loop = "Outer"; IReadOnlyList<ArgumentSyntax>? arguments = null;
+        if (selection is MemberSetSyntax { Target: MemberSyntax { Target: ReferenceSyntax p } member } set)
+        { profile = p.Name.Text; loop = member.Member.Text; arguments = set.Members; }
+        else if (selection is CallSyntax { Target: MemberSyntax { Target: ReferenceSyntax p2, Member.Text: "ProfileSegments" }, Arguments.Count: 1 } call &&
+            call.Arguments[0].Value is SequenceSyntax { Kind: SequenceKind.List } list)
+        { profile = p2.Name.Text; arguments = list.Items; }
+        fields.Complete();
+        if (diagnostics.Count > 0) { diagnostic = diagnostics[0]; return false; }
+        if (arguments is null || arguments.Count == 0 || arguments.Any(a => a.Name is not null || a.Default is not null || a.Value is not ReferenceSyntax) ||
+            requirement is not ("ClosedLoop" or "ConnectedChain") || target is not (null or "TopBoundary"))
+        { diagnostic = "ProfileBoundaryEdgeFinishSelectionKindUnsupported:" + name; return false; }
+        result = new(profile, loop, arguments.Select(a => ((ReferenceSyntax)a.Value).Name.Text).ToArray(),
+            requirement == "ClosedLoop" ? ProfileBoundaryChamferChainKind.ClosedLoop : ProfileBoundaryChamferChainKind.OpenConnectedChain);
+        return true;
     }
 }
 
@@ -281,7 +309,8 @@ public static class ProfileBoundaryChamferPlanner
         {
             var mixed = ProfileEdgeFinishMixedShellPlanner.TryPlan(profile, target, ProfileEdgeFinishKind.Chamfer, distance);
             if (!mixed.Succeeded || mixed.Plan is null)
-                return Fail(ProfileBoundaryCurvedFinishDiagnostic.ForFirstSelectedArc(profile, loop, target, distance, "Chamfer")
+                return Fail((target.ChainKind != ProfileBoundaryChamferChainKind.ClosedLoop
+                        ? ProfileBoundaryCurvedFinishDiagnostic.ForFirstSelectedArc(profile, loop, target, distance, "Chamfer") : null)
                     ?? mixed.Diagnostics.FirstOrDefault()
                     ?? "ProfileBoundaryChamferSegmentKindUnsupported");
             return ProfileEdgeFinishMixedShellMaterializer.TryMaterializeChamfer(profile, target, mixed.Plan);
@@ -295,7 +324,7 @@ public static class ProfileBoundaryChamferPlanner
         var area = SignedArea(lines.Select(x => x.Start).ToArray());
         if (Math.Abs(area) <= Tol) return Fail("ProfileBoundaryChamferInsetCollapse");
         var junctions = ProfileJunctionClassifier.Classify(profile, loop);
-        if (junctions.Any(x => (x.Classification is ProfileJunctionKind.Collinear or ProfileJunctionKind.Degenerate) &&
+        if (junctions.Any(x => x.Classification == ProfileJunctionKind.Degenerate &&
             (selected.Contains(IndexOf(loop, x.PredecessorSegmentId)) || selected.Contains(IndexOf(loop, x.SuccessorSegmentId)))))
             return Fail("ProfileBoundaryChamferJunctionDegenerate");
         var inset = BuildInset(lines, selected, area, distance, out var insetDiagnostic);
@@ -312,7 +341,7 @@ public static class ProfileBoundaryChamferPlanner
         var lines = loop.Segments.Select(x => (LineArcLineSegment2D)x.Geometry).ToArray(); var selected = target.SegmentIds.Select(id => Array.FindIndex(loop.Segments.ToArray(), x => x.Name == id)).ToHashSet();
         if (selected.Count != lines.Length || selected.Any(x => x < 0)) { diagnostic = "ProfileBoundaryChamferComposeWholeLoopRequired"; return false; }
         var junctions = ProfileJunctionClassifier.Classify(profile, loop);
-        if (junctions.Any(x => x.Classification is ProfileJunctionKind.Collinear or ProfileJunctionKind.Degenerate)) { diagnostic = "ProfileBoundaryChamferJunctionDegenerate"; return false; }
+        if (junctions.Any(x => x.Classification == ProfileJunctionKind.Degenerate)) { diagnostic = "ProfileBoundaryChamferJunctionDegenerate"; return false; }
         var inset = BuildInset(lines, selected, SignedArea(lines.Select(x => x.Start).ToArray()), distance, out diagnostic);
         if (inset is null) return false;
         var segments = lines.Select((_, i) => new ResolvedProfileSegment2D(loop.Segments[i].Name, new LineArcLineSegment2D(inset[i], inset[(i + 1) % inset.Length]), loop.Segments[i].Provenance with { StableId = loop.Segments[i].Provenance.StableId + ":inset", Derivation = "ProfileBoundaryChamferInset" })).ToArray();
@@ -343,7 +372,9 @@ public static class ProfileBoundaryChamferPlanner
         for (var i = 0; i < count; i++)
         {
             var line = lines[i]; var a = selected.Contains(i) ? result[i] : line.Start; var b = selected.Contains(i) ? result[(i + 1) % count] : line.End;
-            if (Distance(a, b) <= Tol) { diagnostic = "ProfileBoundaryChamferInsetCollapse"; return null; }
+            if (Distance(a, b) <= Tol || (b.X - a.X) * (line.End.X - line.Start.X) +
+                (b.Y - a.Y) * (line.End.Y - line.Start.Y) <= Tol * Distance(line.Start, line.End))
+            { diagnostic = "ProfileBoundaryChamferInsetCollapse"; return null; }
         }
         if (HasSelfIntersection(result)) { diagnostic = "ProfileBoundaryChamferOffsetSelfIntersection"; return null; }
         return result;
@@ -375,7 +406,11 @@ public static class ProfileBoundaryChamferPlanner
         var b = (X: second.Start.X + n2x * distance, Y: second.Start.Y + n2y * distance);
         var r = (X: first.End.X - first.Start.X, Y: first.End.Y - first.Start.Y); var s = (X: second.End.X - second.Start.X, Y: second.End.Y - second.Start.Y);
         var cross = r.X * s.Y - r.Y * s.X;
-        if (Math.Abs(cross) <= Tol) { point = default; return false; }
+        if (Math.Abs(cross) <= Tol)
+        {
+            point = b;
+            return r.X * s.X + r.Y * s.Y > 0; // Same directed support; preserve the authored subdivision.
+        }
         var q = (X: b.X - a.X, Y: b.Y - a.Y); var t = (q.X * s.Y - q.Y * s.X) / cross;
         point = (a.X + t * r.X, a.Y + t * r.Y); return double.IsFinite(point.X) && double.IsFinite(point.Y);
     }
@@ -602,17 +637,9 @@ public static class ProfileBoundaryCurvedFinishDiagnostic
 
     private static double SignedArea(ResolvedProfileLoop2D loop)
     {
-        var points = loop.Segments.Select(segment => Start(segment.Geometry)).ToArray();
-        if (points.Any(point => point is null)) return 0d;
-        return points.Select((point, index) => point!.Value.X * points[(index + 1) % points.Length]!.Value.Y - points[(index + 1) % points.Length]!.Value.X * point.Value.Y).Sum() * .5d;
+        return loop.Segments.Sum(segment => ResolvedProfile2DValidator.SignedAreaContribution(segment.Geometry));
     }
 
-    private static (double X, double Y)? Start(LineArcProfileCurve2D geometry) => geometry switch
-    {
-        LineArcLineSegment2D line => line.Start,
-        LineArcCircularArc2D arc => (arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians)),
-        _ => null
-    };
 }
 
 /// <summary>
@@ -869,7 +896,10 @@ public sealed record ProfileReflexFilletJunctionPlan(string VertexId, ProfileJun
     public override Point3D SideBContact { get => VerticalNotchContact; init { } }
 }
 public sealed record ProfileFilletShellPlan(ProfileBoundaryChamferTarget Target, double Radius, double EndClearance, IReadOnlyList<ProfileFilletStraightRollPlan> Rolls, ProfileFilletJunctionPlan Junction, string EndpointPolicy = "ExternalEndpointsOnly", IReadOnlyList<ProfileFilletComponent>? Components = null);
-public sealed record ProfileFilletShellPlanResult(bool Succeeded, BrepBody? Body, SemanticTopologyCorrespondence? Correspondence, ProfileFilletShellPlan? Plan, ProfileStraightEdgeFilletPlan? SingleSegmentPlan, IReadOnlyList<string> Diagnostics);
+public sealed record ProfileFilletShellPlanResult(bool Succeeded, BrepBody? Body, SemanticTopologyCorrespondence? Correspondence, ProfileFilletShellPlan? Plan, ProfileStraightEdgeFilletPlan? SingleSegmentPlan, IReadOnlyList<string> Diagnostics)
+{
+    public ProfileEdgeFinishEvidence? PlanningEvidence { get; init; }
+}
 
 public static class ProfileFilletShellPlanner
 {
@@ -892,6 +922,12 @@ public static class ProfileFilletShellPlanner
             var mixed = ProfileEdgeFinishMixedShellPlanner.TryPlan(profile, target, ProfileEdgeFinishKind.Fillet, radius);
             if (!mixed.Succeeded || mixed.Plan is null)
                 return Fail(mixed.Diagnostics.FirstOrDefault() ?? "ProfileFilletContactShellPlanningFailed");
+            if (mixed.Plan.JunctionDecision?.Strategy == "CircularSegmentMiter")
+            {
+                var miter = CircularSegmentEdgeFinishMaterializer.TryMaterialize(profile, target, mixed.Plan);
+                return new(miter.Succeeded, miter.Body, miter.Correspondence, null, null, miter.Diagnostics)
+                    { PlanningEvidence = miter.PlanningEvidence };
+            }
             var contacts = ProfileFilletContactShellPlanner.TryPlan(profile, target, mixed.Plan);
             if (!contacts.Succeeded || contacts.Plan is null)
                 return Fail(contacts.Diagnostics.FirstOrDefault() ?? "ProfileFilletContactShellPlanningFailed");

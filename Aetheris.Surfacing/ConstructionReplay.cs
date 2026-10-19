@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
 
 namespace Aetheris.Surfacing;
 
@@ -14,124 +15,9 @@ internal static class ConstructionAuthorityEvolution
         GeometricDelta delta,
         IReadOnlyList<SculptValidationEvidence> evidence)
     {
-        var authority = input.ConstructionAuthority ?? ConstructionState.FromHousing(input.Construction, input.BodyStableId + ".legacy-base");
+        var authority = input.ConstructionAuthority ?? ConstructionState.FromHousing(input.Construction ?? throw new InvalidOperationException("A non-housing state requires explicit construction authority."), input.BodyStableId + ".legacy-base");
         return authority.Append(ConstructionOperationState.Accepted(input, outputName, operation, outputStateId, delta, evidence));
     }
-}
-
-public sealed record ConstructionReplayStep(
-    int Index,
-    string OperationId,
-    string OperationKind,
-    BodyStateId AuthoredPredecessor,
-    BodyStateId RealizedPredecessor,
-    BodyStateId? RealizedOutput,
-    bool Succeeded,
-    IReadOnlyList<SculptDiagnostic> Diagnostics);
-
-public sealed record ConstructionReplayResult(
-    bool IsSuccess,
-    BodyState? OutputState,
-    BodyState? AuthoritativePredecessor,
-    ConstructionOperationState? FailedOperation,
-    IReadOnlyList<ConstructionReplayStep> Steps,
-    IReadOnlyList<SculptDiagnostic> Diagnostics);
-
-/// <summary>Correctness-baseline full replay of one linear typed construction program.</summary>
-public static class ConstructionStateReplayer
-{
-    public static ConstructionReplayResult Replay(ConstructionState constructionState, string? outputName = null)
-    {
-        ArgumentNullException.ThrowIfNull(constructionState);
-        if (!StringComparer.Ordinal.Equals(constructionState.SchemaId, ConstructionState.CurrentSchemaId)
-            || constructionState.SchemaVersion != ConstructionState.CurrentSchemaVersion)
-            return Failure(null, null, null, [], "bodystate-construction-version-unsupported",
-                $"ConstructionState schema '{constructionState.SchemaId}' version {constructionState.SchemaVersion} is unsupported; expected {ConstructionState.CurrentSchemaId} v{ConstructionState.CurrentSchemaVersion}.");
-
-        SculptResult created;
-        switch (constructionState.Base)
-        {
-            case HousingBaseConstruction housing when housing.SchemaVersion == 1:
-                var recipe = housing.Housing;
-                created = SculptedHousingFactory.CreateBase(housing.BaseId, recipe.Width, recipe.Depth, recipe.BaseHeight, recipe.Holes);
-                break;
-            case HousingBaseConstruction housing:
-                return Failure(null, null, null, [], "bodystate-base-version-unsupported",
-                    $"BaseConstruction '{housing.BaseId}' payload version {housing.SchemaVersion} is unsupported.");
-            default:
-                return Failure(null, null, null, [], "bodystate-base-kind-unsupported",
-                    $"BaseConstruction kind '{constructionState.Base.BaseKind}' is not admitted by this runtime.");
-        }
-
-        if (!created.IsSuccess || created.OutputState is null)
-            return new(false, null, null, null, [], [new("bodystate-base-replay-failed",
-                "BaseConstruction could not be realized: " + string.Join(" | ", created.Diagnostics.Select(item => $"{item.Code}:{item.Message}"))) ]);
-
-        var current = created.OutputState with { ConstructionAuthority = constructionState with { Operations = [] } };
-        var steps = new List<ConstructionReplayStep>();
-        for (var index = 0; index < constructionState.Operations.Count; index++)
-        {
-            var authored = constructionState.Operations[index];
-            if (index > 0 && authored.PredecessorStateId != constructionState.Operations[index - 1].OutputStateId)
-                return OperationFailure(current, authored, index, steps, [new("bodystate-operation-order-invalid",
-                    $"Operation '{authored.OperationId}' names predecessor {authored.PredecessorStateId.Value}, but the preceding authored operation outputs {constructionState.Operations[index - 1].OutputStateId.Value}.", authored.OperationId)]);
-            if (authored.PayloadVersion != authored.Payload.SchemaVersion || authored.PayloadVersion != 1)
-                return OperationFailure(current, authored, index, steps, [new("bodystate-operation-version-unsupported",
-                    $"Operation '{authored.OperationId}' ({authored.OperationKind}) payload version {authored.PayloadVersion} is unsupported.", authored.OperationId)]);
-            if (!StringComparer.Ordinal.Equals(authored.OperationId, authored.Payload.StableId)
-                || !StringComparer.Ordinal.Equals(authored.OperationKind, authored.Payload.OperationKind))
-                return OperationFailure(current, authored, index, steps, [new("bodystate-operation-identity-invalid",
-                    $"Operation envelope '{authored.OperationId}'/{authored.OperationKind} does not match its typed payload '{authored.Payload.StableId}'/{authored.Payload.OperationKind}.", authored.OperationId)]);
-
-            var nextName = index == constructionState.Operations.Count - 1 && !string.IsNullOrWhiteSpace(outputName)
-                ? outputName! : authored.OutputAuthoredName;
-            var realized = Apply(current, nextName, authored.Payload);
-            if (!realized.IsSuccess || realized.OutputState is null)
-                return OperationFailure(current, authored, index, steps, realized.Diagnostics);
-
-            var output = realized.OutputState;
-            var replayedOperations = output.ConstructionAuthority!.Operations.ToArray();
-            replayedOperations[^1] = replayedOperations[^1] with { ReplayStatus = ConstructionReplayStatus.ReplayedAndValidated };
-            current = output with { ConstructionAuthority = output.ConstructionAuthority with { Operations = replayedOperations } };
-            steps.Add(new(index, authored.OperationId, authored.OperationKind, authored.PredecessorStateId,
-                realized.Delta!.InputState, current.StateId, true, []));
-        }
-
-        return new(true, current, current, null, steps, []);
-    }
-
-    private static SculptResult Apply(BodyState input, string outputName, IConstructionOperation operation) => operation switch
-    {
-        OffsetRegionOperation offset => OffsetRegionSculptor.Apply(input, outputName, offset),
-        ReplaceRegionOperation replace => ReplaceRegionSculptor.Apply(input, outputName, replace),
-        SafeHoleOperation hole => SafeHoleSculptor.Apply(input, outputName, hole),
-        BlendBoundaryOperation blend => Blend(BlendBoundarySculptor.Apply(input, outputName, blend)),
-        AddSectionChainOperation add => AddSectionChainSculptor.Apply(input, outputName, add),
-        RemoveSectionChainOperation remove => RemoveSectionChainSculptor.Apply(input, outputName, remove),
-        _ => SculptResult.Failure([new("bodystate-operation-kind-unsupported",
-            $"Typed construction operation '{operation.OperationKind}' is not admitted by this runtime.", operation.StableId)])
-    };
-
-    private static SculptResult Blend(BlendBoundaryResult result) => result.IsSuccess && result.OutputState is not null
-        ? new(true, result.OutputState, result.Delta, result.OutputState.ValidationEvidence, result.Diagnostics)
-        : SculptResult.Failure(result.Diagnostics);
-
-    private static ConstructionReplayResult OperationFailure(BodyState current, ConstructionOperationState operation, int index,
-        List<ConstructionReplayStep> steps, IReadOnlyList<SculptDiagnostic> cause)
-    {
-        var diagnostics = new List<SculptDiagnostic>
-        {
-            new("bodystate-operation-replay-failed",
-                $"Replay failed atomically at operation {index} '{operation.OperationId}' ({operation.OperationKind}); predecessor {current.StateId.Value} remains authoritative.", operation.OperationId)
-        };
-        diagnostics.AddRange(cause);
-        steps.Add(new(index, operation.OperationId, operation.OperationKind, operation.PredecessorStateId, current.StateId, null, false, cause));
-        return new(false, null, current, operation, steps, diagnostics);
-    }
-
-    private static ConstructionReplayResult Failure(BodyState? output, BodyState? predecessor, ConstructionOperationState? operation,
-        IReadOnlyList<ConstructionReplayStep> steps, string code, string message)
-        => new(false, output, predecessor, operation, steps, [new(code, message)]);
 }
 
 public sealed record ConstructionStateSerializationResult(
@@ -153,6 +39,7 @@ public static class ConstructionStateSerializer
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
         options.Converters.Add(new Direction3DConverter());
+        options.Converters.Add(new SurfacePatchConverter());
         return options;
     }
 
@@ -176,6 +63,45 @@ public static class ConstructionStateSerializer
     }
 
     private static ConstructionStateSerializationResult Failure(string code, string message) => new(false, null, null, [new(code, message)]);
+
+    private sealed class SurfacePatchConverter : JsonConverter<BoundedSurfacePatch>
+    {
+        public override BoundedSurfacePatch Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            using var document = JsonDocument.ParseValue(ref reader);
+            var root = document.RootElement;
+            try
+            {
+                // Earlier writers emitted the effective support without a patch
+                // discriminator. Recover that actual spline data, not a delegate.
+                var splineJson = root.TryGetProperty("spline", out var explicitSpline) ? explicitSpline
+                    : root.GetProperty("support").GetProperty("bSplineSurfaceWithKnots");
+                if (root.TryGetProperty("$patchKind", out var kind) && kind.GetString() != "BSpline")
+                    throw new JsonException("Unsupported persisted patch kind.");
+                var spline = splineJson.Deserialize<BSplineSurfaceWithKnots>(options) ?? throw new JsonException("Missing spline support.");
+                return new BSplineSurfacePatch(root.GetProperty("patchId").GetString() ?? throw new JsonException("Missing patch identity."),
+                    spline, root.GetProperty("parameterDomain").Deserialize<SurfaceParameterDomain>(options),
+                    root.GetProperty("boundaryLoop").Deserialize<SurfaceBoundaryLoop>(options) ?? throw new JsonException("Missing boundary correspondence."),
+                    root.GetProperty("reversedOrientation").GetBoolean(), root.GetProperty("surfaceClass").Deserialize<SurfacePatchClass>(options));
+            }
+            catch (Exception exception) when (exception is KeyNotFoundException or InvalidOperationException or ArgumentException)
+            { throw new JsonException("Invalid persisted surface-patch construction: " + exception.Message, exception); }
+        }
+
+        public override void Write(Utf8JsonWriter writer, BoundedSurfacePatch value, JsonSerializerOptions options)
+        {
+            if (value is not BSplineSurfacePatch patch)
+                throw new NotSupportedException("Persisted patch construction requires typed BSpline support; an opaque analytic evaluator is not replay authority.");
+            writer.WriteStartObject();
+            writer.WriteString("$patchKind", "BSpline"); writer.WriteString("patchId", patch.PatchId);
+            writer.WritePropertyName("spline"); JsonSerializer.Serialize(writer, patch.Spline, options);
+            writer.WritePropertyName("parameterDomain"); JsonSerializer.Serialize(writer, patch.ParameterDomain, options);
+            writer.WritePropertyName("boundaryLoop"); JsonSerializer.Serialize(writer, patch.BoundaryLoop, options);
+            writer.WriteBoolean("reversedOrientation", patch.ReversedOrientation);
+            writer.WritePropertyName("surfaceClass"); JsonSerializer.Serialize(writer, patch.SurfaceClass, options);
+            writer.WriteEndObject();
+        }
+    }
 
     private sealed class Direction3DConverter : JsonConverter<Direction3D>
     {

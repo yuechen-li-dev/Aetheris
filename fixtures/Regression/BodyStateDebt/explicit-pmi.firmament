@@ -1,0 +1,68 @@
+Model ProfileComposeLBracketCounterborePmi {
+    units: mm
+
+    Record MountSpec { Center: Point2 Diameter: Length }
+    Static Mounts: MountSpec[] = [
+        MountSpec { Center: Point2(20mm, -10mm) Diameter: 6mm }
+        MountSpec { Center: Point2(-30mm, 20mm) Diameter: 6mm }
+    ]
+    Template<spec: MountSpec> ShaftHole {
+        Hole<Shaft> Mount {
+            on: +Z
+            center: spec.Center
+            diameter: spec.Diameter
+            end: ThroughAll
+        }
+    }
+
+    Concept Struct Layout on XY {
+        Rect2 Horizontal { center: [0mm, -10mm]; size: [80mm, 20mm] }
+        Rect2 Vertical { center: [-30mm, 10mm]; size: [20mm, 60mm] }
+        Point2 Notch { position: [-20mm, 0mm] }
+    }
+
+    Profile Bracket using Layout { Loop Outer {
+        Horizontal.Bottom as South
+            |> Horizontal.Right as East
+            |> Horizontal.Top to Notch as Inner
+            |> Vertical.Right to Vertical.TopRight as Upright
+            |> Vertical.Top as North
+            |> Vertical.Left to Horizontal.BottomLeft as West
+            |> Close
+    } }
+
+    Struct BracketBody {
+        Compose BracketBody {
+            Base Stock { profile: Bracket; from: 0mm; to: 12mm; role: Stock }
+            Pattern MountPattern over Mounts { ShaftHole<Current> }
+            Hole<Counterbore> CounterboredMount {
+                on: +Z
+                center: Point2(-30mm, -10mm)
+                diameter: 8mm
+                counterboreDiameter: 14mm
+                counterboreDepth: 4mm
+                end: ThroughAll
+            }
+        }
+    }
+
+    Modify BracketBody {
+        EdgeFinish TopPerimeter {
+            Target: Bracket.Outer
+            On: Top
+            Kind: Chamfer
+            Distance: 1mm
+        }
+    }
+
+    Pmi {
+        Datum A { Target: face(+Z) }
+        HoleDiameter CounterboredMountDiameter {
+            Target: CounterboredMount
+            Value: 8mm
+            Tolerance: PlusMinus(0.05mm, 0.02mm)
+        }
+    }
+  BodyState State { input: BracketBody }
+  output: State
+}

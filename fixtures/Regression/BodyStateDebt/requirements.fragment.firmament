@@ -1,0 +1,2 @@
+Concept Positive(value: Length) => value > 0mm
+Require admitted => Positive(1mm)

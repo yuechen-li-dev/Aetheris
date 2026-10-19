@@ -70,6 +70,18 @@ public sealed class FirmamentDomainBinding
     internal FirmamentV2TemplateExpansion.DataCatalog DataCatalog(List<string> diagnostics) => FirmamentV2TemplateExpansion.ReadDataCatalog(Source, diagnostics, values);
     internal string DataName(string identity) => values.DataBindings.FirstOrDefault(d => d.Identity == identity)?.Name ?? identity;
     public bool OwnsData(DeclarationSyntax declaration) => FirmamentDataBinding.NamespaceFor(declaration) is not null;
+    public bool OwnsCommonDeclaration(DeclarationSyntax declaration) => OwnsData(declaration)
+        || declaration.Type.Name.Text is "Concept" or "Require";
+
+    /// <summary>Common requirements use the existing Concept evaluator and shared
+    /// compile-time values. Domain geometry is not fabricated as scalar data.</summary>
+    public IReadOnlyList<FirmamentV2ValidationDiagnostic> BindCommonRequirements(IEnumerable<StatementSyntax> statements)
+    {
+        var previous = Diagnostics.ToHashSet();
+        foreach (var requirement in statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Require"))
+            CheckRequirement(requirement);
+        return Diagnostics.Where(d => !previous.Contains(d)).ToArray();
+    }
     public FirmamentV2SourceSpan? OriginalSpan(FirmamentV2SourceSpan span)
     {
         if(!IsExpanded)return span;

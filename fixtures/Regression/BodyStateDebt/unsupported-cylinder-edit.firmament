@@ -1,0 +1,12 @@
+Model State_cylinder {
+  units: mm
+  Cylinder Stock { radius: 6mm height: 17mm }
+  BodyState Base { input: Stock }
+  SculptState Bad {
+    input: Base
+    OffsetRegion { target: HousingCrown offset: 3mm region: [4mm, 4mm]
+      influenceEnvelope: [-10mm, -10mm, 0mm, 10mm, 10mm, 30mm] boundary: G0 }
+    mayModify: [HousingCrown]
+  }
+  output: Bad
+}

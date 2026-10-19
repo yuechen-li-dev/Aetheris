@@ -41,7 +41,7 @@ public sealed class SurfX1PatchSurfacingTests
     [Fact]
     public void TrimAndExtendRemainBoundedByExistingNonRationalSupport()
     {
-        var patch = Assert.IsType<BSplineSurfacePatch>(CompileFlagship().OutputState!.Construction.ReplacementPatch);
+        var patch = Assert.IsType<BSplineSurfacePatch>(CompileFlagship().OutputState!.Construction!.ReplacementPatch);
         var trimmed = SurfacePatchOperations.TrimRegion(patch, new(.1, .9, .2, .8));
         Assert.True(trimmed.IsSuccess); Assert.Equal(new SurfaceParameterDomain(.1, .9, .2, .8), trimmed.Patch!.ParameterDomain);
         var extended = SurfacePatchOperations.ExtendRegion((BSplineSurfacePatch)trimmed.Patch, new(0, 1, 0, 1));
@@ -77,7 +77,7 @@ public sealed class SurfX1PatchSurfacingTests
     [Fact]
     public void ReplacedHistoricalSelectorProducesActionableDiagnostic()
     {
-        var first = CompileFlagship(); var input = first.OutputState!; var patch = input.Construction.ReplacementPatch!;
+        var first = CompileFlagship(); var input = first.OutputState!; var patch = input.Construction!.ReplacementPatch!;
         var operation = new ReplaceRegionOperation("stale.ReplaceRegion", SculptedHousingFactory.CrownRegion, patch,
             [SculptedHousingFactory.CrownRegion], new(-30, -20, 20, 30, 20, 28), [], []);
         var result = ReplaceRegionSculptor.Apply(input, "Stale", operation);
@@ -107,7 +107,7 @@ public sealed class SurfX1PatchSurfacingTests
     public void LowAndHighCrownsBranchIndependentlyFromSamePredecessor()
     {
         var compile = CompileFlagship(); var predecessor = compile.States["Base"]; var low = compile.States["FreeformCrown"];
-        var source = (BSplineSurfacePatch)low.Construction.ReplacementPatch!; var s = source.Spline;
+        var source = (BSplineSurfacePatch)low.Construction!.ReplacementPatch!; var s = source.Spline;
         var controls = s.ControlPoints.Select(row => (IReadOnlyList<Aetheris.Kernel.Core.Math.Point3D>)row.Select(p => new Aetheris.Kernel.Core.Math.Point3D(p.X, p.Y, 20d + (p.Z - 20d) * 1.4d)).ToArray()).ToArray();
         var highSpline = new BSplineSurfaceWithKnots(s.DegreeU, s.DegreeV, controls, s.SurfaceForm, s.UClosed, s.VClosed, s.SelfIntersect, s.KnotMultiplicitiesU, s.KnotMultiplicitiesV, s.KnotValuesU, s.KnotValuesV, s.KnotSpec);
         var highPatch = new BSplineSurfacePatch("HighCrownPatch", highSpline, source.ParameterDomain, source.BoundaryLoop);
@@ -118,8 +118,8 @@ public sealed class SurfX1PatchSurfacingTests
         var high = ReplaceRegionSculptor.Apply(predecessor, "HighCrown", operation);
         Assert.True(high.IsSuccess, string.Join(';', high.Diagnostics.Select(x => x.Message)));
         Assert.Equal(predecessor.StateId, low.PredecessorStateId); Assert.Equal(predecessor.StateId, high.OutputState!.PredecessorStateId);
-        Assert.NotEqual(low.StateId, high.OutputState.StateId); Assert.Equal(20d, predecessor.Construction.FinalHeight);
-        Assert.True(high.OutputState.Construction.FinalHeight > low.Construction.FinalHeight);
+        Assert.NotEqual(low.StateId, high.OutputState.StateId); Assert.Equal(20d, predecessor.Construction!.FinalHeight);
+        Assert.True(high.OutputState.Construction!.FinalHeight > low.Construction!.FinalHeight);
     }
 
     private static SculptingCompileResult CompileFlagship() => SculptingAuthoring.CompileFile(FlagshipPath());

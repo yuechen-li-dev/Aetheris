@@ -431,3 +431,22 @@ CORPUS-05 independent-reader qualification above. Unknown intent closes at the
 actual AST owner; no shadow-only admission path was added. DOMAIN-01 through
 DOMAIN-13 preserve the remaining semantic, expansion, units, provenance and
 metadata decisions. This does not mark X2 or separate geometry work complete.
+
+
+## Body-state and semantic debt follow-up (2026-10-18)
+
+The [body-state debt report](FIRMAMENT-BODY-STATE-DEBT-2026-10-18.md) records
+current dispositions for all thirteen DOMAIN items without erasing their
+original findings. Engineering-product construction/replay now preserves the
+normal compiler's exact output; hole-free housings work; repeated holes retain
+an attachment; unsupported reconstruction histories reject atomically. Mixed
+hole-diameter PMI is corrected. Profile guide hygiene and Record member checks
+use AST ownership instead of whole-word source matching. Shared compile-time
+Concept/Require checks are admitted at Structural/Sculpting/PlasticShell product
+scopes, and owners no longer silently ignore static-only validation requests.
+
+This is not general BRep operation grafting, derived-dimensional algebra,
+a new structural collection language or complete expansion source maps. Those
+remain explicit capability/consolidation boundaries under the no-new-features
+constraint. See the report for qualification, compatibility changes and the
+concrete remaining housing-materializer coupling.

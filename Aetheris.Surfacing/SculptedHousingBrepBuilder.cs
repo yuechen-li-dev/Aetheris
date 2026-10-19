@@ -237,6 +237,10 @@ internal static class SculptedHousingBrepBuilder
         if (!Positive(c.Width) || !Positive(c.Depth) || !Positive(c.BaseHeight)) d.Add(new("sculpt-housing-invalid", "Housing width, depth, and base height must be positive and finite."));
         if (!Positive(c.CrownWidth) || !Positive(c.CrownDepth) || c.CrownWidth > c.Width || c.CrownDepth > c.Depth) d.Add(new("sculpt-target-domain-invalid", "Crown region must be positive and contained by the housing footprint."));
         if (!double.IsFinite(c.CrownOffset) || c.FinalHeight <= 0d) d.Add(new("sculpt-self-intersection", "Offset crosses or collapses the bottom mounting plane."));
+        if (c.Holes.Any(h => string.IsNullOrWhiteSpace(h.StableId)))
+            d.Add(new("sculpt-hole-identity-required", "Every housing hole needs a nonempty semantic identity; name the Hole or supply HoleFeature id."));
+        foreach (var duplicate in c.Holes.GroupBy(h => h.StableId, StringComparer.Ordinal).Where(g => g.Count() > 1))
+            d.Add(new("sculpt-hole-duplicate", $"Hole identity '{duplicate.Key}' is declared more than once.", duplicate.Key));
         foreach (var h in c.Holes)
         {
             var r = h.Diameter / 2d;

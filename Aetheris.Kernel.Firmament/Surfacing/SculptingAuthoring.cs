@@ -30,9 +30,18 @@ public static class SculptingAuthoring
         var models = binding.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Model").ToArray();
         if (models.Length != 1) return Fail("<unknown>", "sculpt-source-malformed", "Sculpting source requires exactly one Model.");
         var model = new Block(models[0], binding.Source, sourceFile, binding.Nominal, binding.OriginalSpan);
+        var bodyStates = Blocks(model, "BodyState");
+        var engineeringInputs = bodyStates.Any(b => b.Declaration.Body?.Statements.OfType<FieldSyntax>()
+            .Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Input")) == true);
         foreach (var statement in binding.Document.Statements.Where(s => !ReferenceEquals(s, models[0])))
-            if (statement is not DeclarationSyntax data || !binding.OwnsData(data)) diagnostics.Add(new("sculpt-statement-unknown", "Unsupported statement outside the sculpting Model."));
-        foreach (var data in models[0].Body?.Statements.OfType<DeclarationSyntax>().Where(binding.OwnsData) ?? []) model.Consume(data);
+            if (!engineeringInputs && (statement is not DeclarationSyntax data || !binding.OwnsCommonDeclaration(data))) diagnostics.Add(new("sculpt-statement-unknown", "Unsupported statement outside the sculpting Model."));
+        foreach (var data in models[0].Body?.Statements.OfType<DeclarationSyntax>().Where(binding.OwnsCommonDeclaration) ?? []) model.Consume(data);
+        if (engineeringInputs)
+            foreach (var statement in models[0].Body?.Statements ?? [])
+                if (!EngineeringBodyStateConstruction.IsStateDeclaration(statement)
+                    && statement is not FieldSyntax { Name.Text: "units" or "Units" or "output" or "Output" })
+                    model.Consume(statement); // The normal engineering compiler must admit these statements.
+        diagnostics.AddRange(binding.BindCommonRequirements(binding.Document.Statements.Concat(models[0].Body?.Statements ?? [])).Select(Located));
         if (model.Word("Units") != "mm") diagnostics.Add(new("sculpt-units-invalid", "Sculpting authoring requires units: mm."));
         foreach (var block in Blocks(model, "SurfacePatch"))
         {
@@ -68,9 +77,21 @@ public static class SculptingAuthoring
             if (!sectionChains.TryAdd(block.Name, chain)) diagnostics.Add(new("section-chain-duplicate", $"SectionChain '{block.Name}' is declared more than once.", block.Name));
         }
         var baseClock = Stopwatch.StartNew();
-        foreach (var block in Blocks(model, "BodyState"))
+        foreach (var block in bodyStates)
         {
             var errorsBefore = diagnostics.Count;
+            var engineeringInput = ScalarText(block, "Input");
+            if (engineeringInput is not null)
+            {
+                var realized = EngineeringBodyStateConstruction.Realize(new(block.Name, binding.Source, sourceFile, engineeringInput));
+                if (!realized.IsSuccess || realized.OutputState is null) diagnostics.AddRange(realized.Diagnostics.Select(d =>
+                {
+                    var span = d.SourceSpan is {} location ? binding.OriginalSpan(new(location.Start, location.Length)) : null;
+                    return d with { SourceSpan = span is null ? null : new(span.Start, span.Length) };
+                }));
+                else if (!states.TryAdd(block.Name, realized.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"BodyState '{block.Name}' is declared more than once.", block.Name));
+                continue;
+            }
             var size = Vector(block.Body, "Size", 3, diagnostics); var holes = ParseHoles(block.Body, diagnostics);
             if (size is null || diagnostics.Count != errorsBefore) continue;
             var created = SculptedHousingFactory.CreateBase(block.Name, size[0], size[1], size[2], holes);
@@ -170,11 +191,11 @@ public static class SculptingAuthoring
                 var useCandidate = ScalarText(blendBlock.Body, "UseCandidate"); var maximumDegree = Integer(blendBlock.Body, "MaximumDegree") ?? 10;
                 operationClock.Stop(); opConstruction += operationClock.Elapsed;
                 if (between.Count != 2) diagnostics.Add(new("surf-blend-supports-invalid", $"BlendBoundary in '{block.Name}' requires exactly two Between supports."));
-                if (!Enum.TryParse<BlendContinuity>(preferredText, true, out var preferred)) diagnostics.Add(new("surf-blend-continuity-invalid", $"Preferred continuity '{preferredText}' must be G0, G1, or G2."));
-                if (!Enum.TryParse<BlendContinuity>(minimumText, true, out var minimum)) diagnostics.Add(new("surf-blend-continuity-invalid", $"Minimum continuity '{minimumText}' must be G0, G1, or G2."));
+                if (!TryNamedEnum<BlendContinuity>(preferredText, true, out var preferred)) diagnostics.Add(new("surf-blend-continuity-invalid", $"Preferred continuity '{preferredText}' must be G0, G1, or G2."));
+                if (!TryNamedEnum<BlendContinuity>(minimumText, true, out var minimum)) diagnostics.Add(new("surf-blend-continuity-invalid", $"Minimum continuity '{minimumText}' must be G0, G1, or G2."));
                 if (!StringComparer.Ordinal.Equals(policyText, "StandardBlendJudgment")) diagnostics.Add(new("surf-blend-policy-unresolved", $"Blend policy '{policyText}' is not defined; use StandardBlendJudgment."));
-                if (between.Count != 2 || size is null || height is null || blendEnvelope is null || !Enum.TryParse<BlendContinuity>(preferredText, true, out preferred)
-                    || !Enum.TryParse<BlendContinuity>(minimumText, true, out minimum) || !StringComparer.Ordinal.Equals(policyText, "StandardBlendJudgment")) continue;
+                if (between.Count != 2 || size is null || height is null || blendEnvelope is null || !TryNamedEnum<BlendContinuity>(preferredText, true, out preferred)
+                    || !TryNamedEnum<BlendContinuity>(minimumText, true, out minimum) || !StringComparer.Ordinal.Equals(policyText, "StandardBlendJudgment")) continue;
                 var blendOperation = new BlendBoundaryOperation(block.Name + ".BlendBoundary", between[0], between[1], regionName, preferred, minimum,
                     size[0], size[1], height.Value, blendMayModify, new(blendEnvelope[0], blendEnvelope[1], blendEnvelope[2], blendEnvelope[3], blendEnvelope[4], blendEnvelope[5]),
                     blendPreserve.Select(Preservation).ToArray(), blendRequirements, BlendJudgmentPolicy.StandardBlendJudgment, useCandidate, maximumDegree);
@@ -201,8 +222,24 @@ public static class SculptingAuthoring
         }
         var outputName = ScalarText(model, "Output");
         BodyState? output = null;
-        if (outputName is null || !states.TryGetValue(outputName, out output)) diagnostics.Add(new("sculpt-output-unresolved", "Output must name one accepted BodyState or SculptState."));
+        if (outputName is null || !states.TryGetValue(outputName, out output))
+        {
+            var failedDeclaration = models[0].Body?.Statements.OfType<DeclarationSyntax>()
+                .Any(d => d.Type.Name.Text is "BodyState" or "SculptState" && d.Name?.Text == outputName) == true;
+            if (outputName is null || !failedDeclaration || diagnostics.Count == 0)
+                diagnostics.Add(new("sculpt-output-unresolved", "Output must name one accepted BodyState or SculptState."));
+        }
         diagnostics.AddRange(model.CompleteTree().Select(Located));
+        for (var i = 0; i < diagnostics.Count; i++)
+        {
+            if (diagnostics[i].SourceSpan is not null) continue;
+            var enclosing = models[0].Body?.Statements.OfType<DeclarationSyntax>()
+                .FirstOrDefault(d => d.Name?.Text == diagnostics[i].Entity) ?? models[0];
+            var span = binding.OriginalSpan(enclosing.Span);
+            diagnostics[i] = diagnostics[i] with { SourceFile = sourceFile,
+                SourceSpan = span is null ? null : new(span.Start, span.Length)
+                { LocationNote = "Location identifies the enclosing declaration; the domain operation supplied no finer original-source span." } };
+        }
         total.Stop();
         return new(diagnostics.Count == 0 && output is not null, model.Name, output, states, diagnostics,
             new(baseClock.Elapsed.TotalMilliseconds, opConstruction.TotalMilliseconds, verification.TotalMilliseconds, brep.TotalMilliseconds, 0d));
@@ -218,7 +255,6 @@ public static class SculptingAuthoring
             var center = Vector(hole.Body, "Center", 2, diagnostics); var diameter = Length(hole.Body, "Diameter", diagnostics);
             if (center is not null && diameter is not null) result.Add(new(hole.Name, center[0], center[1], diameter.Value));
         }
-        if (result.Count == 0) diagnostics.Add(new("sculpt-hole-pattern-required", "The X0 housing witness requires at least one bounded mounting hole."));
         return result;
     }
 
@@ -238,18 +274,26 @@ public static class SculptingAuthoring
         }
         if (stations.Count < 2) { diagnostics.Add(new("section-chain-section-count-invalid", $"SectionChain '{block.Name}' requires at least two Station blocks.", block.Name)); return null; }
         var startText = ScalarText(block.Body, "StartTermination") ?? "Open"; var endText = ScalarText(block.Body, "EndTermination") ?? "Open";
-        if (!Enum.TryParse<SectionTermination>(startText, true, out var start) || !Enum.TryParse<SectionTermination>(endText, true, out var end))
+        if (!TryNamedEnum<SectionTermination>(startText, true, out var start) || !TryNamedEnum<SectionTermination>(endText, true, out var end))
         { diagnostics.Add(new("section-chain-termination-invalid", $"SectionChain '{block.Name}' terminations must be Open or Cap.", block.Name)); return null; }
         var correspondence = stations.Zip(stations.Skip(1), (source, target) => new AdjacentSectionCorrespondence(source.SectionId, target.SectionId,
             spanIds.Select(span => new SectionSpanCorrespondence(span, span)).ToArray())).ToArray();
         // The compact X3b sculpt-operation grammar predates SURF-X4; absence remains G0 for replay compatibility.
         var continuityText = ScalarText(block.Body, "Continuity") ?? "G0";
-        if (!Enum.TryParse<SectionChainContinuity>(continuityText, true, out var continuity))
+        if (!TryNamedEnum<SectionChainContinuity>(continuityText, true, out var continuity))
         { diagnostics.Add(new("section-chain-continuity-invalid", $"SectionChain '{block.Name}' Continuity must be G0 or G1.", block.Name)); return null; }
         return new(block.Name, stations, correspondence,
             continuity == SectionChainContinuity.G1 ? SectionTransitionPolicy.SmoothPolynomial : SectionTransitionPolicy.Ruled,
             start, end, continuity);
     }
+
+    private static bool TryNamedEnum<T>(string value, bool ignoreCase, out T result) where T : struct, Enum
+    {
+        result = default;
+        return Enum.GetNames<T>().Any(name => string.Equals(name, value, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            && Enum.TryParse(value, ignoreCase, out result);
+    }
+    private static bool TryNamedEnum<T>(string value, out T result) where T : struct, Enum => TryNamedEnum(value, false, out result);
 
     private static IReadOnlyList<Block> Blocks(Block scope, string kind) => scope.Children(kind);
     private static Block? Single(Block scope, string kind, List<SculptDiagnostic> diagnostics)
@@ -289,7 +333,7 @@ public static class SculptingAuthoring
     {
         var parsed = new List<SculptRequirement>();
         foreach (var value in values)
-            if (Enum.TryParse<SculptRequirement>(value, out var requirement)) parsed.Add(requirement); else diagnostics.Add(new("sculpt-requirement-unsupported", $"Requirement '{value}' is not supported."));
+            if (TryNamedEnum<SculptRequirement>(value, out var requirement)) parsed.Add(requirement); else diagnostics.Add(new("sculpt-requirement-unsupported", $"Requirement '{value}' is not supported."));
         return parsed;
     }
     private static double[]? NumberVector(Block body, string field, int count, List<SculptDiagnostic> diagnostics)
@@ -323,9 +367,9 @@ public static class SculptingAuthoring
         var result = new List<PatchBoundaryCorrespondence>();
         foreach (var block in Blocks(body, "Boundary"))
         {
-            if (!Enum.TryParse<PatchBoundarySide>(block.Name, true, out var side)) { diagnostics.Add(new("surf-boundary-side-invalid", $"Unknown patch boundary side '{block.Name}'.")); continue; }
+            if (!TryNamedEnum<PatchBoundarySide>(block.Name, true, out var side)) { diagnostics.Add(new("surf-boundary-side-invalid", $"Unknown patch boundary side '{block.Name}'.")); continue; }
             var existing = ScalarText(block.Body, "Existing") ?? string.Empty; var continuityText = ScalarText(block.Body, "Continuity") ?? "G0";
-            if (!Enum.TryParse<PatchBoundaryContinuity>(continuityText, true, out var continuity) || continuity == PatchBoundaryContinuity.G2)
+            if (!TryNamedEnum<PatchBoundaryContinuity>(continuityText, true, out var continuity) || continuity == PatchBoundaryContinuity.G2)
             {
                 diagnostics.Add(new("surf-boundary-continuity-invalid", $"Direct SurfacePatch boundary '{block.Name}' continuity must be G0 or G1; use BlendBoundary for qualified G2 construction and evidence."));
                 continue;

@@ -57,7 +57,7 @@ Member Horizontal {
 
 ### Columnar graph tables
 
-For frames with many edges, use the existing first-class `Record` + `Static Table` mechanism instead of repeating blocks. Structural table rows normalize to exactly the same Member AIR:
+For frames with many edges, use the existing first-class `Record` + `Static Table` mechanism instead of repeating blocks. Structural table rows normalize to exactly the same Member AIR. The established Record names `StructuralMemberRow`, `StructuralJointRow` and `StructuralWeldRow` select these compatibility adapters; arbitrary Record names do not acquire structural roles by having similar fields:
 
 ```firmament
 Record StructuralMemberRow { Name: String Path: String Section: String Material: String Orientation: String }
@@ -70,7 +70,7 @@ Static Table Members: StructuralMemberRow Key: Name {
 }
 ```
 
-`StructuralJointRow` columns are `Name`, `Type`, `FirstMember`, `FirstEnd`, `SecondMember`, `SecondEnd`, and `Primary`. End values are `Start` or `End`; `Type` is `Butt` or `Miter`. `Primary` names the through member for a butt joint. The column is still required for a miter row because Static Tables have one fixed schema, but its value is ignored. `StructuralWeldRow` columns are `Name`, `Joint`, `Type`, and `Size`; X2 weld type is `Fillet`.
+`StructuralJointRow` columns are `Name`, `Type`, `FirstMember`, `FirstEnd`, `SecondMember`, `SecondEnd`, and `Primary`. End values are `Start` or `End`; `Type` is `Butt` or `Miter`. `Primary` names the through member for a butt joint. The column is still required for a miter row because Static Tables have one fixed schema. It is retained in the joint metadata; miter geometry is symmetric in the two member ends and does not use Primary as a geometric driver. `StructuralWeldRow` columns are `Name`, `Joint`, `Type`, and `Size`; X2 weld type is `Fillet`.
 
 ```firmament
 Record StructuralJointRow { Name: String Type: String FirstMember: String FirstEnd: String SecondMember: String SecondEnd: String Primary: String }

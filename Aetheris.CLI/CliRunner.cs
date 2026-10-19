@@ -834,7 +834,7 @@ public static class CliRunner
             surfacePatches = compile.OutputState.SurfacePatches,
             blendJudgment = compile.OutputState.BlendJudgment,
             surfaceInventory = export.Inventory,
-            productBoundary = new { rationalNurbs = export.Inventory.RationalNurbs, admitted = export.Inventory.RationalNurbs == 0 },
+            productBoundary = new { rationalNurbs = export.Inventory.RationalNurbs, admitted = export.IsSuccess },
             timingsMilliseconds = compile.Timings with { StepExportMilliseconds = exportClock.Elapsed.TotalMilliseconds }
         }, JsonOptions));
         if (json) stdout.WriteLine(JsonSerializer.Serialize(new
@@ -901,7 +901,7 @@ public static class CliRunner
                 delta = new { operation.Delta.Preserves, operation.Delta.Replaces, operation.Delta.Removes, operation.Delta.Introduces }
             })
         },
-        realizedHousingEvidence = new { state.Construction.Width, state.Construction.Depth, state.Construction.BaseHeight, state.Construction.CrownWidth, state.Construction.CrownDepth, state.Construction.CrownOffset, state.Construction.FinalHeight },
+        realizedHousingEvidence = state.Construction is {} housing ? new { housing.Width, housing.Depth, housing.BaseHeight, housing.CrownWidth, housing.CrownDepth, housing.CrownOffset, housing.FinalHeight } : null,
         semanticInventory = state.SemanticInventory.Values, surfacePatches = state.SurfacePatches, blendJudgment = state.BlendJudgment, hasDelta = state.Delta is not null
     };
 
@@ -2395,12 +2395,23 @@ Model CanonicalPanel {
             if (forgePackPaths.Count > 0 || parseOnly) { stderr.WriteLine("--shadow uses normal production validation; --forge-pack/--parse-only are not supported together with it."); return 1; }
             return FrontendShadowCommand.Run([sourcePath, "--validate", .. (json ? new[] { "--json" } : []), .. (shadowAst ? new[] { "--ast" } : [])], stdout, stderr);
         }
+        int RejectParseOnly(string domain)
+        {
+            var diagnostic = new FirmamentV2ValidationDiagnostic("firmament-validation-option-unsupported", "error",
+                $"{domain} has no static-only admission path. Omit --parse-only to run its actual validator; no engineering validation was performed.")
+                { SourceFile = Path.GetFullPath(sourcePath), Stage = "Validation options" };
+            var payload = new { source = sourcePath, status = "not-validated", domain, validationLevel = "NotValidated", diagnostics = new[] { diagnostic } };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
+            else stderr.WriteLine($"{diagnostic.SourceFile}: {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}");
+            return 1;
+        }
         var validationSource=File.ReadAllText(sourcePath);
         var authoredValidationSource = validationSource;
         var frontend = FirmamentFrontendSchemas.Select(validationSource);
         if (!frontend.IsSuccess) return WriteFrontendRejection(frontend, validationSource, sourcePath, "validate", json, stdout, stderr);
         if(FirmamentDrawingCompiler.IsDrawingSource(validationSource))
         {
+            if (parseOnly) return RejectParseOnly("Drawing");
             var output=Path.GetFullPath(Path.Combine("artifacts","local","drawing-validation",Guid.NewGuid().ToString("N")));
             try
             {
@@ -2415,6 +2426,7 @@ Model CanonicalPanel {
         }
         if (FirmamentAnalysisCompiler.IsAnalysisSource(validationSource))
         {
+            if (parseOnly) return RejectParseOnly("Analysis");
             var analysis=FirmamentAnalysisCompiler.Compile(frontend.Source,Path.GetFullPath(sourcePath),Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
             var diagnostics=FirmamentAnalysisCompiler.KernelDiagnostics(analysis).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,validationSource)).ToArray();
             var payload=new {source=sourcePath,status=analysis.IsSuccess?"bound-not-solved":"invalid",domain="Analysis",validationLevel=analysis.IsSuccess?"BoundNotSolved":"BindingRejected",parserRoute="UnifiedAnalysis",diagnostics};
@@ -2424,7 +2436,20 @@ Model CanonicalPanel {
         }
         if (Aetheris.Kernel.Firmament.Garment.GarmentAuthoring.HasRoot(validationSource)
             || frontend.Schema == FirmamentFrontendSchema.Garment)
+        {
+            if (parseOnly)
+            {
+                var garment = Aetheris.Kernel.Firmament.Garment.GarmentAuthoring.Parse(validationSource, Path.GetFullPath(sourcePath));
+                var diagnostics = garment.Diagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, d.Code + ": " + d.Message, "Firmament.Garment"), sourcePath, validationSource)).ToArray();
+                var payload = new { source = sourcePath, status = garment.IsSuccess ? "parsed-not-built" : "invalid", domain = "Garment",
+                    validationLevel = garment.IsSuccess ? "ParsedNotBuilt" : "BindingRejected", parserRoute = "UnifiedGarment", diagnostics };
+                if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
+                else { stdout.WriteLine("Garment static analysis: " + payload.status); WriteFrontendDiagnostics(diagnostics, stderr); }
+                return garment.IsSuccess ? 0 : 1;
+            }
             return GarmentCommand.Run(["inspect", sourcePath, .. (json ? new[] { "--json" } : Array.Empty<string>())], stdout, stderr);
+        }
         if (FirmamentLanguageAnalysisService.HasAssemblyRoot(validationSource, sourcePath))
         {
             var sheetMetalAssembly = validationSource.Contains("Use SheetMetal.ProductFamilies", StringComparison.Ordinal);
@@ -2454,14 +2479,16 @@ Model CanonicalPanel {
         validationSource = frontend.Source;
         if (PlasticShellFirmament.LooksLikePlasticShell(validationSource))
         {
+            if (parseOnly) return RejectParseOnly("PlasticShell");
             var plastic = PlasticShellFirmament.Compile(validationSource, Path.GetFullPath(sourcePath));
-            var payload = new { source = sourcePath, status = plastic.IsSuccess ? "valid" : "invalid", domain = "PlasticShell", summary = new { fatalDiagnosticCount = plastic.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Error), warningDiagnosticCount = plastic.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Warning), gates = plastic.Intent?.Gates.Count ?? 0, standoffs = plastic.Intent?.Standoffs.Count ?? 0, ejectors = plastic.Intent?.Ejectors.Count ?? 0, ribCandidates = plastic.State?.Evidence.RibNetwork?.Candidates.Count ?? 0 }, diagnostics = PlasticShellFirmament.KernelDiagnostics(plastic).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,authoredValidationSource)).ToArray() };
+            var payload = new { source = sourcePath, status = plastic.IsSuccess ? "valid" : "invalid", domain = "PlasticShell", validationLevel = plastic.IsSuccess ? "Built" : "BuildRejected", parserRoute = "UnifiedPlasticShell", summary = new { fatalDiagnosticCount = plastic.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Error), warningDiagnosticCount = plastic.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Warning), gates = plastic.Intent?.Gates.Count ?? 0, standoffs = plastic.Intent?.Standoffs.Count ?? 0, ejectors = plastic.Intent?.Ejectors.Count ?? 0, ribCandidates = plastic.State?.Evidence.RibNetwork?.Candidates.Count ?? 0 }, diagnostics = PlasticShellFirmament.KernelDiagnostics(plastic).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,authoredValidationSource)).ToArray() };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { plasticShellValidation = payload }, JsonOptions));
             else {stdout.WriteLine($"PlasticShell validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, {payload.summary.warningDiagnosticCount} warning)");WriteFrontendDiagnostics(payload.diagnostics,stderr);}
             return plastic.IsSuccess ? 0 : 1;
         }
         if (SculptingAuthoring.IsSculptingSource(validationSource))
         {
+            if (parseOnly) return RejectParseOnly("Sculpting");
             var sculpt = SculptingAuthoring.Compile(validationSource,Path.GetFullPath(sourcePath));
             var payload = new { source = sourcePath, status = sculpt.IsSuccess ? "valid" : "invalid", domain = "Sculpting", validationLevel=sculpt.IsSuccess?"Built":"BuildRejected", parserRoute="UnifiedSculpting", summary = new { fatalDiagnosticCount = sculpt.Diagnostics.Count, warningDiagnosticCount = 0, states = sculpt.States.Count }, diagnostics = SculptingAuthoring.KernelDiagnostics(sculpt).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,authoredValidationSource)).ToArray() };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
@@ -2470,6 +2497,7 @@ Model CanonicalPanel {
         }
         if (PlateauAuthoring.IsSource(validationSource) && !System.Text.RegularExpressions.Regex.IsMatch(validationSource, @"\bAssembly\s+"))
         {
+            if (parseOnly) return RejectParseOnly("Plateau");
             var plateau = FirmamentBuildAndExport.CompileSource(validationSource, Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
             var payload = new { source = sourcePath, status = plateau.IsSuccess ? "valid" : "invalid", domain = "Plateau", diagnostics = plateau.Diagnostics };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
@@ -2478,6 +2506,7 @@ Model CanonicalPanel {
         }
         if (PipingAuthoring.IsPipingSource(validationSource))
         {
+            if (parseOnly) return RejectParseOnly("Piping");
             var piping = PipingAuthoring.Compile(validationSource, Path.GetFullPath(sourcePath));
             var payload = new { source = sourcePath, status = piping.IsSuccess ? "valid" : "invalid", domain = "Piping", validationLevel = piping.IsSuccess ? "Built" : "BuildRejected", parserRoute = "UnifiedPiping", summary = new { fatalDiagnosticCount = piping.Diagnostics.Count, warningDiagnosticCount = 0, connections = piping.Report?.Connections.Count ?? 0, routes = piping.Report?.Routes.Count ?? 0 }, diagnostics = piping.KernelDiagnostics().Select(d => FirmamentBuildAdmissionValidation.Present(d, Path.GetFullPath(sourcePath), validationSource)).ToArray() };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
@@ -2490,6 +2519,17 @@ Model CanonicalPanel {
         }
         if (StructuralAuthoring.IsStructuralSource(validationSource))
         {
+            if (parseOnly)
+            {
+                var diagnostics = StructuralAuthoring.Analyze(validationSource, Path.GetFullPath(sourcePath))
+                    .Select(d => FirmamentBuildAdmissionValidation.Present(d, sourcePath, validationSource)).ToArray();
+                var accepted = diagnostics.All(d => d.Severity is not ("error" or "fatal"));
+                var staticReport = new { source = sourcePath, status = accepted ? "parsed-not-built" : "invalid", domain = "Structural",
+                    validationLevel = accepted ? "ParsedNotBuilt" : "BindingRejected", parserRoute = "UnifiedStructural", diagnostics };
+                if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = staticReport }, JsonOptions));
+                else { stdout.WriteLine("Structural static analysis: " + staticReport.status); WriteFrontendDiagnostics(diagnostics, stderr); }
+                return accepted ? 0 : 1;
+            }
             var structural = StructuralAuthoring.Compile(validationSource, Path.GetFullPath(sourcePath));
             var payload = new { source = sourcePath, status = structural.IsSuccess ? "valid" : "invalid", domain = "Structural", validationLevel=structural.IsSuccess?"Built":"BuildRejected", parserRoute="UnifiedStructural", summary = new { fatalDiagnosticCount = structural.Diagnostics.Count, warningDiagnosticCount = 0, members = structural.Report?.Members.Count ?? 0, joints = structural.Report?.Joints.Count ?? 0 }, diagnostics = structural.KernelDiagnostics().Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,authoredValidationSource)).ToArray() };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
@@ -5211,7 +5251,7 @@ Model CanonicalPanel {
         stdout.WriteLine(TopLevelUsage);
         stdout.WriteLine();
         stdout.WriteLine("Commands:");
-        stdout.WriteLine("  validate   Check Firmament source without materializing geometry.");
+        stdout.WriteLine("  validate   Validate source through its engineering admission path.");
         stdout.WriteLine("  format     Prefer mixed-case vocabulary spellings; preserve layout and authored names.");
         stdout.WriteLine("  build      Compile Firmament to exact STEP AP242.");
         stdout.WriteLine("  mesh       Export a supported exact B-rep as STL or topology-preserving OBJ.");
@@ -5309,7 +5349,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  --explain             Show V2 parser route, admission level and available instance counts.");
         stdout.WriteLine("  --shadow              Developer report with separate original-source AST, bounded comparison and normal production validation.");
         stdout.WriteLine("  --ast                 Include the detailed AST with --shadow. Structural parsing does not establish semantic admission.");
-        stdout.WriteLine("  --parse-only          Check static semantics only; success is labelled parsed-not-built.");
+        stdout.WriteLine("  --parse-only          Use an available static analyzer; success is labelled parsed-not-built.");
         stdout.WriteLine("  --forge-pack <path>   Load a trusted local .NET assembly containing IForgeConceptPack implementations. This executes local code; Aetheris does not sandbox external packs. Do not load untrusted packs.");
     }
 

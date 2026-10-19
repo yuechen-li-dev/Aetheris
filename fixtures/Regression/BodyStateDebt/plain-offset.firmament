@@ -1,0 +1,13 @@
+Model PlainOffset {
+  units: mm
+  BodyState Base { size: [30mm, 20mm, 10mm] }
+  SculptState Raised {
+    input: Base
+    OffsetRegion { target: HousingCrown offset: 4mm region: [14mm, 12mm]
+      influenceEnvelope: [-15mm, -10mm, 10mm, 15mm, 10mm, 14mm] boundary: G0 }
+    mayModify: [HousingCrown, CrownTransitionZone]
+    preserve: [BottomMountingInterface, OuterFootprintBoundary]
+    require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+  }
+  output: Raised
+}

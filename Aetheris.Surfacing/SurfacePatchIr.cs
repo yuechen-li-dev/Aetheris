@@ -1,6 +1,8 @@
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Aetheris.Surfacing;
 
@@ -44,6 +46,8 @@ public abstract record BoundedSurfacePatch(
     SurfaceBoundaryLoop BoundaryLoop,
     bool ReversedOrientation)
 {
+    [JsonIgnore]
+    public string GeometryFingerprint => BodyStateId.Derive("SurfacePatch-v1|" + JsonSerializer.Serialize<BoundedSurfacePatch>(this)).Value;
     public abstract SurfaceGeometry Support { get; }
     public abstract Point3D Evaluate(double u, double v);
     public abstract int? DegreeU { get; }

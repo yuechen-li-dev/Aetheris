@@ -4,9 +4,10 @@ Authoring uses the shared AST and compile-time value binder, with camelCase
 fields and historical PascalCase aliases. A single Model owns its states,
 SurfacePatch and compact SectionChain declarations and selects one `output`.
 Unknown statements/fields, duplicate singleton operations and unsupported header
-placements reject. `schema Sculpting` is optional. The current `BodyState`
-constructor remains the bounded housing witness with explicit holes; it is not
-a general arbitrary-body constructor. Its compact Station-based SectionChain
+placements reject. `schema Sculpting` is optional. `BodyState { input: body }`
+retains an admitted engineering product through its normal compiler. The legacy
+`size`/`Hole` constructor describes the rectangular housing, with optional holes.
+Its compact Station-based SectionChain
 form remains distinct from the framed Profile-based SectionChain frontend.
 
 SURF-X0 supports bounded mathematical sculpting and locality-preserving region modification. SURF-X1 adds direct rectangular patch replacement. SURF-X1a closes the trim path for the admitted housing: qualified surface intersections derive the outer boundary, face-local pcurves qualify every trim, circular inner loops preserve openings, and an imported `ADVANCED_FACE` can receive a bounded support-surface graft. SURF-X2 adds a qualified two-support crown-to-planar-shoulder `BlendBoundary` that generates and deterministically judges exact non-rational polynomial candidates. This is not full general surfacing.
@@ -24,9 +25,51 @@ Base -> CrownHigh
 
 Both variants can share `Base`; neither mutates it or the other. State IDs are deterministic hashes of the predecessor and canonical operation contract. Ordinary authoring always references the current predecessor, not topology from an arbitrary historical state.
 
-`BodyState` is reconstructed from a versioned typed `ConstructionState`. Its authority is a `BaseConstruction` plus an ordered list of semantic operations such as `OffsetRegion`, `ReplaceRegion`, `BlendBoundary`, `HoleFeature`, `AddSectionChain`, and `RemoveSectionChain`. Each retained operation records stable identity, payload version, authored inputs, predecessor/output relationship, reads, `MayModify`, authorized envelope, preservation contracts, `GeometricDelta`, and validation evidence. The BRep and effective housing recipe are realized evidence, not design-history authority.
+`BodyState` is reconstructed from a versioned typed `ConstructionState`. Its authority is a `BaseConstruction` plus an ordered list of semantic operations such as `OffsetRegion`, `ReplaceRegion`, `BlendBoundary`, `HoleFeature`, `AddSectionChain`, and `RemoveSectionChain`. A base is either the established `Housing` recipe or an `EngineeringSource` recipe retaining the engineering source, source file and selected body. Each retained operation records stable identity, payload version, authored inputs, predecessor/output relationship, reads, `MayModify`, authorized envelope, preservation contracts, `GeometricDelta`, and validation evidence. The BRep, retained STEP and effective housing recipe are realized evidence, not design-history authority.
 
-Rebuild means realizing the base and replaying operations in order. Each operation validates against its newly realized predecessor. If operation N fails, no State N is returned and State N-1 remains authoritative with `bodystate-operation-replay-failed` evidence. Serialization uses the explicit `aetheris.surfacing.construction-state` schema; opaque delegates and generic Boolean history are not admitted.
+Rebuild means realizing the base and replaying operations in order. Each operation validates against its newly realized predecessor. If operation N fails, no State N is returned and State N-1 remains authoritative with `bodystate-operation-replay-failed` evidence. Serialization uses the explicit `aetheris.surfacing.construction-state` schema; typed BSpline patch data round-trips along with housing, source and SectionChain recipes. Opaque delegates and generic Boolean history are not admitted. Patch fingerprints include the effective support/control net; SectionChain fingerprints include frames, knots, seam and correspondence, so equal names and control counts do not imply equal states.
+
+### Construction and operation boundaries
+
+The [engineering-body example](syntax.md#bodystate-retain-an-engineering-body)
+preserves the original STEP, including authored PMI. It assigns no synthetic
+housing crown, hole pattern or mounting interface to an arbitrary body.
+The retained engineering STEP keeps its authored Model/product name. The export
+API rejects a conflicting product-name override; rename the source Model and
+rebuild when a different product identity is intended.
+Replay runs the same engineering compiler and resolves resources relative to
+the retained source file. Replaying after an external dependency changes can
+produce a different state identity; the source recipe is not a frozen copy of
+every referenced file.
+
+The `size` constructor admits a hole-free housing. Such a state has no
+`MountingHolePattern` entity or hole PMI. The established housing adapter retains
+its historical datum/tolerance annotations for compatibility. Mixed hole
+diameters now emit separate diameter quantities and face sets, rather than
+incorrectly assigning the first diameter to every hole. Prefer explicit PMI in
+ordinary engineering source for production annotation policy.
+
+| Operation | Current admitted construction |
+| --- | --- |
+| OffsetRegion | Rectangular HousingCrown; not a replacement patch or arbitrary named face. Offset remains the housing recipe's crown height above its base plane. |
+| ReplaceRegion / BlendBoundary | Qualified housing crown/patch replacement and documented planar-shoulder supports. |
+| HoleFeature | Housing top/footprint frame; retains an existing east-attached SectionChain across repeated holes. |
+| AddSectionChain / RemoveSectionChain | One qualified housing attachment or through-duct construction. |
+
+These materializers do not yet graft arbitrary operations onto arbitrary BReps.
+They reject engineering-source bodies with
+`bodystate-operation-capability-unsupported`. A reconstruction that cannot
+retain an earlier SectionChain rejects with
+`bodystate-history-capability-unsupported`; the predecessor remains authoritative.
+No operation may silently remove an earlier attachment or duct.
+
+The direct C# imported-face adapter retains imported topology/provenance and
+supports its bounded support-surface graft. It does not carry a replayable
+source recipe and exposes no `ConstructionAuthority`; whole-housing edits on
+that state reject before discarding imported provenance. Its retained-body and
+graft identities include actual geometry. This is distinct from a BodyState
+created from an admitted engineering-source import, whose source recipe can be
+replayed by the engineering compiler.
 
 ## X0 authoring
 

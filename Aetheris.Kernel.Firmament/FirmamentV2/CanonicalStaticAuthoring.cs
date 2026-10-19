@@ -489,7 +489,12 @@ internal static class CanonicalStaticAuthoring
     internal static string ExpandDomainPatterns(string source,string ownerType,FirmamentCompileTimeValues scalars,List<string> diagnostics,IReadOnlySet<string> domainResults)
     {
         var syntax=FirmamentSyntaxParser.Parse(source).Document;
-        var patterns=FirmamentSyntaxTraversal.Declarations(syntax).Where(d=>d.Type.Name.Text=="Pattern" && d.Clauses.Any(c=>c.Kind==ClauseKind.Over)).ToArray();
+        var declarations = FirmamentSyntaxTraversal.Declarations(syntax).ToArray();
+        // Each owner expands only its direct Pattern children. Patterns inside
+        // an engineering Compose/Modify retain that owner's admission semantics.
+        // Unsupported placements remain in the AST for scope closure to reject.
+        var patterns=declarations.Where(d=>d.Type.Name.Text=="Pattern" && d.Clauses.Any(c=>c.Kind==ClauseKind.Over)
+            && declarations.Any(owner => owner.Type.Name.Text == ownerType && owner.Body?.Statements.Contains(d) == true)).ToArray();
         if(patterns.Length==0)return source;
         var catalog=FirmamentV2TemplateExpansion.ReadDataCatalog(source,diagnostics,scalars);
         var types=catalog.Types.ToDictionary(p=>p.Key,p=>new FirmamentV2RecordTypeDecl(p.Key,p.Value.Fields,p.Value.SourceSpan),StringComparer.Ordinal);

@@ -1,0 +1,8 @@
+Record SizeSpec { width: Length }
+Static size: SizeSpec = SizeSpec { width: 40mm }
+Template<spec: SizeSpec> Model Product {
+  units: mm
+  Static documentation: String = "spec.ThisIsTextAndNotAField"
+  Box Stock { size: [spec.width, 20mm, 5mm] }
+}
+Model Example = Product<spec: size>

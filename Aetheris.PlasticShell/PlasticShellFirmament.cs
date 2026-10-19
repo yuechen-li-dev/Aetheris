@@ -23,8 +23,9 @@ public static class PlasticShellFirmament
         if(models.Length!=1)return Fail("<unknown>","PlasticShell requires exactly one Model.");
         var model=new Block(models[0],binding.Source,sourcePath,binding.Nominal,binding.OriginalSpan);var modelName=model.Name;
         foreach(var statement in binding.Document.Statements.Where(s=>!ReferenceEquals(s,models[0])))
-            if(statement is not DeclarationSyntax data || !binding.OwnsData(data))diagnostics.Add(new(PlasticDiagnosticCodes.SourceInvalid,PlasticDiagnosticSeverity.Error,"Unsupported statement outside PlasticShell Model."));
-        foreach(var data in models[0].Body?.Statements.OfType<DeclarationSyntax>().Where(binding.OwnsData)??[])model.Consume(data);
+            if(statement is not DeclarationSyntax data || !binding.OwnsCommonDeclaration(data))diagnostics.Add(new(PlasticDiagnosticCodes.SourceInvalid,PlasticDiagnosticSeverity.Error,"Unsupported statement outside PlasticShell Model."));
+        foreach(var data in models[0].Body?.Statements.OfType<DeclarationSyntax>().Where(binding.OwnsCommonDeclaration)??[])model.Consume(data);
+        diagnostics.AddRange(binding.BindCommonRequirements(binding.Document.Statements.Concat(models[0].Body?.Statements ?? [])).Select(Located));
         if(model.Word("Units")!="mm")diagnostics.Add(new(PlasticDiagnosticCodes.SourceInvalid,PlasticDiagnosticSeverity.Error,"PlasticShell requires units: mm."));
         var blocks=model.Children("PlasticShell").ToArray();
         if(blocks.Length!=1)diagnostics.Add(new(PlasticDiagnosticCodes.SourceInvalid,PlasticDiagnosticSeverity.Error,"Exactly one PlasticShell is required."));

@@ -74,19 +74,10 @@ public static class SectionChainCanonical
 {
     public static string Fingerprint(SectionChain chain)
     {
-        var sections = chain.Sections.Select(section =>
-        {
-            var spans = section.Profile.Spans.Select(span => span.Curve switch
-            {
-                SectionProfileCurve.Line line => $"{span.SpanId}:L:{line.Start.X:R},{line.Start.Y:R}>{line.End.X:R},{line.End.Y:R}",
-                SectionProfileCurve.Arc arc => $"{span.SpanId}:A:{arc.Center.X:R},{arc.Center.Y:R},{arc.Radius:R},{arc.StartAngleRadians:R},{arc.SweepAngleRadians:R}",
-                SectionProfileCurve.PolynomialBSpline spline => $"{span.SpanId}:B:{spline.Degree}:{string.Join('/', spline.ControlPoints.Select(point => $"{point.X:R},{point.Y:R}"))}",
-                _ => span.SpanId
-            });
-            return $"{section.SectionId}@{section.Frame.Origin.X:R},{section.Frame.Origin.Y:R},{section.Frame.Origin.Z:R}:{string.Join(',', spans)}";
-        });
-        var fingerprint = string.Join('|', chain.StableId, chain.TransitionPolicy, chain.Continuity, chain.SmoothPolicy, chain.StartTermination, chain.EndTermination, string.Join(';', sections));
-        return chain.ProfileApproximationTolerance == 1e-5 ? fingerprint : fingerprint + "|ApproximationTolerance:" + chain.ProfileApproximationTolerance.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+        // Hash the complete typed recipe: frames, spline knots, seam and
+        // correspondence are engineering inputs, not just station origins.
+        // JSON numeric formatting is invariant and the record/list order is fixed.
+        return BodyStateId.Derive("SectionChain-v2|" + System.Text.Json.JsonSerializer.Serialize(chain)).Value;
     }
 }
 

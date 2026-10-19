@@ -1,0 +1,33 @@
+Model SurfX3bSafeFeatureAfterAdd {
+  units: mm
+  SectionChain GripChain {
+    StartTermination: Open
+    EndTermination: Cap
+    Station Attach { Origin: [0mm, 0mm, 10mm]
+      Size: [40mm, 20mm] }
+    Station Neck { Origin: [15mm, 0mm, 10mm]
+      Size: [30mm, 17mm] }
+    Station Tail { Origin: [40mm, 0mm, 10mm]
+      Size: [12mm, 8mm] }
+  }
+  BodyState Base {
+    Size: [80mm, 40mm, 20mm]
+    Hole MountA { center: [-25mm, -12mm]
+      diameter: 4mm }
+    Hole MountB { center: [25mm, 12mm]
+      diameter: 4mm }
+    Hole ServicePort { center: [0mm, 10mm] diameter: 3mm }
+    Hole SecondPort { center: [0mm, -10mm] diameter: 3mm }
+  }
+  SculptState GripAdded {
+    Input: Base
+    AddSectionChain Grip { Chain: GripChain
+      Support: HousingSideEast
+      Terminal: Attach
+      InfluenceEnvelope: [40mm, -20mm, 0mm, 80mm, 20mm, 20mm] }
+    MayModify: [HousingSideEast]
+    Preserve: [BottomMountingInterface, MountingHolePattern]
+    Require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+  }
+  output: GripAdded
+}

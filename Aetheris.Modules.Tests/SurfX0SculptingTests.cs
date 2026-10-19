@@ -34,7 +34,7 @@ public sealed class SurfX0SculptingTests
         Assert.True(result.IsSuccess, string.Join(';', result.Diagnostics.Select(x => x.Code)));
         var state = Assert.IsType<BodyState>(result.OutputState);
         Assert.NotNull(state.PredecessorStateId); Assert.Equal(result.States["Base"].StateId, state.PredecessorStateId);
-        Assert.NotSame(result.States["Base"].Body, state.Body); Assert.Equal(20d, result.States["Base"].Construction.FinalHeight); Assert.Equal(26d, state.Construction.FinalHeight);
+        Assert.NotSame(result.States["Base"].Body, state.Body); Assert.Equal(20d, result.States["Base"].Construction!.FinalHeight); Assert.Equal(26d, state.Construction!.FinalHeight);
         Assert.Contains(SculptedHousingFactory.BottomMountingInterface, state.Delta!.Preserves);
         Assert.Contains(SculptedHousingFactory.CrownRegion, state.Delta.Replaces);
         Assert.Contains(SculptedHousingFactory.TransitionZone, state.Delta.Introduces);
@@ -47,7 +47,7 @@ public sealed class SurfX0SculptingTests
         Assert.True(first.IsSuccess); Assert.Equal(first.OutputState!.StateId, second.OutputState!.StateId);
         var baseState = first.States["Base"]; var six = first.States["CrownRaised"]; var ten = first.States["CrownHigh"];
         Assert.Equal(baseState.StateId, six.PredecessorStateId); Assert.Equal(baseState.StateId, ten.PredecessorStateId);
-        Assert.NotEqual(six.StateId, ten.StateId); Assert.Equal(20d, baseState.Construction.FinalHeight); Assert.Equal(26d, six.Construction.FinalHeight); Assert.Equal(30d, ten.Construction.FinalHeight);
+        Assert.NotEqual(six.StateId, ten.StateId); Assert.Equal(20d, baseState.Construction!.FinalHeight); Assert.Equal(26d, six.Construction!.FinalHeight); Assert.Equal(30d, ten.Construction!.FinalHeight);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class SurfX0SculptingTests
     public void FailedSculptIsAtomicAndTyped(string fixture, string diagnostic)
     {
         var result = Compile(fixture); Assert.False(result.IsSuccess); Assert.Contains(result.Diagnostics, x => x.Code == diagnostic);
-        Assert.True(result.States.TryGetValue("Base", out var baseState)); Assert.Equal(20d, baseState.Construction.FinalHeight);
+        Assert.True(result.States.TryGetValue("Base", out var baseState)); Assert.Equal(20d, baseState.Construction!.FinalHeight);
         Assert.DoesNotContain(result.States.Values, x => x.AuthoredName == "CrownRaised");
     }
 

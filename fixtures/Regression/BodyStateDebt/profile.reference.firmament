@@ -1,0 +1,8 @@
+Model State_profile {
+  units: mm
+  Concept Struct Layout on XY { Rect2 Base { center: [0mm, 0mm] size: [40mm, 20mm] role: ProfileGuide } }
+  Profile Outline using Layout {
+    Loop Outer { Base.Bottom as South |> Base.Right as East |> Base.Top as North |> Base.Left as West |> Close }
+  }
+  Struct Plate { Extrude Outline { profile: Outline; from: 0mm; to: 5mm } }
+}

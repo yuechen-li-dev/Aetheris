@@ -133,6 +133,9 @@ public static class BlendBoundarySculptor
     public static BlendBoundaryResult Apply(BodyState input, string outputName, BlendBoundaryOperation operation)
     {
         ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(operation);
+        if (input.Construction is null) return Failure(operation, [BodyStateCapabilities.HousingRequired(input, operation.OperationKind)]);
+        if (BodyStateCapabilities.ImportedReconstruction(input, operation.OperationKind) is {} imported) return Failure(operation, [imported]);
+        if (BodyStateCapabilities.UnretainedSectionChain(input, operation.OperationKind) is {} history) return Failure(operation, [history]);
         var diagnostics = ValidateRequest(input, operation).ToList();
         if (diagnostics.Count > 0) return Failure(operation, diagnostics);
 
@@ -215,8 +218,9 @@ public static class BlendBoundarySculptor
 
     private static IEnumerable<SculptDiagnostic> ValidateRequest(BodyState input, BlendBoundaryOperation operation)
     {
+        if (input.Construction is null) { yield return BodyStateCapabilities.HousingRequired(input, operation.OperationKind); yield break; }
         if (!input.SemanticInventory.ContainsKey(operation.SupportA)) yield return new("surf-blend-support-unresolved", $"SupportA '{operation.SupportA}' is not present in the input BodyState.");
-        if (string.IsNullOrWhiteSpace(operation.SupportB)) yield return new("surf-blend-support-unresolved", "SupportB must identify the preserved analytic shoulder.");
+        if (operation.SupportB != "PlanarTopShoulder") yield return new("surf-blend-support-unresolved", $"SupportB '{operation.SupportB}' is unsupported; this materializer requires PlanarTopShoulder.");
         if (!operation.MayModify.Contains(operation.Region, StringComparer.Ordinal) && !operation.MayModify.Contains(operation.SupportA, StringComparer.Ordinal))
             yield return new("sculpt-target-not-authorized", "BlendBoundary region/support is absent from MayModify.");
         if (operation.MinimumContinuity > operation.PreferredContinuity) yield return new("surf-blend-continuity-invalid", "Minimum continuity cannot exceed preferred continuity.");
@@ -241,7 +245,7 @@ public static class BlendBoundarySculptor
         else if (patch.Validate().Count > 0) rejection = "surf-blend-trim-invalid — materialized patch contract is invalid.";
         else
         {
-            var construction = input.Construction with { CrownWidth = operation.RegionWidth, CrownDepth = operation.RegionDepth, CrownOffset = operation.CrownHeight, ReplacementPatch = patch };
+            var construction = (input.Construction ?? throw new InvalidOperationException("Housing capability must be admitted before candidate construction.")) with { CrownWidth = operation.RegionWidth, CrownDepth = operation.RegionDepth, CrownOffset = operation.CrownHeight, ReplacementPatch = patch };
             var built = SculptedHousingBrepBuilder.Build(construction);
             if (built.Body is null) rejection = "surf-blend-topology-invalid — " + string.Join(" | ", built.Diagnostics.Select(item => item.Message));
             else

@@ -9,6 +9,9 @@ public static class AddSectionChainSculptor
     public static SculptResult Apply(BodyState input, string outputName, AddSectionChainOperation operation)
     {
         ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(operation);
+        if (input.Construction is null) return SculptResult.Failure([BodyStateCapabilities.HousingRequired(input, operation.OperationKind)]);
+        if (BodyStateCapabilities.ImportedReconstruction(input, operation.OperationKind) is {} imported) return SculptResult.Failure([imported]);
+        if (BodyStateCapabilities.UnretainedSectionChain(input, operation.OperationKind) is {} history) return SculptResult.Failure([history]);
         var diagnostics = ValidateContract(input, operation).ToList();
         var evidence = new List<SculptValidationEvidence>();
         var bounds = Bounds(operation.Chain, input.Construction.Width / 2d);
@@ -46,7 +49,7 @@ public static class AddSectionChainSculptor
         var associations = SculptedHousingFactory.PersistentAssociations(built.Body, input.Construction);
         var authority = ConstructionAuthorityEvolution.Append(input, outputName, operation, outputId, delta, evidence);
         var output = new BodyState(outputId, input.StateId, input.BodyStableId, outputName, built.Body, input.Construction, inventory, delta, evidence,
-            associations, SculptedHousingFactory.SemanticPmi(associations, input.Construction), SculptedHousingFactory.AssemblyInterfaces(associations), ConstructionAuthority: authority);
+            associations, SculptedHousingFactory.SemanticPmi(associations, input.Construction, built.Body), SculptedHousingFactory.AssemblyInterfaces(associations), ConstructionAuthority: authority);
         return new(true, output, delta, evidence, []);
     }
 
@@ -92,6 +95,9 @@ public static class RemoveSectionChainSculptor
     public static SculptResult Apply(BodyState input, string outputName, RemoveSectionChainOperation operation)
     {
         ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(operation);
+        if (input.Construction is null) return SculptResult.Failure([BodyStateCapabilities.HousingRequired(input, operation.OperationKind)]);
+        if (BodyStateCapabilities.ImportedReconstruction(input, operation.OperationKind) is {} imported) return SculptResult.Failure([imported]);
+        if (BodyStateCapabilities.UnretainedSectionChain(input, operation.OperationKind) is {} history) return SculptResult.Failure([history]);
         var diagnostics = new List<SculptDiagnostic>(); var evidence = new List<SculptValidationEvidence>();
         if (operation.SupportRegions.Count != 2 || !operation.SupportRegions.SequenceEqual([SculptedHousingFactory.HousingSideWest, SculptedHousingFactory.HousingSideEast], StringComparer.Ordinal))
             diagnostics.Add(new("section-chain-remove-support-unsupported", "The admitted through-duct lane requires ordered supports [HousingSideWest, HousingSideEast]."));
@@ -136,7 +142,7 @@ public static class RemoveSectionChainSculptor
         var associations = SculptedHousingFactory.PersistentAssociations(built.Body, input.Construction);
         var authority = ConstructionAuthorityEvolution.Append(input, outputName, operation, outputId, delta, evidence);
         var output = new BodyState(outputId, input.StateId, input.BodyStableId, outputName, built.Body, input.Construction, inventory, delta, evidence,
-            associations, SculptedHousingFactory.SemanticPmi(associations, input.Construction), SculptedHousingFactory.AssemblyInterfaces(associations), ConstructionAuthority: authority);
+            associations, SculptedHousingFactory.SemanticPmi(associations, input.Construction, built.Body), SculptedHousingFactory.AssemblyInterfaces(associations), ConstructionAuthority: authority);
         return new(true, output, delta, evidence, []);
     }
 

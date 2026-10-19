@@ -42,7 +42,7 @@ public sealed class SurfX1aTrimIntersectionClosureTests
         var coincident = BoundedSurfaceIntersector.Intersect(new("z0a", z0, domain, "z0b", z0, domain));
         Assert.Equal(SurfaceIntersectionClassification.CoincidentRegion, coincident.Classification);
 
-        var patch = Assert.IsType<BSplineSurfacePatch>(CompileFlagship().OutputState!.Construction.ReplacementPatch);
+        var patch = Assert.IsType<BSplineSurfacePatch>(CompileFlagship().OutputState!.Construction!.ReplacementPatch);
         var supportPlane = SurfaceGeometry.FromPlane(new PlaneSurface(new(0, -40, 20), Dir(0, -1, 0), Dir(1, 0, 0)));
         var first = BoundedSurfaceIntersector.Intersect(new("south", supportPlane, domain, patch.PatchId, patch.Support, patch.ParameterDomain, SeedOnA: new(0, 0)));
         var second = BoundedSurfaceIntersector.Intersect(new("south", supportPlane, domain, patch.PatchId, patch.Support, patch.ParameterDomain, SeedOnA: new(0, 0)));
@@ -65,7 +65,7 @@ public sealed class SurfX1aTrimIntersectionClosureTests
         Assert.True(analytic.IsSuccess); Assert.Equal(SurfaceExtensionMethod.AnalyticIdentity, analytic.Support!.Method);
         Assert.Equal(new Point3D(-.1, -.1, 0), analytic.Support.Evaluate(-.1, -.1));
 
-        var patch = Assert.IsType<BSplineSurfacePatch>(CompileFlagship().OutputState!.Construction.ReplacementPatch);
+        var patch = Assert.IsType<BSplineSurfacePatch>(CompileFlagship().OutputState!.Construction!.ReplacementPatch);
         var extended = SurfaceSupportExtension.Extend(patch.Support, patch.ParameterDomain, new(-.1, 1.1, -.1, 1.1));
         Assert.True(extended.IsSuccess); Assert.Equal(SurfaceExtensionMethod.EndpointTangentContinuation, extended.Support!.Method);
         Assert.Contains("C1", extended.Support.ContinuityAtOriginalBoundary, StringComparison.Ordinal);
@@ -117,7 +117,7 @@ public sealed class SurfX1aTrimIntersectionClosureTests
             imported.Value.Geometry.GetSurface(binding.SurfaceGeometryId).Plane is { } plane && Math.Abs(plane.Origin.Z - 20d) < 1e-8d && plane.Normal.ToVector().Z > 0d);
         Assert.True(topBinding.SourceStepEntityId.HasValue);
         var adopted = ImportedFaceRegionReplacer.AdoptImportedBody(nativeBase, imported.Value, "ImportedBaseStep");
-        var patch = Assert.IsType<BSplineSurfacePatch>(compile.OutputState!.Construction.ReplacementPatch);
+        var patch = Assert.IsType<BSplineSurfacePatch>(compile.OutputState!.Construction!.ReplacementPatch);
         var replaced = ImportedFaceRegionReplacer.Apply(adopted, topBinding.SourceStepEntityId!.Value, patch, "ImportedTrimmedCrown");
         Assert.True(replaced.IsSuccess, string.Join(" | ", replaced.Diagnostics.Select(item => item.Message)));
         Assert.Same(imported.Value.Topology, replaced.OutputState!.Body.Topology);

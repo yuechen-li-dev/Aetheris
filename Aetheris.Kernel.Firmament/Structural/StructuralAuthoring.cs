@@ -195,8 +195,10 @@ public static class StructuralAuthoring
         foreach(var scope in scopes)
         {
             var units=scope.Word("Units");if(units is not null && units!="mm")d.Add("structural-units-invalid: structural authoring uses millimetres");
-            foreach(var data in scope.Declaration.Body?.Statements.OfType<DeclarationSyntax>().Where(binding.OwnsData)??[])scope.Consume(data);
+            foreach(var data in scope.Declaration.Body?.Statements.OfType<DeclarationSyntax>().Where(binding.OwnsCommonDeclaration)??[])scope.Consume(data);
         }
+        var requirements = binding.BindCommonRequirements(scopes.SelectMany(scope => scope.Declaration.Body?.Statements ?? []));
+        frontend.AddRange(requirements); d.AddRange(requirements.Select(e => e.Code + ": " + e.Message));
         IReadOnlyList<Block> Blocks(string kind)=>owner.Children(kind);
         var structures=Blocks("Structure");
         if(structures.Count!=1){d.Add("structural-missing-structure: exactly one Structure is required");return null;}

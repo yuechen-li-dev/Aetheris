@@ -1,0 +1,6 @@
+Model State_cylinder {
+  units: mm
+  Cylinder Stock { radius: 6mm height: 17mm }
+  BodyState Base { input: Stock }
+  output: Base
+}

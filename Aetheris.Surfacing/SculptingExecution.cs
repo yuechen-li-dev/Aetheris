@@ -37,7 +37,7 @@ public static class SculptedHousingFactory
             [new("sculpt-base-invalid", "Initial body did not satisfy the body-state validity contract: " + string.Join("; ", evidence.Where(x => !x.Satisfied).Select(x => $"{x.Check}: {x.Detail}")))], evidence);
         var associations = PersistentAssociations(built.Body, construction);
         return new(true, new(stateId, null, "housing-body", stateName, built.Body, construction, inventory, null, evidence,
-            associations, SemanticPmi(associations, construction), AssemblyInterfaces(associations), ConstructionAuthority: ConstructionState.FromHousing(construction)), null, evidence, []);
+            associations, SemanticPmi(associations, construction, built.Body), AssemblyInterfaces(associations), ConstructionAuthority: ConstructionState.FromHousing(construction)), null, evidence, []);
     }
 
     internal static IReadOnlyDictionary<string, SculptSemanticEntity> Inventory(HousingConstruction c)
@@ -57,6 +57,7 @@ public static class SculptedHousingFactory
             [HousingSideEast] = new(HousingSideEast, SculptEntityKind.Region, $"plane:x={c.Width / 2d:R};y={-c.Depth / 2d:R}..{c.Depth / 2d:R};z=0..{c.BaseHeight:R}", "Semantic east housing support region."),
             [HousingSideWest] = new(HousingSideWest, SculptEntityKind.Region, $"plane:x={-c.Width / 2d:R};y={-c.Depth / 2d:R}..{c.Depth / 2d:R};z=0..{c.BaseHeight:R}", "Semantic west housing support region."),
         };
+        if (c.Holes.Count == 0) inventory.Remove(MountingHolePattern);
         foreach (var hole in c.Holes) inventory[hole.StableId] = new(hole.StableId, SculptEntityKind.Region, HoleFingerprint(hole), "Stable mounting-hole feature.");
         return inventory;
     }
@@ -84,11 +85,11 @@ public static class SculptedHousingFactory
         var bottom = bottomCandidates.Where(face => face.LoopIds.Count == maximumLoopCount).Select(face => face.Id.Value).ToArray();
         var cylinders = body.Topology.Faces.Where(face => body.TryGetFaceSurfaceGeometry(face.Id, out var support) && support?.Cylinder is not null)
             .Select(face => face.Id.Value).Order().ToArray();
-        return
-        [
-            new(BottomMountingInterface, PersistentAssociationState.Preserved, bottom, "Explicit protected bottom-plane association."),
-            new(MountingHolePattern, PersistentAssociationState.Preserved, cylinders, "Explicit protected cylindrical-face association."),
-        ];
+        var associations = new List<PersistentGeometryAssociation>
+        { new(BottomMountingInterface, PersistentAssociationState.Preserved, bottom, "Explicit protected bottom-plane association.") };
+        if (construction.Holes.Count > 0)
+            associations.Add(new(MountingHolePattern, PersistentAssociationState.Preserved, cylinders, "Explicit protected cylindrical-face association."));
+        return associations;
     }
 
     public static PersistentAssociationRemapResult RemapPersistentAssociations(BodyState input, BrepBody outputBody, GeometricDelta delta)
@@ -120,17 +121,27 @@ public static class SculptedHousingFactory
         return new(diagnostics.Count == 0, remapped, diagnostics);
     }
 
-    internal static IReadOnlyList<Step242SemanticPmi> SemanticPmi(IReadOnlyList<PersistentGeometryAssociation> associations, HousingConstruction construction)
+    internal static IReadOnlyList<Step242SemanticPmi> SemanticPmi(IReadOnlyList<PersistentGeometryAssociation> associations, HousingConstruction construction, BrepBody body)
     {
         var bottom = associations.Single(item => item.SemanticTarget == BottomMountingInterface).FaceIds;
+        if (construction.Holes.Count == 0)
+            return [new Step242SemanticPmiDatum("DatumA", "plane", "A", BottomMountingInterface) { GeometricFaceIds = bottom }];
         var holes = associations.Single(item => item.SemanticTarget == MountingHolePattern).FaceIds;
-        var diameter = construction.Holes[0].Diameter;
-        return
-        [
-            new Step242SemanticPmiDatum("DatumA", "plane", "A", BottomMountingInterface) { GeometricFaceIds = bottom },
-            new Step242SemanticPmiHole(MountingHolePattern, diameter, construction.BaseHeight, "through", .05d, -.05d, construction.Holes.Count) { GeometricFaceIds = holes },
-            new Step242SemanticPmiGeometricTolerance(MountingHolePattern, "HolePatternPosition", "position", .1d, ["A"], construction.Holes.Count) { GeometricFaceIds = holes },
-        ];
+        var groups = construction.Holes.GroupBy(h => h.Diameter).OrderBy(g => g.Key).ToArray();
+        var pmi = new List<Step242SemanticPmi>
+        { new Step242SemanticPmiDatum("DatumA", "plane", "A", BottomMountingInterface) { GeometricFaceIds = bottom } };
+        foreach (var group in groups)
+        {
+            var target = groups.Length == 1 ? MountingHolePattern : MountingHolePattern + ".Diameter" +
+                group.Key.ToString("R", System.Globalization.CultureInfo.InvariantCulture).Replace('.', '_');
+            // These faces already belong to the explicit constructed bore pattern.
+            // Group by its exact analytic support radius, never nearest-face search.
+            var faces = groups.Length == 1 ? holes : holes.Where(id => body.TryGetFaceSurfaceGeometry(new(id), out var support)
+                && support?.Cylinder is {} cylinder && cylinder.Radius == group.Key / 2d).ToArray();
+            pmi.Add(new Step242SemanticPmiHole(target, group.Key, construction.BaseHeight, "through", .05d, -.05d, group.Count()) { GeometricFaceIds = faces });
+        }
+        pmi.Add(new Step242SemanticPmiGeometricTolerance(MountingHolePattern, "HolePatternPosition", "position", .1d, ["A"], construction.Holes.Count) { GeometricFaceIds = holes });
+        return pmi;
     }
 
     internal static IReadOnlyList<SculptAssemblyInterface> AssemblyInterfaces(IReadOnlyList<PersistentGeometryAssociation> associations)
@@ -150,7 +161,12 @@ public static class OffsetRegionSculptor
     public static SculptResult Apply(BodyState input, string outputName, OffsetRegionOperation operation)
     {
         ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(operation);
+        if (input.Construction is null) return SculptResult.Failure([BodyStateCapabilities.HousingRequired(input, operation.OperationKind)]);
+        if (BodyStateCapabilities.ImportedReconstruction(input, operation.OperationKind) is {} imported) return SculptResult.Failure([imported]);
+        if (BodyStateCapabilities.UnretainedSectionChain(input, operation.OperationKind) is {} history) return SculptResult.Failure([history]);
         var diagnostics = new List<SculptDiagnostic>(); var evidence = new List<SculptValidationEvidence>();
+        if (operation.TargetRegion != SculptedHousingFactory.CrownRegion || input.Construction.ReplacementPatch is not null)
+            diagnostics.Add(new("sculpt-target-capability-unsupported", "OffsetRegion supports the current rectangular HousingCrown only; it cannot offset another semantic region or an accepted replacement patch.", operation.TargetRegion));
         if (!input.SemanticInventory.ContainsKey(operation.TargetRegion)) diagnostics.Add(new("sculpt-target-unresolved", $"Target region '{operation.TargetRegion}' does not exist in the input state.", operation.TargetRegion));
         if (!operation.MayModify.Contains(operation.TargetRegion, StringComparer.Ordinal)) diagnostics.Add(new("sculpt-target-not-authorized", "Target region is not present in MayModify.", operation.TargetRegion));
         if (operation.BoundaryContinuity != "G0") diagnostics.Add(new("sculpt-boundary-continuity-unsupported", "SURF-X0 supports G0 positional continuity only."));
@@ -209,7 +225,7 @@ public static class OffsetRegionSculptor
         var outputAssociations = associationRemap.Associations;
         var authority = ConstructionAuthorityEvolution.Append(input, outputName, operation, outputId, delta, evidence);
         var output = new BodyState(outputId, input.StateId, input.BodyStableId, outputName, built.Body, outputConstruction, inventory, delta, evidence,
-            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, outputConstruction), SculptedHousingFactory.AssemblyInterfaces(outputAssociations), ConstructionAuthority: authority);
+            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, outputConstruction, built.Body), SculptedHousingFactory.AssemblyInterfaces(outputAssociations), ConstructionAuthority: authority);
         return new(true, output, delta, evidence, []);
     }
 }
@@ -225,7 +241,12 @@ public static class ReplaceRegionSculptor
     private static SculptResult ApplyCore(BodyState input, string outputName, ReplaceRegionOperation operation, SpatialInfluenceEnvelope? certifiedBounds)
     {
         ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(operation);
+        if (input.Construction is null) return SculptResult.Failure([BodyStateCapabilities.HousingRequired(input, operation.OperationKind)]);
+        if (BodyStateCapabilities.ImportedReconstruction(input, operation.OperationKind) is {} imported) return SculptResult.Failure([imported]);
+        if (BodyStateCapabilities.UnretainedSectionChain(input, operation.OperationKind) is {} history) return SculptResult.Failure([history]);
         var diagnostics = operation.ReplacementPatch.Validate().ToList();
+        if (operation.TargetRegion != SculptedHousingFactory.CrownRegion && operation.TargetRegion != input.Construction.ReplacementPatch?.PatchId)
+            diagnostics.Add(new("sculpt-target-capability-unsupported", "ReplaceRegion supports HousingCrown or its current replacement patch only.", operation.TargetRegion));
         var evidence = new List<SculptValidationEvidence>();
         if (!input.SemanticInventory.ContainsKey(operation.TargetRegion))
         {
@@ -326,7 +347,7 @@ public static class ReplaceRegionSculptor
         var inventory = SculptedHousingFactory.Inventory(construction).ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
         inventory.Remove(SculptedHousingFactory.CrownRegion);
         inventory[operation.ReplacementPatch.PatchId] = new(operation.ReplacementPatch.PatchId, SculptEntityKind.Surface,
-            $"{operation.ReplacementPatch.ExportClass}:{operation.ReplacementPatch.DegreeU}x{operation.ReplacementPatch.DegreeV}:{operation.ReplacementPatch.ControlCountU}x{operation.ReplacementPatch.ControlCountV}", "Accepted bounded replacement patch.");
+            operation.ReplacementPatch.GeometryFingerprint, "Accepted bounded replacement patch.");
         foreach (var contract in operation.Preserves)
         {
             var before = input.SemanticInventory[contract.EntityId]; var after = inventory[contract.EntityId];
@@ -358,7 +379,7 @@ public static class ReplaceRegionSculptor
         var outputAssociations = associationRemap.Associations;
         var authority = ConstructionAuthorityEvolution.Append(input, outputName, operation, outputId, delta, evidence);
         return new(true, new(outputId, input.StateId, input.BodyStableId, outputName, built.Body, construction, inventory, delta, evidence,
-            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, construction), SculptedHousingFactory.AssemblyInterfaces(outputAssociations), ConstructionAuthority: authority), delta, evidence, []);
+            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, construction, built.Body), SculptedHousingFactory.AssemblyInterfaces(outputAssociations), ConstructionAuthority: authority), delta, evidence, []);
     }
 
     private static IReadOnlyList<Point3D> Sample(BoundedSurfacePatch patch, int count)
@@ -434,7 +455,12 @@ public static class SafeHoleSculptor
 {
     public static SculptResult Apply(BodyState input, string outputName, SafeHoleOperation operation)
     {
+        ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(operation);
+        if (input.Construction is null) return SculptResult.Failure([BodyStateCapabilities.HousingRequired(input, operation.OperationKind)]);
+        if (BodyStateCapabilities.ImportedReconstruction(input, operation.OperationKind) is {} imported) return SculptResult.Failure([imported]);
         var diagnostics = new List<SculptDiagnostic>(); var evidence = new List<SculptValidationEvidence>();
+        if (operation.TargetRegion is not (SculptedHousingFactory.CrownRegion or SculptedHousingFactory.OuterFootprintBoundary))
+            diagnostics.Add(new("sculpt-target-capability-unsupported", "HoleFeature supports the housing's planar top/footprint frame only; another named region is not a drilling placement.", operation.TargetRegion));
         if (!input.SemanticInventory.ContainsKey(operation.TargetRegion))
             diagnostics.Add(new("sculpt-target-unresolved", $"Hole target '{operation.TargetRegion}' does not exist in the current BodyState.", operation.TargetRegion));
         if (input.SemanticInventory.ContainsKey(operation.Hole.StableId)) diagnostics.Add(new("sculpt-hole-duplicate", $"Hole '{operation.Hole.StableId}' already exists.", operation.Hole.StableId));
@@ -445,7 +471,9 @@ public static class SafeHoleSculptor
         if (diagnostics.Count > 0) return SculptResult.Failure(diagnostics);
 
         var construction = input.Construction with { Holes = [.. input.Construction.Holes, operation.Hole] };
-        var retainedAdd = input.ConstructionAuthority?.Operations.LastOrDefault()?.Payload as AddSectionChainOperation;
+        if (input.ConstructionAuthority?.Operations.Any(o => o.Payload is RemoveSectionChainOperation) == true)
+            return SculptResult.Failure([BodyStateCapabilities.UnretainedSectionChain(input, operation.OperationKind)!]);
+        var retainedAdd = input.ConstructionAuthority?.Operations.Select(o => o.Payload).OfType<AddSectionChainOperation>().LastOrDefault();
         BrepBody? realizedBody; IReadOnlyList<SculptDiagnostic> buildDiagnostics;
         if (retainedAdd is not null)
         {
@@ -462,7 +490,7 @@ public static class SafeHoleSculptor
         if (construction.ReplacementPatch is { } patch)
         {
             inventory.Remove(SculptedHousingFactory.CrownRegion);
-            inventory[patch.PatchId] = new(patch.PatchId, SculptEntityKind.Surface, $"{patch.ExportClass}:{patch.DegreeU}x{patch.DegreeV}:{patch.ControlCountU}x{patch.ControlCountV}", "Accepted bounded replacement patch.");
+            inventory[patch.PatchId] = new(patch.PatchId, SculptEntityKind.Surface, patch.GeometryFingerprint, "Accepted bounded replacement patch.");
         }
         if (retainedAdd is not null)
         {
@@ -485,7 +513,7 @@ public static class SafeHoleSculptor
         var outputAssociations = SculptedHousingFactory.PersistentAssociations(realizedBody, construction);
         var authority = ConstructionAuthorityEvolution.Append(input, outputName, operation, outputId, delta, evidence);
         return new(true, new(outputId, input.StateId, input.BodyStableId, outputName, realizedBody, construction, inventory, delta, evidence,
-            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, construction), SculptedHousingFactory.AssemblyInterfaces(outputAssociations), ConstructionAuthority: authority), delta, evidence, []);
+            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, construction, realizedBody), SculptedHousingFactory.AssemblyInterfaces(outputAssociations), ConstructionAuthority: authority), delta, evidence, []);
     }
 }
 
@@ -555,6 +583,13 @@ public static class SculptStepExporter
 {
     public static SculptStepResult Export(BodyState state, string productName)
     {
+        if (state.Construction is null && state.RealizedStepText is {} admittedStep)
+        {
+            if (state.RealizedStepProductName is {} originalName && productName != originalName)
+                return new(false, null, Inventory(admittedStep), [new("bodystate-product-name-mismatch",
+                    $"Engineering state retains authored product '{originalName}'; requested '{productName}'. Rename the source Model and rebuild to preserve its complete PMI product associations.", state.AuthoredName)]);
+            return new(true, admittedStep, Inventory(admittedStep), []);
+        }
         var semanticPmi = new List<Step242SemanticPmi>(state.SemanticPmi ?? []);
         foreach (var assemblyInterface in state.AssemblyInterfaces ?? [])
             semanticPmi.Add(new Step242SemanticPmiNote($"assembly-interface:{assemblyInterface.StableId}", assemblyInterface.SemanticTarget, assemblyInterface.Description)
@@ -562,11 +597,12 @@ public static class SculptStepExporter
         var export = Step242Exporter.ExportBody(state.Body, semanticPmi, new Step242ExportOptions { BrepExportPreflightMode = BrepExportPreflightMode.Enforce, ProductName = productName });
         if (!export.IsSuccess) return new(false, null, Empty(), export.Diagnostics.Select(x => new SculptDiagnostic("surf-step-export-failed", x.Message)).ToArray());
         var text = export.Value;
-        var inventory = new StepSurfaceInventory(Count(text, "=PLANE("), Count(text, "=CYLINDRICAL_SURFACE("), Count(text, "=CONICAL_SURFACE("), Count(text, "=SPHERICAL_SURFACE("), Count(text, "=TOROIDAL_SURFACE("), Count(text, "=B_SPLINE_SURFACE_WITH_KNOTS("), 0, Count(text, "RATIONAL_B_SPLINE_SURFACE"));
+        var inventory = Inventory(text);
         if (inventory.RationalNurbs != 0)
             return new(false, null, inventory, [new("surf-surface-export-normalization-failed", "STEP product boundary contains a rational NURBS surface; export was blocked.")]);
         return new(true, text, inventory, []);
     }
+    private static StepSurfaceInventory Inventory(string text) => new(Count(text, "=PLANE("), Count(text, "=CYLINDRICAL_SURFACE("), Count(text, "=CONICAL_SURFACE("), Count(text, "=SPHERICAL_SURFACE("), Count(text, "=TOROIDAL_SURFACE("), Count(text, "=B_SPLINE_SURFACE_WITH_KNOTS("), 0, Count(text, "RATIONAL_B_SPLINE_SURFACE"));
     private static int Count(string text, string marker) => (text.Length - text.Replace(marker, string.Empty, StringComparison.Ordinal).Length) / marker.Length;
     private static StepSurfaceInventory Empty() => new(0, 0, 0, 0, 0, 0, 0, 0);
 }

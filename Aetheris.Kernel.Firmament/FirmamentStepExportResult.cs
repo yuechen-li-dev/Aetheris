@@ -42,6 +42,10 @@ public sealed record FirmamentStepExportResult(
     // It is intentionally absent from CLI/JSON artifact serialization.
     [JsonIgnore] public BrepBody? RuntimeBody { get; init; }
     [JsonIgnore] public SemanticTopologyCorrespondence? RuntimeCorrespondence { get; init; }
+    // Named product identity supplied by the actual native materializer. Separate
+    // from diagnostic feature ids such as "gear:Name" and primitive bridge names.
+    [JsonIgnore] public string? RuntimeBodySourceName { get; init; }
+    [JsonIgnore] internal Aetheris.Kernel.Firmament.FirmamentV2.FirmamentV2Document? RuntimeAdmissionDocument { get; init; }
     public FirmamentCirRetention? Cir { get; init; }
     public FirmamentMakerMarkReport? MakerMark { get; init; }
 }

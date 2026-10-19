@@ -1,0 +1,6 @@
+Model State_box {
+  units: mm
+  Box Stock { size: [30mm, 20mm, 10mm] }
+  BodyState Base { input: Stock }
+  output: Base
+}

@@ -25,15 +25,19 @@ public static class ImportedFaceRegionReplacer
     public static BodyState AdoptImportedBody(BodyState semanticSource, BrepBody importedBody, string authoredName)
     {
         ArgumentNullException.ThrowIfNull(semanticSource); ArgumentNullException.ThrowIfNull(importedBody);
+        if (semanticSource.Construction is null) throw new ArgumentException("The imported housing adapter requires an explicit housing semantic source.", nameof(semanticSource));
+        var geometry = Step242Exporter.ExportBody(importedBody);
+        if (!geometry.IsSuccess) throw new ArgumentException("Imported body cannot be retained: " + string.Join("; ", geometry.Diagnostics.Select(d => d.Message)), nameof(importedBody));
         var associations = SculptedHousingFactory.PersistentAssociations(importedBody, semanticSource.Construction);
         return semanticSource with
         {
-            StateId = BodyStateId.Derive($"{semanticSource.StateId.Value}|ImportedStep|{importedBody.Topology.Faces.Count()}"),
+            StateId = BodyStateId.Derive($"{semanticSource.StateId.Value}|ImportedStep|{geometry.Value}"),
             PredecessorStateId = semanticSource.StateId,
             AuthoredName = authoredName,
             Body = importedBody,
+            ConstructionAuthority = null, // This adapter has no source/import recipe to replay.
             GeometryAssociations = associations,
-            SemanticPmi = SculptedHousingFactory.SemanticPmi(associations, semanticSource.Construction),
+            SemanticPmi = SculptedHousingFactory.SemanticPmi(associations, semanticSource.Construction, importedBody),
             AssemblyInterfaces = SculptedHousingFactory.AssemblyInterfaces(associations)
         };
     }
@@ -45,6 +49,7 @@ public static class ImportedFaceRegionReplacer
         string outputName,
         double tolerance = 1e-5)
     {
+        if (importedState.Construction is null) return new(false, null, null, [BodyStateCapabilities.HousingRequired(importedState, "ImportedFaceReplacement")]);
         var historical = importedState.Delta?.Correspondence.FirstOrDefault(item => item.Change == GeometricChangeKind.Replaced
             && item.InputEntity == $"ADVANCED_FACE:{sourceStepFaceEntityId}");
         if (historical is not null)
@@ -89,9 +94,9 @@ public static class ImportedFaceRegionReplacer
         var inventory = importedState.SemanticInventory.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
         inventory.Remove(SculptedHousingFactory.CrownRegion);
         inventory[replacementPatch.PatchId] = new(replacementPatch.PatchId, SculptEntityKind.Surface,
-            $"{replacementPatch.ExportClass}:{replacementPatch.DegreeU}x{replacementPatch.DegreeV}:{replacementPatch.ControlCountU}x{replacementPatch.ControlCountV}",
+            replacementPatch.GeometryFingerprint,
             "Imported ADVANCED_FACE semantic successor.");
-        var outputId = BodyStateId.Derive($"{importedState.StateId.Value}|ImportedReplaceRegion|{sourceStepFaceEntityId}|{replacementPatch.PatchId}");
+        var outputId = BodyStateId.Derive($"{importedState.StateId.Value}|ImportedReplaceRegion|{sourceStepFaceEntityId}|{replacementPatch.PatchId}|{replacementPatch.GeometryFingerprint}|{replacementPatch.ReversedOrientation}");
         var delta = new GeometricDelta(importedState.StateId, outputId, [$"ADVANCED_FACE:{sourceStepFaceEntityId}"],
             [SculptedHousingFactory.BottomMountingInterface, SculptedHousingFactory.MountingHolePattern], [SculptedHousingFactory.CrownRegion], [], [replacementPatch.PatchId],
             [SculptedHousingFactory.CrownRegion], new(-construction.Width / 2d, -construction.Depth / 2d, construction.BaseHeight, construction.Width / 2d, construction.Depth / 2d, construction.FinalHeight),
@@ -108,7 +113,7 @@ public static class ImportedFaceRegionReplacer
         var validations = SculptedHousingFactory.ValidateBody(body, tolerance).Append(new SculptValidationEvidence("ImportedFaceReplacement", true,
             LocalityEvidenceLevel.CertifiedBounded, 0d, tolerance, $"Retained topology and {evidence.PreservedNeighborSourceStepEntityIds.Count} neighboring imported face provenances; replaced support on current face {selected.FaceId.Value}.")).ToArray();
         var output = new BodyState(outputId, importedState.StateId, importedState.BodyStableId, outputName, body, construction, inventory, delta, validations,
-            associations, SculptedHousingFactory.SemanticPmi(associations, construction), SculptedHousingFactory.AssemblyInterfaces(associations));
+            associations, SculptedHousingFactory.SemanticPmi(associations, construction, body), SculptedHousingFactory.AssemblyInterfaces(associations));
         return new(true, output, evidence, []);
     }
 

@@ -44,7 +44,10 @@ aetheris build plate.firmament --output artifacts/local/plate.step
 ```
 
 Normal mechanical validation performs engineering compilation in memory.
-`--parse-only` reports `ParsedNotBuilt`; it does not prove the part can be built.
+Where a static admission path exists, `--parse-only` reports `ParsedNotBuilt`;
+it does not prove the part can be built. Domains without that path reject the
+option as `NotValidated`, with an explanation. They do not silently execute a
+full build for a static-only request.
 `--explain` adds developer information about admission and the chosen frontend.
 See [diagnostics](../reference/diagnostics.md) for interpreting failures.
 
@@ -926,7 +929,42 @@ Do not invent `schema Assembly` or wrap arbitrary domain declarations in a Model
 | Sheet manufacturing, regions and bends | [Sheet metal](sheet-metal.md). |
 | Structural / piping domains | [Structural](structural.md), [piping](piping.md). |
 | Engineering annotations | [PMI](pmi.md). |
+| Immutable body construction and bounded surface edits | [Body states and sculpting](sculpting.md). |
 | File-backed modules and source-only projects | [Project snapshots](project-snapshots.md), [Concept derivation](concept-derivation.md). |
+
+### BodyState: retain an engineering body
+
+`BodyState` can reference the Model's admitted engineering body. It does not
+convert that geometry into the old rectangular housing prototype.
+
+**Complete file:**
+
+```firmament
+Model Sleeve {
+  units: mm
+  Cylinder stock { radius: 6mm height: 17mm }
+  BodyState base { input: stock }
+  output: base
+}
+```
+
+The ordinary engineering compiler admits `stock`, including its modifications
+and explicit PMI. The state retains that exact product, semantic correspondence
+where available, and its source recipe for replay. `input` must name an admitted
+body or final Compose; it cannot select an unrelated Record, Profile guide or
+an intermediate stage of the same construction. Use separate Parts for separate
+products, as in ordinary mechanical authoring. Primitive, profile/Compose,
+Gear, Sweep and Revolve products retain their existing engineering lowerers.
+When adding a state output to a file with an explicit `schema Mechanical`,
+select `schema Sculpting` for the state-owning document; an explicit conflicting
+selector is still an error.
+
+The older `BodyState base { size: [...] Hole ... }` form remains a housing
+construction. Holes are optional. Its named crown and mounting regions belong
+to that construction; they are not inferred on arbitrary engineering bodies.
+The existing surface-edit materializers still have explicit topology/support
+requirements. An unsupported edit or history combination rejects before it can
+replace earlier geometry. See the [operation boundaries](sculpting.md).
 
 ### Inventory: organize module dependencies
 
@@ -1115,6 +1153,13 @@ semantic owners retain distinct engineering capabilities and close their own
 statement/field scopes. Unknown fields, duplicate aliases, unknown statements
 and unsupported header placements reject; shared parsing does not make every
 operation legal in every domain.
+
+Structural, Sculpting and PlasticShell accept common predicate/structural
+`Concept` declarations and `Require` checks over shared compile-time data at
+their product scopes. A requirement must resolve through that binder; domain
+geometry is not implicitly converted into arbitrary scalar properties.
+Profile Template specialization now renames bound local guides through the AST;
+field labels, string contents and unrelated external members retain their spelling.
 
 Use `pmi` and `bom` for acronym fields. Historical `PMI`/`BOM` and the old
 first-letter-only `pMI`/`bOM` aliases remain admitted by the common field reader.

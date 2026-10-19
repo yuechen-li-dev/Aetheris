@@ -73,6 +73,7 @@ public sealed record HousingConstruction(
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$baseKind")]
 [JsonDerivedType(typeof(HousingBaseConstruction), "Housing")]
+[JsonDerivedType(typeof(EngineeringSourceConstruction), "EngineeringSource")]
 public interface IBaseConstruction
 {
     string BaseId { get; }
@@ -84,6 +85,14 @@ public interface IBaseConstruction
 public sealed record HousingBaseConstruction(string BaseId, HousingConstruction Housing, int SchemaVersion = 1) : IBaseConstruction
 {
     public string BaseKind => "Housing";
+}
+
+/// <summary>Replay authority is the authored engineering program and selected body,
+/// not a fitted housing recipe or a snapshot of its final faces.</summary>
+public sealed record EngineeringSourceConstruction(string BaseId, string Source, string SourceFile, string InputName,
+    int SchemaVersion = 1) : IBaseConstruction
+{
+    public string BaseKind => "EngineeringSource";
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$operationKind")]
@@ -153,7 +162,7 @@ public sealed record BodyState(
     string BodyStableId,
     string AuthoredName,
     BrepBody Body,
-    HousingConstruction Construction,
+    HousingConstruction? Construction,
     IReadOnlyDictionary<string, SculptSemanticEntity> SemanticInventory,
     GeometricDelta? Delta,
     IReadOnlyList<SculptValidationEvidence> ValidationEvidence,
@@ -161,9 +170,11 @@ public sealed record BodyState(
     IReadOnlyList<Step242SemanticPmi>? SemanticPmi = null,
     IReadOnlyList<SculptAssemblyInterface>? AssemblyInterfaces = null,
     BlendJudgmentTrace? BlendJudgment = null,
-    ConstructionState? ConstructionAuthority = null)
+    ConstructionState? ConstructionAuthority = null,
+    string? RealizedStepText = null)
 {
-    public IReadOnlyList<SurfacePatchMetadata> SurfacePatches => Construction.ReplacementPatch is { } patch
+    public string? RealizedStepProductName { get; init; }
+    public IReadOnlyList<SurfacePatchMetadata> SurfacePatches => Construction?.ReplacementPatch is { } patch
         ? [SurfacePatchMetadata.From(patch, Body.Topology.Faces.FirstOrDefault(face =>
             Body.TryGetFaceSurfaceGeometry(face.Id, out var support) && Equals(support, patch.Support))?.LoopIds.Count ?? 1)] : [];
 }
@@ -219,7 +230,7 @@ public sealed record ReplaceRegionOperation(
         string.Join(',', MayModify.Order(StringComparer.Ordinal)),
         $"{InfluenceEnvelope.MinX:R},{InfluenceEnvelope.MinY:R},{InfluenceEnvelope.MinZ:R},{InfluenceEnvelope.MaxX:R},{InfluenceEnvelope.MaxY:R},{InfluenceEnvelope.MaxZ:R}",
         string.Join(',', Preserves.OrderBy(x => x.EntityId, StringComparer.Ordinal).Select(x => $"{x.EntityId}:{x.Mode}")),
-        string.Join(',', Requirements.Order()), GeometricTolerance.ToString("R"), G1AngularToleranceDegrees.ToString("R"), G2CurvatureTolerance.ToString("R"));
+        string.Join(',', Requirements.Order()), ReplacementPatch.GeometryFingerprint, ReplacementPatch.ReversedOrientation, GeometricTolerance.ToString("R"), G1AngularToleranceDegrees.ToString("R"), G2CurvatureTolerance.ToString("R"));
 }
 
 public sealed record SafeHoleOperation(

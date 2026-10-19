@@ -33,8 +33,14 @@ internal sealed class FirmamentSyntaxOrigins(DocumentSyntax original, DocumentSy
                 var ordinal = counts.GetValueOrDefault(label); counts[label] = ordinal + 1;
                 var identity = path + "/" + label + "#" + ordinal;
                 result[identity] = statement.Span;
+                if (statement is FieldSyntax field)
+                {
+                    result[identity + "/name"] = field.Name.Span;
+                    result[identity + "/value"] = field.Value.Span;
+                }
                 if (statement is DeclarationSyntax d)
                 {
+                    if (d.Name is {} name) result[identity + "/name"] = name.Span;
                     if (d.Body is not null) Scope(d.Body.Statements, identity);
                     if (d.Initializer is CallSyntax call) result[identity + "/invocation"] = call.Span;
                 }

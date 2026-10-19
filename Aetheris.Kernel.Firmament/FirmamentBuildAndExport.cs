@@ -168,7 +168,7 @@ public static class FirmamentBuildAndExport
     {
         var parsed = ParseSemanticSource(source, sourceDirectory);
         if (!parsed.IsSuccess || parsed.Document is null) return export;
-        export = export with { DocumentName = parsed.Document.ModelName };
+        export = export with { DocumentName = parsed.Document.ModelName, RuntimeAdmissionDocument = parsed.Document };
 
         var edgeFinishes = (parsed.Document.ModifyBlocks ?? [])
             .SelectMany(modification => (modification.EdgeFinishes ?? []).Select(finish => new FirmamentEngineeringFeatureReport(
@@ -338,7 +338,7 @@ public static class FirmamentBuildAndExport
                 return KernelResult<FirmamentStepExportResult>.Failure(materialized.Diagnostics.Select(d => SchemaDiagnostic(d.Code + ":" + d.Message)).ToArray());
             var step = Step242Exporter.ExportBody(materialized.Body, new Step242ExportOptions { ProductName = chain.StableId });
             return step.IsSuccess
-                ? KernelResult<FirmamentStepExportResult>.Success(new(step.Value, chain.StableId, 0, "section-chain", "section-chain"))
+                ? KernelResult<FirmamentStepExportResult>.Success(new(step.Value, chain.StableId, 0, "section-chain", "section-chain") { RuntimeBodySourceName = chain.StableId })
                 : KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
         }
         if (v2Parse.BoundGear is { } gear) return ExportGear(gear);
@@ -375,7 +375,7 @@ public static class FirmamentBuildAndExport
                 reimportedManifold, hash);
             return KernelResult<FirmamentStepExportResult>.Success(new(step.Value, authored.Name, 0, "bounded-revolve", "revolve", Revolve: report,
                 EngineeringFeatures: [new(authored.Name, "Revolve", authored.StableId, authored.Name, authored.Axis.StableId, authored.Profile.Name,
-                    authored.SweepRadians, "SweepRadians", "Base", PolicySource: "ResolvedProfileRevolveEmitter", MaterializationRoute: "RevolveBRepPlan")]));
+                    authored.SweepRadians, "SweepRadians", "Base", PolicySource: "ResolvedProfileRevolveEmitter", MaterializationRoute: "RevolveBRepPlan")]) { RuntimeBodySourceName = authored.Name });
         }
         if (explicitSchema == FirmamentFrontendSchema.WireForm || !v2Parse.OwnsUnifiedAdmission && WireFormAuthoring.IsWireFormSource(materializerSource))
         {
@@ -409,7 +409,7 @@ public static class FirmamentBuildAndExport
                     operation.Name, operation switch { WireStraightAir => "Straight", WireBendAir => "Bend", WireAxisCoilAir => "Helix", WireSurfaceCoilAir => "SurfaceCoil", WireKnotPathAir => "KnotPath", _ => "Unknown" }, operation.StableId(authored.Value.Name),
                     authored.Value.Name, "WireState", "CircularSection", operation.LengthMm, "CenterlineLength", "Add",
                     PolicySource: "WireFormFeatureAir", MaterializationRoute: "WireFormCenterlineAir->CircularSweepBRepPlan")).ToArray())
-                { RuntimeBody = reimport.Value }, []);
+                { RuntimeBody = reimport.Value, RuntimeBodySourceName = authored.Value.Name }, []);
         }
         if (explicitSchema == FirmamentFrontendSchema.Sweep || !v2Parse.OwnsUnifiedAdmission && CircularSweepAuthoring.IsSweepSource(materializerSource))
         {
@@ -449,7 +449,7 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, authored.Value.Name, 0,
                 "circular-sweep", "sweep", Sweep: report,
                 EngineeringFeatures: [new(authored.Value.Name, "Sweep", "sweep:" + authored.Value.Name, authored.Value.Name,
-                    authored.Value.Path.StableId, "Circle", authored.Value.Diameter, "Diameter", "Add", PolicySource: "CircularSweepFeatureAir", MaterializationRoute: "CircularSweepBRepPlan")]),
+                    authored.Value.Path.StableId, "Circle", authored.Value.Diameter, "Diameter", "Add", PolicySource: "CircularSweepFeatureAir", MaterializationRoute: "CircularSweepBRepPlan")]) { RuntimeBodySourceName = authored.Value.Name },
                 []);
         }
         if (v2Parse.BoundComposition is not null || (!v2Parse.OwnsUnifiedAdmission && PrismaticProfileCompositionParser.IsCompositionSource(materializerSource)))
@@ -721,7 +721,7 @@ public static class FirmamentBuildAndExport
             surfaces.Count(kind => kind == SurfaceGeometryKind.Cone), surfaces.Count(kind => kind == SurfaceGeometryKind.BSplineSurfaceWithKnots),
             surfaces.Count(kind => kind == SurfaceGeometryKind.LinearExtrusion), FirmamentManifoldChecker.IsManifold(materialized.Body),
             true, true, hash, "DeterministicExactBRepAP242", gear.Family is GearFamily.BevelGear or GearFamily.MiterGear ? "BoundedStraightBevel" : "QualifiedX0");
-        return KernelResult<FirmamentStepExportResult>.Success(new(step.Value, $"gear:{gear.Name}", 0, "gear", gear.Family.ToString(), Gear: report));
+        return KernelResult<FirmamentStepExportResult>.Success(new(step.Value, $"gear:{gear.Name}", 0, "gear", gear.Family.ToString(), Gear: report) { RuntimeBodySourceName = gear.Name });
     }
 
     private static FirmamentV2ParseResult ParseSemanticSource(string source, string? sourceDirectory)

@@ -1,0 +1,10 @@
+// Syntax transformation specimen, not a materializing product.
+Point2 A { position: [0mm, 0mm] }
+Concept Struct Local {
+  Point2 A { position: [1mm, 0mm] }
+}
+Loop Outer {
+  Segment A { trace: A from: Local.A to: External.A }
+}
+Static Label: String = "A Local.A External.A"
+Static Labels = { A: "A" }

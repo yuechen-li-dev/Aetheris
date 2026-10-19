@@ -21,7 +21,7 @@ export interface DisplayBoundary { readonly path: string; readonly room: string;
 export interface DisplayMesh { readonly schema: 'aetheris/display-mesh/1' | 'aetheris/assembly-display-mesh/1' | 'aetheris/scene-display-mesh/1'; readonly name: string; readonly units: 'mm'; readonly definitions: readonly DisplayMeshDefinition[]; readonly occurrences: readonly DisplayMeshOccurrence[]; readonly cameras?: readonly DisplayCamera[]; readonly minimumMm?: readonly number[]; readonly maximumMm?: readonly number[]; readonly boundaries?: readonly DisplayBoundary[] }
 export interface ChangeSet { readonly changedEntityIds: readonly string[]; readonly addedEntityIds: readonly string[]; readonly removedEntityIds: readonly string[]; readonly meshChanged: boolean; readonly diagnosticsChanged: boolean }
 export interface RebuildResult { readonly success: boolean; readonly revision: number; readonly diagnostics: readonly Diagnostic[]; readonly retainedPreviousGeometry: boolean; readonly changes?: ChangeSet }
-export interface RuntimeCapabilities { readonly compile: boolean; readonly solidModeling: boolean; readonly assembly: boolean; readonly displayMesh: boolean; readonly propertyInspection: boolean; readonly parameterRebuild: boolean; readonly stepExport: boolean; readonly sheetMetal: boolean; readonly fea: boolean; readonly externalStepImport: boolean; readonly forgeSubprocess: boolean; readonly cancellation: boolean; readonly worker: boolean }
+export interface RuntimeCapabilities { readonly compile: boolean; readonly solidModeling: boolean; readonly assembly: boolean; readonly displayMesh: boolean; readonly propertyInspection: boolean; readonly parameterRebuild: boolean; readonly stepExport: boolean; readonly artifactExport?: boolean; readonly sheetMetal: boolean; readonly fea: boolean; readonly externalStepImport: boolean; readonly forgeSubprocess: boolean; readonly cancellation: boolean; readonly worker: boolean }
 export interface RuntimeInfo { readonly packageVersion: string; readonly runtimeVersion: string; readonly contractVersion: 'aetheris/web-editor-contract/1'; readonly language: 'Firmament'; readonly capabilities: RuntimeCapabilities }
 export interface WorkerTiming { readonly operation: string; readonly executionMilliseconds: number; readonly transportMilliseconds: number; readonly payloadBytes: number; readonly initialization?: { readonly moduleImportMilliseconds: number; readonly runtimeCreateMilliseconds: number; readonly assemblyExportsMilliseconds: number } | null }
 export interface OperationOptions { readonly signal?: AbortSignal; readonly sourceRevision?: string; readonly performance?: boolean }
@@ -87,6 +87,9 @@ export class Aetheris {
 export interface MotionClip { readonly name: string; readonly durationSeconds: number; readonly repeat: 'Once' | 'Loop'; readonly tracks: readonly { readonly name: string; readonly mateStableId: string; readonly jointName: string; readonly valueDimension: 'Angle' | 'Length' }[] }
 export interface MotionPose { readonly revision: number; readonly motion: string; readonly timeSeconds: number; readonly state: Readonly<Record<string, number>>; readonly transforms: readonly { readonly id: string; readonly matrix: readonly number[] | Float64Array }[] }
 export class ModelSession {
+  readonly exportFormats: readonly ExportFormatOption[];
+  /** One format returns its file; multiple formats return one ZIP. Rejected exports produce no files. */
+  exportArtifacts(formats: readonly ExportFormat[], options?: OperationOptions): Promise<readonly ExportFile[]>;
   readonly motions: readonly MotionClip[];
   sampleMotion(motion: string, timeSeconds: number, options?: OperationOptions & { readonly preserveEndpoint?: boolean }): Promise<MotionPose>;
   readonly id: string; readonly name: string; readonly revision: number; readonly source: string; readonly sourceName: string;
@@ -112,3 +115,6 @@ export class ModelSession {
   exportSTEPBlob(options?: OperationOptions): Promise<Blob>;
   dispose(): Promise<void>;
 }
+export type ExportFormat = 'step' | 'glb' | 'usda' | 'stl' | 'obj' | 'pdf' | 'svg' | 'pptx';
+export interface ExportFormatOption { readonly format: ExportFormat; readonly label: string; readonly description: string; readonly available: boolean; readonly reason?: string | null }
+export interface ExportFile { readonly fileName: string; readonly mediaType: string; readonly bytes: Uint8Array }

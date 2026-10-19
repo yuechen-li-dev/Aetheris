@@ -5,6 +5,12 @@ its picture. The compiler distinguishes nominal geometry coverage, specified
 limits, material and actual process qualification. Searchable PDF text and a clean
 layout are presentation checks, not manufacturing approval.
 
+Helios exposes PDF, SVG and PPTX in **Export** for supported parts, using this same
+dimension planner. Selecting several formats downloads a ZIP. The browser projects
+the current compiled STEP and checks that authored PMI has not disappeared; it does
+not invent material, tolerances or signoffs. Use the authoring workflow below to
+supply those requirements. Assembly/Scene automatic drawings are not exposed there.
+
 ## Generate a dimensioned plate
 
 ```powershell

@@ -16,6 +16,21 @@ public static partial class FirmamentDrawingCompiler
     public static DrawingCompileResult Generate(string sourcePath, string outputDirectory, DrawingSignoffIr? signoff = null)
         => Generate(sourcePath, outputDirectory, signoff, new());
 
+    /// <summary>Project an already compiled product, retaining its authored PMI admission checks.
+    /// The browser has no source file to reopen; STEP bytes remain the geometry authority.</summary>
+    public static DrawingCompileResult GenerateFromStep(string step, string name, string sourceDocument,
+        IReadOnlyList<string> expectedPmi, string outputDirectory)
+    {
+        try { return GeneratePart(sourceDocument, step, name, "AP242", step, expectedPmi, outputDirectory, null, new()); }
+        catch (InvalidOperationException e) when (e.Message.StartsWith("drawing-", StringComparison.Ordinal)) { return Failure(e.Message); }
+    }
+
+    public static IReadOnlyList<string> AuthoredPmiNames(FirmamentStepExportResult product)
+    {
+        var bound = product.RuntimeAdmissionDocument?.BoundPmi;
+        return (bound?.Datums ?? []).Concat(bound?.Dimensions ?? []).Concat(bound?.Controls ?? []).Select(p => p.Name).ToArray();
+    }
+
     public static DrawingCompileResult Generate(string sourcePath, string outputDirectory, DrawingSignoffIr? signoff, DrawingGenerationOptions options)
     {
         if (DrawingTitleBlockLayout.ValidateSignoff(signoff) is { } error) return Failure(error);
@@ -47,8 +62,7 @@ public static partial class FirmamentDrawingCompiler
             }
             var compiled = FirmamentBuildAndExport.CompileSource(source, Path.GetDirectoryName(path));
             if (!compiled.IsSuccess) return new(false, null, compiled.Diagnostics.Select(d => $"{d.Source}: {d.Message}").ToArray());
-            var bound = compiled.Value.RuntimeAdmissionDocument?.BoundPmi;
-            expectedPmi = (bound?.Datums ?? []).Concat(bound?.Dimensions ?? []).Concat(bound?.Controls ?? []).Select(p => p.Name).ToArray();
+            expectedPmi = AuthoredPmiNames(compiled.Value);
             step = compiled.Value.StepText;
             name = compiled.Value.DocumentName ?? name;
             sourceKind = "FirmamentPart";
@@ -56,6 +70,12 @@ public static partial class FirmamentDrawingCompiler
         else if (Path.GetExtension(path).ToLowerInvariant() is not (".step" or ".stp"))
             return Failure("drawing-input-unsupported: Generate expects a Firmament part or STEP BRep; use drawing compile for authored Assembly drawings.");
 
+        return GeneratePart(path, source, name, sourceKind, step, expectedPmi, outputDirectory, signoff, options);
+    }
+
+    private static DrawingCompileResult GeneratePart(string path, string source, string name, string sourceKind, string step,
+        IReadOnlyList<string> expectedPmi, string outputDirectory, DrawingSignoffIr? signoff, DrawingGenerationOptions options)
+    {
         var imported = Step242Importer.ImportBody(step);
         if (!imported.IsSuccess) return new(false, null, imported.Diagnostics.Select(d => $"{d.Source}: {d.Message}").ToArray());
         var inspected = Step242SemanticPmiInspector.Inspect(step);

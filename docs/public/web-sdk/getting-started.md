@@ -32,6 +32,6 @@ const step = await model.exportSTEP();
 const download = URL.createObjectURL(new Blob([step], { type: "model/step" }));
 ```
 
-Call `model.dispose()` and `cad.dispose()` when finished. X1 runs on the page thread. `worker: true` is rejected with `worker-unavailable` until that transport is qualified.
+Call `model.dispose()` and `cad.dispose()` when finished. Use `Aetheris.create({ worker: true })` for a dedicated module Worker, as Helios does. See [the API reference](api-reference.md) for the export format catalogue and multi-format ZIP downloads.
 
 The package is AGPL-3.0-only in X1. Contact the Aetheris project about commercial licensing; obtain legal advice for your distribution model.

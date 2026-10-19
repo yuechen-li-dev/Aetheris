@@ -245,12 +245,20 @@ export class ModelSession {
       .sort((a, b) => a.selector < b.selector ? -1 : a.selector > b.selector ? 1 : 0);
   }
   async exportSTEP(options = {}) {
-    throwIfAborted(options.signal);
-    const result = await this.transport.request({ operation: 'exportStep', sessionId: this.id });
-    if (result.bytes instanceof Uint8Array) return result.bytes;
-    const binary = atob(result.base64); const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    return bytes;
+    return (await this.exportArtifacts(['step'], options))[0].bytes;
+  }
+  async exportArtifacts(formats, options = {}) {
+    return this.serial(async () => {
+      throwIfAborted(options.signal);
+      const result = await this.transport.request({ operation: 'exportArtifacts', sessionId: this.id, buildRevision: this.revision, formats });
+      throwIfAborted(options.signal);
+      if (result.revision !== this.revision) throw new AetherisError('export-stale-revision', 'The export belongs to a different build revision.');
+      return result.files.map(file => {
+        const binary = atob(file.base64);
+        const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+        return { fileName: file.fileName, mediaType: file.mediaType, bytes };
+      });
+    });
   }
   async exportSTEPBlob(options = {}) { return new Blob([await this.exportSTEP(options)], { type: 'model/step' }); }
   async dispose() { await this.transport.request({ operation: 'disposeSession', sessionId: this.id }); }

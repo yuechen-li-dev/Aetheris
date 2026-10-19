@@ -13,6 +13,7 @@ using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Kernel.Firmament.Scene;
+using Aetheris.Kernel.Firmament.Export;
 
 namespace Aetheris.Web.Runtime;
 
@@ -71,6 +72,7 @@ public static partial class Program
                 "setSource" => SetSource(request),
                 "rebuild" => Rebuild(request),
                 "exportStep" => ExportStep(request),
+                "exportArtifacts" => Session(request).ExportArtifacts(request),
                 "disposeSession" => DisposeSession(request),
                 "disposeRuntime" => DisposeRuntime(),
                 _ => throw new WebRuntimeException("unknown-operation", $"Unknown runtime operation '{request.Operation}'.")
@@ -100,7 +102,7 @@ public static partial class Program
         capabilities = new
         {
             compile = true, solidModeling = true, assembly = true, displayMesh = true,
-            propertyInspection = true, parameterRebuild = true, stepExport = true,
+            propertyInspection = true, parameterRebuild = true, stepExport = true, artifactExport = true,
             sheetMetal = false, fea = false, externalStepImport = false, forgeSubprocess = false,
             cancellation = false, worker = false
         }
@@ -245,6 +247,7 @@ public static partial class Program
     private static object ExportStep(WebRequest request)
     {
         var session = Session(request);
+        session.RequireExportRevision(request.BuildRevision);
         var stepText = session.StepText;
         if (stepText is null) throw new WebRuntimeException("step-export-unavailable", "The current document has no STEP product artifact.");
         return new { mediaType = "model/step", fileName = session.Name + ".step", base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(stepText)), revision = session.Revision };
@@ -273,7 +276,8 @@ public static partial class Program
         string? FieldId = null, FirmamentProjectedValue? FieldValue = null, int? BuildRevision = null,
         bool Performance = false, IReadOnlyDictionary<string, string>? ProjectDocuments = null, string? ProjectRoot = null,
         int? Bridge = null, IReadOnlyList<FirmamentLanguageEditOperation>? Operations = null,
-        string? Motion = null, double? TimeSeconds = null, bool PreserveEndpoint = false);
+        string? Motion = null, double? TimeSeconds = null, bool PreserveEndpoint = false,
+        IReadOnlyList<string>? Formats = null);
 
     /// <summary>
     /// BUILD-PERF-M3 response bridge (request <c>bridge: 1</c>, sent by the SDK). Large numeric arrays
@@ -308,7 +312,35 @@ public static partial class Program
         private AssemblyCompilationReuse? _lastReuse;
         private AssemblyIr? _assembly;
         private AssemblyIr? _pendingAssembly;
-        public void Dispose() { _assembly = null; _pendingAssembly = null; _compilationSession.Dispose(); _sceneSession.Dispose(); }
+        private CompiledScene? _scene;
+        private CompiledScene? _pendingScene;
+        private AssemblyDisplayMeshDocument? _exportDisplay;
+        private bool _dirty = true;
+        private IReadOnlyList<string> _expectedPmi = [];
+        public void RequireExportRevision(int? revision)
+        {
+            if (_dirty || _exportDisplay is null || revision is { } expected && expected != Revision)
+                throw new WebRuntimeException("export-stale-revision", "Build the current source successfully before exporting.");
+        }
+        public object ExportArtifacts(WebRequest request)
+        {
+            RequireExportRevision(request.BuildRevision);
+            var formats = request.Formats ?? [];
+            var needsStep = formats.Any(f => f is not ("glb" or "usda"));
+            try
+            {
+                var files = ProductArtifactExporter.Export(new(Name, needsStep ? StepText : null, _exportDisplay!, _assembly, _scene, _expectedPmi, _sourceName),
+                    formats, Path.GetTempPath());
+                var file = ProductArtifactExporter.Package(files);
+                return new { revision = Revision, files = new[] { new { file.FileName, file.MediaType, base64 = Convert.ToBase64String(file.Bytes) } } };
+            }
+            catch (InvalidOperationException error)
+            {
+                var separator = error.Message.IndexOf(':');
+                throw new WebRuntimeException(separator > 0 ? error.Message[..separator] : "export-failed", error.Message);
+            }
+        }
+        public void Dispose() { _assembly = null; _pendingAssembly = null; _scene = null; _pendingScene = null; _exportDisplay = null; _compilationSession.Dispose(); _sceneSession.Dispose(); }
         internal object SampleMotion(WebRequest request)
         {
             if (_assembly is null || request.Motion is null || request.TimeSeconds is null)
@@ -352,6 +384,7 @@ public static partial class Program
         {
             if (documents is not null) _projectDocuments = documents;
             _source = nextSource;
+            _dirty = true;
             if (!string.IsNullOrWhiteSpace(nextSourceName)) _sourceName = nextSourceName;
             _overrides.Clear();
             _projections = [];
@@ -408,6 +441,7 @@ public static partial class Program
             if (property.Type == "Length" && value.Value <= 0)
                 throw new WebRuntimeException("property-out-of-range", $"Property '{property.Name}' must be greater than zero.");
             _overrides[propertyId] = value;
+            _dirty = true;
         }
 
         public WebBuildResult Rebuild()
@@ -420,6 +454,8 @@ public static partial class Program
             var effective = ApplyOverrides(_source, sourceProperties, _overrides);
             _lastReuse = null;
             _pendingAssembly = null;
+            _pendingScene = null;
+            _dirty = true;
             var nextProperties = sourceProperties;
             foreach (var (propertyId, value) in _overrides)
             {
@@ -437,6 +473,10 @@ public static partial class Program
 
             Revision++;
             _assembly = _pendingAssembly;
+            _scene = _pendingScene;
+            _exportDisplay = compiled.ExportDisplay ?? (AssemblyDisplayMeshDocument)compiled.Mesh!;
+            _dirty = false;
+            _expectedPmi = compiled.ExpectedPmi;
             _properties = nextProperties;
             _projections = compiled.Projections ?? [];
             _stepText = compiled.StepText;
@@ -460,6 +500,7 @@ public static partial class Program
                 id = Id, name = Name, revision = Revision, source = _source, sourceName = _sourceName,
                 tree = compiled.Tree, properties = _properties, mesh = compiled.Mesh,
                 diagnostics = compiled.Diagnostics, changes, timings,
+                exportFormats = ProductArtifactExporter.Options(_stepText is not null || _stepWriter is not null, _assembly is null && _scene is null),
                 motions = (_assembly?.Motions ?? []).Select(m => new { m.Name, m.DurationSeconds, repeat = m.Repeat.ToString(),
                     tracks = m.Tracks.Select(t => new { t.Name, t.MateStableId, t.JointName, valueDimension = t.Curve.ValueDimension.ToString() }) }).ToArray()
             };
@@ -525,7 +566,7 @@ public static partial class Program
                     ? SourceRefAt(_sourceName, effective, span.Start, span.Length) : CompilerSource(feature.FeatureId), StringComparer.Ordinal);
             mappingPhase.Dispose();
             var meshPhase = BuildPerfTrace.Phase("web.mesh-build");
-            var mesh = WebMeshBuilder.Build(Name, definitionId, entityId, displayBody,
+            var mesh = WebMeshBuilder.Build(Name, definitionId, entityId, displayBody, out var exportDisplay,
                 build.Value.RuntimeCorrespondence, boxSource, Revision + 1, featureSources, build.Value.Cir, Aetheris.Kernel.Firmament.Visualization.ConceptDisplayProjection.Project(build.Value));
             meshPhase.Dispose();
             var meshMs = watch.Elapsed.TotalMilliseconds;
@@ -539,7 +580,9 @@ public static partial class Program
                 boxSource ?? projectedBodySource ?? SourceRef(_sourceName, 0, effective.Length), SemanticConstruct: semanticConstruct);
             var root = new WebTreeNode(Id, "Model", Name, null, [body.Id], true, SourceRef(_sourceName, 0, effective.Length));
             var tree = new { rootId = root.Id, nodes = new[] { root, body }.Concat(featureNodes).ToArray() };
-            return WebBuildResult.Passed(step, tree, mesh, [Id, entityId, .. featureNodes.Select(item => item.Id)], compileMs, meshMs) with { Projections = projections };
+            var expectedPmi = Aetheris.Kernel.Firmament.Drawing.FirmamentDrawingCompiler.AuthoredPmiNames(build.Value);
+            return WebBuildResult.Passed(step, tree, mesh, [Id, entityId, .. featureNodes.Select(item => item.Id)], compileMs, meshMs)
+                with { Projections = projections, ExportDisplay = exportDisplay, ExpectedPmi = expectedPmi };
         }
 
         private WebBuildResult CompileAssembly(string effective, List<WebProperty> properties)
@@ -619,6 +662,7 @@ public static partial class Program
             var nodes = mesh.Occurrences.Select(o => new WebTreeNode(o.Id, o.Kind ?? "SceneNode", o.Path.Split('.').Last(), o.ParentId,
                 mesh.Occurrences.Where(c => c.ParentId == o.Id).Select(c => c.Id).ToArray(), true, SceneSource(o.Path))).ToArray();
             var tree = new { rootId = mesh.Occurrences.Single(o => o.ParentId is null).Id, nodes };
+            _pendingScene = compiledScene;
             return WebBuildResult.Passed(null, tree, mesh, nodes.Select(n => n.Id).ToArray(), watch.Elapsed.TotalMilliseconds, compiledScene.Performance.DisplayPreparationMilliseconds);
         }
     }
@@ -722,7 +766,7 @@ internal static class ParameterInspector
 
 internal static class WebMeshBuilder
 {
-    public static object Build(string name, string definitionId, string entityId, BrepBody body,
+    public static object Build(string name, string definitionId, string entityId, BrepBody body, out AssemblyDisplayMeshDocument exportDisplay,
         Aetheris.Kernel.Firmament.Materializer.SemanticTopologyCorrespondence? correspondence = null,
         WebSourceRef? source = null, int buildRevision = 0, IReadOnlyDictionary<string, WebSourceRef?>? featureSources = null,
         FirmamentCirRetention? cir = null, IReadOnlyList<Aetheris.Kernel.Firmament.Visualization.ConceptDisplayWire>? concepts = null)
@@ -760,12 +804,17 @@ internal static class WebMeshBuilder
         }
         mapPhase.Dispose();
         var shader = CirShaderArtifactProvider.Resolve(cir);
+        var positionArray = positions.ToArray(); var normalArray = normals.ToArray(); var indexArray = indices.ToArray();
+        var transform = new double[] { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
+        exportDisplay = new("aetheris/display-mesh/1", name, "mm",
+            [new(definitionId, entityId, positionArray, normalArray, indexArray)],
+            [new(entityId + ":occurrence", name, null, definitionId, transform, entityId)]);
         return new
         {
             schema = "aetheris/display-mesh/1",
             name,
             units = "mm",
-            definitions = new[] { new { id = definitionId, identity = entityId, positions = positions.ToArray(), normals = normals.ToArray(), indices = indices.ToArray(), ranges,
+            definitions = new[] { new { id = definitionId, identity = entityId, positions = positionArray, normals = normalArray, indices = indexArray, ranges,
                 cir, shader, geometryRevision = definitionId, displayPath = shader.Artifact is not null ? "cir" : "mesh", fallbackReason = shader.Reason,
                 concepts = concepts ?? [],
                 edges = tessellation.Value.EdgePolylines.Select(edge =>
@@ -780,7 +829,7 @@ internal static class WebMeshBuilder
                             : semanticEdge.FirmamentSelector is null ? "Construction identity is known, but Firmament has no qualified source selector for this edge." : null,
                         source = semanticEdge is null ? null : owner == entityId ? source : featureSources![owner], buildRevision };
                 }).ToArray() } },
-            occurrences = new[] { new { id = entityId + ":occurrence", path = name, parentId = (string?)null, definitionId, semanticEntityId = entityId, transform = new double[] { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 } } }
+            occurrences = new[] { new { id = entityId + ":occurrence", path = name, parentId = (string?)null, definitionId, semanticEntityId = entityId, transform } }
         };
     }
 }
@@ -794,6 +843,8 @@ internal sealed record WebBuildResult(bool Success, int Revision, object? Model,
     object? Tree = null, object? Mesh = null, IReadOnlyList<string>? EntityIds = null, object? Timings = null, object? Changes = null, string? StepText = null,
     IReadOnlyList<FirmamentConstructProjection>? Projections = null, double CompileMilliseconds = 0, double MeshMilliseconds = 0)
 {
+    [System.Text.Json.Serialization.JsonIgnore] public AssemblyDisplayMeshDocument? ExportDisplay { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore] public IReadOnlyList<string> ExpectedPmi { get; init; } = [];
     /// <summary>The session that produced this build; never serialized.</summary>
     [System.Text.Json.Serialization.JsonIgnore] public object? Owner { get; init; }
     /// <summary>Writes the STEP text on first request; never serialized.</summary>

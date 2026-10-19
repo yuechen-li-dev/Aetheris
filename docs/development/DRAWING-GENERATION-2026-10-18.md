@@ -2,6 +2,13 @@
 
 Date: 2026-10-18.
 
+> Subsequent engineering review rejected the specimen as a manufacturing drawing:
+> it omitted hole coordinates and controlling stock/thickness requirements. The
+> success below qualifies integration and presentation only. See
+> [dimension completeness qualification](DRAWING-DEFINITION-QUALIFICATION.md) for
+> the replacement gate and corrected drawing. The original findings are retained.
+
+
 ## Existing owners and observed gaps
 
 The repository already contained a Drawing IR, authored Part/Assembly drawing

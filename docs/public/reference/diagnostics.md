@@ -1,5 +1,14 @@
 # Diagnostics and failure recovery
 
+Drawing generation reports `drawing-definition-incomplete` when no qualified plan
+accounts for the complete nominal body. `--reference-only` requests explicitly
+incomplete review views. `drawing-pmi-geometry-mismatch` identifies conflicting
+diameter/depth/quantity requirements; `drawing-tolerance-envelope-invalid` and
+`drawing-tolerance-zero-width` reject contradictory dimensional limits. Missing
+material, linear or angular requirements are recorded independently in definition
+evidence and visibly marked on the PDF. Process capability is not inferred from a
+successful export. See [drawing generation](../drawings.md).
+
 Generic V2 build/validation errors use structured objects with `code`, `severity`, `message`, `sourceFile`, optional `sourceSpan`, `line`, `column`, and `locationNote`. The existing `fatal` spelling means an error that prevents admission; `warning` remains nonfatal. Parser route metadata is for debugging. An enclosing-declaration span is explicitly labelled when the legacy producer supplied no precise original-source provenance. Monaco consumes the same compiler presentation. Specialized domain commands are not yet all migrated to this representation.
 
 Unknown canonical statements and Box fields are errors. `profile-layout-placement-unsupported` rejects unsupported Concept Struct layout planes instead of substituting XY. Use a traced Construction Plane for supported oriented profile workflows. `SemanticSourceNotFound` preserves the missing source and the provenance explanation. An accidental through-depth Pocket fails; explicit `end: ThroughAll` selects the admitted through cut. Box top-boundary Fillet with disjoint ThroughAll shaft/counterbore holes is supported; `CombinedFeatureInteractionUnsupported` identifies a hole touching the finish band or another hole. Unsupported combined selectors retain `CombinedFeatureSelectionLost` at the EdgeFinish declaration.

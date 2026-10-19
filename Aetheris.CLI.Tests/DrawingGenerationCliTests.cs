@@ -14,9 +14,12 @@ public sealed class DrawingGenerationCliTests
         {
             using var stdout = new StringWriter(); using var stderr = new StringWriter();
             var source = Path.Combine(root.FullName, "fixtures/Regression/DrawingGeneration/inspection-plate.firmament");
-            Assert.Equal(0, CliRunner.Run(["drawing", "generate", source, "--out-dir", output, "--drawn-by", "Codex (AI)", "--date", "2026-10-18", "--json"], stdout, stderr));
+            Assert.Equal(0, CliRunner.Run(["drawing", "generate", source, "--out-dir", output, "--drawn-by", "Codex (AI)", "--date", "2026-10-18", "--linear-tolerance", "0.1", "--angular-tolerance", "0.5", "--material", "6061-T6 aluminium", "--json"], stdout, stderr));
             using var json = JsonDocument.Parse(stdout.ToString()); var result = json.RootElement;
             Assert.True(result.GetProperty("success").GetBoolean());
+            Assert.True(result.GetProperty("definition").GetProperty("nominalGeometryComplete").GetBoolean());
+            Assert.True(result.GetProperty("definition").GetProperty("dimensionalTolerancesComplete").GetBoolean());
+            Assert.False(result.GetProperty("definition").GetProperty("processCapabilityVerified").GetBoolean());
             foreach (var key in new[] { "pdfPath", "svgPath", "pptxPath", "drawingIrPath", "validationPath" }) Assert.True(File.Exists(result.GetProperty(key).GetString()));
             Assert.Equal(0, result.GetProperty("layout").GetProperty("failedAnnotationCount").GetInt32());
             using var ir = JsonDocument.Parse(File.ReadAllText(result.GetProperty("drawingIrPath").GetString()!));

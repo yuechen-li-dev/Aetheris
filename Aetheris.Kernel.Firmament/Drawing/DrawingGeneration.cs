@@ -14,13 +14,22 @@ public static partial class FirmamentDrawingCompiler
     /// <summary>Generate sheets from an admitted part or the supported AP242 semantic PMI subset.
     /// No manufacturing tolerances, datum schemes or missing dimensions are inferred.</summary>
     public static DrawingCompileResult Generate(string sourcePath, string outputDirectory, DrawingSignoffIr? signoff = null)
+        => Generate(sourcePath, outputDirectory, signoff, new());
+
+    public static DrawingCompileResult Generate(string sourcePath, string outputDirectory, DrawingSignoffIr? signoff, DrawingGenerationOptions options)
     {
         if (DrawingTitleBlockLayout.ValidateSignoff(signoff) is { } error) return Failure(error);
-        try { return GenerateCore(sourcePath, outputDirectory, signoff); }
+        if (options.LinearToleranceMillimetres is { } tolerance && (!double.IsFinite(tolerance) || tolerance <= 0))
+            return Failure("drawing-linear-tolerance-invalid: Supply a finite positive tolerance in millimetres.");
+        if (options.AngularToleranceDegrees is { } angle && (!double.IsFinite(angle) || angle <= 0 || angle >= 45))
+            return Failure("drawing-angular-tolerance-invalid: Supply a finite positive angle below 45 degrees.");
+        if (options.ReferenceOnly && (options.LinearToleranceMillimetres.HasValue || options.AngularToleranceDegrees.HasValue || options.Material is not null))
+            return Failure("drawing-reference-options-unsupported: Reference-only visualization cannot consume manufacturing requirements. Omit --reference-only to plan dimensions.");
+        try { return GenerateCore(sourcePath, outputDirectory, signoff, options); }
         catch (InvalidOperationException e) when (e.Message.StartsWith("drawing-", StringComparison.Ordinal)) { return Failure(e.Message); }
     }
 
-    private static DrawingCompileResult GenerateCore(string sourcePath, string outputDirectory, DrawingSignoffIr? signoff)
+    private static DrawingCompileResult GenerateCore(string sourcePath, string outputDirectory, DrawingSignoffIr? signoff, DrawingGenerationOptions options)
     {
         var path = Path.GetFullPath(sourcePath);
         if (!File.Exists(path)) return Failure($"drawing-source-file-missing: {path}");
@@ -31,7 +40,11 @@ public static partial class FirmamentDrawingCompiler
         IReadOnlyList<string> expectedPmi = [];
         if (Path.GetExtension(path).Equals(".firmament", StringComparison.OrdinalIgnoreCase))
         {
-            if (IsDrawingSource(source)) return Compile(path, outputDirectory, signoff);
+            if (IsDrawingSource(source))
+            {
+                if (options != new DrawingGenerationOptions()) return Failure("drawing-authored-options-unsupported: Generation options apply to automatic part/STEP drawings; keep authored drawing requirements in its metadata.");
+                return Compile(path, outputDirectory, signoff);
+            }
             var compiled = FirmamentBuildAndExport.CompileSource(source, Path.GetDirectoryName(path));
             if (!compiled.IsSuccess) return new(false, null, compiled.Diagnostics.Select(d => $"{d.Source}: {d.Message}").ToArray());
             var bound = compiled.Value.RuntimeAdmissionDocument?.BoundPmi;
@@ -65,7 +78,12 @@ public static partial class FirmamentDrawingCompiler
         var body = imported.Value;
         var faceMap = body.FaceOrientationReport?.Faces.Where(f => f.SourceEvidence.SourceEntityId.HasValue)
             .ToDictionary(f => f.SourceEvidence.SourceEntityId!.Value, f => f.FaceId) ?? [];
-        var samples = BrepWireframeSvgRenderer.SampleGeometry(body, new(CurveSamples: 64, Density: 5));
+        if (ValidateDrawingPmi(inspected.Items, faceMap) is { } pmiError) return Failure(pmiError);
+        if (!options.ReferenceOnly)
+            return GenerateDefinedPart(path, source, name, sourceKind, body, inspected.Items, faceMap, signoff, options, outputDirectory);
+        BrepWireframeGeometry samples;
+        try { samples = BrepWireframeSvgRenderer.SampleGeometry(body, new(CurveSamples: 64, Density: 5)); }
+        catch (InvalidOperationException e) { return Failure("drawing-projection-unsupported: " + e.Message); }
         if (samples.Evidence.UnsupportedCurveFamilies.Count > 0)
             return Failure($"drawing-edge-projection-unsupported: {string.Join(", ", samples.Evidence.UnsupportedCurveFamilies)}");
         var definitions = new[]
@@ -82,12 +100,8 @@ public static partial class FirmamentDrawingCompiler
         {
             var item = inspectedItem with { Name = inspectedItem.AuthoredName ?? inspectedItem.Name };
             var dimensionKind = item.DimensionKind?.ToLowerInvariant();
-            if (item.Kind == "Dimension" && dimensionKind is not ("distance" or "lineardistancetodatum" or "diameter" or "holediameter"))
-                return Failure($"drawing-pmi-family-unsupported: Dimension '{item.Name}' has unqualified kind '{item.DimensionKind ?? "unknown"}'. A millimetre label was not guessed.");
             var reference = $"step:{item.EntityId}:{item.Name}";
             var faces = item.GeometricFaceEntityIds.Where(faceMap.ContainsKey).Select(id => body.Topology.GetFace(faceMap[id])).ToArray();
-            if (faces.Length == 0)
-                return Failure($"drawing-pmi-target-unlocated: '{item.Name}' (STEP #{item.EntityId}, target '{item.Target}') has no imported geometric face association. Attach explicit PMI to a supported semantic face; a model-center leader would be misleading.");
             var edges = faces.SelectMany(f => f.LoopIds).Select(body.Topology.GetLoop).SelectMany(l => l.CoedgeIds)
                 .Select(body.Topology.GetCoedge).Select(c => c.EdgeId.Value).ToHashSet();
             var points = samples.Boundaries.Where(line => line.EdgeId is { } id && edges.Contains(id)).SelectMany(line => line.Points).ToArray();
@@ -100,12 +114,6 @@ public static partial class FirmamentDrawingCompiler
                 "Annotation" => DrawingAnnotationKind.Note,
                 _ => DrawingAnnotationKind.LinearDimension
             };
-            if (kind is DrawingAnnotationKind.DiameterDimension or DrawingAnnotationKind.LinearDimension or DrawingAnnotationKind.FeatureControlFrame
-                && (item.Value is null || !double.IsFinite(item.Value.Value)
-                    || kind == DrawingAnnotationKind.DiameterDimension && item.Value <= 0))
-                return Failure($"drawing-pmi-value-unavailable: '{item.Name}' (STEP #{item.EntityId}) has no admitted finite nominal value. The drawing did not substitute zero.");
-            if (item.Depth is { } depth && (!double.IsFinite(depth) || depth <= 0))
-                return Failure($"drawing-pmi-value-unavailable: '{item.Name}' has an invalid hole depth.");
             var display = FormatStepPmi(item);
             pmi.Add(reference, new(reference, kind, display, item.Value, item.Target, $"{path}; STEP #{item.EntityId}; faces {string.Join(",", item.GeometricFaceEntityIds)}; source SHA256 {StableHash(source)}"));
             targets.Add(reference, points);
@@ -128,7 +136,7 @@ public static partial class FirmamentDrawingCompiler
             Description: "Semantic PMI projection; manufacturing release requires engineering review") { Signoff = signoff };
         var envelope = samples.Boundaries.SelectMany(line => line.Points).ToArray();
         var notes = new[] { "DIMENSIONS: mm. PMI VALUES AND TOLERANCES RETAIN SOURCE AUTHORITY.",
-            "ENGINEERING REVIEW REQUIRED; NO MISSING TOLERANCES ARE INFERRED.",
+            "INCOMPLETE GEOMETRY DEFINITION - NOT FOR MANUFACTURE.",
             FormattableString.Invariant($"REFERENCE ENVELOPE (mm): X ~{envelope.Max(p => p.X) - envelope.Min(p => p.X):0.###} / Y ~{envelope.Max(p => p.Y) - envelope.Min(p => p.Y):0.###} / Z ~{envelope.Max(p => p.Z) - envelope.Min(p => p.Z):0.###}. SAMPLED; NO TOLERANCE."),
             inspected.Items.Count == 0 ? "NO SUPPORTED SEMANTIC PMI FOUND. GEOMETRY VIEWS ONLY." : "LEADERS IDENTIFY ASSOCIATED FACES; LINEAR CALLOUTS DO NOT INFER MEASUREMENT ENDPOINTS." };
         var requested = new List<(string Name, double[] Direction, DrawingProjectionKind Projection, string[] Pmi)>();
@@ -153,7 +161,7 @@ public static partial class FirmamentDrawingCompiler
         var overviewScheme = Zones(width, height);
         pages.Add(new(1, DrawingPageOrientation.Landscape, width, height, new(12, 20, 273, 145), overview, [], [], notes, overviewScheme,
             DrawingTitleBlockLayout.Create(metadata, new Dictionary<string, string> { ["Product"] = name, ["Units"] = "mm", ["Scale"] = "SEE VIEWS",
-                ["View"] = "OVERVIEW", ["Sheet"] = $"1/{requested.Count + 1}", ["Status"] = "ENGINEERING REVIEW" }, width, height, new(1, "D5")),
+                ["View"] = "OVERVIEW", ["Sheet"] = $"1/{requested.Count + 1}", ["Status"] = "REFERENCE ONLY" }, width, height, new(1, "D5")),
             LocateNotes(notes, 1, overviewScheme, DrawingTitleBlockLayout.NotesArea(width, height))));
         foreach (var request in requested)
         {
@@ -175,7 +183,7 @@ public static partial class FirmamentDrawingCompiler
                 .OrderByDescending(p => p.X).ThenBy(p => p.Y).First(), StringComparer.Ordinal);
             view = view with { Viewport = viewport, SemanticAnchors = anchors };
             var fields = new Dictionary<string, string> { ["Product"] = name, ["Units"] = "mm", ["Scale"] = view.Scale.ToString("0.###", CultureInfo.InvariantCulture),
-                ["View"] = request.Name, ["Sheet"] = $"{page}/{requested.Count + 1}", ["Status"] = "ENGINEERING REVIEW" };
+                ["View"] = request.Name, ["Sheet"] = $"{page}/{requested.Count + 1}", ["Status"] = "REFERENCE ONLY" };
             var info = DrawingTitleBlockLayout.Create(metadata, fields, width, height, new(page, "D5"));
             pages.Add(new(page, DrawingPageOrientation.Landscape, width, height, new(12, 20, 273, 145), [view], ReferenceEnvelope(view), [], notes,
                 scheme, info, LocateNotes(notes, page, scheme, DrawingTitleBlockLayout.NotesArea(width, height))));
@@ -207,7 +215,8 @@ public static partial class FirmamentDrawingCompiler
             new(name, null, "AutomaticPmiSheets", new Dictionary<string, string> { ["Source"] = path, ["SHA256"] = StableHash(source) }, StableHash(source)[..16], [], sourceKind),
             LocateAnnotations(dimensioned), layout.Evidence, new(0, 0, 0, 0, 0), [],
             "Shared BRepWireframe sampler: trimmed exact edge curves and optional surface isolines. Wireframe intentionally displays rear edges; no HLR completeness claim.",
-            new("Inter", "Embedded TrueType / Type0 Identity-H", "Embedded Inter advance widths", new Dictionary<string, double> { ["body"] = 2.8, ["label"] = 3.2, ["title"] = 4.0 }));
+            new("Inter", "Embedded TrueType / Type0 Identity-H", "Embedded Inter advance widths", new Dictionary<string, double> { ["body"] = 2.8, ["label"] = 3.2, ["title"] = 4.0 }))
+        { DefinitionEvidence = new(false, false, false, false, "ReferenceOnly", [], ["Complete nominal dimensions and manufacturing requirements were not planned."], new Dictionary<string, double>(), []) };
         return WriteArtifacts(drawing, Path.GetFullPath(outputDirectory), 1, 0);
     }
 
@@ -215,6 +224,25 @@ public static partial class FirmamentDrawingCompiler
     {
         var decade = Math.Pow(10, Math.Floor(Math.Log10(fit)));
         return new[] { 1d, 2d, 5d }.Where(m => m * decade <= fit * (1 + 1e-12)).Max() * decade;
+    }
+
+    private static string? ValidateDrawingPmi(IReadOnlyList<Step242SemanticPmiInspectionItem> items,
+        IReadOnlyDictionary<int, Aetheris.Kernel.Core.Topology.FaceId> faceMap)
+    {
+        foreach (var item in items)
+        {
+            var name = item.AuthoredName ?? item.Name;
+            var kind = item.DimensionKind?.ToLowerInvariant();
+            if (item.Kind == "Dimension" && kind is not ("distance" or "lineardistancetodatum" or "diameter" or "holediameter"))
+                return $"drawing-pmi-family-unsupported: Dimension '{name}' has unqualified kind '{item.DimensionKind ?? "unknown"}'. A millimetre label was not guessed.";
+            if (!item.GeometricFaceEntityIds.Any(faceMap.ContainsKey))
+                return $"drawing-pmi-target-unlocated: '{name}' (STEP #{item.EntityId}, target '{item.Target}') has no imported geometric face association. A model-center leader would be misleading.";
+            if (item.Kind is "Dimension" or "Diameter" or "Position" && (item.Value is not { } value || !double.IsFinite(value)
+                || (item.Kind == "Diameter" || kind is "diameter" or "holediameter") && value <= 0))
+                return $"drawing-pmi-value-unavailable: '{name}' (STEP #{item.EntityId}) has no admitted finite nominal value. The drawing did not substitute zero.";
+            if (item.Depth is { } depth && (!double.IsFinite(depth) || depth <= 0)) return $"drawing-pmi-value-unavailable: '{name}' has an invalid hole depth.";
+        }
+        return null;
     }
 
     private static DrawingViewIr AtScale(DrawingViewIr view, double scale)

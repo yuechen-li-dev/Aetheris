@@ -5,6 +5,7 @@
 	background: #dbe2ea;
 	padding: 12mm;
 }
+.drawing-content .centermark { fill: none; stroke: #334155; stroke-width: .12; stroke-dasharray: 2 1; }
 .drawing-page {
 	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 	position: relative;

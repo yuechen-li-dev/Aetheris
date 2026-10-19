@@ -18,6 +18,21 @@ export type DrawingIr = {
 		templateIdentity: string;
 	};
 	pages: DrawingPageIr[];
+	definitionEvidence?: {
+		nominalGeometryComplete: boolean;
+		dimensionalTolerancesComplete: boolean;
+		materialSpecified: boolean;
+		processCapabilityVerified: boolean;
+		family: string;
+		coveredFaces: number[];
+		missingRequirements: string[];
+		stockDimensions: Record<string, number>;
+		holes: { identity: string; x: number; y: number; diameter: number; extent: string; group: string; sourceReferences: string[] }[];
+		linearToleranceMillimetres?: number | null;
+		angularToleranceDegrees?: number | null;
+		minimumHoleWebAtDeclaredLimitsMillimetres?: number | null;
+		toleranceScreenScope: string;
+	} | null;
 };
 
 export type DrawingPageIr = {
@@ -64,7 +79,7 @@ export type DrawingViewIr = {
 	viewport: DrawingRect;
 	primitives: {
 		stableId: string;
-		kind: "Visible" | "Silhouette" | "Hidden" | "SurfaceGrid";
+		kind: "Visible" | "Silhouette" | "Hidden" | "SurfaceGrid" | "CenterMark";
 		points: DrawingPoint2[];
 		occurrenceIdentity?: string;
 		definitionIdentity?: string;
@@ -86,7 +101,7 @@ export type DrawingTableIr = {
 	columns: string[];
 	rows: string[][];
 	sourceIdentity: string;
-	kind?: "Design" | "BillOfMaterials";
+	kind?: "Design" | "BillOfMaterials" | "HoleCoordinates";
 	bounds?: DrawingRect;
 	location?: DrawingLocationIr;
 };

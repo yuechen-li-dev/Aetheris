@@ -56,7 +56,7 @@ public static class DrawingVectorPdfWriter
             foreach (var primitive in view.Primitives)
             {
                 b.Append(primitive.Kind == DrawingPrimitiveKind.SurfaceGrid ? "0.58 0.64 0.70 RG\n" : "0.07 0.09 0.12 RG\n");
-                for (var index = 1; index < primitive.Points.Count; index++) Line(primitive.Points[index - 1], primitive.Points[index], primitive.Kind == DrawingPrimitiveKind.SurfaceGrid ? .12 : primitive.Kind == DrawingPrimitiveKind.Silhouette ? .5 : .35, primitive.Kind == DrawingPrimitiveKind.Hidden);
+                for (var index = 1; index < primitive.Points.Count; index++) Line(primitive.Points[index - 1], primitive.Points[index], primitive.Kind is DrawingPrimitiveKind.SurfaceGrid or DrawingPrimitiveKind.CenterMark ? .12 : primitive.Kind == DrawingPrimitiveKind.Silhouette ? .5 : .35, primitive.Kind is DrawingPrimitiveKind.Hidden or DrawingPrimitiveKind.CenterMark);
             }
             b.Append("0 0 0 RG\n");
         }

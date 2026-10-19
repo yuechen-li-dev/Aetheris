@@ -52,4 +52,4 @@ Generic STEP analysis reports analytic placement and size information where it i
 
 ## Generate engineering drawings
 
-`aetheris drawing generate <part.firmament|model.step> --out-dir <directory> --json` creates PDF, SVG, editable PPTX, Drawing IR and validation evidence. See [drawing generation](../drawings.md) for PMI admission and layout boundaries. Use `drawing compile` for authored drawings and assembly BOMs.
+`aetheris drawing generate <part.firmament|model.step> --out-dir <directory> --json` creates PDF, SVG, editable PPTX, Drawing IR and validation evidence. The default automatic path requires a complete nominal dimension plan; currently rectangular plates/boxes with disjoint Z-through holes are qualified. `--linear-tolerance`, `--angular-tolerance` and `--material` are explicit drawing requirements. `--reference-only` emits clearly incomplete visualization. See [drawing generation](../drawings.md) for admission, reconstruction qualification and manufacturing limits. Use `drawing compile` for authored drawings and assembly BOMs.

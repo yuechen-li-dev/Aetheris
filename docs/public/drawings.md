@@ -1,112 +1,137 @@
-# Generate engineering drawings
+# Generate dimensioned engineering drawings
 
-Use the existing drawing compiler to produce searchable vector PDF, SVG and
-editable PPTX from a Firmament part or supported AP242 semantic PMI:
+A drawing must define the nominal part without requiring its CAD file or measuring
+its picture. The compiler distinguishes nominal geometry coverage, specified
+limits, material and actual process qualification. Searchable PDF text and a clean
+layout are presentation checks, not manufacturing approval.
+
+## Generate a dimensioned plate
 
 ```powershell
-aetheris drawing generate fixtures/Regression/DrawingGeneration/inspection-plate.firmament --out-dir artifacts/local/drawing/inspection-plate --drawn-by "Codex (AI)" --date 2026-10-18 --json
-aetheris drawing generate inspection-plate.step --out-dir artifacts/local/drawing/from-step --json
+aetheris drawing generate fixtures/Regression/DrawingGeneration/inspection-plate.firmament --out-dir artifacts/local/drawing/inspection-plate --linear-tolerance 0.1 --angular-tolerance 0.5 --material "6061-T6 aluminium" --drawn-by "Codex (AI)" --date 2026-10-18 --json
 ```
 
-The default output directory is `artifacts/local/drawing/<source-name>`.
-Generation preserves the source and writes a Drawing IR and validation evidence
-beside the three presentation formats. PDF is a vector document with an embedded
-Inter font and searchable dimension text. SVG and editable PPTX consume the same
-positions and annotation strokes. Inter must be available in a PPTX editor to retain
-matching text metrics. Changes in a presentation never change geometry
-or PMI.
+`generate` also accepts `.step` / `.stp`. The default output directory is
+`artifacts/local/drawing/<source-name>`. PDF, SVG, editable PPTX, Drawing IR and a
+validation report share the same dimension plan. The compiler preserves source and
+body geometry. Generation options are explicit drawing authoring inputs; they do
+not rewrite the part or add these requirements to its AP242 PMI.
 
-## What automatic generation does
+The current complete-definition family is an axis-aligned rectangular plate/box
+with disjoint circular Z-through holes. Recognition accounts for every face,
+rectangular stock boundary, full circular opening and cylinder seam. Fillets,
+chamfers, blind holes, counterbores, nonrectangular outlines, oblique holes and other
+families require an authored complete drawing until their dimension planners are
+qualified. They fail automatic generation with `drawing-definition-incomplete`;
+a sampled bounding box is never used to claim complete dimensions.
 
-An overview sheet combines top, front and right orthographic views with an isometric
-wireframe. Its orthographic views share a scale. Enlarged PMI sheets follow only
-for views with annotations; dense callouts paginate.
-Surface lines come from the same BRep wireframe sampler as `aetheris wireframe`;
-orthographic views retain topology edges without the denser surface grid. Rear
-edges are intentionally visible. These are wireframe views, not a claim of complete
-hidden-line removal or standards certification.
+A qualified plate receives:
 
-The generator reads the existing Aetheris AP242 semantic PMI subset: named
-diameters with bilateral tolerances, datum features and supported face-associated
-annotations/position controls. Datum and hole callouts retain source identities
-and STEP entity/face references. Diameter callouts choose the orthographic view
-closest to the cylindrical axis. A face-on circular diameter receives a two-arrow
-diameter witness when its surface radius agrees with the semantic nominal.
+- Exact controlling width and height dimensions, and thickness on an aligned edge
+  view. These values come from stock planes, not sampled display bounds.
+- Hole center marks and IDs, a coordinate schedule from the left and bottom
+  finished edges, entry-face/orientation information, and explicit THRU extents.
+- Grouped diameter/limit callouts only when size, limits and extent agree.
+  Original PMI names, targets and face identities remain in provenance.
+- A datum indication on the actual associated plane in a useful view. Coordinate
+  edge references do not silently create extra GD&T datums.
+- Light internal hole-wall lines in the side view, rather than treating a
+  cylinder's parameter seam as an exterior edge.
 
-The X/Y/Z envelope measurements prefixed `~` and marked `REF` describe sampled
-projected curves. They are approximate reference measurements, with no implied
-manufacturing tolerance. They do not replace explicit PMI. A linear PMI callout
-can identify an associated face but does not invent measurement endpoints.
+Coordinates are independent baseline dimensions. No row/column pattern is guessed
+from an apparently regular picture. Irregular coordinates remain individual values.
+Hole schedules paginate beyond twelve rows; more than four distinct size/limit
+groups currently requires authored sheet allocation. Crowded labels or oversized
+values reject instead of clipping, shrinking or omitting engineering information.
 
-Labels use embedded-font widths. Layout reserves view titles, notes, information
-blocks, geometry, other labels and leader clearances. Placement uses the existing
-JudgmentEngine with deterministic costs and rejection reasons. Dense PMI is split
-into batches of at most six per view sheet. Layout failure is an error, not
-permission to shrink, clip or silently omit a dimension.
+## Tolerances and manufacturing authority
 
-## Authored drawings
+`--linear-tolerance <mm>` explicitly specifies bilateral stock-size and X/Y
+coordinate limits. `--angular-tolerance <degrees>` specifies the general angular
+allowance. `--material <name>` supplies the material for the drawing. These are
+not defaults and never override existing diameter PMI.
 
-Keep using `aetheris drawing compile <drawing.firmament> --out-dir <directory>` for
-explicit Drawing/Templates, selected views, engineering metadata, design tables,
-assembly BOMs and reviews. `generate` honors a source's existing Drawing declaration
-by using that compilation path. Assembly drawing authoring remains explicit.
+Without these inputs, nominal dimensions are still complete for a recognized part,
+but the sheet prominently identifies missing requirements and is not for
+manufacture. Missing hole diameter tolerances remain missing as well. JSON reports
+`nominalGeometryComplete`, `dimensionalTolerancesComplete`, `materialSpecified`,
+`processCapabilityVerified` and `missingRequirements` independently. Authored
+Drawing compilation has no automatic coverage assessment; its evidence remains
+unassessed rather than implicitly complete.
 
-Within an authored View, `HiddenLines: Wireframe` selects the shared wireframe
-projection; `VisibleOnly` and `VisibleAndHidden` retain their existing bounded
-occlusion behavior. This adds a presentation policy, not a new geometry frontend.
+The planner checks positive stock/diameter intervals and screens remaining hole
+webs against Cartesian entry-center limits and cylinder-axis lean on ideal
+orthogonal stock. The evidence records that assumption. This bounded interference
+screen does not qualify stock form, general angular stacks, surface finish,
+inspection uncertainty, a manufacturing process or functional fit. It is not
+permission to declare a part manufacture-ready.
 
-## Engineering authority and current boundaries
+For the example, the retained source diameter limits are 3.98-4.05 mm. Those are
+source requirements, not a claim that ordinary drilling will meet them, nor an M4
+clearance-fit designation. A suitable finishing/inspection process must be agreed.
+See the material/process-dependent [Protolabs machining capability table](https://www.protolabs.com/services/cnc-machining/precision-machining-tolerances/).
 
-Generated sheets communicate available source facts and require engineering
-review before manufacturing release. They do not infer material, missing dimensions,
-datum schemes, fits, general tolerances or revision metadata. A geometry-only input
-is explicitly labeled as having no supported semantic PMI.
+Conflicting diameter, depth or quantity PMI rejects. Unknown dimension kinds,
+unlocated PMI and unqualified AP242 families also reject; semantic requirements
+cannot disappear because nominal geometry looks plausible. Automatic PMI readback
+currently admits the existing Aetheris millimetre subset, not universal third-party
+AP242 PMI. Use multiline fields inside source PMI declarations; some semicolon
+forms remain frontend debt.
 
-Automatic generation currently admits one imported BRep body and millimetre PMI.
-Foreign PMI units, unsupported standard AP242 dimension/tolerance families and
-missing face associations produce named errors. Geometry-only imports can use the
-existing unit normalization. The generator does not claim universal third-party
-AP242 PMI interpretation. A datum axis-face port must resolve uniquely; multiple
-same-facing planes remain ambiguous.
+## Explicit reference visualization
 
-General section/detail views, automatic assembly annotation, standards certification
-and DXF drawing export are not qualified by this pass. PDF, SVG and PPTX are the
-implemented outputs.
+```powershell
+aetheris drawing generate model.step --reference-only --out-dir artifacts/local/drawing/reference --json
+```
 
-Use multiline fields inside PMI declarations. The current PMI frontend still
-rejects some otherwise equivalent semicolon-separated inline fields; generation
-does not introduce a second parser to work around that inconsistency.
+This retains the earlier PMI/wireframe review sheets with approximate `REF`
+envelopes. Sheets are marked **REFERENCE ONLY / NOT FOR MANUFACTURE**, and nominal
+completeness is false. Manufacturing generation options are rejected in this mode.
+Unsupported wireframe geometry also reports a named error. A reference view is not
+a substitute for complete dimensions.
 
-For labeling conventions, see MIT's
-[Engineering Drawing and Sketching](https://ocw.mit.edu/courses/2-007-design-and-manufacturing-i-spring-2009/pages/related-resources/drawing_and_sketching/):
-choose informative views, avoid redundant controlling dimensions, and place readable
-dimension text and leaders near the relevant feature. These references guide layout;
-they are not a claim of ISO/ASME compliance.
+## Authored drawings and formats
+
+`aetheris drawing compile <drawing.firmament> --out-dir <directory>` retains explicit
+Drawing/Templates, selected views, metadata Records, design tables, Assembly BOMs
+and reviews. `generate` delegates a source's explicit Drawing declaration to that
+owner. Automatic generation options cannot silently alter an authored drawing.
+
+Within an authored View, `HiddenLines: Wireframe` uses the shared trimmed BRep
+wireframe sampler. `VisibleOnly` and `VisibleAndHidden` retain existing bounded
+occlusion behavior. Wireframe can show rear geometry but cannot replace dimensions
+or supply an unstated hole depth.
+
+PDF uses embedded Inter, searchable text and vector strokes. SVG, React and editable
+PPTX consume the same annotation geometry and table data. PPTX requires Inter in the
+editor for matching metrics. Text/leader/model and table keepouts are checked;
+layout errors reject. DXF and general automatic section/detail/Assembly planning
+remain separate work. No general ISO/ASME certification is claimed.
 
 ## Title table and traceability
 
-Every sheet has a shared title table with merged title/identity cells, material,
-part number, revision, scale, units, sheet number and status. Its final rows contain
-separate **Drawn by / Checked by / Approved by** and corresponding date boxes.
-PPTX exports a native editable table; the browser uses an HTML table. PDF and SVG
-project the same measured cells and line hierarchy.
-
-Names and dates must be supplied together. Missing review/approval roles remain
-blank. For example, `--drawn-by "Codex (AI)" --date 2026-10-18` credits preparation
-of this drawing without claiming that anyone checked or approved it. These flags
-also work with authored `drawing compile`:
+Every sheet has a merged-cell title table for title/identity, material, part number,
+revision, scale, units, sheet and status. Separate Drawn / Checked / Approved names
+and dates are explicit paired inputs:
 
 - `--drawn-by <name> --date <yyyy-MM-dd>`
 - `--checked-by <name> --checked-date <yyyy-MM-dd>`
 - `--approved-by <name> --approved-date <yyyy-MM-dd>`
 
-The authored metadata Record can also supply `DrawnBy` / `DrawnDate`, `CheckedBy` /
-`CheckedDate` and `ApprovedBy` / `ApprovedDate`; declare and populate both members
-for each provided role. Existing `Author` and `Date` remain the fallback for Drawn.
-These are traceability records, not digital signatures or an automatic manufacturing
-release decision. Preparation credit does not replace the model's source provenance.
+These flags also work with `drawing compile`. The authored metadata Record can
+supply `DrawnBy`/`DrawnDate`, `CheckedBy`/`CheckedDate` and
+`ApprovedBy`/`ApprovedDate`; legacy `Author`/`Date` remain the Drawn fallback.
+Unperformed reviews remain blank. Preparation credit, including AI assistance,
+is traceability rather than a digital signature or automatic engineering approval.
 
-Text is measured before wrapping; a title-table or notes overflow rejects rather
-than silently truncating a name, date or engineering note. Line weights use paper
-millimetres consistently: heavier model boundaries, light surface grids, finer
-dimension/leader strokes, muted field labels and a stronger outer table frame.
+## Reconstruction qualification
+
+The regression reader `fixtures/Regression/DrawingGeneration/reconstruct_from_pdf.py`
+reads only visible PDF dimensions and tables, writes a fresh Firmament source and
+can compile it through the real CLI. It does not read the original source, Drawing
+IR or embedded attachments. Compare that frozen reconstruction with the original
+only afterward. The witness is bounded to this plate convention, not general OCR
+or an automatic engineering reviewer.
+
+The layout follows the completeness and nonredundancy principles in
+[MIT's engineering drawing guide](https://ocw.mit.edu/courses/2-007-design-and-manufacturing-i-spring-2009/pages/related-resources/drawing_and_sketching/).

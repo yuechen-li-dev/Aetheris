@@ -5,9 +5,9 @@ namespace Aetheris.Kernel.Firmament.Drawing;
 public enum DrawingPageOrientation { Portrait, Landscape }
 public enum DrawingProjectionKind { Orthographic, Isometric }
 public enum DrawingHiddenLinePolicy { VisibleOnly, VisibleAndHidden, Wireframe }
-public enum DrawingPrimitiveKind { Visible, Silhouette, Hidden, SurfaceGrid }
+public enum DrawingPrimitiveKind { Visible, Silhouette, Hidden, SurfaceGrid, CenterMark }
 public enum DrawingAnnotationKind { LinearDimension, DiameterDimension, RadiusDimension, Datum, FeatureControlFrame, Note }
-public enum DrawingTableKind { Design, BillOfMaterials }
+public enum DrawingTableKind { Design, BillOfMaterials, HoleCoordinates }
 
 public readonly record struct DrawingPoint2(double X, double Y);
 public readonly record struct DrawingRect(double X, double Y, double Width, double Height)
@@ -209,6 +209,23 @@ public sealed record DrawingPerformanceIr(
     double PdfMilliseconds,
     double BomMilliseconds = 0);
 
+/// <summary>Explicit authoring inputs, not inferred process capability or approval.
+/// Linear tolerance applies to stock sizes and ordinate coordinates, never overrides PMI.</summary>
+public sealed record DrawingGenerationOptions(bool ReferenceOnly = false, double? LinearToleranceMillimetres = null, string? Material = null,
+    double? AngularToleranceDegrees = null);
+
+public sealed record DrawingDefinedHoleIr(string Identity, double X, double Y, double Diameter, string Extent,
+    string Group, IReadOnlyList<string> SourceReferences);
+public sealed record DrawingDefinitionEvidenceIr(bool NominalGeometryComplete, bool DimensionalTolerancesComplete,
+    bool MaterialSpecified, bool ProcessCapabilityVerified, string Family, IReadOnlyList<int> CoveredFaces,
+    IReadOnlyList<string> MissingRequirements, IReadOnlyDictionary<string, double> StockDimensions,
+    IReadOnlyList<DrawingDefinedHoleIr> Holes, double? LinearToleranceMillimetres = null)
+{
+    public double? AngularToleranceDegrees { get; init; }
+    public double? MinimumHoleWebAtDeclaredLimitsMillimetres { get; init; }
+    public string ToleranceScreenScope { get; init; } = "Stock size and Cartesian entry-center intervals with cylinder-axis lean on ideal orthogonal planar stock; stock form, general angular stacks and process capability are unqualified.";
+}
+
 public sealed record DrawingIr(
     string Identity,
     DrawingMetadataIr Metadata,
@@ -220,7 +237,10 @@ public sealed record DrawingIr(
     string ProjectionPolicy,
     DrawingTypographyIr? Typography = null,
     ReviewIr? Reviews = null,
-    string SchemaVersion = "aetheris-drawing-m0b");
+    string SchemaVersion = "aetheris-drawing-m0b")
+{
+    public DrawingDefinitionEvidenceIr? DefinitionEvidence { get; init; }
+}
 
 public sealed record DrawingCompileArtifacts(
     DrawingIr Drawing,

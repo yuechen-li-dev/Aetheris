@@ -21,12 +21,14 @@ internal static class DrawingAnnotationLayout
             occupied.AddRange(page.Views.Select(v => new DrawingRect(v.Viewport.X, v.Viewport.Y, v.Viewport.Width, 6)));
             occupied.AddRange((page.LocatedNotes ?? []).Select(n => n.Bounds));
             if (page.InformationBlock is { } info) occupied.Add(info.Bounds);
+            occupied.AddRange(page.Tables.Select(t => t.Bounds));
             var annotations = new List<DrawingAnnotationIr>(page.Annotations);
             occupied.AddRange(annotations.Select(a => a.SelectedCandidate.Body));
             foreach (var seed in annotations)
             {
                 var owner = page.Views.Single(v => v.Identity == seed.AssignedView);
-                if (!Contains(owner.Viewport, seed.SelectedCandidate.Body) || page.Views.Any(v => CollidesModel(seed.SelectedCandidate.Body, v)))
+                if (!Contains(owner.Viewport, seed.SelectedCandidate.Body) || page.Views.Any(v => CollidesModel(seed.SelectedCandidate.Body, v))
+                    || page.Tables.Any(t => t.Bounds.Intersects(seed.SelectedCandidate.Body)))
                 {
                     failed++;
                     diagnostics.Add($"{FirmamentDrawingCompiler.DrawingLayoutImpossible}: Reference measurement '{seed.Identity}' exceeds its sheet allocation or overlaps geometry.");

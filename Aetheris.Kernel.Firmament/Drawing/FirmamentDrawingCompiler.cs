@@ -175,6 +175,7 @@ public static partial class FirmamentDrawingCompiler
             pageCount = drawing.Pages.Count, a4Only = drawing.Pages.All(page => (page.WidthMillimetres, page.HeightMillimetres) is (210, 297) or (297, 210)),
             vectorPdf = true, rasterImages = 0, embeddedFont = "Inter", searchableText = true,
             titleBlockTables = drawing.Pages.Count(page => page.InformationBlock?.Table is not null), signoff = drawing.Metadata.Signoff,
+            definition = drawing.DefinitionEvidence,
             pptx = DrawingPptxWriter.Inspect(pptxPath), reviewPptx = reviewPptxPath is null ? null : DrawingPptxWriter.Inspect(reviewPptxPath),
             occurrenceCount, bomRows,
             visibleSegments = drawing.Pages.SelectMany(page => page.Views).Sum(view => view.VisibilityEvidence?.VisibleSegments ?? 0),

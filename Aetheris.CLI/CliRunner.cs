@@ -167,7 +167,7 @@ public static class CliRunner
     private const string ExperimentalPrismaticCorpusUsage = "Usage: aetheris experimental prismatic-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticMapUsage = "Usage: aetheris experimental prismatic-map --case <case> --rows <N> --cols <N> --json";
     private const string FeaUsage = "Usage: aetheris fea <analysis.firmament> [--lattice <nx,ny,nz>] [--rotate <x,y,z-degrees>] [--experimental-preconditioner <identity|jacobi|block-jacobi|ic0>] [--experimental-equilibration <true|false>] [--out-dir <directory>] [--json]";
-    private const string DrawingUsage = "Usage: aetheris drawing <compile|generate> <drawing.firmament|part.firmament|model.step> --out-dir <directory> [--drawn-by <name> --date <yyyy-MM-dd>] [--checked-by <name> --checked-date <yyyy-MM-dd>] [--approved-by <name> --approved-date <yyyy-MM-dd>] [--json] | aetheris drawing <inspect|render|crop|notes> ...";
+    private const string DrawingUsage = "Usage: aetheris drawing <compile|generate> <drawing.firmament|part.firmament|model.step> --out-dir <directory> [--drawn-by <name> --date <yyyy-MM-dd>] [--checked-by <name> --checked-date <yyyy-MM-dd>] [--approved-by <name> --approved-date <yyyy-MM-dd>] [--json] | generate options: [--linear-tolerance <mm>] [--angular-tolerance <degrees>] [--material <name>] [--reference-only] | aetheris drawing <inspect|render|crop|notes> ...";
     private const string SheetMetalUsage = "Usage: aetheris sheetmetal recognize <part.step> [--plan <recognition.json>] [--json] | aetheris sheetmetal recover-flat <part.step> --out-dir <directory> [--recognition-plan <recognition.json>] [--json] | aetheris sheetmetal compare-flat <recovered-flat.json> <native.firmament> [--semantic] [--json] | aetheris sheetmetal inspect <part.step|part.firmament> [--k-factor <0..1>] [--json] | aetheris sheetmetal paths <part.firmament> [--json] | aetheris sheetmetal recover <part.step> --out-dir <directory> [--json] | aetheris sheetmetal compare <part.step|part.firmament> <intent.firmament> [--semantic] [--json] | aetheris sheetmetal flatten <part.step|part.firmament> [--step <flat.step>] [--firmament <recovered.firmament>] [--svg <flat.svg>] [--k-factor <0..1>] [--json]";
     private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
     private const string SculptureUsage = "Usage: aetheris sculpture build <sol-1.sculpture.json> [--out <sol-1.step>] [--evidence <sol-1.evidence.json>] [--preview <sol-1.preview.svg>] [--json]";
@@ -1179,10 +1179,23 @@ Model CanonicalPanel {
         string? output = null;
         var json = false;
         var signoffValues = new Dictionary<string, string>(StringComparer.Ordinal);
+        var generationOptions = new DrawingGenerationOptions();
         for (var i = 2; i < args.Length; i++)
         {
             if (args[i] == "--out-dir" && i + 1 < args.Length) output = args[++i];
             else if (args[i] == "--json") json = true;
+            else if (args[i] == "--reference-only") generationOptions = generationOptions with { ReferenceOnly = true };
+            else if (args[i] == "--material" && i + 1 < args.Length) generationOptions = generationOptions with { Material = args[++i] };
+            else if (args[i] == "--angular-tolerance" && i + 1 < args.Length)
+            {
+                var angle = double.TryParse(args[++i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedAngle) ? parsedAngle : double.NaN;
+                generationOptions = generationOptions with { AngularToleranceDegrees = angle };
+            }
+            else if (args[i] == "--linear-tolerance" && i + 1 < args.Length)
+            {
+                var tolerance = double.TryParse(args[++i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedTolerance) ? parsedTolerance : double.NaN;
+                generationOptions = generationOptions with { LinearToleranceMillimetres = tolerance };
+            }
             else if (args[i] is "--drawn-by" or "--date" or "--checked-by" or "--checked-date" or "--approved-by" or "--approved-date" && i + 1 < args.Length)
                 signoffValues[args[i]] = args[++i];
             else { stderr.WriteLine($"Unknown drawing option '{args[i]}'."); stderr.WriteLine(DrawingUsage); return 1; }
@@ -1192,7 +1205,9 @@ Model CanonicalPanel {
             new(signoffValues.GetValueOrDefault("--drawn-by"), signoffValues.GetValueOrDefault("--date")),
             new(signoffValues.GetValueOrDefault("--checked-by"), signoffValues.GetValueOrDefault("--checked-date")),
             new(signoffValues.GetValueOrDefault("--approved-by"), signoffValues.GetValueOrDefault("--approved-date")));
-        var result = args[0] == "generate" ? FirmamentDrawingCompiler.Generate(source, output, signoff) : FirmamentDrawingCompiler.Compile(source, output, signoff);
+        if (args[0] == "compile" && generationOptions != new DrawingGenerationOptions())
+        { stderr.WriteLine("drawing-authored-options-unsupported: Generation options apply to drawing generate; authored requirements belong in its metadata."); return 1; }
+        var result = args[0] == "generate" ? FirmamentDrawingCompiler.Generate(source, output, signoff, generationOptions) : FirmamentDrawingCompiler.Compile(source, output, signoff);
         if (!result.IsSuccess)
         {
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { success = false, diagnostics = result.KernelDiagnostics().Select(d=>FirmamentBuildAdmissionValidation.Present(d,source,File.Exists(source)?File.ReadAllText(source):null)).ToArray() }, JsonOptions));
@@ -1200,8 +1215,10 @@ Model CanonicalPanel {
             return 1;
         }
         var artifacts = result.Artifacts!;
-        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { success = true, artifacts.DrawingIrPath, artifacts.SvgPath, artifacts.PdfPath, artifacts.PptxPath, artifacts.ReviewPptxPath, artifacts.DfmReviewPptxPath, artifacts.ReviewIrPath, artifacts.ValidationPath, artifacts.PdfSha256, artifacts.DrawingIrSha256, artifacts.PptxSha256, pageCount = artifacts.Drawing.Pages.Count, layout = artifacts.Drawing.LayoutEvidence }, JsonOptions));
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { success = true, artifacts.DrawingIrPath, artifacts.SvgPath, artifacts.PdfPath, artifacts.PptxPath, artifacts.ReviewPptxPath, artifacts.DfmReviewPptxPath, artifacts.ReviewIrPath, artifacts.ValidationPath, artifacts.PdfSha256, artifacts.DrawingIrSha256, artifacts.PptxSha256, pageCount = artifacts.Drawing.Pages.Count, layout = artifacts.Drawing.LayoutEvidence, definition = artifacts.Drawing.DefinitionEvidence }, JsonOptions));
         else stdout.WriteLine($"Compiled Drawing '{artifacts.Drawing.Identity}' to PDF and native editable PPTX ({artifacts.Drawing.Pages.Count} A4 page(s)).");
+        if (!json && artifacts.Drawing.DefinitionEvidence is { } definition)
+            stdout.WriteLine($"Nominal geometry complete: {definition.NominalGeometryComplete}; dimensional tolerances complete: {definition.DimensionalTolerancesComplete}; material specified: {definition.MaterialSpecified}; process capability verified: {definition.ProcessCapabilityVerified}.");
         return 0;
     }
 

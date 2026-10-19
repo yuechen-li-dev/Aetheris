@@ -20,9 +20,11 @@ public sealed class DrawingGenerationTests
         var exchanged = FirmamentDrawingCompiler.Generate(step, Path.Combine(scratch.Path, "step"));
         Assert.True(exchanged.IsSuccess, string.Join("\n", exchanged.Diagnostics));
         var drawing = part.Artifacts!.Drawing;
-        Assert.True(drawing.Pages.Count >= 3); // dense top-view callouts paginate
+        Assert.Single(drawing.Pages); // a complete coordinate schedule avoids duplicate diameter sheets
         var annotations = drawing.Pages.SelectMany(p => p.Annotations).ToArray();
-        Assert.Equal(10, annotations.Count(a => Enumerable.Range(1, 10).Any(n => a.SemanticReference.EndsWith(":Size" + n, StringComparison.Ordinal))));
+        Assert.Equal(10, drawing.DefinitionEvidence!.Holes.Count);
+        Assert.Equal(10, drawing.DefinitionEvidence.Holes.SelectMany(h => h.SourceReferences).Count());
+        Assert.True(drawing.DefinitionEvidence.NominalGeometryComplete);
         Assert.Equal(annotations.Select(a => a.EngineeringDisplay), exchanged.Artifacts!.Drawing.Pages.SelectMany(p => p.Annotations).Select(a => a.EngineeringDisplay));
         Assert.Equal(drawing.Pages.SelectMany(p => p.Views).SelectMany(v => v.Primitives).SelectMany(p => p.Points),
             exchanged.Artifacts.Drawing.Pages.SelectMany(p => p.Views).SelectMany(v => v.Primitives).SelectMany(p => p.Points));
@@ -30,9 +32,9 @@ public sealed class DrawingGenerationTests
         Assert.Equal(0, drawing.LayoutEvidence.TextTextCollisionsAfter);
         Assert.Equal(0, drawing.LayoutEvidence.TextLeaderCollisionsAfter);
         Assert.Equal(0, drawing.LayoutEvidence.FailedAnnotationCount);
-        Assert.Contains(annotations, a => a.EngineeringDisplay.Contains("Ø4 mm +0.05/-0.02", StringComparison.Ordinal));
+        Assert.Contains(annotations, a => a.EngineeringDisplay.Contains("Ø4 +0.05/-0.02", StringComparison.Ordinal));
         Assert.Contains(annotations, a => a.DimensionLines.Count > 0);
-        Assert.Contains(drawing.Pages.SelectMany(p => p.Views).SelectMany(v => v.Primitives), p => p.Kind == DrawingPrimitiveKind.SurfaceGrid);
+        Assert.Contains(drawing.Pages.SelectMany(p => p.Views).SelectMany(v => v.Primitives), p => p.Kind == DrawingPrimitiveKind.CenterMark);
         Assert.True(annotations.Select(a => a.ProjectedAnchor).Distinct().Count() >= 10);
         Assert.All(annotations.Where(a => a.SemanticReference.StartsWith("step:", StringComparison.Ordinal)), a => { Assert.Contains("STEP #", a.Provenance); Assert.Equal(a.ProjectedAnchor, a.SelectedCandidate.Leader[0]); });
         foreach (var page in drawing.Pages)
@@ -42,7 +44,7 @@ public sealed class DrawingGenerationTests
         }
         Assert.True(File.Exists(part.Artifacts.PdfPath)); Assert.True(File.Exists(part.Artifacts.PptxPath));
         var svg = File.ReadAllText(part.Artifacts.SvgPath);
-        Assert.Contains("surfacegrid", svg); Assert.Contains("data-semantic-reference", svg);
+        Assert.Contains("centermark", svg); Assert.Contains("data-semantic-reference", svg);
     }
 
     [Fact]
@@ -80,8 +82,9 @@ public sealed class DrawingGenerationTests
         File.WriteAllText(path, "Model Plain { units: mm Box Stock { size: [30mm, 20mm, 10mm] } }");
         var result = FirmamentDrawingCompiler.Generate(path, Path.Combine(scratch.Path, "out"));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
-        Assert.All(result.Artifacts!.Drawing.Pages.SelectMany(p => p.Annotations), a => Assert.StartsWith("reference:", a.SemanticReference));
-        Assert.Contains(result.Artifacts.Drawing.Pages[0].Notes, n => n.Contains("NO SUPPORTED SEMANTIC PMI", StringComparison.Ordinal));
+        Assert.True(result.Artifacts!.Drawing.DefinitionEvidence!.NominalGeometryComplete);
+        Assert.False(result.Artifacts.Drawing.DefinitionEvidence.DimensionalTolerancesComplete);
+        Assert.Contains(result.Artifacts.Drawing.Pages[0].Notes, n => n.Contains("TOLERANCES UNSPECIFIED", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -89,7 +92,7 @@ public sealed class DrawingGenerationTests
     {
         using var scratch = new Scratch(); var path = Path.Combine(scratch.Path, "long.firmament");
         File.WriteAllText(path, File.ReadAllText(Fixture()).Replace("Size1 {", "InspectionRequirementForFirstMountingBoreDiameter {", StringComparison.Ordinal));
-        var result = FirmamentDrawingCompiler.Generate(path, Path.Combine(scratch.Path, "out"));
+        var result = FirmamentDrawingCompiler.Generate(path, Path.Combine(scratch.Path, "out"), null, new(ReferenceOnly: true));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
         var label = result.Artifacts!.Drawing.Pages.SelectMany(p => p.Annotations).Single(a => a.EngineeringDisplay.StartsWith("InspectionRequirement", StringComparison.Ordinal));
         Assert.True(label.SelectedCandidate.Body.Width > 58);
@@ -121,7 +124,8 @@ public sealed class DrawingGenerationTests
         var path = Path.Combine(scratch.Path, "depth.step"); File.WriteAllText(path, exported.Value);
         var result = FirmamentDrawingCompiler.Generate(path, Path.Combine(scratch.Path, "out"));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
-        Assert.Contains(result.Artifacts!.Drawing.Pages.SelectMany(p => p.Annotations), a => a.EngineeringDisplay.Contains("DEPTH 8 mm", StringComparison.Ordinal));
+        Assert.Equal(8, result.Artifacts!.Drawing.DefinitionEvidence!.StockDimensions["Thickness"]);
+        Assert.All(result.Artifacts.Drawing.DefinitionEvidence.Holes, h => Assert.Equal("THRU", h.Extent));
     }
 
     [Fact]
@@ -146,7 +150,7 @@ public sealed class DrawingGenerationTests
         {
             using var stream = slide.Open(); var xml = System.Xml.Linq.XDocument.Load(stream);
             System.Xml.Linq.XNamespace a = "http://schemas.openxmlformats.org/drawingml/2006/main";
-            var table = Assert.Single(xml.Descendants(a + "tbl"));
+            var table = Assert.Single(xml.Descendants(a + "tbl"), t => t.Descendants(a + "gridCol").Count() == 6);
             Assert.Equal(6, table.Descendants(a + "gridCol").Count());
             Assert.All(table.Elements(a + "tr"), row => Assert.Equal(6, row.Elements(a + "tc").Count()));
         }
@@ -185,7 +189,7 @@ public sealed class DrawingGenerationTests
               }
             }
             """);
-        var result = FirmamentDrawingCompiler.Generate(path, Path.Combine(scratch.Path, "out"));
+        var result = FirmamentDrawingCompiler.Generate(path, Path.Combine(scratch.Path, "out"), null, new(ReferenceOnly: true));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
         var page = result.Artifacts!.Drawing.Pages.Single(p => p.Annotations.Any(a => a.Kind == DrawingAnnotationKind.DiameterDimension));
         var annotation = page.Annotations.Single(a => a.Kind == DrawingAnnotationKind.DiameterDimension);
@@ -242,7 +246,7 @@ public sealed class DrawingGenerationTests
         Assert.Equal(admitted, result.IsSuccess);
         if (admitted)
             Assert.Contains(result.Artifacts!.Drawing.Pages.SelectMany(p => p.Annotations),
-                a => a.Kind == DrawingAnnotationKind.DiameterDimension && a.EngineeringDisplay.Contains("Ø4 mm", StringComparison.Ordinal));
+                a => a.Kind == DrawingAnnotationKind.DiameterDimension && a.EngineeringDisplay.Contains("Ø4", StringComparison.Ordinal));
         else
         {
             Assert.Contains(result.Diagnostics, d => d.StartsWith("drawing-pmi-family-unsupported:", StringComparison.Ordinal));

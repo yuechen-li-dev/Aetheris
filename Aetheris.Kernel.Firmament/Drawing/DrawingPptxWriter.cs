@@ -83,8 +83,8 @@ public static partial class DrawingPptxWriter
                 foreach (var primitive in view.Primitives)
                     for (var index = 1; index < primitive.Points.Count; index++)
                         group.Line($"View.{view.Identity}.Edge.{Safe(primitive.StableId)}.{index}", primitive.Points[index - 1].X, primitive.Points[index - 1].Y, primitive.Points[index].X, primitive.Points[index].Y,
-                            primitive.Kind == DrawingPrimitiveKind.SurfaceGrid ? "94A3B8" : "111111", primitive.Kind == DrawingPrimitiveKind.SurfaceGrid ? .12 : .35,
-                            dashed: primitive.Kind == DrawingPrimitiveKind.Hidden);
+                            primitive.Kind == DrawingPrimitiveKind.SurfaceGrid ? "94A3B8" : "111111", primitive.Kind is DrawingPrimitiveKind.SurfaceGrid or DrawingPrimitiveKind.CenterMark ? .12 : .35,
+                            dashed: primitive.Kind is DrawingPrimitiveKind.Hidden or DrawingPrimitiveKind.CenterMark);
             });
         foreach (var annotation in page.Annotations)
             slide.Group($"PMI.{Safe(annotation.Identity)}", group =>
@@ -96,7 +96,7 @@ public static partial class DrawingPptxWriter
                 var body = annotation.SelectedCandidate.Body;
                 group.Text($"PMI.{Safe(annotation.Identity)}.Text", annotation.EngineeringDisplay, body.X, body.Y, body.Width, body.Height, 3.2, centered: true, border: annotation.Kind is DrawingAnnotationKind.Datum or DrawingAnnotationKind.FeatureControlFrame);
             });
-        foreach (var table in page.Tables) slide.Table($"Table.{(table.Kind == DrawingTableKind.BillOfMaterials ? "BOM" : "Design")}.{Safe(table.Identity)}", table);
+        foreach (var table in page.Tables) slide.Table($"Table.{(table.Kind == DrawingTableKind.BillOfMaterials ? "BOM" : table.Kind.ToString())}.{Safe(table.Identity)}", table);
         if (page.InformationBlock is not null)
             slide.Group("Metadata.DrawingInfo", group =>
             {

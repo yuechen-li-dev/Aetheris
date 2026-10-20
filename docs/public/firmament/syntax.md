@@ -15,6 +15,8 @@ make it legal in every other domain.
 For visual profile authoring in Helios, use **Command palette → New sketch part**.
 The [sketch workspace](sketcher.md) edits the same dimensions and compile-time
 parameters described here; its 2D preview is followed by the normal solid build.
+For agent-assisted source editing, see [AI Author](ai-author.md). It prepares
+candidate changes through the same compiler, with checkpoint recovery.
 
 **Complete file — a plate with a through hole:**
 

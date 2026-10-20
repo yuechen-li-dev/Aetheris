@@ -32,6 +32,8 @@ export interface TelosGeometry {
   ranges?: readonly MeshRange[];
 }
 export interface TelosMesh {
+  /** Presentation witnesses must not intercept engineering face/edge picks. */
+  pickable?: boolean;
   definition: TelosGeometry;
   identity: TelosIdentity;
   transform?: NumericArray;

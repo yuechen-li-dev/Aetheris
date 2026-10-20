@@ -69,6 +69,14 @@ test("overlay priority, visibility, and engineering geometry identity", () => {
   assert.equal(pick.pick([400, 300])?.faceId, "face(+Z)");
   pick.dispose();
 });
+test('presentation surface markers cannot replace the engineering face pick', () => {
+  const pick = new TelosPick(camera());
+  pick.setScene({ meshes: [mesh, { ...mesh, pickable: false,
+    identity: { occurrenceId: 'PMI', overlayId: 'datum:A' }, depthMode: 'always-on-top' }], lines: [], fields: [] });
+  assert.equal(pick.pick([400,300])?.faceId, 'face(+Z)');
+  assert.equal(pick.pick([400,300])?.overlayId, undefined);
+  pick.dispose();
+});
 test("selection/filter updates retain CPU geometry; a rebuild replaces it and preserves stable face identity", () => {
   const pick = new TelosPick(camera());
   pick.setScene({ meshes: [mesh], lines: [], fields: [] });

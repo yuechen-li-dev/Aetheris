@@ -71,7 +71,7 @@ public static class ProductArtifactExporter
                     case "step": bytes = Encoding.UTF8.GetBytes(source.StepText!); mediaType = "model/step"; break;
                     case "glb":
                         var annotatedDisplay = source.StepText is not null && source.Assembly is null && source.Scene is null
-                            ? source.Display with { Annotations = Visualization.PmiDisplayProjection.FromStep(source.StepText) } : source.Display;
+                            ? source.Display with { Annotations = Visualization.PmiDisplayProjection.FromStep(source.StepText, source.Display.TessellationOptions) } : source.Display;
                         bytes = source.Scene is { } scene ? SceneExport.Glb(scene) : AssemblyGlbExporter.Serialize(annotatedDisplay,
                             occurrenceLooks: source.Assembly?.Instances.Where(i => i.Appearance is not null)
                                 .ToDictionary(i => i.StableId, i => i.Appearance!, StringComparer.Ordinal));

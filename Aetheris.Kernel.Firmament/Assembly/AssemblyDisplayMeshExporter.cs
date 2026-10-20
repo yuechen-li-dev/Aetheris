@@ -30,6 +30,10 @@ public sealed record ResolvedDisplayMaterial(double[] BaseColor, double Roughnes
 public sealed record AssemblyDisplayMeshDocument(string Schema, string Name, string Units,
     IReadOnlyList<AssemblyDisplayMeshDefinition> Definitions, IReadOnlyList<AssemblyDisplayMeshOccurrence> Occurrences)
 {
+    /// <summary>Producer's sampling budget for downstream surface witnesses. Presentation
+    /// bookkeeping only; excluded from the serialized display-mesh contract.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public DisplayTessellationOptions? TessellationOptions { get; init; }
     public IReadOnlyList<Visualization.PmiDisplayAnnotation> Annotations { get; init; } = [];
     public IReadOnlyList<DisplayCamera> Cameras { get; init; } = [];
     public double[]? MinimumMm { get; init; }

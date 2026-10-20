@@ -591,7 +591,7 @@ public static partial class Program
             var meshPhase = BuildPerfTrace.Phase("web.mesh-build");
             IReadOnlyList<Aetheris.Kernel.Firmament.Visualization.PmiDisplayAnnotation> annotations;
             IReadOnlyList<WebDiagnostic> presentationDiagnostics = [];
-            try { annotations = Aetheris.Kernel.Firmament.Visualization.PmiDisplayProjection.FromStep(step); }
+            try { annotations = Aetheris.Kernel.Firmament.Visualization.PmiDisplayProjection.FromStep(step, WebMeshBuilder.TessellationOptions); }
             catch (InvalidOperationException error) when (error.Message.StartsWith("pmi-display-", StringComparison.Ordinal))
             {
                 // A missing presentation adapter cannot invalidate admitted engineering geometry.
@@ -806,6 +806,7 @@ internal static class ParameterInspector
 
 internal static class WebMeshBuilder
 {
+    internal static DisplayTessellationOptions TessellationOptions { get; } = new(double.Pi / 16, .3, 6, 64);
     public static object Build(string name, string definitionId, string entityId, BrepBody body, out AssemblyDisplayMeshDocument exportDisplay,
         Aetheris.Kernel.Firmament.Materializer.SemanticTopologyCorrespondence? correspondence = null,
         WebSourceRef? source = null, int buildRevision = 0, IReadOnlyDictionary<string, WebSourceRef?>? featureSources = null,
@@ -816,7 +817,7 @@ internal static class WebMeshBuilder
         // Browser WASM has no blocking monitor wait. Use the existing synchronous
         // tessellator authority; the Worker transport supplies UI responsiveness.
         var tessPhase = BuildPerfTrace.Phase("web.tessellation");
-        var tessellation = BrepDisplayTessellator.Tessellate(body, new DisplayTessellationOptions(double.Pi / 16, .3, 6, 64));
+        var tessellation = BrepDisplayTessellator.Tessellate(body, TessellationOptions);
         tessPhase.Dispose();
         if (!tessellation.IsSuccess) throw new InvalidOperationException(string.Join("; ", tessellation.Diagnostics.Select(item => item.Message)));
         BuildPerfTrace.Count("brep.faces", body.Topology.Faces.Count());
@@ -853,7 +854,7 @@ internal static class WebMeshBuilder
         var transform = new double[] { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
         exportDisplay = new("aetheris/display-mesh/1", name, "mm",
             [new(definitionId, entityId, positionArray, normalArray, indexArray)],
-            [new(entityId + ":occurrence", name, null, definitionId, transform, entityId)]) { Annotations = annotations ?? [] };
+            [new(entityId + ":occurrence", name, null, definitionId, transform, entityId)]) { Annotations = annotations ?? [], TessellationOptions = TessellationOptions };
         return new
         {
             schema = "aetheris/display-mesh/1",

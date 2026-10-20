@@ -103,7 +103,7 @@ export class TelosPick {
     const ray = this.camera.worldRay(pixel);
     this.raycaster.ray.set(ray.origin, ray.direction);
     const intersections = this.raycaster.intersectObjects(
-      this.proxies.filter((mesh) => mesh.userData.item.visible !== false),
+      this.proxies.filter((mesh) => mesh.userData.item.visible !== false && mesh.userData.item.pickable !== false),
       false,
     );
     // Explicit authoring surfaces take priority over model faces. Equal priority uses distance.

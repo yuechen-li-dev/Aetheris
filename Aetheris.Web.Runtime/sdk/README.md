@@ -57,7 +57,14 @@ topology addressability: there is no synthetic native feature history.
 `model.mesh.importedAsset` exposes asset path, SHA-256 and import qualification.
 `model.mesh.annotations` projects AP242 datum/diameter requirements with exact
 values, allowances and separate font-outline/leader curves in Z-up millimetres.
-Shared Telos WebGPU/WebGL adapters render those curves. Part GLB export retains
+Its additive `target` contains surface-marker geometry, a normal and stem length:
+an interior plane patch for datums or the associated cylindrical wall and physical
+rims for diameters. A disclosed `surfaceOffset` lifts only marker graphics to avoid
+coincident-surface striping; the leader anchor stays on the exact support.
+Parameter seams are not rim markers. Shared Telos WebGPU/WebGL
+adapters render the gold witnesses without intercepting engineering picks; the
+default body appearance is 78% opaque when PMI is present, preserving authored
+appearances. Part GLB export retains
 the body buffers and appends separate annotation nodes plus structured metadata
 under `asset.extras.pmi` (`aetheris/pmi-display/1`, `pmiUnits: mm`). An unsupported
 callout projection warns in the viewport and rejects annotated GLB export;

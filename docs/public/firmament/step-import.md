@@ -40,9 +40,18 @@ report `ImportedStable`, the source selector, surface kind and measured cylinder
 diameter; these do not imply a native editable feature history.
 
 GLB part export projects supported datum/diameter PMI into separate font-outline
-and leader line primitives plus structured `asset.extras.pmi` records
+and leader line primitives, surface witnesses and structured `asset.extras.pmi` records
 (`aetheris/pmi-display/1`, millimetres). Body vertex/index buffers are preserved.
-Callouts are static XY-plane outlines; the viewport legend remains readable when
+Datum leaders terminate inside the selected plane on a small gold patch. Diameter
+leaders terminate on the analytic cylindrical wall, whose trimmed surface and
+physical rims are highlighted in gold; parameter seams are not highlighted as rims.
+A short surface-normal stem and arrow identify each attachment. The default body
+appearance is lightly translucent during PMI inspection/export; explicit authored
+appearances are retained. All markers are presentation only and do not intercept
+engineering picks. `target` metadata records the witness geometry, normal and a
+tiny `surfaceOffset` used only to prevent coincident-surface rendering artifacts.
+The leader anchor stays on the exact support; engineering geometry is not offset.
+Callout text uses static XY-plane outlines; the viewport legend remains readable when
 the geometry text is edge-on. These are presentation assets, not AP242 semantics
 or manufacturing approval.
 Unsupported callout kinds/associations fail annotated GLB export explicitly;

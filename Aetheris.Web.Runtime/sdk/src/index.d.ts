@@ -26,6 +26,9 @@ export interface PmiDisplayAnnotation {
   readonly stepFaceEntities: readonly number[]; readonly anchor: readonly number[];
   readonly labelPosition: readonly number[]; readonly textHeight: number;
   readonly lines: readonly (readonly (readonly number[])[])[];
+  readonly target?: { readonly kind: 'PlanePatch' | 'CylinderWall'; readonly normal: readonly number[]; readonly stemLength: number; readonly surfaceOffset: number;
+    readonly positions: readonly number[]; readonly normals: readonly number[]; readonly indices: readonly number[];
+    readonly lines: readonly (readonly (readonly number[])[])[] } | null;
 }
 export interface MeshRange { readonly surfaceKind?: string | null; readonly diameterMm?: number | null }
 export interface SelectionDescription { readonly surfaceKind?: string | null; readonly diameterMm?: number | null }

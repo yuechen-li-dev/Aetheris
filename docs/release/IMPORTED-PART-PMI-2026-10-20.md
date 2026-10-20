@@ -95,7 +95,7 @@ Both historical inputs currently carry the importer's **Degraded** geometry
 qualification, visibly retained in the inspector. Successful annotation and
 unchanged geometry do not upgrade that assessment. This pass performs no healing.
 
-## Qualification
+## Initial MVP qualification
 
 - Focused imported topology/PMI/resource/export, text-profile and cross-file
   composition analysis: **85 passed**.
@@ -119,6 +119,89 @@ actual workspace/export archives, source/assets, CLI analyses, parity summaries,
 workspace and exported STEP have the same basename, so they are inspected in
 separate `bracket/workspace/` and `bracket/export/` directories.
 
+## Engineering presentation refinement
+
+The first MVP preserved semantic data but placed leaders at the first tessellation
+vertex. That often meant a datum on a three-plane corner and a hole callout that
+looked unattached inside the solid. Data preservation alone did not make those
+graphics unambiguous.
+
+The shared AP242 display projector now supplies explicit surface witnesses:
+
+- **Datum:** an interior point and a small square patch on its selected plane.
+  The patch fits inside a trimmed display triangle's incircle, avoiding hole voids,
+  concavities and the arbitrary first vertex. A normal stem and arrow terminate
+  at that point.
+- **Diameter:** an interior UV-triangle point evaluated on the analytic cylinder,
+  not a tessellation chord or rim vertex. The associated trimmed wall and physical
+  rim wires receive gold highlighting. Doubly used parameter seams are excluded
+  from the rim highlight. The normal stem is bounded by the cylinder radius.
+- **Presentation:** gold witnesses, restrained wide-line halos in WebGPU, and
+  78% default body opacity for PMI inspection. Explicit authored appearances are
+  retained. GLB contains its own gold/emissive marker materials and translucent
+  default body material; these are not styling added by the qualification viewer.
+
+The additive `target` field in `aetheris/pmi-display/1` carries marker kind, normal,
+stem length and geometry. Shared Telos WebGPU and transitional WebGL adapters
+project the same compiler geometry. Filled markers and their wires cannot intercept
+engineering picks. WebGL marker meshes/materials have explicit disposal. Body
+buffers and STEP associations are unchanged. Multi-face requirements without an
+implemented multi-face presentation reject explicitly rather than marking only
+the first association.
+
+Independent GLB readback exposed intersecting approximations: the browser body
+used 32 cylinder segments while the original PMI projector used 24. The body
+producer now retains its sampling budget for the projector and GLB exporter;
+24- and 32-segment regressions require marker vertices to correspond to actual
+body display vertices. This bookkeeping is excluded from the serialized mesh
+contract. The projector also lifts only marker graphics a tiny distance
+along the oriented surface normal, bounded by text/marker size and cylinder radius.
+The additive `surfaceOffset` records that distance in millimetres. Leaders retain
+their exact support anchors. Regression checks remove this recorded offset before
+proving the markers lie on the selected plane/cylinder and within planar material.
+The same offset geometry is shared by both viewport adapters and GLB.
+
+The independent viewer fits camera clipping to the exported model's metre-scale
+bounds. Its initial 0.01 mm near / 1 km far clip range discarded close-up depth
+precision and produced additional striping. Standard glTF depth occlusion still
+applies: orbit to inspect a far-side attachment, and use the legend when static
+text is edge-on. The qualification viewer changes camera framing/clipping only;
+it adds no PMI, materials, transparency or target styling to the downloaded asset.
+
+These witnesses identify referenced **surfaces**. This pass does not add an
+edge-target PMI authoring family or imply that a cylinder parameter seam is a
+manufactured edge. Text still occupies a static plane. Markers are display
+approximations on already admitted geometry; they do not improve the importer's
+engineering qualification or constitute a released manufacturing drawing.
+
+### Refinement qualification
+
+- Focused source/PMI/export and surface-attachment regressions: **11 passed**.
+  Checks cover interior planar material, analytic cylinder radius, normal stems,
+  physical rims without a parameter seam, sampling parity at 24/32 segments,
+  exact semantic values and byte-identical body-buffer prefixes.
+- Core fast lane: **1,087 passed**. Full solution: **5,739 passed across 20
+  projects, zero failures or skips**, including **3,000 Firmament** tests.
+  Log: `artifacts/local/pmi-target-qualified-full-tests.log`.
+- SDK: **18 passed**. Shared Telos: **18 passed**, including marker pick exclusion,
+  geometry/material disposal and preserving authored appearance. Helios:
+  **126 passed**; final SDK packaging and Helios bundle/typecheck passed.
+- Real saved plate and L-bracket workspaces reopened in Helios, displayed gold
+  targets and exported STEP + GLB with no diagnostics. CLI admission is valid.
+  All **154 / 154** plate and **550 / 550** bracket baseline STEP entity records
+  remain identical. Plate topology remains **7/15/12** faces/edges/vertices;
+  bracket topology remains **16/42/28**. Source asset hashes are unchanged.
+- The downloaded plate GLB was decoded independently and inspected in isometric,
+  label-plane and reverse views. The bracket GLB additionally verifies its
+  nonhorizontal datum and differently oriented bore. No compiler or private
+  product state is available to that viewer.
+
+Current ignored evidence is under `artifacts/local/pmi-surface-markers/`:
+actual STEP/GLB exports, CLI analyses/admission, `qualification-summary.json`,
+`helios-final.png`, the three plate GLB views, and bracket UI/GLB screenshots.
+Temporary viewers and the development server were stopped; no .NET test hosts
+remain. **Verdict: Success** for this bounded surface-attachment refinement.
+
 ## Boundaries and next work
 
 - Existing semantic PMI in a newly imported STEP is explicitly rejected rather
@@ -129,7 +212,7 @@ separate `bracket/workspace/` and `bracket/export/` directories.
 - The first purpose-facing authoring form covers planar datum and cylindrical
   diameter. Existing graph/source transactions edit created records; complete
   GD&T, distance, angular and coordinate-dimension authoring are future slices.
-- GLB callouts are static XY-plane outline/leader geometry, not camera-facing
+- GLB callout text is static XY-plane outline geometry, not camera-facing
   billboards or a production drawing layout. The viewport legend remains readable
   when a static label is edge-on. AP242 remains semantic engineering authority.
   This metadata is not a standardized glTF semantic PMI extension.

@@ -1,0 +1,10 @@
+Template<H: Length> Struct Post { Cylinder Body { radius: 4mm height: H } }
+Assembly Pair {
+    <Assembly Pair>
+        <Part A = Post<H:10mm>></Part>
+        <Part B = Post<H:8mm>>
+            Placement Old = [1,0,0,0,0,1,0,0,0,0,1,0,20,0,0,1];
+        </Part>
+    </Assembly>
+    Anchor: Pair.A;
+}

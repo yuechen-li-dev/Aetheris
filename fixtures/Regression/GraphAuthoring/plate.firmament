@@ -1,0 +1,7 @@
+Model Part {
+    units: mm
+    Box Stock { size: [80mm, 60mm, 8mm] }
+    Modify Stock {
+        Hole<Shaft> Seed { on: +Z center: Point2(-20mm, -10mm) diameter: 4mm end: ThroughAll }
+    }
+}

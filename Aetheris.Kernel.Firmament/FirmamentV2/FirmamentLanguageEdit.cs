@@ -30,7 +30,12 @@ public sealed record FirmamentLanguageEditOperation(string Kind)
     public string? Source { get; init; }
     /// <summary>extractFeature: the fields that become parameters; the rest stay fixed in the Feature.</summary>
     public IReadOnlyList<string>? Parameters { get; init; }
+    public FirmamentGridEdit? Grid { get; init; }
+    public FirmamentPlacementEdit? Placement { get; init; }
 }
+
+public sealed record FirmamentGridEdit(int Columns, int Rows, double PitchXmm, double PitchYmm);
+public sealed record FirmamentPlacementEdit(double[] TranslationMm, string Axis, double AngleDegrees);
 
 /// <summary>A declaration to write: <c>Modifiers Kind&lt;Variant&gt; Name { Field: Value ... }</c>.</summary>
 public sealed record FirmamentDeclarationSpec(string Kind, string? Variant = null, IReadOnlyList<string>? Modifiers = null,
@@ -58,7 +63,7 @@ public sealed class FirmamentLanguageEditException(string code, string message) 
 /// checked by parsing its result: an edit that adds a syntax error is refused. Parsing is the only
 /// gate here; whether the edited model builds is the compiler's decision.
 /// </summary>
-public static class FirmamentLanguageEditService
+public static partial class FirmamentLanguageEditService
 {
     private static readonly Regex Identifier = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant);
 
@@ -87,6 +92,11 @@ public static class FirmamentLanguageEditService
                 "extractFeature" => ExtractFeature(text, before, operation),
 
                 "nameFeature" => NameFeature(text, before, operation),
+                "replaceDeclaration" => ReplaceDeclaration(text, before, operation),
+                "patternFeature" => PatternFeature(text, before, operation),
+                "extrudeProfile" => ExtrudeProfile(text, before, operation),
+                "pocketProfile" => PocketProfile(text, before, operation),
+                "setPlacement" => SetPlacement(text, before, operation),
                 _ => throw new FirmamentLanguageEditException("edit-unknown-operation", $"Unknown edit operation '{operation.Kind}'.")
             };
             var after = Parse(next);

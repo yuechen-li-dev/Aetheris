@@ -25,7 +25,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
     }
 
     public static KernelResult<BrepBody> BuildComposition(SafeBooleanComposition composition, ToleranceContext tolerance,
-        Action<string, FaceId>? onConstructedHoleWall = null)
+        Action<string, FaceId>? onConstructedHoleWall = null, Action<string, FaceId>? onConstructedHostFace = null)
     {
         ArgumentNullException.ThrowIfNull(composition);
         _ = tolerance;
@@ -128,7 +128,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             }
         }
 
-        return CreateComposedThroughHoleBody(composition, tolerance, onConstructedHoleWall);
+        return CreateComposedThroughHoleBody(composition, tolerance, onConstructedHoleWall, onConstructedHostFace);
     }
 
     /// <summary>
@@ -721,7 +721,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
     }
 
     private static KernelResult<BrepBody> CreateComposedThroughHoleBody(SafeBooleanComposition composition, ToleranceContext tolerance,
-        Action<string, FaceId>? onConstructedHoleWall = null)
+        Action<string, FaceId>? onConstructedHoleWall = null, Action<string, FaceId>? onConstructedHostFace = null)
     {
         var box = composition.OuterBox;
         var holes = composition.Holes;
@@ -802,6 +802,8 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         // intersection is not topology authority here.
         var bottomFace = AddKnownFace(builder, bottomLoops);
         var topFace = AddKnownFace(builder, topLoops);
+        onConstructedHostFace?.Invoke("-Z", bottomFace);
+        onConstructedHostFace?.Invoke("+Z", topFace);
         var xMinFace = AddKnownFace(builder, [AddSurgeryLoop(builder, [Forward(e1), Forward(e10), Reversed(e5), Reversed(e9)])]);
         var xMaxFace = AddKnownFace(builder, [AddSurgeryLoop(builder, [Forward(e2), Forward(e11), Reversed(e6), Reversed(e10)])]);
         var yMaxFace = AddKnownFace(builder, [AddSurgeryLoop(builder, [Forward(e3), Forward(e12), Reversed(e7), Reversed(e11)])]);

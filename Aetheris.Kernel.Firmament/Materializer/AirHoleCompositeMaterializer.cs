@@ -88,9 +88,11 @@ internal static class AirHoleCompositeMaterializer
         }
 
         var wallFaces = new Dictionary<string, FaceId>(StringComparer.Ordinal);
+        var hostFaces = new Dictionary<string, FaceId>(StringComparer.Ordinal);
         var duplicateWallOrigin = false;
         var built = BrepBooleanBoxCylinderHoleBuilder.BuildComposition(composition, ToleranceContext.Default,
-            (featureId, faceId) => { if (!wallFaces.TryAdd(featureId, faceId)) duplicateWallOrigin = true; });
+            (featureId, faceId) => { if (!wallFaces.TryAdd(featureId, faceId)) duplicateWallOrigin = true; },
+            (role, faceId) => hostFaces.Add(role, faceId));
         if (!built.IsSuccess || built.Value is null)
         {
             diagnostics.Add("air-hole-x4 composite BRep build failed.");
@@ -107,8 +109,11 @@ internal static class AirHoleCompositeMaterializer
             $"material:hole:{plan.SemanticFeatureId}:wall", "Face", SemanticTopologyRole.HoleWallFace,
             $"hole:{plan.SemanticFeatureId}", Face: wallFaces[plan.SemanticFeatureId], ParentStableId: plan.SemanticFeatureId,
             Addressability: SemanticTopologyAddressability.DerivedStable)).ToArray();
-        var correspondence = new SemanticTopologyCorrespondence(plans[0].SemanticFeature.TargetBodyId ?? "semantic-hole-host",
-            descendants, ["HoleAIR", "AirHoleCompositeMaterializer", "BrepBooleanBoxCylinderHoleBuilder"]);
+        var hostId = plans[0].SemanticFeature.TargetBodyId ?? "semantic-hole-host";
+        var retained = hostFaces.TryGetValue("-Z", out var bottom) && hostFaces.TryGetValue("+Z", out var top)
+            ? BoxConstructionCorrespondence.RetainedCaps(hostId, bottom, top) : [];
+        var correspondence = new SemanticTopologyCorrespondence(hostId,
+            [.. descendants, .. retained], ["HoleAIR", "AirHoleCompositeMaterializer", "BrepBooleanBoxCylinderHoleBuilder", "RetainedBoxCaps"]);
         diagnostics.Add("air-hole-x4 composite materialization succeeded through semantic AirHoleFeature plans and safe boolean AP242 BRep composition.");
         return new(true, built.Value, plans, diagnostics, correspondence);
     }

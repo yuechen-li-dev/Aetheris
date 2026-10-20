@@ -258,7 +258,9 @@ internal static class AirHoleSimpleShaftMaterializer
             new($"material:{source}:exit-edge", "Edge", SemanticTopologyRole.BottomBoundary, source, Edge: EdgeOf(exitLoop), ParentStableId: plan.SemanticFeatureId, Addressability: SemanticTopologyAddressability.DerivedStable),
             new($"material:{source}:wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: wall.Id, ParentStableId: plan.SemanticFeatureId, Addressability: SemanticTopologyAddressability.DerivedStable)
         };
-        return new(plan.SemanticFeature.TargetBodyId ?? "semantic-hole-host", descendants, ["HoleAIR", "AirHoleSimpleShaftMaterializationPlan", "ThroughHoleConstructionRecipe", "BrepSurgery"]);
+        var hostId = plan.SemanticFeature.TargetBodyId ?? "semantic-hole-host";
+        return new(hostId, [.. descendants, .. BoxConstructionCorrespondence.RetainedCaps(hostId, bottom.Id, top.Id)],
+            ["HoleAIR", "AirHoleSimpleShaftMaterializationPlan", "ThroughHoleConstructionRecipe", "BrepSurgery", "RetainedBoxCaps"]);
     }
 
     private static IEnumerable<ProfileStackLayer> BuildLayers(AirHoleFeature feature, AirHoleSimpleShaftHost host, double cutZMin, double cutZMax)

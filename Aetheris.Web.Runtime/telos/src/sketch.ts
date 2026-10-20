@@ -23,6 +23,8 @@ export interface SketchCallbacks {
   apply(request: SketchEditRequest): Promise<string | null>;
   source(span: { start: number; length: number }): void;
   close(): void;
+  /** Host-owned new-document action, including any unsaved-source decision. */
+  createPart?(): void;
 }
 
 const ns = 'http://www.w3.org/2000/svg';
@@ -132,6 +134,12 @@ export class SketchWorkspace {
         button(create, text, () => void this.apply({ kind: 'create', node: parent.value, shape })).disabled = this.pending;
       this.host.append(create);
     }
+    if (this.view && !this.view.profiles.length && !this.view.emptyModels.length && this.callbacks.createPart) {
+      const start = document.createElement('div'); start.style.cssText = 'padding:8px 14px;display:flex;gap:12px;align-items:center';
+      const explanation = document.createElement('span'); explanation.textContent = 'This part has no editable profile. Start a separate sketch part with a rectangle and extrusion.'; start.append(explanation);
+      button(start, 'New sketch part', () => this.callbacks.createPart!()).disabled = this.pending;
+      this.host.append(start);
+    }
     const content = document.createElement('div'); content.style.cssText = 'display:flex;flex:1;min-height:0'; this.host.append(content);
     const canvas = document.createElement('div'); canvas.style.cssText = 'position:relative;flex:1;min-width:0;overflow:hidden'; content.append(canvas);
     this.svg = document.createElementNS(ns, 'svg'); this.svg.setAttribute('aria-label', 'Profile canvas'); this.svg.style.cssText = 'width:100%;height:100%;min-height:260px;touch-action:none'; canvas.append(this.svg);
@@ -194,7 +202,8 @@ export class SketchWorkspace {
     const status = document.createElement('div'); status.setAttribute('role', this.error || this.view?.diagnostics.length ? 'alert' : 'status');
     status.style.cssText = 'padding:8px 14px;border-top:1px solid #ddd;white-space:pre-wrap;max-height:120px;overflow:auto';
     status.textContent = this.error || this.view?.diagnostics.map(d => `${d.code}: ${d.message}`).join('\n') || (this.pending ? 'Resolving…' : this.draft ? 'Profile preview · not built' : this.view && !this.view.profiles.length && !this.view.emptyModels.length
-      ? 'No authored Profile in this document. Use Command palette → New sketch part, or open a document containing a Profile.'
+      ? this.callbacks.createPart ? 'No authored Profile in this document. Start a new sketch part above, or open a document containing a Profile.'
+        : 'No authored Profile in this document. Use Command palette → New sketch part, or open a document containing a Profile.'
       : 'Drag a dimension or type a value. Scroll to zoom; middle-drag to pan. Solid admission is checked by Build.'); this.host.append(status);
     this.draw(true);
   }

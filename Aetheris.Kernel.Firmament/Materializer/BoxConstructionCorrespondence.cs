@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Brep.Features;
+using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
@@ -6,6 +7,14 @@ namespace Aetheris.Kernel.Firmament.Materializer;
 /// <summary>Maps the IDs captured by the Box extrusion itself to existing axis selectors.</summary>
 public static class BoxConstructionCorrespondence
 {
+    /// <summary>The retained world-Z stock caps emitted by the qualified box/hole construction.</summary>
+    public static IReadOnlyList<SemanticTopologyDescendant> RetainedCaps(string bodyStableId, FaceId bottom, FaceId top) =>
+    [
+        new($"{bodyStableId}.face(-Z)", "Face", SemanticTopologyRole.BoxFace, bodyStableId, Face: bottom, ParentStableId: bodyStableId,
+            FirmamentSelector: "face(-Z)", Addressability: SemanticTopologyAddressability.DerivedStable),
+        new($"{bodyStableId}.face(+Z)", "Face", SemanticTopologyRole.BoxFace, bodyStableId, Face: top, ParentStableId: bodyStableId,
+            FirmamentSelector: "face(+Z)", Addressability: SemanticTopologyAddressability.DerivedStable)
+    ];
     public static SemanticTopologyCorrespondence Create(string bodyStableId, BrepExtrudeConstructionTopology topology, FirmamentV2SourceSpan? sourceSpan = null)
     {
         ArgumentNullException.ThrowIfNull(topology);

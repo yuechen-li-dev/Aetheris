@@ -1,0 +1,5 @@
+Model Part {
+    units: mm
+    Rect2 Outline { center: [0mm,0mm] size: [80mm,60mm] }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+}

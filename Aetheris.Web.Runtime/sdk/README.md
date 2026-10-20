@@ -211,3 +211,23 @@ error code and explanation, with no source mutation.
 
 This first contract addresses authored Profiles in one document. It does not
 rewrite included/generated declarations. See [the authoring guide](../../../docs/public/firmament/sketcher.md).
+
+### Pending graph authoring
+
+`language.edit` also prepares `replaceDeclaration`, `patternFeature`,
+`extrudeProfile`, `pocketProfile`, and `setPlacement` operations. These operate on
+the existing structural AST. Preparing an edit does not admit its geometry:
+compile the candidate in a separate model handle before committing its exact
+source splice, and dispose that preview when controls change or it is cancelled.
+Keep revision checks and source undo history in the host.
+
+`patternFeature` currently repeats a field-based Hole in Modify, keeping the seed
+and keyed row/column copies. `pocketProfile` targets Compose or qualified plain
+Box/Extrude stock. `extrudeProfile` changes the extrusion end while preserving
+its authored start. Full compilation remains the capability authority.
+
+Outline Placement nodes expose optional `placementControls`: literal
+Origin-to-Parent translation and one-axis rotation, or a disclosed read-only
+reason. General matrices, expressions and named-frame relationships must not be
+flattened into editable numbers. Support picking similarly requires an actual
+compiler-owned selector; display face identity alone is insufficient.

@@ -20,6 +20,7 @@ public sealed record FirmamentOutlineNode(string Id, string Kind, string? Varian
     public string? Annotation { get; init; }
     /// <summary>Declared parameters with their types and defaults, as written (Feature, Template).</summary>
     public IReadOnlyList<FirmamentOutlineParameter> Signature { get; init; } = [];
+    public FirmamentPlacementControls? PlacementControls { get; init; }
 }
 
 public sealed record FirmamentOutlineParameter(string Name, string Type, string? Default);
@@ -249,6 +250,7 @@ public static class FirmamentLanguageOutlineService
             parameters, fields, entry.Children.Select(c => c.Id).ToArray())
         {
             Value = value,
+            PlacementControls = entry.Kind == "Placement" ? FirmamentLanguageEditService.PlacementControls(d) : null,
             Annotation = d.Annotation is null ? null : Text(source, d.Annotation.Span),
             Signature = d.Parameters.Where(p => p.Name is not null).Select(p => new FirmamentOutlineParameter(p.Name!.Text,
                 Text(source, p.Value.Span), p.Default is null ? null : Text(source, p.Default.Span))).ToArray(),

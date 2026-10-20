@@ -2,6 +2,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Aetheris } from '../src/index.js';
 
+test('sketch projection and edit retain the authored revision and selected Profile without compiling', async () => {
+  const requests = []; const cad = new Aetheris({ request: async request => { requests.push(request); return { revision: request.sourceRevision }; } });
+  const options = { sourceName: 'part.firmament', sourceRevision: 'r5' };
+  await cad.language.sketch('source', 'Part/Section', options);
+  const edit = { kind: 'dimensions', node: 'Part/Section', changes: [{ control: 'width', value: 100 }] };
+  await cad.language.sketchEdit('source', edit, options);
+  assert.deepEqual(requests, [
+    { operation: 'languageSketch', source: 'source', node: 'Part/Section', ...options },
+    { operation: 'languageSketchEdit', source: 'source', sketchEdit: edit, ...options },
+  ]);
+});
+
 test('public language completion sends source revision and offset through runtime transport', async () => {
   const requests = [];
   const cad = new Aetheris({ request: async request => {

@@ -12,6 +12,10 @@ make it legal in every other domain.
 
 ## A first part
 
+For visual profile authoring in Helios, use **Command palette → New sketch part**.
+The [sketch workspace](sketcher.md) edits the same dimensions and compile-time
+parameters described here; its 2D preview is followed by the normal solid build.
+
 **Complete file — a plate with a through hole:**
 
 ```firmament
@@ -551,8 +555,13 @@ admit `rotation` in degrees; a rotation is redundant for a circle. Explicit
 Triangle2 and Polygon2 variants use authored points directly and reject nonzero
 rotation. Rotate those points or place a derived Profile with Curve2 instead.
 These remain planar guides: trace a Profile
-and give it a material consumer to obtain a solid. Layout `on XY` is admitted;
-an unsupported `on XZ` does not silently change the plane. These forms do not
+and give it a material consumer to obtain a solid. Local 2D Concept layouts admit
+`on XY`, `on XZ` and `on YZ` through `Profile ... using Layout`. Their local axes
+are respectively world X/Y, X/Z and Y/Z; the right-handed normals are +Z, -Y and
++X. Extrude uses the resolved frame; Compose inherits its Base Profile frame and
+requires a common frame for Base/Add/Remove operands. Oriented Compose rejects
+Boss/Pocket/Hole/Slot/EdgeFinish while their support adapters require world XY.
+Typed spatial members require their own explicit frame workflow. These forms do not
 promise arbitrary 2D Boolean operations, implicit sketch solving, or first-class
 shape arguments to predicate Concepts. See [boundary details](boundaries.md)
 for variant fields and exact curve families.
@@ -700,8 +709,10 @@ different reference types. `on` appears in several contexts; it is not one
 universal placement operation. A profile context, Hole support, section frame
 and Assembly attachment each have their own type and admission rules.
 
-Use only a plane or frame admitted by that consumer. Do not assume replacing
-`on XY` with `on XZ` rotates every downstream feature. Follow
+Use only a plane or frame admitted by that consumer. `Concept Struct ... on XZ`
+selects the frame for its local 2D guides when a Profile uses that layout; it does
+not transform unrelated spatial members or change another consumer's support.
+Follow
 [Concept derivation](concept-derivation.md) and the consuming guide; unsupported
 placement must reject rather than substitute XY.
 

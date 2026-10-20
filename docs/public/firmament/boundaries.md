@@ -59,7 +59,7 @@ Polygon2<Explicit> Outline { vertices: vertices }
 RegularPolygon2<6> Hex { center: [0mm,0mm] acrossFlats: 32mm rotation: 30deg }
 ```
 
-`rotation: Angle` rotates a shape in its local XY plane. Placement remains owned by the existing `Concept Struct ... on XY` / `Profile ... using ...` frame architecture; the shape declarations do not introduce a second frame system.
+`rotation: Angle` rotates a shape in its local 2D coordinates. Placement remains owned by `Concept Struct ... on XY/XZ/YZ` and `Profile ... using ...`, or by a traced Construction Plane; the shape declarations do not introduce a second frame system. XZ uses world +X/+Z with normal -Y; YZ uses +Y/+Z with normal +X. A plane-scoped 2D layout does not implicitly transform spatial semantic members. See [the sketch workspace](sketcher.md#planes).
 
 Explicit Triangle2 and Polygon2 boundaries use their authored point coordinates.
 A nonzero `rotation` on those variants is rejected; it previously disappeared.

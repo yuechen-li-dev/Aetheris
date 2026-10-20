@@ -5,7 +5,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 /// <summary>One structural edit, addressed by outline node ids (<see cref="FirmamentLanguageOutlineService"/>).
-/// <c>Kind</c> is <c>setField</c>, <c>removeField</c>, <c>insertDeclaration</c>, <c>removeDeclaration</c>,
+/// <c>Kind</c> is <c>setField</c>, <c>setValue</c> (Static initializer), <c>removeField</c>, <c>insertDeclaration</c>, <c>removeDeclaration</c>,
 /// <c>renameDeclaration</c>, <c>moveDeclaration</c>, <c>insertFeature</c> <c>extractFeature</c> or <c>nameFeature</c>.
 /// <c>removeDeclaration</c> and <c>moveDeclaration</c> also take a call node (a placed Feature).</summary>
 public sealed record FirmamentLanguageEditOperation(string Kind)
@@ -77,6 +77,7 @@ public static class FirmamentLanguageEditService
             var (next, node) = operation.Kind switch
             {
                 "setField" => SetField(text, before, operation),
+                "setValue" => SetValue(text, before, operation),
                 "removeField" => RemoveField(text, before, operation),
                 "insertDeclaration" => InsertDeclaration(text, before, operation),
                 "removeDeclaration" => RemoveDeclaration(text, before, operation, document, warnings),
@@ -99,6 +100,15 @@ public static class FirmamentLanguageEditService
     }
 
     // ---- Operations -------------------------------------------------------------------------
+
+    private static (string, string?) SetValue(string text, SyntaxParseResult parse, FirmamentLanguageEditOperation op)
+    {
+        var (id, declaration) = Find(parse, op.Node);
+        if (declaration.Type.Name.Text != "Static" || declaration.Initializer is null || declaration.Body is not null)
+            throw new FirmamentLanguageEditException("edit-value-readonly", "Only an authored Static initializer can be edited as a value.");
+        var value = RequireValue(op.Value, "Value");
+        return (Replace(text, declaration.Initializer.Span.Start, declaration.Initializer.Span.Length, value), id);
+    }
 
     private static (string, string?) SetField(string text, SyntaxParseResult parse, FirmamentLanguageEditOperation op)
     {

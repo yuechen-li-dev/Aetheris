@@ -58,6 +58,8 @@ public static partial class Program
                 "languageComplete" => LanguageComplete(request),
                 "languageAnalyze" => LanguageAnalyze(request),
                 "languageOutline" => LanguageOutline(request),
+                "languageSketch" => LanguageSketch(request),
+                "languageSketchEdit" => LanguageSketchEdit(request),
                 "languageEdit" => LanguageEdit(request),
                 "languagePalette" => FirmamentLanguagePaletteService.Palette(),
                 "languageHover" => LanguageHover(request),
@@ -157,6 +159,21 @@ public static partial class Program
             return FirmamentLanguageOutlineService.Outline(request.Source, name, request.SourceRevision);
         var documents = new Dictionary<string, string>(request.ProjectDocuments, StringComparer.Ordinal) { [name] = request.Source };
         return FirmamentLanguageOutlineService.Outline(new FirmamentProjectSnapshot(request.ProjectRoot ?? name, documents), name, request.SourceRevision);
+    }
+
+    private static object LanguageSketch(WebRequest request)
+    {
+        if (request.Source is null || request.SourceRevision is null)
+            throw new WebRuntimeException("source-required", "A sketch query requires source and its revision.");
+        return FirmamentSketchService.Project(request.Source, request.SourceName ?? "model.firmament", request.SourceRevision, request.Node);
+    }
+
+    private static object LanguageSketchEdit(WebRequest request)
+    {
+        if (request.Source is null || request.SourceRevision is null || request.SketchEdit is null)
+            throw new WebRuntimeException("source-required", "A sketch edit requires source, revision and an operation.");
+        try { return FirmamentSketchService.Edit(request.Source, request.SourceName ?? "model.firmament", request.SourceRevision, request.SketchEdit); }
+        catch (FirmamentLanguageEditException error) { throw new WebRuntimeException(error.Code, error.Message); }
     }
 
     private static object LanguageEdit(WebRequest request)
@@ -278,7 +295,8 @@ public static partial class Program
         bool Performance = false, IReadOnlyDictionary<string, string>? ProjectDocuments = null, string? ProjectRoot = null,
         int? Bridge = null, IReadOnlyList<FirmamentLanguageEditOperation>? Operations = null,
         string? Motion = null, double? TimeSeconds = null, bool PreserveEndpoint = false,
-        IReadOnlyList<string>? Formats = null, Aetheris.Geometry.MeasurementRequest? Measurement = null);
+        IReadOnlyList<string>? Formats = null, Aetheris.Geometry.MeasurementRequest? Measurement = null,
+        string? Node = null, FirmamentSketchEditRequest? SketchEdit = null);
 
     /// <summary>
     /// BUILD-PERF-M3 response bridge (request <c>bridge: 1</c>, sent by the SDK). Large numeric arrays

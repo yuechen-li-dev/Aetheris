@@ -181,13 +181,15 @@ public sealed class FirmamentFrontendX1Tests
     }
 
     [Fact]
-    public void UnsupportedFrame_IsRetainedAsAuthoredBeforeSemanticRejection()
+    public void PrincipalFrame_IsRetainedAsAuthoredAndAdmittedWithItsOrientation()
     {
         var source = File.ReadAllText(Root("fixtures/Regression/FrontendX0/unsupported-xz-layout.firmament"));
         var declaration = Assert.Single(FirmamentSyntaxEvidence.Declarations(Parse(source).Document), d => d.Name?.Text == "Layout");
         var frame = Assert.IsType<ReferenceSyntax>(Assert.Single(declaration.Clauses).Value);
         Assert.Equal("XZ", frame.Name.Text);
-        Assert.False(FirmamentBuildAndExport.CompileSource(source).IsSuccess);
+        var built = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(built.IsSuccess, string.Join("; ", built.Diagnostics.Select(d => d.Message)));
+        Assert.Equal([60d, 0, 30], new Analysis.FirmamentMeasurements(built.Value).Bounds!.MaximumMm);
     }
 
     [Fact]

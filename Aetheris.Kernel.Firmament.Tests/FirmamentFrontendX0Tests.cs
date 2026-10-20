@@ -12,7 +12,7 @@ public sealed class FirmamentFrontendX0Tests
     [InlineData("unknown-model-statement", "UnifiedMechanical")]
     [InlineData("unknown-modify-statement", "UnifiedMechanical")]
     [InlineData("unknown-box-field", "UnifiedMechanical")]
-    [InlineData("unsupported-xz-layout", "UnifiedMechanical")]
+    [InlineData("unsupported-layout-frame", "UnifiedMechanical")]
     public void InvalidSource_IsRejectedByParserReportAndEngineeringCompiler(string fixture, string route)
     {
         var source = Read(fixture);
@@ -62,7 +62,12 @@ public sealed class FirmamentFrontendX0Tests
         Assert.Equal(30d, points.Max(point => point.Y) - points.Min(point => point.Y), 8);
         Assert.Equal(3d, points.Max(point => point.Z) - points.Min(point => point.Z), 8);
         Assert.Equal(8, imported.Value.Topology.Faces.Count());
-        Assert.False(FirmamentBuildAndExport.CompileSource(xz).IsSuccess);
+        var oriented = FirmamentBuildAndExport.CompileSource(xz);
+        Assert.True(oriented.IsSuccess, string.Join("; ", oriented.Diagnostics.Select(d => d.Message)));
+        var measured = new Analysis.FirmamentMeasurements(oriented.Value);
+        Assert.Equal([0d, -3, 0], measured.Bounds!.MinimumMm);
+        Assert.Equal([60d, 0, 30], measured.Bounds.MaximumMm);
+        Assert.Equal(imported.Value.Topology.Faces.Count(), Step242Importer.ImportBody(oriented.Value.StepText).Value.Topology.Faces.Count());
         Assert.False(FirmamentBuildAndExport.CompileSource(xy.Replace("Using Layout", "Using MissingFrame", StringComparison.Ordinal)).IsSuccess);
     }
 

@@ -9,6 +9,11 @@ comes with a reference spelling that builds today, and the reference is the geom
 Recorded at `0a72e6f1`: **13 of 32 checks pass.** The 13 are the 11 guards plus two diagnostic
 cases (e02, f01). Every `fix` and `design` case fails, and so does the chimera.
 
+Principal-plane amendment (2026-10-19): f01's original source is retained and now
+must build in XZ. Its geometry oracle is an explicit traced Construction Plane
+with local axes +X/+Z and normal -Y. This admission change is recorded in the
+language decision register; an XZ layout is no longer a required rejection.
+
 ## Run
 
 ```sh
@@ -88,7 +93,7 @@ removes about 31 mm³.
 | d05 | capability follow-up | #24 | F5 | Originally `CombinedFeatureSelectionLost` at (1,1) | Now builds the original source: 11 faces, 23 edges, 14 vertices; 4 fillet cylinders plus the hole wall |
 | e01 | fix | X3 #13 | F21 | `pocket-missing-required-field` | `Pocket … End: ThroughAll` = `Remove … Role: ThroughCut` |
 | e02 | diagnostic | X3 #13 | F21 | correct at (6,5) | Keep it |
-| f01 | diagnostic | X0 #5 | F9 | correct code at line 9, after `ConceptPathProfileNotAdmittedByCompose` noise | Keep it; drop the noise |
+| f01 | fix | X0 #5 | F9 | formerly rejected XZ layout | Admit and match the explicit oriented-plane reference |
 | f02 | design | X3 #20 | F11 | `polygon2-variant-unsupported` | Inline `Points` list |
 | f03 | diagnostic | X3 #20 | F11 | `ConceptPathProfileNotAdmittedByCompose` (1,1) | Endpoint diagnostic at the first Segment (5), or admit and add a reference |
 | f04 | design | X3 #20 + X2 #9 | F11 F18 | `polygon2-variant-unsupported` | Inline `Points` with arithmetic |

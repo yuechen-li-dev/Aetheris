@@ -78,6 +78,9 @@ public sealed record PrismaticProfilePlacement(
     string Name, double AnchorX, double AnchorY, double AnchorZ,
     string ProfilePlane, string Axis, string ReferenceDirection, bool IsExplicit)
 {
+    /// <summary>The bound operand frame, when placement is inherited from a Profile.</summary>
+    public ConstructionPlane? ProfileConstructionPlane { get; init; }
+
     /// <summary>
     /// Resolves the legacy textual placement through the shared construction-plane
     /// authority. ReferenceDirection is the local profile X axis; local Y is derived
@@ -87,6 +90,11 @@ public sealed record PrismaticProfilePlacement(
     {
         frame = null;
         diagnostic = null;
+        if (ProfileConstructionPlane is not null)
+        {
+            frame = ProfileConstructionPlane;
+            return true;
+        }
         if (!TryAxis(Axis, out var normal) || !TryAxis(ReferenceDirection, out var reference))
         {
             diagnostic = $"compose-placement-invalid-axis:{Name}:axis={Axis}:reference={ReferenceDirection}";
@@ -274,7 +282,8 @@ public static class PrismaticProfileCompositionParser
                 else diagnostics.Add($"compose-profile-guide-missing-or-arc-sweep:{header.Groups["n"].Value}.{name}");
                 if (geometry is not null) segments.Add(new(name, geometry, new($"profile:{header.Groups["n"].Value}.Outer.{name}", $"concept:{header.Groups["layout"].Value}.{trace}", name, $"Trace({trace})", "XY")));
             }
-            var profile = new ResolvedProfile2D(header.Groups["n"].Value, "XY", [new ResolvedProfileLoop2D("Outer", true, segments)]);
+            var frame = ProfileAuthoringParser.ResolveNamedConstructionPlane(source, header.Groups["layout"].Value, diagnostics);
+            var profile = new ResolvedProfile2D(header.Groups["n"].Value, "XY", [new ResolvedProfileLoop2D("Outer", true, segments)], frame);
             var validation = ResolvedProfile2DValidator.Validate(profile);
             diagnostics.AddRange(validation.Diagnostics);
             if (validation.IsValid) profiles.Add(profile.Name, profile);
@@ -303,6 +312,7 @@ public static class PrismaticProfileCompositionParser
             if (resolved is not null && reported.Count == 0) profiles.Add(declaration.Name.Text, resolved);
         }
         if (diagnostics.Count > 0) return new(null, profiles, diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+        var authoredProfiles = profiles.Keys.ToHashSet(StringComparer.Ordinal);
         var compose = FirmamentSyntaxTraversal.Declarations(syntax.Document).FirstOrDefault(d => d.Type.Name.Text == "Compose");
         if (compose?.Body is null || compose.Name is null) return new(null, profiles, diagnostics.Append("compose-source-missing-compose").ToArray());
         if (compose.Clauses.Count > 0 || compose.Type.Arguments.Count > 0)
@@ -365,6 +375,16 @@ public static class PrismaticProfileCompositionParser
         // Cardinality is authored semantics, not a LINQ assertion. Never call
         // Single/SingleOrDefault while malformed input can still reach this boundary.
         var stock = baseOperations.Length == 1 ? baseOperations[0] : null;
+        if (stock is not null && profiles.TryGetValue(stock.ProfileReference, out var stockProfile) && !placement.IsExplicit
+            && !SameFrame(stockProfile.EffectiveConstructionPlane, ConstructionPlane.WorldXY))
+        {
+            placement = placement with { ProfileConstructionPlane = stockProfile.EffectiveConstructionPlane };
+            // These adapters bind supports in world coordinates. Do not let them
+            // reinterpret a local +Z selector as world +Z on an oriented body.
+            foreach (var dependent in operationsSyntax.Document.Statements.OfType<DeclarationSyntax>()
+                .Where(d => d.Type.Name.Text is "Boss" or "Pocket" or "Hole" or "Slot" or "EdgeFinish"))
+                diagnostics.Add($"compose-oriented-feature-not-admitted:{dependent.Type.Name.Text}:{dependent.Name?.Text}: Oriented Compose currently admits Base/Add/Remove in one common Profile frame; this feature's support adapter requires world XY.");
+        }
         if (stock is not null)
         {
             foreach (var declaration in operationsSyntax.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Boss"))
@@ -739,10 +759,26 @@ public static class PrismaticProfileCompositionParser
                 profiles.Add(profileName,profile); roundedRectangleSlots.Add(new(name,stableId,profileName,x,y,dx,dy,l,w,r,from,to,extentText,semanticRole,sourceSpan)); operations.Add(new(name,PrismaticProfileIntent.Remove,profileName,from,to,semanticRole,sourceSpan,stableId,"Slot<RoundedRectangle>"));
             }
         }
+        if (placement.TryResolveConstructionPlane(out var compositionFrame, out _))
+            foreach (var operation in operations.Where(o => authoredProfiles.Contains(o.ProfileReference)))
+            {
+                var operandFrame = profiles[operation.ProfileReference].EffectiveConstructionPlane;
+                // Legacy Placement transports unplaced XY Profiles. Already
+                // oriented Profiles must agree, rather than being transformed twice.
+                if (placement.IsExplicit && SameFrame(operandFrame, ConstructionPlane.WorldXY)) continue;
+                if (!SameFrame(operandFrame, compositionFrame!))
+                    diagnostics.Add($"compose-profile-frame-mismatch:{operation.Name}:{operation.ProfileReference}: All operands must use the same construction frame; an explicit Placement cannot override an oriented Profile.");
+            }
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
         var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Name.Text, placement.ProfilePlane, placement.Axis, placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets, materialOffsets) : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
     }
+
+    private static bool SameFrame(ConstructionPlane left, ConstructionPlane right)
+        => (left.Origin - right.Origin).LengthSquared < 1e-20
+            && (left.AxisX.ToVector() - right.AxisX.ToVector()).LengthSquared < 1e-20
+            && (left.AxisY.ToVector() - right.AxisY.ToVector()).LengthSquared < 1e-20
+            && (left.AxisZ.ToVector() - right.AxisZ.ToVector()).LengthSquared < 1e-20;
 
     // Transitional engineering value readers operate on one AST field, never on
     // arbitrary surrounding source. Field consumption and statement boundaries are

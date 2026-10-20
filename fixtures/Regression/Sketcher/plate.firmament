@@ -1,0 +1,18 @@
+Model SketchPlate {
+ units: mm
+ Static Width: Length = 80mm
+ Static Height: Length = 50mm
+ Rect2 Outline { center: [0mm, 0mm] size: [Width, Height] }
+ Circle2 MountA { center: [-Width / 2 + 8mm, -Height / 2 + 8mm] diameter: 4mm }
+ Circle2 MountB { center: [Width / 2 - 8mm, -Height / 2 + 8mm] diameter: 4mm }
+ Circle2 MountC { center: [Width / 2 - 8mm, Height / 2 - 8mm] diameter: 4mm }
+ Circle2 MountD { center: [-Width / 2 + 8mm, Height / 2 - 8mm] diameter: 4mm }
+ Profile Section {
+  Loop Outer { Outline |> TraceLoop }
+  Loop MountA { MountA |> TraceLoop }
+  Loop MountB { MountB |> TraceLoop }
+  Loop MountC { MountC |> TraceLoop }
+  Loop MountD { MountD |> TraceLoop }
+ }
+ Extrude Body { profile: Section from: 0mm to: 6mm }
+}

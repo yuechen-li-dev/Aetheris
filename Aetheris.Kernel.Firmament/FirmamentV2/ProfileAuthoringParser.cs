@@ -331,6 +331,9 @@ public static class ProfileAuthoringParser
     {
         var diagnostics = new List<string>();
         AddOrdinaryGuides(source, new(StringComparer.Ordinal), new(StringComparer.Ordinal), diagnostics, applySpans: false,bind:bind);
+        foreach (var layout in SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements)
+            .Where(d => d.Type.Name.Text == "Struct" && d.Modifiers.Any(m => m.Name.Text == "Concept") && d.Clauses.Count > 0 && d.Name is not null))
+            _ = ResolveConstructionPlane(source, layout.Name!.Text, diagnostics);
         return diagnostics;
     }
 
@@ -1166,14 +1169,35 @@ public static class ProfileAuthoringParser
         if (plane is null)
         {
             if (frame == "XY") return ConstructionPlane.WorldXY;
-            var tokens = FirmamentLanguageAnalysisService.Lex(source).Where(token => token.Shape != "comment").ToArray();
-            for (var index = 0; index + 3 < tokens.Length; index++)
+            var layouts = SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements)
+                .Where(d => d.Type.Name.Text == "Struct" && d.Modifiers.Any(m => m.Name.Text == "Concept") && d.Name?.Text == frame).ToArray();
+            if (layouts.Length > 1) { diagnostics.Add($"profile-frame-duplicate:{frame}"); return null; }
+            if (layouts.SingleOrDefault() is { } layout)
             {
-                if (tokens[index].Text != "Concept" || tokens[index + 1].Text != "Struct" || tokens[index + 2].Text != frame) continue;
-                if (tokens[index + 3].Text is not ("On" or "on")) return ConstructionPlane.WorldXY;
-                if (index + 4 < tokens.Length && tokens[index + 4].Text == "XY") return ConstructionPlane.WorldXY;
-                diagnostics.Add($"profile-layout-placement-unsupported:{frame}:{(index + 4 < tokens.Length ? tokens[index + 4].Text : "missing")}:Concept Struct layouts currently require On XY; use a traced Construction Plane for oriented profiles.");
-                return null;
+                if (layout.Clauses.Count == 0) return ConstructionPlane.WorldXY;
+                if (layout.Clauses.Count != 1 || layout.Clauses[0] is not { Kind: ClauseKind.On, Value: ReferenceSyntax placement }
+                    || placement.Name.Text is not ("XY" or "XZ" or "YZ"))
+                {
+                    diagnostics.Add($"profile-layout-placement-unsupported:{frame}:Use on XY, on XZ or on YZ for a 2D layout; arbitrary orientations use a traced Construction Plane.");
+                    return null;
+                }
+                if (placement.Name.Text == "XY") return ConstructionPlane.WorldXY; // Preserve existing XY geometry and identity.
+                // `on` here selects a frame for local 2D guides. It is not a general
+                // transform of explicitly spatial Concept values.
+                var members = layout.Body?.Statements ?? [];
+                if (members.OfType<FieldSyntax>().Any(f => f.Value is not TypedValueSyntax typed
+                        || FirmamentSyntaxValues.Reference(typed.Type) is not { } type || !FirmamentV2Parser.TryParseLetType(type, out _))
+                    || members.OfType<DeclarationSyntax>().Any(d => !OwnsDeclaration(d) && d.Type.Name.Text != "Static"))
+                {
+                    diagnostics.Add($"profile-layout-spatial-members-unsupported:{frame}:This non-XY 2D layout requires local 2D guides and scalar data. Put spatial semantic values in an unplaced Concept Struct and trace a Construction Plane for that workflow.");
+                    return null;
+                }
+                var normal = placement.Name.Text == "XZ" ? new ConceptIrVector3(0, -1, 0) : new ConceptIrVector3(1, 0, 0);
+                var concept = new ConceptIrPlaneValue("concept-layout:" + frame, new(0, 0, 0), normal,
+                    "ConceptLayoutFrame:" + placement.Name.Text, new(0, 0, 1));
+                if (!ConstructionPlane.TryTrace("construction:layout:" + frame, concept, $"offset:{layout.Span.Start}", out var layoutPlane, out var diagnostic))
+                    diagnostics.Add(diagnostic ?? "ConstructionPlaneFrameInvalid");
+                return layoutPlane;
             }
             diagnostics.Add($"profile-frame-unresolved:{frame}:using must name a declared Concept Struct or Construction Plane.");
             return null;

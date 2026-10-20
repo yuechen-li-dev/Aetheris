@@ -46,6 +46,7 @@ export interface LanguageOutline { readonly version: 'firmament-outline/1'; read
 export interface DeclarationSpec { readonly kind: string; readonly variant?: string | null; readonly modifiers?: readonly string[] | null; readonly name?: string | null; readonly fields?: readonly { readonly name: string; readonly value: string }[] | null }
 /** One structural edit, addressed by outline node ids. Operations apply in order; each later one sees the ids the earlier ones produced. */
 export type LanguageEditOperation =
+  | { readonly kind: 'setValue'; readonly node: string; readonly value: string }
   | { readonly kind: 'setField'; readonly node: string; readonly field: string; readonly value: string }
   | { readonly kind: 'removeField'; readonly node: string; readonly field: string }
   | { readonly kind: 'insertDeclaration'; readonly parent: string | null; readonly declaration?: DeclarationSpec; readonly source?: string; readonly name?: string; readonly after?: string; readonly first?: boolean }
@@ -60,6 +61,25 @@ export interface LanguageEdit { readonly document: string; readonly revision: st
 /** Something a visual editor can add. `placement` `model` inserts with `insertDeclaration`; `feature` with `insertFeature` on a body. `source` declares `nameStem`; pass a unique `name` with the insert. Every item is proven to build. */
 export interface PaletteItem { readonly id: string; readonly label: string; readonly category: string; readonly description: string; readonly placement: 'model' | 'feature'; readonly nameStem: string; readonly source: string; readonly requiresEmptyModel?: boolean }
 export interface LanguagePalette { readonly version: 'firmament-palette/1'; readonly items: readonly PaletteItem[] }
+export interface SketchControl { id: string; label: string; authored: string; value: number; unit: string; editable: boolean; parameter: string | null; readOnlyReason: string | null; span: { start: number; length: number } }
+export interface SketchShape { id: string; name: string; kind: string; center: readonly number[]; controls: readonly SketchControl[] }
+export interface SketchCurve {
+  id: string; name: string; kind: string; points: readonly (readonly number[])[]; center: readonly number[] | null;
+  radius: number; startAngle: number; sweep: number; minorRadius: number; rotation: number;
+  /** Resolver evidence. Its sourceSpan can identify lowered source; use control spans for authored navigation. */
+  provenance?: { stableId: string; conceptStableId: string; sourceSpan: string; derivation: string; sourceFrame: string; tracedFrom?: string | null; reversed: boolean; pipelineIndex?: number | null; invocationSourceRange?: string | null };
+}
+export interface SketchProjection {
+  version: 'firmament-sketch/1'; document: string; revision: string; node: string | null;
+  profiles: readonly { id: string; name: string }[]; emptyModels: readonly { id: string; name: string }[];
+  openingReferences: readonly { id: string; name: string }[];
+  frame: { name: string; origin: readonly number[]; x: readonly number[]; y: readonly number[]; normal: readonly number[] } | null;
+  loops: readonly { name: string; isOuter: boolean; curves: readonly SketchCurve[] }[];
+  shapes: readonly SketchShape[]; diagnostics: readonly { severity: string; code: string; message: string; span: { start: number; length: number } | null }[];
+  validationLevel: 'ProfileResolvedNotBuilt' | 'Unresolved';
+}
+export interface SketchEditRequest { kind: 'dimensions' | 'create' | 'opening'; node?: string | null; shape?: string; changes?: readonly { control: string; value: number }[]; x?: number; y?: number; reference?: string; anchor?: string; diameter?: number; width?: number; height?: number }
+
 export interface LanguageHover { readonly document: string; readonly revision: string; readonly start: number; readonly length: number; readonly title: string; readonly description: string }
 export interface LanguageFormat { readonly document: string; readonly revision: string; readonly text: string; readonly changed: boolean }
 export interface SemanticFieldSchema { readonly id: string; readonly name: string; readonly kind: string; readonly unit: 'None' | 'Length' | 'Angle'; readonly required: boolean; readonly default: string | null; readonly choices: readonly string[]; readonly variants?: readonly string[]; readonly description: string | null; readonly sourceEditable: boolean }
@@ -77,7 +97,7 @@ export class Aetheris {
   static create(options?: AetherisOptions): Promise<Aetheris>;
   readonly runtimeInfo: RuntimeInfo;
   readonly workerTiming: WorkerTiming | null;
-  readonly language: { complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion>; analyze(source: string, options: LanguageOptions): Promise<LanguageAnalysis>; outline(source: string, options: LanguageOptions): Promise<LanguageOutline>; edit(source: string, operations: readonly LanguageEditOperation[], options: LanguageOptions): Promise<LanguageEdit>; palette(): Promise<LanguagePalette>; hover(source: string, offset: number, options: LanguageOptions): Promise<LanguageHover | null>; definition(source: string, offset: number, options: LanguageOptions): Promise<SourceReference | null>; format(source: string, options: LanguageOptions): Promise<LanguageFormat>; schema(): Promise<SemanticSchema> };
+  readonly language: { sketch(source: string, node: string | null, options: LanguageOptions): Promise<SketchProjection>; sketchEdit(source: string, edit: SketchEditRequest, options: LanguageOptions): Promise<LanguageEdit>; complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion>; analyze(source: string, options: LanguageOptions): Promise<LanguageAnalysis>; outline(source: string, options: LanguageOptions): Promise<LanguageOutline>; edit(source: string, operations: readonly LanguageEditOperation[], options: LanguageOptions): Promise<LanguageEdit>; palette(): Promise<LanguagePalette>; hover(source: string, offset: number, options: LanguageOptions): Promise<LanguageHover | null>; definition(source: string, offset: number, options: LanguageOptions): Promise<SourceReference | null>; format(source: string, options: LanguageOptions): Promise<LanguageFormat>; schema(): Promise<SemanticSchema> };
   info(): Promise<RuntimeInfo>;
   capabilities(): Promise<RuntimeCapabilities>;
   compile(source: string, options?: CompileOptions): Promise<{ model: ModelSession | null; diagnostics: readonly Diagnostic[] }>;

@@ -773,14 +773,35 @@
     {
       "id": "f01",
       "file": "cases/f01-xz-layout.firmament",
-      "kind": "diagnostic",
+      "kind": "fix",
       "register": "X0 #5",
       "findings": "F9",
-      "expect": "invalid",
+      "expect": "valid",
       "observedAt0a72e6f": "profile-layout-placement-unsupported at (9,1), preceded by ConceptPathProfileNotAdmittedByCompose",
-      "note": "Stays rejected for the frame reason. Passes today; the extra ConceptPathProfileNotAdmittedByCompose noise ahead of it should go.",
-      "code": "profile-layout-placement-unsupported",
-      "line": 9
+      "note": "2026-10-19 principal-plane decision: original source retained; local X/Y map to world X/Z with normal -Y. Absolute bounds [0,-30,0]..[60,0,40] are checked in kernel tests as well as against the explicit traced-plane reference.",
+      "reference": "cases/reference/f01-xz-layout.firmament",
+      "geometry": {
+        "faces": 8,
+        "edges": 18,
+        "vertices": 12,
+        "bbox": [
+          [
+            0,
+            -30,
+            0
+          ],
+          [
+            60,
+            0,
+            40
+          ]
+        ],
+        "assessment": "enclosed-manifold",
+        "surfaces": {
+          "plane": 8
+        },
+        "volume": 14250
+      }
     },
     {
       "id": "f02",

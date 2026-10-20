@@ -1,5 +1,22 @@
 # October 2026 Firmament language decision register
 
+Sketcher / principal-plane amendment (2026-10-19): `Concept Struct on XZ`
+was an admission limitation, not a language prohibition worth preserving.
+For a local 2D layout consumed by `Profile ... using Layout`, admit XY, XZ and YZ
+through the existing ConstructionPlane owner. XZ has local axes +X/+Z and normal
+-Y; YZ has local axes +Y/+Z and normal +X. Keep default/explicit XY byte-compatible.
+This is a frame selection for local 2D guides, not an implicit transform of typed
+3D semantic values or unrelated consumers. Mixed spatial layouts and unsupported
+material consumers still need explicit admission. The original X0/X4 XZ specimens
+are retained; their rejection assertions must become orientation/geometry checks
+after qualification, with an explicit traced-plane reference for X4 f01.
+No specimen is rewritten to disguise the original requested plane.
+Compose now preserves the inherited Base Profile frame and requires matching
+frames for authored Base/Add/Remove operands. Existing world-coordinate support
+adapters reject oriented Boss/Pocket/Hole/Slot/EdgeFinish combinations explicitly.
+The X4 f01 qualification includes absolute world bounds, because comparing two
+routes that both dropped the frame originally gave false parity.
+
 Shared Profile amendment (2026-10-16):
 [mechanical / sheet-metal reconciliation](FIRMAMENT-SHEET-METAL-SYNTAX-2026-10.md)
 admits compact `Profile name = Rect2/Circle2/Slot2 { ... }` through the existing

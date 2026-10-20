@@ -11,7 +11,7 @@ public sealed class FirmamentFrontendX0CliTests
     [InlineData("unknown-box-field")]
     [InlineData("unknown-compose-statement")]
     [InlineData("unknown-boundary-field")]
-    [InlineData("unsupported-xz-layout")]
+    [InlineData("unsupported-layout-frame")]
     [InlineData("combined-fillet-hole-intersection")]
     [InlineData("unresolved-semantic-source")]
     [InlineData("edgefinish-generic-variant")]

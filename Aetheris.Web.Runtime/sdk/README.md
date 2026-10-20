@@ -166,3 +166,23 @@ an absent or empty array means common to all variants. Schema-driven controls
 must honor this metadata or request completion. For example, `CounterboreDepth`
 applies to `Counterbore`, never `Shaft`. Part build diagnostics use the shared
 compiler presenter, retaining stable error codes and authored source locations.
+
+### Profile workspace projection
+
+`cad.language.sketch(source, profileNodeIdOrNull, { sourceName, sourceRevision })`
+returns `firmament-sketch/1`: the authored Profile choices, resolved local analytic
+curves, construction frame, source provenance, and dimension controls. A null id
+chooses the first authored Profile. The validation level is
+`ProfileResolvedNotBuilt`; this query does not construct or admit a solid.
+
+`cad.language.sketchEdit(source, request, options)` prepares a normal
+`LanguageEdit` for `dimensions`, `create`, or a qualified circular `opening`.
+Dimension changes use the returned control ids and numeric values in their
+displayed units. Read-only expressions/tolerances cannot be replaced through
+this operation. A directly named literal Static is updated at its initializer.
+The caller must compare source revisions before applying the edit and then use
+the normal compile/rebuild transaction. A refused edit returns its stable SDK
+error code and explanation, with no source mutation.
+
+This first contract addresses authored Profiles in one document. It does not
+rewrite included/generated declarations. See [the authoring guide](../../../docs/public/firmament/sketcher.md).

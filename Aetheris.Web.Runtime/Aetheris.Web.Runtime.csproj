@@ -12,9 +12,11 @@
     <Description>Browser WebAssembly host for the public Aetheris CAD TypeScript SDK.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Aetheris.Geometry\Aetheris.Geometry.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.Firmament\Aetheris.Kernel.Firmament.csproj" />
     <!-- The JSON bridge serializes anonymous response shapes through reflection. -->
     <TrimmerRootAssembly Include="Aetheris.Web.Runtime" />
+    <TrimmerRootAssembly Include="Aetheris.Geometry" />
     <TrimmerRootAssembly Include="Aetheris.Kernel.Firmament" />
     <!-- Assembly/Scene snapshots serialize semantic provenance records. Preserve
          their constructor parameter metadata for the reflection JSON bridge. -->

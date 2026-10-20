@@ -5,6 +5,10 @@ import type { CadmataLayerVisibility } from "./cadmataLayers";
 import type { PmiVisibility } from "./pmiPresentation";
 import type { ViewportTheme } from "./viewportTheme";
 export interface AetherisViewportProps {
+  measurementQuery?: (request: import('@aetheris/three-telos').MeasurementRequest) => Promise<import('@aetheris/three-telos').MeasurementResult>;
+  measurementDisabledReason?: string;
+  measurementTool?: import('@aetheris/three-telos').MeasurementTool;
+  measurementTick?: number;
   showConcepts?: boolean;
   busyMessage?: string | null;
   errorMessage?: string | null;

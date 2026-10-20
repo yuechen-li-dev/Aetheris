@@ -1,3 +1,4 @@
+import { bindMeasurementPicking, measurementGroup, type MeasurementTool } from '@aetheris/three-telos';
 /* eslint-disable react-hooks/immutability -- Three.js cameras/renderers are intentionally configured through their imperative mutable API. */
 import { Line, OrbitControls, Text } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -270,12 +271,14 @@ export type { AetherisViewportProps } from "./viewportProps";
 import type { AetherisViewportProps } from "./viewportProps";
 
 function FaceMesh({
+    faceId,
 	positions,
 	normals,
 	indices,
 	isHighlighted,
 	theme,
 }: {
+    faceId?: number;
 	positions: Float32Array;
 	normals: Float32Array;
 	indices: Uint32Array;
@@ -311,6 +314,7 @@ function FaceMesh({
 	);
 	return (
 		<mesh
+			userData={{ measurementFaceId: faceId }}
 			geometry={geometry}
 			material={material}
 			castShadow={theme.shadowStyle.enabled}
@@ -390,6 +394,24 @@ function EdgeLine({
 			lineWidth={isHighlighted ? theme.edgeStyle.selectedWidth : theme.edgeStyle.width}
 		/>
 	);
+}
+
+function MeasurementGuides({tool, tick}: {tool?: MeasurementTool; tick?: number}) {
+  const {scene, camera, gl, invalidate} = useThree();
+  useEffect(() => {
+    if (!tool?.result) return;
+    const group = measurementGroup(tool?.result ?? null); scene.add(group); invalidate();
+    return () => { disposeConceptWireframe(group); invalidate(); };
+  }, [scene, tool, tick, invalidate]);
+  useEffect(() => bindMeasurementPicking(gl.domElement, () => tool, (x,y) => {
+    const raycaster = new Raycaster(); raycaster.setFromCamera(new Vector2(x / gl.domElement.clientWidth * 2 - 1, 1 - y / gl.domElement.clientHeight * 2), camera);
+    const hit = raycaster.intersectObjects(scene.children, true).find(h => Number.isInteger(h.object.userData.measurementFaceId));
+    if (!hit) return null;
+    let parent = hit.object.parent;
+    while (parent && !parent.userData.measurementOccurrenceId) parent = parent.parent;
+    return { occurrenceId: parent?.userData.measurementOccurrenceId ?? null, faceId: hit.object.userData.measurementFaceId, rayOrigin: raycaster.ray.origin.toArray(), rayDirection: raycaster.ray.direction.toArray() };
+  }), [gl.domElement, scene, camera, tool]);
+  return null;
 }
 
 function PickRayCapture({ onPickRay }: { onPickRay?: AetherisViewportProps["onPickRay"] }) {
@@ -510,6 +532,7 @@ function AssemblyMeshes({
 			return (
 				<group
 					key={occurrence.stableId}
+					userData={{ measurementOccurrenceId: occurrence.stableId }}
 					matrix={matrix}
 					matrixAutoUpdate={false}
 					onClick={(event) => {
@@ -520,6 +543,7 @@ function AssemblyMeshes({
 					{(definitions.get(occurrence.definitionStableId!) ?? []).map((patch) => (
 						<FaceMesh
 							key={`${occurrence.stableId}-${patch.faceId}`}
+							faceId={patch.faceId}
 							positions={patch.positions}
 							normals={patch.normals}
 							indices={patch.indices}
@@ -553,6 +577,7 @@ function ConceptWires({ packet }: { packet: DisplayPacket }) {
 }
 
 export function LegacyAetherisViewport({
+  measurementTool, measurementTick,
 	showConcepts = false,
 	displayScene = null,
 	highlightedFaceId = null,
@@ -636,6 +661,7 @@ export function LegacyAetherisViewport({
 					AnalyticPatch: (patch) => [
 						<FaceMesh
 							key={`analytic-${patch.faceId}`}
+							faceId={patch.faceId}
 							positions={patch.previewMesh.positions}
 							normals={patch.previewMesh.normals}
 							indices={patch.previewMesh.indices}
@@ -648,6 +674,7 @@ export function LegacyAetherisViewport({
 					MeshPatch: (patch) => [
 						<FaceMesh
 							key={`mesh-${patch.faceId}`}
+							faceId={patch.faceId}
 							positions={patch.mesh.positions}
 							normals={patch.mesh.normals}
 							indices={patch.mesh.indices}
@@ -698,7 +725,8 @@ export function LegacyAetherisViewport({
 				onSelect={onCadmataSelect}
 				theme={theme}
 			/>
-			<PickRayCapture onPickRay={onPickRay} />
+			<MeasurementGuides tool={measurementTool} tick={measurementTick} />
+      <PickRayCapture onPickRay={onPickRay} />
 			<OrbitControls makeDefault enablePan enableZoom />
 		</Canvas>
 	);

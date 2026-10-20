@@ -29,6 +29,13 @@ public static class KernelEndpoints
 
     private static void MapDocumentRoutes(RouteGroupBuilder documents)
     {
+        documents.MapPost("/{documentId:guid}/measure", (Guid documentId, DocumentMeasurementRequest request, KernelDocumentStore store) =>
+            WithDocument(store, documentId, document =>
+            {
+                try { return ApiMappings.Ok(new { revision = request.Revision, measurement = document.Measure(request.Revision, request.Measurement) }); }
+                catch (Aetheris.Geometry.MeasurementException error) { return Results.BadRequest(new ApiResponseDto<object>(false, null,
+                    [new DiagnosticDto(error.Code, "Error", error.Message, "Measurement")])); }
+            }));
         documents.MapPost("", (DocumentCreateRequestDto? request, KernelDocumentStore store) =>
         {
             var created = store.Create(request?.Name);
@@ -63,7 +70,7 @@ public static class KernelEndpoints
                 bodyIds.Length,
                 bodyIds,
                 definitions.Count,
-                occurrenceSummaries));
+                occurrenceSummaries, document.Revision));
         });
 
         documents.MapPost("/{documentId:guid}/bodies/primitives/box", (Guid documentId, BoxCreateRequestDto request, KernelDocumentStore store) =>
@@ -269,10 +276,13 @@ public static class KernelEndpoints
                     if (!AssemblyDisplayService.TryBuildStep(assemblyResult.Value, out var assemblyPacket, out var displayError))
                         return ApiMappings.BadRequestFromMessage(displayError, "documents.import.step.assembly.display");
                     var qualifications = assemblyPacket!.Definitions.Select(d => d.ImportQualification!).ToArray();
+                    var definitionBodies = assemblyResult.Value.Definitions.Where(d => d.Geometry is not null).ToDictionary(d => d.StableId, d => d.Geometry!);
+                    document.SetImportedMeasurementTargets(assemblyPacket.Occurrences.Where(o => o.DefinitionStableId is not null && definitionBodies.ContainsKey(o.DefinitionStableId))
+                        .Select(o => new Aetheris.Geometry.MeasurementTarget(o.StableId, definitionBodies[o.DefinitionStableId!], Transform3D.FromRowMajor(o.WorldTransform))).ToArray());
                     var status = qualifications.Length == 0 ? "Failed" : qualifications.Max(q => q.Status).ToString();
                     return ApiMappings.Ok(new StepImportResponseDto(documentId, Guid.Empty, Guid.Empty,
                         assemblyPacket.Name, assemblyResult.Diagnostics.Select(ApiMappings.ToDiagnostic).ToArray(), AssemblyPresentation: assemblyPacket,
-                        ImportStatus: status, ImportQualifications: qualifications));
+                        ImportStatus: status, ImportQualifications: qualifications, Revision: document.Revision));
                 }
                 if (assemblyResult.Diagnostics.All(diagnostic => diagnostic.Source != "Importer.Assembly.ProductStructure"))
                     return ApiMappings.KernelFailure(assemblyResult.Diagnostics);

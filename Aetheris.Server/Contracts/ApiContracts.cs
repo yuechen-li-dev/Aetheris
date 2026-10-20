@@ -16,7 +16,9 @@ public sealed record DocumentSummaryResponseDto(
     int BodyCount,
     IReadOnlyList<Guid> BodyIds,
     int DefinitionCount,
-    IReadOnlyList<BodyOccurrenceSummaryDto> Occurrences);
+    IReadOnlyList<BodyOccurrenceSummaryDto> Occurrences, long Revision = 0);
+
+public sealed record DocumentMeasurementRequest(long Revision, Aetheris.Geometry.MeasurementRequest Measurement);
 
 public sealed record BodyCreatedResponseDto(Guid DocumentId, Guid BodyId, Guid DefinitionId, int FaceCount, int EdgeCount, int VertexCount);
 
@@ -53,7 +55,7 @@ public sealed record StepImportResponseDto(
     CadmataVisualizationArtifactDto? SemanticPresentation = null,
     AssemblyDisplayPacketDto? AssemblyPresentation = null,
     string ImportStatus = "Inspectable",
-    IReadOnlyList<Aetheris.Kernel.Core.Import.BrepImportQualificationReport>? ImportQualifications = null);
+    IReadOnlyList<Aetheris.Kernel.Core.Import.BrepImportQualificationReport>? ImportQualifications = null, long Revision = 0);
 
 public sealed record ExtrudeRequestDto(
     IReadOnlyList<ProfilePoint2Dto> Profile,

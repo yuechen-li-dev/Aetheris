@@ -69,22 +69,18 @@ internal static class FirmamentCorpusHarness
         return compiler.Compile(request);
     }
 
-    // These preserved historical specimens asserted a curved-fillet volume
-    // while only a display mesh was measured. Qualify their geometry separately
-    // and require ordinary compilation to disclose the missing volume authority.
-    public static FirmamentStepExportResult InspectUnverifiedVolumeSpecimen(string fullPath)
+    // Retain geometry coverage while asserting provable topology, not a mesh-derived volume.
+    public static FirmamentStepExportResult InspectFilletSpecimen(string fullPath)
     {
         var source = NormalizeLf(File.ReadAllText(fullPath));
-        var rejected = FirmamentBuildAndExport.CompileSource(source, Path.GetDirectoryName(fullPath));
-        Assert.False(rejected.IsSuccess);
-        Assert.Contains(rejected.Diagnostics, d => d.Message.StartsWith("firmament-v2-assert-volume-measurement-unavailable:", StringComparison.Ordinal));
+        var accepted = FirmamentBuildAndExport.CompileSource(source, Path.GetDirectoryName(fullPath));
+        Assert.True(accepted.IsSuccess, string.Join("; ", accepted.Diagnostics.Select(d => d.Message)));
         var inspected = FirmamentBuildAndExport.CompileForMeasurement(source, Path.GetDirectoryName(fullPath));
         Assert.True(inspected.IsSuccess, string.Join("; ", inspected.Diagnostics.Select(d => d.Message)));
-        var control = FirmamentBuildAndExport.CompileSource(FirmamentV2.FirmamentAssertionSyntax.Mask(source), Path.GetDirectoryName(fullPath));
-        Assert.True(control.IsSuccess, string.Join("; ", control.Diagnostics.Select(d => d.Message)));
-        Assert.Equal(control.Value.StepText, inspected.Value.StepText);
-        return inspected.Value;
+        Assert.Equal(accepted.Value.StepText, inspected.Value.StepText);
+        return accepted.Value;
     }
+
 }
 
 internal sealed class FirmamentCorpusManifest

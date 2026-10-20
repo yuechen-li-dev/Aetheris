@@ -1,3 +1,4 @@
+import type { MeasurementRequest, MeasurementResult } from '@aetheris/three-telos';
 import { reportDesktopDiagnostic } from "../desktopDiagnostics";
 
 export interface DiagnosticDto {
@@ -27,6 +28,7 @@ export interface BodyOccurrenceSummaryDto {
 }
 
 export interface DocumentSummaryResponseDto {
+	revision?: number;
 	documentId: string;
 	name: string | null;
 	bodyCount: number;
@@ -60,6 +62,7 @@ export interface StepExportResponseDto {
 }
 
 export interface StepImportResponseDto {
+	revision?: number;
 	documentId: string;
 	definitionId: string;
 	occurrenceId: string;
@@ -642,3 +645,11 @@ export async function prepareAssemblyDisplay(path: string): Promise<AssemblyDisp
 }
 
 export { parseEnvelope };
+
+export async function measureDocument(documentId: string, revision: number, measurement: MeasurementRequest): Promise<MeasurementResult> {
+  const reply = await request<{ revision: number; measurement: MeasurementResult }>(`/api/v1/documents/${documentId}/measure`, {
+    method: 'POST', body: JSON.stringify({ revision, measurement }),
+  });
+  if (reply.revision !== revision) throw new Error('The measurement belongs to a different document revision.');
+  return reply.measurement;
+}

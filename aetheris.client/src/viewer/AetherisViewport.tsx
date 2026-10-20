@@ -1,3 +1,4 @@
+import { MeasurementTool, bindMeasurementPicking, measurementLines } from '@aetheris/three-telos';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { TelosHost, clearColor } from "@aetheris/three-telos";
 import type { AetherisViewportProps } from "./viewportProps";
@@ -17,6 +18,24 @@ export type { AetherisViewportProps } from "./viewportProps";
 
 /** One graphics authority; legacy rendering is loaded only for unsupported browsers. */
 export function AetherisViewport(props: AetherisViewportProps) {
+  const panel = useRef<HTMLDivElement>(null), tool = useRef<MeasurementTool | undefined>(undefined), latest = useRef(props); latest.current = props;
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!panel.current) return;
+    tool.current = new MeasurementTool(panel.current, request => {
+      const query = latest.current.measurementQuery; if (!query) throw new Error('No measurement geometry is available.');
+      return query(request);
+    }, () => setTick(n => n + 1));
+    setTick(n => n + 1);
+    return () => { tool.current?.dispose(); tool.current = undefined; };
+  }, []);
+  useEffect(() => { tool.current?.setContext(props.measurementQuery, props.measurementDisabledReason || (!props.measurementQuery ? 'Load a BRep model to measure.' : '')); },
+    [props.measurementQuery, props.measurementDisabledReason, props.displayScene, props.assemblyPacket]);
+  return <div tabIndex={0} style={{width:'100%',height:'100%',position:'relative'}} aria-label="Model measurement workspace">
+    <ViewportRenderer {...props} measurementTool={tool.current} measurementTick={tick} /><div ref={panel} />
+  </div>;
+}
+function ViewportRenderer(props: AetherisViewportProps) {
   const [generation, setGeneration] = useState(0);
   const supported = typeof navigator !== "undefined" && !!navigator.gpu;
   const legacyReason = !supported ? "WebGPU unavailable" : null;
@@ -94,7 +113,8 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
       theme = value.theme ?? ATELIER_VIEWPORT_THEME;
     current.setAA(value.aaMode ?? "SpatialOnly", value.aaDebug ?? "color");
     current.setPresentation(telosPresentation(theme));
-    current.setScene(inspectSurfaces(cadmataTelosScene(value), inspection.current.mode, inspection.current.face));
+    const scene = inspectSurfaces(cadmataTelosScene(value), inspection.current.mode, inspection.current.face);
+    current.setScene({...scene, lines:[...scene.lines, ...measurementLines(value.measurementTool?.result ?? null)]});
     canvas.current?.setAttribute("data-concept-wires", String(current.scene.lines.filter(line => line.id.startsWith("concept:") && !line.id.endsWith(":halo")).length));
     current.background = clearColor(theme.sceneBackground);
     current.grid = value.showGrid !== false && theme.gridStyle.enabled;
@@ -140,6 +160,13 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
       if (value.assemblyPacket && hit)
         value.onAssemblyOccurrenceSelect?.(hit.occurrenceId);
     };
+    const unbindMeasurement = bindMeasurementPicking(element, () => latest.current.measurementTool, (x,y) => {
+      const current = host.current; if (!current) return null;
+      const ray = current.camera.worldRay([x,y]), hit = current.picker.pick([x,y], 'face');
+      if (!hit || hit.overlayId) return null;
+      const face = hit.faceId == null ? null : Number(String(hit.faceId).split(':').pop());
+      return { occurrenceId: latest.current.assemblyPacket ? hit.occurrenceId : null, faceId: Number.isInteger(face) ? face : null, rayOrigin: ray.origin.toArray(), rayDirection: ray.direction.toArray() };
+    });
     element.addEventListener("click", click);
     const hover = (event: PointerEvent) => {
       const current = host.current;
@@ -187,6 +214,7 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
         if (!disposed) setDiagnostic(String(error));
       });
     return () => {
+      unbindMeasurement();
       disposed = true;
       initialization.abort();
       element.removeEventListener("click", click);

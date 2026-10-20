@@ -154,8 +154,8 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
     public void SevenStationFillet_ExportsDeterministicallyWithExpectedSphereTorusDelta(string fixture, int spheres, int tori)
     {
         var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Regression/CanonicalGeometry/{fixture}");
-        var first = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
-        var second = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
+        var first = FirmamentCorpusHarness.InspectFilletSpecimen(source);
+        var second = FirmamentCorpusHarness.InspectFilletSpecimen(source);
         Assert.Equal(first.StepText, second.StepText);
         var imported = Step242Importer.ImportBody(first.StepText);
         Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
@@ -173,7 +173,7 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
     public void SevenStationFillet_ReimportedMassIsNonAuthoritativeSanityEvidence(string fixture)
     {
         var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Regression/CanonicalGeometry/{fixture}");
-        var built = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
+        var built = FirmamentCorpusHarness.InspectFilletSpecimen(source);
         var imported = Step242Importer.ImportBody(built.StepText);
         Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
 

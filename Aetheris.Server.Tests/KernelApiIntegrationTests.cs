@@ -57,6 +57,12 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.Equal("Qualified", imported.Data.ImportStatus);
         Assert.NotNull(scene.Definitions[0].ImportQualification);
         Assert.Equal(6, scene.Definitions[0].ImportQualification!.DisplayedFaces);
+        var measurement = new DocumentMeasurementRequest(imported.Data.Revision, new("points",
+            new("one", null, [0,0,30], [0,0,-1]), new("two", null, [25,0,30], [0,0,-1])));
+        var measured = await _client.PostAsJsonAsync($"/api/v1/documents/{document.Data.DocumentId}/measure", measurement);
+        measured.EnsureSuccessStatusCode();
+        var result = await measured.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(25, result.GetProperty("data").GetProperty("measurement").GetProperty("distanceMm").GetDouble());
     }
 
     private readonly HttpClient _client;

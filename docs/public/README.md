@@ -11,7 +11,7 @@ Start with [Getting Started](getting-started.md), then use these guides:
 - Mechanisms: [Editable V8, prescribed motion and assembly mesh export](firmament/editable-mechanisms.md)
 - Showcase: [Difference Engine, real hierarchical CAD and prescribed browser animation](demos/difference-engine-showcase.md), [single-cut carved electric guitar, STEP/USD and Cycles](demos/guitar-surfacing-x0.md)
 - Drawings: [Generate PDF/SVG/PPTX from parts and semantic PMI](drawings.md)
-- Inspection: [Cadmata](cadmata/overview.md), [Cadmata PMI](cadmata/pmi.md), and [Three Telos display migration](three-telos.md)
+- Inspection: [Cadmata](cadmata/overview.md), [measurements in Cadmata and Helios](cadmata/measurement.md), [Cadmata PMI](cadmata/pmi.md), and [Three Telos display migration](three-telos.md)
 - Reference: [CLI](reference/cli.md), [wireframe SVG previews](reference/wireframe.md), [targets/selectors](reference/targets.md), [diagnostics](reference/diagnostics.md), [supported features](reference/supported-features.md), [known issues](reference/known-issues.md), and [release notes](reference/release-notes.md)
 
 The Windows ZIP begins with the tested [release-bundle walkthrough](release-bundle.md).

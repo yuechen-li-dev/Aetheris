@@ -8,6 +8,20 @@ public sealed class FirmamentAssertionsTests
     private static string Source(string name) => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Regression/Assertions/" + name + ".firmament"));
 
     [Fact]
+    public void HistoricalFilletGeometryBuildsButAnUnprovableVolumeAssertionStillRejects()
+    {
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Regression/CanonicalGeometry/profile-fillet-convex-two-segment-top.firmament");
+        var source = File.ReadAllText(path);
+        var accepted = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(accepted.IsSuccess, string.Join("; ", accepted.Diagnostics.Select(d => d.Message)));
+        source = source.Insert(source.LastIndexOf('}'), "Assert Volume Body { expected: 1mm^3 tolerance: 0mm^3 }\n");
+        var rejected = FirmamentBuildAndExport.CompileSource(source);
+        Assert.False(rejected.IsSuccess);
+        Assert.Contains(rejected.Diagnostics, d => d.Message.StartsWith("firmament-v2-assert-volume-measurement-unavailable:", StringComparison.Ordinal));
+        Assert.Equal(accepted.Value.StepText, FirmamentBuildAndExport.CompileForMeasurement(source).Value.StepText);
+    }
+
+    [Fact]
     public void ExactVolumeBoundsAndTopologyGateTheRealCompilationWithoutChangingGeometry()
     {
         var source = Source("box");

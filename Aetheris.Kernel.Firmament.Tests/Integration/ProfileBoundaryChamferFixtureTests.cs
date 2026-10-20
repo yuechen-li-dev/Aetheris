@@ -107,8 +107,8 @@ public sealed class ProfileBoundaryChamferFixtureTests
     public void ConvexTwoSegmentFilletFixture_ExportsDeterministicTwoCylindersAndSphere(string fixtureName)
     {
         var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Regression/CanonicalGeometry/{fixtureName}");
-        var first = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
-        var second = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
+        var first = FirmamentCorpusHarness.InspectFilletSpecimen(source);
+        var second = FirmamentCorpusHarness.InspectFilletSpecimen(source);
         Assert.Equal(first.StepText, second.StepText);
         var imported = Step242Importer.ImportBody(first.StepText);
         Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(item => item.Message)));
@@ -138,8 +138,8 @@ public sealed class ProfileBoundaryChamferFixtureTests
     public void ReflexTwoSegmentFilletFixture_ExportsDeterministicTwoCylindersAndHornTorus(string fixtureName)
     {
         var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Regression/CanonicalGeometry/{fixtureName}");
-        var first = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
-        var second = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
+        var first = FirmamentCorpusHarness.InspectFilletSpecimen(source);
+        var second = FirmamentCorpusHarness.InspectFilletSpecimen(source);
         Assert.Equal(first.StepText, second.StepText);
         var imported = Step242Importer.ImportBody(first.StepText);
         Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(item => item.Message)));

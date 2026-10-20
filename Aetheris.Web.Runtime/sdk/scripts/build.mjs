@@ -13,7 +13,7 @@ const run = args => {
   const result = spawnSync('dotnet', args, { cwd: repo, stdio: 'inherit' });
   if (result.status !== 0) process.exit(result.status ?? 1);
 };
-run(['build', project, '-c', 'Release', '--nologo']);
+run(['build', project, '-c', 'Release', '--nologo', '-m:1', '-nr:false', '-p:UseSharedCompilation=false']);
 const app = join(runtime, 'bin', 'Release', 'net10.0', 'wwwroot');
 const dist = join(sdk, 'dist');
 await rm(dist, { recursive: true, force: true });

@@ -68,6 +68,7 @@ public static partial class Program
                 "rewriteField" => RewriteField(request),
                 "snapshot" => Session(request).Snapshot,
                 "sampleMotion" => Session(request).SampleMotion(request),
+                "measure" => Session(request).Measure(request),
                 "setProperty" => SetProperty(request),
                 "setSource" => SetSource(request),
                 "rebuild" => Rebuild(request),
@@ -277,7 +278,7 @@ public static partial class Program
         bool Performance = false, IReadOnlyDictionary<string, string>? ProjectDocuments = null, string? ProjectRoot = null,
         int? Bridge = null, IReadOnlyList<FirmamentLanguageEditOperation>? Operations = null,
         string? Motion = null, double? TimeSeconds = null, bool PreserveEndpoint = false,
-        IReadOnlyList<string>? Formats = null);
+        IReadOnlyList<string>? Formats = null, Aetheris.Geometry.MeasurementRequest? Measurement = null);
 
     /// <summary>
     /// BUILD-PERF-M3 response bridge (request <c>bridge: 1</c>, sent by the SDK). Large numeric arrays
@@ -302,7 +303,7 @@ public static partial class Program
         public string Code { get; } = code;
     }
 
-    private sealed class WebModelSession(string id, string source, string sourceName, IReadOnlyDictionary<string, string>? projectDocuments) : IDisposable
+    private sealed partial class WebModelSession(string id, string source, string sourceName, IReadOnlyDictionary<string, string>? projectDocuments) : IDisposable
     {
         private string _source = source;
         private string _sourceName = sourceName;
@@ -340,7 +341,7 @@ public static partial class Program
                 throw new WebRuntimeException(separator > 0 ? error.Message[..separator] : "export-failed", error.Message);
             }
         }
-        public void Dispose() { _assembly = null; _pendingAssembly = null; _scene = null; _pendingScene = null; _exportDisplay = null; _compilationSession.Dispose(); _sceneSession.Dispose(); }
+        public void Dispose() { _measurementTargets = []; _pendingMeasurementTargets = []; _assembly = null; _pendingAssembly = null; _scene = null; _pendingScene = null; _exportDisplay = null; _compilationSession.Dispose(); _sceneSession.Dispose(); }
         internal object SampleMotion(WebRequest request)
         {
             if (_assembly is null || request.Motion is null || request.TimeSeconds is null)
@@ -455,6 +456,7 @@ public static partial class Program
             _lastReuse = null;
             _pendingAssembly = null;
             _pendingScene = null;
+            _pendingMeasurementTargets = [];
             _dirty = true;
             var nextProperties = sourceProperties;
             foreach (var (propertyId, value) in _overrides)
@@ -472,6 +474,7 @@ public static partial class Program
                 return compiled with { Revision = Revision, RetainedPreviousGeometry = _lastSnapshot is not null };
 
             Revision++;
+            _measurementTargets = _pendingMeasurementTargets;
             _assembly = _pendingAssembly;
             _scene = _pendingScene;
             _exportDisplay = compiled.ExportDisplay ?? (AssemblyDisplayMeshDocument)compiled.Mesh!;
@@ -499,6 +502,7 @@ public static partial class Program
             {
                 id = Id, name = Name, revision = Revision, source = _source, sourceName = _sourceName,
                 tree = compiled.Tree, properties = _properties, mesh = compiled.Mesh,
+                measurementAvailable = _measurementTargets.Count > 0,
                 diagnostics = compiled.Diagnostics, changes, timings,
                 exportFormats = ProductArtifactExporter.Options(_stepText is not null || _stepWriter is not null, _assembly is null && _scene is null),
                 motions = (_assembly?.Motions ?? []).Select(m => new { m.Name, m.DurationSeconds, repeat = m.Repeat.ToString(),
@@ -536,6 +540,7 @@ public static partial class Program
             var definitionId = "definition:" + Sha(step)[..16].ToLowerInvariant();
             var entityId = build.Value.RuntimeCorrespondence?.BodyStableId
                 ?? (string.IsNullOrWhiteSpace(build.Value.ExportedFeatureId) ? Id + ":body" : build.Value.ExportedFeatureId);
+            _pendingMeasurementTargets = [new(entityId + ":occurrence", displayBody, Aetheris.Kernel.Core.Math.Transform3D.Identity)];
             var sourceMap = build.Value.RuntimeCorrespondence is { } correspondence
                 ? new Aetheris.Kernel.Firmament.Materializer.GeometrySourceMap(correspondence) : null;
             WebSourceRef? CompilerSource(string symbol) =>
@@ -634,6 +639,11 @@ public static partial class Program
             var root = new WebTreeNode(compilation.Ir.RootInstanceStableId, "Assembly", compilation.Ir.Name, null, children, true, SourceRef(_sourceName, 0, effective.Length));
             var tree = new { rootId = root.Id, nodes = nodes.Prepend(root).DistinctBy(node => node.Id).ToArray() };
             _pendingAssembly = compilation.Ir;
+            var measurementDefinitions = compilation.Geometry.Artifact.Definitions.ToDictionary(d => d.StableId,
+                d => compilation.Geometry.DefinitionBodies[d.DefinitionIdentity], StringComparer.Ordinal);
+            _pendingMeasurementTargets = compilation.Geometry.Artifact.Instances.Select(instance =>
+                new Aetheris.Geometry.MeasurementTarget(instance.InstanceStableId, measurementDefinitions[instance.DefinitionArtifactStableId],
+                    Aetheris.Kernel.Core.Math.Transform3D.FromRowMajor(instance.WorldTransform.Matrix))).ToArray();
             return WebBuildResult.Passed(null, tree, mesh, nodes.Select(node => node.Id).Prepend(root.Id).Distinct().ToArray(), compileMs, meshMs) with { StepWriter = StepWriter };
         }
 

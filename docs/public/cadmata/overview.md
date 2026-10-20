@@ -6,4 +6,9 @@ Use `aetheris view model.firmament` or `aetheris view part.step` from the qualif
 
 Cadmata opens AP242 STEP assemblies as a product tree with shared part definitions and placed occurrences. The STEP viewer's import control is the normal entry point; internal fixture endpoints are reserved for automated qualification and are not part of the viewer controls.
 
+Use the viewport's **Measure** tool for picked-point distance, parallel support-plane
+spacing, and analytic axis spacing. See [measurements in Cadmata and Helios](measurement.md)
+for reference replacement, world-coordinate deltas, units, approximation labels and
+the supported geometry boundary.
+
 Preview 3 qualification is Windows x64. See [PMI presentation](pmi.md) and the [support matrix](../reference/supported-features.md).

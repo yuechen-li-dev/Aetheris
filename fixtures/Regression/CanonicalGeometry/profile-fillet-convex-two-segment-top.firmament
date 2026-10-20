@@ -16,9 +16,5 @@ Profile Bracket Using RectangleLayout { Loop Outer {
 Struct Body { Extrude Bracket { Profile: Bracket; From: 0mm; To: 8mm } }
 Selection CornerPair { Source: Bracket.Outer.[South, East] Require: ConnectedChain }
 Modify Body { EdgeFinish RoundedCorner { Target: CornerPair On: Top Kind: Fillet Radius: 2mm EndClearance: 3mm } }
-Assert Volume Body {
-    Expected: 1570.7317878719023mm^3
-    Tolerance: 0.5mm^3
-    Note: "Two straight Profile rolls joined by one convex spherical fillet junction"
-}
+Assert Topology Body { shells: 1 }
 }

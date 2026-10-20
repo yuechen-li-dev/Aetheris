@@ -11,8 +11,9 @@ The tests mutate expected values, fields and topology to prove rejection without
 changing these witnesses. `measure` explicitly builds without evaluating declared
 assertions and reports that level; it is not a successful validation substitute.
 
-Six historical curved-fillet volume specimens are preserved in
-`../CanonicalGeometry/`. Their unsupported volume assertions now reject normal
-compilation. Geometry qualification uses explicit measurement and an assertion-free
-control, preserving deterministic STEP and topology checks. See
-`docs/development/FIRMAMENT-ASSERTIONS-2026-10-19.md` for the full classification.
+Six historical curved-fillet specimens in `../CanonicalGeometry/` now use
+`Assert Topology Body { shells: 1 }` in place of unprovable historical volume
+assertions. They compile normally and retain their existing deterministic STEP,
+topology and geometry regression checks. A separate negative test appends an
+unprovable volume assertion and still requires `measurement-unavailable` rejection.
+See `docs/development/FIRMAMENT-ASSERTIONS-2026-10-19.md` for the earlier classification.

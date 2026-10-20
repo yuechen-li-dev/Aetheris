@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Geometry;
 
 namespace Aetheris.Server.Documents;
 
@@ -8,6 +9,31 @@ public sealed class DocumentSession
     private readonly Dictionary<Guid, BrepBody> _definitions = new();
     private readonly Dictionary<Guid, BodyOccurrence> _occurrences = new();
     private readonly object _sync = new();
+    private long _revision;
+    private long _measurementRevision = -1;
+    private IReadOnlyList<MeasurementTarget> _measurementTargets = [];
+    private IReadOnlyList<MeasurementTarget> _importedMeasurementTargets = [];
+    public long Revision { get { lock (_sync) return _revision; } }
+
+    public void SetImportedMeasurementTargets(IReadOnlyList<MeasurementTarget> targets)
+    {
+        lock (_sync) { _importedMeasurementTargets = targets; _revision++; }
+    }
+
+    public MeasurementResult Measure(long revision, MeasurementRequest request)
+    {
+        lock (_sync)
+        {
+            if (revision != _revision) throw new MeasurementException("measurement-stale-revision", "The document changed. Reload the displayed geometry before measuring.");
+            if (_measurementRevision != _revision)
+            {
+                _measurementTargets = _occurrences.Values.Select(o => new MeasurementTarget(o.OccurrenceId.ToString(), _definitions[o.DefinitionId], o.Placement))
+                    .Concat(_importedMeasurementTargets).ToArray();
+                _measurementRevision = _revision;
+            }
+            return BrepMeasurementQuery.Measure(_measurementTargets, request);
+        }
+    }
 
     public DocumentSession(Guid id, string? name = null)
     {
@@ -43,6 +69,7 @@ public sealed class DocumentSession
             var occurrenceId = Guid.NewGuid();
             _definitions[definitionId] = body;
             _occurrences[occurrenceId] = new BodyOccurrence(occurrenceId, definitionId, Transform3D.Identity, occurrenceName);
+            _revision++;
             return (occurrenceId, definitionId);
         }
     }
@@ -90,6 +117,7 @@ public sealed class DocumentSession
             var occurrenceId = Guid.NewGuid();
             occurrence = new BodyOccurrence(occurrenceId, definitionId, Transform3D.Identity, name);
             _occurrences[occurrenceId] = occurrence;
+            _revision++;
             return true;
         }
     }
@@ -107,6 +135,7 @@ public sealed class DocumentSession
             var occurrenceId = Guid.NewGuid();
             occurrence = new BodyOccurrence(occurrenceId, source.DefinitionId, Transform3D.Identity, name);
             _occurrences[occurrenceId] = occurrence;
+            _revision++;
             return true;
         }
     }
@@ -142,6 +171,7 @@ public sealed class DocumentSession
             var delta = Transform3D.CreateTranslation(translation);
             updatedTransform = delta * occurrence.Placement;
             _occurrences[occurrenceId] = occurrence with { Placement = updatedTransform };
+            _revision++;
             return true;
         }
     }

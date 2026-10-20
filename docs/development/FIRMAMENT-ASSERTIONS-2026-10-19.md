@@ -185,3 +185,13 @@ and ToleranceStackup uses shared AST admission while preserving its existing
 worst-case solver. Geometry qualification remains intact. Unsupported measurement
 families reject honestly; this pass does not claim a general curved-BRep volume
 integrator, Boolean-mirror parity, or dedicated-domain assertion support.
+
+## Follow-up: historical fillet assertion cleanup
+
+The subsequent UI measurement pass replaces the six unsupported historical volume
+assertions with a provable single-shell topology assertion. These fixtures now
+compile through normal admission; their existing detailed geometry regressions
+remain. `HistoricalFilletGeometryBuildsButAnUnprovableVolumeAssertionStillRejects`
+retains a separate rejection witness and STEP parity comparison. This supersedes
+the earlier decision to leave these six fixtures rejected, without claiming a
+new exact curved-fillet volume capability.

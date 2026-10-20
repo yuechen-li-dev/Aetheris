@@ -1,3 +1,4 @@
+import type { MeasurementRequest } from '@aetheris/three-telos';
 import {
 	useCallback,
 	useEffect,
@@ -18,6 +19,7 @@ import {
 	executeBoolean,
 	exportDefinitionStep,
 	getDocumentSummary,
+	measureDocument,
 	importStep,
 	maximizePaperclips,
 	pickBody,
@@ -183,6 +185,7 @@ function App() {
 	const [viewportThemeId, setViewportThemeId] = useState<ViewportThemeId>(
 		loadViewportThemePreference,
 	);
+	const [measurementRevision, setMeasurementRevision] = useState<number | undefined>(undefined);
 	const [documentId, setDocumentId] = useState<string | null>(null);
 	const [bodyIds, setBodyIds] = useState<string[]>([]);
 	const [occurrences, setOccurrences] = useState<BodyOccurrenceSummaryDto[]>([]);
@@ -328,6 +331,11 @@ function App() {
 		}
 	}, []);
 
+	const measurementQuery = useCallback(async (request: MeasurementRequest) => {
+    if (!documentId || measurementRevision === undefined) throw new Error('Reload this model to establish its measurement revision.');
+    const restrict = (pick: MeasurementRequest['first']) => ({ ...pick, occurrenceId: assemblyPacket ? pick.occurrenceId : activeBodyId });
+    return measureDocument(documentId, measurementRevision, { ...request, first: restrict(request.first), second: request.second ? restrict(request.second) : undefined });
+  }, [documentId, measurementRevision, activeBodyId, assemblyPacket]);
 	const refreshSummaryAndActiveTessellation = useCallback(
 		async (targetBodyId?: string, suppressDisplayErrors = false): Promise<RefreshDisplayResult> => {
 			if (!documentId) {
@@ -335,6 +343,7 @@ function App() {
 			}
 
 			const summary = await getDocumentSummary(documentId);
+			setMeasurementRevision(summary.revision);
 			const selected =
 				targetBodyId ??
 				(summary.bodyIds.includes(activeBodyId ?? "")
@@ -569,6 +578,7 @@ function App() {
 				const qualificationStatus = imported.importStatus ?? "Inspectable";
 				setDiagnostics(imported.diagnostics);
 				if (imported.assemblyPresentation) {
+					setMeasurementRevision(imported.revision);
 					setAssemblyPacket(imported.assemblyPresentation);
 					setSelectedAssemblyOccurrenceId(null);
 					setDisplayPreparation(null);
@@ -1176,6 +1186,8 @@ function App() {
 							</label>
 						</div>
 						<AetherisViewport
+              measurementQuery={measurementQuery}
+              measurementDisabledReason={status === "loading" ? "Wait for geometry loading to finish." : assemblySourcePath ? "Measurement for this stateless preview is not available; import STEP to measure it." : measurementRevision === undefined ? "Load or create a BRep model before measuring." : undefined}
 							showConcepts={showConcepts}
 							busyMessage={status === "loading" ? statusMessage : null}
 							errorMessage={status === "error" ? statusMessage : null}

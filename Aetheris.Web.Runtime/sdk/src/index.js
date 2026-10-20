@@ -173,6 +173,15 @@ export class ModelSession {
       return pose;
     });
   }
+  async measure(measurement, options = {}) {
+    return this.serial(async () => {
+      throwIfAborted(options.signal);
+      const reply = await this.transport.request({ operation: 'measure', sessionId: this.id, buildRevision: this.revision, measurement });
+      throwIfAborted(options.signal);
+      if (reply.revision !== this.revision) throw new AetherisError('measurement-stale-revision', 'The measurement belongs to a different build revision.');
+      return reply.measurement;
+    });
+  }
   async describeConstruct(semanticId, options = {}) {
     throwIfAborted(options.signal);
     return this.transport.request({ operation: 'describeConstruct', sessionId: this.id, constructSemanticId: semanticId });

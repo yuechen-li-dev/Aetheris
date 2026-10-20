@@ -87,11 +87,13 @@ export class Aetheris {
 export interface MotionClip { readonly name: string; readonly durationSeconds: number; readonly repeat: 'Once' | 'Loop'; readonly tracks: readonly { readonly name: string; readonly mateStableId: string; readonly jointName: string; readonly valueDimension: 'Angle' | 'Length' }[] }
 export interface MotionPose { readonly revision: number; readonly motion: string; readonly timeSeconds: number; readonly state: Readonly<Record<string, number>>; readonly transforms: readonly { readonly id: string; readonly matrix: readonly number[] | Float64Array }[] }
 export class ModelSession {
+  readonly measurementAvailable?: boolean;
   readonly exportFormats: readonly ExportFormatOption[];
   /** One format returns its file; multiple formats return one ZIP. Rejected exports produce no files. */
   exportArtifacts(formats: readonly ExportFormat[], options?: OperationOptions): Promise<readonly ExportFile[]>;
   readonly motions: readonly MotionClip[];
   sampleMotion(motion: string, timeSeconds: number, options?: OperationOptions & { readonly preserveEndpoint?: boolean }): Promise<MotionPose>;
+  measure(request: MeasurementRequest, options?: OperationOptions): Promise<MeasurementResult>;
   readonly id: string; readonly name: string; readonly revision: number; readonly source: string; readonly sourceName: string;
   readonly tree: ModelTree; readonly properties: readonly EditableProperty[]; readonly mesh: DisplayMesh; readonly diagnostics: readonly Diagnostic[]; readonly changes: ChangeSet;
   readonly timings?: { readonly compileMilliseconds: number; readonly meshMilliseconds?: number; readonly totalBeforeSnapshotMilliseconds?: number; readonly profile?: { readonly phases: readonly { readonly name: string; readonly inclusiveMilliseconds: number; readonly exclusiveMilliseconds: number; readonly allocatedBytes: number }[]; readonly counts: Readonly<Record<string, number>>; readonly gc0: number; readonly gc1: number; readonly gc2: number } };
@@ -118,3 +120,13 @@ export class ModelSession {
 export type ExportFormat = 'step' | 'glb' | 'usda' | 'stl' | 'obj' | 'pdf' | 'svg' | 'pptx';
 export interface ExportFormatOption { readonly format: ExportFormat; readonly label: string; readonly description: string; readonly available: boolean; readonly reason?: string | null }
 export interface ExportFile { readonly fileName: string; readonly mediaType: string; readonly bytes: Uint8Array }
+
+export type MeasurementMode = 'points' | 'planes' | 'axes';
+export interface MeasurementPick { occurrenceId: string | null; faceId: number | null; rayOrigin: number[]; rayDirection: number[] }
+export interface MeasurementRequest { mode: MeasurementMode; first: MeasurementPick; second?: MeasurementPick; allowApproximate: boolean }
+export interface MeasurementReference { occurrenceId: string; faceId: number; surfaceKind: string; point: number[]; quality: string; diameterMm?: number | null }
+export interface MeasurementResult {
+  mode: MeasurementMode; first: MeasurementReference; second?: MeasurementReference | null;
+  distanceMm: number | null; deltaMm: number[] | null; witnessA: number[] | null; witnessB: number[] | null;
+  angleDegrees: number | null; quality: string; explanation: string;
+}

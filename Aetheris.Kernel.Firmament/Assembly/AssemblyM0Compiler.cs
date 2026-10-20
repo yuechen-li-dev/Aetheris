@@ -974,11 +974,13 @@ public sealed class AssemblyM0Compiler
         var result = new List<ToleranceStackupResultIr>();
         foreach (var assertion in source.StackupAsserts)
         {
+            void Error(string code, string message) => diagnostics.Add(new(code, message)
+                { SourceSpan = assertion.SourceSpan, LocationNote = assertion.LocationNote });
             if (!TryResolve(assertion.From, instances, out var from) || !TryResolve(assertion.To, instances, out var to))
-            { diagnostics.Add(new(TolerancePathMissing, $"Assert ToleranceStackup '{assertion.Name}' endpoints cannot be resolved.")); continue; }
+            { Error(TolerancePathMissing, $"Assert ToleranceStackup '{assertion.Name}' endpoints '{assertion.From}' and '{assertion.To}' cannot be resolved."); continue; }
             var paths = FindPaths(from!.Value.StableIdentity, to!.Value.StableIdentity, relations, 2);
-            if (paths.Count == 0) { diagnostics.Add(new(TolerancePathMissing, $"Assert ToleranceStackup '{assertion.Name}' has no dimensional path.")); continue; }
-            if (paths.Count > 1) { diagnostics.Add(new(TolerancePathAmbiguous, $"Assert ToleranceStackup '{assertion.Name}' has multiple valid dimensional paths.")); continue; }
+            if (paths.Count == 0) { Error(TolerancePathMissing, $"Assert ToleranceStackup '{assertion.Name}' has no dimensional path."); continue; }
+            if (paths.Count > 1) { Error(TolerancePathAmbiguous, $"Assert ToleranceStackup '{assertion.Name}' has multiple valid dimensional paths."); continue; }
             var contributions = paths[0].Select(step => new StackupContributionIr(step.edge.StableId, step.sign,
                 step.sign * step.edge.Nominal,
                 step.sign > 0 ? step.edge.LowerTolerance : -step.edge.UpperTolerance,
@@ -986,13 +988,13 @@ public sealed class AssemblyM0Compiler
                 step.edge.Unit, step.edge.OriginInstancePath, step.edge.Provenance, step.edge.MateStableId, step.edge.InterfaceStableId, step.edge.SourceProvenance,
                 step.edge.ExpandedContributors)).ToArray();
             if (contributions.Any(x => x.Unit != assertion.Unit))
-            { diagnostics.Add(new("assembly-tolerance-unit-mismatch", $"Assert ToleranceStackup '{assertion.Name}' mixes units.")); continue; }
+            { Error("assembly-tolerance-unit-mismatch", $"Assert ToleranceStackup '{assertion.Name}' mixes units."); continue; }
             var nominal = contributions.Sum(x => x.Nominal);
             var min = nominal + contributions.Sum(x => x.LowerTolerance);
             var max = nominal + contributions.Sum(x => x.UpperTolerance);
             var passed = min >= assertion.RequiredMinimum;
-            if (!passed) diagnostics.Add(new(ToleranceAssertionFailure,
-                $"Assert ToleranceStackup '{assertion.Name}' failed: worst-case minimum {min:G6} {assertion.Unit} < required {assertion.RequiredMinimum:G6} {assertion.Unit}."));
+            if (!passed) Error(ToleranceAssertionFailure,
+                $"Assert ToleranceStackup '{assertion.Name}' failed: worst-case minimum {min:G6} {assertion.Unit} < required {assertion.RequiredMinimum:G6} {assertion.Unit}.");
             result.Add(new(assertion.Name, from.Value.StableIdentity, to.Value.StableIdentity, nominal, min, max,
                 assertion.RequiredMinimum, assertion.Unit, passed, passed ? "passed" : "failed", contributions));
         }

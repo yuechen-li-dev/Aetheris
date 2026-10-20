@@ -1,0 +1,6 @@
+Model WrongTarget {
+    units: mm
+    Box First { size: [20mm, 10mm, 6mm] }
+    Box Second { size: [10mm, 8mm, 6mm] }
+    Assert Volume First { expected: 480mm^3; tolerance: 0mm^3 }
+}

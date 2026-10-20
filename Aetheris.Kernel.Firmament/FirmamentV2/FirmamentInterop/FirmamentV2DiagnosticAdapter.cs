@@ -15,7 +15,7 @@ public static class FirmamentV2DiagnosticAdapter
             diagnostic.Code,
             diagnostic.Severity switch
             {
-                "fatal" => FirmamentDiagnosticSeverity.Fatal,
+                "fatal" or "error" => FirmamentDiagnosticSeverity.Fatal,
                 "warning" => FirmamentDiagnosticSeverity.Warning,
                 _ => FirmamentDiagnosticSeverity.Info
             },
@@ -64,6 +64,18 @@ public static class FirmamentV2DiagnosticAdapter
         FirmamentV2Parser.ConceptMissingRequiredField => "Forge concept application is missing a required descriptor field.",
         FirmamentV2Parser.PmiUnknownDatum => "PMI relation references an unknown datum.",
         FirmamentV2Parser.ToleranceDroppedThroughArithmetic => "A toleranced value was used in arithmetic and only the nominal value was preserved.",
+        _ when diagnosticCode.StartsWith(FirmamentV2Parser.AssertVolumeKindUnsupported + ":", StringComparison.Ordinal)
+            => "This part admits Assert Volume, Assert Bounds and Assert Topology. Assert ToleranceStackup belongs on an Assembly with dimensional relations.",
+        _ when diagnosticCode.StartsWith(FirmamentV2Parser.AssertVolumeExpectedDimensionMismatch + ":", StringComparison.Ordinal)
+            => "Assert Volume expected requires a finite nonnegative volume literal in mm^3.",
+        _ when diagnosticCode.StartsWith(FirmamentV2Parser.AssertVolumeToleranceDimensionMismatch + ":", StringComparison.Ordinal)
+            => "Assert Volume tolerance requires a finite nonnegative volume literal in mm^3.",
+        _ when diagnosticCode.StartsWith(FirmamentV2Parser.AssertVolumeToleranceNegative + ":", StringComparison.Ordinal)
+            => "Assert Volume tolerance cannot be negative.",
+        _ when diagnosticCode.StartsWith("firmament-v2-assert-bounds-malformed:", StringComparison.Ordinal)
+            => "Assert Bounds requires three-component min and max length vectors in ascending order, and a nonnegative length tolerance.",
+        _ when diagnosticCode.StartsWith("firmament-v2-assert-topology-malformed:", StringComparison.Ordinal)
+            => "Assert Topology requires at least one finite nonnegative integer count: faces, edges, vertices or shells.",
         _ when diagnosticCode.StartsWith("firmament-v2-field-duplicate:", StringComparison.Ordinal)
             => $"Field '{diagnosticCode.Split(':')[^1]}' is specified more than once in {diagnosticCode.Split(':')[1]}. Keep one value.",
         _ when diagnosticCode.StartsWith("firmament-v2-field-value-invalid:", StringComparison.Ordinal)

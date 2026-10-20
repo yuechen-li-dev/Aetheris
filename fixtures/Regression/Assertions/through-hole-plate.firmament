@@ -1,0 +1,15 @@
+Model CheckedPlate {
+    units: mm
+    Box Body { size: [80mm, 50mm, 8mm] }
+    Modify Body {
+        Hole<Shaft> Mount {
+            on: +Z
+            center: Point2(0mm, 0mm)
+            diameter: 8mm
+            end: ThroughAll
+        }
+    }
+    Assert Volume Body { expected: 31597.876140340508mm^3; tolerance: 0.00000001mm^3 }
+    Assert Bounds Body { min: [-40mm, -25mm, 0mm]; max: [40mm, 25mm, 8mm] }
+    Assert Topology Body { shells: 1 }
+}

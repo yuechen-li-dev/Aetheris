@@ -292,17 +292,13 @@ public sealed class SdfTape
     private static FieldInterval EvaluateConeInterval(SdfBounds region, SdfTapeConePayload payload)
     {
         var local = TransformBounds(region, payload.InverseTransform);
-        var corners = GetCorners(local);
-        var min = double.PositiveInfinity;
-        var max = double.NegativeInfinity;
-        foreach (var c in corners)
-        {
-            var value = SdfConeNode.EvaluateFiniteCone(c, payload.BottomRadius, payload.TopRadius, payload.Height);
-            min = double.Min(min, value);
-            max = double.Max(max, value);
-        }
-
-        return new FieldInterval(min, max);
+        // Corner samples are not bounds: a region can contain the cone while
+        // all eight corners are outside. The finite-cone distance is 1-Lipschitz
+        // in local coordinates, so its center +/- half diagonal encloses it.
+        var center = new Point3D((local.Min.X + local.Max.X) * .5, (local.Min.Y + local.Max.Y) * .5, (local.Min.Z + local.Max.Z) * .5);
+        var distance = SdfConeNode.EvaluateFiniteCone(center, payload.BottomRadius, payload.TopRadius, payload.Height);
+        var radius = .5 * double.Sqrt(local.SizeX * local.SizeX + local.SizeY * local.SizeY + local.SizeZ * local.SizeZ);
+        return new FieldInterval(distance - radius, distance + radius);
     }
 
     private static SdfBounds TransformBounds(SdfBounds bounds, Transform3D transform)

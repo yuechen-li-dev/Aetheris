@@ -107,27 +107,16 @@ public sealed class ProfileBoundaryChamferFixtureTests
     public void ConvexTwoSegmentFilletFixture_ExportsDeterministicTwoCylindersAndSphere(string fixtureName)
     {
         var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Regression/CanonicalGeometry/{fixtureName}");
-        var firstOutput = Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step");
-        var secondOutput = Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step");
-        try
-        {
-            var first = FirmamentBuildAndExport.Run(source, firstOutput); var second = FirmamentBuildAndExport.Run(source, secondOutput);
-            Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(item => item.Message)));
-            Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(item => item.Message)));
-            Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
-            var imported = Step242Importer.ImportBody(first.Value.Export.StepText);
-            Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(item => item.Message)));
-            Assert.Equal(2, imported.Value!.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Cylinder));
-            Assert.Equal(1, imported.Value.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Sphere));
-            var mass = BrepMassProperties.Evaluate(imported.Value);
-            Assert.True(mass.IsEnclosed);
-            Assert.True(mass.IsOrientationConsistent);
-        }
-        finally
-        {
-            if (File.Exists(firstOutput)) File.Delete(firstOutput);
-            if (File.Exists(secondOutput)) File.Delete(secondOutput);
-        }
+        var first = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
+        var second = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
+        Assert.Equal(first.StepText, second.StepText);
+        var imported = Step242Importer.ImportBody(first.StepText);
+        Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(item => item.Message)));
+        Assert.Equal(2, imported.Value!.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Cylinder));
+        Assert.Equal(1, imported.Value.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Sphere));
+        var mass = BrepMassProperties.Evaluate(imported.Value);
+        Assert.True(mass.IsEnclosed);
+        Assert.True(mass.IsOrientationConsistent);
     }
 
     [Fact]
@@ -149,12 +138,10 @@ public sealed class ProfileBoundaryChamferFixtureTests
     public void ReflexTwoSegmentFilletFixture_ExportsDeterministicTwoCylindersAndHornTorus(string fixtureName)
     {
         var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Regression/CanonicalGeometry/{fixtureName}");
-        var first = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
-        var second = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
-        Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(item => item.Message)));
-        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(item => item.Message)));
-        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
-        var imported = Step242Importer.ImportBody(first.Value.Export.StepText);
+        var first = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
+        var second = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
+        Assert.Equal(first.StepText, second.StepText);
+        var imported = Step242Importer.ImportBody(first.StepText);
         Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(item => item.Message)));
         Assert.Equal(2, imported.Value!.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Cylinder));
         Assert.Equal(1, imported.Value.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Torus));

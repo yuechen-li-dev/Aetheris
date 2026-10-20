@@ -1,0 +1,7 @@
+Model AssertBox {
+    units: mm
+    Box Body { size: [10mm, 8mm, 6mm] }
+    Assert Volume Body { expected: 480mm^3; tolerance: 0mm^3; note: "Exact rectangular stock." }
+    Assert Bounds Body { min: [-5mm, -4mm, 0mm]; max: [5mm, 4mm, 6mm]; tolerance: 0mm }
+    Assert Topology Body { faces: 6; edges: 12; vertices: 8; shells: 1 }
+}

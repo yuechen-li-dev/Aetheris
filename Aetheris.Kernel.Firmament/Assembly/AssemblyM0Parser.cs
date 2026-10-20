@@ -113,6 +113,15 @@ public sealed class AssemblyM0Parser
         var concreteSyntax = FirmamentSyntaxParser.Parse(source).Document;
         var motionSyntax = AssemblyMotionAuthoring.Extract(concreteSyntax, ref source, sourceIdentity, diagnostics);
         var motionOrigins = new FirmamentSyntaxOrigins(syntax.Document, concreteSyntax);
+        IReadOnlyList<ToleranceStackupAssertSource> Stackups(string ownerName)
+        {
+            var owner = concreteSyntax.Statements.OfType<DeclarationSyntax>()
+                .FirstOrDefault(d => d.Type.Name.Text is "Assembly" or "Subassembly" && d.Name?.Text == ownerName);
+            if (owner is null) return [];
+            return AssemblyStackupSyntax.Bind(owner, sourceIdentity, diagnostics, motionOrigins.Find)
+                .Select(a => projection is null || a.SourceSpan is null ? a : a with
+                { SourceSpan = projection.Map(new AssemblyDiagnostic("location", "") { SourceSpan = a.SourceSpan }).SourceSpan }).ToArray();
+        }
         AssemblyDiagnostic MapMotion(AssemblyDiagnostic diagnostic)
         {
             if (diagnostic.SourceSpan is not { } span) return diagnostic;
@@ -177,7 +186,7 @@ public sealed class AssemblyM0Parser
         }
         var templateRanges = new List<(int Start, int Length)>();
         var assemblydefinitionsPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.assembly-definitions");
-        var assemblyDefinitions = ParseAssemblyDefinitions(source, sourceIdentity, interfaces, concepts, gearAuthorities, diagnostics, templateRanges, Ports, layout, graph);
+        var assemblyDefinitions = ParseAssemblyDefinitions(source, sourceIdentity, interfaces, concepts, gearAuthorities, diagnostics, templateRanges, Stackups, Ports, layout, graph);
         assemblydefinitionsPhase.Dispose();
         // Template-produced Assembly bodies are declarations, not exported roots.
         // Blank them without changing offsets, then locate the single root Assembly.
@@ -202,7 +211,7 @@ public sealed class AssemblyM0Parser
         }
         var mates = ParseMates(body, sourceIdentity, diagnostics);
         var relations = ParseRelations(body, diagnostics);
-        var asserts = ParseAsserts(body, sourceIdentity, diagnostics);
+        var asserts = Stackups(assemblyHeader.Groups["name"].Value);
         var anchorMatch = Regex.Match(RemoveBlocks(body, "Mate", @"Assert\s+ToleranceStackup"), @"\bAnchor\s*:\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant);
         var anchor = anchorMatch.Success ? AssemblyPath.Parse(anchorMatch.Groups["path"].Value) : new AssemblyPath([tree.Name]);
         var frames = ParseFrameTransforms(body, sourceIdentity, diagnostics);
@@ -354,6 +363,7 @@ public sealed class AssemblyM0Parser
         IReadOnlyList<InterfaceDefinition> interfaces, IReadOnlyList<AssemblyConceptDefinition> concepts,
         IReadOnlyDictionary<string, GearAir> gearAuthorities,
         List<AssemblyDiagnostic> diagnostics, List<(int Start, int Length)> ranges,
+        Func<string, IReadOnlyList<ToleranceStackupAssertSource>> stackups,
         Func<string, IReadOnlyList<SemanticValue>>? publishedPorts = null,
         IReadOnlyList<AssemblyLayoutDatum>? layout = null, FirmamentModuleGraph? graph = null)
     {
@@ -395,7 +405,7 @@ public sealed class AssemblyM0Parser
                 [new("assembly-template-definition", name, template.Groups["parameter"].Value + ":" + template.Groups["type"].Value, SemanticSourceSpan.Generated(sourceIdentity)),
                  .. claimedConcept is null ? [] : new[] { new SemanticProvenance("assembly-concept-satisfaction", claimedConcept, name, SemanticSourceSpan.Generated(sourceIdentity)) },
                  .. staticProvenance],
-                anchor, localMates, ParseRelations(body, diagnostics), ParseAsserts(body, sourceIdentity, diagnostics), exposedRelations, claimedConcept,
+                anchor, localMates, ParseRelations(body, diagnostics), stackups(name), exposedRelations, claimedConcept,
                 ParseFrameTransforms(body, sourceIdentity, diagnostics).Concat(datumFrames).ToArray()) { ExposedMates = exposedMates });
         }
         return result;
@@ -898,20 +908,6 @@ public sealed class AssemblyM0Parser
     private static IReadOnlyList<DimensionalRelationSource> ParseRelations(string body, List<AssemblyDiagnostic> diagnostics) =>
         Regex.Matches(body, @"\bRelation\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<from>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*->\s*(?<to>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*=\s*(?<nom>[-+]?\d+(?:\.\d+)?)mm(?:\s+tol\s+(?:(?<bil>\d+(?:\.\d+)?)mm|\+(?<plus>\d+(?:\.\d+)?)mm\s+-(?<minus>\d+(?:\.\d+)?)mm))?\s+from\s+""(?<provenance>[^""]+)""\s*;", RegexOptions.CultureInvariant)
             .Select(m => { var plus = m.Groups["bil"].Success ? Number(m.Groups["bil"].Value) : m.Groups["plus"].Success ? Number(m.Groups["plus"].Value) : 0; var minus = m.Groups["bil"].Success ? Number(m.Groups["bil"].Value) : m.Groups["minus"].Success ? Number(m.Groups["minus"].Value) : 0; return new DimensionalRelationSource(m.Groups["name"].Value, AssemblyPath.Parse(m.Groups["from"].Value), AssemblyPath.Parse(m.Groups["to"].Value), Number(m.Groups["nom"].Value), -minus, plus, "mm", m.Groups["provenance"].Value); }).ToArray();
-
-    private static IReadOnlyList<ToleranceStackupAssertSource> ParseAsserts(string body, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
-    {
-        var result = new List<ToleranceStackupAssertSource>();
-        foreach (Match header in Regex.Matches(body, @"\bAssert\s+ToleranceStackup\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
-        {
-            var block = BalancedBody(body, header.Index + header.Length - 1, diagnostics, "Assert ToleranceStackup"); if (block is null) continue;
-            var between = Regex.Match(block, @"\bBetween\s*:\s*\[(?<from>[^,]+),\s*(?<to>[^]]+)\]\s*;");
-            var require = Regex.Match(block, @"\bRequire\s*:\s*Clearance\s*>=\s*(?<min>[-+]?\d+(?:\.\d+)?)mm\s*;");
-            if (!between.Success || !require.Success) { diagnostics.Add(new("assembly-tolerance-assert-invalid", $"Assert ToleranceStackup '{header.Groups["name"].Value}' requires Between and Clearance fields.")); continue; }
-            result.Add(new(header.Groups["name"].Value, AssemblyPath.Parse(between.Groups["from"].Value.Trim()), AssemblyPath.Parse(between.Groups["to"].Value.Trim()), Number(require.Groups["min"].Value), "mm", SemanticSourceSpan.Generated(sourceIdentity)));
-        }
-        return result;
-    }
 
     internal static string? BalancedBody(string source, int openingBrace, List<AssemblyDiagnostic> diagnostics, string construct)
     {

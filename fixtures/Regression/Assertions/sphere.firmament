@@ -1,0 +1,6 @@
+Model AssertSphere {
+    units: mm
+    Sphere Body { radius: 10mm }
+    Assert Volume Body { expected: 4188.790204786391mm^3; tolerance: 200mm^3 }
+    Assert Topology Body { shells: 1 }
+}

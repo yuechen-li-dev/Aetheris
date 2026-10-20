@@ -148,6 +148,12 @@ internal static class FirmamentV2CanonicalSymbolBinder
             else if (target.Kind is not (FirmamentV2CanonicalSymbolKind.Body or FirmamentV2CanonicalSymbolKind.Compose)) diagnostics.Add($"firmament-v2-assert-volume-target-not-material-body:{assertion.TargetBodyId}:{target.Kind}");
             else bindings.Add(new($"AssertVolume:{assertion.Id}", "Target", target.CanonicalId, assertion.SourceSpan));
         }
+        foreach (var assertion in document.GeometryAssertions)
+        {
+            if (!byName.TryGetValue(assertion.TargetBodyId, out var target)) diagnostics.Add($"firmament-v2-assert-target-unknown:{assertion.TargetBodyId}");
+            else if (target.Kind is not (FirmamentV2CanonicalSymbolKind.Body or FirmamentV2CanonicalSymbolKind.Compose)) diagnostics.Add($"firmament-v2-assert-target-not-material-body:{assertion.TargetBodyId}:{target.Kind}");
+            else bindings.Add(new($"Assert{assertion.Kind}:{assertion.Id}", "Target", target.CanonicalId, assertion.SourceSpan));
+        }
 
         return new(new(symbols, bindings), diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
     }

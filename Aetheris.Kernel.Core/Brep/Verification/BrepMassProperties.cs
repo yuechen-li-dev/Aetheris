@@ -81,6 +81,22 @@ public sealed record BrepMassPropertiesResult(
 /// </summary>
 public static class BrepMassProperties
 {
+    /// <summary>Exact occupied-volume recognition only. Never invokes display tessellation.</summary>
+    public static bool TryEvaluateExactVolume(BrepBody body, out BrepMassPropertiesResult result)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        var topology = ValidateTopology(body);
+        result = null!;
+        return topology.IsEnclosed && topology.IsOrientationConsistent
+            && TryEvaluateExactVolumeCore(body, BrepMassPropertiesOptions.Default, topology, out result);
+    }
+
+    private static bool TryEvaluateExactVolumeCore(BrepBody body, BrepMassPropertiesOptions options,
+        BrepMassPropertiesTopologyDiagnostics topology, out BrepMassPropertiesResult result) =>
+        TryEvaluateExactSphereCylinderSeamBody(body, options, topology, out result)
+        || TryEvaluateExactVerticalLineArcPrism(body, options, topology, out result)
+        || TryEvaluateExactAxisAlignedBoxQuarterCylinderFillet(body, options, topology, out result);
+
     public static BrepMassPropertiesResult Evaluate(BrepBody body, BrepMassPropertiesOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(body);
@@ -196,9 +212,7 @@ public static class BrepMassProperties
         var topology = ValidateTopology(body);
         if (!topology.IsEnclosed)
             return Unavailable(effective, topology, "Mass properties require a closed, orientable material boundary.");
-        if (TryEvaluateExactSphereCylinderSeamBody(body, effective, topology, out var exact)
-            || TryEvaluateExactVerticalLineArcPrism(body, effective, topology, out exact)
-            || TryEvaluateExactAxisAlignedBoxQuarterCylinderFillet(body, effective, topology, out exact))
+        if (TryEvaluateExactVolumeCore(body, effective, topology, out var exact))
             return exact;
         var coarse = EvaluateAtResolution(body, effective, refinement: 1);
         if (coarse.Error is not null) return Unavailable(effective, topology, coarse.Error);

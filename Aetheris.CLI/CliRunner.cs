@@ -221,6 +221,7 @@ public static class CliRunner
                 "frontend-shadow" => FrontendShadowCommand.Run(args.Skip(1).ToArray(), stdout, stderr),
                 "format" => RunFormat(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect" => RunInspect(args.Skip(1).ToArray(), stdout, stderr),
+                "measure" => FirmamentMeasureCommand.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 "inspect-3dm" => ThreeDmCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 "recover-3dm" => ThreeDmCli.Recover(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 "inspect-profile" => RunInspectProfile(args.Skip(1).ToArray(), stdout, stderr),
@@ -571,6 +572,7 @@ public static class CliRunner
                 wireForm = build.Value.Export.WireForm,
                 sweep = build.Value.Export.Sweep,
                 assertions = build.Value.Export.Assertions,
+                geometryAssertions = build.Value.Export.GeometryAssertions,
                 features = build.Value.Export.Features,
                 engineeringFeatures = build.Value.Export.EngineeringFeatures,
                 edgeFinishPlanning = build.Value.Export.EdgeFinishPlanning,
@@ -5229,8 +5231,29 @@ Model CanonicalPanel {
         var compilation = string.Equals(Path.GetExtension(args[0]), ".firmasm", StringComparison.OrdinalIgnoreCase) && !usesSheetMetalParts
             ? new FirmamentAssemblyDocumentCompiler().CompileFile(args[0]).Compilation
             : usesSheetMetalParts ? EnclosureProductFamilies.CompileAssemblyFile(args[0]) : new AssemblyM1Pipeline().CompileFile(args[0]);
+        if (!compilation.IsSuccess)
+        {
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { success = false, diagnostics = compilation.Diagnostics }, JsonOptions));
+            else foreach (var diagnostic in compilation.Diagnostics)
+            {
+                var span = diagnostic.SourceSpan;
+                var file = span?.Source ?? args[0];
+                var text = File.Exists(file) ? File.ReadAllText(file) : null;
+                var presented = FirmamentBuildAdmissionValidation.Locate(new(diagnostic.Code,
+                    diagnostic.Severity == AssemblyDiagnosticSeverity.Error ? "error" : "warning", diagnostic.Message)
+                    { SourceSpan = span is null ? null : new(span.Start, span.Length), LocationNote = diagnostic.LocationNote }, text, file);
+                stderr.WriteLine($"{file}:{presented.Line}:{presented.Column}: {presented.Severity} {diagnostic.Code}: {diagnostic.Message}");
+            }
+            return 1;
+        }
         var export = AssemblyIrAp242Exporter.Export(compilation);
-        if (!export.IsSuccess) { foreach (var diagnostic in export.Diagnostics) stderr.WriteLine($"{diagnostic.Source}: {diagnostic.Message}"); return 1; }
+        if (!export.IsSuccess)
+        {
+            var diagnostics = export.Diagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(d, args[0], sourceText)).ToArray();
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { success = false, diagnostics }, JsonOptions));
+            else foreach (var diagnostic in diagnostics) stderr.WriteLine($"{diagnostic.SourceFile}:{diagnostic.Line}:{diagnostic.Column}: {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}");
+            return 1;
+        }
         var fullOutput = Path.GetFullPath(output); Directory.CreateDirectory(Path.GetDirectoryName(fullOutput)!); File.WriteAllText(fullOutput, export.Value);
         var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(export.Value)));
         stdout.WriteLine(json ? JsonSerializer.Serialize(new { success = true, output = fullOutput, sha256 = hash, occurrenceCount = compilation.Ir!.Instances.Count - 1, definitionCount = compilation.Geometry!.Artifact.Definitions.Count + (compilation.Ir.AssemblyDefinitions?.Count ?? 0) }, JsonOptions) : $"Exported native AP242 assembly: {fullOutput} sha256={hash}");
@@ -5305,6 +5328,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  mesh       Export a supported exact B-rep as STL or topology-preserving OBJ.");
         stdout.WriteLine("  view       Build/open a model in Cadmata.");
         stdout.WriteLine("  inspect    Inspect Firmament semantics or STEP topology.");
+        stdout.WriteLine("  measure    Measure a compiled part and print assertion templates without claiming its assertions passed.");
         stdout.WriteLine("  inspect-3dm Inventory local Rhino 3DM geometry and import blockers.");
         stdout.WriteLine("  recover-3dm Measure Rhino recovery candidates or bind qualified BReps to STEP.");
         stdout.WriteLine("  analyze    Analyze STEP topology and analytic surfaces.");

@@ -115,7 +115,10 @@ public sealed record AssemblyExposedRelationSource(
 public sealed record MateRoleAssignment(string Role, AssemblyPath Participant);
 public sealed record MateSource(string Name, string InterfaceName, IReadOnlyList<MateRoleAssignment> Roles, SemanticSourceSpan? SourceSpan = null);
 public sealed record DimensionalRelationSource(string Name, AssemblyPath From, AssemblyPath To, double Nominal, double LowerTolerance, double UpperTolerance, string Unit, string Provenance);
-public sealed record ToleranceStackupAssertSource(string Name, AssemblyPath From, AssemblyPath To, double RequiredMinimum, string Unit, SemanticSourceSpan? SourceSpan = null);
+public sealed record ToleranceStackupAssertSource(string Name, AssemblyPath From, AssemblyPath To, double RequiredMinimum, string Unit, SemanticSourceSpan? SourceSpan = null)
+{
+    public string? LocationNote { get; init; }
+}
 public sealed record AssemblySource(
     string Name, AssemblyMemberSource Root, IReadOnlyList<InterfaceDefinition> Interfaces,
     IReadOnlyList<MateSource> Mates, AssemblyPath Anchor,

@@ -1282,6 +1282,99 @@ existing qualified mechanism adapter for those relationships. A static STEP
 export is the compiled engineering configuration; sampling a clip does not
 silently replace it with a different posed artifact.
 
+## Checking the compiled part
+
+Part assertions below are bound by the mechanical primitive/Compose/profile-extrusion
+owner. Dedicated domain owners, including Revolve, must reject unbound assertions;
+they do not acquire support by accepting the same block spelling.
+Assertions check the final exported engineering body. They do not alter geometry,
+add PMI, or specify a manufacturing tolerance. Normal `validate` and `build` both
+enforce them. A failed assertion or an assertion that cannot be verified rejects
+the build; it is never a successful build with a hidden `passed: false` result.
+
+**Complete file — exact dimensions and topology:**
+
+```firmament
+Model CheckedBox {
+    units: mm
+    Box Body { size: [10mm, 8mm, 6mm] }
+    Assert Volume Body { expected: 480mm^3; tolerance: 0mm^3 }
+    Assert Bounds Body {
+        min: [-5mm, -4mm, 0mm]
+        max: [5mm, 4mm, 6mm]
+        tolerance: 0mm
+    }
+    Assert Topology Body { faces: 6; edges: 12; vertices: 8; shells: 1 }
+}
+```
+
+`Assert Volume` accepts finite nonnegative `expected` and `tolerance` literals in
+`mm^3`, plus an optional string `note`. Exact BRep recognizers take precedence.
+Otherwise, a compiler-retained analytic SDF qualified against the exported primitive supplies an adaptive occupied
+volume interval. The entire interval must lie inside `expected ± tolerance` to
+pass. A disjoint interval fails; an overlapping but inconclusive interval rejects
+as **unverified**, including when the deterministic subdivision budget runs out.
+The midpoint is an estimate, not an exact volume. Display-mesh mass estimates do
+not gate an assertion. A part without an admitted exact recognizer or complete
+SDF reports that limitation instead of silently accepting its volume assertion.
+The SDF assertion route currently covers single Box, Cylinder, Cone, Sphere and
+Torus primitives. A display-only or legacy Boolean mirror is insufficient evidence
+that the field matches exported material, and is not promoted to volume authority.
+
+`Assert Bounds` compares exact world-space minima/maxima, using the optional
+nonnegative length `tolerance` (default 0mm). Exact bounds currently cover qualified
+rectangular plate/box stock with Z-through holes and planar straight-edge bodies.
+It rejects other families rather than treating sampled points or a Boolean field's
+conservative enclosing box as the actual extrema. `Assert Topology` checks one or
+more nonnegative integer `faces`, `edges`, `vertices`, `shells` counts in the exported
+BRep. Counts describe kernel topology, so use them deliberately when topology itself
+is the regression contract. All three families accept `note`. Historical PascalCase
+field aliases remain accepted; new source uses camelCase.
+
+The target must name the uniquely identified exported product. Requesting an earlier
+body in a multi-body program does not measure the last body under the earlier name.
+Assembly `Assert ToleranceStackup` checks the worst-case minimum along a unique
+dimensional relation path:
+
+```firmament
+// Inside an Assembly with these semantic endpoints and dimensional relations:
+Assert ToleranceStackup AxialReach {
+    between: [BearingModule.FixedSupport.Housing.Datum, BearingModule.Rotor.Shaft.Shoulder]
+    require: clearance >= 44.90mm
+}
+```
+
+The assembly compiler sums nominal values and asymmetric tolerance intervals,
+reversing their signs when traversing a relation backwards. Unresolved endpoints,
+missing or ambiguous paths, and a minimum below the requirement reject compilation.
+This checks declared dimensional relations; it does not infer a tolerance chain
+from spatial proximity, perform statistical RSS analysis, or create PMI. Use typed
+dimensions and explicit PMI for manufacturing requirements. `Between`, `Require`
+and `Clearance` remain compatibility aliases. Unknown or duplicate fields fail.
+See [assembly authoring](assembly-authoring-foundation.md).
+
+To discover measured values, including while fixing a failed assertion:
+
+```sh
+aetheris measure checked-box.firmament --json
+aetheris measure sphere.firmament --sdf --error 50 --compare-mesh --json
+```
+
+`measure` admits and builds the geometry but explicitly reports `MeasuredNotAsserted`
+and `assertionsEvaluated: false`. It prints measurement methods, volume interval and
+uncertainty, exact bounds where available, topology counts, and copyable assertion
+templates. `--error` is a requested absolute volume error in mm³, subject to the
+bounded work budget (at most 1,000,001 field regions and 30 subdivision levels).
+`budgetExhausted` discloses when the requested error could not be reached; the
+reported interval remains usable at its actual uncertainty. Suggested tolerances cover numerical uncertainty; select the
+design's acceptance range independently. `--compare-mesh` exposes the older mass
+estimate for diagnosis, never as a substitute assertion authority.
+
+For assembly values use `aetheris asm inspect assembly.firmament --json`; its
+`assemblyIr.toleranceStackups` contains nominal/minimum/maximum, requirement,
+pass/fail, and the signed contributor chain. Unlike `measure`, assembly inspection
+evaluates declared stackup assertions and returns failure when one fails.
+
 ## Reading older source
 
 New ordinary parts should use the forms at the top of this page. Historical

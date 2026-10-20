@@ -27,7 +27,7 @@ using Aetheris.Kernel.Firmament.Piping;
 
 namespace Aetheris.Kernel.Firmament;
 
-public static class FirmamentBuildAndExport
+public static partial class FirmamentBuildAndExport
 {
     public const string EdgeFinishProfileComposeBoundaryUnsupported = "EdgeFinishProfileComposeBoundaryUnsupported";
     private enum ExportRouteDisposition { Declined, Failed, Succeeded }
@@ -95,12 +95,12 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentBuildAndExportResult>.Failure(pmiParity.Diagnostics);
         }
 
-        var assertions = EvaluateVolumeAssertions(sourceText, Path.GetDirectoryName(fullSourcePath), enrichedExport);
+        var assertions = EvaluateAssertions(sourceText, Path.GetDirectoryName(fullSourcePath), enrichedExport);
         if (!assertions.IsSuccess)
         {
             return KernelResult<FirmamentBuildAndExportResult>.Failure(assertions.Diagnostics);
         }
-        var export = enrichedExport with { Assertions = assertions.Value };
+        var export = assertions.Value;
         var resolvedOutputPath = string.IsNullOrWhiteSpace(outputPath)
             ? ResolveDefaultOutputPath(fullSourcePath)
             : Path.GetFullPath(outputPath);
@@ -122,7 +122,14 @@ public static class FirmamentBuildAndExport
     /// </summary>
     public static KernelResult<FirmamentStepExportResult> CompileSource(
         string sourceText,
-        string? sourceDirectory = null)
+        string? sourceDirectory = null) => CompileSourceCore(sourceText, sourceDirectory, true);
+
+    /// <summary>Explicit inspection boundary: admit and build geometry, but do not
+    /// claim that its declared assertions passed. Used to discover assertion inputs.</summary>
+    public static KernelResult<FirmamentStepExportResult> CompileForMeasurement(string sourceText, string? sourceDirectory = null)
+        => CompileSourceCore(sourceText, sourceDirectory, false);
+
+    private static KernelResult<FirmamentStepExportResult> CompileSourceCore(string sourceText, string? sourceDirectory, bool enforceAssertions)
     {
         ArgumentNullException.ThrowIfNull(sourceText);
         var normalized = sourceText;
@@ -156,9 +163,10 @@ public static class FirmamentBuildAndExport
         var enrichedExport = AttachAuthoredFeatureReports(normalized, sourceDirectory, export.Value);
         var pmiParity = VerifyV2PmiExportParity(normalized, sourceDirectory, enrichedExport);
         if (!pmiParity.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(pmiParity.Diagnostics);
-        var assertions = EvaluateVolumeAssertions(normalized, sourceDirectory, enrichedExport);
+        if (!enforceAssertions) return KernelResult<FirmamentStepExportResult>.Success(enrichedExport, export.Diagnostics);
+        var assertions = EvaluateAssertions(normalized, sourceDirectory, enrichedExport);
         return assertions.IsSuccess
-            ? KernelResult<FirmamentStepExportResult>.Success(enrichedExport with { Assertions = assertions.Value }, export.Diagnostics)
+            ? KernelResult<FirmamentStepExportResult>.Success(assertions.Value, export.Diagnostics)
             : KernelResult<FirmamentStepExportResult>.Failure(assertions.Diagnostics);
     }
 
@@ -211,31 +219,6 @@ public static class FirmamentBuildAndExport
                 .ToArray(),
             Patterns = patterns
         };
-    }
-
-    private static KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>> EvaluateVolumeAssertions(string source, string? sourceDirectory, FirmamentStepExportResult export)
-    {
-        var parsed = ParseSemanticSource(source, sourceDirectory);
-        if (!parsed.IsSuccess || parsed.Document?.VolumeAssertions is not { Count: > 0 } assertions) return KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>>.Success([]);
-        var imported = Step242Importer.ImportBody(export.StepText);
-        if (!imported.IsSuccess || imported.Value is null)
-        {
-            return KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
-                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
-                "firmament-v2-assert-volume-measurement-unavailable: STEP reimport failed", "FirmamentV2.AssertVolume")]);
-        }
-        var mass = BrepMassProperties.Evaluate(imported.Value);
-        var results = assertions.Select(assertion => FirmamentV2VolumeAssertionComparer.Compare(assertion, mass)).ToArray();
-        // Display-tessellation estimates remain useful evidence, but they do
-        // not gate a production build as the definition of occupied volume.
-        // Analytic B-rep recognizers retain their existing bounded gate until
-        // the post-Preview-1 CIR authority path is implemented.
-        var failures = results.Where(result => result.MeasurementAuthoritative && !result.Passed).Select(result => new Kernel.Core.Diagnostics.KernelDiagnostic(
-            Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
-            result.Diagnostic ?? "firmament-v2-assert-volume-failed", "FirmamentV2.AssertVolume")).ToArray();
-        return failures.Length == 0
-            ? KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>>.Success(results)
-            : KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>>.Failure(failures);
     }
 
     private static KernelResult<bool> VerifyV2PmiExportParity(string source, string? sourceDirectory, FirmamentStepExportResult export)
@@ -624,7 +607,8 @@ public static class FirmamentBuildAndExport
                     DimensionInspection: [])
             {
                 RuntimeBody = executedPrimitive.Body,
-                Cir = FirmamentCirRetention.FromRoot(execution.Value.NativeGeometryState.CirMirror.RuntimeRoot, step.Value)
+                Cir = FirmamentCirRetention.FromRoot(execution.Value.NativeGeometryState.CirMirror.RuntimeRoot, step.Value,
+                    exportedPrimitive: execution.Value.ExecutedPrimitives.Count == 1 && execution.Value.ExecutedBooleans.Count == 0)
             };
             if (executedPrimitive.Kind == FirmamentLoweredPrimitiveKind.Box
                 && executedPrimitive.BoxConstructionTopology is { } boxTopology

@@ -12,17 +12,21 @@ public sealed record FirmamentCirRetention(string DefinitionId, string Qualifica
     public const string Version = "aetheris/cir-retention/1";
     public string Schema => Version;
     [JsonIgnore] public SdfNode? RuntimeRoot { get; init; }
+    // Display eligibility alone is not proof of occupied-volume parity. The
+    // exporter grants this only when the same single primitive produced STEP.
+    [JsonIgnore] public bool RuntimeRootIsExportedPrimitive { get; init; }
 
-    internal static FirmamentCirRetention FromRoot(SdfNode? root, string step)
+    internal static FirmamentCirRetention FromRoot(SdfNode? root, string step, bool exportedPrimitive = false)
     {
         var definition = "definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step)))[..16].ToLowerInvariant();
         if (root is null) return new(definition, "mesh", "no-qualified-cir-mirror", null, null, null, null);
         var display = CirVisualTsLowerer.Lower(root);
         if (!display.Success) return new(definition, "mesh", display.FallbackReason, null, null, null, null)
-            { RuntimeRoot = root };
+            { RuntimeRoot = root, RuntimeRootIsExportedPrimitive = exportedPrimitive };
         var program = display.Program!;
         return new(definition, "cir-qualified", null, program.StructuralHash, program.FieldSource,
             [program.Bounds.Min.X, program.Bounds.Min.Y, program.Bounds.Min.Z],
-            [program.Bounds.Max.X, program.Bounds.Max.Y, program.Bounds.Max.Z]) { RuntimeRoot = root };
+            [program.Bounds.Max.X, program.Bounds.Max.Y, program.Bounds.Max.Z])
+            { RuntimeRoot = root, RuntimeRootIsExportedPrimitive = exportedPrimitive };
     }
 }

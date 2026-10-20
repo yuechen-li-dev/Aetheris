@@ -154,13 +154,10 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
     public void SevenStationFillet_ExportsDeterministicallyWithExpectedSphereTorusDelta(string fixture, int spheres, int tori)
     {
         var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Regression/CanonicalGeometry/{fixture}");
-        var first = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
-        var second = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
-
-        Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(diagnostic => diagnostic.Message)));
-        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(diagnostic => diagnostic.Message)));
-        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
-        var imported = Step242Importer.ImportBody(first.Value.Export.StepText);
+        var first = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
+        var second = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
+        Assert.Equal(first.StepText, second.StepText);
+        var imported = Step242Importer.ImportBody(first.StepText);
         Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
         var body = Assert.IsType<Aetheris.Kernel.Core.Brep.BrepBody>(imported.Value);
         AssertClosedManifold(body);
@@ -176,9 +173,8 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
     public void SevenStationFillet_ReimportedMassIsNonAuthoritativeSanityEvidence(string fixture)
     {
         var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Regression/CanonicalGeometry/{fixture}");
-        var built = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
-        Assert.True(built.IsSuccess, string.Join(Environment.NewLine, built.Diagnostics.Select(diagnostic => diagnostic.Message)));
-        var imported = Step242Importer.ImportBody(built.Value.Export.StepText);
+        var built = FirmamentCorpusHarness.InspectUnverifiedVolumeSpecimen(source);
+        var imported = Step242Importer.ImportBody(built.StepText);
         Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
 
         var mass = BrepMassProperties.Evaluate(Assert.IsType<Aetheris.Kernel.Core.Brep.BrepBody>(imported.Value));

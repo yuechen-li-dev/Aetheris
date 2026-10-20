@@ -356,6 +356,16 @@ public static partial class FirmamentV2Parser
 
     private static FirmamentV2ParseResult CompleteAdmission(FirmamentV2ParseResult result, string originalSource)
     {
+        if (result.IsSuccess && result.Document is { } document
+            && (document.VolumeAssertions?.Count ?? 0) + document.GeometryAssertions.Count == 0)
+        {
+            var unbound = FirmamentAssertionSyntax.Declarations(originalSource)
+                .Concat(FirmamentAssertionSyntax.Declarations(result.DiagnosticSource ?? result.BoundSource ?? originalSource));
+            if (unbound.Any())
+                result = result with { IsSuccess = false, Disposition = FirmamentV2ParseDisposition.RecognizedInvalid,
+                    Diagnostics = [.. result.Diagnostics,
+                        $"firmament-v2-assert-owner-unsupported: The {result.ParserRoute} owner does not bind these part assertions. They cannot be ignored; use a qualified mechanical body owner or inspect the geometry separately."] };
+        }
         if (result.IsSuccess && result.OwnsUnifiedAdmission && result.BoundSchema is null)
             result = result with { IsSuccess = false, Disposition = FirmamentV2ParseDisposition.RecognizedInvalid,
                 Diagnostics = [.. result.Diagnostics, "firmament-v2-admission-domain-missing: The engineering binder did not identify its admitted frontend schema."] };
@@ -1376,64 +1386,7 @@ public static partial class FirmamentV2Parser
         return selections;
     }
 
-    private static IReadOnlyList<FirmamentV2VolumeAssertion> ParseCanonicalVolumeAssertions(string source, List<string> diagnostics)
-    {
-        var assertions = new List<FirmamentV2VolumeAssertion>();
-        foreach (Match header in Regex.Matches(source, @"\bAssert\s+(?<kind>[A-Za-z_]\w*)\s+(?<target>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
-        {
-            var kind = header.Groups["kind"].Value;
-            var target = header.Groups["target"].Value;
-            var open = source.IndexOf('{', header.Index);
-            var close = FindMatchingBrace(source, open);
-            if (close < 0) { diagnostics.Add($"{AssertVolumeMalformed}:{target}"); continue; }
-            if (!string.Equals(kind, "Volume", StringComparison.Ordinal)) { diagnostics.Add($"{AssertVolumeKindUnsupported}:{kind}:{target}"); continue; }
-
-            var fields = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (Match field in Regex.Matches(source[(open + 1)..close], @"(?m)^\s*(?<name>[A-Za-z_]\w*)\s*:\s*(?<value>[^\r\n]+?)\s*$", RegexOptions.CultureInvariant))
-            {
-                var name = field.Groups["name"].Value;
-                if (!fields.TryAdd(name, field.Groups["value"].Value.Trim())) diagnostics.Add($"{AssertVolumeMalformed}:{target}:duplicate-{name}");
-            }
-            if (fields.Keys.Any(name => name is not "Expected" and not "Tolerance" and not "Note") || !fields.TryGetValue("Expected", out var expectedRaw) || !fields.TryGetValue("Tolerance", out var toleranceRaw))
-            {
-                diagnostics.Add($"{AssertVolumeMalformed}:{target}");
-                continue;
-            }
-            if (!TryParseCubicMillimeters(expectedRaw, out var expected))
-            {
-                diagnostics.Add($"{AssertVolumeExpectedDimensionMismatch}:{target}:Volume:{DimensionName(expectedRaw)}");
-                continue;
-            }
-            if (!TryParseCubicMillimeters(toleranceRaw, out var tolerance))
-            {
-                diagnostics.Add($"{AssertVolumeToleranceDimensionMismatch}:{target}:Volume:{DimensionName(toleranceRaw)}");
-                continue;
-            }
-            if (tolerance < 0d) { diagnostics.Add($"{AssertVolumeToleranceNegative}:{target}"); continue; }
-            if (!double.IsFinite(expected) || !double.IsFinite(tolerance)) { diagnostics.Add($"{AssertVolumeMalformed}:{target}:non-finite"); continue; }
-            string? note = null;
-            if (fields.TryGetValue("Note", out var noteRaw))
-            {
-                if (noteRaw.Length < 2 || noteRaw[0] != '"' || noteRaw[^1] != '"') { diagnostics.Add($"{AssertVolumeMalformed}:{target}:Note"); continue; }
-                note = noteRaw[1..^1];
-            }
-            var span = new FirmamentV2SourceSpan(header.Index, close - header.Index + 1);
-            assertions.Add(new($"volume:{target}:{header.Index}", target, expected, tolerance, note, span));
-        }
-        return assertions;
-    }
-
-    private static string RemoveCanonicalVolumeAssertions(string source)
-    {
-        var removals = Regex.Matches(source, @"\bAssert\s+[A-Za-z_]\w*\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant)
-            .Cast<Match>()
-            .Select(header => new { header.Index, Close = FindMatchingBrace(source, source.IndexOf('{', header.Index)) })
-            .Where(match => match.Close >= 0)
-            .OrderByDescending(match => match.Index)
-            .ToArray();
-        foreach (var removal in removals) source = source.Remove(removal.Index, removal.Close - removal.Index + 1);
-        return source;
-    }
+    private static string RemoveCanonicalVolumeAssertions(string source) => FirmamentAssertionSyntax.Mask(source);
 
     private static FirmamentV2ParseResult AttachVolumeAssertionsAndSymbols(FirmamentV2ParseResult parsed, string source, FirmamentV2StaticAuthoringDocument? staticAuthoring, List<string> diagnostics)
     {
@@ -1441,7 +1394,8 @@ public static partial class FirmamentV2Parser
         var threads = ParseCanonicalThreads(source, diagnostics);
         if (threads is null)
             return FirmamentV2ParseResult.Failure(parsed.Diagnostics.Concat(diagnostics).Distinct(StringComparer.Ordinal).Order().ToArray(), FirmamentV2ParseDisposition.RecognizedInvalid);
-        var normalized = parsed.Document with { StaticAuthoring = staticAuthoring, VolumeAssertions = ParseCanonicalVolumeAssertions(source, diagnostics), Threads = threads };
+        var assertions = FirmamentAssertionSyntax.Parse(source, diagnostics);
+        var normalized = parsed.Document with { StaticAuthoring = staticAuthoring, VolumeAssertions = assertions.Volume, GeometryAssertions = assertions.Geometry, Threads = threads };
         normalized = BindSemanticConstraintProjections(normalized, diagnostics);
         if (diagnostics.Any(IsFatalDiagnosticCode))
             return FirmamentV2ParseResult.Failure(parsed.Diagnostics.Concat(diagnostics).Distinct(StringComparer.Ordinal).Order().ToArray(), FirmamentV2ParseDisposition.RecognizedInvalid);
@@ -1493,22 +1447,6 @@ public static partial class FirmamentV2Parser
             bound = new(bound.Datums.Select(Tag).ToArray(), bound.Dimensions.Select(Tag).ToArray(), bound.Controls.Select(Tag).ToArray(), bound.Diagnostics);
         }
         return document with { StaticAuthoring = staticAuthoring with { SemanticConstraints = constraints }, PmiBlock = document.PmiBlock is null ? null : document.PmiBlock with { Records = records }, BoundPmi = bound };
-    }
-
-    private static bool TryParseCubicMillimeters(string raw, out double value)
-    {
-        value = double.NaN;
-        var match = Regex.Match(raw, @"^(?<value>[-+0-9.eE]+)mm\^3$", RegexOptions.CultureInvariant);
-        return match.Success && double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
-    }
-
-    private static string DimensionName(string raw)
-    {
-        if (raw.EndsWith("mm^3", StringComparison.Ordinal)) return "InvalidVolume";
-        if (raw.EndsWith("mm^2", StringComparison.Ordinal)) return "Area";
-        if (raw.EndsWith("mm", StringComparison.Ordinal)) return "Length";
-        if (raw.EndsWith("deg", StringComparison.Ordinal)) return "Angle";
-        return "ScalarOrUnsupported";
     }
 
     private static void ValidateCanonicalSelectionSources(string body, IReadOnlyList<FirmamentV2SelectionDecl> selections,

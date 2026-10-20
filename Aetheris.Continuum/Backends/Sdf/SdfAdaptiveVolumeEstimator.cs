@@ -35,8 +35,58 @@ public sealed record SdfAdaptiveVolumeResult(
     IReadOnlyList<SdfAdaptiveTraceEvent> TraceEvents,
     IReadOnlyList<string> Notes);
 
+public sealed record SdfBoundedVolumeResult(double LowerBound, double UpperBound, int RegionsVisited, bool BudgetExhausted)
+{
+    public double EstimatedVolume => (LowerBound + UpperBound) * .5;
+    public double ErrorBound => (UpperBound - LowerBound) * .5;
+}
+
 public static class SdfAdaptiveVolumeEstimator
 {
+    /// <summary>Occupied-volume enclosure. Mixed cells contribute [0, cell volume],
+    /// never a sampling-based error claim. Refine the largest uncertainty first.
+    /// Bounds assume the tape's supported analytic interval contract and finite
+    /// enclosing input bounds; roundoff guards are included, not formal interval arithmetic.</summary>
+    public static SdfBoundedVolumeResult EstimateBounded(SdfTape tape, SdfBounds bounds, double absoluteError,
+        int maximumRegions = 100_001, int maximumDepth = 30)
+    {
+        ArgumentNullException.ThrowIfNull(tape);
+        var enclosingVolume = RegionVolume(bounds);
+        if (!double.IsFinite(absoluteError) || absoluteError < 0 || maximumRegions < 1 || maximumDepth < 0
+            || !double.IsFinite(enclosingVolume) || enclosingVolume <= 0
+            || bounds.SizeX <= 0 || bounds.SizeY <= 0 || bounds.SizeZ <= 0)
+            throw new ArgumentException("Bounded volume requires finite positive bounds, a nonnegative error and a positive region budget.");
+        var queue = new PriorityQueue<(SdfBounds Region, int Depth), (double Volume, int Order)>();
+        double inside = 0, uncertain = 0;
+        var visited = 0;
+        var padding = 1e-12 * Math.Max(1, new[] { bounds.Min.X, bounds.Min.Y, bounds.Min.Z, bounds.Max.X, bounds.Max.Y, bounds.Max.Z }.Max(Math.Abs));
+        void Admit(SdfBounds region, int depth)
+        {
+            var interval = tape.EvaluateInterval(region);
+            var volume = RegionVolume(region);
+            visited++;
+            if (!double.IsFinite(interval.MinValue) || !double.IsFinite(interval.MaxValue) || interval.MinValue > interval.MaxValue)
+                throw new InvalidOperationException("sdf-volume-interval-invalid: The field returned no finite conservative interval.");
+            if (interval.MaxValue < -padding) inside += volume;
+            else if (interval.MinValue <= padding)
+            {
+                uncertain += volume;
+                if (depth < maximumDepth) queue.Enqueue((region, depth), (-volume, visited));
+            }
+        }
+        Admit(bounds, 0);
+        while (uncertain > 2 * absoluteError && queue.Count > 0 && visited + 2 <= maximumRegions)
+        {
+            var item = queue.Dequeue();
+            uncertain -= RegionVolume(item.Region);
+            foreach (var child in SplitLongestAxis(item.Region)) Admit(child, item.Depth + 1);
+        }
+        var roundoff = enclosingVolume * 1e-12;
+        var lower = Math.Max(0, inside - roundoff);
+        var upper = Math.Min(enclosingVolume, inside + Math.Max(0, uncertain) + roundoff);
+        return new(lower, upper, visited, upper - lower > 2 * absoluteError);
+    }
+
     public static SdfAdaptiveVolumeResult EstimateVolume(SdfTape tape, SdfBounds bounds, SdfAdaptiveVolumeOptions? options = null, ToleranceContext? tolerance = null)
     {
         ArgumentNullException.ThrowIfNull(tape);

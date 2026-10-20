@@ -121,12 +121,14 @@ actual CLI and Web SDK paths were used for the new source witness.
 
 ## Remaining explicit boundaries
 
-This is not a repository-wide async migration. SemanticKernelActuationHandler and
-LlmTextActuationHandler use the new contract. HTTP, process, HomeAssistant,
-streaming and synchronous LLM-scoring adapters still have legacy blocking paths.
-Streaming requires owner-thread progress delivery; model-backed scoring should
-obtain evidence asynchronously before deterministic scoring. Those migrations have
-a defined destination now; no additional async model is needed.
+Follow-up: the remaining sync-over-async adapters have now migrated to the same
+contract: HTTP, process, Home Assistant, streaming, decision/Magi scoring, audio,
+payments and the thermostat template. Streaming progress is delivered by the
+owner tick, and LLM steps consume authoritative completion failures without
+waiting for a typed payload that may never arrive. The original qualification
+counts above describe the first native-tools pass; current adapter qualification
+is recorded in Dominatus `docs/release/ASYNC-ADAPTER-MIGRATION.md` and its execution
+contract in `docs/actuators/ASYNC-ACTUATION.md`.
 
 PDF OCR/layout interpretation, Excel formula evaluation, XLSX named-table range
 selection, vector search, external supplier adapters, Graph/OAuth document access,

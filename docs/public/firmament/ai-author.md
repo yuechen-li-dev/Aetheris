@@ -38,6 +38,9 @@ published dependency version.
 
 ## Work with the agent
 
+For specifications, catalog lookup, spreadsheet parameter proposals and draft
+review ZIPs, see [Engineering references and review packages](engineering-assistance.md).
+
 Changing provider or model starts a fresh conversation and discards any unapplied
 candidate. The current project, engineering requirements, unsent prompt and
 Version Control history remain. Switching utility tabs alone preserves the

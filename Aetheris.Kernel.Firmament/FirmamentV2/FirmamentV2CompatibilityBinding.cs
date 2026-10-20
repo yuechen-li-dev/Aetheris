@@ -118,7 +118,8 @@ public static partial class FirmamentV2Parser
     // Historical solid declarations are an AST spelling adapter, not another
     // primitive grammar. Units remain implicit only within this admitted syntax.
     private static Dictionary<string, FirmamentV2SolidBinding> BindCompatibilitySolids(
-        SyntaxParseResult syntax, DeclarationSyntax? model, string source, string? directory, List<string> diagnostics)
+        SyntaxParseResult syntax, DeclarationSyntax? model, string source, string? directory, List<string> diagnostics,
+        IReadOnlyDictionary<string, string>? resources = null)
     {
         var solids = new Dictionary<string, FirmamentV2SolidBinding>(StringComparer.Ordinal);
         if (model?.Body is null) return solids;
@@ -161,7 +162,7 @@ public static partial class FirmamentV2Parser
                 // The import owner retains canonical AP242 admission and topology
                 // evidence; syntax and unknown-field admission are AST-owned.
                 var span = body.ContentSpan;
-                binding = ParseInlineStep(declaration.Name.Text, source.Substring(span.Start, span.Length), diagnostics, directory);
+                binding = ParseInlineStep(declaration.Name.Text, source.Substring(span.Start, span.Length), diagnostics, directory, resources);
             }
             else if (type is "Box" or "Cylinder" or "Cone" or "Sphere" or "Torus")
             {

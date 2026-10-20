@@ -122,14 +122,15 @@ public static partial class FirmamentBuildAndExport
     /// </summary>
     public static KernelResult<FirmamentStepExportResult> CompileSource(
         string sourceText,
-        string? sourceDirectory = null) => CompileSourceCore(sourceText, sourceDirectory, true);
+        string? sourceDirectory = null, IReadOnlyDictionary<string, string>? resources = null) => CompileSourceCore(sourceText, sourceDirectory, true, resources);
 
     /// <summary>Explicit inspection boundary: admit and build geometry, but do not
     /// claim that its declared assertions passed. Used to discover assertion inputs.</summary>
     public static KernelResult<FirmamentStepExportResult> CompileForMeasurement(string sourceText, string? sourceDirectory = null)
         => CompileSourceCore(sourceText, sourceDirectory, false);
 
-    private static KernelResult<FirmamentStepExportResult> CompileSourceCore(string sourceText, string? sourceDirectory, bool enforceAssertions)
+    private static KernelResult<FirmamentStepExportResult> CompileSourceCore(string sourceText, string? sourceDirectory, bool enforceAssertions,
+        IReadOnlyDictionary<string, string>? resources = null)
     {
         ArgumentNullException.ThrowIfNull(sourceText);
         var normalized = sourceText;
@@ -158,10 +159,10 @@ public static partial class FirmamentBuildAndExport
         // In-memory compilation is the canonical V2 boundary used by Forge,
         // assemblies, and drawings. Historical V1 execution is intentionally
         // available only to the explicitly versioned file compatibility route.
-        var export = ExportSource(normalized, sourceDirectory, allowV1Compatibility: false, frontend.Schema);
+        var export = ExportSource(normalized, sourceDirectory, allowV1Compatibility: false, frontend.Schema, resources);
         if (!export.IsSuccess) return export;
-        var enrichedExport = AttachAuthoredFeatureReports(normalized, sourceDirectory, export.Value);
-        var pmiParity = VerifyV2PmiExportParity(normalized, sourceDirectory, enrichedExport);
+        var enrichedExport = AttachAuthoredFeatureReports(normalized, sourceDirectory, export.Value, resources);
+        var pmiParity = VerifyV2PmiExportParity(normalized, sourceDirectory, enrichedExport, resources);
         if (!pmiParity.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(pmiParity.Diagnostics);
         if (!enforceAssertions) return KernelResult<FirmamentStepExportResult>.Success(enrichedExport, export.Diagnostics);
         var assertions = EvaluateAssertions(normalized, sourceDirectory, enrichedExport);
@@ -173,9 +174,9 @@ public static partial class FirmamentBuildAndExport
     private static FirmamentStepExportResult AttachAuthoredFeatureReports(
         string source,
         string? sourceDirectory,
-        FirmamentStepExportResult export)
+        FirmamentStepExportResult export, IReadOnlyDictionary<string, string>? resources = null)
     {
-        var parsed = ParseSemanticSource(source, sourceDirectory);
+        var parsed = FirmamentV2Parser.Parse(source, sourceDirectory, null, null, resources);
         if (!parsed.IsSuccess || parsed.Document is null) return export;
         export = export with { DocumentName = parsed.Document.ModelName, RuntimeAdmissionDocument = parsed.Document,
             ConceptDisplayValues = parsed.Document.ConceptIr?.Structs
@@ -221,9 +222,10 @@ public static partial class FirmamentBuildAndExport
         };
     }
 
-    private static KernelResult<bool> VerifyV2PmiExportParity(string source, string? sourceDirectory, FirmamentStepExportResult export)
+    private static KernelResult<bool> VerifyV2PmiExportParity(string source, string? sourceDirectory, FirmamentStepExportResult export,
+        IReadOnlyDictionary<string, string>? resources = null)
     {
-        var parsed = ParseSemanticSource(source, sourceDirectory);
+        var parsed = FirmamentV2Parser.Parse(source, sourceDirectory, null, null, resources);
         if (!parsed.IsSuccess || parsed.Document is null || parsed.Document.Pmi is not { Count: > 0 } pmi)
             return KernelResult<bool>.Success(true);
 
@@ -251,14 +253,14 @@ public static partial class FirmamentBuildAndExport
         string sourceText,
         string? sourceDirectory = null,
         bool allowV1Compatibility = false,
-        FirmamentFrontendSchema? explicitSchema = null)
+        FirmamentFrontendSchema? explicitSchema = null, IReadOnlyDictionary<string, string>? resources = null)
     {
         // Production mechanical execution consumes the result of AST admission.
         // Its expansion pipeline runs once in the frontend. Unmigrated domain owners
         // retain their existing expansion boundary until their own cutover.
         sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
         var canonicalParseWatch = System.Diagnostics.Stopwatch.StartNew();
-        var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory, null, explicitSchema);
+        var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory, null, explicitSchema, resources);
         canonicalParseWatch.Stop();
         var templateBindWatch = new System.Diagnostics.Stopwatch();
         string materializerSource;
@@ -2203,7 +2205,7 @@ public static partial class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, FirmamentV2Parser.ReplacementVerificationFailed, "FirmamentV2.InlineStepReplacement")]);
         }
 
-        var stepText = File.ReadAllText(solid.InlineStep.NormalizedPath, Encoding.UTF8);
+        var stepText = solid.InlineStep.SourceText ?? File.ReadAllText(solid.InlineStep.NormalizedPath, Encoding.UTF8);
         var import = Step242Importer.ImportBody(stepText);
         if (!import.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(import.Diagnostics);
 
@@ -2263,7 +2265,10 @@ public static partial class FirmamentBuildAndExport
             return null;
         }
 
-        var stepText = File.ReadAllText(inlineStep.NormalizedPath, Encoding.UTF8);
+        var stepText = inlineStep.SourceText ?? File.ReadAllText(inlineStep.NormalizedPath, Encoding.UTF8);
+        if (Step242SemanticPmiInspector.Inspect(stepText).Items.Count > 0)
+            return KernelResult<FirmamentStepExportResult>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed,
+                KernelDiagnosticSeverity.Error, "firmament-v2-inline-step-existing-pmi-unsupported: This STEP already contains semantic PMI. Importing that annotation layer is not yet qualified and must not silently discard it. Reopen the original Firmament/Helios workspace instead.", "FirmamentV2.InlineStep")]);
         var import = Step242Importer.ImportBody(stepText);
         if (!import.IsSuccess)
         {
@@ -2277,6 +2282,14 @@ public static partial class FirmamentBuildAndExport
         }
 
         var semanticPmi = BuildV2SemanticPmi(document, [], solid.Name, body: import.Value);
+        foreach (var item in semanticPmi)
+        {
+            var required = item is Step242SemanticPmiDatum ? SurfaceGeometryKind.Plane : SurfaceGeometryKind.Cylinder;
+            if (item.GeometricFaceIds.Count == 0 || item.GeometricFaceIds.Any(id =>
+                !import.Value.TryGetFaceSurface(new Core.Topology.FaceId(id), out var surface) || surface?.Kind != required))
+                return KernelResult<FirmamentStepExportResult>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error, $"firmament-v2-imported-pmi-target-kind: '{item.FeatureId}' requires a resolved {required} face. The imported geometry is immutable; choose a compatible face.", "FirmamentV2.Pmi")]);
+        }
         var export = Step242Exporter.ExportBody(import.Value, semanticPmi, new Step242ExportOptions
         {
             ProductName = solid.Name,
@@ -2297,7 +2310,8 @@ public static partial class FirmamentBuildAndExport
                 DatumInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
                 DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? [],
                 InlineStepMigration: InlineStepMigrationReportBuilder.Build(document, solid, emissionStrategy: "canonical-reexport", residualSurgery: false),
-                InlineStepReplacementAssist: InlineStepReplacementAssistReportBuilder.Build(document)));
+                InlineStepReplacementAssist: InlineStepReplacementAssistReportBuilder.Build(document))
+                { RuntimeBody = import.Value, RuntimeBodySourceName = solid.Name, RuntimeAdmissionDocument = document });
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2ControlledSideHoleBody(FirmamentV2Document document)
@@ -2766,8 +2780,17 @@ public static partial class FirmamentBuildAndExport
         var boundPmiByName = (document.BoundPmi?.Datums ?? []).Concat(document.BoundPmi?.Dimensions ?? []).Concat(document.BoundPmi?.Controls ?? []).ToDictionary(p => p.Name, StringComparer.Ordinal);
         var targetBinding = document.Solids.Single(s => string.Equals(s.Name, targetSolid, StringComparison.Ordinal));
         var result = new List<Step242SemanticPmi>();
+        var importedFaces = new Dictionary<string, IReadOnlyList<int>>(StringComparer.Ordinal);
         foreach (var pmi in document.Pmi)
         {
+            if (targetBinding.InlineStep is not null && body is not null)
+            {
+                var references = ImportedPmiFaceReferences(document, targetBinding, pmi.Target);
+                if (references.Count > 0)
+                    importedFaces[pmi.Name] = body.Bindings.FaceBindings
+                        .Where(binding => binding.SourceStepEntityId is { } entity && references.Contains("#" + entity))
+                        .Select(binding => binding.FaceId.Value).Distinct().Order().ToArray();
+            }
             if (pmi.Kind == FirmamentV2PmiKind.HoleDiameter && pmi.Value.HasValue)
             {
                 boundPmiByName.TryGetValue(pmi.Name, out var boundPmi);
@@ -2799,7 +2822,12 @@ public static partial class FirmamentBuildAndExport
 
         return result.Select(item => item with
         {
-            GeometricFaceIds = item is Step242SemanticPmiDatum datum && body is not null
+            // Imported entity numbers are provenance, not emitted entity numbers or face ordinals.
+            // The importer owns the source-entity -> BRep mapping; the exporter owns the inverse
+            // BRep -> emitted-entity mapping. Preserve both boundaries.
+            GeometricFaceIds = importedFaces.TryGetValue(item switch
+                { Step242SemanticPmiDatum d => d.Label, Step242SemanticPmiHole h => h.Name ?? "", _ => "" }, out var faces)
+                ? faces : item is Step242SemanticPmiDatum datum && body is not null
                 ? FirmamentSelectorResolver.ResolveUniquePlanarFace(body, datum.Target).Select(id => id.Value).ToArray()
                 : (correspondence?.Descendants ?? [])
                 .Where(descendant => descendant.Face.HasValue
@@ -2810,6 +2838,17 @@ public static partial class FirmamentBuildAndExport
                 .Order()
                 .ToArray()
         }).ToArray();
+    }
+
+    private static IReadOnlyList<string> ImportedPmiFaceReferences(FirmamentV2Document document, FirmamentV2SolidBinding solid, string target)
+    {
+        var prefix = solid.Name + ".face(\"";
+        if (target.StartsWith(prefix, StringComparison.Ordinal) && target.EndsWith("\")", StringComparison.Ordinal))
+            return [target[prefix.Length..^2]];
+        prefix = solid.Name + ".region(\"";
+        if (!target.StartsWith(prefix, StringComparison.Ordinal) || !target.EndsWith("\")", StringComparison.Ordinal)) return [];
+        var name = target[prefix.Length..^2];
+        return document.RecognizedRegions?.SingleOrDefault(r => r.BodyName == solid.Name && r.RegionName == name)?.FaceRefs ?? [];
     }
 
 

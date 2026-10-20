@@ -2,6 +2,53 @@
 
 Use [surface and trim inspection](surface-inspection.md) in Cadmata or Helios to compare filled geometry, BRep wire, translucent overlays and isolated source faces without changing the camera.
 
+Direct STEP inspection is available through the native CLI/Cadmata workflows.
+Helios also provides **Import STEP** for the bounded canonical `InlineStep` part
+workflow described below. It retains the input as an immutable text asset and
+creates a Firmament annotation layer. This is not arbitrary vendor STEP or
+assembly import: the existing canonical-input and importer checks still apply.
+
+In Helios, select an imported planar face to **Add datum**, or a cylindrical face
+to **Add diameter**. Diameter authoring shows the measured value separately from
+the requirement and requires explicit upper/lower allowances in millimetres.
+Compilation checks the actual surface type and exports real AP242 geometric face
+associations. Recognition labels are optional; direct `part.face("#191")` targets
+use importer provenance, not STEP line order. Annotation changes do not edit the
+imported geometry.
+
+**Save workspace** downloads a `.helios.zip` containing the original STEP text
+and Firmament source; **Open file** reopens it. Local checkpoints retain both too.
+Cloud single-document saves cannot store these workspaces and refuse rather than
+omit the asset. Reopening an already annotated STEP as a new `InlineStep` is
+currently rejected explicitly: import of its existing semantic annotation layer
+is not qualified. Reopen the saved workspace to continue editing annotations.
+
+The browser SDK accepts `.step`/`.stp` text assets in `projectDocuments`:
+
+```js
+const source = 'Model Imported { units: mm InlineStep part { path: "body.step" } }';
+const result = await cad.compile(source, {
+  sourceName: 'part.firmament',
+  projectDocuments: { 'body.step': stepText },
+});
+```
+
+Paths resolve relative to the source document inside the explicit snapshot;
+missing assets never fall through to native disk. The admitted source text,
+SHA-256 and topology map remain bound to that compilation. Imported face picks
+report `ImportedStable`, the source selector, surface kind and measured cylinder
+diameter; these do not imply a native editable feature history.
+
+GLB part export projects supported datum/diameter PMI into separate font-outline
+and leader line primitives plus structured `asset.extras.pmi` records
+(`aetheris/pmi-display/1`, millimetres). Body vertex/index buffers are preserved.
+Callouts are static XY-plane outlines; the viewport legend remains readable when
+the geometry text is edge-on. These are presentation assets, not AP242 semantics
+or manufacturing approval.
+Unsupported callout kinds/associations fail annotated GLB export explicitly;
+an unavailable viewport callout is reported as a warning while STEP remains
+authoritative. USDA, STL and OBJ do not carry this annotation layer.
+
 Use `aetheris analyze part.step --json` to inspect STEP topology, analytic surface families, bounds, manifold assessment, and semantic PMI. When a part is easiest to understand by its manufacturing section, inspect it first with `aetheris analyze section part.step --xy|--xz|--yz --offset value --json`; use `--origin x,y,z --normal x,y,z` for an arbitrary construction plane and `--out section.svg` for deterministic visual evidence. This section-first path preserves analytic line/arc trims and reports closed-loop nesting instead of asking a tessellated view to carry design intent. Use `aetheris sheetmetal recognize` for bounded Sheet Metal recognition rather than treating generic topology analysis as manufacturing intent.
 
 `analyze --json` also reports `splineRecovery`: counts of analytic, exact spline, recovered spline, and unsupported edge/face geometry; the worst measured recovery deviation; and the requested engineering tolerance. The default `ImportPolicy.RecoveryToleranceMillimetres` is 0.1 mm after STEP unit normalization. Rational curves and surfaces are recognized as analytic geometry where qualified; otherwise the importer attempts bounded generic spline recovery and records provenance on recovered geometry. The maximum deviation is sampled evidence.

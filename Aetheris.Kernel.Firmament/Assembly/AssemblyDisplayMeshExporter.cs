@@ -30,6 +30,7 @@ public sealed record ResolvedDisplayMaterial(double[] BaseColor, double Roughnes
 public sealed record AssemblyDisplayMeshDocument(string Schema, string Name, string Units,
     IReadOnlyList<AssemblyDisplayMeshDefinition> Definitions, IReadOnlyList<AssemblyDisplayMeshOccurrence> Occurrences)
 {
+    public IReadOnlyList<Visualization.PmiDisplayAnnotation> Annotations { get; init; } = [];
     public IReadOnlyList<DisplayCamera> Cameras { get; init; } = [];
     public double[]? MinimumMm { get; init; }
     public double[]? MaximumMm { get; init; }

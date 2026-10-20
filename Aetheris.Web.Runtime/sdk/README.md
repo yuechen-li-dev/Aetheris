@@ -45,6 +45,24 @@ transforms and resolved materials; Scene output also carries millimetre bounds,
 environment boundaries and named cameras with poses/look-at/FOV. Scene is display
 composition and does not provide a synthetic engineering STEP export.
 
+Standalone `InlineStep` parts also accept `.step`/`.stp` text in `projectDocuments`.
+Resolve `path` relative to `sourceName` inside that snapshot. The existing
+canonical-input checks apply; arbitrary vendor/assembly import and existing
+imported semantic-PMI layers are not admitted by this slice. The immutable
+admitted text, content hash and importer face provenance are retained. Imported
+face selections expose `ImportedStable`, `part.face("#entity")`, `surfaceKind`
+and `diameterMm` for cylinders. Source addressability is distinct from imported
+topology addressability: there is no synthetic native feature history.
+
+`model.mesh.importedAsset` exposes asset path, SHA-256 and import qualification.
+`model.mesh.annotations` projects AP242 datum/diameter requirements with exact
+values, allowances and separate font-outline/leader curves in Z-up millimetres.
+Shared Telos WebGPU/WebGL adapters render those curves. Part GLB export retains
+the body buffers and appends separate annotation nodes plus structured metadata
+under `asset.extras.pmi` (`aetheris/pmi-display/1`, `pmiUnits: mm`). An unsupported
+callout projection warns in the viewport and rejects annotated GLB export;
+STEP remains the engineering authority. USDA/STL/OBJ do not project PMI.
+
 `cad.language.analyze(source, { sourceName, sourceRevision, projectRoot,
 projectDocuments })` uses the existing snapshot-aware Assembly analysis when
 the root is an Assembly. This resolves included ports without touching disk.

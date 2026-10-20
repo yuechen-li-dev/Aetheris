@@ -163,6 +163,18 @@ public static class AssemblyGlbExporter
         // One explicit boundary converts Z-up millimetres to right-handed Y-up metres:
         // (x,y,z) -> .001 * (x,z,-y). All original local frames remain inspectable.
         var roots = occurrences.Where(o => o.ParentId is null).Select(o => occurrenceIds[o.Id]).ToList();
+        var pmiJsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        foreach (var annotation in display.Annotations)
+        {
+            var positions = annotation.Lines.SelectMany(line => line.Zip(line.Skip(1), (a, b) => new[] { a, b })
+                .SelectMany(pair => pair).SelectMany(point => point)).ToArray();
+            if (positions.Length == 0) throw new InvalidOperationException("glb-pmi-presentation-empty:" + annotation.Name);
+            materials.Add(new { name = "PMI " + annotation.Name, pbrMetallicRoughness = new { baseColorFactor = new[] { .05, .1, .18, 1 }, metallicFactor = 0, roughnessFactor = 1 } });
+            meshes.Add(new { name = annotation.Id, primitives = new[] { new { attributes = new Dictionary<string, object> { ["POSITION"] = Floats(positions, 3, true) }, mode = 1, material = materials.Count - 1 } },
+                extras = new { role = "PMI presentation", annotationId = annotation.Id } });
+            roots.Add(nodes.Count);
+            nodes.Add(new { name = annotation.Text, mesh = meshes.Count - 1, extras = new { pmi = JsonSerializer.SerializeToElement(annotation, pmiJsonOptions) } });
+        }
         foreach (var (camera,index) in (cameras ?? []).Select((c,i) => (c,i)))
         {
             ValidateTransform(camera.Transform);
@@ -174,7 +186,7 @@ public static class AssemblyGlbExporter
         nodes.Add(new { name = "Aetheris mm Z-up to glTF m Y-up", matrix = new double[] {.001,0,0,0, 0,0,-.001,0, 0,.001,0,0, 0,0,0,1}, children = roots });
         var document = new Dictionary<string, object>
         {
-            ["asset"] = new { version = "2.0", generator = "Aetheris PRESENTATION-3D-X0", extras = new { modelName = display.Name, authority = "BRep/STEP; GLB is a presentation asset", sourceProject = "Aetheris" } },
+            ["asset"] = new { version = "2.0", generator = "Aetheris PRESENTATION-3D-X0", extras = new { modelName = display.Name, authority = "BRep/STEP; GLB is a presentation asset", sourceProject = "Aetheris", pmiSchema = "aetheris/pmi-display/1", pmiUnits = "mm", pmi = JsonSerializer.SerializeToElement(display.Annotations, pmiJsonOptions) } },
             ["scene"] = 0, ["scenes"] = new[] { new { name = display.Name, nodes = new[] { nodes.Count - 1 } } },
             ["nodes"] = nodes, ["meshes"] = meshes, ["materials"] = materials,
             ["accessors"] = accessors, ["bufferViews"] = views, ["buffers"] = new[] { new { byteLength = checked((int)binary.Length) } }

@@ -46,6 +46,8 @@ export interface TelosMesh {
   triangleRange?: { startTriangle: number; triangleCount: number };
 }
 export interface TelosLine {
+  /** Finite annotations participate in whole-model framing; reference grids do not. */
+  includeInFit?: boolean;
   /** Presentation-only guides must not intercept engineering picks. */
   pickable?: boolean;
   /** Fade finite reference-grid endpoints without changing engineering edge coverage. */

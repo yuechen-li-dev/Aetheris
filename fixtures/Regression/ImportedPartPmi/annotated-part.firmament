@@ -1,0 +1,12 @@
+Model ImportedPart {
+    units: mm
+    InlineStep part { path: "../../../testdata/firmament/inline-step/canonical-through-hole.step" }
+    Pmi {
+        Datum A { target: part.face("#51") }
+        HoleDiameter Bore {
+            target: part.face("#191")
+            value: 2mm
+            tolerance: PlusMinus(0.1mm, 0.05mm)
+        }
+    }
+}

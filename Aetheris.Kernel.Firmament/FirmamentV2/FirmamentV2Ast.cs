@@ -95,7 +95,12 @@ public sealed record FirmamentV2StandardPartRecord(
 /// <summary>A bounded exact analytic construction recipe assembled from reusable
 /// regular-prism, coaxial cone, torus-blend, cylinder, and cone-frustum operations.</summary>
 public sealed record FirmamentV2ExactCoaxialPartRecord(IReadOnlyDictionary<string, string> Parameters) : FirmamentV2PrimitiveRecord;
-public sealed record FirmamentV2InlineStepRecord(string SourcePath, string NormalizedPath, string ContentHash, bool CanonicalInput, string CanonicalEvidence, ImportedStepTopologyMap TopologyMap) : FirmamentV2PrimitiveRecord;
+public sealed record FirmamentV2InlineStepRecord(string SourcePath, string NormalizedPath, string ContentHash, bool CanonicalInput, string CanonicalEvidence, ImportedStepTopologyMap TopologyMap) : FirmamentV2PrimitiveRecord
+{
+    /// <summary>The admitted immutable input. Lowering must not reopen a changed file.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? SourceText { get; init; }
+}
 public sealed record ImportedStepTopologyMap(IReadOnlyDictionary<string, string> FaceEntityToFaceId, IReadOnlyDictionary<string, string> FaceIdToFaceEntity)
 {
     public bool TryResolveFaceEntity(string entityRef, out string faceId) => FaceEntityToFaceId.TryGetValue(entityRef, out faceId!);

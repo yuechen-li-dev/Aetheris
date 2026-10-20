@@ -12,3 +12,4 @@ export * from "./temporal.js";
 export * from "./concepts.js";
 export * from "./measurement.js";
 export * from "./sketch.js";
+export { pmiLines, pmiGroup } from './pmi.js';

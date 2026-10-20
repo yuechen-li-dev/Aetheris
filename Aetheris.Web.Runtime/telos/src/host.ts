@@ -658,6 +658,10 @@ export class TelosHost {
             new Vector3(...field.bounds.maximum),
           ).applyMatrix4(matrix(field.transform)),
         );
+    if (!occurrenceIds)
+      for (const line of this.scene.lines.filter(line => line.includeInFit && line.visible !== false))
+        for (let i = 0; i < line.points.length; i += 3)
+          bounds.expandByPoint(new Vector3(line.points[i], line.points[i + 1], line.points[i + 2]).applyMatrix4(matrix(line.transform)));
     if (!bounds.isEmpty())
       this.camera.fit(bounds.min.toArray(), bounds.max.toArray());
     this.invalidate();

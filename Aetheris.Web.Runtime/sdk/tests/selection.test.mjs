@@ -2,6 +2,20 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ModelSession } from '../src/index.js';
 
+test('imported provenance supplies face selectors and measured size without fabricating a native source span', () => {
+  const model = new ModelSession({}, { revision: 1, mesh: {
+    definitions: [{ id: 'part', ranges: [{ startTriangle: 0, triangleCount: 2, faceId: 'face:7',
+      semanticEntityId: 'part', sourceAddressability: 'ImportedStable', selector: 'part.face("#191")', surfaceKind: 'Cylinder', diameterMm: 2 }] }],
+    occurrences: [{ id: 'part:occurrence', definitionId: 'part', semanticEntityId: 'part' }],
+  } });
+  const picked = model.describeSelection('part', 0, 'part:occurrence');
+  assert.equal(picked.selector, 'part.face("#191")');
+  assert.equal(picked.diameterMm, 2);
+  assert.equal(picked.surfaceKind, 'Cylinder');
+  assert.equal(picked.sourceAddressable, false);
+  assert.equal(picked.source, null);
+});
+
 test('display-only face identity never becomes a Firmament selector', () => {
   const session = new ModelSession({}, {
     mesh: {

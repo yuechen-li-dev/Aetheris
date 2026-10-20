@@ -37,7 +37,8 @@ public static partial class FirmamentV2Parser
     /// follows declared material bodies; unused construction data cannot select a grammar.</summary>
     private static FirmamentV2ParseResult BindMechanicalModel(DocumentSyntax syntax, DeclarationSyntax model,
         string source, List<string> diagnostics, string? sourceDirectory,
-        IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations, FirmamentCompileTimeValues? compileTime = null)
+        IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations, FirmamentCompileTimeValues? compileTime = null,
+        IReadOnlyDictionary<string, string>? resources = null)
     {
         if (model.Body is null || model.Name is null) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
         if (model.Clauses.Count > 0 || model.Type.Arguments.Count > 0)
@@ -151,7 +152,7 @@ public static partial class FirmamentV2Parser
         {
             var body = declaration.Body;
             if (body is null || declaration.Name is null) { diagnostics.Add(CanonicalPrimitiveMalformed); continue; }
-            var imported = ParseInlineStep(declaration.Name.Text, source.Substring(body.Span.Start + 1, body.Span.Length - 2), diagnostics, sourceDirectory);
+            var imported = ParseInlineStep(declaration.Name.Text, source.Substring(body.Span.Start + 1, body.Span.Length - 2), diagnostics, sourceDirectory, resources);
             if (imported is not null && !solids.TryAdd(imported.Name, imported)) diagnostics.Add(DuplicateName);
         }
         if (solids.Count == 0) diagnostics.Add(MissingSolid);

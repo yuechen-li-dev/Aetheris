@@ -25,7 +25,12 @@ public sealed class StepLegacyQualificationTests
     public void DisplayRefinementWarning_DoesNotDegradeAuthoritativeGeometry()
     {
         var body = Box.Value;
-        var mesh = BrepDisplayTessellator.TessellateBoundedPartial(body) with {
+        // This tests classification of a refinement warning, not the wall-clock budget.
+        // A timed-out partial box would exercise a different (correctly Partial) result.
+        var complete = BrepDisplayTessellator.Tessellate(body);
+        Assert.True(complete.IsSuccess);
+        Assert.Equal(body.Topology.Faces.Count(), complete.Value.FacePatches.Count);
+        var mesh = complete.Value with {
             FaceDiagnostics = [new(null, "BSplineSurfaceWithKnots", "FaceTessellation", "Viewer.Tessellation.RefinementIncomplete", "Display budget reached.")]
         };
         var report = BrepImportQualification.WithDisplay(body, mesh);

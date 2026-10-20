@@ -24,6 +24,30 @@ public static class PlanarTextProfiles
 {
     private static readonly Lazy<Typeface> DefaultTypeface = new(LoadInter);
 
+    /// <summary>Presentation contours only. Drawing an outline does not require the
+    /// material-island arrangement/Boolean normalization used for engineering text.</summary>
+    internal static IReadOnlyList<LineArcProfileCurve2D> PresentationContours(string content, double height)
+    {
+        if (string.IsNullOrEmpty(content) || content.IndexOfAny(['\r', '\n']) >= 0 || !double.IsFinite(height) || height <= 0)
+            throw new InvalidOperationException("pmi-display-text-invalid");
+        var typeface = DefaultTypeface.Value;
+        var scale = height / typeface.UnitsPerEm;
+        var cursor = 0d;
+        var curves = new List<LineArcProfileCurve2D>();
+        foreach (var rune in content.EnumerateRunes())
+        {
+            var index = typeface.GetGlyphIndex(rune.Value);
+            if (index == 0) throw new InvalidOperationException($"pmi-display-text-unsupported: Missing glyph U+{rune.Value:X4}.");
+            var glyph = typeface.GetGlyph(index);
+            if (glyph.IsCffGlyph) throw new InvalidOperationException("pmi-display-text-unsupported: CFF glyph.");
+            var translator = new OutlineTranslator();
+            IGlyphReaderExtensions.Read(translator, glyph.GlyphPoints, glyph.EndPoints);
+            curves.AddRange(translator.Contours.SelectMany(contour => contour.Transform(cursor, scale).Curves));
+            cursor += typeface.GetAdvanceWidthFromGlyphIndex(index) * scale;
+        }
+        return curves;
+    }
+
     public static PlanarTextProfileResult Build(string content, double height,
         PlanarTextAlignment alignment = PlanarTextAlignment.Left,
         ConstructionPlane? supportFrame = null, string featureId = "Text")

@@ -106,7 +106,7 @@ public static partial class Program
         {
             compile = true, solidModeling = true, assembly = true, displayMesh = true,
             propertyInspection = true, parameterRebuild = true, stepExport = true, artifactExport = true,
-            sheetMetal = false, fea = false, externalStepImport = false, forgeSubprocess = false,
+            sheetMetal = false, fea = false, externalStepImport = true, forgeSubprocess = false,
             cancellation = false, worker = false
         }
     };
@@ -141,9 +141,8 @@ public static partial class Program
             : null;
         var root = request.ProjectRoot ?? name;
         var project = documents is null ? null : new FirmamentProjectSnapshot(root, documents);
-        var analysis = documents is not null && documents.TryGetValue(root, out var rootSource) &&
-            FirmamentLanguageAnalysisService.HasAssemblyRoot(rootSource, root, project)
-            ? FirmamentLanguageAnalysisService.Analyze(project!, name, request.SourceRevision)
+        var analysis = project is not null
+            ? FirmamentLanguageAnalysisService.Analyze(project, name, request.SourceRevision)
             : FirmamentLanguageAnalysisService.Analyze(request.Source, name, request.SourceRevision);
         return new { document = name, revision = request.SourceRevision, analysis.Tokens,
             diagnostics = analysis.Diagnostics.Select(item => new WebDiagnostic(item.Severity, item.Code, item.Message,
@@ -345,7 +344,7 @@ public static partial class Program
         {
             RequireExportRevision(request.BuildRevision);
             var formats = request.Formats ?? [];
-            var needsStep = formats.Any(f => f is not ("glb" or "usda"));
+            var needsStep = formats.Any(f => f is not ("glb" or "usda")) || formats.Contains("glb") && _expectedPmi.Count > 0;
             try
             {
                 var files = ProductArtifactExporter.Export(new(Name, needsStep ? StepText : null, _exportDisplay!, _assembly, _scene, _expectedPmi, _sourceName),
@@ -536,7 +535,8 @@ public static partial class Program
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
             var compilePhase = BuildPerfTrace.Phase("web.compile-and-export");
-            var build = FirmamentBuildAndExport.CompileSource(effective);
+            var project = _projectDocuments is { Count: > 0 } ? new FirmamentProjectSnapshot(_sourceName, _projectDocuments) : null;
+            var build = FirmamentBuildAndExport.CompileSource(effective, Path.GetDirectoryName(_sourceName), project?.Documents);
             compilePhase.Dispose();
             var compileMs = watch.Elapsed.TotalMilliseconds;
             if (!build.IsSuccess || build.Value is null)
@@ -566,7 +566,7 @@ public static partial class Program
                     ? SourceRefAt(_sourceName, effective, span.Start, span.Length) : null;
             var boxSource = CompilerSource(entityId);
             // Preserve the exported body category in Kind; report the authored construct separately.
-            var parsed = FirmamentV2Parser.Parse(effective);
+            var parsed = FirmamentV2Parser.Parse(effective, Path.GetDirectoryName(_sourceName), null, null, project?.Documents);
             var semanticConstruct = boxSource is null ? null : parsed.Document?.Solids
                 .FirstOrDefault(solid => string.Equals(solid.Name, entityId, StringComparison.Ordinal))?.RecordType;
             IReadOnlyList<FirmamentConstructProjection> projections = _overrides.Count == 0 && parsed.Document is { } document
@@ -589,8 +589,20 @@ public static partial class Program
                     ? SourceRefAt(_sourceName, effective, span.Start, span.Length) : CompilerSource(feature.FeatureId), StringComparer.Ordinal);
             mappingPhase.Dispose();
             var meshPhase = BuildPerfTrace.Phase("web.mesh-build");
+            IReadOnlyList<Aetheris.Kernel.Firmament.Visualization.PmiDisplayAnnotation> annotations;
+            IReadOnlyList<WebDiagnostic> presentationDiagnostics = [];
+            try { annotations = Aetheris.Kernel.Firmament.Visualization.PmiDisplayProjection.FromStep(step); }
+            catch (InvalidOperationException error) when (error.Message.StartsWith("pmi-display-", StringComparison.Ordinal))
+            {
+                // A missing presentation adapter cannot invalidate admitted engineering geometry.
+                // STEP keeps its requirements; annotated GLB export still requires complete projection.
+                annotations = [];
+                presentationDiagnostics = [new("warning", "pmi-preview-unavailable", error.Message + " STEP remains authoritative. Annotated GLB export requires a supported callout projection.")];
+            }
             var mesh = WebMeshBuilder.Build(Name, definitionId, entityId, displayBody, out var exportDisplay,
-                build.Value.RuntimeCorrespondence, boxSource, Revision + 1, featureSources, build.Value.Cir, Aetheris.Kernel.Firmament.Visualization.ConceptDisplayProjection.Project(build.Value));
+                build.Value.RuntimeCorrespondence, boxSource, Revision + 1, featureSources, build.Value.Cir, Aetheris.Kernel.Firmament.Visualization.ConceptDisplayProjection.Project(build.Value),
+                build.Value.ExportedBodyCategory == "inline-step" ? entityId : null, annotations,
+                parsed.Document?.Solids.SingleOrDefault()?.InlineStep);
             meshPhase.Dispose();
             var meshMs = watch.Elapsed.TotalMilliseconds;
             var featureNodes = (build.Value.EngineeringFeatures ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true,
@@ -605,7 +617,7 @@ public static partial class Program
             var tree = new { rootId = root.Id, nodes = new[] { root, body }.Concat(featureNodes).ToArray() };
             var expectedPmi = Aetheris.Kernel.Firmament.Drawing.FirmamentDrawingCompiler.AuthoredPmiNames(build.Value);
             return WebBuildResult.Passed(step, tree, mesh, [Id, entityId, .. featureNodes.Select(item => item.Id)], compileMs, meshMs)
-                with { Projections = projections, ExportDisplay = exportDisplay, ExpectedPmi = expectedPmi };
+                with { Projections = projections, ExportDisplay = exportDisplay, ExpectedPmi = expectedPmi, Diagnostics = presentationDiagnostics };
         }
 
         private WebBuildResult CompileAssembly(string effective, List<WebProperty> properties)
@@ -797,7 +809,9 @@ internal static class WebMeshBuilder
     public static object Build(string name, string definitionId, string entityId, BrepBody body, out AssemblyDisplayMeshDocument exportDisplay,
         Aetheris.Kernel.Firmament.Materializer.SemanticTopologyCorrespondence? correspondence = null,
         WebSourceRef? source = null, int buildRevision = 0, IReadOnlyDictionary<string, WebSourceRef?>? featureSources = null,
-        FirmamentCirRetention? cir = null, IReadOnlyList<Aetheris.Kernel.Firmament.Visualization.ConceptDisplayWire>? concepts = null)
+        FirmamentCirRetention? cir = null, IReadOnlyList<Aetheris.Kernel.Firmament.Visualization.ConceptDisplayWire>? concepts = null,
+        string? importedBodyName = null, IReadOnlyList<Aetheris.Kernel.Firmament.Visualization.PmiDisplayAnnotation>? annotations = null,
+        FirmamentV2InlineStepRecord? importedAsset = null)
     {
         // Browser WASM has no blocking monitor wait. Use the existing synchronous
         // tessellator authority; the Worker transport supplies UI responsiveness.
@@ -822,11 +836,14 @@ internal static class WebMeshBuilder
             if (sourceMap is not null && sourceMap.TryGetByBrepFace(face.FaceId, out var mappedFace)) semanticFace = mappedFace;
             var owner = semanticFace?.ParentStableId is { } parent && featureSources?.ContainsKey(parent) == true ? parent : entityId;
             var faceSource = owner == entityId ? source : featureSources![owner];
+            var imported = importedBodyName is not null && body.Bindings.TryGetFaceBinding(face.FaceId, out var binding) ? binding.SourceStepEntityId : null;
+            body.TryGetFaceSurface(face.FaceId, out var surface);
             ranges.Add(new { startTriangle = triangleStart, triangleCount = face.TriangleIndices.Count / 3, faceId = $"face:{face.FaceId.Value}", semanticEntityId = owner,
-                semanticTopologyId = semanticFace?.StableId, topologyKind = "Face", outputRole = semanticFace?.Role.ToString(), originFeature = semanticFace?.SourceStableId,
-                sourceAddressability = semanticFace?.Addressability.ToString() ?? "RuntimeOnly",
-                selector = semanticFace?.FirmamentSelector,
-                selectorReason = semanticFace is null ? "No compiler-owned source topology mapping is available for this display face."
+                semanticTopologyId = semanticFace?.StableId ?? (imported is { } importedEntity ? importedBodyName + ":#" + importedEntity : null), topologyKind = "Face", outputRole = semanticFace?.Role.ToString(), originFeature = semanticFace?.SourceStableId,
+                sourceAddressability = imported is not null ? "ImportedStable" : semanticFace?.Addressability.ToString() ?? "RuntimeOnly",
+                selector = imported is not null ? $"{importedBodyName}.face(\"#{imported}\")" : semanticFace?.FirmamentSelector,
+                surfaceKind = surface?.Kind.ToString(), diameterMm = surface?.Cylinder is { } cylinder ? (double?)(2 * cylinder.Radius) : null,
+                selectorReason = imported is not null ? null : semanticFace is null ? "No compiler-owned source topology mapping is available for this display face."
                     : semanticFace.FirmamentSelector is null ? "Construction identity is known, but Firmament has no qualified source selector for this topology." : null,
                 source = semanticFace is null ? null : faceSource, buildRevision });
         }
@@ -836,12 +853,15 @@ internal static class WebMeshBuilder
         var transform = new double[] { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
         exportDisplay = new("aetheris/display-mesh/1", name, "mm",
             [new(definitionId, entityId, positionArray, normalArray, indexArray)],
-            [new(entityId + ":occurrence", name, null, definitionId, transform, entityId)]);
+            [new(entityId + ":occurrence", name, null, definitionId, transform, entityId)]) { Annotations = annotations ?? [] };
         return new
         {
             schema = "aetheris/display-mesh/1",
             name,
             units = "mm",
+            annotations = annotations ?? [],
+            importedAsset = importedAsset is null ? null : new { path = importedAsset.SourcePath, sha256 = importedAsset.ContentHash,
+                evidence = importedAsset.CanonicalEvidence, qualification = body.ImportQualification },
             definitions = new[] { new { id = definitionId, identity = entityId, positions = positionArray, normals = normalArray, indices = indexArray, ranges,
                 cir, shader, geometryRevision = definitionId, displayPath = shader.Artifact is not null ? "cir" : "mesh", fallbackReason = shader.Reason,
                 concepts = concepts ?? [],

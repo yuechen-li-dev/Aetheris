@@ -209,6 +209,7 @@ export class ModelSession {
     return range && occurrence ? { semanticEntityId: range.semanticEntityId ?? occurrence.semanticEntityId, faceId: range.faceId, occurrenceId: occurrence.id, definitionId,
       semanticTopologyId: range.semanticTopologyId ?? null, topologyKind: range.topologyKind ?? 'Face', outputRole: range.outputRole ?? null, originFeature: range.originFeature ?? null,
       selector: range.selector ?? null, sourceAddressability: range.sourceAddressability ?? 'RuntimeOnly',
+      surfaceKind: range.surfaceKind ?? null, diameterMm: range.diameterMm ?? null,
       selectorReason: range.selectorReason ?? null, source: range.source ?? null, buildRevision: range.buildRevision ?? this.revision } : null;
   }
   describeSelection(definitionId, triangleIndex, occurrenceId) {

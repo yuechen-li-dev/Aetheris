@@ -291,7 +291,8 @@ public static partial class FirmamentV2Parser
     /// <summary>Carries a selected schema through library/specialization processing;
     /// it cannot override a conflicting authored schema.</summary>
     public static FirmamentV2ParseResult Parse(string sourceText, string? sourceDirectory,
-        FirmamentV2ForgeConceptCatalog? conceptCatalog, FirmamentFrontendSchema? expectedSchema)
+        FirmamentV2ForgeConceptCatalog? conceptCatalog, FirmamentFrontendSchema? expectedSchema,
+        IReadOnlyDictionary<string, string>? resources = null)
     {
         using var buildPerfPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("firmament.v2-parse");
         ArgumentNullException.ThrowIfNull(sourceText);
@@ -299,8 +300,8 @@ public static partial class FirmamentV2Parser
         // four times). The parser is a pure function of its text and directory, and its result is
         // immutable records, except InlineStep, which reads a STEP file; those, and parses with a
         // concept catalog, always run.
-        if (conceptCatalog is not null || sourceText.Contains("InlineStep", StringComparison.OrdinalIgnoreCase))
-            return ParseWithDirectives(sourceText, sourceDirectory, conceptCatalog, expectedSchema);
+        if (resources is not null || conceptCatalog is not null || sourceText.Contains("InlineStep", StringComparison.OrdinalIgnoreCase))
+            return ParseWithDirectives(sourceText, sourceDirectory, conceptCatalog, expectedSchema, resources);
         var key = expectedSchema + "\0" + (sourceDirectory ?? string.Empty) + "\0" + sourceText;
         lock (RecentParses)
         {
@@ -326,7 +327,7 @@ public static partial class FirmamentV2Parser
     private static readonly List<(string Key, FirmamentV2ParseResult Result)> RecentParses = [];
 
     private static FirmamentV2ParseResult ParseWithDirectives(string source, string? directory, FirmamentV2ForgeConceptCatalog? catalog,
-        FirmamentFrontendSchema? expectedSchema)
+        FirmamentFrontendSchema? expectedSchema, IReadOnlyDictionary<string, string>? resources = null)
     {
         var frontend = FirmamentFrontendSchemas.Select(source);
         if (!frontend.IsSuccess) return frontend.Failure(source);
@@ -345,7 +346,7 @@ public static partial class FirmamentV2Parser
             return FirmamentV2ParseResult.Failure(reported.Select(d => d.Code).ToArray()) with
             { OriginalSource = source, SyntaxDiagnostics = reported, ParserRoute = "UnifiedDirectives", OwnsUnifiedAdmission = true };
         }
-        var parsed = ParseUncached(frontend.Source, directory, catalog);
+        var parsed = ParseUncached(frontend.Source, directory, catalog, resources);
         if (parsed.IsSuccess && (frontend.Schema ?? expectedSchema) is { } schema
             && FirmamentFrontendSchemas.DomainMismatch(schema, parsed.BoundSource ?? frontend.Source, admittedSchema: parsed.BoundSchema) is { } mismatch)
             return (frontend with { Diagnostics = [mismatch.Code], LocatedDiagnostics =
@@ -394,7 +395,7 @@ public static partial class FirmamentV2Parser
     private static FirmamentV2ParseResult ParseUncached(
         string sourceText,
         string? sourceDirectory,
-        FirmamentV2ForgeConceptCatalog? conceptCatalog)
+        FirmamentV2ForgeConceptCatalog? conceptCatalog, IReadOnlyDictionary<string, string>? resources = null)
     {
         // Serialization roots belong to the historical reader, which still must
         // prove explicit version 1 before execution. Their data values may be V2
@@ -586,7 +587,7 @@ public static partial class FirmamentV2Parser
             if (!syntax.IsSuccess)
                 return FirmamentV2ParseResult.Failure(diagnostics.Concat(syntax.Diagnostics.Select(d => d.Code)).ToArray(), FirmamentV2ParseDisposition.RecognizedInvalid)
                     with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true, SyntaxDiagnostics = syntax.Diagnostics };
-            var parsed = Recognized(BindMechanicalModel(syntax.Document, modelSyntax, source, diagnostics, sourceDirectory, templateExpansion.Instantiations, compileTime))
+            var parsed = Recognized(BindMechanicalModel(syntax.Document, modelSyntax, source, diagnostics, sourceDirectory, templateExpansion.Instantiations, compileTime, resources))
                 with { DiagnosticSource = source };
             if (parsed.Document is null) return parsed with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true };
             if (domainDeclarations.Any(d => d.Type.Name.Text == "Plateau"))
@@ -622,7 +623,7 @@ public static partial class FirmamentV2Parser
         var compatibilityCore = BindCompatibilityScope(syntax.Document, compatibilityModel, diagnostics);
         if (compatibilityCore) diagnostics.AddRange(syntax.Diagnostics.Select(d => d.Code));
 
-        var byName = BindCompatibilitySolids(syntax, compatibilityModel, source, sourceDirectory, diagnostics);
+        var byName = BindCompatibilitySolids(syntax, compatibilityModel, source, sourceDirectory, diagnostics, resources);
         // A referenced record prototype is compile-time data, not another output
         // body. Preserve legitimate `with` derivation while rejecting unrelated
         // material that the last-body exporter would otherwise discard.
@@ -1077,7 +1078,8 @@ public static partial class FirmamentV2Parser
         }
     }
 
-    private static FirmamentV2SolidBinding? ParseInlineStep(string name, string body, List<string> diagnostics, string? sourceDirectory)
+    private static FirmamentV2SolidBinding? ParseInlineStep(string name, string body, List<string> diagnostics, string? sourceDirectory,
+        IReadOnlyDictionary<string, string>? resources = null)
     {
         var match = Regex.Match(body, "\\b(?:path|Path)\\s*:\\s*\\\"(?<path>[^\\\"]+)\\\"", RegexOptions.CultureInvariant);
         if (!match.Success) { diagnostics.Add(InlineStepPathMissing); return null; }
@@ -1089,15 +1091,22 @@ public static partial class FirmamentV2Parser
             return null;
         }
 
-        var baseDirectory = string.IsNullOrWhiteSpace(sourceDirectory) ? Directory.GetCurrentDirectory() : sourceDirectory;
-        var normalizedPath = Path.GetFullPath(Path.Combine(baseDirectory!, sourcePath));
-        if (!File.Exists(normalizedPath))
+        string normalizedPath;
+        string stepText;
+        if (resources is not null)
         {
-            diagnostics.Add(InlineStepFileMissing);
-            return null;
+            // Explicit browser/project snapshots never fall through to the host filesystem.
+            try { normalizedPath = Assembly.FirmamentProjectSnapshot.NormalizePath((sourceDirectory is { Length: > 0 } ? sourceDirectory + "/" : "") + sourcePath); }
+            catch (ArgumentException) { diagnostics.Add(InlineStepPathInvalid); return null; }
+            if (!resources.TryGetValue(normalizedPath, out stepText!)) { diagnostics.Add(InlineStepFileMissing); return null; }
         }
-
-        var stepText = File.ReadAllText(normalizedPath, Encoding.UTF8);
+        else
+        {
+            var baseDirectory = string.IsNullOrWhiteSpace(sourceDirectory) ? Directory.GetCurrentDirectory() : sourceDirectory;
+            normalizedPath = Path.GetFullPath(Path.Combine(baseDirectory!, sourcePath));
+            if (!File.Exists(normalizedPath)) { diagnostics.Add(InlineStepFileMissing); return null; }
+            stepText = File.ReadAllText(normalizedPath, Encoding.UTF8);
+        }
         if (!IsAetherisCanonicalStep(stepText, out var evidence))
         {
             diagnostics.Add(InlineStepRequiresCanonical);
@@ -1105,19 +1114,19 @@ public static partial class FirmamentV2Parser
         }
 
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(stepText))).ToLowerInvariant();
-        return new FirmamentV2SolidBinding(name, "InlineStep", new FirmamentV2InlineStepRecord(sourcePath, normalizedPath, hash, true, evidence, BuildImportedStepTopologyMap(stepText)));
+        return new FirmamentV2SolidBinding(name, "InlineStep", new FirmamentV2InlineStepRecord(sourcePath, normalizedPath, hash, true, evidence, BuildImportedStepTopologyMap(stepText)) { SourceText = stepText });
     }
 
     private static ImportedStepTopologyMap BuildImportedStepTopologyMap(string stepText)
     {
         var faceEntityToFaceId = new Dictionary<string, string>(StringComparer.Ordinal);
         var faceIdToFaceEntity = new Dictionary<string, string>(StringComparer.Ordinal);
-        var ordinal = 0;
-        foreach (Match match in Regex.Matches(stepText, @"(?m)^\s*(#[0-9]+)\s*=\s*ADVANCED_FACE\s*\(", RegexOptions.CultureInvariant))
+        var imported = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(stepText);
+        foreach (var binding in imported.IsSuccess ? imported.Value.Bindings.FaceBindings : [])
         {
-            ordinal++;
-            var entity = match.Groups[1].Value;
-            var faceId = $"face-{ordinal}";
+            if (binding.SourceStepEntityId is not { } sourceEntity) continue;
+            var entity = "#" + sourceEntity;
+            var faceId = $"face-{binding.FaceId.Value}";
             faceEntityToFaceId[entity] = faceId;
             faceIdToFaceEntity[faceId] = entity;
         }

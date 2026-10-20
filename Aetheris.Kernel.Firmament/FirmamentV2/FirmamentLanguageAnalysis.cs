@@ -26,7 +26,8 @@ public static class FirmamentLanguageAnalysisService
     private static readonly HashSet<string> Choices = FirmamentSemanticSchemas.All
         .SelectMany(construct => construct.Fields).SelectMany(field => field.Choices).ToHashSet(StringComparer.Ordinal);
 
-    public static FirmamentLanguageAnalysis Analyze(string source, string document, string revision)
+    public static FirmamentLanguageAnalysis Analyze(string source, string document, string revision,
+        string? sourceDirectory = null, IReadOnlyDictionary<string, string>? resources = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         var lexemes = Lex(FirmamentSourceSpelling.Normalize(source));
@@ -86,7 +87,7 @@ public static class FirmamentLanguageAnalysisService
         }
         if (!hasConcreteRoot && lexemes.Any(t => t.Shape == "identifier" && t.Text is "Template" or "Subassembly" or "Appearance" or "Material"))
             return new(document, revision, tokens, [new("information", "firmament-language-project-context-required", "Declaration modules are validated in their consuming project.", 0, 0)]);
-        var parse = FirmamentV2Parser.Parse(source);
+        var parse = FirmamentV2Parser.Parse(source, sourceDirectory, null, null, resources);
         var failures = parse.Diagnostics.Where(item => FirmamentV2Parser.IsFatalDiagnosticCode(item) || parse.SyntaxDiagnostics.Any(d => d.Code == item && d.Severity == "warning") ||
             item == "firmament-v2-parse-failed").Distinct(StringComparer.Ordinal).ToArray();
         if (failures.Length > 1) failures = failures.Where(item => item != "firmament-v2-parse-failed").ToArray();
@@ -130,7 +131,7 @@ public static class FirmamentLanguageAnalysisService
         var tokens = Lex(FirmamentSourceSpelling.Normalize(source));
         var selected = tokens.FirstOrDefault(t => t.Shape == "identifier" && t.Start <= offset && offset < t.Start + t.Length);
         if (selected is null) return null;
-        var matches = project.Documents.SelectMany(d => Declarations(Lex(d.Value), selected.Text, ReferenceKind(tokens, selected))
+        var matches = project.SourceDocuments.SelectMany(d => Declarations(Lex(d.Value), selected.Text, ReferenceKind(tokens, selected))
             .Select(t => new FirmamentLanguageLocation(d.Key, t.Start, t.Length))).ToArray();
         return matches.Length == 1 ? matches[0] : null;
     }
@@ -138,6 +139,9 @@ public static class FirmamentLanguageAnalysisService
     public static FirmamentLanguageAnalysis Analyze(FirmamentProjectSnapshot project, string document, string revision)
     {
         if (!project.TryResolve(document, out var source)) throw new ArgumentException("Document is absent from the snapshot.", nameof(document));
+        if (!project.TryResolve(project.RootDocument, out var rootSource)
+            || !HasAssemblyRoot(rootSource, project.RootDocument, project))
+            return Analyze(source, document, revision, Path.GetDirectoryName(document), project.Documents);
         if (SceneAuthoring.HasRoot(source) || Garment.GarmentAuthoring.HasRoot(source)) return Analyze(source,document,revision);
         var tokens = Lex(FirmamentSourceSpelling.Normalize(source));
         var parsed = new AssemblyM0Parser().ParseProject(project);

@@ -115,7 +115,7 @@ public static class FirmamentLanguageOutlineService
         var local = Outline(source, document, revision);
         if (local.Externals.Count == 0) return local;
         var self = Assembly.FirmamentProjectSnapshot.NormalizePath(document);
-        var others = project.Documents.Where(d => !string.Equals(d.Key, self, StringComparison.Ordinal))
+        var others = project.SourceDocuments.Where(d => !string.Equals(d.Key, self, StringComparison.Ordinal))
             .Select(d => Outline(d.Value, d.Key, revision)).ToArray();
         var topLevel = others.SelectMany(o => o.Nodes.Where(n => n.ParentId is null && n.Name is not null && !NameIsUseKind(n))
             .Select(n => (Document: o.Document, Node: n, Outline: o))).ToLookup(x => x.Node.Name!, StringComparer.Ordinal);

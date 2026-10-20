@@ -2,7 +2,7 @@ using System.Collections.Frozen;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
 
-/// <summary>An immutable, project-relative source set for a Firmament Part, Assembly or Scene build.</summary>
+/// <summary>An immutable, project-relative source set and STEP text assets for a Firmament build.</summary>
 public sealed class FirmamentProjectSnapshot
 {
     private readonly IReadOnlyDictionary<string, string> documents;
@@ -21,7 +21,8 @@ public sealed class FirmamentProjectSnapshot
         {
             var key = NormalizePath(path);
             if (!key.EndsWith(".firmasm", StringComparison.OrdinalIgnoreCase) &&
-                !key.EndsWith(".firmament", StringComparison.OrdinalIgnoreCase))
+                !key.EndsWith(".firmament", StringComparison.OrdinalIgnoreCase) &&
+                !IsStepAsset(key))
                 throw new ArgumentException($"Unsupported project document kind: '{key}'.", nameof(documents));
             if (!normalized.TryAdd(key, source ?? throw new ArgumentException($"Null source for '{key}'.", nameof(documents))))
                 throw new ArgumentException($"Duplicate normalized project path: '{key}'.", nameof(documents));
@@ -50,4 +51,7 @@ public sealed class FirmamentProjectSnapshot
     }
 
     public bool TryResolve(string path, out string source) => documents.TryGetValue(NormalizePath(path), out source!);
+
+    public static bool IsStepAsset(string path) => path.EndsWith(".step", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".stp", StringComparison.OrdinalIgnoreCase);
+    public IEnumerable<KeyValuePair<string, string>> SourceDocuments => documents.Where(d => !IsStepAsset(d.Key));
 }

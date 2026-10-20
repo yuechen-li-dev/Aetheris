@@ -9,6 +9,41 @@ public sealed class FirmamentV2InlineStepTests
     private const string InputStepPath = "testdata/firmament/inline-step/canonical-box-10x8x6.step";
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ImportedPmi_PreservesFaceAssociationsAndGeometry(bool regions)
+    {
+        var repo = FindRepoRoot();
+        var source = File.ReadAllText(Path.Combine(repo, "fixtures/Regression/InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture"))
+            .Replace("../../../../testdata/", "testdata/").Replace("6.0mm tol 0.05mm", "2.0mm tol 0.1mm");
+        if (!regions) source = source.Replace("part.region(\"baseFace\")", "part.face(\"#51\")")
+            .Replace("part.region(\"mountHoleA\")", "part.face(\"#191\")");
+        var baseline = FirmamentBuildAndExport.CompileSource(source[..source.IndexOf("    pmi {", StringComparison.Ordinal)] + "}", repo);
+        var annotated = FirmamentBuildAndExport.CompileSource(source, repo);
+        Assert.True(baseline.IsSuccess, string.Join("; ", baseline.Diagnostics));
+        Assert.True(annotated.IsSuccess, string.Join("; ", annotated.Diagnostics));
+        var inspection = Step242SemanticPmiInspector.Inspect(annotated.Value.StepText);
+        Assert.True(inspection.Success);
+        var datum = Assert.Single(inspection.Items, i => i.Kind == "Datum");
+        var diameter = Assert.Single(inspection.Items, i => i.Kind == "Diameter");
+        Assert.Single(datum.GeometricFaceEntityIds);
+        Assert.Single(diameter.GeometricFaceEntityIds);
+        Assert.NotEqual(datum.GeometricFaceEntityIds[0], diameter.GeometricFaceEntityIds[0]);
+        Assert.Equal(2, diameter.Value);
+        Assert.Equal(.1, diameter.TolerancePlus);
+        Assert.Equal(.1, diameter.ToleranceMinus);
+        var reimport = Step242Importer.ImportBody(annotated.Value.StepText).Value;
+        Assert.Equal(Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane, reimport.Geometry.GetSurface(
+            reimport.Bindings.FaceBindings.Single(b => b.SourceStepEntityId == datum.GeometricFaceEntityIds[0]).SurfaceGeometryId).Kind);
+        Assert.Equal(Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cylinder, reimport.Geometry.GetSurface(
+            reimport.Bindings.FaceBindings.Single(b => b.SourceStepEntityId == diameter.GeometricFaceEntityIds[0]).SurfaceGeometryId).Kind);
+        // All pre-existing entity records, including topology and geometry, survive verbatim.
+        var before = System.Text.RegularExpressions.Regex.Matches(baseline.Value.StepText, @"(?m)^#\d+=[^\r\n]+;").Select(m => m.Value).ToArray();
+        Assert.NotEmpty(before);
+        Assert.All(before, record => Assert.Contains(record, annotated.Value.StepText, StringComparison.Ordinal));
+    }
+
+    [Theory]
     [InlineData("modify")]
     [InlineData("Modify")]
     [InlineData("MODIFY")]

@@ -41,7 +41,9 @@ public sealed class ProductArtifactExportTests
         Assert.True(Step242Importer.ImportBody(Encoding.UTF8.GetString(Bytes("step"))).IsSuccess);
         var glb = Bytes("glb"); Assert.Equal("glTF", Encoding.ASCII.GetString(glb, 0, 4));
         using var json = JsonDocument.Parse(glb.AsMemory(20, BitConverter.ToInt32(glb, 12)));
-        Assert.Single(json.RootElement.GetProperty("meshes").EnumerateArray());
+        Assert.Single(json.RootElement.GetProperty("meshes").EnumerateArray().Where(mesh => mesh.GetProperty("extras").TryGetProperty("definitionIdentity", out _)));
+        Assert.Equal(expectedPmi.Count, json.RootElement.GetProperty("asset").GetProperty("extras").GetProperty("pmi").GetArrayLength());
+        Assert.All(json.RootElement.GetProperty("meshes").EnumerateArray(), mesh => Assert.True(mesh.GetProperty("primitives")[0].GetProperty("attributes").TryGetProperty("POSITION", out _)));
         Assert.Contains("metersPerUnit = 0.001", Encoding.UTF8.GetString(Bytes("usda")));
         Assert.Contains("f ", Encoding.UTF8.GetString(Bytes("obj")));
         var stl = Bytes("stl"); Assert.Equal(84L + BitConverter.ToUInt32(stl, 80) * 50L, stl.Length);

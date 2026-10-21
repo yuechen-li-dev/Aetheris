@@ -12,7 +12,7 @@ namespace Aetheris.CLI;
 internal static class ImportedFeaturesCommand
 {
     const string Usage = "Usage: aetheris imported-features inspect <part.step> [--import-tolerance <mm>] [--json]\n"
-        + "       aetheris imported-features plan <part.step> --candidate <id> --as <name> (--offset <dx> <dy> | --to <x> <y> <z>) --geometry-only [--clearance <mm>] [--source-out <file.firmament>] [--import-tolerance <mm>] [--json]";
+        + "       aetheris imported-features plan <part.step> --candidate <id> --as <name> (--offset <du> <dv> | --to <x> <y> <z> | --remove) --geometry-only [--clearance <mm>] [--source-out <file.firmament>] [--import-tolerance <mm>] [--json]";
 
     internal static int Run(string[] args, TextWriter stdout, TextWriter stderr, JsonSerializerOptions options)
     {
@@ -25,7 +25,7 @@ internal static class ImportedFeaturesCommand
             var input = Path.GetFullPath(args[1]);
             string? candidate = null, alias = null, output = null;
             Point3D? target = null; (double X, double Y)? offset = null;
-            var geometryOnly = false; var tolerance = .001; var clearance = .1;
+            var remove = false; var geometryOnly = false; var tolerance = .001; var clearance = .1;
             var seen = new HashSet<string>();
             for (var i = 2; i < args.Length; i++)
             {
@@ -41,6 +41,7 @@ internal static class ImportedFeaturesCommand
                     case "--as": alias = Next(); break;
                     case "--source-out": output = Next(); break;
                     case "--geometry-only": geometryOnly = true; break;
+                    case "--remove": remove = true; break;
                     case "--import-tolerance": tolerance = Number(); break;
                     case "--clearance": clearance = Number(); break;
                     case "--to": target = new(Number(), Number(), Number()); break;
@@ -64,41 +65,57 @@ internal static class ImportedFeaturesCommand
                 }
                 return 0;
             }
-            if (candidate is null || alias is null || target.HasValue == offset.HasValue)
-                throw new ArgumentException("Plan requires --candidate, --as and exactly one of --offset/--to.");
+            if (candidate is null || alias is null || (target.HasValue ? 1 : 0) + (offset.HasValue ? 1 : 0) + (remove ? 1 : 0) != 1)
+                throw new ArgumentException("Plan requires --candidate, --as and exactly one of --offset/--to/--remove.");
             if (offset is { } delta)
             {
                 var selected = inspection.Discovery.Candidates.SingleOrDefault(c => c.Id == candidate);
                 if (selected?.Center is not { } center) throw new ArgumentException("Candidate has no proved through-hole center; inspect again.");
-                target = new(center.X + delta.X, center.Y + delta.Y, center.Z);
+                target = selected.AxisIndex switch { 0 => new(center.X, center.Y + delta.X, center.Z + delta.Y), 1 => new(center.X + delta.X, center.Y, center.Z + delta.Y), _ => new(center.X + delta.X, center.Y + delta.Y, center.Z) };
             }
             var outputPath = Path.GetFullPath(output ?? Path.Combine("artifacts", "local", "imported-features", "revision.firmament"));
             if (string.Equals(outputPath, input, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) throw new ArgumentException("Source output must not overwrite the imported STEP.");
             if (!Path.GetExtension(outputPath).Equals(".firmament", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Source output must use .firmament extension.");
             var directory = Path.GetDirectoryName(outputPath)!;
-            var plan = FirmamentImportedFeatures.PlanMove(inspection, candidate, alias, target!.Value, geometryOnly,
-                Path.GetRelativePath(directory, input).Replace('\\', '/'), directory, clearance);
-            if (!plan.IsSuccess) return Failure(plan.Diagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(d, "generated revision")));
-            var dependencies = FirmamentDependencies.InspectSource(plan.Value.Source, outputPath);
+            string generatedSource; object details; IReadOnlyList<KernelDiagnostic> planDiagnostics;
+            var reference = Path.GetRelativePath(directory, input).Replace('\\', '/');
+            if (remove)
+            {
+                var plan = FirmamentImportedFeatures.PlanRemove(inspection, candidate, alias, geometryOnly, reference, directory, clearance);
+                if (!plan.IsSuccess) return Failure(plan.Diagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(d, "generated removal")));
+                generatedSource = plan.Value.Source; details = plan.Value; planDiagnostics = plan.Diagnostics;
+            }
+            else
+            {
+                var plan = FirmamentImportedFeatures.PlanMove(inspection, candidate, alias, target!.Value, geometryOnly, reference, directory, clearance);
+                if (!plan.IsSuccess) return Failure(plan.Diagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(d, "generated revision")));
+                generatedSource = plan.Value.Source; details = plan.Value; planDiagnostics = plan.Diagnostics;
+            }
+            var dependencies = FirmamentDependencies.InspectSource(generatedSource, outputPath);
             if (!dependencies.IsSuccess) return Failure(DependencyLockCommand.Present(dependencies.Diagnostics, outputPath));
             // The normal AST owns the field span; the generated source keeps
             // engineering intent while the generated receipt keeps byte identity.
-            var pin = FirmamentSyntaxTraversal.Statements(FirmamentSyntaxParser.Parse(plan.Value.Source).Document)
+            var pin = FirmamentSyntaxTraversal.Statements(FirmamentSyntaxParser.Parse(generatedSource).Document)
                 .OfType<FieldSyntax>().Single(f => f.Name.Text == "textSha256");
-            var authored = plan.Value.Source.Remove(pin.Span.Start, pin.Span.Length);
+            var authored = generatedSource.Remove(pin.Span.Start, pin.Span.Length);
             var lockPath = Path.Combine(directory, FirmamentDependencyLock.FileName);
             Directory.CreateDirectory(directory);
             var previousSource = File.Exists(outputPath) ? File.ReadAllBytes(outputPath) : null;
             var previousLock = File.Exists(lockPath) ? File.ReadAllBytes(lockPath) : null;
             var committed = false;
-            var savedPlan = plan.Value;
+            object savedPlan = details;
             try
             {
                 File.WriteAllText(lockPath, dependencies.Manifest!.ToToml());
                 File.WriteAllText(outputPath, authored);
                 var qualified = FirmamentBuildAndExport.CompileSource(authored, directory);
                 if (!qualified.IsSuccess) return Failure(qualified.Diagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(d, outputPath)));
-                savedPlan = plan.Value with { Source = authored, Revision = qualified.Value.ImportedHoleRevision!, Export = qualified.Value };
+                savedPlan = details switch
+                {
+                    ImportedFeatureMovePlan move => move with { Source = authored, Revision = qualified.Value.ImportedHoleRevision!, Export = qualified.Value },
+                    ImportedFeatureRemovalPlan removal => removal with { Source = authored, Removal = qualified.Value.ImportedHoleRemoval!, Export = qualified.Value },
+                    _ => throw new InvalidOperationException("Unknown imported edit plan.")
+                };
                 committed = true;
             }
             finally
@@ -109,9 +126,16 @@ internal static class ImportedFeaturesCommand
                     if (previousLock is null) File.Delete(lockPath); else File.WriteAllBytes(lockPath, previousLock);
                 }
             }
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { success = true, input, sourcePath = outputPath, lockPath, plan = savedPlan,
-                diagnostics = plan.Diagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(d, "generated revision")) }, options));
-            else stdout.WriteLine($"Built plan for {alias}: {outputPath}\nOriginal source PMI excluded explicitly; replacement PMI is generated.");
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                success = true,
+                input,
+                sourcePath = outputPath,
+                lockPath,
+                plan = savedPlan,
+                diagnostics = planDiagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(d, "generated revision"))
+            }, options));
+            else stdout.WriteLine($"Built {(remove ? "removal" : "move")} plan for {alias}: {outputPath}\nOriginal source PMI excluded explicitly; {(remove ? "the retired hole has no successor PMI" : "replacement PMI is generated")}.");
             return 0;
         }
         catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException)

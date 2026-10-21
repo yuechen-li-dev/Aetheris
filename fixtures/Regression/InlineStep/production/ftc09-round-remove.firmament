@@ -1,0 +1,18 @@
+// FTC-09's selected rigid solid only; vendor PMI is explicitly excluded.
+Model Ftc09Revision {
+    units: mm
+    InlineStep Source {
+        path: "../../../../testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp"
+        textSha256: "daad981598736d2ee6a104a7213b8d7813deaaabd7f683bc8cf8bbbf401a579a"
+        geometryOnly: true
+    }
+    Recognize Source {
+        Region MountHole {
+            kind: HoleShaft
+            candidate: "through-hole:step-1255+1282"
+        }
+    }
+    Remove Source.MountHole {
+        within: { min: Point3(-88.4mm, Source.MountHole.exit.Y, 15.7mm); max: Point3(-81.8mm, Source.MountHole.entry.Y, 22.4mm) }
+    }
+}

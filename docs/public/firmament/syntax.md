@@ -393,7 +393,17 @@ workflow requires explicit `geometryOnly: true`; source annotation exclusion is
 reported, not silently assumed.
 `importTolerance` controls imported geometry qualification and is separate from a
 manufacturing `tol`. The older HostSize rebuild does not have this preservation
-contract. See [imported through-hole revisions](imported-feature-recognition.md)
+contract. The bounded imported editor also admits `Remove Source.RegionName {
+within: { min: Point3(...); max: Point3(...) } }` for a proved isolated round
+through-hole. One move or removal per Model is qualified, along principal X/Y/Z
+axes. Source-derived `Source.RegionName.diameter`, `.depth`, `.center`, `.entry`,
+`.exit` and Point3 `.X`/`.Y`/`.Z` components bind inside these imported edit fields.
+They preserve the imported size and support planes while newly authored in-plane
+positions can use ordinary engineering precision. Slots and countersinks remain
+explicitly unsupported for editing; recognition never promotes a partial wall
+into a complete hole.
+
+See [imported through-hole revisions](imported-feature-recognition.md)
 for the executable CTC-01 source, numerical accuracy and rejection boundaries.
 Sheet Metal's named planar regions and FEA's `Region:` selection
 fields are domain-owned uses of the word, with separate types and admission

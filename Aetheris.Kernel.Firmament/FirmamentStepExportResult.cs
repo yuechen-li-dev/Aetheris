@@ -39,6 +39,7 @@ public sealed record FirmamentStepExportResult(
 {
     public string? DocumentName { get; init; }
     public FirmamentImportedHoleRevisionReport? ImportedHoleRevision { get; init; }
+    public FirmamentImportedHoleRemovalReport? ImportedHoleRemoval { get; init; }
     // Lowerer-owned receipts distinguish generated feature PMI from authored projections.
     [JsonIgnore] public IReadOnlyList<Aetheris.Kernel.Core.Step242.Step242SemanticPmi> GeneratedSemanticPmi { get; init; } = [];
     public IReadOnlyList<FirmamentV2.FirmamentGeometryAssertionResult> GeometryAssertions { get; init; } = [];

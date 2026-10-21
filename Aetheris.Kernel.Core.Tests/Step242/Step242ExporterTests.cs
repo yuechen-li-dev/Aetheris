@@ -318,15 +318,26 @@ END-ISO-10303-21;";
 
     [Fact]
     [Trait("Category", "SlowCorpus")]
-    public void ExportBody_Ctc02RoundTrip_PreservesPlanarFaceWithCircularBoundaryNearExpectedCenter()
+    public void ExportBody_Ctc02RoundTrip_ExcludesSeparatelyOwnedPlanarCircularSurfaces()
     {
         var source = Step242Corpus.Text("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp");
 
         var import = Step242Corpus.Import("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp");
         Assert.True(import.IsSuccess);
 
+        // These circular planar caps belong to independent Fill.1 / Split.1
+        // surface models, not the PartBody closed shell. The historical test
+        // accidentally required grafting those surfaces into the material solid.
+        var parsed = Step242SubsetParser.Parse(source).Value;
+        Assert.Equal(3148, Assert.Single(Step242SubsetDecoder.ReadReferenceList(parsed.TryGetEntity(1334, "OPEN_SHELL").Value, 1, "Fill.1").Value).TargetId);
+        Assert.Equal(3149, Assert.Single(Step242SubsetDecoder.ReadReferenceList(parsed.TryGetEntity(1335, "OPEN_SHELL").Value, 1, "Split.1").Value).TargetId);
+        var sourceCircle = Step242SubsetDecoder.ReadCircleCurve(parsed, parsed.TryGetEntity(4317, "CIRCLE").Value).Value;
+        Assert.Equal(42.5, sourceCircle.Radius, 6);
+        Assert.Equal(812, sourceCircle.Center.Y, 6); Assert.Equal(-140, sourceCircle.Center.Z, 6);
+        Assert.DoesNotContain(import.Value.Bindings.FaceBindings, f => f.SourceStepEntityId is 3148 or 3149);
+        Assert.Equal(635, import.Value.Topology.Faces.Count());
         var sourceFace = FindPlanarFaceWithCircle(import.Value, new Aetheris.Kernel.Core.Math.Point3D(0d, 812d, -140d), 42.5d);
-        Assert.True(sourceFace.HasValue);
+        Assert.False(sourceFace.HasValue);
 
         var export = Step242Exporter.ExportBody(import.Value);
         Assert.True(export.IsSuccess);
@@ -335,7 +346,8 @@ END-ISO-10303-21;";
         Assert.True(roundTrip.IsSuccess);
 
         var roundTripFace = FindPlanarFaceWithCircle(roundTrip.Value, new Aetheris.Kernel.Core.Math.Point3D(0d, 812d, -140d), 42.5d);
-        Assert.True(roundTripFace.HasValue);
+        Assert.False(roundTripFace.HasValue);
+        Assert.Equal(635, roundTrip.Value.Topology.Faces.Count());
     }
 
 

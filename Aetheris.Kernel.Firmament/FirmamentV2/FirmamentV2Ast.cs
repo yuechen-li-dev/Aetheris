@@ -7,6 +7,7 @@ public sealed record FirmamentV2Document(string ModelName, string Units, IReadOn
 {
     public IReadOnlyList<FirmamentV2DataSymbolBinding> DataBindings { get; init; } = [];
     public IReadOnlyList<FirmamentGeometryAssertion> GeometryAssertions { get; init; } = [];
+    public IReadOnlyList<FirmamentV2RemovalDecl> Removals { get; init; } = [];
     public FirmamentV2SolidBinding Solid => Solids[^1];
     public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r =>
     {
@@ -196,6 +197,8 @@ public sealed record FirmamentV2ReplacementDecl(string ImportedBodyName, string 
     public Aetheris.Kernel.Core.Brep.Features.ThroughHoleEditBounds? DestinationWithin { get; init; }
     public FirmamentV2SourceSpan? SourceSpan { get; init; }
 }
+public sealed record FirmamentV2RemovalDecl(string ImportedBodyName, string RecognizedRegionName,
+    Aetheris.Kernel.Core.Brep.Features.ThroughHoleEditBounds Within, FirmamentV2SourceSpan SourceSpan);
 
 public sealed record FirmamentV2ImportedStepFaceTarget(string BodySymbol, string EntityRef)
 {

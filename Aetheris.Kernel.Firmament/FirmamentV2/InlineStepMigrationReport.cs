@@ -12,7 +12,11 @@ public sealed record InlineStepMigrationReport(
     string EmissionStrategy,
     bool ResidualSurgery,
     IReadOnlyList<string> ReplacementStates,
-    IReadOnlyList<string> Diagnostics);
+    IReadOnlyList<string> Diagnostics)
+{
+    public InlineStepRemovalAccounting Removals { get; init; } = new(0, 0, 0, 0);
+}
+public sealed record InlineStepRemovalAccounting(int PlannedCount, int VerifiedCount, int EmittedCount, int RemovedFaceCount);
 
 public sealed record InlineStepOriginalTopologyAccounting(int FaceCount, int EdgeCount, int VertexCount);
 public sealed record InlineStepRecognizedAccounting(int RegionCount, int ReferencedFaceCount, int DuplicateReferencedFaceCount, int UnresolvedReferenceCount, int EvidenceCount = 0, int ProposalCount = 0, int ProposalVerifiedCount = 0, int ProposalUnverifiedCount = 0, int ProposalAssistReadyCount = 0, int ProposalAssistBlockedCount = 0);
@@ -94,7 +98,8 @@ public static class InlineStepMigrationReportBuilder
             emissionStrategy,
             residualSurgery,
             states,
-            diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+            diagnostics.Distinct(StringComparer.Ordinal).ToArray())
+        { Removals = new(document.Removals.Count(r => r.ImportedBodyName == solid.Name), 0, 0, 0) };
     }
 
     private static IEnumerable<string> BuildStates(int regionCount, int plannedCount, int verifiedCount, int emittedCount)

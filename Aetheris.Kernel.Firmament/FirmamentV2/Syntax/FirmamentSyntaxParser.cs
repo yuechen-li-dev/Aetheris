@@ -230,7 +230,7 @@ public static class FirmamentSyntaxParser
                 && !LineBreak && !IsClause(Current.Text)) headerUnit = Identifier();
             var hasParameterList = Take("(");
             var parameters = hasParameterList ? Arguments(")", declarationParameters: true) : [];
-            if (type.Name.Text == "Replace" && Take("."))
+            if ((type.Name.Text is "Replace" or "Remove") && Take("."))
             {
                 var member = Identifier();
                 name = new IdentifierSyntax(name!.Text + "." + member.Text, new(name.Span.Start, member.Span.Start + member.Span.Length - name.Span.Start));

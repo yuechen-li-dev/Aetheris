@@ -1,6 +1,6 @@
 # Bounded imported through-hole revisions
 
-Implemented production contract for one isolated round Z-axis through-hole move.
+Implemented production contract for one isolated round principal-axis (X/Y/Z) through-hole move or removal.
 The [authoring guide](../../public/firmament/imported-feature-recognition.md) and
 [golden fixture](../../../fixtures/Regression/InlineStep/production/ctc01-hole-move.firmament)
 are the executable surface; the [closeout](../../release/IMPORTED-HOLE-REVISION-PRODUCTION-2026-10-20.md)
@@ -9,7 +9,7 @@ records qualification. Original experiments remain historical evidence.
 ## Ownership
 
 The unified structural parser admits `InlineStep`, `Recognize`/`Region`, and
-`Replace ... with Hole<Shaft>`. `FirmamentV2ImportedEditingBinding` consumes their
+`Replace ... with Hole<Shaft>` and `Remove Source.Region`. `FirmamentV2ImportedEditingBinding` consumes their
 fields through the existing `FirmamentSyntaxFields` owner. Unknown fields and
 statements reject. There is no new whole-document parser or source rewrite.
 
@@ -38,7 +38,7 @@ subsequent semantic projections. Source file bytes remain untouched.
 
 `BrepThroughHoleRevision` proves a single closed oriented manifold, qualified
 trims, inward connected coaxial cylindrical walls, complete circular inner rims,
-two distinct Z-normal planar supports and full same-depth coverage. The selected
+two distinct axis-normal planar supports and full same-depth coverage. The selected
 set must equal the entire proved wall group. Axis/frame limitations reject rather
 than project onto XY. Authored confidence never overrides geometric proof.
 
@@ -143,3 +143,22 @@ boss. A single enclosing corridor rejects on the intervening boundaries. Residua
 geometry, topology identities and generated semantic PMI remain under the same
 production revision owner. This is agent assistance for the admitted family,
 not a general feature recognizer or geometry repair system.
+
+## FTC-09 extension
+
+The importer no longer grafts faces owned by another OPEN_SHELL/CLOSED_SHELL
+onto the selected solid through orphan-planar compatibility. Truly unowned
+supported planar faces retain the existing compatibility rule. FTC-09's #6064
+belongs to an auxiliary open surface model, not #6014's closed material shell.
+
+Principal-axis editing projects only the local radial displacement. It does not
+rotate the whole import or rebuild residual geometry. Source measurement AST
+binding occurs in `ImportedHoleMeasurements` at the imported edit field owner,
+against the complete pinned recognized group. It creates typed quantities/Point3
+nodes with the expression span; it adds no source rewrite or global evaluator.
+
+Remove shares recognition, stock-envelope proof, suppression and qualification
+with Replace. Its face correspondence omits retired walls. It has separate
+removal accounting, no generated hole PMI, and rejects explicit successor PMI
+until annotation rebinding is qualified. No general Remove-body or arbitrary
+surface surgery is implied. See the FTC-09 release report for current evidence.

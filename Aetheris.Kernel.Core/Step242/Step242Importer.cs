@@ -789,6 +789,14 @@ public static class Step242Importer
     private static void AppendSupportedOrphanPlanarFaces(Step242ParsedDocument document, IList<int> faceEntityIds)
     {
         var known = new HashSet<int>(faceEntityIds);
+        // An auxiliary OPEN_SHELL (often a datum/annotation surface model) owns
+        // its faces independently. Such faces are not orphans of the selected
+        // solid and must never be appended to its closed material shell.
+        foreach (var shell in document.Entities.Where(e => e.Name is "OPEN_SHELL" or "CLOSED_SHELL"))
+        {
+            var faces = Step242SubsetDecoder.ReadReferenceList(shell, 1, "auxiliary shell faces");
+            if (faces.IsSuccess) known.UnionWith(faces.Value.Select(r => r.TargetId));
+        }
 
         foreach (var entity in document.Entities)
         {

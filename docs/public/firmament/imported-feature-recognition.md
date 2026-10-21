@@ -1,8 +1,8 @@
 # Imported through-hole revisions
 
-Firmament can replace one isolated round through-hole in a pinned imported STEP
-body, retaining the actual residual BRep. The first admitted operation moves the
-hole without changing its diameter or depth. It does not reverse-engineer the
+Firmament can move or remove one isolated round through-hole in a pinned imported STEP
+body, retaining the actual residual BRep. A move retains the
+hole diameter and depth; removal fills its proved material column. It does not reverse-engineer the
 whole part or reconstruct stock from a guessed HostSize.
 
 The executable golden source is
@@ -81,9 +81,11 @@ aetheris validate artifacts/local/imported-features/revision.firmament --json
 aetheris build artifacts/local/imported-features/revision.firmament --output artifacts/local/imported-features/revised.step --json
 ```
 
-`--offset dx dy` uses imported-body XY coordinates from the proved upper opening;
+`--offset du dv` uses the radial coordinates of the proved upper opening:
+YZ for X-axis holes, XZ for Y-axis holes, and XY for Z-axis holes;
 `--to x y z` supplies an absolute Point3 instead. All numbers are millimetres.
-Exactly one placement mode is required. `--clearance` defaults to .1 mm and must
+Use `--remove` instead of either placement mode to fill the selected hole.
+Exactly one of `--offset`, `--to`, or `--remove` is required. `--clearance` defaults to .1 mm and must
 exceed import uncertainty. The plan qualifies its generated source through normal
 build admission before committing outputs; a refused plan leaves no new source file.
 
@@ -110,29 +112,33 @@ and review a changed STEP in a new revision/project; a lock update cannot rebind
 surgery selections. The SDK source-only `PlanMove` result retains its explicit
 `textSha256` pin for compatibility and immutable resource planning.
 
-Generated geometry dimensions and coordinates use a **0.1 mm authoring grid**:
-nearest tenth for nominal lengths and positions, midpoint ties away from zero.
-Safety bounds and radial padding round outward. For example, imported arithmetic
-noise `24.9999999999998mm` becomes authored `25mm`, and `45.0000000000001mm`
-becomes `45mm`. This changes the authored nominal geometry and replacement PMI,
-not merely their display formatting. The JSON plan records
-`authoringIncrementMillimetres: 0.1`.
+New in-plane positions use a **0.1 mm authoring grid**, midpoint ties away
+from zero. Safety bounds round outward. Imported diameters and support stations
+remain source-derived: a 6.35 mm hole stays 6.35 mm, and a plate thickness does
+not move to a different plane merely to remove floating-point noise from source.
+Generated source uses `Source.MountHole.diameter`, `.entry.Y`, `.exit.Y`, and
+`.center.Y` for FTC-09, whose thickness runs along Y. The plan records
+`authoringIncrementMillimetres: 0.1` for newly authored move coordinates.
 
-The numerical `importTolerance` budget keeps its own precision (`0.01mm` in this
-fixture); rounding it to zero or widening it would change import admission.
-The emitted, rounded source must still build. Genuine resizing or moving off the
-proved support plane remains subject to the current capability checks. The grid
-does not invent a manufacturing tolerance annotation or modify retained STEP
-geometry. Explicit `tol` requirements remain the source of manufacturing limits.
+Inside imported `Replace` and `Remove` field expressions, a proved named region
+exposes `diameter`, `depth` (Length), `center`, `entry`, `exit` (Point3), and their
+`.X`, `.Y`, `.Z` components (Length). Entry is the maximum principal-axis station;
+exit is the minimum. These facts bind directly through the unified AST against
+the pinned source. They are currently local to these imported edit fields;
+arbitrary Static/Concept expressions cannot yet consume them. Unknown facts reject.
 
-The destination is a named `Concept Struct` Point3; destination bounds reference
+The numerical `importTolerance` keeps its own precision. It is distinct from
+manufacturing tolerance; the authoring grid creates no `tol` requirement and does
+not round retained STEP geometry. A requested resize or off-plane move rejects.
+
+The CTC-01 generator retains its named `Concept Struct` Point3; destination bounds reference
 its `.X` and `.Y` components. Editing that one point moves the requested hole and
 reruns clearance checks without duplicating coordinates. The executable
 [recovered fixture](../../../fixtures/Regression/InlineStep/production/ctc01-recovered-hole-move.firmament)
 moves the hole across the central boss to (130,45) mm without editing the boss.
 
 The .NET SDK exposes the same path through `FirmamentImportedFeatures.Inspect`
-and `PlanMove`. Snapshot planning uses the immutable inspected resource text;
+and `PlanMove`/`PlanRemove`. Snapshot planning uses the immutable inspected resource text;
 file-backed planning rechecks the pin through the ordinary loader. Explicit
 geometry-only approval remains required in both paths.
 
@@ -187,10 +193,10 @@ vendor's original dimensions, datums or GD&T.
 
 ## Admission and reports
 
-The current family is one isolated round Z-axis through-hole, unchanged diameter
+The current family is one isolated round principal-axis (X, Y or Z) through-hole, unchanged diameter
 and depth, between two parallel planar supports in one qualified closed oriented
 body. Blind, intersecting, breakout, threaded, blended-entry, counterbore,
-countersink and non-Z-axis revisions reject. Unknown fields and placements reject.
+countersink, slot and oblique-axis revisions reject. Unknown fields and placements reject.
 No arbitrary-body Boolean fallback or general healing is performed. An unedited
 pinned body can be re-exported through the qualified import owner; a pin does not
 imply a replacement operation. Additional Modify operations still reject rather
@@ -206,6 +212,43 @@ CLI build JSON exposes `importedHoleRevision`, including strategy, import accura
 annotation exclusion, retired/new walls, preserved entity counts and correspondence.
 `inlineStepMigration.residualSurgery` is true for this operation. Syntax diagnostics
 and kernel admission failures retain source context.
+
+## FTC-09 move and removal
+
+FTC-09 is a qualified XZ plate at the default 0.001 mm numerical budget.
+Inspection finds 25 admitted round through-holes among 59 cylindrical groups;
+partial slot walls, countersinks, stepped holes and breakouts remain unsupported.
+Separate surface-model faces are not material in the selected closed solid.
+
+```shell
+aetheris imported-features inspect ftc09.stp --json
+aetheris imported-features plan ftc09.stp --candidate "through-hole:step-1255+1282" --as MountHole --offset 15.09 0.05 --geometry-only --source-out move/revision.firmament --json
+aetheris imported-features plan ftc09.stp --candidate "through-hole:step-1255+1282" --as MountHole --remove --geometry-only --source-out remove/revision.firmament --json
+```
+
+The first moves the 6.35 mm hole to X=-70, Z=19.1 mm while preserving its Y
+support station. The second independently fills that original hole:
+
+```firmament
+Remove Source.MountHole {
+    within: {
+        min: Point3(-88.4mm, Source.MountHole.exit.Y, 15.7mm)
+        max: Point3(-81.8mm, Source.MountHole.entry.Y, 22.4mm)
+    }
+}
+```
+
+Use the tracked [move](../../../fixtures/Regression/InlineStep/production/ftc09-round-move.firmament)
+and [removal](../../../fixtures/Regression/InlineStep/production/ftc09-round-remove.firmament)
+fixtures for complete runnable sources. Each Model admits exactly one move **or**
+removal; batching/chaining edits is not yet qualified. Removal suppresses the void
+walls and the two support inner loops; no guessed caps or stock reconstruction
+are involved. Surviving topology retains identity. Retired faces have no successor
+mapping. Build JSON exposes `importedHoleRemoval` and `inlineStepMigration.removals`
+with actual retired walls and preserved counts. Removal creates no hole PMI.
+Explicit authored PMI on a removal Model currently rejects pending successor
+annotation rebinding; original vendor PMI is excluded only by explicit
+`geometryOnly: true`, just as for moves.
 
 ## Historical compatibility
 

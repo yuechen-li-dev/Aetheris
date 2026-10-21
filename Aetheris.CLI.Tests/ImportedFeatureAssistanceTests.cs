@@ -68,4 +68,38 @@ public sealed class ImportedFeatureAssistanceTests
         Assert.Contains("firmament-lock-rebind-required",stdout.ToString());
         Assert.Equal(receipt,File.ReadAllText(lockPath));
     }
+    [Theory] [InlineData(false)] [InlineData(true)]
+    public void Ftc09_PrincipalYHole_PlanAndLockedBuildAgree(bool remove)
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "Aetheris.slnx"))) root = root.Parent;
+        var input = Path.Combine(root!.FullName, "testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp");
+        var directory = Path.Combine(root.FullName, "artifacts/local/ftc09-direct-edit/tests", Guid.NewGuid().ToString("N"));
+        var source = Path.Combine(directory, "revision.firmament");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var args = new List<string> { "imported-features", "plan", input, "--candidate", "through-hole:step-1255+1282", "--as", "MountHole",
+            "--geometry-only", "--source-out", source, "--json" };
+        args.AddRange(remove ? new[]{"--remove"} : new[]{"--offset", "15.09", "0.05"});
+        Assert.Equal(0, CliRunner.Run(args.ToArray(), stdout, stderr));
+        using var plan = JsonDocument.Parse(stdout.ToString());
+        Assert.Equal("Built", plan.RootElement.GetProperty("plan").GetProperty("admission").GetString());
+        var authored = File.ReadAllText(source);
+        Assert.DoesNotContain("textSha256", authored);
+        Assert.DoesNotContain("999999", authored);
+        Assert.Contains("Source.MountHole.exit.Y", authored);
+        if (!remove) Assert.Contains("diameter: Source.MountHole.diameter", authored);
+        Assert.True(File.Exists(Path.Combine(directory,"firmament.lock.toml")));
+        stdout.GetStringBuilder().Clear();
+        Assert.Equal(0, CliRunner.Run(["validate", source, "--locked", "--json"], stdout, stderr));
+        using var validation = JsonDocument.Parse(stdout.ToString());
+        Assert.Equal("Built", validation.RootElement.GetProperty("firmamentV2Validation").GetProperty("validationLevel").GetString());
+        stdout.GetStringBuilder().Clear();
+        Assert.Equal(0, CliRunner.Run(["build", source, "--locked", "--output", Path.Combine(directory,"revision.step"), "--json"], stdout, stderr));
+        using var build = JsonDocument.Parse(stdout.ToString());
+        Assert.Equal(1, build.RootElement.GetProperty("featureCount").GetInt32());
+        var report = build.RootElement.GetProperty(remove ? "importedHoleRemoval" : "importedHoleRevision");
+        Assert.Equal(156, report.GetProperty("preservedFaces").GetInt32());
+        Assert.Equal(6.35, report.GetProperty("diameter").GetDouble(), 8);
+        Assert.Empty(stderr.ToString());
+    }
 }

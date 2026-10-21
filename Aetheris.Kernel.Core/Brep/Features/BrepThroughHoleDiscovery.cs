@@ -12,6 +12,7 @@ public sealed record ThroughHoleCandidate(string Id, bool Recognized, bool CanPl
     Point3D AxisOrigin, Vector3D Axis, double Diameter, Point3D? Center,
     double? Depth, int? EntryFace, int? ExitFace, IReadOnlyList<string> Diagnostics)
 {
+    public int? AxisIndex { get; init; }
     public string Kind => Recognized ? "RoundThroughHole" : "CylindricalGroup";
     public string Status => !Recognized ? "UnsupportedFamily" : CanPlan ? "Recognized" : "BlockedByImportQualification";
 }
@@ -21,6 +22,7 @@ public sealed record ThroughHoleDiscovery(bool Qualified, double ImportTolerance
 
 public sealed record ThroughHoleMovePlan(ThroughHoleRevisionRequest Request,
     ThroughHoleRevisionResult Revision);
+public sealed record ThroughHoleRemovalPlan(ThroughHoleRemovalRequest Request, ThroughHoleRemovalResult Removal);
 
 public static partial class BrepThroughHoleRevision
 {
@@ -52,12 +54,13 @@ public static partial class BrepThroughHoleRevision
             var reasons = new List<string>(diagnostics);
             try { region = Recognize(source, face.Id); }
             catch (Exception error) when (IsRecognitionFailure(error)) { reasons.Add(error.Message); }
-            var entry = region?.Openings.MaxBy(o => Surface(source, o.Face.Id).Plane!.Value.Origin.Z).Face;
-            var exit = region?.Openings.MinBy(o => Surface(source, o.Face.Id).Plane!.Value.Origin.Z).Face;
+            var entry = region?.Openings.MaxBy(o => Coordinate(Surface(source, o.Face.Id).Plane!.Value.Origin, region!.Axis)).Face;
+            var exit = region?.Openings.MinBy(o => Coordinate(Surface(source, o.Face.Id).Plane!.Value.Origin, region!.Axis)).Face;
             candidates.Add(new(id, region is not null, qualified && region is not null, ids, entities,
                 cylinder.Origin, cylinder.Axis.ToVector(), 2 * cylinder.Radius,
-                region is null ? null : new(cylinder.Origin.X, cylinder.Origin.Y, region.HighZ),
-                region is null ? null : region.HighZ - region.LowZ, entry?.Id.Value, exit?.Id.Value, reasons));
+                region is null ? null : WithCoordinate(cylinder.Origin, region.Axis, region.High),
+                region is null ? null : region.High - region.Low, entry?.Id.Value, exit?.Id.Value, reasons)
+            { AxisIndex = region?.Axis });
         }
         return new(qualified, importToleranceMillimetres, candidates, diagnostics);
     }
@@ -78,7 +81,7 @@ public static partial class BrepThroughHoleRevision
         ThroughHoleEditBounds BoundsAt(Point3D center)
         {
             var r = candidate.Diameter / 2 + clearanceMillimetres;
-            return new(new(center.X - r, center.Y - r, region.LowZ), new(center.X + r, center.Y + r, region.HighZ));
+            return new(WithCoordinate(center - new Vector3D(r, r, r), region.Axis, region.Low), WithCoordinate(center + new Vector3D(r, r, r), region.Axis, region.High));
         }
         var request = new ThroughHoleRevisionRequest(featureId, candidate.WallFaces.Select(id => new FaceId(id)).ToArray(),
             new(candidate.EntryFace!.Value), destination, candidate.Diameter, BoundsAt(candidate.Center!.Value), importToleranceMillimetres)
@@ -89,6 +92,23 @@ public static partial class BrepThroughHoleRevision
     }
 
     static bool IsRecognitionFailure(Exception error) => error is ArgumentException or InvalidOperationException or KeyNotFoundException or NotSupportedException;
+    public static KernelResult<ThroughHoleRemovalPlan> PlanRemove(BrepBody source, string candidateId, string featureId,
+        double importToleranceMillimetres = .001, double clearanceMillimetres = .1)
+    {
+        if (!double.IsFinite(clearanceMillimetres) || clearanceMillimetres <= System.Math.Max(Tol, importToleranceMillimetres))
+            return KernelResult<ThroughHoleRemovalPlan>.Failure([new(KernelDiagnosticCode.ValidationFailed,KernelDiagnosticSeverity.Error,
+                "firmament-imported-hole-plan-rejected: Clearance must exceed numerical import uncertainty.","Brep.ThroughHoleRevision")]);
+        var candidate = Discover(source, importToleranceMillimetres).Candidates.SingleOrDefault(c => c.Id == candidateId);
+        if (candidate?.CanPlan != true) return KernelResult<ThroughHoleRemovalPlan>.Failure([new(KernelDiagnosticCode.ValidationFailed,KernelDiagnosticSeverity.Error,
+            "firmament-imported-hole-plan-rejected: " + (candidate is null?"Candidate does not exist in this pinned source.":string.Join(" | ",candidate.Diagnostics)),"Brep.ThroughHoleRevision")]);
+        var region = Recognize(source, new(candidate.WallFaces[0])); var center = candidate.Center!.Value;
+        var r = candidate.Diameter / 2 + clearanceMillimetres;
+        var bounds = new ThroughHoleEditBounds(WithCoordinate(center - new Vector3D(r, r, r), region.Axis, region.Low), WithCoordinate(center + new Vector3D(r, r, r), region.Axis, region.High));
+        var request = new ThroughHoleRemovalRequest(featureId, candidate.WallFaces.Select(f => new FaceId(f)).ToArray(), bounds, importToleranceMillimetres);
+        var result = Remove(source, request);
+        return result.IsSuccess ? KernelResult<ThroughHoleRemovalPlan>.Success(new(request, result.Value), result.Diagnostics)
+            : KernelResult<ThroughHoleRemovalPlan>.Failure(result.Diagnostics);
+    }
     static KernelResult<ThroughHoleMovePlan> PlanFailure(string reason) => KernelResult<ThroughHoleMovePlan>.Failure([
         new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
             "firmament-imported-hole-plan-rejected: " + reason, "Brep.ThroughHoleRevision")]);

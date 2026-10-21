@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Brep.Features;
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Import;
 using Aetheris.Kernel.Core.Results;
@@ -26,12 +27,14 @@ public static partial class FirmamentBuildAndExport
         if (document.Solids.Count != 1 || document.ModifyBlocks is { Count: > 0 }
             || document.Panels is { Count: > 0 } || document.LatticeFills is { Count: > 0 }
             || document.StandaloneLatticeFills is { Count: > 0 } || document.Threads is { Count: > 0 }
-            || document.Replacements is not { Count: 1 } || document.Replacements[0].Within is null)
+            || (document.Replacements?.Count ?? 0) + document.Removals.Count != 1
+            || document.Replacements is { Count: 1 } && document.Replacements[0].Within is null)
             return KernelResult<FirmamentStepExportResult>.Failure([new(KernelDiagnosticCode.ValidationFailed,
                 KernelDiagnosticSeverity.Error,
-                "firmament-inline-step-revision-required: Pinned imports currently admit one bounded Replace with a within envelope and no additional Modify operations. No imported geometry was emitted.", "FirmamentV2.InlineStep")
+                "firmament-inline-step-revision-required: Pinned imports admit one bounded Replace or Remove with a within envelope and no additional Modify operations. No imported geometry was emitted.", "FirmamentV2.InlineStep")
                 { SourceSpan = solid.SourceSpan is { } span ? new(span.Start, span.Length) : null }]);
-        return ExportImportedHoleRevision(document, solid, document.Replacements[0]);
+        return document.Removals.Count == 1 ? ExportImportedHoleRemoval(document, solid, document.Removals[0])
+            : ExportImportedHoleRevision(document, solid, document.Replacements![0]);
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportImportedHoleRevision(FirmamentV2Document document,
@@ -67,12 +70,7 @@ public static partial class FirmamentBuildAndExport
             SourceSpan = replacement.SourceSpan is { } span ? new(span.Start, span.Length) : null
         }));
         var revised = edit.Value;
-        if (region.Evidence is { } evidence && (
-            evidence.Radius is { } radius && System.Math.Abs(radius * 2 - revised.Diameter) > 1e-6 || evidence.Through == false
-            || evidence.SurfaceFamilies.Any(f => f != "cylindrical")
-            || evidence.Axis is { } axis && axis is not ("Z" or "+Z" or "-Z")
-            || evidence.Center is { } oldCenter && selected.Any(id => !body.TryGetFaceSurfaceGeometry(id!.Value, out var s) || s?.Cylinder is not { } c
-                || System.Math.Abs(c.Origin.X - oldCenter.U) > 1e-6 || System.Math.Abs(c.Origin.Y - oldCenter.V) > 1e-6)))
+        if (!ImportedHoleEvidenceAgrees(region,body,selected.Select(id=>id!.Value),revised.Diameter))
             return Failure("firmament-imported-hole-evidence-mismatch: Authored evidence disagrees with the proved through-hole geometry.");
         var pmiAdmission = ValidateV2PmiExportSupport(document);
         if (!pmiAdmission.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(pmiAdmission.Diagnostics);
@@ -121,5 +119,30 @@ public static partial class FirmamentBuildAndExport
                 revised.RetiredWallFaces.Select(id => id.Value).ToArray(), revised.WallFaces.Select(id => id.Value).ToArray(), revised.EntryFace.Value, revised.ExitFace.Value,
                 revised.Diameter, revised.Depth, revised.Within, revised.PreservedFaces, revised.PreservedEdges, revised.FaceCorrespondence.ToDictionary(p => p.Key.Value, p => p.Value.Value)) { DestinationWithin = revised.DestinationWithin }
         }, warnings);
+    }
+
+    static bool ImportedHoleEvidenceAgrees(FirmamentV2RecognizedRegion region, BrepBody body,
+        IEnumerable<FaceId> selected, double diameter)
+    {
+        if (region.Evidence is not {} evidence) return true;
+        if (evidence.Radius is {} r && System.Math.Abs(r * 2 - diameter) > 1e-6 || evidence.Through == false
+            || evidence.SurfaceFamilies.Any(f => f != "cylindrical")) return false;
+        foreach (var id in selected)
+        {
+            if (body.GetFaceSurface(id).Cylinder is not {} cylinder) return false;
+            var axis = System.Math.Abs(cylinder.Axis.X) > .99 ? 0 : System.Math.Abs(cylinder.Axis.Y) > .99 ? 1 : 2;
+            if (evidence.Axis is {} word && word.TrimStart('+', '-').ToUpperInvariant() != new[]{"X", "Y", "Z"}[axis]) return false;
+            if (evidence.Center is {} point)
+            {
+                var radial = axis switch
+                {
+                    0 => new[]{cylinder.Origin.Y, cylinder.Origin.Z},
+                    1 => new[]{cylinder.Origin.X, cylinder.Origin.Z},
+                    _ => new[]{cylinder.Origin.X, cylinder.Origin.Y}
+                };
+                if (System.Math.Abs(radial[0] - point.U) > 1e-6 || System.Math.Abs(radial[1] - point.V) > 1e-6) return false;
+            }
+        }
+        return true;
     }
 }

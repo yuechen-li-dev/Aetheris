@@ -206,6 +206,7 @@ public static partial class FirmamentV2Parser
         var bodyText = source.Substring(model.Body.Span.Start + 1, model.Body.Span.Length - 2);
         var recognized = BindImportedRegions(declarations, solids, diagnostics, CaptureFieldDiagnostics);
         var replacements = BindImportedReplacements(declarations, solids, recognized, diagnostics, source, CaptureFieldDiagnostics);
+        var removals = BindImportedRemovals(declarations, solids, recognized, diagnostics, CaptureFieldDiagnostics);
         var selections = ParseCanonicalSelections(bodyText, model.Body.Span.Start + 1, diagnostics);
         ValidateCanonicalSelectionSources(bodyText, selections, [], diagnostics);
         var (pmi, pmiBlock, boundPmi) = ParsePmi(source, solids, modifies, recognized, staticValues.Values, [], diagnostics);
@@ -216,7 +217,7 @@ public static partial class FirmamentV2Parser
         return FirmamentV2ParseResult.Success(new(model.Name!.Text, "mm", solids.Values.ToArray(), modifies,
             Pmi: pmi, RecognizedRegions: recognized, Replacements: replacements, PmiBlock: pmiBlock, BoundPmi: boundPmi, Selections: selections,
             Lets: staticValues.Declarations, BoundLets: staticValues.Values,
-            TemplateInstantiations: templateInstantiations is { Count: > 0 } ? templateInstantiations : null),
+            TemplateInstantiations: templateInstantiations is { Count: > 0 } ? templateInstantiations : null) { Removals = removals },
             diagnostics.Append("firmament-v2-unified-canonical-parsed").Append("firmament-v2-parse-succeeded").Distinct(StringComparer.Ordinal).Order().ToArray())
             with { SyntaxDiagnostics = locatedDiagnostics };
     }
@@ -576,7 +577,7 @@ public static partial class FirmamentV2Parser
                 case "Box" or "Cylinder" or "Cone" or "Sphere" or "Ellipsoid" or "Polyhedron" or "Torus" or "RoundedBox" or "Frustum" or "StandardPart" or "ExactCoaxialPart":
                 case "Plane" or "Axis" or "Axis2" or "Point2" or "Line2" or "CubicBezier2" or "Rect2" or "Square2" or "Triangle2" or "Polygon2" or "RegularPolygon2" or "Circle2" or "Ellipse2" or "Ellipse2Guide" or "Slot2" or "RoundedRect2" or "SmoothRoundedRect2" or "Path":
                 case "Plateau" or "Concept" or "Struct" or "Profile" or "Span" or "Compose" or "Boss" or "Pocket" or "AddOffset" or "RemoveOffset" or "EdgeFinish" or "Extrude":
-                case "Enum" or "Expose" or "Record" or "Template" or "template" or "Feature" or "Pattern" or "ProfileDelta" or "Selection" or "InlineStep" or "Recognize" or "Replace" or "Pmi" or "Modify" or "Match" or "Require" or "Assert" or "Thread":
+                case "Enum" or "Expose" or "Record" or "Template" or "template" or "Feature" or "Pattern" or "ProfileDelta" or "Selection" or "InlineStep" or "Recognize" or "Replace" or "Remove" or "Pmi" or "Modify" or "Match" or "Require" or "Assert" or "Thread":
                     break;
                 case "Solid": diagnostics.Add(CanonicalConstructNotYetSupported + ":Solid"); break;
                 default: diagnostics.Add(CanonicalDeclarationUnrecognized); diagnostics.Add($"{CanonicalDeclarationUnknown}:{declaration.Type.Name.Text}"); break;

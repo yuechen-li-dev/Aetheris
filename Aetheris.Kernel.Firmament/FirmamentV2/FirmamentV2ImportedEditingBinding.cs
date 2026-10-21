@@ -154,7 +154,8 @@ public static partial class FirmamentV2Parser
                 if (kind != region.Kind) diagnostics.Add(ReplacementKindMismatch);
                 var name = (declaration.Initializer as ReferenceSyntax)?.Name.Text;
                 if (name is null) { diagnostics.Add(CanonicalDeclarationUnrecognized); continue; }
-                var fields = new FirmamentSyntaxFields(declaration with { ResultType = null, Initializer = null }, diagnostics);
+                var measurements = new ImportedHoleMeasurements(solid, region, diagnostics);
+                var fields = new FirmamentSyntaxFields(declaration with { ResultType = null, Initializer = null }, diagnostics, bind: measurements.Expression);
                 var placement = fields.Take("On");
                 string? faceEntity = null;
                 if (placement is CallSyntax { Target: MemberSyntax { Target: ReferenceSyntax owner, Member.Text: "Face" or "face" } member, Arguments.Count: 1 } call && owner.Name.Text == solid.Name
@@ -205,6 +206,39 @@ public static partial class FirmamentV2Parser
                 { WorldCenter = world, Within = within, DestinationWithin = destinationWithin, SourceSpan = declaration.Span });
             }
             finally { capture(declaration, diagnosticStart); }
+        }
+        return result;
+    }
+
+    private static IReadOnlyList<FirmamentV2RemovalDecl> BindImportedRemovals(IEnumerable<DeclarationSyntax> declarations,
+        Dictionary<string,FirmamentV2SolidBinding> solids, IReadOnlyList<FirmamentV2RecognizedRegion> regions,
+        List<string> diagnostics, Action<DeclarationSyntax,int> capture)
+    {
+        var result = new List<FirmamentV2RemovalDecl>();
+        foreach (var declaration in declarations.Where(d => d.Type.Name.Text == "Remove"))
+        {
+            var start = diagnostics.Count;
+            try
+            {
+                var target = declaration.Name?.Text.Split('.') ?? [];
+                if (target.Length != 2 || !solids.TryGetValue(target[0],out var solid) || solid.InlineStep is null)
+                { diagnostics.Add(UnknownReplacementBody); continue; }
+                var region = regions.SingleOrDefault(r => r.BodyName == target[0] && r.RegionName == target[1]);
+                if (region is null) { diagnostics.Add(UnknownReplacementRegion); continue; }
+                if (region.Kind != "holeShaft") diagnostics.Add("firmament-imported-hole-removal-kind-unsupported: Remove currently requires a proved HoleShaft region.");
+                if (solid.InlineStep.SourceHashPin is null) diagnostics.Add("firmament-inline-step-source-pin-required: Remove requires a pinned STEP source.");
+                var fields = new FirmamentSyntaxFields(declaration,diagnostics,bind: new ImportedHoleMeasurements(solid,region,diagnostics).Expression);
+                if (fields.Take("Within") is ObjectSyntax obj)
+                {
+                    var bounds = ImportedObject(obj,"EditBounds",diagnostics);
+                    var min = Point(bounds.Take("Min")); var max = Point(bounds.Take("Max")); bounds.Complete();
+                    if (min is not null && max is not null) result.Add(new(solid.Name,target[1],new(min.Value,max.Value),declaration.Span));
+                    else fields.Invalid("Within");
+                }
+                else fields.Invalid("Within");
+                fields.Complete();
+            }
+            finally { capture(declaration,start); }
         }
         return result;
     }

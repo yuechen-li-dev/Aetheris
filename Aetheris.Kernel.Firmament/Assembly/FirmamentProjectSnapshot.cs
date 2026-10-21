@@ -22,7 +22,7 @@ public sealed class FirmamentProjectSnapshot
             var key = NormalizePath(path);
             if (!key.EndsWith(".firmasm", StringComparison.OrdinalIgnoreCase) &&
                 !key.EndsWith(".firmament", StringComparison.OrdinalIgnoreCase) &&
-                !IsStepAsset(key))
+                !IsStepAsset(key) && !IsLockAsset(key))
                 throw new ArgumentException($"Unsupported project document kind: '{key}'.", nameof(documents));
             if (!normalized.TryAdd(key, source ?? throw new ArgumentException($"Null source for '{key}'.", nameof(documents))))
                 throw new ArgumentException($"Duplicate normalized project path: '{key}'.", nameof(documents));
@@ -53,5 +53,6 @@ public sealed class FirmamentProjectSnapshot
     public bool TryResolve(string path, out string source) => documents.TryGetValue(NormalizePath(path), out source!);
 
     public static bool IsStepAsset(string path) => path.EndsWith(".step", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".stp", StringComparison.OrdinalIgnoreCase);
-    public IEnumerable<KeyValuePair<string, string>> SourceDocuments => documents.Where(d => !IsStepAsset(d.Key));
+    public static bool IsLockAsset(string path) => Path.GetFileName(path).Equals("firmament.lock.toml", StringComparison.Ordinal);
+    public IEnumerable<KeyValuePair<string, string>> SourceDocuments => documents.Where(d => !IsStepAsset(d.Key) && !IsLockAsset(d.Key));
 }

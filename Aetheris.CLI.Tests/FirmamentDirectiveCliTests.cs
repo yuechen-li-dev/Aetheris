@@ -5,7 +5,7 @@ namespace Aetheris.CLI.Tests;
 public sealed class FirmamentDirectiveCliTests
 {
     [Theory]
-    [InlineData("ignored-include", "firmament-v2-directive-unconsumed")]
+    [InlineData("ignored-include", "assembly-include-file-not-found")]
     [InlineData("malformed-include", "firmament-v2-directive-malformed")]
     [InlineData("schema-inline-unknown", "firmament-schema-unknown")]
     [InlineData("schema-comment-unknown", "firmament-schema-unknown")]

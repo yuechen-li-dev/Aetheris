@@ -134,9 +134,9 @@ public static class CliRunner
         string? Classification = null,
         int? RigidRootCount = null);
     private const string TopLevelUsage = "Usage: aetheris <command> [options]";
-    private const string BuildUsage = "Usage: aetheris build <file.firmament|file.firmasm> [--output <path>] [--json]";
+    private const string BuildUsage = "Usage: aetheris build <file.firmament|file.firmasm> [--output <path>] [--locked] [--json]";
     private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.firmasm|file.step> [--format stl|obj|glb|assembly-json] [--output <path>] [--debug-ir <path>] [--json] (glb: MeshState sources)";
-    private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--parse-only] [--explain] [--shadow [--ast]] [--json]";
+    private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--locked] [--forge-pack <path>] [--parse-only] [--explain] [--shadow [--ast]] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
     private const string InspectSpansUsage = "Usage: aetheris inspect-spans <file.firmament> --json";
     private const string InspectComposeUsage = "Usage: aetheris inspect-compose <file.firmament> --json [--materialize]";
@@ -220,6 +220,8 @@ public static class CliRunner
                 "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
                 "frontend-shadow" => FrontendShadowCommand.Run(args.Skip(1).ToArray(), stdout, stderr),
                 "format" => RunFormat(args.Skip(1).ToArray(), stdout, stderr),
+                "imported-features" => ImportedFeaturesCommand.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
+                "lock" => DependencyLockCommand.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 "inspect" => RunInspect(args.Skip(1).ToArray(), stdout, stderr),
                 "measure" => FirmamentMeasureCommand.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 "inspect-3dm" => ThreeDmCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
@@ -462,6 +464,7 @@ public static class CliRunner
         var sourcePath = args[0];
         string? outPath = null;
         var json = false;
+        var locked = false;
 
         for (var i = 1; i < args.Length; i++)
         {
@@ -479,6 +482,9 @@ public static class CliRunner
                 case "--json":
                     json = true;
                     break;
+                case "--locked":
+                    locked = true;
+                    break;
                 case "-h":
                 case "--help":
                     WriteBuildHelp(stdout);
@@ -492,6 +498,7 @@ public static class CliRunner
 
         if (File.Exists(sourcePath))
         {
+            if (!DependencyLockCommand.Verify(sourcePath, locked, json, stdout, stderr, JsonOptions, "build")) return 1;
             var source = File.ReadAllText(sourcePath);
             var frontend = FirmamentFrontendSchemas.Select(source);
             if (!frontend.IsSuccess) return WriteFrontendRejection(frontend, source, sourcePath, "build", json, stdout, stderr);
@@ -2395,6 +2402,7 @@ Model CanonicalPanel {
         var json = false;
         var explain = false;
         var parseOnly = false;
+        var locked = false;
         var shadow = false;
         var shadowAst = false;
         var forgePackPaths = new List<string>();
@@ -2421,6 +2429,9 @@ Model CanonicalPanel {
                 case "--parse-only":
                     parseOnly = true;
                     break;
+                case "--locked":
+                    locked = true;
+                    break;
                 case "--json":
                     json = true;
                     break;
@@ -2442,6 +2453,7 @@ Model CanonicalPanel {
         }
 
         if (shadowAst && !shadow) { stderr.WriteLine("--ast requires --shadow."); return 1; }
+        if (!DependencyLockCommand.Verify(sourcePath, locked, json, stdout, stderr, JsonOptions, "validate")) return 1;
         if (shadow)
         {
             if (forgePackPaths.Count > 0 || parseOnly) { stderr.WriteLine("--shadow uses normal production validation; --forge-pack/--parse-only are not supported together with it."); return 1; }
@@ -5329,6 +5341,8 @@ Model CanonicalPanel {
         stdout.WriteLine("  build      Compile Firmament to exact STEP AP242.");
         stdout.WriteLine("  mesh       Export a supported exact B-rep as STL or topology-preserving OBJ.");
         stdout.WriteLine("  view       Build/open a model in Cadmata.");
+        stdout.WriteLine("  imported-features Discover proved imported-hole candidates and build named revision plans.");
+        stdout.WriteLine("  lock          Generate or explicitly update firmament.lock.toml dependency receipts.");
         stdout.WriteLine("  inspect    Inspect Firmament semantics or STEP topology.");
         stdout.WriteLine("  measure    Measure a compiled part and print assertion templates without claiming its assertions passed.");
         stdout.WriteLine("  inspect-3dm Inventory local Rhino 3DM geometry and import blockers.");
@@ -5393,6 +5407,7 @@ Model CanonicalPanel {
         stdout.WriteLine();
         stdout.WriteLine("Options:");
         stdout.WriteLine("  --output <path> Optional output STEP path; defaults to a .step file beside the source.");
+        stdout.WriteLine("  --locked        Require firmament.lock.toml; an existing lock is always checked.");
         stdout.WriteLine("  --json         Emit machine-readable success/failure JSON.");
         stdout.WriteLine("  -h, --help     Show this help.");
         stdout.WriteLine();
@@ -5424,6 +5439,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  --shadow              Developer report with separate original-source AST, bounded comparison and normal production validation.");
         stdout.WriteLine("  --ast                 Include the detailed AST with --shadow. Structural parsing does not establish semantic admission.");
         stdout.WriteLine("  --parse-only          Use an available static analyzer; success is labelled parsed-not-built.");
+        stdout.WriteLine("  --locked              Require firmament.lock.toml; an existing lock is always checked.");
         stdout.WriteLine("  --forge-pack <path>   Load a trusted local .NET assembly containing IForgeConceptPack implementations. This executes local code; Aetheris does not sandbox external packs. Do not load untrusted packs.");
     }
 

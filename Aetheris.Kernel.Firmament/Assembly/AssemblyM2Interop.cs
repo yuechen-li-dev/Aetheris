@@ -49,7 +49,7 @@ public static class Step242FirmasmPackageImporter
         return KernelResult<FirmasmImportPackageResult>.Success(new(firmasmPath, manifestPath, structure.Value, componentItems, Sha(source)), structure.Diagnostics);
     }
 
-    public static string GenerateSource(Step242ProductStructure structure, IReadOnlyDictionary<string, string> componentByDefinition, string provenance)
+    public static string GenerateSource(Step242ProductStructure structure, IReadOnlyDictionary<string, string> componentByDefinition, string provenance, bool componentReferences = false)
     {
         var definitions = structure.Definitions.ToDictionary(item => item.StableId, StringComparer.Ordinal);
         var occurrences = structure.Occurrences.ToDictionary(item => item.StableId, StringComparer.Ordinal);
@@ -80,7 +80,8 @@ public static class Step242FirmasmPackageImporter
                 builder.AppendLine($"{padding}</Assembly>");
                 return;
             }
-            builder.AppendLine($"{padding}<Part {id} = ExternalStep<\"{componentByDefinition[occurrence.DefinitionStableId]}\">>");
+            var component = componentByDefinition[occurrence.DefinitionStableId];
+            builder.AppendLine(componentReferences ? $"{padding}<Part {id} = {component}>" : $"{padding}<Part {id} = ExternalStep<\"{component}\">>");
             builder.AppendLine($"{padding}  // STEP occurrence #{occurrence.StepEntityId}; Placement authority: ImportedOccurrence.");
             builder.AppendLine($"{padding}  Placement ImportedOccurrence = [{string.Join(", ", occurrence.LocalTransform.Select(Number))}];");
             builder.AppendLine($"{padding}</Part>");

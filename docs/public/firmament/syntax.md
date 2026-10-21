@@ -377,7 +377,17 @@ for new hole construction. `Recognize` names a region of imported geometry. The
 qualified imported-hole revision form pins the STEP with `sha256` (exact bytes)
 or `textSha256` (explicit UTF-8/LF text normalization), proves a
 complete through-hole and uses `Replace ... with Hole<Shaft>` plus explicit
-`within` bounds to move it while retaining the residual BRep. The first family is
+`within` bounds to move it while retaining the residual BRep. A Region can select
+an inspected, revision-scoped `candidate: "through-hole:step-764+765"` instead of
+manual face selectors. `aetheris imported-features inspect` supplies the measured
+candidates; `plan --as MountHole` names the Region and emits a fully built revision
+using a named Concept Struct destination. Generated nominal lengths and positions
+use a 0.1 mm authoring grid, with outward rounding for safety bounds. Numerical
+`importTolerance` retains its separate accuracy; the rounded source is admitted
+through normal build. `within` accepts one enclosing bounds
+object or `[sourceBounds, destinationBounds]` for two separately proved local
+regions. Two regions require line/circle support trim boundaries; there is
+no swept travel corridor. The first family is
 same-size, Z-axis and between parallel planar supports. This first pinned revision
 workflow requires explicit `geometryOnly: true`; source annotation exclusion is
 reported, not silently assumed.
@@ -1189,7 +1199,8 @@ STEP-based `view`/`verify` commands explicitly reject mesh-only outputs.
 
 ### Inventory: organize module dependencies
 
-Use a short `include "parts/bolt";` when shared declarations are convenient. For
+Use `include bolt: Part = Step("vendor/bolt");` for a short typed resource
+reference, or `include "parts/bolt";` when shared declarations are convenient. For
 larger compositions, give Part, Subassembly, Assembly and Scene dependencies typed
 names in an Inventory Record:
 
@@ -1198,6 +1209,7 @@ Inventory Record Components {
   bracket: Part = Firmament("parts/bracket").Bracket
   drive: Subassembly = Firmament("assemblies/drive").Drive
   bearing: Part = Step("vendor/bearing")
+  gearbox: Assembly = Step("vendor/gearbox")
 }
 ```
 
@@ -1210,7 +1222,14 @@ named arguments at the occurrence. Definition-private names remain in the defini
 module. Assembly and Scene entries currently import concrete exports.
 
 Inventory follows lexical scope and retains imported file identity. Existing
-`include` remains the concise, unqualified composition form. See
+untyped `include` remains the concise declaration-composition form. A typed
+include follows the same reference rules as an Inventory member. STEP Assembly
+imports retain product hierarchy and transforms; no implicit flattening occurs.
+Optional `metadata:` selects an ordinary typed Static Record. An optional generated
+`firmament.lock.toml` pins dependencies; existing locks are enforced without
+automatic refresh. `InlineStep { from: Components.housing }` binds one STEP Part
+for local annotation or surgery, with a lock-supplied or explicit source pin.
+Use `geometryOnly: true` explicitly when excluding imported PMI. See
 [Inventory Records](inventory.md) for complete projects, source snapshots, STEP
 boundaries and extension resolution.
 

@@ -41,7 +41,7 @@ public sealed class FirmamentDirectiveAndCasingTests
         {
             var located = Assert.Single(parsed.SyntaxDiagnostics);
             Assert.Equal("include \"__missing_syntax_review__.firmament\"", source.Substring(located.SourceSpan!.Start, located.SourceSpan.Length));
-            Assert.Contains(build.Diagnostics, d => d.Message.Contains("standalone part compilation", StringComparison.Ordinal));
+            Assert.Contains(build.Diagnostics, d => d.Message.Contains("assembly-include-file-not-found", StringComparison.Ordinal));
             var marker = Assert.Single(FirmamentLanguageAnalysisService.Analyze(source, Fixture(fixture), "1").Diagnostics);
             Assert.Equal(located.SourceSpan.Start, marker.Start);
             Assert.Contains("__missing_syntax_review__.firmament", marker.Message, StringComparison.Ordinal);

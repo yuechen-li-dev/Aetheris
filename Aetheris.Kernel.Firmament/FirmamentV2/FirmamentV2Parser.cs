@@ -297,7 +297,8 @@ public static partial class FirmamentV2Parser
         // four times). The parser is a pure function of its text and directory, and its result is
         // immutable records, except InlineStep, which reads a STEP file; those, and parses with a
         // concept catalog, always run.
-        if (resources is not null || conceptCatalog is not null || sourceText.Contains("InlineStep", StringComparison.OrdinalIgnoreCase))
+        if (resources is not null || conceptCatalog is not null || sourceText.Contains("InlineStep", StringComparison.OrdinalIgnoreCase)
+            || Modules.FirmamentModuleGraph.HasImports(sourceText))
             return ParseWithDirectives(sourceText, sourceDirectory, conceptCatalog, expectedSchema, resources);
         var key = expectedSchema + "\0" + (sourceDirectory ?? string.Empty) + "\0" + sourceText;
         lock (RecentParses)
@@ -332,6 +333,28 @@ public static partial class FirmamentV2Parser
             return FirmamentV2ParseResult.Failure(["firmament-schema-context-conflict"]) with { OriginalSource = source,
                 SyntaxDiagnostics = [FirmamentFrontendSchemas.Located(source, "firmament-schema-context-conflict", $"The authored schema {authored} conflicts with the caller's {expected} compilation context.", frontend.DirectiveSpan!)],
                 ParserRoute = "UnifiedDirectives", OwnsUnifiedAdmission = true };
+        Modules.FirmamentModuleGraph.Projection? moduleProjection = null;
+        if (Modules.FirmamentModuleGraph.HasImports(frontend.Source) && (directory is not null || resources is not null))
+        {
+            var identity = resources is null ? Path.Combine(directory!, "__provided_source.firmament")
+                : (string.IsNullOrEmpty(directory) ? "" : directory.Replace('\\', '/') + "/") + "__provided_source.firmament";
+            Assembly.FirmamentProjectSnapshot? project = resources is null ? null : new(identity,
+                resources.Where(p => p.Key != identity).Append(new(identity, frontend.Source)));
+            var graph = Modules.FirmamentModuleGraph.Load(frontend.Source, identity, project, hasRootIdentity: false);
+            if (graph.Diagnostics.Count > 0)
+                return FirmamentV2ParseResult.Failure(graph.Diagnostics.Select(d => d.Code).ToArray()) with
+                {
+                    OriginalSource = source, OwnsUnifiedAdmission = true, ParserRoute = "UnifiedModules",
+                    SyntaxDiagnostics = graph.Diagnostics.Select(d => new FirmamentV2ValidationDiagnostic(d.Code, "error", d.Message)
+                    {
+                        SourceFile = d.SourceSpan?.Source == identity ? null : d.SourceSpan?.Source,
+                        SourceSpan = d.SourceSpan is { } span ? new(span.Start, span.Length) : null,
+                        IsOriginalSource = true, Stage = "Module binding"
+                    }).ToArray()
+                };
+            moduleProjection = graph.ProjectSource(graph.Root);
+            frontend = frontend with { Source = moduleProjection.Text };
+        }
         var syntax = FirmamentSyntaxParser.Parse(frontend.Source);
         var pending = FirmamentSyntaxTraversal.Statements(syntax.Document).OfType<DirectiveSyntax>()
             .Where(d => !syntax.Document.Statements.Contains(d) || !ProfileModificationTemplateLibrary.IsImport(d)).ToArray();
@@ -344,6 +367,11 @@ public static partial class FirmamentV2Parser
             { OriginalSource = source, SyntaxDiagnostics = reported, ParserRoute = "UnifiedDirectives", OwnsUnifiedAdmission = true };
         }
         var parsed = ParseUncached(frontend.Source, directory, catalog, resources);
+        if (moduleProjection is not null)
+            parsed = parsed with { SyntaxDiagnostics = parsed.SyntaxDiagnostics.Select(d => d.SourceSpan is { } span
+                && moduleProjection.Original(span) is { } original ? d with { SourceSpan = new(original.Start, original.Length),
+                    SourceFile = original.Source == moduleProjection.SourceIdentity ? null : original.Source,
+                    IsOriginalSource = true } : d).ToArray() };
         if (parsed.IsSuccess && (frontend.Schema ?? expectedSchema) is { } schema
             && FirmamentFrontendSchemas.DomainMismatch(schema, parsed.BoundSource ?? frontend.Source, admittedSchema: parsed.BoundSchema) is { } mismatch)
             return (frontend with { Diagnostics = [mismatch.Code], LocatedDiagnostics =

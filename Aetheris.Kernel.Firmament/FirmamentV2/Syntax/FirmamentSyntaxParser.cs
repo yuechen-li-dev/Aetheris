@@ -133,7 +133,15 @@ public static class FirmamentSyntaxParser
                 {
                     var kind = Current.Text switch { "schema" => DirectiveKind.Schema, "Use" => DirectiveKind.Use, _ => DirectiveKind.Include };
                     at++;
-                    try { return new DirectiveSyntax(kind, Expression(allowObject: false), Span(start)); }
+                    try
+                    {
+                        if (kind == DirectiveKind.Include && Current.Kind == SyntaxTokenKind.Identifier && Peek(1).Text == ":")
+                        {
+                            var name = Identifier(); Expect(":"); var type = Expression(allowObject: false); Expect("=");
+                            return new DirectiveSyntax(kind, new TypedValueSyntax(type, Expression(), Span(start)), Span(start)) { Name = name };
+                        }
+                        return new DirectiveSyntax(kind, Expression(allowObject: false), Span(start));
+                    }
                     catch (ParseFailure)
                     {
                         Error(kind == DirectiveKind.Schema ? "firmament-schema-malformed" : "firmament-v2-directive-malformed",

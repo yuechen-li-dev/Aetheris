@@ -18,7 +18,7 @@ internal sealed class FirmamentSyntaxWriter(string? source = null)
     {
         DeclarationSyntax d => WriteDeclaration(d),
         FieldSyntax f => f.Name.Text + ": " + WriteExpression(f.Value) + ";",
-        DirectiveSyntax d => d.Kind.ToString().ToLowerInvariant() + " " + WriteExpression(d.Value),
+        DirectiveSyntax d => d.Kind.ToString().ToLowerInvariant() + " " + (d.Name is null ? "" : d.Name.Text + ": ") + WriteExpression(d.Value),
         ExpressionStatementSyntax e => WriteExpression(e.Value),
         ReturnSyntax r => "return " + WriteExpression(r.Value),
         StatementBlockSyntax b => WriteBlock(b.Body),

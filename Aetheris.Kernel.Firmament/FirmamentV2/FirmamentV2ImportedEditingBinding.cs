@@ -22,6 +22,13 @@ public static partial class FirmamentV2Parser
         var textPin = bytePinExpression is null && textPinExpression is not null;
         var pin = StringValue(pinExpression);
         if (pinExpression is not null && (pin is null || pin.Length != 64 || pin.Any(c => !char.IsAsciiHexDigit(c)))) fields.Invalid(textPin ? "TextSha256" : "Sha256");
+        Modules.FirmamentLockedDependency? locked = null;
+        if (path is not null)
+        {
+            try { locked = Modules.FirmamentDependencyLock.StepPin(directory, resources, path); }
+            catch (ArgumentException error) { diagnostics.Add("firmament-lock-invalid: " + error.Message); }
+        }
+        if (pinExpression is null && locked is not null) { pin = locked.Sha256; textPin = false; }
         var toleranceExpression = fields.Take("ImportTolerance");
         double? tolerance = null;
         if (toleranceExpression is not null)
@@ -33,8 +40,12 @@ public static partial class FirmamentV2Parser
         if (geometryOnly && pin is null) diagnostics.Add("firmament-inline-step-source-pin-required: geometryOnly requires a pinned source.");
         fields.Complete();
         if (path is null || declaration.Name is null) { diagnostics.Add(InlineStepPathMissing); return null; }
-        return LoadInlineStep(declaration.Name.Text, path, diagnostics, directory, resources, pin, tolerance, textPin) is { } binding
-            ? binding with { Primitive = ((FirmamentV2InlineStepRecord)binding.Primitive) with { GeometryOnly = geometryOnly }, SourceSpan = declaration.Span, AuthoredFields = fields.AuthoredFields } : null;
+        var binding = LoadInlineStep(declaration.Name.Text, path, diagnostics, directory, resources, pin, tolerance, textPin);
+        if (binding is null) return null;
+        var imported = (FirmamentV2InlineStepRecord)binding.Primitive;
+        if (locked is not null && !locked.Sha256.Equals(imported.SourceByteHash, StringComparison.OrdinalIgnoreCase))
+        { diagnostics.Add("firmament-lock-dependency-mismatch: The STEP differs from its lock entry; reinspect before updating it."); return null; }
+        return binding with { Primitive = imported with { GeometryOnly = geometryOnly }, SourceSpan = declaration.Span, AuthoredFields = fields.AuthoredFields };
     }
 
     private static IReadOnlyList<FirmamentV2RecognizedRegion> BindImportedRegions(IEnumerable<DeclarationSyntax> declarations,
@@ -59,8 +70,23 @@ public static partial class FirmamentV2Parser
                 if (confidence is not ("low" or "medium" or "high" or "certain")) diagnostics.Add(InvalidRecognitionConfidence);
                 var raw = fields.Take("StepFaceEntities");
                 var friendly = fields.Take("Faces");
+                var candidateValue = fields.Take("Candidate");
                 var refs = new List<string>();
-                if (raw is not null && friendly is not null) diagnostics.Add(UnknownRecognitionFace);
+                if (candidateValue is not null)
+                {
+                    if (raw is not null || friendly is not null) fields.Invalid("Candidate");
+                    if (StringValue(candidateValue) is not { } candidateId || solid.InlineStep.SourceHashPin is null || solid.InlineStep.RuntimeBody is null)
+                        diagnostics.Add("firmament-imported-hole-candidate-invalid: candidate requires an exact discovered ID and a pinned InlineStep source.");
+                    else
+                    {
+                        var found = BrepThroughHoleRevision.Discover(solid.InlineStep.RuntimeBody, solid.InlineStep.ImportToleranceMillimetres ?? .001)
+                            .Candidates.SingleOrDefault(c => c.Id == candidateId);
+                        if (found is null || !found.CanPlan)
+                            diagnostics.Add("firmament-imported-hole-candidate-invalid: Candidate is absent or not admitted in this pinned source. " + string.Join(" | ", found?.Diagnostics ?? []));
+                        else refs.AddRange(found.StepFaceEntities.Select(id => "#" + id));
+                    }
+                }
+                else if (raw is not null && friendly is not null) diagnostics.Add(UnknownRecognitionFace);
                 else if ((raw ?? friendly) is SequenceSyntax { Kind: SequenceKind.List } list)
                 {
                     foreach (var argument in list.Items)
@@ -150,15 +176,24 @@ public static partial class FirmamentV2Parser
                 var hostValue = fields.Take("HostSize");
                 var host = FirmamentSyntaxValues.Vector(hostValue, "mm", out var size) && size.Length == 3 && size.All(v => v > 0) ? size : [];
                 ThroughHoleEditBounds? within = null;
+                ThroughHoleEditBounds? destinationWithin = null;
                 if (fields.Take("Within") is { } envelope)
                 {
-                    if (envelope is ObjectSyntax obj)
+                    ThroughHoleEditBounds? ReadBounds(ExpressionSyntax value)
                     {
+                        if (value is not ObjectSyntax obj) { fields.Invalid("Within"); return null; }
                         var bounds = ImportedObject(obj, "EditBounds", diagnostics);
                         var min = Point(bounds.Take("Min")); var max = Point(bounds.Take("Max")); bounds.Complete();
-                        if (min is not null && max is not null) within = new(min.Value, max.Value); else fields.Invalid("Within");
+                        if (min is not null && max is not null) return new(min.Value, max.Value);
+                        fields.Invalid("Within"); return null;
                     }
-                    else fields.Invalid("Within");
+                    if (envelope is SequenceSyntax { Kind: SequenceKind.List, Items.Count: 2 } list
+                        && list.Items.All(a => a.Name is null && a.Default is null))
+                    {
+                        within = ReadBounds(list.Items[0].Value);
+                        destinationWithin = ReadBounds(list.Items[1].Value);
+                    }
+                    else within = ReadBounds(envelope);
                     if (world is null) fields.Invalid("Center");
                     if (solid.InlineStep.SourceHashPin is null) diagnostics.Add("firmament-inline-step-source-pin-required: A local revision requires sha256 or textSha256 on InlineStep.");
                     if (hostValue is not null) diagnostics.Add("firmament-imported-hole-host-size-conflict: within edits the retained BRep; HostSize is not admitted in this operation.");
@@ -167,7 +202,7 @@ public static partial class FirmamentV2Parser
                 fields.Complete();
                 result.Add(new(solid.Name, target[1], kind, name, $"{solid.Name}.face(\"{faceEntity}\")", center, diameter / 2, "throughAll", host,
                     source.Substring(declaration.Span.Start, declaration.Span.Length))
-                { WorldCenter = world, Within = within, SourceSpan = declaration.Span });
+                { WorldCenter = world, Within = within, DestinationWithin = destinationWithin, SourceSpan = declaration.Span });
             }
             finally { capture(declaration, diagnosticStart); }
         }

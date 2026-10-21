@@ -2,6 +2,8 @@ using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
+using Aetheris.Kernel.Core.Brep.Queries;
+using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
@@ -11,17 +13,23 @@ namespace Aetheris.Kernel.Core.Brep.Features;
 public sealed record ThroughHoleEditBounds(Point3D Min, Point3D Max);
 public sealed record ThroughHoleRevisionRequest(string FeatureId, IReadOnlyList<FaceId> WallFaces,
     FaceId EntryFace, Point3D Center, double Diameter, ThroughHoleEditBounds Within,
-    double ImportToleranceMillimetres = 1e-6);
+    double ImportToleranceMillimetres = 1e-6)
+{
+    public ThroughHoleEditBounds? DestinationWithin { get; init; }
+}
 public sealed record ThroughHoleRevisionResult(BrepBody Body, string FeatureId,
     IReadOnlyList<FaceId> RetiredWallFaces, IReadOnlyList<FaceId> WallFaces,
     FaceId EntryFace, FaceId ExitFace, Point3D Center, double Diameter, double Depth,
     ThroughHoleEditBounds Within, IReadOnlyDictionary<FaceId, FaceId> FaceCorrespondence,
-    int PreservedFaces, int PreservedEdges, double ImportToleranceMillimetres);
+    int PreservedFaces, int PreservedEdges, double ImportToleranceMillimetres)
+{
+    public ThroughHoleEditBounds? DestinationWithin { get; init; }
+}
 
 /// <summary>Atomic, same-size through-hole replacement in a certified constant-stock
 /// prism. It retains the residual BRep and constructs new analytic hole geometry.
 /// The first admitted family is Z-axis, isolated, round and through two planar supports.</summary>
-public static class BrepThroughHoleRevision
+public static partial class BrepThroughHoleRevision
 {
     const double Tol = 1e-6;
     sealed record Region(HashSet<FaceId> Walls, (Face Face, Loop Loop)[] Openings,
@@ -52,18 +60,34 @@ public static class BrepThroughHoleRevision
                 throw new ArgumentException("This revision admits unchanged diameter only; resizing is unsupported.");
             if (!Finite(request.Center) || System.Math.Abs(request.Center.Z - Surface(source, entry.Id).Plane!.Value.Origin.Z) > Tol)
                 throw new ArgumentException("The world-space center must lie on the selected entry plane.");
-            var box = new Box(request.Within.Min, request.Within.Max);
-            if (!Finite(box.Min) || !Finite(box.Max) || box.Min.X >= box.Max.X || box.Min.Y >= box.Max.Y
-                || System.Math.Abs(box.Min.Z - region.LowZ) > Tol || System.Math.Abs(box.Max.Z - region.HighZ) > Tol)
-                throw new ArgumentException("The edit envelope must be finite and span exactly the two support planes.");
+            var sourceBox = new Box(request.Within.Min, request.Within.Max);
+            var destination = request.DestinationWithin ?? request.Within;
+            var destinationBox = new Box(destination.Min, destination.Max);
+            foreach (var box in new[] { sourceBox, destinationBox })
+                if (!Finite(box.Min) || !Finite(box.Max) || box.Min.X >= box.Max.X || box.Min.Y >= box.Max.Y
+                    || System.Math.Abs(box.Min.Z - region.LowZ) > Tol || System.Math.Abs(box.Max.Z - region.HighZ) > Tol)
+                    throw new ArgumentException("Each edit region must be finite and span exactly the two support planes.");
             var r = request.Diameter / 2;
-            foreach (var center in new[] { region.Cylinder.Origin, request.Center })
+            foreach (var (center, box) in new[] { (region.Cylinder.Origin, sourceBox), (request.Center, destinationBox) })
                 if (center.X - r <= box.Min.X + Tol || center.X + r >= box.Max.X - Tol || center.Y - r <= box.Min.Y + Tol || center.Y + r >= box.Max.Y - Tol)
-                    throw new ArgumentException("The edit envelope must contain both complete holes with positive clearance.");
+                    throw new ArgumentException("The source/destination region must contain its complete hole with positive clearance.");
             var authorized = region.Walls.Concat(region.Openings.Select(o => o.Face.Id)).ToHashSet();
-            var conflicts = source.Topology.Faces.Where(f => !authorized.Contains(f.Id) && box.Overlaps(FaceBounds(source, f), System.Math.Max(Tol, request.ImportToleranceMillimetres))).Select(f => f.Id.Value).ToArray();
+            var conflicts = source.Topology.Faces.Where(f => !authorized.Contains(f.Id)
+                && new[] { sourceBox, destinationBox }.Any(box => box.Overlaps(FaceBounds(source, f), System.Math.Max(Tol, request.ImportToleranceMillimetres))))
+                .Select(f => f.Id.Value).ToArray();
             if (conflicts.Length > 0)
                 throw new ArgumentException($"The stock envelope may intersect unrelated boundary faces: {string.Join(',', conflicts)}. Narrow the operation or choose another destination.");
+            if (request.DestinationWithin is not null)
+                foreach (var opening in region.Openings)
+                {
+                    // Boundary exclusion proves the entire destination prism has
+                    // constant stock only after anchoring it inside both supports.
+                    var probe = new Point3D(request.Center.X, request.Center.Y, Surface(source, opening.Face.Id).Plane!.Value.Origin.Z);
+                    var tolerance = new ToleranceContext(System.Math.Max(Tol, request.ImportToleranceMillimetres), 1e-9);
+                    if (!AnalyticPlanarFaceDomain.TryContainsInPlanarFace(source, opening.Face.Id, probe, tolerance, opening.Loop.Id, out var inside))
+                        throw new ArgumentException("Separate edit regions require proved line/circle trim boundaries on both planar supports; use one qualified envelope for other support outlines.");
+                    if (!inside) throw new ArgumentException("The destination is outside the support face material domain; no material column exists there.");
+                }
             var patch = MaterializeHolePatch(source, region, request.Center, r);
             var suppressed = Suppress(source, region);
             RequireQualified(suppressed, request.ImportToleranceMillimetres);
@@ -76,7 +100,7 @@ public static class BrepThroughHoleRevision
             return KernelResult<ThroughHoleRevisionResult>.Success(new(body, request.FeatureId,
                 region.Walls.OrderBy(id => id.Value).ToArray(), walls, entry.Id, exit, request.Center, request.Diameter,
                 region.HighZ - region.LowZ, request.Within, map, source.Topology.Faces.Count() - region.Walls.Count,
-                source.Topology.Edges.Count() - region.Edges.Count, request.ImportToleranceMillimetres));
+                source.Topology.Edges.Count() - region.Edges.Count, request.ImportToleranceMillimetres) { DestinationWithin = request.DestinationWithin });
         }
         catch (Exception error) when (error is ArgumentException or InvalidOperationException or KeyNotFoundException or NotSupportedException)
         {
@@ -102,21 +126,8 @@ public static class BrepThroughHoleRevision
     {
         var cylinder = Surface(body, seed).Cylinder ?? throw new ArgumentException("Seed must be cylindrical.");
         if (cylinder.Axis.ToVector().Cross(new Vector3D(0, 0, 1)).Length > Tol) throw new ArgumentException("Only Z-axis holes are admitted.");
-        var incidence = body.Topology.Faces.SelectMany(f => Edges(body, f).Select(e => (Edge: e, Face: f.Id)))
-            .GroupBy(x => x.Edge).ToDictionary(g => g.Key, g => g.Select(x => x.Face).Distinct().ToArray());
-        var walls = new HashSet<FaceId> { seed };
-        var queue = new Queue<FaceId>(); queue.Enqueue(seed);
-        while (queue.TryDequeue(out var id))
-        {
-            foreach (var adjacent in Edges(body, body.Topology.GetFace(id)).SelectMany(e => incidence[e]).Distinct())
-            {
-                if (walls.Contains(adjacent) || Surface(body, adjacent).Cylinder is not { } other) continue;
-                var d = other.Origin - cylinder.Origin;
-                if (System.Math.Abs(other.Radius - cylinder.Radius) > Tol || other.Axis.ToVector().Cross(cylinder.Axis.ToVector()).Length > Tol
-                    || (d - cylinder.Axis.ToVector() * d.Dot(cylinder.Axis.ToVector())).Length > Tol) continue;
-                walls.Add(adjacent); queue.Enqueue(adjacent);
-            }
-        }
+        var incidence = Incidence(body);
+        var walls = ConnectedWalls(body, seed, cylinder, incidence);
         if (walls.Any(id => body.Bindings.GetFaceBinding(id).Orientation.IsAlignedWithSurface)) throw new ArgumentException("Not an inward cylindrical void wall.");
         var wallEdges = walls.SelectMany(id => Edges(body, body.Topology.GetFace(id))).ToHashSet();
         var openings = new List<(Face Face, Loop Loop)>();
@@ -159,6 +170,28 @@ public static class BrepThroughHoleRevision
         }
         var vertices = wallEdges.SelectMany(e => { var edge = body.Topology.GetEdge(e); return new[] { edge.StartVertexId, edge.EndVertexId }; }).ToHashSet();
         return new(walls, openings.ToArray(), wallEdges, vertices, cylinder, z[0], z[1]);
+    }
+
+    static Dictionary<EdgeId, FaceId[]> Incidence(BrepBody body) => body.Topology.Faces
+        .SelectMany(f => Edges(body, f).Select(e => (Edge: e, Face: f.Id)))
+        .GroupBy(x => x.Edge).ToDictionary(g => g.Key, g => g.Select(x => x.Face).Distinct().ToArray());
+
+    static HashSet<FaceId> ConnectedWalls(BrepBody body, FaceId seed, CylinderSurface cylinder, Dictionary<EdgeId, FaceId[]> incidence)
+    {
+        var walls = new HashSet<FaceId> { seed };
+        var queue = new Queue<FaceId>(); queue.Enqueue(seed);
+        while (queue.TryDequeue(out var id))
+        {
+            foreach (var adjacent in Edges(body, body.Topology.GetFace(id)).SelectMany(e => incidence[e]).Distinct())
+            {
+                if (walls.Contains(adjacent) || Surface(body, adjacent).Cylinder is not { } other) continue;
+                var d = other.Origin - cylinder.Origin;
+                if (System.Math.Abs(other.Radius - cylinder.Radius) > Tol || other.Axis.ToVector().Cross(cylinder.Axis.ToVector()).Length > Tol
+                    || (d - cylinder.Axis.ToVector() * d.Dot(cylinder.Axis.ToVector())).Length > Tol) continue;
+                walls.Add(adjacent); queue.Enqueue(adjacent);
+            }
+        }
+        return walls;
     }
 
     static BrepBody MaterializeHolePatch(BrepBody source, Region region, Point3D center, double radius)

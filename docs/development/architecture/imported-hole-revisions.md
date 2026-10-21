@@ -45,7 +45,14 @@ than project onto XY. Authored confidence never overrides geometric proof.
 The destination is a world Point3 on the selected support. Diameter is unchanged;
 ThroughAll resolves against that support pair, not global body bounds. The typed
 `within` prism spans both supports and contains both complete old/new holes with
-positive clearance. Every unrelated boundary face must be excluded using
+positive clearance. The optional second bounds object gives separate suppression
+and insertion prisms. For that form, the existing planar domain owner proves the
+destination is inside each support's trimmed material domain, excluding only the
+opening being suppressed. Line/circle loops use a certified chord-deviation bound;
+the display-oriented whole-body-bounds fallback is not an admission proof.
+Spline/unresolved trim boundaries and ambiguous probes reject this form. Boundary
+exclusion alone is insufficient for a disconnected prism entirely outside the part
+or inside an existing opening. Every unrelated boundary face must be excluded using
 conservative plane/cylinder/cone support bounds, finite line/circle/B-spline curve
 hulls and the import uncertainty budget. Unsupported bounds reject. This can
 refuse physically possible edits; it cannot choose a permissive fallback.
@@ -110,3 +117,29 @@ intersecting, threaded or blended holes, broader stock bounds, multiple edits pe
 Model, generic source PMI migration, and UI recognition/editing affordances.
 Independent STEP producers beyond the admitted geometric family need their own
 qualification; CTC-01 is a golden witness, not universal import certification.
+
+## Recovery assistance
+
+`BrepThroughHoleRevision.Discover` uses the same connected-wall traversal and
+recognition certificate as `Execute`. It exposes measured cylinder groups,
+proved through-hole facts and import-qualification refusal reasons. Candidate IDs
+use sorted original STEP wall entities and are scoped to the explicit source pin;
+they are not cross-revision feature tracking or inferred construction history.
+`CanPlan` says nothing about a destination's clearance.
+
+Core `PlanMove` derives two local bounds and executes the production operation.
+`FirmamentImportedFeatures.PlanMove` then emits ordinary unified-AST Firmament,
+including `Region` candidate selection, an explicit source pin and named Concept
+Struct Point3, and compiles that source through normal build/export admission.
+It does not bypass export roundtrip or annotation policy. The SDK can retain an
+immutable resource snapshot; the CLI's file-backed mode rereads through the pinned
+loader. Candidate selection has no nearest-hole recovery or implicit ambiguity
+resolution. The CLI's `--as` chooses an existing Region/Feature name rather than
+introducing another language construct. Diagnostics use the compiler's canonical
+structured presentation; unavailable original STEP source spans are disclosed.
+
+The two-region CTC-01 witness moves the upper-left hole +290 mm across the central
+boss. A single enclosing corridor rejects on the intervening boundaries. Residual
+geometry, topology identities and generated semantic PMI remain under the same
+production revision owner. This is agent assistance for the admitted family,
+not a general feature recognizer or geometry repair system.

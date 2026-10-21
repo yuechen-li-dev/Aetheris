@@ -4,6 +4,19 @@ Use `include` for a short composition whose declarations can share names in one
 module. Use an `Inventory Record` when named, qualified dependencies make a larger
 Assembly or Scene easier to organize. Neither form has a one- or two-part limit.
 
+For a short typed import, name the resource directly:
+
+```firmament
+include bearing: Part = Step("vendor/bearing");
+include drive: Assembly = Step("vendor/drive");
+include bracket: Part = Firmament("parts/bracket").Bracket;
+```
+
+Use `bearing`, `drive` or `bracket` as an occurrence's initializer. These are
+module references, with the same admission and identity rules as catalog members.
+They do not inject the imported module's private declarations into the caller.
+The original `include "parts/bolt";` remains declaration composition.
+
 Firmament's importable module kinds are Part, Subassembly, Assembly and Scene.
 Inventory references inside occurrence Patterns bind before expansion.
 An Inventory member is a reference to an exported definition or admitted typed family. Adding it to a catalog
@@ -18,14 +31,23 @@ Inventory Record Components {
   machine: Assembly = Firmament("assemblies/machine").Machine
   laboratory: Scene = Firmament("scenes/laboratory").Laboratory
   bearing: Part = Step("vendor/bearing")
+  gearbox: Assembly = Step("vendor/gearbox")
 }
 ```
 
 This is a declaration fragment: provide the named files and exports in your project.
 `Firmament(...)` selects a named root declaration; `Step(...)` supplies one exact
-Part through the existing STEP importer. Missing or ambiguous exports and kind
-mismatches reject. STEP assemblies and multi-body assets must satisfy the existing
-single-Part importer contract; there is no implicit first-body selection.
+Part through the existing STEP importer. An explicit `Assembly = Step(...)`
+retains the imported product tree, local occurrence transforms and shared leaf
+geometry. Foreign hierarchy must be trustworthy: this form rejects the importer's
+fallback that normalizes ambiguous multiplicity to a flat assembly. Missing or
+ambiguous exports and kind mismatches reject. A Part still requires one body;
+there is no implicit first-body selection.
+
+Imported annotation passthrough is not qualified. A STEP resource containing PMI
+rejects unless the binding explicitly says `Step("vendor/gearbox", geometryOnly:
+true)`. That exclusion is retained in the binding receipt; the original file is
+untouched. This permission does not relax geometry admission.
 
 The normal spelling omits the extension. `Firmament("parts/bracket")` resolves
 `.firmament` or `.firmasm`; `Step("vendor/bearing")` resolves `.step` or `.stp`.
@@ -35,8 +57,8 @@ package registry chooses a resource behind the author's back.
 
 Locators resolve relative to the document containing the declaration and must
 stay inside the existing allowed source root. Source snapshots resolve from their
-provided document map, without reading files from disk. Snapshots currently hold
-Firmament source only; a STEP Inventory entry requires a file-backed project.
+provided document map, without reading files from disk. Snapshots can include
+`.step`/`.stp` text assets and the optional lock alongside Firmament source.
 
 ## Place the referenced definitions
 
@@ -125,3 +147,86 @@ claim complete generated-source provenance across every domain lowerer.
 Unused Inventory entries are resolved and kind-checked; engineering geometry is
 constructed for placed occurrences. Inventory availability does not imply an
 occurrence count or a bill of materials.
+
+## Typed resource metadata
+
+Use ordinary typed Records, not another metadata dictionary syntax:
+
+```firmament
+Record VendorInfo { manufacturer: String partNumber: String revision: String }
+Static BearingInfo: VendorInfo {
+  manufacturer: "Example supplier"
+  partNumber: "BRG-01"
+  revision: "B"
+}
+Inventory Record Components {
+  bearing: Part = Step("vendor/bearing", metadata: BearingInfo)
+}
+```
+
+`metadata:` also works on `Firmament(...)` and typed short includes. The normal
+Record binder checks the selected Static value. The binding receipt exposes its
+type and flattened fields in Assembly IR. Resource metadata is descriptive; it
+does not infer fits, manufacturing tolerances, materials or PMI, and it is not
+automatically translated into vendor-specific AP242 properties. Two aliases for
+the same imported Part retain one geometry definition even with different receipts.
+
+Assembly `provenance: Release;` selects a typed release Record for the existing
+AP242 header and product annotations. Canonical fields are `author: String`
+(or a nested Record with `name: String`), `date: Date`, `version: Version`, and
+`description: String`; `organization: String` is optional. Nested values refer to
+other typed Static Records. Additional typed fields remain inspectable. Legacy
+PascalCase fields remain accepted; providing both aliases rejects. Authors and
+approval states must be supplied truthfully; the compiler invents neither.
+
+## Optional dependency lock
+
+Run `aetheris lock main.firmasm` to generate `firmament.lock.toml` beside the root.
+Commit it with a reproducible project. Normal builds work without one; if a lock
+exists, both validation and compilation enforce it. `aetheris validate main.firmasm
+--locked` and `aetheris build main.firmasm --locked` additionally require its presence.
+Compilation never rewrites the lock. Use `aetheris lock main.firmasm --update` for
+an intentional dependency refresh.
+
+Version 1 receipts contain the root identity and sorted dependency entries with
+`path`, `format`, `hashKind` and `sha256`. STEP hashes cover exact file bytes;
+Firmament hashes cover decoded UTF-8 source text. Snapshot STEP text is represented
+by its UTF-8 bytes, so byte-identical receipts require identical encoding/BOM and
+line endings. Paths use the loader's allowed source root: the Aetheris repository
+root for repository files, otherwise the root document's directory; snapshot paths
+are relative to the supplied project. A receipt belongs to one compilation root.
+Unknown TOML fields, missing entries, changed dependencies and a different root
+reject. Unused old entries are tolerated, and a lock command refresh removes them.
+
+A changed STEP with bound `Recognize`/`Replace`/`Remove` intent refuses even an
+explicit update. Reinspect and regenerate its selections in a new reviewed
+revision/project receipt. Refreshing a hash cannot establish that a face still
+has the same engineering meaning. Locks establish identity, not geometric quality
+or permission to discard PMI. This version uses one conventional sidecar name;
+custom lock locations and cross-root lock workspaces are outside this pass.
+
+## InlineStep: local annotation and surgery
+
+For mixed products, use Part/Assembly imports. Use `InlineStep` when a Model needs
+to annotate or revise one imported body. It can select an existing STEP Part binding:
+
+```firmament
+Inventory Record Components { housing: Part = Step("vendor/housing", geometryOnly: true) }
+Model Revision {
+  units: mm
+  InlineStep Source {
+    from: Components.housing
+    geometryOnly: true
+    importTolerance: 0.01mm
+  }
+}
+```
+
+This fragment requires a matching generated lock. `from` and `path` are mutually
+exclusive; `from` admits a STEP Part reference, not a native Firmament Part or
+STEP Assembly. Direct `path: "vendor/housing.step"` remains supported. Explicit
+`sha256` and `textSha256` remain compatible for self-contained pinned source;
+the lock can supply the pin instead. Import tolerance is a numerical budget,
+separate from authored dimensions. A locked, qualified body can be re-exported
+unchanged without pretending to perform a replacement. Surgery still uses the
+bounded [Recognize/Replace contracts](imported-feature-recognition.md).

@@ -13,7 +13,10 @@ public sealed record FirmamentImportedHoleRevisionReport(string Feature, string 
     string Strategy, bool SourceSemanticsExcluded, double ImportToleranceMillimetres,
     IReadOnlyList<int> RetiredWallFaces, IReadOnlyList<int> WallFaces, int EntryFace, int ExitFace,
     double Diameter, double Depth, ThroughHoleEditBounds Within, int PreservedFaces, int PreservedEdges,
-    IReadOnlyDictionary<int, int> FaceCorrespondence);
+    IReadOnlyDictionary<int, int> FaceCorrespondence)
+{
+    public ThroughHoleEditBounds? DestinationWithin { get; init; }
+}
 
 public static partial class FirmamentBuildAndExport
 {
@@ -58,7 +61,7 @@ public static partial class FirmamentBuildAndExport
         var entry = marker >= 0 && end > marker ? Resolve(replacement.PlacementTarget[(marker + 1)..end]) : null;
         if (selected.Any(id => id is null) || entry is null) return Failure("firmament-imported-hole-selection-unresolved: Resolve every wall and the entry support in the pinned source.");
         var edit = BrepThroughHoleRevision.Execute(body, new(replacement.ReplacementFeatureName, selected.Select(id => id!.Value).ToArray(), entry.Value,
-            replacement.WorldCenter.Value, replacement.Radius * 2, replacement.Within, tolerance));
+            replacement.WorldCenter.Value, replacement.Radius * 2, replacement.Within, tolerance) { DestinationWithin = replacement.DestinationWithin });
         if (!edit.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(edit.Diagnostics.Select(d => d with
         {
             SourceSpan = replacement.SourceSpan is { } span ? new(span.Start, span.Length) : null
@@ -116,7 +119,7 @@ public static partial class FirmamentBuildAndExport
             RuntimeAdmissionDocument = bound,
             ImportedHoleRevision = new(replacement.ReplacementFeatureName, imported.SourceHashPin, imported.TextHashPin ? "sha256-utf8-lf" : "sha256-bytes", imported.SourceByteHash, "ThroughHoleSuppressionReinsertion", imported.GeometryOnly, tolerance,
                 revised.RetiredWallFaces.Select(id => id.Value).ToArray(), revised.WallFaces.Select(id => id.Value).ToArray(), revised.EntryFace.Value, revised.ExitFace.Value,
-                revised.Diameter, revised.Depth, revised.Within, revised.PreservedFaces, revised.PreservedEdges, revised.FaceCorrespondence.ToDictionary(p => p.Key.Value, p => p.Value.Value))
+                revised.Diameter, revised.Depth, revised.Within, revised.PreservedFaces, revised.PreservedEdges, revised.FaceCorrespondence.ToDictionary(p => p.Key.Value, p => p.Value.Value)) { DestinationWithin = revised.DestinationWithin }
         }, warnings);
     }
 }

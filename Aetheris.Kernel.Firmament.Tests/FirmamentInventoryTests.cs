@@ -48,7 +48,7 @@ public sealed class FirmamentInventoryTests
     [InlineData("bracket: Part = Firmament(\"parts/bracket\").Missing","firmament-inventory-export-unresolved")]
     [InlineData("bracket: Part = Firmament(\"parts/missing\").Bracket","assembly-include-file-not-found")]
     [InlineData("bracket: Part = Unknown(\"parts/bracket\")","firmament-inventory-resource-invalid")]
-    [InlineData("bracket: Part = Step(\"bearing\")","assembly-profile-external-resource-unsupported")]
+    [InlineData("bracket: Part = Step(\"bearing\")","assembly-include-file-not-found")]
     [InlineData("bracket: Part = Firmament(\"parts/bracket\").Bracket bracket: Part = Firmament(\"parts/bracket\").Bracket","firmament-inventory-duplicate-field")]
     public void InvalidEntriesRejectAtTheirAuthoredField(string field,string code)
     {
@@ -235,12 +235,12 @@ public sealed class FirmamentInventoryTests
     }
 
     [Fact]
-    public void SnapshotCannotBypassTheBinaryAssetBoundaryThroughAnImportedPart()
+    public void SnapshotCannotReadUnprovidedDiskAssetsThroughAnImportedPart()
     {
-        const string part="Model Bracket { units: mm InlineStep source { file: \"C:/unavailable.step\" } }";
+        const string part="Model Bracket { units: mm InlineStep source { path: \"C:/unavailable.step\" } }";
         var result=new AssemblyM1Pipeline().CompileProject(new("main.firmasm",[KeyValuePair.Create("main.firmasm",Root),KeyValuePair.Create("parts/bracket.firmament",part)]));
         Assert.False(result.IsSuccess);
-        Assert.Contains(result.Diagnostics,d => d.Code=="assembly-profile-external-resource-unsupported" && d.SourceSpan?.Source=="parts/bracket.firmament");
+        Assert.Contains(result.Diagnostics,d => d.Code=="assembly-include-outside-root" && d.SourceSpan?.Source=="parts/bracket.firmament");
     }
 
     [Fact]

@@ -3,6 +3,14 @@
 Use [surface and trim inspection](surface-inspection.md) in Cadmata or Helios to compare filled geometry, BRep wire, translucent overlays and isolated source faces without changing the camera.
 
 Direct STEP inspection is available through the native CLI/Cadmata workflows.
+For mixed Part/Assembly products, prefer typed `include` or an
+[Inventory Record](inventory.md). `Step("vendor/drive")` can supply an explicit
+Assembly with its existing hierarchy and transforms. `InlineStep` is the local
+annotation/surgery binding for one body; it can use `from: Components.housing`
+or a direct path. An optional generated dependency lock supplies its source pin,
+so authors do not need to write SHA-256 strings. See the Inventory guide for lock
+commands, metadata and the explicit exclusion of imported PMI.
+
 Helios also provides **Import STEP** for the bounded canonical `InlineStep` part
 workflow described below. It retains the input as an immutable text asset and
 creates a Firmament annotation layer. This is not arbitrary vendor STEP or

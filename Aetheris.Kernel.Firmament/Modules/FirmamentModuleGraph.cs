@@ -4,22 +4,30 @@ using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Semantics;
+using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Firmament.Modules;
 
 public sealed record FirmamentInventoryBinding(string Name, string Kind, string SourceFile, string Export,
-    string DefinitionIdentity, SemanticSourceSpan SourceSpan);
+    string DefinitionIdentity, SemanticSourceSpan SourceSpan)
+{
+    public string? MetadataType { get; init; }
+    public IReadOnlyDictionary<string, string> Metadata { get; init; } = new Dictionary<string, string>();
+    public bool GeometryOnly { get; init; }
+}
 
 /// <summary>Per-compilation dependency and export authority. Inventories bind module
 /// references, never inject imported declarations into the caller. Legacy includes
 /// retain their existing declaration composition through an explicitly mapped projection.</summary>
 [FirmamentConstruct("Inventory", "Inventory", Context = "Document", Entry = "Inventory Record Components { }",
     Description = "Compile-time catalog of typed Part, Subassembly, Assembly and Scene module references.")]
-internal sealed class FirmamentModuleGraph
+internal sealed partial class FirmamentModuleGraph
 {
     internal sealed class Module(string path, string text, DocumentSyntax syntax)
     {
         internal string Path { get; } = path;
+        internal bool Generated { get; set; }
         internal string Text { get; } = text;
         internal DocumentSyntax Syntax { get; } = syntax;
         internal List<Module> Includes { get; } = [];
@@ -28,6 +36,7 @@ internal sealed class FirmamentModuleGraph
     internal sealed record Reference(string Identity, string Kind, string Path, Module? Module,
         DeclarationSyntax? Export, string Definition, SemanticSourceSpan Origin)
     {
+        internal BrepBody? ImportedBody { get; init; }
         internal SemanticSourceSpan DeclarationOrigin { get; init; } = Export is null ? Origin : new(Path,Export.Span.Start,Export.Span.Length);
     }
     internal sealed record Edit(FirmamentV2SourceSpan Span, string Text);
@@ -45,12 +54,33 @@ internal sealed class FirmamentModuleGraph
     {
         internal readonly Dictionary<string, Dictionary<string, Reference>> Inventories = new(StringComparer.Ordinal);
         internal readonly HashSet<string> Values = new(StringComparer.Ordinal);
+        internal readonly Dictionary<string, Reference> Direct = new(StringComparer.Ordinal);
+        internal Reference? ResolveDirect(string name) => Direct.GetValueOrDefault(name) ?? (Values.Contains(name) ? null : parent?.ResolveDirect(name));
         internal Dictionary<string, Reference>? Resolve(string name) => Inventories.GetValueOrDefault(name)
             ?? (Values.Contains(name) ? null : parent?.Resolve(name));
     }
     private readonly Dictionary<string, Module> modules;
     private readonly Dictionary<string, Reference> references = new(StringComparer.Ordinal);
     private readonly List<string> active = [];
+    private readonly Dictionary<string, string> assets = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> assetHashes = new(StringComparer.Ordinal);
+    internal string Asset(string path)
+    {
+        if (assets.TryGetValue(path, out var text)) return text;
+        if (Project is not null)
+        {
+            if (!Project.TryResolve(path, out text!)) throw new FileNotFoundException("Missing snapshot asset: " + path);
+        }
+        else
+        {
+            var bytes = File.ReadAllBytes(path);
+            assetHashes[path] = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+            using var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, true);
+            text = reader.ReadToEnd();
+        }
+        assetHashes.TryAdd(path, FirmamentDependencyLock.HashText(text));
+        return assets[path] = text;
+    }
     private readonly string allowedRoot;
     private readonly string identityRoot;
     internal FirmamentProjectSnapshot? Project { get; }
@@ -58,11 +88,12 @@ internal sealed class FirmamentModuleGraph
     internal Module Root { get; private set; } = null!;
     internal bool HasModuleBindings => references.Count > 0;
     internal List<FirmamentInventoryBinding> InventoryBindings { get; } = [];
-    internal IReadOnlyList<AssemblySourceDependencyIr> Dependencies => modules.Values.Select(m =>
+    internal IReadOnlyList<AssemblySourceDependencyIr> Dependencies => modules.Values.Where(m => !m.Generated).Select(m =>
         new AssemblySourceDependencyIr(m.Path, Hash(m.Text), ReferenceEquals(m, Root))).Concat(references.Values
-            .Where(r => r.Module is null && File.Exists(r.Path)).Select(r => new AssemblySourceDependencyIr(r.Path,
-                Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(r.Path))), false))).DistinctBy(d => d.Path).ToArray();
+            .Where(r => r.Module is null).Select(r => new AssemblySourceDependencyIr(r.Path, AssetHash(r.Path), false)))
+        .Concat(assets.Select(a => new AssemblySourceDependencyIr(a.Key, assetHashes[a.Key], false))).DistinctBy(d => d.Path).ToArray();
 
+    internal string AssetHash(string path) { Asset(path); return assetHashes[path]; }
     private FirmamentModuleGraph(string root, FirmamentProjectSnapshot? project)
     {
         Project = project;
@@ -71,10 +102,12 @@ internal sealed class FirmamentModuleGraph
             : (root.Contains('/') ? root[..root.LastIndexOf('/')] : "");
         modules = new(project is null ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
     }
-    internal static FirmamentModuleGraph Load(string text, string identity, FirmamentProjectSnapshot? project = null)
+    internal static FirmamentModuleGraph Load(string text, string identity, FirmamentProjectSnapshot? project = null, bool validateLock = true, bool hasRootIdentity = true)
     {
         var graph = new FirmamentModuleGraph(identity, project);
+        graph.ReadLock();
         graph.Root = graph.Read(identity, text, null)!;
+        if (validateLock && graph.Diagnostics.Count == 0) graph.CheckLock(hasRootIdentity);
         return graph;
     }
     internal static bool HasImports(string source) => FirmamentLanguageAnalysisService.Lex(source)
@@ -124,6 +157,7 @@ internal sealed class FirmamentModuleGraph
             Error("firmament-inventory-header-invalid", "Inventory must qualify a Record: Inventory Record Name { ... }.", At(module, malformed.Span));
         foreach (var directive in statements.OfType<DirectiveSyntax>().Where(d => d.Kind == DirectiveKind.Include))
         {
+            if (directive.Name is not null) continue;
             if (directive.Value is not LiteralSyntax { Kind: LiteralKind.String })
             { Error("firmament-module-include-invalid", "include requires a quoted Firmament locator.", At(module, directive.Span)); continue; }
             var locator = Locator(module,(LiteralSyntax)directive.Value);
@@ -132,7 +166,12 @@ internal sealed class FirmamentModuleGraph
             if (childPath is not null && Read(childPath, null, At(module, directive.Span), include: true) is { } child) module.Includes.Add(child);
             module.Edits.Add(new(directive.Span, Blank(module.Text, directive.Span)));
         }
-        foreach (var inventory in statements.OfType<DeclarationSyntax>().Where(IsInventory))
+        var directIncludes = statements.OfType<DirectiveSyntax>().Where(d => d.Kind == DirectiveKind.Include && d.Name is not null).ToArray();
+        var shortInventories = directIncludes.Select(d => new DeclarationSyntax(
+            new(new("Record", d.Span), [], d.Span), new("__Include_" + d.Span.Start, d.Span),
+            [new(new("Inventory", d.Span), [], d.Span)], [], null, null, [], null,
+            new BlockSyntax([new FieldSyntax(d.Name!, d.Value, d.Span)], d.Span), false, d.Span));
+        foreach (var inventory in statements.OfType<DeclarationSyntax>().Where(IsInventory).Concat(shortInventories))
         {
             if (inventory.Name is null || inventory.Body is null || inventory.HasParameterList || inventory.Occurrence
                 || inventory.Annotation is not null || inventory.Initializer is not null || inventory.ResultType is not null
@@ -152,15 +191,32 @@ internal sealed class FirmamentModuleGraph
                 var export = typed.Value is MemberSyntax member ? member.Member.Text : null;
                 var value = typed.Value is MemberSyntax selected ? selected.Target : typed.Value;
                 if (value is not CallSyntax { Target: ReferenceSyntax adapter } call || adapter.Name.Text is not ("Firmament" or "Step")
-                    || call.Arguments.Count != 1 || call.Arguments[0].Name is not null
+                    || call.Arguments.Count is < 1 or > 3 || call.Arguments[0].Name is not null || call.Arguments.Any(a => a.Default is not null)
+                    || call.Arguments.Skip(1).Any(a => a.Name?.Text is not ("metadata" or "geometryOnly"))
+                    || call.Arguments.Skip(1).Select(a => a.Name!.Text).Distinct().Count() != call.Arguments.Count - 1
                     || call.Arguments[0].Value is not LiteralSyntax { Kind: LiteralKind.String })
                 { Error("firmament-inventory-resource-invalid", "Use Firmament(\"locator\").Export or Step(\"locator\").", origin); continue; }
-                if (adapter.Name.Text == "Firmament" && export is null || adapter.Name.Text == "Step" && (export is not null || kind.Name.Text != "Part"))
-                { Error("firmament-inventory-kind-mismatch", "Firmament requires a named export. Step currently supplies one Part, with no member selector.", origin); continue; }
+                if (adapter.Name.Text == "Firmament" && export is null || adapter.Name.Text == "Step" && (export is not null || kind.Name.Text is not ("Part" or "Assembly")))
+                { Error("firmament-inventory-kind-mismatch", "Firmament requires a named export. Step supplies a Part or explicit product-structure Assembly, with no member selector.", origin); continue; }
+                FirmamentBoundMetadata? metadata = null;
+                var metadataArgument = call.Arguments.SingleOrDefault(a => a.Name?.Text == "metadata");
+                var geometryArgument = call.Arguments.SingleOrDefault(a => a.Name?.Text == "geometryOnly");
+                var geometryOnly = geometryArgument is not null && FirmamentSyntaxWriter.Expression(geometryArgument.Value) == "true";
+                if (geometryArgument is not null && (adapter.Name.Text != "Step" || FirmamentSyntaxWriter.Expression(geometryArgument.Value) is not ("true" or "false")))
+                { Error("firmament-inventory-resource-invalid", "geometryOnly requires a Boolean on a Step resource.", origin); continue; }
+                if (metadataArgument is not null)
+                {
+                    var errors = new List<string>();
+                    metadata = FirmamentMetadata.Bind(module.Text, metadataArgument.Value, errors);
+                    foreach (var error in errors) Error("firmament-inventory-metadata-invalid", error, origin);
+                    if (metadata is null || errors.Count > 0) continue;
+                }
                 var locator = Locator(module,(LiteralSyntax)call.Arguments[0].Value);
                 if (locator is null) continue;
                 var path = Resolve(module, locator, adapter.Name.Text, origin);
                 if (path is null) continue;
+                if (adapter.Name.Text == "Step" && !geometryOnly && ImportedStepSemantics.HasAnnotations(Asset(path)))
+                { Error("firmament-step-source-pmi-unsupported", "Imported annotation passthrough is not qualified. Explicitly request geometryOnly: true to exclude source PMI while retaining the original file.", origin); continue; }
                 Module? child = null; DeclarationSyntax? declaration = null;
                 if (adapter.Name.Text == "Firmament")
                 {
@@ -176,19 +232,40 @@ internal sealed class FirmamentModuleGraph
                     if (declaration.Modifiers.Any(m => m.Name.Text == "Template") && actual is not ("Subassembly" or "Struct" or "Model" or "Part"))
                     { Error("firmament-inventory-specialization-required", "Specialize this Template in its defining module and export its concrete Part, Subassembly, Assembly or Scene result.", origin); continue; }
                 }
+                if (adapter.Name.Text == "Step" && kind.Name.Text == "Assembly")
+                {
+                    child = ImportStepAssembly(path, origin);
+                    if (child is null) continue;
+                    declaration = child.Syntax.Statements.OfType<DeclarationSyntax>().Single(d => d.Type.Name.Text == "Assembly");
+                    export = declaration.Name!.Text;
+                }
                 var identity = "__Module_" + Hash(IdentityPath(path) + "\0" + kind.Name.Text + "\0" + export)[..20];
                 var reference = new Reference(identity, kind.Name.Text, path, child, declaration, export ?? "", origin)
                     { DeclarationOrigin = declaration is null ? origin : DeclarationOrigin(declaration) };
                 references.TryAdd(identity, reference);
-                InventoryBindings.Add(new(inventory.Name.Text+"."+field.Name.Text,kind.Name.Text,path,export ?? "",identity,origin));
+                InventoryBindings.Add(new(inventory.Name.Text+"."+field.Name.Text,kind.Name.Text,path,export ?? "",identity,origin)
+                    { MetadataType = metadata?.Type, Metadata = metadata?.Fields ?? new Dictionary<string,string>(), GeometryOnly = geometryOnly });
                 if (!fields.TryAdd(field.Name.Text, reference)) Error("firmament-inventory-duplicate-field", $"Inventory member '{field.Name.Text}' is repeated.", origin);
+                if (directIncludes.Any(d => d.Span == inventory.Span))
+                {
+                    InventoryBindings[^1] = InventoryBindings[^1] with { Name = field.Name.Text };
+                    if (scope.Values.Contains(field.Name.Text) || !scope.Direct.TryAdd(field.Name.Text, reference))
+                        Error("firmament-inventory-duplicate-name", $"Include '{field.Name.Text}' conflicts with another declaration.", origin);
+                }
             }
             module.Edits.Add(new(inventory.Span, Blank(module.Text, inventory.Span)));
         }
+        BindInlineSteps(module, statements, scope);
         foreach (var declaration in statements.OfType<DeclarationSyntax>().Where(d => !IsInventory(d)))
         {
             if (declaration.Initializer is { } initializer)
             {
+                if (initializer is SpecializationSyntax { Target: ReferenceSyntax { Name.Text: "ExternalStep" }, Arguments: [{ Name: null, Value: LiteralSyntax { Kind: LiteralKind.String } legacyPath }] })
+                {
+                    var locator = Locator(module, legacyPath);
+                    var path = locator is null ? null : Resolve(module, locator, "Step", At(module, initializer.Span));
+                    if (path is not null) Asset(path);
+                }
                 // Concise includes also expose concrete Parts under their authored
                 // names. Existing Template applications keep their established owner.
                 if (module.Includes.Count > 0 && declaration.Occurrence && declaration.Type.Name.Text == "Part" && initializer is ReferenceSyntax bare)
@@ -206,6 +283,7 @@ internal sealed class FirmamentModuleGraph
                     }
                 }
                 var target = initializer is SpecializationSyntax specialization ? specialization.Target : initializer;
+                Reference? reference = target is ReferenceSyntax direct ? scope.ResolveDirect(direct.Name.Text) : null;
                 if (target is MemberSyntax { Target: ReferenceSyntax owner } member)
                 {
                     var fields = scope.Resolve(owner.Name.Text);
@@ -215,12 +293,15 @@ internal sealed class FirmamentModuleGraph
                             Error("firmament-inventory-not-visible", $"Inventory '{owner.Name.Text}' is shadowed or not visible in this scope.", At(module, target.Span));
                         continue;
                     }
+                    if (!fields.TryGetValue(member.Member.Text, out reference))
+                    { Error("firmament-inventory-member-unresolved", $"Inventory '{owner.Name.Text}' has no member '{member.Member.Text}'.", At(module, member.Span)); continue; }
+                }
+                if (reference is not null)
+                {
                     if (!declaration.Occurrence)
                         Error("firmament-inventory-use-unsupported", "Use an Inventory module reference as a Part, Assembly or Scene occurrence definition.", At(module, target.Span));
-                    else if (!fields.TryGetValue(member.Member.Text, out var reference))
-                        Error("firmament-inventory-member-unresolved", $"Inventory '{owner.Name.Text}' has no member '{member.Member.Text}'.", At(module, member.Span));
                     else if (!(declaration.Type.Name.Text == "Assembly" ? reference.Kind is "Assembly" or "Subassembly" : declaration.Type.Name.Text == reference.Kind))
-                        Error("firmament-inventory-kind-mismatch", $"A {declaration.Type.Name.Text} occurrence cannot use {reference.Kind} '{owner.Name.Text}.{member.Member.Text}'.", At(module, target.Span));
+                        Error("firmament-inventory-kind-mismatch", $"A {declaration.Type.Name.Text} occurrence cannot use {reference.Kind} '{FirmamentSyntaxWriter.Expression(target)}'.", At(module, target.Span));
                     else if (initializer is SpecializationSyntax && reference.Export?.Modifiers.Where(m => m.Name.Text == "Template")
                         .SelectMany(m => m.Arguments).Any(a => a.Value is TypeParameterSyntax) == true)
                         Error("firmament-inventory-type-argument-unsupported", "Imported Templates currently accept compile-time values, not caller-defined types. Specialize type parameters in the defining module and export a concrete product.", At(module, initializer.Span));
@@ -293,8 +374,6 @@ internal sealed class FirmamentModuleGraph
         }
         if (extension.Length > 0 && !extensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
         { Error(include ? "assembly-include-extension-invalid" : "firmament-inventory-extension-invalid", $"{adapter} resource '{locator}' requires {string.Join(" or ", extensions)}.", origin); return null; }
-        if (adapter == "Step" && Project is not null)
-        { Error("assembly-profile-external-resource-unsupported", "This project snapshot contains source documents only; provide STEP through a file-backed project.", origin); return null; }
         bool Exists(string candidate) => Project is null ? File.Exists(candidate) : Project.TryResolve(candidate, out _);
         var matches = extension.Length == 0 ? extensions.Select(e => path + e).Where(Exists).ToArray() : Exists(path) ? [path] : Array.Empty<string>();
         if (matches.Length != 1)
@@ -337,6 +416,31 @@ internal sealed class FirmamentModuleGraph
             return new(module.Text, [new(0, module.Text.Length, new(module.Path, 0, module.Text.Length), true)], module.Path);
         Append(module);
         return new(text.ToString(), segments, module.Path);
+    }
+
+    private Module? ImportStepAssembly(string path, SemanticSourceSpan origin)
+    {
+        var virtualPath = path + ".firmament";
+        if (modules.TryGetValue(virtualPath, out var existing)) return existing;
+        var imported = Step242AssemblyImporter.Import(Asset(path));
+        if (!imported.IsSuccess || imported.Diagnostics.Any(d => d.Source == "Importer.Assembly.MultiplicityNormalization"))
+        {
+            Error("firmament-step-assembly-import-rejected", "An explicit, qualified STEP product hierarchy is required. " + string.Join(" | ", imported.Diagnostics.Select(d => d.Message)), origin);
+            return null;
+        }
+        var components = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var definition in imported.Value.Definitions.Where(d => d.Geometry is not null))
+        {
+            var identity = "__Module_" + Hash(IdentityPath(path) + "\0step-definition\0" + definition.StableId)[..20];
+            references.TryAdd(identity, new(identity, "Part", path, null, null, definition.Name, origin) { ImportedBody = definition.Geometry });
+            components[definition.StableId] = identity;
+        }
+        // Reuse the importer-owned hierarchy transport, retaining original BReps
+        // in typed leaf references instead of exporting temporary child STEP files.
+        var text = Step242FirmasmPackageImporter.GenerateSource(imported.Value, components, Path.GetFileName(path), componentReferences: true);
+        var module = Read(virtualPath, text, origin);
+        if (module is not null) module.Generated = true;
+        return module;
     }
 
     internal Reference LocalPart(Module module, string definition)
@@ -385,7 +489,9 @@ internal sealed class FirmamentModuleGraph
             // honest enclosing origin rather than pretending generated spans are authored.
             projection = new(concrete, [new(0, concrete.Length, reference.DeclarationOrigin, false)], reference.Path);
         }
-        return new AssemblyM0Parser().ParseBound(projection.Text, reference.Path, this, reference.Module!, projection, reference.Export);
+        var result = new AssemblyM0Parser().ParseBound(projection.Text, reference.Path, this, reference.Module!, projection, reference.Export);
+        return reference.Module!.Generated ? result with { Diagnostics = result.Diagnostics.Select(d => d with {
+            SourceSpan = reference.Origin, LocationNote = "Enclosing STEP import; hierarchy transport is generated from the imported product structure, without an authored Firmament span." }).ToArray() } : result;
     }
     internal AssemblyMemberSource QualifyParts(Module module, AssemblyMemberSource root) => root with
     {

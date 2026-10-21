@@ -193,6 +193,7 @@ public sealed record FirmamentV2ReplacementDecl(string ImportedBodyName, string 
     public string TargetSource => $"{ImportedBodyName}.region(\"{RecognizedRegionName}\")";
     public Aetheris.Kernel.Core.Math.Point3D? WorldCenter { get; init; }
     public Aetheris.Kernel.Core.Brep.Features.ThroughHoleEditBounds? Within { get; init; }
+    public Aetheris.Kernel.Core.Brep.Features.ThroughHoleEditBounds? DestinationWithin { get; init; }
     public FirmamentV2SourceSpan? SourceSpan { get; init; }
 }
 

@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Import;
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 
@@ -17,6 +18,70 @@ public sealed class FirmamentImportedHoleRevisionTests
     static string Source => File.ReadAllText(Path.Combine(DirectoryPath, "ctc01-hole-move.firmament"));
     static FirmamentV2ValidationReport Validate(string source) => FirmamentBuildAdmissionValidation.Admit(
         FirmamentV2ValidationReportBuilder.Build(FirmamentV2Parser.Parse(source, DirectoryPath), "ctc01-hole-move.firmament", sourceText: source), source, DirectoryPath);
+
+    [Fact]
+    public void RecoveryPlan_UsesNamedLayoutAndRebuildsAfterOnlyTargetChanges()
+    {
+        var inspection = FirmamentImportedFeatures.Inspect(File.ReadAllText(StepPath), .01).Value;
+        var selected = Assert.Single(inspection.Discovery.Candidates, c => c.CanPlan && c.Center is {} p && System.Math.Abs(p.X+160)<1e-6 && System.Math.Abs(p.Y-45)<1e-6 && System.Math.Abs(c.Diameter-25)<1e-6);
+        var planned = FirmamentImportedFeatures.PlanMove(inspection, selected.Id, "MountHole", new(130.04,45.0000000000001,-1e-14), true,
+            clearanceMillimetres: .11);
+        Assert.True(planned.IsSuccess, string.Join(" | ", planned.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("Built", planned.Value.Admission);
+        Assert.Contains("center: RevisionLayout.Targets.MountHole", planned.Value.Source);
+        Assert.Contains("MountHole: Point3(130mm, 45mm, 0mm)", planned.Value.Source);
+        Assert.Contains("diameter: 25mm", planned.Value.Source);
+        Assert.Contains("importTolerance: 0.01mm", planned.Value.Source);
+        Assert.DoesNotContain("999999", planned.Value.Source);
+        Assert.Equal(.1, planned.Value.AuthoringIncrementMillimetres);
+        Assert.Equal(25, planned.Value.Revision.Diameter);
+        Assert.Equal(-172.7, planned.Value.Revision.Within.Min.X);
+        Assert.Equal(32.3, planned.Value.Revision.Within.Min.Y);
+        Assert.Contains("MountHole.X - 12.7mm", planned.Value.Source);
+        Assert.DoesNotContain("-0mm", planned.Value.Source);
+        var physical = Step242Importer.ImportBody(planned.Value.Export.StepText).Value;
+        var pmi = Assert.Single(Step242SemanticPmiInspector.Inspect(planned.Value.Export.StepText).Items, item => item.Kind == "Diameter");
+        Assert.Equal(25, pmi.Value);
+        Assert.All(pmi.GeometricFaceEntityIds, id =>
+        {
+            var face = Assert.Single(physical.Bindings.FaceBindings, b => b.SourceStepEntityId == id);
+            var wall = physical.GetFaceSurface(face.FaceId).Cylinder!.Value;
+            Assert.Equal(130, wall.Origin.X);
+            Assert.Equal(45, wall.Origin.Y);
+            Assert.Equal(12.5, wall.Radius);
+        });
+        Assert.NotNull(planned.Value.Revision.DestinationWithin);
+        var edited = planned.Value.Source.Replace("MountHole: Point3(130mm, 45mm, 0mm)", "MountHole: Point3(-130mm, 45mm, 0mm)");
+        Assert.NotEqual(planned.Value.Source, edited);
+        var rebuilt = FirmamentBuildAndExport.CompileSource(edited, "", new Dictionary<string,string> { ["input.step"] = File.ReadAllText(StepPath) });
+        Assert.True(rebuilt.IsSuccess, string.Join(" | ", rebuilt.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(-130, rebuilt.Value.ImportedHoleRevision!.DestinationWithin!.Min.X + (rebuilt.Value.ImportedHoleRevision.DestinationWithin.Max.X-rebuilt.Value.ImportedHoleRevision.DestinationWithin.Min.X)/2, 6);
+        Assert.Equal(115, rebuilt.Value.ImportedHoleRevision.PreservedFaces);
+        var occupied = planned.Value.Source.Replace("MountHole: Point3(130mm, 45mm, 0mm)", "MountHole: Point3(160mm, 45mm, 0mm)");
+        var resources = new Dictionary<string, string> { ["input.step"] = File.ReadAllText(StepPath) };
+        Assert.False(FirmamentBuildAndExport.CompileSource(occupied, "", resources).IsSuccess);
+        Assert.False(FirmamentImportedFeatures.PlanMove(inspection, selected.Id, "MountHole", new(130,45,0), false).IsSuccess);
+        Assert.False(FirmamentImportedFeatures.PlanMove(inspection, selected.Id, "Not.AnIdentifier", new(130,45,0), true).IsSuccess);
+    }
+
+    [Fact]
+    public void RecoveredGoldenFixture_ValidateAndBuildAgree()
+    {
+        var source = File.ReadAllText(Path.Combine(DirectoryPath,"ctc01-recovered-hole-move.firmament"));
+        Assert.Equal("valid", Validate(source).Status);
+        var build = FirmamentBuildAndExport.CompileSource(source,DirectoryPath);
+        Assert.True(build.IsSuccess,string.Join(" | ",build.Diagnostics.Select(d=>d.Message)));
+        Assert.Equal(115,build.Value.ImportedHoleRevision!.PreservedFaces);
+        var invalid = source.Replace("through-hole:step-764+765", "through-hole:step-stale");
+        Assert.Equal("invalid",Validate(invalid).Status);
+        Assert.False(FirmamentBuildAndExport.CompileSource(invalid,DirectoryPath).IsSuccess);
+        var conflicting = source.Replace("kind: HoleShaft", "kind: HoleShaft\n            faces: [1, 2]");
+        Assert.Equal("invalid", Validate(conflicting).Status);
+        Assert.False(FirmamentBuildAndExport.CompileSource(conflicting, DirectoryPath).IsSuccess);
+        var missingBounds = source.Replace("within: [", "within: [null,");
+        Assert.Equal("invalid", Validate(missingBounds).Status);
+        Assert.False(FirmamentBuildAndExport.CompileSource(missingBounds, DirectoryPath).IsSuccess);
+    }
 
     [Fact]
     public void GoldenPath_AdmitsBuildsAndExportsQualifiedMovedHoleWithSemanticPmi()
@@ -123,7 +188,7 @@ public sealed class FirmamentImportedHoleRevisionTests
     [InlineData("field")]
     [InlineData("bounds-field")]
     [InlineData("import-field")]
-    [InlineData("pin-conflict")][InlineData("named-face")][InlineData("object-type")][InlineData("no-replacement")]
+    [InlineData("pin-conflict")][InlineData("named-face")][InlineData("object-type")]
     [InlineData("no-pin")]
     [InlineData("notes")]
     public void InvalidIntent_ValidateAndBuildRejectWithLocatedDiagnostics(string change)
@@ -142,7 +207,6 @@ public sealed class FirmamentImportedHoleRevisionTests
             "pin-conflict" => Source.Replace("textSha256:", "sha256: \"0000000000000000000000000000000000000000000000000000000000000000\"\n        textSha256:"),
             "named-face" => Source.Replace("Source.Face(98)", "Source.Face(ignored: 98)"),
             "object-type" => Source.Replace("within: {", "within: Nonsense {"),
-            "no-replacement" => Source[..Source.IndexOf("    Replace Source.MountHole", StringComparison.Ordinal)] + "}\n",
             "no-pin" => Source.Replace("textSha256:", "// textSha256:"),
             "notes" => Source.Replace("radius: 12.5mm", "notes: [12]\n                radius: 12.5mm"),
             "bounds-field" => Source.Replace("min: Point3", "minimum: Point3"),

@@ -16,13 +16,6 @@ internal static partial class AssemblyDefinitionMaterializer
         var projection = reference.Module is null ? null : graph.ProjectSource(reference.Module, reference.Export, partContext: true);
         if (graph.Project is not null && reference.Module is { } module)
         {
-            var inline = FirmamentSyntaxTraversal.Declarations(module.Syntax).FirstOrDefault(d => d.Type.Name.Text == "InlineStep");
-            if (inline is not null)
-            {
-                diagnostics.Add(new("assembly-profile-external-resource-unsupported", "InlineStep requires a binary asset, which a source-only project snapshot cannot supply.")
-                    { SourceSpan = new(module.Path,inline.Span.Start,inline.Span.Length) });
-                return null;
-            }
             if (reference.Export is not null)
             {
                 var resource = FirmamentSyntaxTraversal.Expressions(module.Syntax).OfType<SpecializationSyntax>()
@@ -39,12 +32,27 @@ internal static partial class AssemblyDefinitionMaterializer
         MaterializedAssemblyDefinition? Build()
         {
             MaterializedAssemblyDefinition? result;
-            if (reference.Module is null || reference.Export is null || reference.Export.Modifiers.Any(m => m.Name.Text == "Template"))
+            if (reference.Module is null)
+            {
+                var text = graph.Asset(reference.Path);
+                var imported = reference.ImportedBody is { } retained
+                    ? Aetheris.Kernel.Core.Results.KernelResult<Aetheris.Kernel.Core.Brep.BrepBody>.Success(retained.Clone()) : Step242Importer.ImportBody(text);
+                if (!imported.IsSuccess)
+                {
+                    diagnostics.AddRange(imported.Diagnostics.Select(d => new AssemblyDiagnostic("assembly-definition-reimport-failed", d.Message) { SourceSpan = reference.Origin }));
+                    return null;
+                }
+                var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
+                result = new(identity, "imported-step:" + hash[..16], imported.Value, [],
+                    new("", identity, "imported-step:" + hash[..16], hash, Metrics(imported.Value),
+                        [new SemanticProvenance("imported-step-definition", reference.Path, hash, reference.Origin)]), reference.ImportedBody is null ? text : null);
+            }
+            else if ( reference.Export is null || reference.Export.Modifiers.Any(m => m.Name.Text == "Template"))
                 result = TryMaterialize(localIdentity, projection?.Text, reference.Path, diagnostics, graph.Project, cache is null ? null : cache.ImportCanonical);
             else
             {
                 var source = AssemblyPublishedPorts.Strip(projection!.Text, diagnostics);
-                var compiled = FirmamentBuildAndExport.CompileSource(source, graph.Project is null ? Path.GetDirectoryName(reference.Path) : null);
+                var compiled = FirmamentBuildAndExport.CompileSource(source, Path.GetDirectoryName(reference.Path), graph.Project?.Documents);
                 if (!compiled.IsSuccess || compiled.Value is null)
                 {
                     foreach (var error in compiled.Diagnostics)
@@ -71,6 +79,6 @@ internal static partial class AssemblyDefinitionMaterializer
             return result with { DefinitionIdentity = identity, DeclarationScope = null,
                 Artifact = result.Artifact with { DefinitionIdentity = identity, StableId = stableId } };
         }
-        return cache is null ? Build() : cache.Materialize(identity, projection?.Text, reference.Path, diagnostics, graph.Project, Build);
+        return cache is null || reference.Module is null ? Build() : cache.Materialize(identity, projection?.Text, reference.Path, diagnostics, graph.Project, Build);
     }
 }

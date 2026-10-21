@@ -61,7 +61,8 @@ public sealed class FirmamentProjectSnapshotTests
         var project = new FirmamentProjectSnapshot("main.firmasm", [
             KeyValuePair.Create("main.firmasm", "Assembly Root { <Assembly Root><Part External = ExternalStep<\"C:/secret.step\">></Part></Assembly> Anchor: Root; }")]);
         var result = new AssemblyM1Pipeline().CompileProject(project);
-        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "assembly-profile-external-resource-unsupported");
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "assembly-include-outside-root");
     }
 
     [Fact]

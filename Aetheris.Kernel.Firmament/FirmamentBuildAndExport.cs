@@ -42,6 +42,9 @@ public static partial class FirmamentBuildAndExport
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
 
         var fullSourcePath = Path.GetFullPath(sourcePath);
+        var lockDiagnostics = Modules.FirmamentDependencies.VerifyFile(fullSourcePath);
+        if (lockDiagnostics.Count > 0) return KernelResult<FirmamentBuildAndExportResult>.Failure(
+            lockDiagnostics.Select(d => SchemaDiagnostic(d.Code + ": " + d.Message)).ToArray());
         var sourceText = File.ReadAllText(fullSourcePath, Encoding.UTF8);
         var frontend = FirmamentFrontendSchemas.Select(sourceText);
         if (!frontend.IsSuccess) return KernelResult<FirmamentBuildAndExportResult>.Failure(frontend.LocatedDiagnostics.Select(d => SchemaDiagnostic(d.Code + ": " + d.Message)).ToArray());
@@ -518,7 +521,9 @@ public static partial class FirmamentBuildAndExport
                 return KernelResult<FirmamentStepExportResult>.Failure(dfm.Diagnostics);
             }
 
-            if (v2Parse.Document.Solids.Any(s => s.InlineStep?.SourceHashPin is not null))
+            if (v2Parse.Document.Solids.Any(s => s.InlineStep?.SourceHashPin is not null)
+                && (v2Parse.Document.Solids.Count != 1 || v2Parse.Document.Replacements is { Count: > 0 }
+                    || v2Parse.Document.ModifyBlocks is { Count: > 0 }))
                 return ExportPinnedImportedRevision(v2Parse.Document);
 
             if (TryExportV2StandaloneCubicLattice(v2Parse.Document) is { } latticeExport)
@@ -2277,15 +2282,18 @@ public static partial class FirmamentBuildAndExport
         }
 
         var stepText = inlineStep.SourceText ?? File.ReadAllText(inlineStep.NormalizedPath, Encoding.UTF8);
-        if (Step242SemanticPmiInspector.Inspect(stepText).Items.Count > 0)
+        if (!inlineStep.GeometryOnly && (!inlineStep.CanonicalInput || ImportedStepSemantics.HasAnnotations(stepText)))
             return KernelResult<FirmamentStepExportResult>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed,
-                KernelDiagnosticSeverity.Error, "firmament-v2-inline-step-existing-pmi-unsupported: This STEP already contains semantic PMI. Importing that annotation layer is not yet qualified and must not silently discard it. Reopen the original Firmament/Helios workspace instead.", "FirmamentV2.InlineStep")]);
-        var import = Step242Importer.ImportBody(stepText);
+                KernelDiagnosticSeverity.Error, "firmament-v2-inline-step-existing-pmi-unsupported: Source annotation passthrough is not qualified for this STEP. Use the original Firmament/Helios workspace, or explicitly request geometryOnly: true to exclude imported annotations without changing the original file.", "FirmamentV2.InlineStep")]);
+        var import = inlineStep.RuntimeBody is { } admitted ? KernelResult<BrepBody>.Success(admitted.Clone()) : Step242Importer.ImportBody(stepText);
         if (!import.IsSuccess)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(import.Diagnostics);
         }
 
+        if (inlineStep.SourceHashPin is not null && import.Value.ImportQualification?.GeometryStatus != Aetheris.Kernel.Core.Import.ImportQualificationStatus.Qualified)
+            return KernelResult<FirmamentStepExportResult>.Failure([new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
+                "firmament-inline-step-import-unqualified: Pinned re-export requires qualified imported trims.", "FirmamentV2.InlineStep")]);
         var semanticPmiValidation = ValidateV2PmiExportSupport(document);
         if (!semanticPmiValidation.IsSuccess)
         {
@@ -2298,7 +2306,9 @@ public static partial class FirmamentBuildAndExport
         var export = Step242Exporter.ExportBody(import.Value, semanticPmi, new Step242ExportOptions
         {
             ProductName = solid.Name,
-            ApplicationName = "Aetheris.Firmament.InlineStep"
+            ApplicationName = "Aetheris.Firmament.InlineStep",
+            BrepExportPreflightMode = inlineStep.SourceHashPin is null ? BrepExportPreflightMode.Audit : BrepExportPreflightMode.Enforce,
+            ImportedRecoveryToleranceMillimetres = inlineStep.ImportToleranceMillimetres ?? .001
         });
         if (!export.IsSuccess)
         {
@@ -2311,12 +2321,14 @@ public static partial class FirmamentBuildAndExport
                 solid.Name,
                 0,
                 "inline-step",
-                "aetheris-canonical-ap242",
+                inlineStep.CanonicalInput ? "aetheris-canonical-ap242" : "qualified-import-ap242",
                 DatumInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
                 DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? [],
-                InlineStepMigration: InlineStepMigrationReportBuilder.Build(document, solid, emissionStrategy: "canonical-reexport", residualSurgery: false),
+                InlineStepMigration: InlineStepMigrationReportBuilder.Build(document, solid, emissionStrategy: inlineStep.CanonicalInput ? "canonical-reexport" : "qualified-import-reexport", residualSurgery: false),
                 InlineStepReplacementAssist: InlineStepReplacementAssistReportBuilder.Build(document))
-                { RuntimeBody = import.Value, RuntimeBodySourceName = solid.Name, RuntimeAdmissionDocument = document });
+                { RuntimeBody = import.Value, RuntimeBodySourceName = solid.Name, RuntimeAdmissionDocument = document },
+            inlineStep.GeometryOnly ? [new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
+                "firmament-inline-step-source-semantics-excluded: geometryOnly explicitly excludes source annotations; geometry remains unchanged.", "FirmamentV2.InlineStep")] : []);
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2ControlledSideHoleBody(FirmamentV2Document document)

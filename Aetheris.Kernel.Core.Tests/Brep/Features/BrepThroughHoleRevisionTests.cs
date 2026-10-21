@@ -1,6 +1,9 @@
 using System.Text.Json;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Features;
+using Aetheris.Kernel.Core.Brep.Boolean;
+using Aetheris.Kernel.Core.Brep.Queries;
+using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Import;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Tests.Step242;
@@ -16,6 +19,60 @@ public sealed class BrepThroughHoleRevisionTests
         new ImportPolicy(PcurveQualificationToleranceMillimetres: .01)).Value);
     static ThroughHoleRevisionRequest Request => new("MountHole", [new(1), new(2)], new(98), new(-130, 45, 0), 25,
         new(new(-175, 30, -50), new(-115, 60, 0)), .01);
+
+    [Fact]
+    public void DestinationContainment_ExcludesEntireInteriorOfAnExistingOpening()
+    {
+        var cut = BrepBoolean.Subtract(BrepPrimitives.CreateBox(40, 40, 10).Value,
+            StandardLibrary.StandardLibraryPrimitives.CreateSlotCut(16, 8, 24, 4).Value);
+        Assert.True(cut.IsSuccess, string.Join(" | ", cut.Diagnostics.Select(d => d.Message)));
+        var exported = Step242Exporter.ExportBody(cut.Value);
+        Assert.True(exported.IsSuccess);
+        var imported = Step242Importer.ImportBody(exported.Value);
+        Assert.True(imported.IsSuccess);
+        var body = imported.Value;
+        var top = Assert.Single(body.Topology.Faces, f => body.GetFaceSurface(f.Id).Plane is { } p
+            && System.Math.Abs(p.Origin.Z - 5) < 1e-6 && System.Math.Abs(p.Normal.Z) > .99);
+        Assert.True(AnalyticPlanarFaceDomain.TryContainsInPlanarFace(body, top.Id, new(0, 0, 5), ToleranceContext.Default, default, out var inOpening));
+        Assert.False(inOpening);
+        Assert.True(AnalyticPlanarFaceDomain.TryContainsInPlanarFace(body, top.Id, new(15, 0, 5), ToleranceContext.Default, default, out var inStock));
+        Assert.True(inStock);
+    }
+
+    [Fact, Trait("Category", "SlowCorpus")]
+    public void Discovery_GroupsSplitWallsAndReportsUnsupportedCandidates()
+    {
+        var discovery = BrepThroughHoleRevision.Discover(Source.Value, .01);
+        Assert.True(discovery.Qualified);
+        var hole = Assert.Single(discovery.Candidates, c => c.WallFaces.Contains(1));
+        Assert.Equal(new[] { 1, 2 }, hole.WallFaces);
+        Assert.True(hole.CanPlan); Assert.Equal(50, hole.Depth); Assert.Equal(98, hole.EntryFace);
+        Assert.Contains(discovery.Candidates, c => !c.Recognized && c.Diagnostics.Count > 0);
+        Assert.Equal(discovery.Candidates.Select(c => c.Id), BrepThroughHoleRevision.Discover(Source.Value.Clone(), .01).Candidates.Select(c => c.Id));
+        var strict = BrepThroughHoleRevision.Discover(Source.Value, .001);
+        Assert.False(strict.Qualified); Assert.DoesNotContain(strict.Candidates, c => c.CanPlan);
+    }
+
+    [Fact, Trait("Category", "SlowCorpus")]
+    public void TwoLocalRegions_MoveAcrossCentralBossWithoutEditingIt()
+    {
+        var source = Source.Value;
+        var candidate = Assert.Single(BrepThroughHoleRevision.Discover(source, .01).Candidates, c => c.WallFaces.Contains(1));
+        var plan = BrepThroughHoleRevision.PlanMove(source, candidate.Id, "MovedMount", new(130,45,0), .01);
+        Assert.True(plan.IsSuccess, string.Join(" | ", plan.Diagnostics.Select(d => d.Message)));
+        var request = plan.Value.Request; var result = plan.Value.Revision;
+        Assert.NotNull(request.DestinationWithin);
+        var sweptEnvelope = new ThroughHoleEditBounds(request.Within.Min, request.DestinationWithin.Max);
+        Assert.False(BrepThroughHoleRevision.Execute(source, request with { Within = sweptEnvelope, DestinationWithin = null }).IsSuccess);
+        Assert.Equal(115, result.PreservedFaces); Assert.Equal(312, result.PreservedEdges);
+        foreach (var face in source.Topology.Faces.Where(f => !candidate.WallFaces.Contains(f.Id.Value)))
+            Assert.Equal(source.GetFaceSurface(face.Id), result.Body.GetFaceSurface(face.Id));
+        Assert.False(BrepThroughHoleRevision.PlanMove(source, candidate.Id, "Occupied", new(160,45,0), .01).IsSuccess);
+        var outside = BrepThroughHoleRevision.PlanMove(source, candidate.Id, "Outside", new(1000,45,0), .01);
+        Assert.False(outside.IsSuccess);
+        Assert.Contains(outside.Diagnostics, d => d.Message.Contains("outside the support face"));
+        Assert.False(BrepThroughHoleRevision.PlanMove(source, "missing", "Missing", new(130,45,0), .01).IsSuccess);
+    }
 
     [Fact, Trait("Category", "SlowCorpus")]
     public void Ctc01_ExplicitSourceAccuracy_QualifiesAllTrimsWithoutChangingGeometry()

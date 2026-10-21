@@ -54,7 +54,10 @@ public sealed record DeclarationSyntax(TypeSyntax Type, IdentifierSyntax? Name, 
     [JsonIgnore] public bool HasParameterList { get; init; }
 }
 public sealed record FieldSyntax(IdentifierSyntax Name, ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
-public sealed record DirectiveSyntax(DirectiveKind Kind, ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+public sealed record DirectiveSyntax(DirectiveKind Kind, ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span)
+{
+    public IdentifierSyntax? Name { get; init; }
+}
 public sealed record ExpressionStatementSyntax(ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
 public sealed record ReturnSyntax(ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
 public sealed record StatementBlockSyntax(BlockSyntax Body, FirmamentV2SourceSpan Span) : StatementSyntax(Span);

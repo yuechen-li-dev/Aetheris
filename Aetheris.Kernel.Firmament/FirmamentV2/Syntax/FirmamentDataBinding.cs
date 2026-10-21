@@ -31,7 +31,7 @@ internal sealed class FirmamentDataBinding
     internal IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics { get; }
     internal bool IsChanged => edits.Count != 0;
 
-    internal FirmamentDataBinding(string source)
+    internal FirmamentDataBinding(string source, bool moduleContext = false)
     {
         OriginalSource = source;
         Source = source;
@@ -81,7 +81,8 @@ internal sealed class FirmamentDataBinding
                 if (statement is not DeclarationSyntax { Name: { } name } d) continue;
                 if (d.Type.Name.Text == "Record" && d.Modifiers.Any(m => m.Name.Text == "Inventory"))
                 {
-                    Error("firmament-module-context-required", $"Inventory Record '{name.Text}' requires an Assembly or Scene project loader. Reference this module from a consuming project; it is not an ordinary data Record.", d.Span, name.Text, "Module binding");
+                    scope.Values.Add(name.Text);
+                    if (!moduleContext) Error("firmament-module-context-required", $"Inventory Record '{name.Text}' requires a project loader. Reference this module from a consuming project; it is not an ordinary data Record.", d.Span, name.Text, "Module binding");
                     continue;
                 }
                 var space = NamespaceFor(d);

@@ -191,19 +191,21 @@ internal static partial class AssemblyDefinitionMaterializer
         var externalStep = System.Text.RegularExpressions.Regex.Match(definitionIdentity, "^ExternalStep<\\\"(?<path>[^\\\"]+)\\\">$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         if (externalStep.Success)
         {
+            string resolvedPath; string stepText;
             if (project is not null)
             {
-                diagnostics.Add(new("assembly-profile-external-resource-unsupported", "ExternalStep is not a project source document and cannot be resolved from a Firmament project snapshot."));
-                return null;
+                resolvedPath = FirmamentProjectSnapshot.NormalizePath(Path.Combine(Path.GetDirectoryName(sourceIdentity) ?? "", externalStep.Groups["path"].Value));
+                if (!project.TryResolve(resolvedPath, out stepText!))
+                { diagnostics.Add(new("assembly-profile-unresolved-resource", "Missing snapshot STEP asset: " + resolvedPath)); return null; }
             }
-            var baseDirectory = Path.GetDirectoryName(Path.GetFullPath(sourceIdentity)) ?? Directory.GetCurrentDirectory();
-            var resolvedPath = Path.GetFullPath(Path.Combine(baseDirectory, externalStep.Groups["path"].Value.Replace('/', Path.DirectorySeparatorChar)));
-            if (!File.Exists(resolvedPath))
+            else
             {
-                diagnostics.Add(new("assembly-profile-unresolved-resource", $"External STEP resource '{externalStep.Groups["path"].Value}' was not found at '{resolvedPath}'."));
-                return null;
+                var baseDirectory = Path.GetDirectoryName(Path.GetFullPath(sourceIdentity)) ?? Directory.GetCurrentDirectory();
+                resolvedPath = Path.GetFullPath(Path.Combine(baseDirectory, externalStep.Groups["path"].Value.Replace('/', Path.DirectorySeparatorChar)));
+                if (!File.Exists(resolvedPath))
+                { diagnostics.Add(new("assembly-profile-unresolved-resource", "Missing STEP asset: " + resolvedPath)); return null; }
+                stepText = File.ReadAllText(resolvedPath);
             }
-            var stepText = File.ReadAllText(resolvedPath);
             var externalImport = Step242Importer.ImportBody(stepText);
             if (!externalImport.IsSuccess || externalImport.Value is null)
             {
@@ -439,10 +441,6 @@ public sealed class AssemblyM1Pipeline
             return new(null, null, profile);
         AssemblyM0Parser.ParseResult parsed;
         using (BuildPerfTrace.Phase("assembly.parse-project")) parsed = new AssemblyM0Parser { PortCache = cache?.PublishedPorts }.ParseProject(project);
-        if (parsed.Source?.DefinitionSource is { } declarations &&
-            System.Text.RegularExpressions.Regex.IsMatch(declarations, @"\bInlineStep\b", System.Text.RegularExpressions.RegexOptions.CultureInvariant))
-            return new(null, null, [new AssemblyDiagnostic("assembly-profile-external-resource-unsupported",
-                "InlineStep requires an external STEP asset and is unsupported in a Firmament project snapshot.")]);
         return CompileParsed(parsed, null, project);
     }
 

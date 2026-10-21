@@ -167,6 +167,62 @@ internal sealed class AnalyticPlanarFaceDomain
         return true;
     }
 
+    // Unlike the display domain, admission never falls back to whole-body bounds.
+    // Arc chords preserve winding only when the probe is separated by more than
+    // their certified sag plus the imported endpoint uncertainty.
+    internal static bool TryContainsInPlanarFace(BrepBody body, FaceId faceId,
+        Point3D point, ToleranceContext tolerance, LoopId removedInnerLoop, out bool inside)
+    {
+        inside = false;
+        var face = body.Topology.GetFace(faceId);
+        if (face.LoopIds.Any(id => !body.Bindings.TryGetFaceBoundaryRoleBinding(id, out _))) return false;
+        var outers = face.LoopIds.Where(id => body.Bindings.GetFaceBoundaryRoleBinding(id).Role == FaceBoundaryRole.Outer).ToArray();
+        if (outers.Length != 1 || body.GetFaceSurface(faceId).Plane is not { } plane) return false;
+        if (!TryClassifyLoop(outers[0], out inside)) return false;
+        if (!inside) return true;
+        foreach (var loopId in face.LoopIds.Where(id => id != outers[0] && id != removedInnerLoop))
+        {
+            if (body.Bindings.GetFaceBoundaryRoleBinding(loopId).Role != FaceBoundaryRole.Inner
+                || !TryClassifyLoop(loopId, out var inHole)) return false;
+            if (inHole) { inside = false; return true; }
+        }
+        return true;
+
+        bool TryClassifyLoop(LoopId loopId, out bool contains)
+        {
+            contains = false;
+            var points = new List<(double U, double V)>();
+            var deviation = tolerance.Linear;
+            foreach (var coedgeId in body.Topology.GetLoop(loopId).CoedgeIds)
+            {
+                var coedge = body.Topology.GetCoedge(coedgeId);
+                var edge = body.Topology.GetEdge(coedge.EdgeId);
+                if (!body.TryGetVertexPoint(coedge.IsReversed ? edge.EndVertexId : edge.StartVertexId, out var start)
+                    || !body.TryGetVertexPoint(coedge.IsReversed ? edge.StartVertexId : edge.EndVertexId, out var end)) return false;
+                var curve = body.GetEdgeCurve(edge.Id);
+                if (curve.Kind == CurveGeometryKind.Line3) points.Add(ProjectToPlane(start, plane));
+                else if (curve.Circle3 is { } circle)
+                {
+                    var binding = body.Bindings.GetEdgeBinding(edge.Id);
+                    if (binding.TrimInterval is not { } interval || System.Math.Abs(interval.End - interval.Start) > 2 * double.Pi + tolerance.Angular) return false;
+                    var samples = CurveSampler.SampleCircleArc(circle, interval.Start, interval.End - interval.Start).ToArray();
+                    if (coedge.IsReversed == binding.OrientedEdgeSense) Array.Reverse(samples);
+                    if ((samples[0] - start).Length > tolerance.Linear || (samples[^1] - end).Length > tolerance.Linear) return false;
+                    var step = System.Math.Abs(interval.End - interval.Start) / (samples.Length - 1);
+                    if (step > double.Pi) return false;
+                    deviation = System.Math.Max(deviation, circle.Radius * (1 - double.Cos(step / 2)) + tolerance.Linear);
+                    for (var i = 0; i < samples.Length - 1; i++) points.Add(ProjectToPlane(samples[i], plane));
+                }
+                else return false;
+            }
+            if (points.Count < 3) return false;
+            var uv = ProjectToPlane(point, plane);
+            if (Enumerable.Range(0, points.Count).Any(i => DistancePointToSegmentSquared(uv, points[i], points[(i + 1) % points.Count]) <= deviation * deviation)) return false;
+            contains = ContainsPoint(points, uv, tolerance);
+            return true;
+        }
+    }
+
 
     public bool IsNearBoundary(Point3D point, ToleranceContext tolerance, out double boundaryDistance, out bool nearVertex)
     {

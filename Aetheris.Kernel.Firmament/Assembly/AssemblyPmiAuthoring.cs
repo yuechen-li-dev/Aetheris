@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Semantics;
@@ -29,102 +28,78 @@ internal static class AssemblyPmiAuthoring
     internal static AssemblyAnnotations Parse(ref string source, string identity, List<AssemblyDiagnostic> diagnostics)
     {
         var original = source;
-        var mask = Mask(source);
-        var changes = new List<(int Start, int Length)>();
+        var syntax = Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FirmamentSyntaxParser.Parse(source);
+        var roots = syntax.Document.Statements.OfType<Aetheris.Kernel.Firmament.FirmamentV2.Syntax.DeclarationSyntax>()
+            .Where(d => d.Type.Name.Text == "Assembly" && !d.Modifiers.Any(m => m.Name.Text == "Template")).ToArray();
+        if (roots.Length != 1 || roots[0].Body is null) return new(null, []);
+        var changes = new List<FirmamentV2SourceSpan>();
         var notes = new List<AssemblyPmiNote>();
         AssemblyReleaseRecord? release = null;
-        // Template Assembly definitions have a '>' immediately before Assembly.
-        var roots = Regex.Matches(mask, @"\bAssembly\s+[A-Za-z_]\w*\s*\{").Cast<Match>()
-            .Where(m => Depth(mask, m.Index) == 0 && mask[..m.Index].TrimEnd().LastOrDefault() != '>').ToArray();
-        if (roots.Length != 1) return new(null, []); // The owning assembly parser diagnoses root structure.
-        var root = roots[0]; var rootEnd = End(mask, root.Index + root.Length - 1);
-        if (rootEnd < 0) return new(null, []);
-        var bodyStart = root.Index + root.Length;
-        var body = mask[bodyStart..rootEnd];
-        // Note text is opaque to the Record binder, too. It must never discover
-        // a fictional Record or Static declaration inside an annotation string.
-        var catalogChars = original.ToCharArray();
-        foreach (Match header in Regex.Matches(mask, @"\bPmi\s*\{"))
+        var fields = roots[0].Body!.Statements.OfType<Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FieldSyntax>()
+            .Where(f => f.Name.Text is "Provenance" or "provenance").ToArray();
+        if (fields.Length > 1) Error("provenance-selection-invalid", "Select one release Record.", roots[0].Span);
+        foreach (var selection in fields)
         {
-            var end = End(mask, header.Index + header.Length - 1);
-            if (end >= 0) Array.Fill(catalogChars, ' ', header.Index, end - header.Index + 1);
-        }
-        var catalog = new string(catalogChars);
-        var selections = Regex.Matches(body, @"\bProvenance\s*:\s*(?<name>[A-Za-z_]\w*)\s*;");
-        if (Regex.Matches(body, @"\bProvenance\s*:").Count != selections.Count || selections.Count > 1)
-            Error("provenance-selection-invalid", "Expected one Provenance: StaticRecord; in the root Assembly.");
-        foreach (Match selection in selections)
-        {
-            if (Depth(body, selection.Index) != 0) { Error("provenance-scope-invalid", "Provenance belongs to the root Assembly."); continue; }
-            var name = selection.Groups["name"].Value;
-            var recordDiagnostics = new List<string>();
-            var value = FirmamentV2TemplateExpansion.InspectStaticRecords(catalog, recordDiagnostics).SingleOrDefault(r => r.Name == name);
-            foreach (var diagnostic in recordDiagnostics) Error("provenance-record-invalid", diagnostic);
-            if (value is null) Error("provenance-record-unresolved", name);
-            else
+            var errors = new List<string>();
+            var value = Aetheris.Kernel.Firmament.Modules.FirmamentMetadata.Bind(original, selection.Value, errors);
+            foreach (var error in errors) Error(error.StartsWith("firmament-metadata-record-unresolved:", StringComparison.Ordinal)
+                ? "provenance-record-unresolved" : "provenance-record-invalid", error, selection.Span);
+            if (value is null) continue;
+            var projected = value.Fields.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+            foreach (var (name, type) in new[] { ("Author", "String"), ("Date", "Date"), ("Version", "Version"), ("Description", "String") })
             {
-                var schema = FirmamentV2TemplateExpansion.InspectRecords(catalog, recordDiagnostics).Single(r => r.Name == value.TypeName);
-                foreach (var required in new[] { ("Author", "String"), ("Date", "Date"), ("Version", "Version"), ("Description", "String") })
-                    if (schema.Fields.GetValueOrDefault(required.Item1) != required.Item2)
-                        Error("provenance-field-invalid", $"{name}.{required.Item1} must have type {required.Item2}.");
-                if (schema.Fields.ContainsKey("Organization") && schema.Fields["Organization"] != "String")
-                    Error("provenance-field-invalid", $"{name}.Organization must have type String.");
-                if (schema.Fields.Values.Any(t => t is not ("String" or "Date" or "Version" or "Length" or "Angle" or "Int" or "Float" or "Bool")))
-                    Error("provenance-field-invalid", "Release records admit flat scalar engineering data.");
-                var fields = value.Fields.ToDictionary(p => p.Key, p => Unquote(p.Value), StringComparer.Ordinal);
-                if (fields.Values.Any(string.IsNullOrWhiteSpace)) Error("provenance-field-invalid", "Release fields must be non-empty.");
-                release = new(name, value.TypeName, fields, new(identity, bodyStart + selection.Index, selection.Length));
-                // Erase only the selected data from the material-definition source so metadata edits
-                // cannot invalidate the reusable geometry cache. The typed value is retained above.
-                foreach (Match declaration in Regex.Matches(mask, $@"\b(?:Record\s+{Regex.Escape(value.TypeName)}|Static\s+{Regex.Escape(name)}\s*:\s*{Regex.Escape(value.TypeName)})\s*\{{"))
-                {
-                    var end = End(mask, declaration.Index + declaration.Length - 1);
-                    if (end >= 0) changes.Add((declaration.Index, end - declaration.Index + 1));
-                }
+                var preferred = char.ToLowerInvariant(name[0]) + name[1..];
+                if (value.Fields.ContainsKey(name) && value.Fields.ContainsKey(preferred))
+                { Error("provenance-field-invalid", "Duplicate metadata aliases: " + name + "/" + preferred, selection.Span); continue; }
+                var key = value.Fields.ContainsKey(preferred) || value.Fields.ContainsKey(preferred + ".name") ? preferred : name;
+                if (name == "Author" && value.FieldTypes.GetValueOrDefault(key) != "String" && value.Fields.ContainsKey(key + ".name")) key += ".name";
+                if (value.FieldTypes.GetValueOrDefault(key) != type || string.IsNullOrWhiteSpace(value.Fields.GetValueOrDefault(key)))
+                    Error("provenance-field-invalid", value.Name + "." + preferred + " must provide " + type + ".", selection.Span);
+                else projected[name] = value.Fields[key];
             }
-            changes.Add((bodyStart + selection.Index, selection.Length));
-        }
-        foreach (Match header in Regex.Matches(body, @"\bPmi\s*\{"))
-        {
-            var start = bodyStart + header.Index;
-            var end = End(mask, start + header.Length - 1);
-            if (end < 0) { Error("pmi-malformed", "Unclosed Pmi block."); continue; }
-            if (Depth(body, header.Index) != 0) Error("pmi-scope-invalid", "Assembly Pmi belongs to the root Assembly.");
-            var cursor = start + header.Length;
-            while (cursor < end)
+            if (value.Fields.ContainsKey("Organization") && value.Fields.ContainsKey("organization"))
+                Error("provenance-field-invalid", "Duplicate metadata aliases: Organization/organization", selection.Span);
+            var organizationKey = value.Fields.ContainsKey("organization") ? "organization" : "Organization";
+            if (value.Fields.TryGetValue(organizationKey, out var organization))
             {
-                while (cursor < end && char.IsWhiteSpace(mask[cursor])) cursor++;
-                if (cursor == end) break;
-                var note = Regex.Match(mask[cursor..end], @"^Note\s+(?<name>[A-Za-z_]\w*)\s*\{");
-                if (!note.Success) { Error("pmi-kind-unsupported", "Assembly Pmi currently admits only Note Name { Target: occurrence; Text: string; }."); break; }
-                var close = End(mask, cursor + note.Length - 1);
-                if (close < 0 || close >= end) { Error("pmi-malformed", note.Value); break; }
-                var fields = original[(cursor + note.Length)..close];
-                var parsed = Regex.Match(fields, "^\\s*Target\\s*:\\s*(?<target>[A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)*)\\s*;\\s*Text\\s*:\\s*(?<text>\"(?:\\\\.|[^\"\\\\])*\")\\s*;\\s*$", RegexOptions.Singleline);
-                if (!parsed.Success) Error("pmi-note-invalid", note.Groups["name"].Value);
-                else
-                {
-                    try
-                    {
-                        using var literal = JsonDocument.Parse(parsed.Groups["text"].Value);
-                        var text = literal.RootElement.GetString()!;
-                        var name = note.Groups["name"].Value;
-                        if (string.IsNullOrWhiteSpace(text) || text.Any(char.IsControl)) Error("pmi-note-invalid", name);
-                        else if (notes.Any(n => n.Name == name)) Error("pmi-note-duplicate", name);
-                        else notes.Add(new(name, parsed.Groups["target"].Value, text, new(identity, cursor, close - cursor + 1)));
-                    }
-                    catch (JsonException) { Error("pmi-note-invalid", note.Groups["name"].Value); }
-                }
-                cursor = close + 1;
+                if (value.FieldTypes.GetValueOrDefault(organizationKey) != "String") Error("provenance-field-invalid", "Release organization must provide String.", selection.Span);
+                else projected["Organization"] = organization;
             }
-            changes.Add((start, end - start + 1));
+            release = new(value.Name, value.Type, projected, new(identity, selection.Span.Start, selection.Span.Length));
+            // Metadata is bound by the normal Record owner. Remove the selected
+            // declaration/value by AST spans from the geometry-only projection.
+            foreach (var d in syntax.Document.Statements.OfType<Aetheris.Kernel.Firmament.FirmamentV2.Syntax.DeclarationSyntax>()
+                .Where(d => d.Name?.Text == value.Name && d.Type.Name.Text == "Static" || d.Name?.Text == value.Type && d.Type.Name.Text == "Record")) changes.Add(d.Span);
+            changes.Add(selection.Span);
+        }
+        foreach (var pmi in roots[0].Body!.Statements.OfType<Aetheris.Kernel.Firmament.FirmamentV2.Syntax.DeclarationSyntax>().Where(d => d.Type.Name.Text == "Pmi"))
+        {
+            var scopeErrors = new List<string>();
+            new Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FirmamentSyntaxFields(pmi, scopeErrors).Complete(
+                (pmi.Body?.Statements.OfType<Aetheris.Kernel.Firmament.FirmamentV2.Syntax.DeclarationSyntax>() ?? []).ToHashSet<Aetheris.Kernel.Firmament.FirmamentV2.Syntax.StatementSyntax>());
+            foreach (var error in scopeErrors) Error("pmi-note-invalid", error, pmi.Span);
+            foreach (var statement in pmi.Body?.Statements ?? [])
+            {
+                if (statement is not Aetheris.Kernel.Firmament.FirmamentV2.Syntax.DeclarationSyntax { Type.Name.Text: "Note", Name: { } name, Body: { } body } note)
+                { Error("pmi-kind-unsupported", "Assembly PMI currently admits Note declarations.", statement.Span); continue; }
+                var errors = new List<string>();
+                var owned = new Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FirmamentSyntaxFields(note, errors);
+                var target = owned.Reference("Target");
+                var text = owned.Take("Text") is Aetheris.Kernel.Firmament.FirmamentV2.Syntax.LiteralSyntax { Kind: Aetheris.Kernel.Firmament.FirmamentV2.Syntax.LiteralKind.String } literal
+                    ? JsonSerializer.Deserialize<string>(literal.Raw) : null;
+                owned.Complete();
+                if (errors.Count > 0 || target is null || string.IsNullOrWhiteSpace(text) || text.Any(char.IsControl))
+                    Error("pmi-note-invalid", string.Join(" | ", errors), note.Span);
+                else if (notes.Any(n => n.Name == name.Text)) Error("pmi-note-duplicate", name.Text, note.Span);
+                else notes.Add(new(name.Text, target, text, new(identity, note.Span.Start, note.Span.Length)));
+            }
+            changes.Add(pmi.Span);
         }
         var chars = source.ToCharArray();
-        foreach (var change in changes) Array.Fill(chars, ' ', change.Start, change.Length);
+        foreach (var span in changes) for (var i = span.Start; i < span.Start + span.Length; i++) if (chars[i] is not ('\r' or '\n')) chars[i] = ' ';
         source = new(chars);
         return new(release, notes);
-
-        void Error(string code, string message) => diagnostics.Add(new("assembly-" + code, message));
+        void Error(string code, string message, FirmamentV2SourceSpan span) => diagnostics.Add(new("assembly-" + code, message) { SourceSpan = new(identity, span.Start, span.Length) });
     }
 
     internal static void Validate(AssemblyAnnotations? annotations, IEnumerable<AssemblyInstanceIr> instances, List<AssemblyDiagnostic> diagnostics)
@@ -139,10 +114,4 @@ internal static class AssemblyPmiAuthoring
             release.Fields["Date"] + "T00:00:00", release.Fields["Author"], release.Fields.GetValueOrDefault("Organization", "Aetheris"),
             "Aetheris.Kernel.Firmament", "Aetheris/Firmament", "");
 
-    private static string Unquote(string value) => value.StartsWith('"') ? value[1..^1] : value;
-    private static string Mask(string source) => Regex.Replace(source, "\"(?:\\\\.|[^\"\\\\])*\"|//[^\\r\\n]*", m => new string(' ', m.Length));
-    private static int Depth(string text, int end)
-    { var depth = 0; for (var i = 0; i < end; i++) { if (text[i] == '{') depth++; else if (text[i] == '}') depth--; } return depth; }
-    private static int End(string text, int opening)
-    { var depth = 0; for (var i = opening; i < text.Length; i++) { if (text[i] == '{') depth++; else if (text[i] == '}' && --depth == 0) return i; } return -1; }
 }

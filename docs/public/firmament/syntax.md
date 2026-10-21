@@ -373,8 +373,12 @@ volume.
 mechanical compatibility syntax has the bounded lowercase
 `region sideHole on face(+X) { cut Cylinder { ... } }` operation inside
 `modify`; it is not a general native `Region` declaration. Prefer `Hole<Shaft>`
-for new hole construction. `Recognize` names a verified region of existing
-geometry. Sheet Metal's named planar regions and FEA's `Region:` selection
+for new hole construction. `Recognize` names an explicitly referenced region of
+imported geometry; its current binding checks are not automatic feature recognition
+or a complete geometric proof of the authored kind. The existing hole `Replace`
+lane is a bounded canonical box/through-hole rebuild, not general imported-body
+editing. See [imported feature recognition](imported-feature-recognition.md).
+Sheet Metal's named planar regions and FEA's `Region:` selection
 fields are domain-owned uses of the word, with separate types and admission
 rules. See [Sheet Metal](sheet-metal.md) and [FEA](fea.md).
 

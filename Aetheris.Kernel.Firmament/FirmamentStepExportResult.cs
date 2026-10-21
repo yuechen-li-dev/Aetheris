@@ -38,6 +38,9 @@ public sealed record FirmamentStepExportResult(
     FirmamentThreadReport? Thread = null)
 {
     public string? DocumentName { get; init; }
+    public FirmamentImportedHoleRevisionReport? ImportedHoleRevision { get; init; }
+    // Lowerer-owned receipts distinguish generated feature PMI from authored projections.
+    [JsonIgnore] public IReadOnlyList<Aetheris.Kernel.Core.Step242.Step242SemanticPmi> GeneratedSemanticPmi { get; init; } = [];
     public IReadOnlyList<FirmamentV2.FirmamentGeometryAssertionResult> GeometryAssertions { get; init; } = [];
     // In-process display can use the exact body that was exported to STEP.
     // It is intentionally absent from CLI/JSON artifact serialization.

@@ -373,11 +373,18 @@ volume.
 mechanical compatibility syntax has the bounded lowercase
 `region sideHole on face(+X) { cut Cylinder { ... } }` operation inside
 `modify`; it is not a general native `Region` declaration. Prefer `Hole<Shaft>`
-for new hole construction. `Recognize` names an explicitly referenced region of
-imported geometry; its current binding checks are not automatic feature recognition
-or a complete geometric proof of the authored kind. The existing hole `Replace`
-lane is a bounded canonical box/through-hole rebuild, not general imported-body
-editing. See [imported feature recognition](imported-feature-recognition.md).
+for new hole construction. `Recognize` names a region of imported geometry. The
+qualified imported-hole revision form pins the STEP with `sha256` (exact bytes)
+or `textSha256` (explicit UTF-8/LF text normalization), proves a
+complete through-hole and uses `Replace ... with Hole<Shaft>` plus explicit
+`within` bounds to move it while retaining the residual BRep. The first family is
+same-size, Z-axis and between parallel planar supports. This first pinned revision
+workflow requires explicit `geometryOnly: true`; source annotation exclusion is
+reported, not silently assumed.
+`importTolerance` controls imported geometry qualification and is separate from a
+manufacturing `tol`. The older HostSize rebuild does not have this preservation
+contract. See [imported through-hole revisions](imported-feature-recognition.md)
+for the executable CTC-01 source, numerical accuracy and rejection boundaries.
 Sheet Metal's named planar regions and FEA's `Region:` selection
 fields are domain-owned uses of the word, with separate types and admission
 rules. See [Sheet Metal](sheet-metal.md) and [FEA](fea.md).

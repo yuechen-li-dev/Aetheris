@@ -239,7 +239,7 @@ public static class FirmamentSyntaxParser
             }
             if (Pair("=", ">")) { at += 2; initializer = Expression(stopGreater: occurrence); }
             else if (Take("=")) initializer = Expression(stopGreater: occurrence);
-            if (type.Name.Text == "Replace" && Take("With"))
+            if (type.Name.Text == "Replace" && (Take("With") || Take("with")))
             {
                 result = Expression(allowObject: false);
                 if (Current.Kind == SyntaxTokenKind.Identifier) initializer = new ReferenceSyntax(Identifier(), Previous.Span);

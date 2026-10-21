@@ -100,6 +100,13 @@ public sealed record FirmamentV2InlineStepRecord(string SourcePath, string Norma
     /// <summary>The admitted immutable input. Lowering must not reopen a changed file.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public string? SourceText { get; init; }
+    public string? SourceHashPin { get; init; }
+    public bool TextHashPin { get; init; }
+    public string? SourceByteHash { get; init; }
+    public double? ImportToleranceMillimetres { get; init; }
+    public bool GeometryOnly { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Aetheris.Kernel.Core.Brep.BrepBody? RuntimeBody { get; init; }
 }
 public sealed record ImportedStepTopologyMap(IReadOnlyDictionary<string, string> FaceEntityToFaceId, IReadOnlyDictionary<string, string> FaceIdToFaceEntity)
 {
@@ -184,6 +191,9 @@ public sealed record FirmamentV2SemanticProposal(string ProposalKind, string Fea
 public sealed record FirmamentV2ReplacementDecl(string ImportedBodyName, string RecognizedRegionName, string ReplacementKind, string ReplacementFeatureName, string PlacementTarget, FirmamentV2FaceLocalPoint2D Center, double Radius, string EndCondition, IReadOnlyList<double> HostSize, string Source)
 {
     public string TargetSource => $"{ImportedBodyName}.region(\"{RecognizedRegionName}\")";
+    public Aetheris.Kernel.Core.Math.Point3D? WorldCenter { get; init; }
+    public Aetheris.Kernel.Core.Brep.Features.ThroughHoleEditBounds? Within { get; init; }
+    public FirmamentV2SourceSpan? SourceSpan { get; init; }
 }
 
 public sealed record FirmamentV2ImportedStepFaceTarget(string BodySymbol, string EntityRef)

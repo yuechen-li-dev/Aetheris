@@ -161,7 +161,17 @@ public static class Step242Exporter
         var lengthUnitId = writer.AddRawEntity("(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.))");
         var planeAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)PLANE_ANGLE_UNIT()SI_UNIT($,.RADIAN.))");
         var solidAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)SI_UNIT($,.STERADIAN.)SOLID_ANGLE_UNIT())");
-        var repContextId = writer.AddRawEntity($"(GEOMETRIC_REPRESENTATION_CONTEXT(3)GLOBAL_UNIT_ASSIGNED_CONTEXT(({lengthUnitId},{planeAngleUnitId},{solidAngleUnitId}))REPRESENTATION_CONTEXT('3','3D'))");
+        var uncertaintyContext = string.Empty;
+        if (options.DistanceAccuracyMillimetres is { } accuracy)
+        {
+            if (!double.IsFinite(accuracy) || accuracy <= 0)
+                return Failure("DistanceAccuracyMillimetres must be positive and finite.", "Exporter.DistanceAccuracy");
+            var uncertainty = writer.AddEntity("UNCERTAINTY_MEASURE_WITH_UNIT",
+                "LENGTH_MEASURE(" + accuracy.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + ")",
+                lengthUnitId, "'distance_accuracy_value'", "'Declared accuracy of retained source geometry'");
+            uncertaintyContext = $"GLOBAL_UNCERTAINTY_ASSIGNED_CONTEXT(({uncertainty}))";
+        }
+        var repContextId = writer.AddRawEntity($"(GEOMETRIC_REPRESENTATION_CONTEXT(3)GLOBAL_UNIT_ASSIGNED_CONTEXT(({lengthUnitId},{planeAngleUnitId},{solidAngleUnitId})){uncertaintyContext}REPRESENTATION_CONTEXT('3','3D'))");
         var shapeRepresentationId = writer.AddEntity("SHAPE_REPRESENTATION", Step242TextWriter.String(options.ProductName), Step242TextWriter.List(brepId), Step242TextWriter.Ref(repContextId));
         writer.AddEntity("SHAPE_DEFINITION_REPRESENTATION", Step242TextWriter.Ref(shapeId), Step242TextWriter.Ref(shapeRepresentationId));
         EmitSemanticPmi(writer, shapeId, shapeRepresentationId, repContextId, lengthUnitId, advancedFaceIds, semanticPmi);

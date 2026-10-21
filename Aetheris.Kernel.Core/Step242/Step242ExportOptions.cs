@@ -19,6 +19,9 @@ public enum BrepExportPreflightPolicy
 
 public sealed class Step242ExportOptions
 {
+    /// <summary>Declared distance accuracy of retained imported geometry, in mm.
+    /// Null preserves the historical export. This is not a machining tolerance.</summary>
+    public double? DistanceAccuracyMillimetres { get; init; }
     public string ProductName { get; init; } = "AetherisBody";
 
     public string ProductId { get; init; } = "AETHERIS";

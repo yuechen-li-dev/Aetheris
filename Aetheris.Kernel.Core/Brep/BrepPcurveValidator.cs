@@ -184,6 +184,10 @@ public static class BrepPcurveValidator
 
     private static double UvDistance(SurfaceGeometry surface, SurfaceParameterPoint a, SurfaceParameterPoint b)
     {
+        // Distinct generator angles meet at one exact cone apex. Comparing U
+        // there rejects a closed boundary solely because its chart is singular.
+        if (surface.Cone is not null && double.Abs(a.V) <= 1e-10 && double.Abs(b.V) <= 1e-10)
+            return double.Abs(a.V - b.V);
         var periodicity = SurfacePeriodicity.Of(surface);
         var du = PeriodicDelta(a.U - b.U, periodicity.UPeriod);
         var dv = PeriodicDelta(a.V - b.V, periodicity.VPeriod);

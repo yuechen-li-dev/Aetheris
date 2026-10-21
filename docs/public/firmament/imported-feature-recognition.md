@@ -1,27 +1,130 @@
-# Imported feature recognition: current limits
+# Imported through-hole revisions
 
-`Recognize` currently binds explicit face references to a named region. Authored
-kind, confidence and optional evidence/proposals are not equivalent to automatic
-feature recognition or a complete geometric verification. Resolving a face ID
-proves which face was named; it does not prove that face is a hole wall.
+Firmament can replace one isolated round through-hole in a pinned imported STEP
+body, retaining the actual residual BRep. The first admitted operation moves the
+hole without changing its diameter or depth. It does not reverse-engineer the
+whole part or reconstruct stock from a guessed HostSize.
 
-A bounded `Replace ... With Hole<Shaft>` path exists for one canonical imported
-body and one through-hole replacement. It rebuilds a Box plus a semantic shaft
-hole using the existing materializer, then exports STEP. Its report explicitly
-states `emissionStrategy: holeShaft-bounded-rebuild` and `residualSurgery: false`.
-Residual face counts are migration accounting, not proof of preserved residual
-geometry. This is not general hole resizing in an arbitrary imported part.
+The executable golden source is
+[`ctc01-hole-move.firmament`](../../../fixtures/Regression/InlineStep/production/ctc01-hole-move.firmament).
+It moves a Ø25 mm hole on NIST CTC-01 from (-160,45) to (-130,45) mm, through the
+same Z=-50..0 mm material column.
 
-The current implementation checks for one matching-radius cylindrical support,
-but does not establish complete correspondence between the recognized region,
-the imported host and its declared HostSize. A planar region labeled as a hole
-can currently pass this replacement path. An inconsistent HostSize can change the
-rebuilt host. These are known admission gaps; do not use this prototype as evidence
-that arbitrary imported geometry is preserved or that a replacement was verified.
+```firmament
+Model Revision {
+    units: mm
+    InlineStep Source {
+        path: "ctc01.stp"
+        textSha256: "341cea888fb316673ed683e59391c11b4f96cff2542d9387e135f06682dbd745"
+        importTolerance: 0.01mm
+        geometryOnly: true
+    }
+    Recognize Source {
+        Region MountHole {
+            kind: HoleShaft
+            stepFaceEntities: ["#764", "#765"]
+            evidence: { radius: 12.5mm; through: true }
+        }
+    }
+    Replace Source.MountHole with Hole<Shaft> MountHole {
+        on: Source.Face(98)
+        center: Point3(-130mm, 45mm, 0mm)
+        diameter: 25mm
+        end: ThroughAll
+        within: {
+            min: Point3(-175mm, 30mm, -50mm)
+            max: Point3(-115mm, 60mm, 0mm)
+        }
+    }
+}
+```
 
-The canonical positive witness is
-`fixtures/Canonical/Integration/inline-step-recognize-replace.firmament`.
-It is a constrained integration fixture, not a general modeling recipe. See the
-[current audit](../../release/HOLE-RECOGNIZE-REPLACE-AUDIT-2026-10-20.md) for live
-reproduction and the proposed bounded next step. No broader capability is implied
-by proposal text or a replacement-ready metadata report.
+Put the unmodified CTC-01 STEP beside this example as `ctc01.stp`, or use the
+repository fixture's relative path. Choose exactly one pin:
+
+- `sha256` checks exact file bytes. Obtain it with PowerShell
+  `Get-FileHash file.stp -Algorithm SHA256`.
+- `textSha256` checks decoded source text encoded as UTF-8 with CRLF/CR converted
+  to LF. No other whitespace or characters are changed. The fixture uses this
+  explicit mode because Git stores the corpus as LF while older Windows worktrees
+  can contain CRLF. Import still consumes the original text; no file is rewritten.
+
+There is no fallback between these modes. Build JSON records the chosen hash kind
+and actual input byte hash (UTF-8 resource hash for browser snapshots). Re-inspect
+entity selectors before intentionally updating a pin after an upstream revision.
+
+## What the fields mean
+
+`stepFaceEntities` selects original STEP entity IDs. `faces` is the historical
+sequential face-number alternative; the two number spaces are not interchangeable.
+Select the complete cylindrical wall group, including legitimate split half-walls.
+Recognition proves that the group has complete circular openings on two parallel
+planar supports and is an inward through-void. An authored kind, confidence or
+evidence label cannot override failed geometry checks.
+
+`on` selects one of those proved supports. In the pinned CTC-01 source, sequential
+face 98 is the plane at Z=0. `center` is a Point3 in imported-body coordinates,
+which coincide with Model world coordinates in this single-body workflow. It
+must lie on the selected plane. Imported UV origins are not inferred from a Point2.
+
+`within` authorizes the local edit volume. Its Point3 min/max must contain both
+holes with positive clearance and span the support planes. The compiler proves
+that no other boundary can interfere. A conservative refusal means the current
+planner cannot prove that envelope safe; it is not necessarily a physically
+impossible edit. Support faces can extend outside the box: their support surfaces,
+outer loops and all unrelated inner loops remain intact.
+
+`importTolerance` is a numeric import/trim qualification budget in mm, **not a
+manufacturing tolerance or a `tol` requirement**. It defaults to 0.001 mm. CTC-01's
+original polynomial intersection curves deviate about 0.0034 mm from their analytic
+supports and the file declares 0.01 mm source accuracy. The example explicitly
+admits that accuracy; strict 0.001 mm admission rejects. Source geometry is not
+fitted or moved to hide that discrepancy. Export carries declared distance
+accuracy rather than claiming native precision for retained imported geometry.
+
+## Imported annotations
+
+`geometryOnly: true` explicitly excludes the source annotation layer. It does not
+modify the original STEP. The compiler emits a warning and reports the choice.
+This first bounded revision workflow requires explicit geometry-only import for
+every pinned source. Generic source PMI migration is not admitted, including
+annotation graphs that the bounded inspector does not recognize. Without explicit
+exclusion the edit rejects; it never silently discards imported requirements.
+
+The new named Hole produces semantic diameter/depth PMI associated with its new
+wall faces. Additional supported Firmament PMI can be authored against the revised
+bindings. Importing geometry only does not certify, translate or preserve the
+vendor's original dimensions, datums or GD&T.
+
+## Admission and reports
+
+The current family is one isolated round Z-axis through-hole, unchanged diameter
+and depth, between two parallel planar supports in one qualified closed oriented
+body. Blind, intersecting, breakout, threaded, blended-entry, counterbore,
+countersink and non-Z-axis revisions reject. Unknown fields and placements reject.
+No arbitrary-body Boolean fallback or general healing is performed. Pinned imports
+currently require this one bounded replacement; standalone pinned re-export and
+additional Modify operations reject rather than bypassing revision admission.
+
+The operation suppresses the old wall/openings, materializes fresh analytic hole
+geometry and reinserts it with fresh topology IDs. Unchanged topology keeps its
+identity; a face correspondence map records the revision. Cached construction
+geometry is invalidated. Required trim, boundary and STEP roundtrip checks must
+pass before success. `validate` and `build` use the same admission path.
+
+CLI build JSON exposes `importedHoleRevision`, including strategy, import accuracy,
+annotation exclusion, retired/new walls, preserved entity counts and correspondence.
+`inlineStepMigration.residualSurgery` is true for this operation. Syntax diagnostics
+and kernel admission failures retain source context.
+
+## Historical compatibility
+
+The older HostSize-based Box/shaft replacement prototype remains a compatibility
+route, reporting `holeShaft-bounded-rebuild` and `residualSurgery: false`. It does
+not provide this imported-body preservation contract. Its historical admission
+limitations are recorded in the [audit](../../release/HOLE-RECOGNIZE-REPLACE-AUDIT-2026-10-20.md).
+Use the pinned `within` form for the qualified production operation.
+
+See the [production closeout](../../release/IMPORTED-HOLE-REVISION-PRODUCTION-2026-10-20.md)
+for test evidence and the [design contract](../../development/architecture/imported-hole-revisions.md)
+for ownership and limits.

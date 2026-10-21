@@ -86,7 +86,7 @@ public static class InlineStepMigrationReportBuilder
             solid.Name,
             inlineStep.SourcePath,
             inlineStep.ContentHash,
-            new InlineStepOriginalTopologyAccounting(originalFaceCount, 0, 0),
+            new InlineStepOriginalTopologyAccounting(originalFaceCount, inlineStep.RuntimeBody?.Topology.Edges.Count() ?? 0, inlineStep.RuntimeBody?.Topology.Vertices.Count() ?? 0),
             new InlineStepRecognizedAccounting(regions.Length, uniqueRecognized.Count, duplicateCount, unresolvedCount, regions.Count(r => r.Evidence is not null), regions.Count(r => r.Proposal is not null), 0, regions.Count(r => r.Proposal is not null), assist.ReadyCount, assist.BlockedCount),
             new InlineStepReplacementAccounting(plannedCount, verifiedCount, emittedCount, failedCount, replacedFaces.Count),
             new InlineStepResidualAccounting(residualFaceCount, residualFaceCount),

@@ -124,7 +124,26 @@ public static class BrepPcurveRecovery
         if (surface.Cylinder is { } cylinder)
             return BuildPeriodicAnalytic(surface, curve, interval, tolerance, point => CylinderUv(cylinder, point));
         if (surface.Cone is { } cone)
+        {
+            // A cone apex has no unique U coordinate. For a straight generator,
+            // borrow its one-sided interior angle instead of fitting atan2(0,0).
+            // The independent lift check still proves the complete admitted edge.
+            if (curve.Line3 is { } generator)
+            {
+                var a = generator.Evaluate(interval.Start);
+                var b = generator.Evaluate(interval.End);
+                if ((a - cone.Apex).Length <= tolerance || (b - cone.Apex).Length <= tolerance)
+                {
+                    var interior = ConeUv(cone, generator.Evaluate((interval.Start + interval.End) / 2));
+                    var start = ConeUv(cone, a) with { U = interior.U };
+                    var end = ConeUv(cone, b) with { U = interior.U };
+                    var candidate = PcurveGeometry.Line(interval, start, end);
+                    var residual = MaximumResidual(surface, curve, candidate, interval, 1025);
+                    if (residual <= tolerance) return (candidate, residual, null);
+                }
+            }
             return BuildPeriodicAnalytic(surface, curve, interval, tolerance, point => ConeUv(cone, point));
+        }
         if (surface.Sphere is { } sphere)
             return BuildPeriodicAnalytic(surface, curve, interval, tolerance, point => SphereUv(sphere, point));
         if (surface.Torus is { } torus)

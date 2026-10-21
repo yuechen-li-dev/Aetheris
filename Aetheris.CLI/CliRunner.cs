@@ -582,8 +582,9 @@ public static class CliRunner
                 piping = build.Value.Export.Piping,
                 gear = build.Value.Export.Gear,
                 thread = build.Value.Export.Thread,
-                featureCount = (build.Value.Export.Features?.Count ?? 0) + (build.Value.Export.EngineeringFeatures?.Count ?? 0) + (build.Value.Export.Perforation is null ? 0 : 1),
+                featureCount = (build.Value.Export.Features?.Count ?? 0) + (build.Value.Export.EngineeringFeatures?.Count ?? 0) + (build.Value.Export.Perforation is null ? 0 : 1) + (build.Value.Export.ImportedHoleRevision is null ? 0 : 1),
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
+                importedHoleRevision = build.Value.Export.ImportedHoleRevision,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,
                 diagnostics = build.Diagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(d, sourcePath, diagnosticSource)),
                 pmiExportEvidence = new

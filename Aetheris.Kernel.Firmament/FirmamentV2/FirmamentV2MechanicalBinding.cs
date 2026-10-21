@@ -152,7 +152,9 @@ public static partial class FirmamentV2Parser
         {
             var body = declaration.Body;
             if (body is null || declaration.Name is null) { diagnostics.Add(CanonicalPrimitiveMalformed); continue; }
-            var imported = ParseInlineStep(declaration.Name.Text, source.Substring(body.Span.Start + 1, body.Span.Length - 2), diagnostics, sourceDirectory, resources);
+            var diagnosticStart = diagnostics.Count;
+            var imported = BindImportedStep(declaration, diagnostics, sourceDirectory, resources);
+            CaptureFieldDiagnostics(declaration, diagnosticStart);
             if (imported is not null && !solids.TryAdd(imported.Name, imported)) diagnostics.Add(DuplicateName);
         }
         if (solids.Count == 0) diagnostics.Add(MissingSolid);
@@ -202,8 +204,8 @@ public static partial class FirmamentV2Parser
             { SyntaxDiagnostics = [new(UniformStockFilletAdmission.Code, "fatal", stockError) { SourceSpan = operation.SourceSpan, Stage = "Capability" }] };
         }
         var bodyText = source.Substring(model.Body.Span.Start + 1, model.Body.Span.Length - 2);
-        var recognized = ParseCanonicalRecognizedRegions(bodyText, solids, diagnostics);
-        var replacements = ParseCanonicalReplacements(bodyText, solids, recognized, diagnostics);
+        var recognized = BindImportedRegions(declarations, solids, diagnostics, CaptureFieldDiagnostics);
+        var replacements = BindImportedReplacements(declarations, solids, recognized, diagnostics, source, CaptureFieldDiagnostics);
         var selections = ParseCanonicalSelections(bodyText, model.Body.Span.Start + 1, diagnostics);
         ValidateCanonicalSelectionSources(bodyText, selections, [], diagnostics);
         var (pmi, pmiBlock, boundPmi) = ParsePmi(source, solids, modifies, recognized, staticValues.Values, [], diagnostics);

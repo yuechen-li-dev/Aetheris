@@ -1,0 +1,28 @@
+// Explicit geometry-only revision: preserve the source BRep, exclude vendor PMI.
+// Revisions of imported annotations are not admitted by this bounded operation.
+Model Ctc01Revision {
+    units: mm
+    InlineStep Source {
+        path: "../../../../testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp"
+        textSha256: "341cea888fb316673ed683e59391c11b4f96cff2542d9387e135f06682dbd745"
+        importTolerance: 0.01mm
+        geometryOnly: true
+    }
+    Recognize Source {
+        Region MountHole {
+            kind: HoleShaft
+            stepFaceEntities: ["#764", "#765"]
+            evidence: { radius: 12.5mm; through: true }
+        }
+    }
+    Replace Source.MountHole with Hole<Shaft> MountHole {
+        on: Source.Face(98)
+        center: Point3(-130mm, 45mm, 0mm)
+        diameter: 25mm
+        end: ThroughAll
+        within: {
+            min: Point3(-175mm, 30mm, -50mm)
+            max: Point3(-115mm, 60mm, 0mm)
+        }
+    }
+}

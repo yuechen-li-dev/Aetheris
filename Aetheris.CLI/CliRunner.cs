@@ -1810,6 +1810,7 @@ Model CanonicalPanel {
             }).ToArray() ?? [],
             linearPatterns = document?.StaticAuthoring?.LinearPatterns ?? [],
             planarAxes = document?.StaticAuthoring?.PlanarAxes ?? [],
+            equationCurves = document?.StaticAuthoring?.EquationCurves ?? [],
             templateInstances = (document?.TemplateInstantiations ?? document?.ConceptIr?.TemplateInstantiations)?.Select(instance => new
             {
                 instance.Template,

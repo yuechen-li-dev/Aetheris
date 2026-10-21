@@ -254,7 +254,8 @@ public static class FirmamentSourceSpelling
         Add("Circle2", "Center Radius");
         Add("Rect2 RoundedRect2 Oval2", "Center Size Radius");
         Add("Polygon2", "Vertices");
-        Add("Curve2", "From On Scale Pivot Translate Rotate");
+        Add("Curve2", "From On Scale Pivot Translate Rotate Parameter Domain Representation MaxDeviation Closed Periodic");
+        Add("Curve3", "From On Parameter Domain Representation MaxDeviation Closed Periodic");
         Add("CubicBezier2", "From Control1 Control2 To");
         Add("Line2", "From To");
         Add("Profile", "From");

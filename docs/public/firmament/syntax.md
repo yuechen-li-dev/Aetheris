@@ -751,6 +751,27 @@ definition does not grant those results new support in an unsupported consumer.
 Feature-local Profile construction is also used by Garment; WireForm, Sweep and
 SectionChain reject Feature declarations.
 
+### Functions and equation-driven curves
+
+A pure `Function` can return a scalar, `Point2`, `Point3` or a declared Record.
+Typed Record parameters/results bundle reusable inputs and related outputs.
+`Curve2`/`Curve3` bind a point-valued expression to a finite parameter domain;
+Profiles and other admitted consumers turn those construction values into material.
+See [equation-driven curves](equation-curves.md) for complete fixture links,
+representation limits, frames and parameter queries.
+
+`Sin(number)` and `Cos(number)` take radians. `Sin(angle)` and `Cos(angle)`
+respect explicit `deg`/`rad` units; their results are dimensionless. For example,
+`Cos(180deg)` and `Cos(3.141592653589793)` both evaluate to -1 within numeric
+precision. Length arguments fail.
+
+`representation: Exact` requires a supported exact lowering. `Approximate`
+requires a positive `maxDeviation` Length and reports a geometric error bound.
+This budget is separate from `tol` and PMI. `Layout.Curve.At(t)` evaluates the
+original equation within its declared domain; parameter distance is not arc length.
+Curve2 carries an explicit plane; Curve3 currently uses definition-local World.
+General spatial curve sweeping remains a separate capability.
+
 ### Pattern: finite repetition
 
 A Pattern maps a finite **layout** to a construction **recipe**. Layouts can be
@@ -864,7 +885,7 @@ contents or a similarly spelled identifier. Generated instance identities still
 come from the Pattern and its keys or ordered elements.
 
 Part and assembly point recipes share checked Static/Record/Template inputs.
-Scalar Function parameters and Series indices are lexical locals; same-named
+Function parameters, curve parameters and Series indices are lexical locals; same-named
 Statics do not replace them. Functions use explicit arguments rather than
 implicit global capture. Layout evaluation rejects unsupported tolerance
 consumption instead of erasing tolerance metadata. Local Points recipe owners

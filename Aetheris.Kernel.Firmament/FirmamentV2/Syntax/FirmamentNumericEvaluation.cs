@@ -4,7 +4,7 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 /// <summary>Finite numeric evaluation over the shared expression grammar. Domain callers
 /// supply their expected unit and, where admitted, bounded intrinsic functions.</summary>
-internal static class FirmamentNumericEvaluation
+internal static partial class FirmamentNumericEvaluation
 {
     internal readonly record struct Value(double Number, string Unit);
 
@@ -60,6 +60,13 @@ internal static class FirmamentNumericEvaluation
                     }
                     if (target.Name.Text == "Pow" && args.Count == 2 && args.All(a => a.Unit.Length == 0))
                         result = new(typeOnly ? 1 : Math.Pow(args[0].Number, args[1].Number), "");
+                    else if (target.Name.Text is "Sin" or "Cos" && args.Count == 1 && args[0].Unit is "" or "rad" or "deg")
+                    {
+                        // Bare numbers and explicit rad quantities are radians. An Angle
+                        // retains its authored unit until this intrinsic consumes it.
+                        var radians = args[0].Unit == "deg" ? args[0].Number * Math.PI / 180 : args[0].Number;
+                        result = new(typeOnly ? 1 : target.Name.Text == "Sin" ? Math.Sin(radians) : Math.Cos(radians), "");
+                    }
                     else if (functions is not null) result = functions(target.Name.Text, args);
                     else return false;
                     return (result.Unit is "" or "mm" or "deg" or "rad" or "s" or "ms") && (typeOnly || double.IsFinite(result.Number));

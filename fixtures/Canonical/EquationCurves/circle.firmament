@@ -1,0 +1,9 @@
+Function Round(t: Float, radius: Length) -> Point2 = Point2(radius * Cos(t * 360deg), radius * Sin(t * 360deg));
+Model RoundPlate {
+ Units: mm
+ Concept Struct Layout {
+  Curve2 Rim { parameter: t; domain: [0, 1]; from: Round(t, 10mm); on: XY; representation: Exact; periodic: true; }
+ }
+ Profile Outline { Loop Outer { Layout.Rim |> TraceLoop } }
+ Extrude Body { profile: Outline; from: 0mm; to: 5mm }
+}

@@ -122,6 +122,11 @@ internal sealed class FirmamentDataBinding
                 headers[d] = header;
                 if (d.Body is null) continue;
                 var body = new Scope(header, scope.Identity + "/" + label + "#" + ordinal);
+                // The curve parameter is a lexical Float local, like a Function
+                // parameter. An unrelated Static cannot capture its declaration or uses.
+                if (d.Type.Name.Text is "Curve2" or "Curve3"
+                    && d.Body.Statements.OfType<FieldSyntax>().FirstOrDefault(f => f.Name.Text.Equals("parameter", StringComparison.OrdinalIgnoreCase))?.Value is ReferenceSyntax parameter)
+                    body.Values.Add(parameter.Name.Text);
                 scopeSpans.Add((d.Body.ContentSpan, body));
                 Collect(d.Body.Statements, body);
             }

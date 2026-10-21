@@ -366,6 +366,7 @@ internal sealed partial class FirmamentCompileTimeValues(string source)
     }
 
     internal bool IsRecordType(string type) => recordTypes.ContainsKey(type);
+    internal IReadOnlyDictionary<string, string>? RecordFields(string type) => recordTypes.TryGetValue(type, out var record) ? record.Fields : null;
     internal bool TryRecord(string reference, out TemplateStaticRecordIr record) => recordValues.TryGetValue(reference, out record!);
 
     internal string RecordReference(TemplateStaticRecordIr record, ImmutableDictionary<string, string> fields)

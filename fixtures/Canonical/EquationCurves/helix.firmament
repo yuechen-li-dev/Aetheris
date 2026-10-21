@@ -1,0 +1,19 @@
+Function Helix(t: Float, radius: Length, pitch: Length) -> Point3 =
+    Point3(radius * Cos(t * 360deg), radius * Sin(t * 360deg), pitch * t);
+Model HelixStations {
+    Units: mm
+    Concept Struct Layout {
+        Curve3 Coil {
+            parameter: t;
+            domain: [0, 2];
+            from: Helix(t, 12mm, 8mm);
+            on: World;
+            representation: Approximate;
+            maxDeviation: 0.01mm;
+        }
+        Points<Point3> Stations {
+            Series { index: n; first: 0; count: 3; keyPrefix: Turn; position: Layout.Coil.At(n); }
+        }
+    }
+    Box Base { size: [20mm, 20mm, Layout.Stations.Turn1.Z] }
+}

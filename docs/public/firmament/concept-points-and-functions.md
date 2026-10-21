@@ -1,7 +1,7 @@
 # Concept points and Functions
 
 Implemented: keyed local `Points<Point2>` / `Points<Point3>` collections and pure,
-expression-bodied scalar `Function` declarations. Functions always evaluate
+expression-bodied typed `Function` declarations. Functions always evaluate
 during compilation. There is no `Comptime` keyword or runtime execution.
 
 ## Nut crossings
@@ -172,11 +172,11 @@ Patterns preserve the logical collection name in expanded associations.
 ## Compilation contract
 
 - Functions have unique names in the compiled source catalog, at most 16
-  parameters each, and `Int`, `Float`, `Length` or `Angle` arguments/results.
+  parameters each, and `Int`, `Float`, `Length`, `Angle`, `Point2`, `Point3` or declared Record arguments/results.
   Calls use positional arguments. Forward calls are permitted; recursive
   dependency cycles are rejected.
 - Expressions admit literals, parameters, parentheses, unary signs, arithmetic,
-  other declared Functions, and dimensionless `Pow(base,exponent)`.
+  other declared Functions, dimensionless `Pow(base,exponent)`, and `Sin`/`Cos` with bare radians or explicit deg/rad angles.
   Division is real division, including when both operands are integral.
 - Lengths use `mm`, angles use `deg`. Addition/subtraction require matching
   dimensions. Multiplication admits at most one dimensional operand. Dividing
@@ -187,7 +187,7 @@ Patterns preserve the logical collection name in expanded associations.
   Linear keys are unique identifiers, and the step must be nonzero. Series
   indices are nonnegative with checked integer bounds.
 - Function catalogs have at most 128 declarations. Evaluation limits are
-  32 active Function calls, 10000 calls per scalar evaluation, 8192 characters
+  32 active Function calls, 10000 AST binding work items per evaluation, 8192 characters
   per scalar expression and 128 nested scalar atoms. Non-finite results fail.
 - There are no loops, mutation, recursion, I/O, reflection, host C# callbacks
   or arbitrary source evaluation. New errors use `firmament-concept-points-*`;
@@ -223,8 +223,10 @@ Generated evidence lives under ignored `artifacts/local/concept-points/`:
 focused test TRX/logs and full-suite logs. The reusable qualification fixture is
 `fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/concept-points.firmament`.
 
-Equation-driven profile curves, point-driven WireForm routing, scalar record
-parameters, closures and a general collection programming language are deferred.
+Equation-driven curves and typed point/Record Function results are described in
+[equation-driven curves](equation-curves.md). Point-driven WireForm routing is
+covered by [point wire routes](wire-point-routes.md). Closures and a general
+collection programming language remain deferred.
 
 Final qualification: Release solution build passed; 32 focused authoring/guitar
 tests passed; the fast kernel lane passed 1004 tests; the serial full solution

@@ -5,98 +5,12 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 /// <summary>Checked finite point recipes over the unified AST. Existing keyed Set and
 /// Pattern owners still perform construction expansion; this owner transports values only.</summary>
-internal static class ConceptPointAuthoring
+internal static partial class ConceptPointAuthoring
 {
     internal const string Prefix = "firmament-concept-points-";
-    internal sealed record Result(string Source, IReadOnlyList<ConceptIrKeyedPointSetValue> Points, MathCatalog Math);
+    internal sealed record Result(string Source, IReadOnlyList<ConceptIrKeyedPointSetValue> Points, MathCatalog Math,
+        IReadOnlyList<FirmamentEquationCurve> Curves);
     private sealed record Function(string Name, IReadOnlyList<(string Name, string Type)> Parameters, string ReturnType, ExpressionSyntax Body);
-
-    internal sealed class MathCatalog
-    {
-        private int remainingCalls;
-        internal string SourceContext { get; set; } = "";
-        private readonly Dictionary<string, Function> functions = new(StringComparer.Ordinal);
-        private readonly Action<string, string, FirmamentV2SourceSpan> error;
-        internal MathCatalog(Action<string, string, FirmamentV2SourceSpan> error) => this.error = error;
-        internal string Parse(string source)
-        {
-            SourceContext = source;
-            var declarations = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
-                .Where(d => d.Type.Name.Text == "Function").ToArray();
-            foreach (var d in declarations)
-            {
-                var name = d.Name?.Text ?? "<unnamed>";
-                var type = FirmamentSyntaxValues.Reference(d.ResultType) ?? "";
-                var args = d.Parameters.Select(p => (Name: p.Name?.Text ?? "", Type: FirmamentSyntaxValues.Reference(p.Value) ?? "")).ToArray();
-                if (d.Name is null || d.Type.Arguments.Count != 0 || d.Occurrence || d.Initializer is null || d.Body is not null || d.Modifiers.Count != 0 || d.Clauses.Count != 0 || d.Annotation is not null
-                    || name == "Pow" || !Allowed(type) || args.Length > 16 || args.Any(a => a.Name.Length == 0 || !Allowed(a.Type))
-                    || args.Select(a => a.Name).Distinct().Count() != args.Length || d.Parameters.Any(p => p.Default is not null)
-                    || !functions.TryAdd(name, new(name, args, type, d.Initializer)))
-                    error("function-definition-invalid", $"Function '{name}' requires unique typed scalar parameters and one expression result.", d.Span);
-            }
-            if (functions.Count > 128) error("function-limit", "A Function catalog may contain at most 128 declarations.", declarations[128].Span);
-            var checkedFunctions = new HashSet<string>(StringComparer.Ordinal);
-            IEnumerable<string> Dependencies(Function f) => FirmamentSyntaxTraversal.Expressions(f.Body).OfType<CallSyntax>()
-                .Select(c => FirmamentSyntaxValues.Reference(c.Target)).OfType<string>();
-            bool Cycle(string name, HashSet<string> active)
-            {
-                if (!functions.TryGetValue(name, out var f) || checkedFunctions.Contains(name)) return false;
-                if (!active.Add(name)) return true;
-                var cycle = Dependencies(f).Any(n => Cycle(n, active)); active.Remove(name);
-                if (!cycle) checkedFunctions.Add(name); return cycle;
-            }
-            foreach (var f in functions.Values)
-            {
-                var variables = f.Parameters.ToDictionary(p => p.Name, p => new FirmamentNumericEvaluation.Value(1, Unit(p.Type)), StringComparer.Ordinal);
-                if (f.Body.Span.Length > 8192 || !FirmamentNumericEvaluation.TryEvaluate(f.Body, out var result, variables, (n, a) => Call(n, a, true, []), true) || result.Unit != Unit(f.ReturnType))
-                    error("function-body-invalid", $"Function '{f.Name}' must return {f.ReturnType}; use its parameters and admitted scalar Functions with matching units.", f.Body.Span);
-                if (Cycle(f.Name, [])) error("function-cycle", $"Function '{f.Name}' has a recursive dependency; Functions must form a finite acyclic graph.", f.Body.Span);
-            }
-            // Keep offsets stable for original point diagnostics. Functions have no material output.
-            foreach (var d in declarations.OrderByDescending(d => d.Span.Start))
-                source = source.Remove(d.Span.Start, d.Span.Length).Insert(d.Span.Start, Blank(source.Substring(d.Span.Start, d.Span.Length)));
-            return source;
-        }
-        private FirmamentNumericEvaluation.Value Call(string name, IReadOnlyList<FirmamentNumericEvaluation.Value> args, bool typeOnly, HashSet<string> active)
-        {
-            if (!typeOnly && --remainingCalls < 0 || !functions.TryGetValue(name, out var f) || args.Count != f.Parameters.Count || active.Count >= 32 || !active.Add(name)) throw new FormatException();
-            try
-            {
-                for (var i = 0; i < args.Count; i++)
-                    if (args[i].Unit != Unit(f.Parameters[i].Type) || !typeOnly && f.Parameters[i].Type == "Int" && !ValidInt(args[i].Number)) throw new FormatException();
-                if (typeOnly) return new(1, Unit(f.ReturnType));
-                var variables = f.Parameters.Select((p, i) => (p.Name, Value: args[i])).ToDictionary(p => p.Name, p => p.Value, StringComparer.Ordinal);
-                if (f.Body.Span.Length > 8192 || !FirmamentNumericEvaluation.TryEvaluate(f.Body, out var result, variables, (n, a) => Call(n, a, false, active))
-                    || result.Unit != Unit(f.ReturnType) || f.ReturnType == "Int" && !ValidInt(result.Number)) throw new FormatException();
-                return result;
-            }
-            finally { active.Remove(name); }
-        }
-        internal bool Evaluate(ExpressionSyntax expression, IReadOnlyDictionary<string, (double Value, string Unit)> variables, out double value, out string unit)
-        {
-            remainingCalls = 10000;
-            value = double.NaN; unit = "";
-            if (expression.Span.Length > 8192 || !FirmamentNumericEvaluation.TryEvaluate(expression, out var result,
-                variables.ToDictionary(p => p.Key, p => new FirmamentNumericEvaluation.Value(p.Value.Value, p.Value.Unit)), (n, a) => Call(n, a, false, []))) return false;
-            value = result.Number; unit = result.Unit; return true;
-        }
-        internal string Normalize(string source)
-        {
-            SourceContext = source;
-            var changes = new List<(FirmamentV2SourceSpan Span, string Text)>();
-            foreach (var call in FirmamentSyntaxTraversal.Expressions(FirmamentSyntaxParser.Parse(source).Document).OfType<CallSyntax>().OrderBy(c => c.Span.Start).ThenByDescending(c => c.Span.Length))
-            {
-                if (FirmamentSyntaxValues.Reference(call.Target) is not { } name || !functions.ContainsKey(name)
-                    || changes.Any(c => Contains(c.Span, call.Span))) continue;
-                if (Evaluate(call, new Dictionary<string, (double, string)>(), out var value, out var unit)) changes.Add((call.Span, Literal(value, unit)));
-                else { error("function-call-invalid", $"Cannot evaluate Function '{name}': check argument types, units and finite evaluation limits.", call.Span); }
-            }
-            return Apply(source, changes);
-        }
-        private static bool ValidInt(double value) => Math.Abs(value) <= 9007199254740991d && value == Math.Truncate(value);
-        private static bool Allowed(string type) => type is "Int" or "Float" or "Length" or "Angle";
-        private static string Unit(string type) => type switch { "Length" => "mm", "Angle" => "deg", _ => "" };
-    }
 
     internal static Result? Expand(string source, List<string> diagnostics, FirmamentCompileTimeValues? scalars = null)
     {
@@ -108,7 +22,10 @@ internal static class ConceptPointAuthoring
             var d = new FirmamentV2ValidationDiagnostic(Prefix + code, "error", message) { SourceSpan = span, IsOriginalSource = true, Stage = "Point/law binding" };
             scalars?.AddPointDiagnostic(d, math?.SourceContext ?? input);
         }
-        math = new MathCatalog(Error); source = math.Parse(source);
+        math = new MathCatalog(Error, scalars); source = math.Parse(source);
+        if (diagnostics.Any(d => d.StartsWith(Prefix, StringComparison.Ordinal))) return null;
+        var curves = EquationCurveAuthoring.Expand(source, math, scalars, Error);
+        source = curves.Source;
         if (diagnostics.Any(d => d.StartsWith(Prefix, StringComparison.Ordinal))) return null;
         var syntax = FirmamentSyntaxParser.Parse(source);
         var collections = new List<ConceptIrKeyedPointSetValue>();
@@ -158,6 +75,9 @@ internal static class ConceptPointAuthoring
                 }
                 double[]? Point(ExpressionSyntax? expression, IReadOnlyDictionary<string, (double, string)> locals)
                 {
+                    if (expression is not null)
+                        try { expression = math.Bind(Bound(expression, locals), locals); }
+                        catch (FormatException) { Error("point-expression-invalid", $"'{identity}' requires a finite typed point result; check Function inputs and curve parameter bounds.", expression.Span); return null; }
                     IReadOnlyList<ArgumentSyntax>? items = expression switch
                     {
                         CallSyntax { Target: ReferenceSyntax t } c when t.Name.Text == element => c.Arguments,
@@ -273,7 +193,7 @@ internal static class ConceptPointAuthoring
             else if (collections.Any(c => name.StartsWith(c.Name + ".", StringComparison.Ordinal)))
                 Error("point-member-unresolved", $"Unknown point/member '{name}'; Point2 has X/Y and Point3 has X/Y/Z.", e.Span);
         }
-        return diagnostics.Any(d => d.StartsWith(Prefix, StringComparison.Ordinal)) ? null : new(Apply(source, replacements), collections, math);
+        return diagnostics.Any(d => d.StartsWith(Prefix, StringComparison.Ordinal)) ? null : new(Apply(source, replacements), collections, math, curves.Curves.Select(c => c.Value).ToArray());
 
         Dictionary<string, FieldSyntax> Fields(DeclarationSyntax d, bool vocabulary = true)
         {

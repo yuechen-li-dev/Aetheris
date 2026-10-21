@@ -53,7 +53,7 @@ internal static class CanonicalStaticAuthoring
         if (headers.Length == 0)
         {
             source = points.Math.Normalize(source);
-            return diagnostics.Count > 0 ? null : new(source, points.Points.Count == 0 ? null : new([],[],[],[],[], ConceptPoints: points.Points));
+            return diagnostics.Count > 0 ? null : new(source, points.Points.Count == 0 && points.Curves.Count == 0 ? null : new([],[],[],[],[], ConceptPoints: points.Points, EquationCurves: points.Curves));
         }
         var catalog = source.Select(c => c is '\r' or '\n' ? c : ' ').ToArray();
         foreach (var declaration in FirmamentSyntaxTraversal.Declarations(syntax.Document)
@@ -147,7 +147,7 @@ internal static class CanonicalStaticAuthoring
         var conceptualSets = points.Points.ToDictionary(p => ConceptPointAuthoring.SetName(p.Name), p => p);
         patterns = patterns.Select(pattern => conceptualSets.TryGetValue(pattern.Source, out var collection)
             ? pattern with { Source = collection.Name, Associations = pattern.Associations?.Select(a => a with { SourceSet = collection.Name }).ToArray() } : pattern).ToList();
-        return diagnostics.Count > 0 ? null : new(source,data.Document with { Patterns=patterns, ConceptPoints=points.Points });
+        return diagnostics.Count > 0 ? null : new(source,data.Document with { Patterns=patterns, ConceptPoints=points.Points, EquationCurves=points.Curves });
     }
 
     private static IReadOnlyList<string>? OccurrenceOwner(IReadOnlyList<StatementSyntax> statements, DeclarationSyntax target, IReadOnlyList<string> path)
@@ -225,7 +225,7 @@ internal static class CanonicalStaticAuthoring
             || symmetry.Mirrors.Count > 0 || symmetry.RadialPatterns.Count > 0 || linear.Patterns.Count > 0 || linear.Axes.Count > 0;
         if (!staticDeclaration && booleanRequires.Length == 0 && !(canonicalRoot && Regex.IsMatch(source, @"\b(?:Require\s+[A-Za-z_]\w*\s*(?:=>|\{)|Pmi\s*\{[\s\S]*?\bFrom\s*:)", RegexOptions.CultureInvariant))) {
             source = points.Math.Normalize(source);
-            return diagnostics.Any(d => d.StartsWith(ConceptPointAuthoring.Prefix, StringComparison.Ordinal)) ? null : new(source, null);
+            return diagnostics.Any(d => d.StartsWith(ConceptPointAuthoring.Prefix, StringComparison.Ordinal)) ? null : new(source, points.Curves.Count == 0 ? null : new([],[],[],[],[], EquationCurves: points.Curves));
         }
         var changes = new List<(int Start, int Length, string Text)>();
         var names = new HashSet<string>(StringComparer.Ordinal);
@@ -486,7 +486,7 @@ internal static class CanonicalStaticAuthoring
         if (diagnostics.Any(d => d.StartsWith(ConceptPointAuthoring.Prefix, StringComparison.Ordinal))) return null;
         var pointSources = points.Points.ToDictionary(p => ConceptPointAuthoring.SetName(p.Name), p => p.Name, StringComparer.Ordinal);
         patterns = patterns.Select(p => pointSources.TryGetValue(p.Source, out var name) ? p with { Source = name, Associations = p.Associations?.Select(a => a with { SourceSet = name }).ToArray() } : p).ToList();
-        return new(source, new(recordTypes, arrays, templates.Select(t => new FirmamentV2CanonicalTemplateDecl(t.Name, t.Type, t.Parameter, t.Body, t.Span)).ToArray(), patterns, requires, semanticConstraints, projections, staticRecords, tables, sets, symmetry.Mirrors, symmetry.RadialPatterns, linear.Patterns, linear.Axes, points.Points));
+        return new(source, new(recordTypes, arrays, templates.Select(t => new FirmamentV2CanonicalTemplateDecl(t.Name, t.Type, t.Parameter, t.Body, t.Span)).ToArray(), patterns, requires, semanticConstraints, projections, staticRecords, tables, sets, symmetry.Mirrors, symmetry.RadialPatterns, linear.Patterns, linear.Axes, points.Points, points.Curves));
     }
 
     // Domain adapters reuse the existing finite Set binder and Pattern materializer.

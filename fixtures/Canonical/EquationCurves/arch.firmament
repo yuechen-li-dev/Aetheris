@@ -1,0 +1,23 @@
+Function Arch(t: Float, span: Length, rise: Length) -> Point2 =
+    Point2(span * t, 4 * rise * t * (1 - t));
+Model ArchPlate {
+    Units: mm
+    Concept Struct Layout {
+        Curve2 Crown {
+            parameter: t;
+            domain: [0, 1];
+            from: Arch(t, 80mm, 20mm);
+            on: XY;
+            representation: Exact;
+        }
+        Curve2 Baseline {
+            parameter: t;
+            domain: [0, 1];
+            from: Arch(1 - t, 80mm, 0mm);
+            on: XY;
+            representation: Exact;
+        }
+    }
+    Profile Outline { Loop Outer { Reverse Layout.Crown |> Layout.Baseline |> Close } }
+    Extrude Body { profile: Outline; from: 0mm; to: 5mm }
+}

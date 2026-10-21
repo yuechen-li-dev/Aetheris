@@ -210,29 +210,15 @@ final-full.log, final-carve-inspection.json, carve-parity.json, timings.json,
 mesh-check.json, step-reimport.json, guitar.step, guitar.usda, beauty/hero.png,
 isometric/shaded-isometric.png and their saved Blender scenes/render reports.
 
-## Future equation-driven curves
+## Equation-driven construction curves
 
-Curve construction has a typed internal payload seam. A future bounded Equation
-payload can produce the same resolved curves as Through/Hermite without adding
-an executable callback to Profile or a runtime dependency to exported geometry.
-No Equation syntax or C# evaluation is implemented here; such requests fail.
-
-The intended extension is compile-time only: a declared parameter interval,
-Length-valued 2D result, pure arithmetic and approved math intrinsics, bounded
-evaluation/approximation work, and explicit dependencies for cache identity.
-If lowering to C#, validate the restricted program before compilation. No I/O,
-reflection, arbitrary CLR calls, dynamic code loading, mutable static state,
-async work, recursion or unbounded loops. Do not treat running arbitrary C# as
-a purity check.
-
-Recognized polynomial/analytic laws should preserve exact representations.
-Other equations need an explicit approximation tolerance, admitted representation
-and reported error bound before they can be materialized. Exact BRep geometry of
-an approximant must not be reported as an exact representation of the equation.
-After equation binding, the ordinary boundary-edit validity checks still apply.
-See the [larger design proposal](programmable-profile-loops-proposal.md) for
-deferred periodic intervals, Curve2 payloads and inner loops. Profile-valued
-Features are supported by the current [garment authoring workflow](garments.md).
+[Equation-driven Curve2/Curve3](equation-curves.md) now use typed pure Functions,
+explicit parameter intervals and exact or bounded approximate representations.
+Curve2 can feed ordinary Profile pipelines. These declarations do not introduce
+host C# callbacks or runtime dependencies in exported geometry. Profile closure,
+winding and material validity checks remain with the existing geometry owners.
+Direct equation payloads inside boundary Replace operations remain a separate
+consumer extension; use the admitted Profile pipeline path today.
 
 ## Owl authoring update
 

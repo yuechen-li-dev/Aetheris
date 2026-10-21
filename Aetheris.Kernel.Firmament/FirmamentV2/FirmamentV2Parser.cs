@@ -1399,6 +1399,8 @@ public static partial class FirmamentV2Parser
 
     private static FirmamentV2ParseResult AttachVolumeAssertionsAndSymbols(FirmamentV2ParseResult parsed, string source, FirmamentV2StaticAuthoringDocument? staticAuthoring, List<string> diagnostics)
     {
+        if (parsed.BoundProfile is { } profile && staticAuthoring?.EquationCurves is { Count: > 0 } curves)
+            parsed = parsed with { BoundProfile = EquationCurveAuthoring.RestoreProvenance(profile, curves) };
         if (parsed.Document is null) return parsed;
         var threads = ParseCanonicalThreads(source, diagnostics);
         if (threads is null)

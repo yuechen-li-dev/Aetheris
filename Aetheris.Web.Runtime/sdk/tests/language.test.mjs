@@ -74,3 +74,12 @@ test('public language palette asks the runtime for the catalog', async () => {
   assert.equal((await cad.language.palette()).version, 'firmament-palette/1');
   assert.deepEqual(requests, [{ operation: 'languagePalette' }]);
 });
+
+test('Pattern projection uses compiler source and revision; edits retain expressions', async () => {
+  const requests = [];
+  const cad = new Aetheris({ request: async request => { requests.push(request); return {}; } });
+  await cad.language.patterns('law source', { sourceName: 'plate.firmament', sourceRevision: 'r7' });
+  await cad.language.edit('law source', [{ kind: 'setPatternSource', node: 'Plate/Drills', value: 'Layout.Sites' }], { sourceName: 'plate.firmament', sourceRevision: 'r7' });
+  assert.deepEqual(requests[0], { operation: 'languagePatterns', source: 'law source', sourceName: 'plate.firmament', sourceRevision: 'r7', projectDocuments: undefined, projectRoot: undefined });
+  assert.equal(requests[1].operations[0].value, 'Layout.Sites');
+});

@@ -19,3 +19,32 @@ The stable preview contract is `aetheris/web-editor-contract/1`.
 - `model.dispose()` and `cad.dispose()` release managed sessions.
 
 Unexpected failures throw `AetherisError` with stable `code`, safe `message`, and optional developer `details`. See the shipped `index.d.ts` for exact readonly record types.
+
+
+## Pattern source projection
+
+`cad.language.patterns(source, { sourceName, sourceRevision, projectRoot,
+projectDocuments })` returns `firmament-patterns/1`: finite layouts, authored
+Pattern mappings, reachable control node ids, shared consumers, diagnostics and
+compiler-evaluated keyed rows. Included declarations resolve through the existing
+module graph. `validationLevel: "LayoutResolvedNotBuilt"` describes layout
+resolution, not geometry admission; compile the complete candidate project before
+committing an edit.
+
+Rows expose their value and expansion associations. `authored` is present only
+for directly authored keyed Set entries; generated/derived rows are read-only.
+Point coordinates are local values and preserve Point2/Point3 dimensionality.
+The response retains its document and revision for stale-response checks.
+
+Use ordinary `language.edit` operations to change the source:
+
+- `setValue` edits a Static initializer or scalar Function expression.
+- `setField` edits a Series/Linear/Stations input or other authored field.
+- `setSetEntry` edits one authored Static Set value by node and `field` key,
+  retaining the key itself.
+- `setPatternSource` and `setPatternBody` edit the collection expression and
+  keyed mapping; `insertDeclaration` creates ordinary layout/Pattern declarations.
+
+These edits parse their result. Complete compiler Preview remains responsible
+for binding, feature/capability admission and geometry construction. See
+[Patterns](../firmament/patterns.md) for the language and Helios workflow.

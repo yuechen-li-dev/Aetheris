@@ -29,6 +29,8 @@ internal sealed partial class FirmamentCompileTimeValues(string source)
         dataBinding = binding;
         source = binding.Source;
         originalSyntax = null;
+        pointProducer = null;
+        pointOrigins = null;
         originalScopes = OriginalScopes(source).ToDictionary(p => p.Key, p => binding.OriginalSpan(p.Value), StringComparer.Ordinal);
         identifiers.UnionWith(FirmamentLanguageAnalysisService.Lex(source).Where(t => t.Shape == "identifier").Select(t => t.Text));
     }
@@ -38,6 +40,37 @@ internal sealed partial class FirmamentCompileTimeValues(string source)
         new FirmamentV2DataSymbolBinding(s.Name, s.Declaration.Type.Name.Text, s.Scope, s.Identity, s.Declaration.Span)).ToArray() ?? [];
 
     internal void AddExpansionDiagnostics(IEnumerable<FirmamentV2ValidationDiagnostic> reported) => diagnostics.AddRange(reported);
+
+    private string? pointProducer;
+    private FirmamentSyntaxOrigins? pointOrigins;
+    internal FirmamentV2SourceSpan? OriginalPointSpan(FirmamentV2SourceSpan span, string producerSource)
+    {
+        if (producerSource == source) return dataBinding?.OriginalSpan(span) ?? span;
+        if (pointProducer != producerSource)
+        {
+            pointProducer = producerSource;
+            originalSyntax ??= FirmamentSyntaxParser.Parse(source).Document;
+            pointOrigins = new(originalSyntax, FirmamentSyntaxParser.Parse(producerSource).Document);
+        }
+        return pointOrigins?.Find(span) is { } matched ? dataBinding?.OriginalSpan(matched) ?? matched : null;
+    }
+
+    internal void AddPointDiagnostic(FirmamentV2ValidationDiagnostic diagnostic, string producerSource)
+    {
+        if (diagnostic.SourceSpan is { } exact && OriginalPointSpan(exact, producerSource) is { } precise)
+        {
+            diagnostics.Add(diagnostic with { SourceSpan = precise });
+            return;
+        }
+        var owner = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(producerSource).Document)
+            .Where(d => d.Name is not null && diagnostic.SourceSpan is { } span
+                && d.Span.Start <= span.Start && d.Span.Start + d.Span.Length >= span.Start + span.Length)
+            .OrderBy(d => d.Span.Length).FirstOrDefault();
+        var anchor = owner is null ? null : OriginalDeclaration(owner.Type.Name.Text, owner.Name!.Text);
+        diagnostics.Add(diagnostic with { SourceSpan = anchor, IsOriginalSource = anchor is not null,
+            LocationNote = anchor is null ? "Point binding evaluated expanded source; exact original provenance is unavailable."
+                : "Location identifies the original enclosing declaration; point binding evaluated expanded source." });
+    }
 
     internal void AddConceptDiagnostics(IEnumerable<FirmamentV2ValidationDiagnostic> reported, bool original = true, string? producerSource = null)
     {
@@ -397,14 +430,16 @@ internal sealed partial class FirmamentCompileTimeValues(string source)
     internal string NominalExpression(string expression) => values.TryGetValue(expression.Trim(), out var value) ? Nominal(value)
         : recordValues.TryGetValue(expression.Trim(), out var record) ? record.AuthoredName ?? record.Name : expression;
 
-    internal ExpressionSyntax NominalExpression(ExpressionSyntax expression)
+    internal ExpressionSyntax NominalExpression(ExpressionSyntax expression) => NominalExpression(expression, null);
+
+    internal ExpressionSyntax NominalExpression(ExpressionSyntax expression, IReadOnlySet<string>? shadowed)
     {
         // Object/with bodies contain statements, so expression-only traversal
         // misses their scalar fields. Use the existing complete tree traversal.
         var tree = new DocumentSyntax("inline", [new ExpressionStatementSyntax(expression, expression.Span)], [], expression.Span);
         var replacements = FirmamentSyntaxTraversal.Expressions(tree)
             .Select(FirmamentSyntaxValues.Reference).OfType<string>().Distinct(StringComparer.Ordinal)
-            .Where(values.ContainsKey).ToDictionary(name => name,
+            .Where(name => values.ContainsKey(name) && shadowed?.Contains(name.Split('.')[0]) != true).ToDictionary(name => name,
                 name => FirmamentSyntaxParser.ParseExpression(NominalExpression(name)).Expression!, StringComparer.Ordinal);
         return new FirmamentSyntaxSubstitution(replacements).Expression(expression);
     }

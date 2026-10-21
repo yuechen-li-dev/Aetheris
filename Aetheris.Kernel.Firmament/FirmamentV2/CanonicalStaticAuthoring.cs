@@ -23,7 +23,7 @@ internal static class CanonicalStaticAuthoring
         .Any(d => d.Type.Name.Text == "Pattern" && d.Clauses.Any(c => c.Kind == ClauseKind.Over && c.Value.Span == match.Span));
 
     /// <summary>Assembly consumes the same checked Record/Set values, but yields product-tree declarations.</summary>
-    internal static Result? ExpandAssemblyPatterns(string source, List<string> diagnostics, bool spatial = false)
+    internal static Result? ExpandAssemblyPatterns(string source, List<string> diagnostics, bool spatial = false, Action<FirmamentV2ValidationDiagnostic>? report = null)
     {
         var binding = new FirmamentDataBinding(source);
         diagnostics.AddRange(binding.Diagnostics.Select(d => d.Code + ": " + d.Message));
@@ -40,10 +40,10 @@ internal static class CanonicalStaticAuthoring
         var inputs = scalars.MaterialInputs(source);
         if (inputs.Any(v => v.Tolerance is not null))
         { diagnostics.Add(Prefix + "assembly-tolerance-consumer-unsupported: Assembly frame values cannot project a manufacturing tolerance; use the owning Part and explicit PMI."); return null; }
-        source = FirmamentValueSubstitution.Apply(source, inputs.ToDictionary(v => v.Name, v => scalars.NominalExpression(v.Name), StringComparer.Ordinal));
-        var points = ConceptPointAuthoring.Expand(source, diagnostics);
+        var points = ConceptPointAuthoring.Expand(source, diagnostics, scalars);
+        foreach (var diagnostic in scalars.Diagnostics) report?.Invoke(diagnostic);
         if (points is null) return null;
-        source = points.Source;
+        source = FirmamentValueSubstitution.Apply(points.Source, inputs.ToDictionary(v => v.Name, v => scalars.NominalExpression(v.Name), StringComparer.Ordinal));
         var sites = AssemblySiteAuthoring.Expand(source, diagnostics);
         if (sites is null) return null;
         source = sites.Source;
@@ -52,7 +52,7 @@ internal static class CanonicalStaticAuthoring
             .Where(d => d.Type.Name.Text == "Pattern" && d.Clauses.Any(c => c.Kind == ClauseKind.Over)).ToArray();
         if (headers.Length == 0)
         {
-            source = points.Math.Normalize(source, diagnostics);
+            source = points.Math.Normalize(source);
             return diagnostics.Count > 0 ? null : new(source, points.Points.Count == 0 ? null : new([],[],[],[],[], ConceptPoints: points.Points));
         }
         var catalog = source.Select(c => c is '\r' or '\n' ? c : ' ').ToArray();
@@ -143,7 +143,7 @@ internal static class CanonicalStaticAuthoring
         }
         foreach (var change in changes.OrderByDescending(c=>c.Start)) source=source.Remove(change.Start,change.Length).Insert(change.Start,change.Text);
         source += "\n" + string.Join("\n", hoisted);
-        source = points.Math.Normalize(source, diagnostics);
+        source = points.Math.Normalize(source);
         var conceptualSets = points.Points.ToDictionary(p => ConceptPointAuthoring.SetName(p.Name), p => p);
         patterns = patterns.Select(pattern => conceptualSets.TryGetValue(pattern.Source, out var collection)
             ? pattern with { Source = collection.Name, Associations = pattern.Associations?.Select(a => a with { SourceSet = collection.Name }).ToArray() } : pattern).ToList();
@@ -207,7 +207,10 @@ internal static class CanonicalStaticAuthoring
             diagnostics.AddRange(choices.Diagnostics.Select(d => d.Code + ": " + d.Message));
             if (choices.Diagnostics.Any(d => d.Severity is "error" or "fatal")) return null;
         }
-        var points = ConceptPointAuthoring.Expand(source, diagnostics);
+        scalars ??= new FirmamentCompileTimeValues(source);
+        scalars.UseDataBinding(binding);
+        _ = FirmamentV2TemplateExpansion.ReadDataCatalog(source, diagnostics, scalars, initialize: true);
+        var points = ConceptPointAuthoring.Expand(source, diagnostics, scalars);
         if (points is null) return null;
         source = points.Source;
         var linear = LinearFeatureAuthoring.Expand(source, diagnostics);
@@ -221,7 +224,7 @@ internal static class CanonicalStaticAuthoring
         var staticDeclaration = Regex.IsMatch(source, @"\b(?:Record|Static|Template\s*(?:<|[A-Za-z_]\w*\s*\()|Pattern\s+\w+\s+Over)\b", RegexOptions.CultureInvariant)
             || symmetry.Mirrors.Count > 0 || symmetry.RadialPatterns.Count > 0 || linear.Patterns.Count > 0 || linear.Axes.Count > 0;
         if (!staticDeclaration && booleanRequires.Length == 0 && !(canonicalRoot && Regex.IsMatch(source, @"\b(?:Require\s+[A-Za-z_]\w*\s*(?:=>|\{)|Pmi\s*\{[\s\S]*?\bFrom\s*:)", RegexOptions.CultureInvariant))) {
-            source = points.Math.Normalize(source, diagnostics);
+            source = points.Math.Normalize(source);
             return diagnostics.Any(d => d.StartsWith(ConceptPointAuthoring.Prefix, StringComparison.Ordinal)) ? null : new(source, null);
         }
         var changes = new List<(int Start, int Length, string Text)>();
@@ -479,8 +482,10 @@ internal static class CanonicalStaticAuthoring
             .Where(change => !erasures.Any(erase => erase.Start < change.Start && change.Start < erase.Start + erase.Length))
             .OrderByDescending(change => change.Start))
             source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
-        source = points.Math.Normalize(source, diagnostics);
+        source = points.Math.Normalize(source);
         if (diagnostics.Any(d => d.StartsWith(ConceptPointAuthoring.Prefix, StringComparison.Ordinal))) return null;
+        var pointSources = points.Points.ToDictionary(p => ConceptPointAuthoring.SetName(p.Name), p => p.Name, StringComparer.Ordinal);
+        patterns = patterns.Select(p => pointSources.TryGetValue(p.Source, out var name) ? p with { Source = name, Associations = p.Associations?.Select(a => a with { SourceSet = name }).ToArray() } : p).ToList();
         return new(source, new(recordTypes, arrays, templates.Select(t => new FirmamentV2CanonicalTemplateDecl(t.Name, t.Type, t.Parameter, t.Body, t.Span)).ToArray(), patterns, requires, semanticConstraints, projections, staticRecords, tables, sets, symmetry.Mirrors, symmetry.RadialPatterns, linear.Patterns, linear.Axes, points.Points));
     }
 

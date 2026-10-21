@@ -13,10 +13,10 @@ internal static class FirmamentValueSubstitution
         var syntax = FirmamentSyntaxParser.Parse(prefix + source + "\n}");
         var declarations = FirmamentSyntaxTraversal.Declarations(syntax.Document).ToArray();
         var names = declarations.Where(d => d.Name is not null).Select(d => d.Name!.Span.Start - prefix.Length).ToHashSet();
-        var scopes = declarations.Where(d => d.Body is not null).Select(d => (Span: d.Body!.Span,
+        var scopes = declarations.Where(d => d.Body is not null || d.Initializer is not null && d.HasParameterList).Select(d => (Span: d.Body?.Span ?? d.Initializer!.Span,
             Names: d.Parameters.Select(p => p.Name?.Text).OfType<string>()
                 .Concat(d.Modifiers.Where(m => m.Name.Text == "Template").SelectMany(m => m.Arguments).Select(a => a.Name?.Text).OfType<string>())
-                .Concat(d.Type.Name.Text == "Feature" ? d.Body.Statements.OfType<DeclarationSyntax>()
+                .Concat(d.Type.Name.Text == "Feature" && d.Body is not null ? d.Body.Statements.OfType<DeclarationSyntax>()
                     .Where(l => l.Type.Name.Text == "let").Select(l => l.Name?.Text).OfType<string>() : [])
                 .ToHashSet(StringComparer.Ordinal))).Where(s => s.Names.Count > 0).ToArray();
         var tokens = FirmamentLanguageAnalysisService.Lex(source).Where(t => t.Shape != "comment").ToArray();

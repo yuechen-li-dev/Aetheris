@@ -60,6 +60,8 @@ export interface LanguageOutline { readonly version: 'firmament-outline/1'; read
 export interface DeclarationSpec { readonly kind: string; readonly variant?: string | null; readonly modifiers?: readonly string[] | null; readonly name?: string | null; readonly fields?: readonly { readonly name: string; readonly value: string }[] | null }
 /** One structural edit, addressed by outline node ids. Operations apply in order; each later one sees the ids the earlier ones produced. */
 export type LanguageEditOperation =
+  | { readonly kind: 'setPatternSource' | 'setPatternBody'; readonly node: string; readonly value: string }
+  | { readonly kind: 'setSetEntry'; readonly node: string; readonly field: string; readonly value: string }
   | { readonly kind: 'setValue'; readonly node: string; readonly value: string }
   | { readonly kind: 'setField'; readonly node: string; readonly field: string; readonly value: string }
   | { readonly kind: 'removeField'; readonly node: string; readonly field: string }
@@ -80,6 +82,10 @@ export interface LanguageEdit { readonly document: string; readonly revision: st
 /** Something a visual editor can add. `placement` `model` inserts with `insertDeclaration`; `feature` with `insertFeature` on a body. `source` declares `nameStem`; pass a unique `name` with the insert. Every item is proven to build. */
 export interface PaletteItem { readonly id: string; readonly label: string; readonly category: string; readonly description: string; readonly placement: 'model' | 'feature'; readonly nameStem: string; readonly source: string; readonly requiresEmptyModel?: boolean }
 export interface LanguagePalette { readonly version: 'firmament-palette/1'; readonly items: readonly PaletteItem[] }
+export interface PatternRow { readonly authored?: string | null; readonly key: string; readonly ordinal: number; readonly value: string; readonly coordinates: readonly number[] | null; readonly stableId: string | null; readonly generatedIds: readonly string[]; readonly span: OutlineSpan | null }
+export interface PatternLayout { readonly node: string; readonly name: string; readonly elementType: string; readonly kind: string; readonly rows: readonly PatternRow[] }
+export interface PatternApplication { readonly node: string; readonly name: string; readonly source: string | null; readonly body: string; readonly controls: readonly string[]; readonly consumers: readonly string[]; readonly readOnlyReason: string | null }
+export interface PatternProjection { readonly version: 'firmament-patterns/1'; readonly document: string; readonly revision: string; readonly layouts: readonly PatternLayout[]; readonly patterns: readonly PatternApplication[]; readonly diagnostics: readonly { severity: string; code: string; message: string; span: OutlineSpan | null }[]; readonly validationLevel: 'LayoutResolvedNotBuilt' | 'Unresolved' }
 export interface SketchControl { id: string; label: string; authored: string; value: number; unit: string; editable: boolean; parameter: string | null; readOnlyReason: string | null; span: { start: number; length: number } }
 export interface SketchShape { id: string; name: string; kind: string; center: readonly number[]; controls: readonly SketchControl[] }
 export interface SketchCurve {
@@ -116,7 +122,7 @@ export class Aetheris {
   static create(options?: AetherisOptions): Promise<Aetheris>;
   readonly runtimeInfo: RuntimeInfo;
   readonly workerTiming: WorkerTiming | null;
-  readonly language: { sketch(source: string, node: string | null, options: LanguageOptions): Promise<SketchProjection>; sketchEdit(source: string, edit: SketchEditRequest, options: LanguageOptions): Promise<LanguageEdit>; complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion>; analyze(source: string, options: LanguageOptions): Promise<LanguageAnalysis>; outline(source: string, options: LanguageOptions): Promise<LanguageOutline>; edit(source: string, operations: readonly LanguageEditOperation[], options: LanguageOptions): Promise<LanguageEdit>; palette(): Promise<LanguagePalette>; hover(source: string, offset: number, options: LanguageOptions): Promise<LanguageHover | null>; definition(source: string, offset: number, options: LanguageOptions): Promise<SourceReference | null>; format(source: string, options: LanguageOptions): Promise<LanguageFormat>; schema(): Promise<SemanticSchema> };
+  readonly language: { patterns(source: string, options: LanguageOptions): Promise<PatternProjection>; sketch(source: string, node: string | null, options: LanguageOptions): Promise<SketchProjection>; sketchEdit(source: string, edit: SketchEditRequest, options: LanguageOptions): Promise<LanguageEdit>; complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion>; analyze(source: string, options: LanguageOptions): Promise<LanguageAnalysis>; outline(source: string, options: LanguageOptions): Promise<LanguageOutline>; edit(source: string, operations: readonly LanguageEditOperation[], options: LanguageOptions): Promise<LanguageEdit>; palette(): Promise<LanguagePalette>; hover(source: string, offset: number, options: LanguageOptions): Promise<LanguageHover | null>; definition(source: string, offset: number, options: LanguageOptions): Promise<SourceReference | null>; format(source: string, options: LanguageOptions): Promise<LanguageFormat>; schema(): Promise<SemanticSchema> };
   info(): Promise<RuntimeInfo>;
   capabilities(): Promise<RuntimeCapabilities>;
   compile(source: string, options?: CompileOptions): Promise<{ model: ModelSession | null; diagnostics: readonly Diagnostic[] }>;

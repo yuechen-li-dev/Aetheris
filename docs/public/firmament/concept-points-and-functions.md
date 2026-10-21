@@ -132,8 +132,15 @@ Concept Struct FretboardLayout {
 }
 ```
 
-`First` and `Count` are literal integer bounds. This produces Fret1 through
-Fret22, in ascending index order; Fret12 is exactly `[0mm,-314mm]`.
+`first` and `count` define checked integer bounds. Part and assembly recipes
+resolve checked Static/Record inputs and specialized Template inputs through the
+shared lexical binder. Function parameters and the Series index shadow unrelated
+Statics with the same name. Pass design values explicitly to pure Functions.
+See [Patterns](patterns.md#helios-layout-recipe-instances) for source-preserving
+visual editing, evaluated keyed rows and full-project Preview/Apply.
+
+The example produces Fret1 through Fret22, in ascending index order; Fret12 is
+exactly `[0mm,-314mm]`.
 The authored recipe and each point's key, ordinal, dimensionality, coordinates
 and stable identity remain in inspection evidence.
 
@@ -166,7 +173,8 @@ Patterns preserve the logical collection name in expanded associations.
 
 - Functions have unique names in the compiled source catalog, at most 16
   parameters each, and `Int`, `Float`, `Length` or `Angle` arguments/results.
-  Forward calls are permitted; recursive dependency cycles are rejected.
+  Calls use positional arguments. Forward calls are permitted; recursive
+  dependency cycles are rejected.
 - Expressions admit literals, parameters, parentheses, unary signs, arithmetic,
   other declared Functions, and dimensionless `Pow(base,exponent)`.
   Division is real division, including when both operands are integral.

@@ -1,0 +1,21 @@
+{
+  "schema": "pattern-authoring-audit/1",
+  "criticalRegression": {
+    "source": "function-parameter-shadow-assembly.firmament",
+    "control": "function-parameter-shadow-assembly-control.firmament",
+    "expectedAdmission": true,
+    "logicalPoint": "Board.Frets.Fret12",
+    "expectedLocalMm": [
+      0,
+      -314
+    ],
+    "instance": "PointWitness.Frets.Fret12.Fret",
+    "expectedWorldTranslationMm": [
+      0,
+      344,
+      62
+    ],
+    "currentDisposition": "AdmittedWrongGeometry",
+    "reason": "A same-named module Static must not replace the Function parameter supplied as 628mm."
+  }
+}

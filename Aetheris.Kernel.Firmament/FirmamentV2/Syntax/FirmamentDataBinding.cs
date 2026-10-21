@@ -109,7 +109,7 @@ internal sealed class FirmamentDataBinding
                     var child = new Scope(scope, scope.Identity + "/mapping " + m.Key.Text); child.Values.Add(m.Key.Text);
                     Collect([m.Value], child); continue;
                 }
-                if (statement is not DeclarationSyntax d || d.Body is null) continue;
+                if (statement is not DeclarationSyntax d || d.Body is null && !d.HasParameterList) continue;
                 var label = d.Type.Name.Text + " " + d.Name?.Text;
                 var ordinal = ordinals.GetValueOrDefault(label); ordinals[label] = ordinal + 1;
                 var header = new Scope(scope, scope.Identity + "/parameters " + label + "#" + ordinal);
@@ -120,6 +120,7 @@ internal sealed class FirmamentDataBinding
                         else header.Values.Add(p.Name.Text);
                     }
                 headers[d] = header;
+                if (d.Body is null) continue;
                 var body = new Scope(header, scope.Identity + "/" + label + "#" + ordinal);
                 scopeSpans.Add((d.Body.ContentSpan, body));
                 Collect(d.Body.Statements, body);
@@ -145,7 +146,7 @@ internal sealed class FirmamentDataBinding
                 }
                 if (d.Annotation is not null) Expression(d.Annotation, scope, true);
                 if (d.ResultType is not null) Expression(d.ResultType, headers.GetValueOrDefault(d) ?? scope, true);
-                if (d.Initializer is not null) Expression(d.Initializer, scope, false);
+                if (d.Initializer is not null) Expression(d.Initializer, headers.GetValueOrDefault(d) ?? scope, false);
                 foreach (var clause in d.Clauses.Where(c => c.Kind != ClauseKind.Key)) Expression(clause.Value, scope, false);
                 if (d.Body is not null)
                 {

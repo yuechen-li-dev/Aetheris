@@ -99,15 +99,24 @@ public sealed class AssemblyM0Parser
         if (diagnostics.Count > 0) return new(null, diagnostics, watch.Elapsed.TotalMilliseconds);
         var patternDiagnostics = new List<string>();
         var patternsPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.patterns");
-        var expandedPatterns = CanonicalStaticAuthoring.ExpandAssemblyPatterns(source,patternDiagnostics);
+        var pointDiagnostics = new List<FirmamentV2ValidationDiagnostic>();
+        var patternOrigins = new FirmamentSyntaxOrigins(syntax.Document, FirmamentSyntaxParser.Parse(source).Document);
+        var expandedPatterns = CanonicalStaticAuthoring.ExpandAssemblyPatterns(source,patternDiagnostics, report: pointDiagnostics.Add);
         patternsPhase.Dispose();
         var patternOwner = syntax.Document.Statements.OfType<DeclarationSyntax>()
             .FirstOrDefault(d => d.Type.Name.Text == "Assembly" && d.Modifiers.Count == 0)?.Name?.Span;
-        foreach (var error in patternDiagnostics) diagnostics.Add(new("assembly-pattern-invalid",error)
+        foreach (var error in patternDiagnostics)
         {
-            SourceSpan = patternOwner is { } patternAnchor ? new(sourceIdentity,patternAnchor.Start,patternAnchor.Length) : null,
-            LocationNote = "Enclosing Assembly declaration; the compile-time value expander did not return an original expression span."
-        });
+            var located = pointDiagnostics.FirstOrDefault(d => error.StartsWith(d.Code, StringComparison.Ordinal));
+            var precise = located?.SourceSpan is { } pointSpan ? patternOrigins.Find(pointSpan) : null;
+            diagnostics.Add(new("assembly-pattern-invalid", located is null ? error : located.Code + ": " + located.Message)
+            {
+                SourceSpan = precise is { } p ? new(sourceIdentity,p.Start,p.Length)
+                    : patternOwner is { } pointAnchor ? new(sourceIdentity,pointAnchor.Start,pointAnchor.Length) : null,
+                LocationNote = precise is not null ? located?.LocationNote
+                    : "Enclosing Assembly declaration; an exact original expression span is unavailable after expansion."
+            });
+        }
         if (expandedPatterns is null || patternDiagnostics.Count>0) return Done(null);
         source = expandedPatterns.Source;
         var concreteSyntax = FirmamentSyntaxParser.Parse(source).Document;

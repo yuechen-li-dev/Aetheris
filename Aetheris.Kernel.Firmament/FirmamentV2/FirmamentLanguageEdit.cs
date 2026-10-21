@@ -83,6 +83,8 @@ public static partial class FirmamentLanguageEditService
             {
                 "setField" => SetField(text, before, operation),
                 "setValue" => SetValue(text, before, operation),
+                "setPatternSource" or "setPatternBody" => SetPattern(text, before, operation),
+                "setSetEntry" => SetSetEntry(text, before, operation),
                 "removeField" => RemoveField(text, before, operation),
                 "insertDeclaration" => InsertDeclaration(text, before, operation),
                 "removeDeclaration" => RemoveDeclaration(text, before, operation, document, warnings),
@@ -114,8 +116,8 @@ public static partial class FirmamentLanguageEditService
     private static (string, string?) SetValue(string text, SyntaxParseResult parse, FirmamentLanguageEditOperation op)
     {
         var (id, declaration) = Find(parse, op.Node);
-        if (declaration.Type.Name.Text != "Static" || declaration.Initializer is null || declaration.Body is not null)
-            throw new FirmamentLanguageEditException("edit-value-readonly", "Only an authored Static initializer can be edited as a value.");
+        if (declaration.Type.Name.Text is not ("Static" or "Function") || declaration.Initializer is null || declaration.Body is not null)
+            throw new FirmamentLanguageEditException("edit-value-readonly", "Only an authored Static initializer or Function expression can be edited as a value.");
         var value = RequireValue(op.Value, "Value");
         return (Replace(text, declaration.Initializer.Span.Start, declaration.Initializer.Span.Length, value), id);
     }

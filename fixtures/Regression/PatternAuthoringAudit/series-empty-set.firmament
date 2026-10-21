@@ -1,0 +1,9 @@
+Model EquationPlate {
+ units: mm
+ Static emptySites: Set<Point2> { }
+ Feature Drill(center: Point2) -> Hole<Shaft> {
+  return Hole<Shaft> { on: +Z; center: center; diameter: 3mm; end: ThroughAll; }
+ }
+ Box Stock { size: [100mm,50mm,8mm] }
+ Modify Stock { Pattern Drills over emptySites { point => Drill(center: point) } }
+}

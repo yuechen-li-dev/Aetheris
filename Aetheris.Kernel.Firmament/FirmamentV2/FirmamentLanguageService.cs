@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
@@ -32,6 +33,14 @@ public static class FirmamentLanguageService
         {
             beforePrefix = source[Math.Max(lineStart,composition.Value.Open+1)..prefixStart];
             fields = FirmamentSchemaAuthoringFields.For(composition.Value.Name, composition.Value.Variant);
+            if (composition.Value.Name == "Points")
+            {
+                var owner = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
+                    .FirstOrDefault(d => d.Type.Name.Text == "Points" && d.Body?.Span.Start == composition.Value.Open);
+                var recipe = owner?.Body?.Statements.OfType<DeclarationSyntax>().FirstOrDefault();
+                if (recipe?.Type.Name.Text == "Series" || recipe?.Body?.Statements.OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text == "Stations") == true)
+                    fields = [];
+            }
             context = composition.Value.Name;
         }
         else if (interfaceFamily is not null)
@@ -143,6 +152,8 @@ public static class FirmamentLanguageService
         var prefix = Regex.Replace(source[..offset], @"//[^\r\n]*|/\*[\s\S]*?\*/|""(?:\\.|[^""\\])*""", m => new string(' ', m.Length));
         var names = "Scene|Room|Door|Window|Camera|WireRoute|Follow|Section|Points|Linear|Series|Appearance|Material|Placement|FrameTransform|Garment|Panel|Fabric|Drape|FigureFit|Fitting|PoseTransition|Pose|Joint|Interface|Hole";
         var matches = Regex.Matches(prefix, $@"\b(?<kind>{names})(?:\s*<(?<family>[^>]+)>)?(?:\s+[A-Za-z_]\w*)?\s*\{{");
+        var syntax = FirmamentSyntaxParser.Parse(source);
+        var declarations = FirmamentSyntaxTraversal.Declarations(syntax.Document).ToArray();
         foreach (Match header in matches.Cast<Match>().Reverse())
         {
             var depth = 1;
@@ -155,6 +166,12 @@ public static class FirmamentLanguageService
             if (depth > 0)
             {
                 string name = header.Groups["kind"].Value;
+                var open = header.Index + header.Length - 1;
+                var owner = declarations.FirstOrDefault(d => d.Body?.Span.Start == open);
+                // A collection named Points in `Pattern ... over Points {` is a reference,
+                // not a Points declaration. Use actual AST ownership when available;
+                // retain lexical help for object initializers and incomplete drafts.
+                if (owner is not null && owner.Type.Name.Text != name) continue;
                 if (name == "Interface") name += "<" + header.Groups["family"].Value.Trim() + ">";
                 return (name, header.Index + header.Length - 1, header.Groups["family"].Value.Trim());
             }

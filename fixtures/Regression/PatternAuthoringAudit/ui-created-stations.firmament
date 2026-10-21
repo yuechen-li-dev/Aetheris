@@ -1,0 +1,17 @@
+Function siteX(n: Int, pitch: Length) -> Length = -25mm + pitch * n * n;
+Model EquationPlate {
+ units: mm
+ Concept Struct Layout {
+  Points<Point2> Sites {
+   Series { index: n; first: 0; count: 3; keyPrefix: Site;
+    position: Point2(siteX(n,5mm),0mm); }
+  }
+ }
+ Feature Drill(center: Point2) -> Hole<Shaft> {
+  return Hole<Shaft> { on: +Z; center: center; diameter: 3mm; end: ThroughAll; }
+ }
+ Box Stock { size: [100mm,50mm,8mm] }
+ Modify Stock { Pattern Drills over Layout.Sites { point => Drill(center: point) } Pattern Copies over Layout2.Sites { point => Drill(center: point) } Pattern Copies2 over Layout3.Sites { point => Drill(center: point) } }
+ Concept Struct Layout2 { Points<Point2> Sites { Series { index: n; first: 0; count: 2; keyPrefix: Site; position: Point2(10mm * n, 10mm); } } }
+ Concept Struct Layout3 { Points<Point2> Sites { Linear { start: Point2(-40mm, 15mm); direction: [1, 0]; Stations { First: 0mm; Last: 10mm; } } } }
+}

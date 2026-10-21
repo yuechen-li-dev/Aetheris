@@ -59,6 +59,7 @@ public static partial class Program
                 "languageAnalyze" => LanguageAnalyze(request),
                 "languageOutline" => LanguageOutline(request),
                 "languageSketch" => LanguageSketch(request),
+                "languagePatterns" => LanguagePatterns(request),
                 "languageSketchEdit" => LanguageSketchEdit(request),
                 "languageEdit" => LanguageEdit(request),
                 "languagePalette" => FirmamentLanguagePaletteService.Palette(),
@@ -158,6 +159,16 @@ public static partial class Program
             return FirmamentLanguageOutlineService.Outline(request.Source, name, request.SourceRevision);
         var documents = new Dictionary<string, string>(request.ProjectDocuments, StringComparer.Ordinal) { [name] = request.Source };
         return FirmamentLanguageOutlineService.Outline(new FirmamentProjectSnapshot(request.ProjectRoot ?? name, documents), name, request.SourceRevision);
+    }
+
+    private static object LanguagePatterns(WebRequest request)
+    {
+        if (request.Source is null || request.SourceRevision is null)
+            throw new WebRuntimeException("source-required", "A Pattern query requires source and its revision.");
+        var name = request.SourceName ?? "model.firmament";
+        var documents = new Dictionary<string, string>(request.ProjectDocuments ?? new Dictionary<string, string>(), StringComparer.Ordinal) { [name] = request.Source };
+        return FirmamentPatternService.Project(request.Source, name, request.SourceRevision,
+            new FirmamentProjectSnapshot(request.ProjectRoot ?? name, documents));
     }
 
     private static object LanguageSketch(WebRequest request)

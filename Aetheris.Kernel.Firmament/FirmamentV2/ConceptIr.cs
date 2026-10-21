@@ -69,10 +69,15 @@ public sealed record ConceptIrPointSetValue(string StableId, IReadOnlyList<Conce
 
 /// <summary>Finite local points; ElementType preserves dimensionality without an implicit 2D-to-3D lift.</summary>
 public sealed record ConceptIrKeyedPointValue(string StableId, string Key, int Ordinal, string ElementType,
-    IReadOnlyList<double> Coordinates, string Provenance);
+    IReadOnlyList<double> Coordinates, string Provenance)
+{ public FirmamentV2SourceSpan? SourceSpan { get; init; } }
 public sealed record ConceptIrKeyedPointSetValue(string StableId, string Name, string ElementType,
     IReadOnlyList<ConceptIrKeyedPointValue> Points, string Recipe, string Provenance)
-    : ConceptIrValue(StableId, ConceptIrValueKind.PointSet, Provenance);
+    : ConceptIrValue(StableId, ConceptIrValueKind.PointSet, Provenance)
+{
+    public FirmamentV2SourceSpan? SourceSpan { get; init; }
+    public string? RecipeKind { get; init; }
+}
 
 public enum ConceptIrSemanticPhase { ConceptIr, FeatureAir }
 public enum ConceptIrMaterializationCategory { CompileTimeValue, MaterializedSemanticReference }

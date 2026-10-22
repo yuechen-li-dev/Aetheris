@@ -75,11 +75,27 @@ The automatic drawing planner still supports its documented rectangular-plate
 family. This bracket uses authored dimensions over compiler-projected views;
 successful bracket export does not expand automatic drawing recognition.
 
-## Boundary before a public CI demo
+## Run the hosted demo
+
+The downstream [Code Native Design repository](https://github.com/yuechen-li-dev/CodeNativeDesignDemo)
+now runs this family on Ubuntu with pinned .NET 10 and Aetheris source. Edit its
+short C# specification, push a change, or select **Run workflow** in its Actions
+tab. Download the `bracket-<commit>` artifact for both parts and their final
+STEP/GLB/PDF/SVG/PPTX, source and qualification reports. Artifacts expire after
+30 days; retain a copy or rerun the workflow.
+
+The [first qualified run](https://github.com/yuechen-li-dev/CodeNativeDesignDemo/actions/runs/39706776957)
+built Aetheris `81918d9c14a624f1168cd3919c2df4cc0c8b27ba`, passed 35 focused
+compiler regressions, and reconstructed both final PDFs with all 18 incomplete
+drawing guards. Downloaded STEP and PDF files matched the Windows rehearsal
+byte for byte. GLB mesh buffers matched; SVG line endings and negligible PMI
+display-metadata floating-point differences were classified separately.
+
+## Upgrade the compiler deliberately
 
 Use current source or a subsequently qualified release: published Preview 3
 predates composed-profile countersinks. Pin the Aetheris revision and .NET SDK,
 run admission/tests, generate artifacts, run both PDF reconstruction witnesses,
 then upload the STEP/GLB/PDF and qualification report. Parameter changes should
-produce reviewable source diffs and rebuilt artifacts. A hosted GitHub Actions
-run is a separate qualification step; this rehearsal does not claim one occurred.
+produce reviewable source diffs and rebuilt artifacts. The local rehearsal and
+the hosted downstream integration gate remain separate reproducible checks.

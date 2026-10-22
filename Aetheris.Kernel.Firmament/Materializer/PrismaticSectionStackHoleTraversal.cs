@@ -158,12 +158,15 @@ internal static class PrismaticSectionStackHoleTraversal
         return result;
     }
 
-    private static SectionStackHoleFootprintCheck CheckDisk(PrismaticSectionRegion region, (double X, double Y) center, double radius, double start, double end)
+    internal static SectionStackHoleFootprintCheck CheckDisk(PrismaticSectionRegion region, (double X, double Y) center, double radius, double start, double end)
     {
         var outerLocation = ProfileArrangementBuilder.PointInProfile(region.Outer, center);
         var outer = BoundaryDistance(region.Outer, center);
         var holes = region.Holes.Select(h => (Location: ProfileArrangementBuilder.PointInProfile(h, center), Distance: BoundaryDistance(h, center), Profile: h)).ToArray();
         var provenance = region.Provenance;
+        if (!double.IsFinite(outer) || holes.Any(h => !double.IsFinite(h.Distance)))
+            return new(start, end, center.X, center.Y, radius, SectionStackFootprintClassification.Ambiguous, double.NaN,
+                provenance.Append("ExactDiskBoundaryUnsupported:requires-line-or-circular-arc").ToArray());
         if (outerLocation != ArrangementPointLocation.Inside)
             return new(start, end, center.X, center.Y, radius, SectionStackFootprintClassification.OutsideMaterial, outer, provenance);
         if (holes.Any(x => x.Location is ArrangementPointLocation.Inside or ArrangementPointLocation.OnBoundary))

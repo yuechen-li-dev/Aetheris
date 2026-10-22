@@ -60,11 +60,27 @@ public static class PmiDisplayProjection
             if (targets.Length == 0 || targets.Length != item.GeometricFaceEntityIds.Count)
                 throw new InvalidOperationException($"pmi-display-target-unresolved: '{item.Name}' has no complete geometric face association.");
             double[] label = [maxX + height * 3, maxY - result.Count * height * 2.5, maxZ + height];
-            // One marker for every association: a multi-face requirement must not silently
-            // display only the first target. Current datum/diameter authoring binds one face.
-            if (targets.Length != 1)
+            // A section planner can partition one physical cylindrical wall.
+            // Admit only a connected set on the same analytic cylinder, and
+            // retain every associated patch in the highlight and leaders.
+            if (targets.Length != 1 && (item.Kind != "Diameter" || !OneCylindricalWall(body, targets)))
                 throw new InvalidOperationException($"pmi-display-target-multiple-unsupported: '{item.Name}' requires a multi-face presentation.");
-            var (anchorPoint, normal, target) = Target(body, tessellation.Value, targets[0], item.Kind, height, label);
+            var internalEdges = targets.SelectMany(p => body.Topology.GetFace(p.FaceId).LoopIds
+                    .SelectMany(id => body.Topology.GetLoop(id).CoedgeIds).Select(id => body.Topology.GetCoedge(id).EdgeId).Distinct())
+                .GroupBy(id => id).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
+            var witnesses = targets.Select(p => Target(body, tessellation.Value, p, item.Kind, height, label, internalEdges)).ToArray();
+            var (anchorPoint, normal, target) = witnesses[0];
+            if (witnesses.Length > 1)
+            {
+                var positions = new List<double>(); var normals = new List<double>(); var indices = new List<int>();
+                foreach (var witness in witnesses)
+                {
+                    var offset = positions.Count / 3;
+                    positions.AddRange(witness.Marker.Positions); normals.AddRange(witness.Marker.Normals);
+                    indices.AddRange(witness.Marker.Indices.Select(i => i + offset));
+                }
+                target = target with { Positions = positions.ToArray(), Normals = normals.ToArray(), Indices = indices.ToArray(), Lines = witnesses.SelectMany(w => w.Marker.Lines).ToArray() };
+            }
             double[] anchor = P(anchorPoint);
             var stem = anchorPoint + normal * target.StemLength;
             string N(double value) => value.ToString("G9", CultureInfo.InvariantCulture);
@@ -72,6 +88,8 @@ public static class PmiDisplayProjection
                 + (item.TolerancePlus.HasValue && item.ToleranceMinus.HasValue ? $" +{N(item.TolerancePlus.Value)}/-{N(item.ToleranceMinus.Value)}" : "") + " mm";
             var outlines = PlanarTextProfiles.PresentationContours(text, height);
             var lines = new List<double[][]> { new[] { anchor, P(stem), new[] { label[0] - height, label[1], label[2] }, label } };
+            foreach (var witness in witnesses.Skip(1))
+                lines.Add([P(witness.Anchor), P(witness.Anchor + witness.Normal * witness.Marker.StemLength), [label[0] - height, label[1], label[2]], label]);
             // A small open arrow terminates at the actual support, along its face normal.
             var side = Direction3D.Create(normal.Cross(Math.Abs(normal.Z) < .9 ? new(0,0,1) : new Vector3D(0,1,0))).ToVector();
             lines.Add([P(anchorPoint + normal * target.StemLength * .35 + side * target.StemLength * .15), anchor,
@@ -101,7 +119,7 @@ public static class PmiDisplayProjection
     private static double[] V(Vector3D v) => [v.X, v.Y, v.Z];
 
     private static (Point3D Anchor, Vector3D Normal, PmiDisplayTarget Marker) Target(
-        BrepBody body, DisplayTessellationResult tessellation, DisplayFaceMeshPatch patch, string kind, double height, double[] label)
+        BrepBody body, DisplayTessellationResult tessellation, DisplayFaceMeshPatch patch, string kind, double height, double[] label, IReadOnlySet<Aetheris.Kernel.Core.Topology.EdgeId> internalEdges)
     {
         body.TryGetFaceSurfaceGeometry(patch.FaceId, out var surface);
         if (kind == "Datum" && surface?.Plane is PlaneSurface plane)
@@ -160,7 +178,7 @@ public static class PmiDisplayProjection
             // Kernel edge wires identify its rims. An edge used twice by this face is a
             // parameter seam, not a manufactured edge, so it receives no rim highlight.
             var rims = body.Topology.GetFace(patch.FaceId).LoopIds.SelectMany(id => body.Topology.GetLoop(id).CoedgeIds)
-                .Select(id => body.Topology.GetCoedge(id).EdgeId).GroupBy(id => id).Where(g => g.Count() == 1).Select(g => g.Key).ToHashSet();
+                .Select(id => body.Topology.GetCoedge(id).EdgeId).GroupBy(id => id).Where(g => g.Count() == 1 && !internalEdges.Contains(g.Key)).Select(g => g.Key).ToHashSet();
             var stemLength = Math.Min(height, cylinder.Radius*.45);
             var offset = Math.Min(height * .002, stemLength * .01);
             double[] Lift(Point3D point) => P(point + cylinder.Normal(Uv(point).X/cylinder.Radius).ToVector() * sense * offset);
@@ -170,6 +188,26 @@ public static class PmiDisplayProjection
                 patch.Normals.SelectMany(V).ToArray(), patch.TriangleIndices.ToArray(), outlines) { SurfaceOffset = offset });
         }
         throw new InvalidOperationException($"pmi-display-target-kind-unsupported: {kind} requires its qualified plane or cylinder support.");
+    }
+
+    private static bool OneCylindricalWall(BrepBody body, IReadOnlyList<DisplayFaceMeshPatch> patches)
+    {
+        var surfaces = patches.Select(p => body.GetFaceSurface(p.FaceId)).ToArray();
+        if (surfaces.Any(s => s.Cylinder is null)) return false;
+        var first = surfaces[0].Cylinder!.Value; var axis = first.Axis.ToVector();
+        if (surfaces.Skip(1).Any(s =>
+        {
+            var c = s.Cylinder!.Value; var delta = c.Origin - first.Origin;
+            return Math.Abs(c.Radius - first.Radius) > 1e-7 || axis.Cross(c.Axis.ToVector()).Length > 1e-7
+                || (delta - axis * delta.Dot(axis)).Length > 1e-7;
+        })) return false;
+        var edges = patches.Select(p => body.Topology.GetFace(p.FaceId).LoopIds.SelectMany(id => body.Topology.GetLoop(id).CoedgeIds)
+            .Select(id => body.Topology.GetCoedge(id).EdgeId).ToHashSet()).ToArray();
+        var seen = new HashSet<int> { 0 }; var pending = new Queue<int>(); pending.Enqueue(0);
+        while (pending.TryDequeue(out var current))
+            for (var i = 0; i < edges.Length; i++)
+                if (!seen.Contains(i) && edges[current].Overlaps(edges[i])) { seen.Add(i); pending.Enqueue(i); }
+        return seen.Count == patches.Count;
     }
 
     private static IEnumerable<(Point3D A, Point3D B, Point3D C)> Triangles(DisplayFaceMeshPatch patch)

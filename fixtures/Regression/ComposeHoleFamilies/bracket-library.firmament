@@ -1,0 +1,47 @@
+// Reusable single-part family. The runner supplies one typed specification.
+Record BracketDimensions {
+    width: Length
+    height: Length
+    legWidth: Length
+    legHeight: Length
+    thickness: Length
+    holeX: Length
+    holeY: Length
+    shaftDiameter: Length
+    entryDiameter: Length
+}
+
+Template<spec: BracketDimensions> Struct BracketTemplate {
+    Require Positive => spec.width > spec.legWidth && spec.height > spec.legHeight && spec.legWidth > 0mm && spec.legHeight > 0mm && spec.thickness > 0mm
+    Concept Struct Layout on XY {
+        Rect2 Horizontal { center: [spec.width / 2, spec.legHeight / 2]; size: [spec.width, spec.legHeight] }
+        Rect2 Vertical { center: [spec.legWidth / 2, spec.height / 2]; size: [spec.legWidth, spec.height] }
+        Point2 Notch { position: [spec.legWidth, spec.legHeight] }
+    }
+    Profile Outline using Layout { Loop Outer {
+        Horizontal.Bottom as South
+            |> Horizontal.Right as East
+            |> Horizontal.Top to Notch as Inner
+            |> Vertical.Right to Vertical.TopRight as Upright
+            |> Vertical.Top as North
+            |> Vertical.Left to Horizontal.BottomLeft as West
+            |> Close
+    } }
+    Compose Body {
+        Base Stock { profile: Outline; from: 0mm; to: spec.thickness; role: Stock }
+    }
+    Modify Body {
+        Hole<Countersink> Mount {
+            on: +Z
+            center: Point2(spec.holeX, spec.holeY)
+            diameter: spec.shaftDiameter
+            countersinkDiameter: spec.entryDiameter
+            countersinkAngle: 90deg
+            end: ThroughAll
+        }
+    }
+    Pmi {
+        Datum A { target: face(+Z) }
+        HoleDiameter ShaftSize { target: Mount; value: spec.shaftDiameter; tolerance: PlusMinus(0.1mm) }
+    }
+}

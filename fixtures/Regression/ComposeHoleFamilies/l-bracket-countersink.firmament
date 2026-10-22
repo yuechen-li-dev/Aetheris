@@ -1,0 +1,30 @@
+Model ProfileComposeLBracket {
+    Units: mm
+
+    // Two guides deliberately overlap.  The named Notch point and the Rect2
+    // corners form a six-segment counter-clockwise L boundary.
+    Concept Struct Layout On XY {
+        Rect2 Horizontal { Center: [0mm, -10mm]; Size: [80mm, 20mm] }
+        Rect2 Vertical { Center: [-30mm, 10mm]; Size: [20mm, 60mm] }
+        Point2 Notch { Position: [-20mm, 0mm] }
+    }
+
+    Profile Bracket Using Layout { Loop Outer {
+        Horizontal.Bottom As South
+            |> Horizontal.Right As East
+            |> Horizontal.Top To Notch As Inner
+            |> Vertical.Right To Vertical.TopRight As Upright
+            |> Vertical.Top As North
+            |> Vertical.Left To Horizontal.BottomLeft As West
+            |> Close
+    } }
+
+    Struct BracketBody {
+        Compose BracketBody {
+            Base Stock { Profile: Bracket; From: 0mm; To: 12mm; Role: Stock }
+        }
+    }
+    Modify BracketBody {
+        Hole<Countersink> Mount { on: +Z; center: Point2(20mm, -10mm); diameter: 6mm; countersinkDiameter: 12mm; countersinkAngle: 90deg; end: ThroughAll }
+    }
+}

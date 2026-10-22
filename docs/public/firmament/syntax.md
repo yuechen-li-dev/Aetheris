@@ -698,6 +698,26 @@ uses `counterboreDiameter` and `counterboreDepth`; `Hole<Countersink>` uses
 are errors. Compiler completion and bound-field inspection project the same
 variant applicability from the shared schema.
 
+Profile-composed bodies admit all three hole variants on `+Z` (or an admitted
+`Span<Plane>` on that same top support), with `end: ThroughAll`. Counterbores
+require positive shaft length below their recess; countersinks require positive
+shaft length below the cone. The entry resolves against material at the hole
+center, so a taller boss elsewhere does not lift it; an exposed pocket floor
+can be an entry only when the whole mouth fits that floor. The entire entry footprint must stay in actual
+composed material, including any pockets and slots. Intersecting/tangent entry
+footprints and wall breakouts reject explicitly. A countersink is an exact cone,
+not a stack of cylindrical approximations. Arbitrary oriented Compose hole
+supports and blind counterbore/countersink ends remain outside this adapter.
+
+A disjoint top-perimeter chamfer may coexist with these cavities. Its corridor
+cannot cross a counterbore shoulder or shaft-to-cone transition; an overlapping
+cavity/edge-finish corridor rejects instead of changing either feature. A named
+Profile perimeter uses that Profile's material support, rather than an unrelated
+boss's globally highest face.
+Composed-body fillets remain rejected: the standalone Profile fillet planner
+constructs an extrusion and is not an adapter for retaining an existing stack's
+cavities. Primitive and standalone Profile fillet support is unchanged.
+
 | Intent | Current vocabulary | Placement / termination |
 | --- | --- | --- |
 | Drill a hole | `Hole<Shaft>`, `Hole<Counterbore>`, `Hole<Countersink>` | `on`, `center`, `end: ThroughAll` or a bounded blind end. |

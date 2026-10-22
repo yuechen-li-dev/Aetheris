@@ -18,7 +18,29 @@ Use named features and selectors, never raw internal B-rep IDs in native authori
 
 A face-local `Hole<Shaft>` or `Hole<Counterbore>` on a `Box` may cross the edge of its entry face: a through hole drilled near an edge leaves a notch, and it builds as one. Only exact tangency is rejected, because the wall there would have zero thickness along a line; the diagnostic gives the threshold in your own terms (for example, "Put Center X below 19mm to keep a wall on that side, or above it to cut through the +X face"). Countersunk and drill-point holes, whose entries are conical, are not yet supported when they break out, and say so.
 
-`HoleDiameter` on a `Hole<Counterbore>` targets the shaft `Diameter`; `CounterboreDiameter` remains a distinct feature field and has no separate public PMI record kind in Preview 3. Pattern generation supports geometry as a semantic whole; authored names for generated instances are not a stable public instance-selector family in Preview 3.
+`HoleDiameter` on `Hole<Counterbore>` and `Hole<Countersink>` targets the shaft `Diameter`; `CounterboreDiameter` remains a distinct feature field and has no separate public PMI record kind in Preview 3. Pattern generation supports geometry as a semantic whole; authored names for generated instances are not a stable public instance-selector family in Preview 3.
+
+### Circular hole families on composed profiles (current source)
+
+A traced L profile or other admitted line/arc composition can carry
+`Hole<Shaft>`, `Hole<Counterbore>` and `Hole<Countersink>`. Through holes enter on
+`+Z`, or a validated coplanar `Span<Plane>`. Counterbore steps remain cylindrical;
+countersinks use exact conical walls and circular trims. Both require a positive
+shaft interval and strict interior material around the entry. Entry height is
+resolved at the authored center. Unrelated bosses cannot lift a counterbore or
+countersink above its plate, and a pocket-floor entry must fit the exposed floor. The planner checks
+actual composed material through the cavity depth, so a nearby pocket or slot
+cannot silently clip the entry. Cavities must be disjoint; breakout, touching
+cavities, unsupported blind ends and oriented support adapters reject explicitly.
+
+`HoleDiameter` attaches to the shaft wall patches, excluding the larger recess
+and cone. AP242 preserves every shaft patch association. The GLB presentation
+adapter displays all patches when they form one connected analytic cylindrical
+wall; different axes and disconnected walls still require a multi-target
+presentation. This does not change the engineering body.
+
+See the [local bracket rehearsal](../code-native-bracket.md) for a typed
+Template, two-Rect2 traced L, countersink and PDF-only reconstruction witness.
 
 ## Boss
 

@@ -46,6 +46,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\demos\Aetheris.CodeNativeBracket\Aetheris.CodeNativeBracket.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.Firmament\Aetheris.Kernel.Firmament.csproj" />
     <ProjectReference Include="..\Aetheris.Firmament.SchemaGenerator\Aetheris.Firmament.SchemaGenerator.csproj" />
     <ProjectReference Include="..\Aetheris.Surfacing\Aetheris.Surfacing.csproj" />

@@ -7,6 +7,26 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class PrismaticSectionStackHoleTraversalTests
 {
     [Fact]
+    public void UnsupportedBoundaryDistance_CannotBePromotedToInsideMaterial()
+    {
+        var original = Stack();
+        var slabs = original.Slabs.Select(s =>
+        {
+            var profile = s.Region.Outer;
+            var first = profile.Loops[0].Segments[0]; var line = Assert.IsType<LineArcLineSegment2D>(first.Geometry);
+            var cubic = new LineArcCubicBezier2D(line.Start, line.Start, line.End, line.End);
+            var loop = profile.Loops[0] with { Segments = profile.Loops[0].Segments.Select((segment, i) => i == 0 ? segment with { Geometry = cubic } : segment).ToArray() };
+            var region = s.Region with { Outer = profile with { Loops = [loop] } };
+            return s with { Region = region, RegionSet = [region] };
+        }).ToArray();
+        var stack = original with { Slabs = slabs }; var placement = Placement(new Point3D(0, 0, 0), new Vector3D(0, 0, 1));
+        var feature = Feature(4d, placement);
+        var evidence = PrismaticSectionStackHoleTraversal.Traverse(feature, stack, placement);
+        Assert.All(evidence.FootprintChecks, check => Assert.Equal(SectionStackFootprintClassification.Ambiguous, check.Classification));
+        Assert.False(HoleEndConditionContract.Evaluate(feature, evidence.HostTraversal).ContractSatisfied);
+    }
+
+    [Fact]
     public void AxialConstructionPlaneHole_OnePhysicalSpanMayCrossTwoPlannerSlabs()
     {
         var stack = Stack(); var placement = Placement(new Point3D(0, 0, 0), new Vector3D(0, 0, 1)); var feature = Feature(4d, placement);

@@ -121,7 +121,8 @@ public static partial class FirmamentDrawingCompiler
             if(hidden is not ("VisibleOnly" or "VisibleAndHidden" or "Wireframe"))view.Invalid("HiddenLines");
             var pmi=List(view,"PMI",false);
             var kind=projection=="Isometric" || projection is null && direction.Count(v=>Math.Abs(v)>1e-12)>1?DrawingProjectionKind.Isometric:DrawingProjectionKind.Orthographic;
-            views.Add(new(view.Name,direction,kind,hidden=="VisibleAndHidden"?DrawingHiddenLinePolicy.VisibleAndHidden:DrawingHiddenLinePolicy.VisibleOnly,pmi));
+            views.Add(new(view.Name,direction,kind,hidden switch
+            { "Wireframe" => DrawingHiddenLinePolicy.Wireframe, "VisibleAndHidden" => DrawingHiddenLinePolicy.VisibleAndHidden, _ => DrawingHiddenLinePolicy.VisibleOnly },pmi));
         }
         if(views.Count==0)diagnostics.Add(DrawingViewMissing);
         if(views.Select(v=>v.Name).Distinct().Count()!=views.Count)diagnostics.Add("drawing-view-duplicate");

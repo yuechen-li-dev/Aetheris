@@ -49,7 +49,7 @@ internal static class DrawingProjectionEngine
             foreach (var line in samples.Boundaries)
             {
                 var edge = body.Topology.Edges.Single(e => e.Id.Value == line.EdgeId);
-                if (IsCoplanarInternalEdge(body, edge.Id)) continue;
+                if (IsInternalSupportEdge(body, edge.Id)) continue;
                 var curved = body.TryGetEdgeCurveGeometry(edge.Id, out var curve) && curve?.Kind != CurveGeometryKind.Line3;
                 var points = curved ? line.Points : new[] { line.Points[0], line.Points[^1] };
                 raw.Add(new(line.Identity, projectionBody.OccurrenceIdentity, projectionBody.DefinitionIdentity, points.Select(Camera).ToArray(), curved));
@@ -173,14 +173,24 @@ internal static class DrawingProjectionEngine
     private static CameraPoint Lerp(CameraPoint a, CameraPoint b, double t) => new(a.X + (b.X - a.X) * t, a.Y + (b.Y - a.Y) * t, a.Depth + (b.Depth - a.Depth) * t);
     private static Vector3D Normalize(Vector3D vector) { var length = Math.Sqrt(vector.Dot(vector)); if (length < 1e-12) throw new InvalidOperationException("drawing-view-direction-zero"); return vector * (1 / length); }
 
-    private static bool IsCoplanarInternalEdge(BrepBody body, Aetheris.Kernel.Core.Topology.EdgeId edgeId)
+    private static bool IsInternalSupportEdge(BrepBody body, Aetheris.Kernel.Core.Topology.EdgeId edgeId)
     {
         var loopIds = body.Topology.Coedges.Where(coedge => coedge.EdgeId == edgeId).Select(coedge => coedge.LoopId).ToHashSet();
         var faces = body.Topology.Faces.Where(face => face.LoopIds.Any(loopIds.Contains)).ToArray();
         if (faces.Length != 2) return false;
-        if (!body.TryGetFaceSurfaceGeometry(faces[0].Id, out var first) || !body.TryGetFaceSurfaceGeometry(faces[1].Id, out var second)
-            || first?.Plane is not { } a || second?.Plane is not { } b) return false;
-        var na = a.Normal.ToVector(); var nb = b.Normal.ToVector();
-        return Math.Abs(Math.Abs(na.Dot(nb)) - 1) < 1e-8 && Math.Abs((b.Origin - a.Origin).Dot(na)) < 1e-7;
+        if (!body.TryGetFaceSurfaceGeometry(faces[0].Id, out var first) || !body.TryGetFaceSurfaceGeometry(faces[1].Id, out var second)) return false;
+        if (first?.Plane is { } a && second?.Plane is { } b)
+            return Math.Abs(Math.Abs(a.Normal.ToVector().Dot(b.Normal.ToVector())) - 1) < 1e-8
+                && Math.Abs((b.Origin - a.Origin).Dot(a.Normal.ToVector())) < 1e-7;
+        if (first?.Cylinder is { } ca && second?.Cylinder is { } cb)
+        {
+            var axis = ca.Axis.ToVector(); var delta = cb.Origin - ca.Origin;
+            return Math.Abs(ca.Radius - cb.Radius) < 1e-7 && axis.Cross(cb.Axis.ToVector()).Length < 1e-8
+                && (delta - axis * delta.Dot(axis)).Length < 1e-7;
+        }
+        if (first?.Cone is { } sa && second?.Cone is { } sb)
+            return Math.Abs(sa.SemiAngleRadians - sb.SemiAngleRadians) < 1e-8 && (sa.Apex - sb.Apex).Length < 1e-7
+                && sa.Axis.ToVector().Dot(sb.Axis.ToVector()) > 1 - 1e-8;
+        return false;
     }
 }

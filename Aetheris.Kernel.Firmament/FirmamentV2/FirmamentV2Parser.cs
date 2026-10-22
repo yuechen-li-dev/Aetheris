@@ -1268,7 +1268,7 @@ public static partial class FirmamentV2Parser
                 [feature.Name] = new FirmamentV2SolidBinding(feature.Name, "Compose", new FirmamentV2AdvancedMaterialRecord("Compose"))
             };
             var (compositionPmi, compositionPmiBlock, compositionBoundPmi) = ParsePmi(
-                source, compositionSolids, [], [], [], [], diagnostics, (feature.ShaftHoles ?? []).Select(hole => hole.Name).Concat((feature.CounterboreHoles ?? []).Select(hole => hole.Name)));
+                source, compositionSolids, [], [], [], [], diagnostics, (feature.ShaftHoles ?? []).Select(hole => hole.Name).Concat((feature.CounterboreHoles ?? []).Select(hole => hole.Name)).Concat((feature.CountersinkHoles ?? []).Select(hole => hole.Name)));
             if (Regex.IsMatch(body, @"\bEdgeFinish\b", RegexOptions.CultureInvariant)
                 && !ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(body)
                 && composition.Profiles.Values.Any(profile => profile.Loops.Single().Segments.Count != 4))
@@ -2378,7 +2378,7 @@ public static partial class FirmamentV2Parser
             var entryClose = FindMatchingBrace(body, entryOpen);
             if (entryClose < 0) { diagnostics.Add(UnsupportedConstruct); continue; }
             var eb = body[(entryOpen + 1)..entryClose];
-            var fields = ParsePmiFields(eb, open + 1 + entryOpen, diagnostics);
+            var fields = ParsePmiFields(eb, open + 2 + entryOpen, diagnostics);
             ValidatePmiFieldSet(kindRaw, name, fields, diagnostics);
             var record = new FirmamentV2PmiRecord(kind, name, fields, new FirmamentV2SourceSpan(open + 1 + em.Index, entryClose - em.Index + 1));
             records.Add(record);
@@ -2397,21 +2397,20 @@ public static partial class FirmamentV2Parser
     private static Dictionary<string, FirmamentV2PmiField> ParsePmiFields(string body, int baseOffset, List<string> diagnostics)
     {
         var fields = new Dictionary<string, FirmamentV2PmiField>(StringComparer.Ordinal);
-        // Capture every field first.  A whitelist-only capture silently lost
-        // misspellings such as Tolerence, precisely what canonical PMI must not do.
-        var fieldRegex = new Regex(@"(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<value>.*?)(?=\s+[A-Za-z_][A-Za-z0-9_]*\s*:|$)", RegexOptions.CultureInvariant | RegexOptions.Singleline);
-        foreach (Match m in fieldRegex.Matches(body))
+        // Reuse the structural field boundaries. A trailing semicolon is syntax,
+        // not part of a target, length or tolerance expression.
+        var syntax = FirmamentSyntaxParser.Parse(body);
+        diagnostics.AddRange(syntax.Diagnostics.Select(d => d.Code));
+        foreach (var statement in syntax.Document.Statements)
         {
-            var n = NormalizePmiField(m.Groups["name"].Value);
-            var v = m.Groups["value"].Value.Trim();
-            if (v.EndsWith("}", StringComparison.Ordinal)) v = v[..^1].Trim();
-            if (string.Equals(m.Groups["name"].Value, "DatumRefs", StringComparison.Ordinal)
-                && v.StartsWith("[", StringComparison.Ordinal) && v.EndsWith("]", StringComparison.Ordinal))
+            if (statement is not FieldSyntax field) { diagnostics.Add(PmiUnsupported); continue; }
+            var n = NormalizePmiField(field.Name.Text);
+            var v = body.Substring(field.Value.Span.Start, field.Value.Span.Length).Trim();
+            if (n == "datum" && field.Value is SequenceSyntax && v.StartsWith("[", StringComparison.Ordinal) && v.EndsWith("]", StringComparison.Ordinal))
                 v = v[1..^1].Trim();
             if (fields.ContainsKey(n)) { diagnostics.Add(PmiDuplicateField); continue; }
-            fields[n] = new(n, v, new FirmamentV2SourceSpan(baseOffset + m.Index, m.Length), null);
+            fields[n] = new(n, v, new FirmamentV2SourceSpan(baseOffset + field.Span.Start, field.Span.Length), null);
         }
-        if (fields.Count == 0 && body.Split(['\r','\n'], StringSplitOptions.RemoveEmptyEntries).Any(l => l.Trim().Length > 0)) diagnostics.Add(PmiUnsupported);
         return fields;
     }
 
@@ -2503,13 +2502,17 @@ public static partial class FirmamentV2Parser
     private static bool TryParseToleranceLiteral(string s,List<string>d,out FirmamentV2Tolerance tol)
     {
         tol=null!;
-        var plusMinus = Regex.Match(s, @"^PlusMinus\(\s*(?<plus>[-+]?\d+(?:\.\d+)?)mm\s*,\s*(?<minus>[-+]?\d+(?:\.\d+)?)mm\s*\)$", RegexOptions.CultureInvariant);
-        if (plusMinus.Success)
+        var expression = FirmamentSyntaxParser.ParseExpression(s);
+        if (expression.Expression is CallSyntax call && FirmamentSyntaxValues.Reference(call.Target) == "PlusMinus")
         {
-            var plus = double.Parse(plusMinus.Groups["plus"].Value, CultureInfo.InvariantCulture);
-            var minus = double.Parse(plusMinus.Groups["minus"].Value, CultureInfo.InvariantCulture);
-            if (plus < 0 || minus < 0) { d.Add(PmiToleranceTypeMismatch); return false; }
-            tol = new(FirmamentV2ToleranceKind.Asymmetric, plus, minus, "mm", FirmamentV2PrimitiveType.Length, new(0, s.Length));
+            if (expression.Diagnostics.Count > 0 || call.Arguments.Count is < 1 or > 2 || call.Arguments.Any(a => a.Name is not null)
+                || !FirmamentSyntaxValues.TryMeasure(call.Arguments[0].Value, "mm", out var plus) || !double.IsFinite(plus) || plus < 0)
+            { d.Add(PmiToleranceTypeMismatch); return false; }
+            var minus = plus;
+            if (call.Arguments.Count == 2 && (!FirmamentSyntaxValues.TryMeasure(call.Arguments[1].Value, "mm", out minus) || !double.IsFinite(minus) || minus < 0))
+            { d.Add(PmiToleranceTypeMismatch); return false; }
+            tol = new(call.Arguments.Count == 1 ? FirmamentV2ToleranceKind.Bilateral : FirmamentV2ToleranceKind.Asymmetric,
+                plus, minus, "mm", FirmamentV2PrimitiveType.Length, new(0, s.Length));
             return true;
         }
         var t=ParseTolerance(FirmamentV2PrimitiveType.Length,s,d); if(t is null){d.Add(PmiToleranceTypeMismatch); return false;} tol=t; return true;

@@ -481,6 +481,7 @@ public static partial class FirmamentBuildAndExport
                 if (!support.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(support.Diagnostics);
                 var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
                 foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
+                foreach (var hole in stack.Feature.CountersinkHoles ?? []) features[hole.Name] = hole.StableId;
                 semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], stack.Feature.Name, features, emitted.Correspondence, completedBody).ToArray();
             }
             var step = Step242Exporter.ExportBody(completedBody, semanticPmi);
@@ -488,8 +489,9 @@ public static partial class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, stack.Feature.Name, 0, "prismatic-section-stack", "line-arc-profile-composition",
                 DatumInspection: v2Parse.Document?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
                 DimensionInspection: v2Parse.Document?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? [],
-                Features: CompositionHoleReports(stack.Feature),
-                EngineeringFeatures: EngineeringFeatureReports(stack.Feature)));
+                Features: CompositionHoleReports(stack.Feature, completedBody, emitted.Correspondence),
+                EngineeringFeatures: EngineeringFeatureReports(stack.Feature))
+            { RuntimeBody = completedBody, RuntimeCorrespondence = emitted.Correspondence, RuntimeBodySourceName = stack.Feature.Name });
         }
         if (v2Parse.BoundProfile is not null || (!v2Parse.OwnsUnifiedAdmission && ProfileAuthoringParser.IsProfileSource(materializerSource)))
         {
@@ -1109,7 +1111,7 @@ public static partial class FirmamentBuildAndExport
                 if (filletProfile is null || filletTarget is null) return Fail(filletDiagnostic ?? "ProfileBoundaryFilletProfileUnknown");
                 var filletAdmission = ProfileStraightEdgeFilletAdmissionChecker.Check(stack, filletProfile, filletTarget, radius, clearance);
                 if (!filletAdmission.Disjoint) return Fail(filletAdmission.Diagnostics.FirstOrDefault() ?? "ProfileBoundaryFilletCavityInteractionUnsupported");
-                return Fail("ProfileBoundaryFilletComposeUnsupported");
+                return Fail("ProfileBoundaryFilletComposeUnsupported: A composed-body fillet requires an adapter that retains its existing material intervals and cavities. The current profile fillet planner constructs a fresh extrusion; it cannot replace this body without losing authored features. No geometry was emitted.");
             }
             ProfileBoundaryChamferTarget? target = null; double distance = 0d; string? bindingDiagnostic = null; ResolvedProfile2D? profile = null;
             foreach (var candidate in parsed.Profiles.Values.OrderBy(x => x.Name, StringComparer.Ordinal))
@@ -1131,6 +1133,7 @@ public static partial class FirmamentBuildAndExport
                 if (!support.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(support.Diagnostics);
                 var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
                 foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
+                foreach (var hole in stack.Feature.CountersinkHoles ?? []) features[hole.Name] = hole.StableId;
                 semanticPmi = BuildV2SemanticPmi(canonicalDocument, [], stack.Feature.Name, features, plannedEmission.Correspondence, plannedEmission.Body).ToArray();
             }
             var plannedStep = Step242Exporter.ExportBody(plannedEmission.Body, semanticPmi, new Step242ExportOptions { ProductName = target.StableId, ApplicationName = "Aetheris.Firmament.ComposedProfileBoundaryChamfer.M3", BrepExportPreflightMode = BrepExportPreflightMode.Enforce, BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute });
@@ -1140,7 +1143,7 @@ public static partial class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(plannedStep.Value, target.StableId, 0, "composed-profile-boundary-chamfer-section-stack", "source-grounded-composed-profile-boundary-chamfer",
                 DatumInspection: canonicalDocument?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
                 DimensionInspection: canonicalDocument?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? [],
-                Features: CompositionHoleReports(stack.Feature),
+                Features: CompositionHoleReports(stack.Feature, plannedEmission.Body!, plannedEmission.Correspondence),
                 EngineeringFeatures: EngineeringFeatureReports(stack.Feature).Append(new FirmamentEngineeringFeatureReport(
                     target.StableId["edgefinish:".Length..],
                     "EdgeFinish",
@@ -2854,6 +2857,11 @@ public static partial class FirmamentBuildAndExport
                 .Where(descendant => descendant.Face.HasValue
                     && (string.Equals(descendant.SourceStableId, item.FeatureId, StringComparison.Ordinal)
                         || string.Equals(descendant.ParentStableId, item.FeatureId, StringComparison.Ordinal)))
+                // Shaft dimensions follow semantic wall ownership, not the
+                // asserted PMI number: contradictory PMI must keep its target
+                // so downstream geometry/requirement checks can diagnose it.
+                .Where(descendant => item is not Step242SemanticPmiHole
+                    || descendant.Role is not (SemanticTopologyRole.HoleCounterboreWallFace or SemanticTopologyRole.HoleCountersinkWallFace))
                 .Select(descendant => descendant.Face!.Value.Value)
                 .Distinct()
                 .Order()
@@ -2972,17 +2980,33 @@ public static partial class FirmamentBuildAndExport
         .OrderBy(item => item.FeatureId, StringComparer.Ordinal)
         .ToArray();
 
-    private static IReadOnlyList<FirmamentHoleFeatureReport> CompositionHoleReports(PrismaticProfileCompositionFeature feature) =>
+    private static IReadOnlyList<FirmamentHoleFeatureReport> CompositionHoleReports(PrismaticProfileCompositionFeature feature, BrepBody body, SemanticTopologyCorrespondence? correspondence) =>
         (feature.ShaftHoles ?? []).Select(item => new FirmamentHoleFeatureReport(
             item.Name, "Hole<Shaft>", item.StableId, item.Diameter, item.CenterX, item.CenterY,
             null, "ProfileCompose.Center", null, null, "+Z", item.SourceSpan,
-            "PrismaticSectionStack/Remove", "SemanticShaftProfile", "ThroughAll",
+            "PrismaticSectionStack/Remove", "SemanticShaftProfile", "SimpleShaft",
             SupportSpan: item.SupportSpan, ParentSupport: item.ParentSupport, SupportBoundaryMargin: item.SupportBoundaryMargin))
         .Concat((feature.CounterboreHoles ?? []).Select(item => new FirmamentHoleFeatureReport(
             item.Name, "Hole<Counterbore>", item.StableId, item.Diameter, item.CenterX, item.CenterY,
             null, "ProfileCompose.Center", null, null, "+Z", item.SourceSpan,
-            "PrismaticSectionStack/Remove", "SemanticCounterboreProfiles", "ThroughAll",
+            "PrismaticSectionStack/Remove", "SemanticCounterboreProfiles", "Counterbore",
             SupportSpan: item.SupportSpan, ParentSupport: item.ParentSupport, SupportBoundaryMargin: item.SupportBoundaryMargin)))
+        .Concat((feature.CountersinkHoles ?? []).Select(item => new FirmamentHoleFeatureReport(
+            item.Name, "Hole<Countersink>", item.StableId, item.Diameter, item.CenterX, item.CenterY,
+            null, "ProfileCompose.Center", null, null, "+Z", item.SourceSpan,
+            "PrismaticSectionStack/VariableCircularCavity", "SemanticCountersinkProfile", "Countersink",
+            SupportSpan: item.SupportSpan, ParentSupport: item.ParentSupport, SupportBoundaryMargin: item.SupportBoundaryMargin)))
+        .Select(report =>
+        {
+            var surfaces = (correspondence?.Descendants ?? []).Where(d => d.SourceStableId == report.FeatureId && d.Face.HasValue)
+                .Select(d => d.Face!.Value).Distinct().Select(body.GetFaceSurface).ToArray();
+            return report with
+            {
+                CylindricalFaces = surfaces.Count(s => s.Kind == SurfaceGeometryKind.Cylinder),
+                ConicalFaces = surfaces.Count(s => s.Kind == SurfaceGeometryKind.Cone),
+                PlanarFaces = surfaces.Count(s => s.Kind == SurfaceGeometryKind.Plane)
+            };
+        })
         .OrderBy(item => item.FeatureId, StringComparer.Ordinal)
         .ToArray();
 

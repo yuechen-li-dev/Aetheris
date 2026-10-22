@@ -31,6 +31,11 @@ families require an authored complete drawing until their dimension planners are
 qualified. They fail automatic generation with `drawing-definition-incomplete`;
 a sampled bounding box is never used to claim complete dimensions.
 
+The [code-native bracket rehearsal](code-native-bracket.md) demonstrates the
+authored route for a traced L outline with a countersunk through hole. Its final
+PDF is independently reconstructed and compared with STEP for two parameter sets.
+That bounded authoring helper does not extend the automatic recognition family.
+
 A qualified plate receives:
 
 - Exact controlling width and height dimensions, and thickness on an aligned edge

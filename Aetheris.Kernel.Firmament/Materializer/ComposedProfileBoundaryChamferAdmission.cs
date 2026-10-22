@@ -31,7 +31,8 @@ public static class ComposedProfileBoundaryChamferAdmissionChecker
         var loop = profile.Loops.SingleOrDefault(x => x.Name == target.LoopId);
         if (loop is null || !loop.IsOuter || loop.Segments.Any(x => x.Geometry is not LineArcLineSegment2D))
             return new(false, null, [], ["ProfileBoundaryChamferSegmentKindUnsupported"]);
-        var top = stack.Feature.CriticalLevels.Max();
+        if (ComposedProfileBoundaryChamferStackPlanner.SupportLevel(stack, profile) is not { } top)
+            return new(false, null, [], ["ProfileBoundaryChamferComposeProfileSupportMissing"]);
         var corridor = new ProfileBoundaryChamferCorridor(target.StableId, profile.Name, loop.Name, distance, top - distance, top, target.SegmentIds);
         var interactions = new List<ProfileBoundaryChamferCavityInteraction>();
         foreach (var hole in stack.Feature.ShaftHoles ?? [])
@@ -44,6 +45,11 @@ public static class ComposedProfileBoundaryChamferAdmissionChecker
             interactions.Add(Classify(loop, corridor, hole.StableId, "Counterbore", hole.CenterX, hole.CenterY, hole.CounterboreDiameter / 2d, boreFrom, hole.To));
             if (boreFrom > hole.From + Tol)
                 interactions.Add(Classify(loop, corridor, hole.StableId, "CounterboreShaft", hole.CenterX, hole.CenterY, hole.Diameter / 2d, hole.From, boreFrom));
+        }
+        foreach (var hole in stack.Feature.CountersinkHoles ?? [])
+        {
+            interactions.Add(Classify(loop, corridor, hole.StableId, "Countersink", hole.CenterX, hole.CenterY, hole.CountersinkDiameter / 2d, hole.ConeFrom, hole.To));
+            interactions.Add(Classify(loop, corridor, hole.StableId, "CountersinkShaft", hole.CenterX, hole.CenterY, hole.Diameter / 2d, hole.From, hole.ConeFrom));
         }
         var rejected = interactions.Where(x => x.Classification != "Disjoint").ToArray();
         return new(rejected.Length == 0, corridor, interactions,
@@ -64,7 +70,8 @@ public static class ComposedProfileBoundaryChamferAdmissionChecker
         // result is intentionally rejected; a later exact cell test may only relax it.
         if (boundaryDistance <= radius + corridor.Distance + Tol)
         {
-            var code = kind == "Shaft" ? "ProfileBoundaryChamferIntersectsShaft" : "ProfileBoundaryChamferIntersectsCounterbore";
+            var code = kind == "Shaft" ? "ProfileBoundaryChamferIntersectsShaft"
+                : kind.StartsWith("Countersink", StringComparison.Ordinal) ? "ProfileBoundaryChamferIntersectsCountersink" : "ProfileBoundaryChamferIntersectsCounterbore";
             var classification = Math.Abs(boundaryDistance - radius - corridor.Distance) <= Tol ? "TouchingWithinTolerance" : "Intersecting";
             return new(featureId, kind, x, y, radius, from, to, classification,
                 $"{code}:edgeFinish={corridor.EdgeFinishId}:cavity={featureId}:profile={corridor.ProfileId}.{corridor.LoopId}:distance={corridor.Distance:R}:center=({x:R},{y:R}):radius={radius:R}:interval=({Math.Max(from, corridor.From):R},{Math.Min(to, corridor.To):R})");

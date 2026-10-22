@@ -55,8 +55,12 @@ public sealed class StepLegacyQualificationTests
         Assert.Equal(ImportQualificationStatus.Qualified, body.ImportQualification.Status);
         Assert.Equal(ImportDisplayStatus.NotAssessed, body.ImportQualification.DisplayStatus);
         Assert.Null(body.ImportQualification.DisplayedFaces);
-        var mesh = BrepDisplayTessellator.TessellateBoundedPartial(body);
-        var report = BrepImportQualification.WithDisplay(body, mesh);
+        // This checks complete display qualification, not wall-clock budget
+        // admission. A partial API can legitimately return five faces on a busy
+        // host; that cannot establish a deterministic six-face expectation.
+        var mesh = BrepDisplayTessellator.Tessellate(body);
+        Assert.True(mesh.IsSuccess);
+        var report = BrepImportQualification.WithDisplay(body, mesh.Value);
         Assert.Equal(ImportQualificationStatus.Qualified, report.Status);
         Assert.Equal(6, report.DisplayedFaces);
         Assert.Empty(report.Reasons);

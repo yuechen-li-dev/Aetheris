@@ -53,6 +53,20 @@ public sealed record PrismaticCounterboreHoleFeature(
     double CenterX, double CenterY, double Diameter, double CounterboreDiameter, double CounterboreDepth,
     double From, double To, string SemanticRole, string SourceSpan,
     string? SupportSpan = null, string? ParentSupport = null, double? SupportBoundaryMargin = null);
+/// <summary>Exact conical entry on a circular through cavity; stations are in the composition frame.</summary>
+public sealed record PrismaticCountersinkHoleFeature(
+    string Name, string StableId, string ShaftProfileReference,
+    double CenterX, double CenterY, double Diameter, double CountersinkDiameter, double AngleDegrees,
+    double From, double To, string SemanticRole, string SourceSpan,
+    string? SupportSpan = null, string? ParentSupport = null, double? SupportBoundaryMargin = null)
+{
+    public double SemiAngle => AngleDegrees * Math.PI / 360d;
+    public double ConeDepth => (CountersinkDiameter - Diameter) / (2d * Math.Tan(SemiAngle));
+    public double ConeFrom => To - ConeDepth;
+    public double RadiusAt(double station) => Diameter / 2d + Math.Clamp(station - ConeFrom, 0d, ConeDepth) * Math.Tan(SemiAngle);
+    public double AdditionalVoidVolume => Math.PI * ConeDepth *
+        (Math.Pow(CountersinkDiameter / 2d, 2) + CountersinkDiameter * Diameter / 4d - 2d * Math.Pow(Diameter / 2d, 2)) / 3d;
+}
 /// <summary>Source-owned transverse blind drill; its cavity is planned after host construction.</summary>
 public sealed record PrismaticConstructionPlaneBlindDrillFeature(
     string Name, string StableId, string ConstructionPlaneId, string SourceConceptPlaneId,
@@ -148,7 +162,8 @@ public sealed record PrismaticProfileCompositionFeature(
     IReadOnlyList<PrismaticCounterboreHoleFeature>? CounterboreHoles = null,
     IReadOnlyList<PrismaticBossFeature>? Bosses = null,
     IReadOnlyList<PrismaticPocketFeature>? Pockets = null,
-    IReadOnlyList<PrismaticMaterialOffsetFeature>? MaterialOffsets = null)
+    IReadOnlyList<PrismaticMaterialOffsetFeature>? MaterialOffsets = null,
+    IReadOnlyList<PrismaticCountersinkHoleFeature>? CountersinkHoles = null)
 {
     public IEnumerable<(string Name, string StableId, string ProfileReference)> AllSlotProfiles =>
         (CapsuleSlots ?? []).Select(x => (x.Name, x.StableId, x.ProfileReference))
@@ -594,17 +609,52 @@ public static class PrismaticProfileCompositionParser
         }
         var shaftHoles = new List<PrismaticShaftHoleFeature>();
         var counterboreHoles = new List<PrismaticCounterboreHoleFeature>();
+        var countersinkHoles = new List<PrismaticCountersinkHoleFeature>();
         var constructionPlaneBlindDrills = new List<PrismaticConstructionPlaneBlindDrillFeature>();
         var capsuleSlots = new List<PrismaticCapsuleSlotFeature>();
         var roundedRectangleSlots = new List<PrismaticRoundedRectangleSlotFeature>();
         var materialFrom = operations.Count == 0 ? 0d : operations.Min(x => x.From);
         var materialTo = operations.Count == 0 ? 0d : operations.Max(x => x.To);
+        var circularHostOperations = operations.ToArray();
+        PrismaticSectionStackConstruction? circularHost = null;
+        bool TryCircularHostInterval(string name, double x, double y, double entryRadius, string diagnostic, out double start, out double end)
+        {
+            start = end = 0d;
+            // Normalize once before drilling. The semantic top is local to the
+            // authored center, not the height of an unrelated boss elsewhere.
+            if (circularHost is null)
+            {
+                var levels = circularHostOperations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
+                var host = new PrismaticProfileCompositionFeature(compose.Name.Text, placement.ProfilePlane, placement.Axis, placement,
+                    circularHostOperations, levels, "CircularCavityHost");
+                circularHost = PrismaticSectionStackCompiler.Normalize(new(host, profiles, []), out var hostDiagnostics);
+                diagnostics.AddRange(hostDiagnostics);
+            }
+            var intervals = circularHost?.Slabs.Where(s => s.MaterialRegions.Any(r =>
+                PrismaticSectionStackHoleTraversal.CheckDisk(r, (x, y), 0d, s.From, s.To).Classification == SectionStackFootprintClassification.InsideMaterial)).OrderBy(s => s.From).ToArray() ?? [];
+            if (intervals.Length == 0)
+            { diagnostics.Add($"{diagnostic}:{name}:center-has-no-material-support"); return false; }
+            if (intervals.Zip(intervals.Skip(1)).Any(p => Math.Abs(p.First.To - p.Second.From) > 1e-7d))
+            { diagnostics.Add($"{diagnostic}:{name}:disconnected-axial-material-spans-not-admitted"); return false; }
+            start = intervals[0].From; end = intervals[^1].To;
+            var entryLevel = end;
+            var exposed = circularHost!.Transitions.Where(t => Math.Abs(t.Level - entryLevel) < 1e-7d).SelectMany(t => t.UpwardRegions);
+            if (!exposed.Any(r => PrismaticSectionStackHoleTraversal.CheckDisk(r, (x, y), entryRadius, entryLevel, entryLevel).Classification == SectionStackFootprintClassification.InsideMaterial))
+            { diagnostics.Add($"{diagnostic}:{name}:entry-footprint-is-not-contained-in-the-exposed-local-support:radius={entryRadius:R}"); return false; }
+            return true;
+        }
         foreach (var declaration in operationsSyntax.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Hole"))
         {
             var name = declaration.Name?.Text ?? "";
             var fields = new FirmamentSyntaxFields(declaration, diagnostics);
             var body = declaration.Body is null ? null : composeBody.Substring(declaration.Body.Span.Start + 1, declaration.Body.Span.Length - 2);
             if (body is null) { diagnostics.Add($"compose-hole-unclosed:{name}"); continue; }
+            var variant = FirmamentSyntaxValues.Reference(declaration.Type.Arguments.FirstOrDefault()?.Value) ?? "";
+            var schemaVariant = Enum.TryParse<FirmamentV2SemanticHoleVariant>(variant, true, out var knownVariant) ? knownVariant.ToString() : variant;
+            foreach (var authored in fields.AuthoredFields)
+                if (FirmamentSemanticSchemas.Get("Hole")!.Fields.FirstOrDefault(f => FirmamentSyntaxFields.SameField(authored.Name, f.Name)) is { } schemaField
+                    && !schemaField.AppliesTo(schemaVariant))
+                    diagnostics.Add($"{FirmamentV2Parser.CanonicalFieldUnknown}:Hole:{authored.Name}");
             fields.Take("PatternIdentity");
             var patternIdentityMatch = Regex.Match(body, @"\bPatternIdentity\s*:\s*(?<id>[A-Za-z_]\w*\.[A-Za-z_]\w*)", RegexOptions.CultureInvariant);
             var diagnosticName = patternIdentityMatch.Success ? patternIdentityMatch.Groups["id"].Value : name;
@@ -616,6 +666,8 @@ public static class PrismaticProfileCompositionParser
             if (onExpression is not null && (!on.Success || on.Groups["face"].Value != onName))
                 diagnostics.Add($"compose-hole-support-invalid:{name}: Use a host face or an admitted Span<Plane>.");
             var from = ReadFeatureField(fields, composeBody, HoleFrom, "From"); var depthEnd = ReadFeatureField(fields, composeBody, HoleDepthEnd, "End"); var termination = ReadFeatureField(fields, composeBody, HoleTermination, "Termination");
+            var countersinkDiameter = fields.Number("CountersinkDiameter", "mm");
+            var countersinkAngle = fields.Number("CountersinkAngle", "deg");
             fields.Complete();
             if (from.Success)
             {
@@ -640,7 +692,45 @@ public static class PrismaticProfileCompositionParser
                     role.Success ? role.Groups["role"].Value : "BlindDrillPoint", $"offset:{declaration.Span.Start}", plane.Provenance));
                 continue;
             }
-            var variant = (FirmamentSyntaxValues.Reference(declaration.Type.Arguments.FirstOrDefault()?.Value) ?? "");
+            if (string.Equals(variant, "Countersink", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!end.Success || !string.Equals(end.Groups["end"].Value, "ThroughAll", StringComparison.OrdinalIgnoreCase))
+                { diagnostics.Add($"ComposeCountersinkEndUnsupported:{name}:supported=ThroughAll"); continue; }
+                var supportName = on.Success ? on.Groups["face"].Value : null;
+                surfaceSpans.TryGetValue(supportName ?? string.Empty, out var supportSpan);
+                if (!on.Success || (!string.Equals(supportName, "+Z", StringComparison.OrdinalIgnoreCase) && supportSpan is null))
+                { diagnostics.Add($"ComposeCountersinkAxisUnsupported:{name}:supported=+Z-or-Span<Plane>"); continue; }
+                if (!center.Success || !diameter.Success)
+                { diagnostics.Add($"ComposeCountersinkMissingRequiredField:{name}"); continue; }
+                var cx = N(center, "x"); var cy = N(center, "y"); var shaftDiameter = N(diameter, "d");
+                if (!double.IsFinite(cx) || !double.IsFinite(cy) || !double.IsFinite(shaftDiameter) || shaftDiameter <= 0d
+                    || !double.IsFinite(countersinkDiameter) || countersinkDiameter <= shaftDiameter
+                    || !double.IsFinite(countersinkAngle) || countersinkAngle <= 0d || countersinkAngle >= 180d)
+                { diagnostics.Add($"ComposeCountersinkInvalidGeometry:{name}:require=positive-shaft-smaller-than-entry-and-angle-between-0-and-180deg"); continue; }
+                var stable = $"hole:{compose.Name.Text}.{name}"; var profile = $"{name}ShaftProfile";
+                var sinkSourceSpan = $"offset:{declaration.Span.Start}"; var sinkRole = role.Success ? role.Groups["role"].Value : "CountersinkHole";
+                if (!TryCircularHostInterval(name, cx, cy, countersinkDiameter / 2d, "ComposeCountersinkFootprintLeavesProfileMaterial", out var sinkFrom, out var sinkTo)) continue;
+                var hole = new PrismaticCountersinkHoleFeature(name, stable, profile, cx, cy, shaftDiameter, countersinkDiameter, countersinkAngle,
+                    sinkFrom, sinkTo, sinkRole, sinkSourceSpan, supportSpan?.SpanId, supportSpan?.ParentId);
+                if (!double.IsFinite(hole.ConeDepth) || hole.ConeFrom <= sinkFrom + 1e-8d)
+                { diagnostics.Add($"ComposeCountersinkDepthExceedsHost:{name}:coneDepth={hole.ConeDepth:R}:hostDepth={sinkTo - sinkFrom:R}:require=positive-shaft-length"); continue; }
+                if (supportSpan is not null)
+                {
+                    var normal = supportSpan.ParentPlane!.AxisZ.ToVector();
+                    if (Math.Abs(normal.X) > 1e-8d || Math.Abs(normal.Y) > 1e-8d || normal.Z < 1d - 1e-8d
+                        || Math.Abs(supportSpan.ParentPlane.Origin.Z - sinkTo) > 1e-7d)
+                    { diagnostics.Add($"firmament-feature-support-parent-mismatch:{name}:{supportSpan.SpanId}"); continue; }
+                    if (!PlanarSpanContainment.ContainsCircle(supportSpan, cx, cy, countersinkDiameter / 2d, out var margin))
+                    { diagnostics.Add($"firmament-feature-footprint-outside-span:{diagnosticName}:{supportSpan.SpanId}:radius={countersinkDiameter / 2d:R}:margin={margin:R}"); continue; }
+                    hole = hole with { SupportBoundaryMargin = margin };
+                }
+                if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
+                if (profiles.ContainsKey(profile)) { diagnostics.Add($"compose-hole-profile-name-collision:{name}"); continue; }
+                profiles.Add(profile, CircleProfile(profile, cx, cy, shaftDiameter / 2d, stable, sinkSourceSpan));
+                countersinkHoles.Add(hole);
+                operations.Add(new(name, PrismaticProfileIntent.Remove, profile, sinkFrom, sinkTo, sinkRole, sinkSourceSpan, stable, "Hole<Countersink>", shaftDiameter));
+                continue;
+            }
             if (string.Equals(variant, "Counterbore", StringComparison.OrdinalIgnoreCase))
             {
                 if (!end.Success || !string.Equals(end.Groups["end"].Value, "ThroughAll", StringComparison.OrdinalIgnoreCase))
@@ -654,19 +744,19 @@ public static class PrismaticProfileCompositionParser
                 var counterboreX = N(center, "x"); var counterboreY = N(center, "y"); var shaftDiameter = N(diameter, "d"); var boreDiameter = N(counterboreDiameter, "d"); var boreDepth = N(counterboreDepth, "d");
                 if (!double.IsFinite(counterboreX) || !double.IsFinite(counterboreY) || !double.IsFinite(shaftDiameter) || shaftDiameter <= 0d || !double.IsFinite(boreDiameter) || boreDiameter <= shaftDiameter || !double.IsFinite(boreDepth) || boreDepth <= 0d)
                 { diagnostics.Add($"ComposeCounterboreInvalidGeometry:{name}"); continue; }
-                var hostDepth = materialTo - materialFrom;
-                if (boreDepth > hostDepth + 1e-8d)
-                { diagnostics.Add($"ComposeCounterboreDepthExceedsHost:{name}:depth={boreDepth:R}:hostDepth={hostDepth:R}"); continue; }
+                var hasLocalSupport = TryCircularHostInterval(name, counterboreX, counterboreY, boreDiameter / 2d, "ComposeCounterboreFootprintLeavesProfileMaterial", out var boreFrom, out var boreTo);
+                var hostDepth = hasLocalSupport ? boreTo - boreFrom : materialTo - materialFrom;
+                if (boreDepth >= hostDepth - 1e-8d)
+                { diagnostics.Add($"ComposeCounterboreDepthExceedsHost:{name}:depth={boreDepth:R}:hostDepth={hostDepth:R}:require=positive-shaft-length; use Hole<Shaft> for a full-depth larger bore"); continue; }
+                if (!hasLocalSupport) continue;
                 if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
                 var counterboreStableId = $"hole:{compose.Name.Text}.{name}";
-                if (!CircleContainedInBaseProfile(operations, profiles, counterboreX, counterboreY, boreDiameter / 2d))
-                { diagnostics.Add($"ComposeCounterboreFootprintLeavesProfileMaterial:{name}:radius={boreDiameter / 2d:R}"); continue; }
                 double? supportMargin = null;
                 if (supportSpan is not null)
                 {
                     var parentNormal = supportSpan.ParentPlane!.AxisZ.ToVector();
                     if (Math.Abs(parentNormal.X) > 1e-8d || Math.Abs(parentNormal.Y) > 1e-8d || parentNormal.Z < 1d - 1e-8d
-                        || Math.Abs(supportSpan.ParentPlane.Origin.Z - materialTo) > 1e-7d)
+                        || Math.Abs(supportSpan.ParentPlane.Origin.Z - boreTo) > 1e-7d)
                     { diagnostics.Add($"firmament-feature-support-parent-mismatch:{name}:{supportSpan.SpanId}"); continue; }
                     if (!PlanarSpanContainment.ContainsCircle(supportSpan, counterboreX, counterboreY, boreDiameter / 2d, out var margin))
                     { diagnostics.Add($"firmament-feature-footprint-outside-span:{diagnosticName}:{supportSpan.SpanId}:center=[{counterboreX:R},{counterboreY:R}]:radius={boreDiameter / 2d:R}:margin={margin:R}"); continue; }
@@ -679,9 +769,9 @@ public static class PrismaticProfileCompositionParser
                 profiles.Add(shaftProfile, CircleProfile(shaftProfile, counterboreX, counterboreY, shaftDiameter / 2d, counterboreStableId, $"offset:{declaration.Span.Start}"));
                 profiles.Add(boreProfile, CircleProfile(boreProfile, counterboreX, counterboreY, boreDiameter / 2d, counterboreStableId, $"offset:{declaration.Span.Start}"));
                 var counterboreSourceSpan = $"offset:{declaration.Span.Start}"; var counterboreSemanticRole = role.Success ? role.Groups["role"].Value : "CounterboreHole";
-                counterboreHoles.Add(new(name, counterboreStableId, shaftProfile, boreProfile, counterboreX, counterboreY, shaftDiameter, boreDiameter, boreDepth, materialFrom, materialTo, counterboreSemanticRole, counterboreSourceSpan, supportSpan?.SpanId, supportSpan?.ParentId, supportMargin));
-                operations.Add(new($"{name}Shaft", PrismaticProfileIntent.Remove, shaftProfile, materialFrom, materialTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", shaftDiameter));
-                operations.Add(new($"{name}Counterbore", PrismaticProfileIntent.Remove, boreProfile, materialTo - boreDepth, materialTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", boreDiameter));
+                counterboreHoles.Add(new(name, counterboreStableId, shaftProfile, boreProfile, counterboreX, counterboreY, shaftDiameter, boreDiameter, boreDepth, boreFrom, boreTo, counterboreSemanticRole, counterboreSourceSpan, supportSpan?.SpanId, supportSpan?.ParentId, supportMargin));
+                operations.Add(new($"{name}Shaft", PrismaticProfileIntent.Remove, shaftProfile, boreFrom, boreTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", shaftDiameter));
+                operations.Add(new($"{name}Counterbore", PrismaticProfileIntent.Remove, boreProfile, boreTo - boreDepth, boreTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", boreDiameter));
                 continue;
             }
             if (!string.Equals(variant, "Shaft", StringComparison.OrdinalIgnoreCase)
@@ -725,6 +815,12 @@ public static class PrismaticProfileCompositionParser
         foreach (var counterbore in counterboreHoles)
             if (CirclesTouchOrOverlap(shaft.CenterX, shaft.CenterY, shaft.Diameter / 2d, counterbore.CenterX, counterbore.CenterY, counterbore.CounterboreDiameter / 2d))
                 diagnostics.Add($"ComposeCounterboreIntersectsExistingCavity:{counterbore.Name}:shaft={shaft.Name}");
+        foreach (var hole in countersinkHoles)
+        {
+            if (IntersectsExistingCircularCavity(shaftHoles, counterboreHoles, hole.CenterX, hole.CenterY, hole.CountersinkDiameter / 2d)
+                || countersinkHoles.Any(other => other != hole && CirclesTouchOrOverlap(hole.CenterX, hole.CenterY, hole.CountersinkDiameter / 2d, other.CenterX, other.CenterY, other.CountersinkDiameter / 2d)))
+                diagnostics.Add($"ComposeCountersinkIntersectsExistingCavity:{hole.Name}:require=disjoint-entry-footprints");
+        }
         foreach (var declaration in operationsSyntax.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Slot"))
         {
             var name = declaration.Name?.Text ?? "";
@@ -769,8 +865,8 @@ public static class PrismaticProfileCompositionParser
                 if (!SameFrame(operandFrame, compositionFrame!))
                     diagnostics.Add($"compose-profile-frame-mismatch:{operation.Name}:{operation.ProfileReference}: All operands must use the same construction frame; an explicit Placement cannot override an oriented Profile.");
             }
-        var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
-        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Name.Text, placement.ProfilePlane, placement.Axis, placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets, materialOffsets) : null;
+        var levels = operations.SelectMany(o => new[] { o.From, o.To }).Concat(countersinkHoles.Select(h => h.ConeFrom)).Distinct().Order().ToArray();
+        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Name.Text, placement.ProfilePlane, placement.Axis, placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets, materialOffsets, countersinkHoles) : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
     }
 
@@ -1055,12 +1151,6 @@ public static class PrismaticProfileCompositionParser
             names[i], new LineArcCircularArc2D((x, y), radius, i * Math.PI / 2d, Math.PI / 2d),
             new($"profile:{profileName}.Outer.{names[i]}", $"{holeStableId}.axis", sourceSpan, $"Hole<Shaft>({holeStableId})", "XY"))).ToArray();
         return new(profileName, "XY", [new ResolvedProfileLoop2D("Outer", true, segments)]);
-    }
-    private static bool CircleContainedInBaseProfile(IReadOnlyList<PrismaticProfileOperation> operations, IReadOnlyDictionary<string, ResolvedProfile2D> profiles, double x, double y, double radius)
-    {
-        var baseOperation = operations.SingleOrDefault(operation => operation.Intent == PrismaticProfileIntent.Base);
-        if (baseOperation is null || !profiles.TryGetValue(baseOperation.ProfileReference, out var profile) || ProfileArrangementBuilder.PointInProfile(profile, (x, y)) != ArrangementPointLocation.Inside) return false;
-        return profile.Loops.Single().Segments.All(segment => DistanceToCurve((x, y), segment.Geometry) > radius + 1e-8d);
     }
     private static bool IntersectsExistingCircularCavity(IReadOnlyList<PrismaticShaftHoleFeature> shafts, IReadOnlyList<PrismaticCounterboreHoleFeature> counterbores, double x, double y, double radius) =>
         shafts.Any(hole => CirclesTouchOrOverlap(x, y, radius, hole.CenterX, hole.CenterY, hole.Diameter / 2d)) ||

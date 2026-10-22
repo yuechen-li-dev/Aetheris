@@ -1154,6 +1154,11 @@ public static class ProfileStraightEdgeFilletAdmissionChecker
             AddIfCollision(hole.StableId, "Counterbore", hole.CenterX, hole.CenterY, hole.CounterboreDiameter / 2d, Math.Max(hole.From, hole.To - hole.CounterboreDepth), hole.To, "ProfileBoundaryFilletIntersectsCounterbore");
             AddIfCollision(hole.StableId, "CounterboreShaft", hole.CenterX, hole.CenterY, hole.Diameter / 2d, hole.From, Math.Max(hole.From, hole.To - hole.CounterboreDepth), "ProfileBoundaryFilletIntersectsCounterbore");
         }
+        foreach (var hole in stack.Feature.CountersinkHoles ?? [])
+        {
+            AddIfCollision(hole.StableId, "Countersink", hole.CenterX, hole.CenterY, hole.CountersinkDiameter / 2d, hole.ConeFrom, hole.To, "ProfileBoundaryFilletIntersectsCountersink");
+            AddIfCollision(hole.StableId, "CountersinkShaft", hole.CenterX, hole.CenterY, hole.Diameter / 2d, hole.From, hole.ConeFrom, "ProfileBoundaryFilletIntersectsCountersink");
+        }
         return new(diagnostics.Count == 0, corridor, diagnostics.Distinct(StringComparer.Ordinal).ToArray());
 
         void AddIfCollision(string feature, string kind, double x, double y, double cavityRadius, double cavityFrom, double cavityTo, string code)

@@ -86,6 +86,30 @@ public static class PrismaticSectionStackCompiler
     {
         var d = parsed.Diagnostics.ToList();
         if (parsed.Feature is null) { diagnostics = d; return null; }
+        // A variable cavity is legal only where its complete footprint lies in
+        // actual material. A Base-profile check alone misses pockets, slots,
+        // local height changes and disconnected material spans.
+        foreach (var hole in parsed.Feature.CountersinkHoles ?? [])
+            CheckCavity(hole.StableId, hole.Name, hole.CenterX, hole.CenterY, hole.From, hole.To, hole.RadiusAt, "ComposeCountersinkFootprintLeavesProfileMaterial");
+        foreach (var hole in parsed.Feature.CounterboreHoles ?? [])
+            CheckCavity(hole.StableId, hole.Name, hole.CenterX, hole.CenterY, hole.From, hole.To,
+                z => z > hole.To - hole.CounterboreDepth + Tol ? hole.CounterboreDiameter / 2d : hole.Diameter / 2d,
+                "ComposeCounterboreFootprintLeavesProfileMaterial");
+        if (d.Count != 0) { diagnostics = d.Distinct().ToArray(); return null; }
+
+        void CheckCavity(string stableId, string name, double x, double y, double from, double to, Func<double, double> radiusAt, string code)
+        {
+            foreach (var pair in parsed.Feature.CriticalLevels.Zip(parsed.Feature.CriticalLevels.Skip(1)).Where(p => p.First >= from - Tol && p.Second <= to + Tol))
+            {
+                var mid = (pair.First + pair.Second) / 2d;
+                var active = parsed.Feature.Operations.Where(o => o.From < mid && mid < o.To && o.SemanticFeatureId != stableId).ToArray();
+                var host = ProfileArrangementBuilder.Compose(parsed.Feature.Frame, active, parsed.Profiles, $"cavity-host:{stableId}:{pair.First:R}..{pair.Second:R}");
+                d.AddRange(host.Arrangement.Diagnostics);
+                var radius = radiusAt(pair.Second);
+                if (!host.MaterialRegions.Any(region => PrismaticSectionStackHoleTraversal.CheckDisk(region, (x, y), radius, pair.First, pair.Second).Classification == SectionStackFootprintClassification.InsideMaterial))
+                    d.Add($"{code}:{name}:interval={pair.First:R}..{pair.Second:R}:radius={radius:R}:require=complete-contiguous-material");
+            }
+        }
         var slabs = new List<PrismaticSectionSlab>();
         foreach (var pair in parsed.Feature.CriticalLevels.Zip(parsed.Feature.CriticalLevels.Skip(1)))
         {
@@ -112,7 +136,8 @@ public static class PrismaticSectionStackCompiler
             var downward = downwardResult.MaterialRegions;
             if (upward.Count > 0 || downward.Count > 0) transitions.Add(new(level, upward, downward));
         }
-        var volume = slabs.Sum(s => s.MaterialRegions.Sum(Area) * (s.To - s.From));
+        var volume = slabs.Sum(s => s.MaterialRegions.Sum(Area) * (s.To - s.From))
+            - (parsed.Feature.CountersinkHoles ?? []).Sum(h => h.AdditionalVoidVolume);
         diagnostics = d.Distinct().ToArray();
         return d.Any(x => x.Contains("rejected", StringComparison.Ordinal))
             ? null
@@ -169,6 +194,16 @@ public static class PrismaticSectionStackEmitter
         var builder = new TopologyBuilder(); var points = new Dictionary<VertexId, Point3D>(); var curves = new Dictionary<EdgeId, CurveGeometry>(); var profileCurves = new Dictionary<EdgeId, LineArcProfileCurve2D>();
         var vertices = new Dictionary<(long X, long Y, long Z), VertexId>(); var edges = new Dictionary<string, EdgeId>();
         var sideFaces = new List<(LoopId Loop, SurfaceGeometry Surface, bool SameSense, string Source, string Construction, double From, double To)>(); var capFaces = new List<(FaceId Face, double Z, bool Up)>();
+        var countersinks = stack.Feature.CountersinkHoles ?? [];
+        PrismaticCountersinkHoleFeature? CountersinkFor(string source) => countersinks.SingleOrDefault(h =>
+            SourceId(source).StartsWith($"profile:{h.ShaftProfileReference}.Outer.", StringComparison.Ordinal));
+        LineArcProfileCurve2D AtStation(LineArcProfileCurve2D curve, double z, string source) =>
+            curve is LineArcCircularArc2D arc && CountersinkFor(source) is { } hole ? arc with { Radius = hole.RadiusAt(z) } : curve;
+        SurfaceGeometry WallSurface(LineArcProfileCurve2D curve, double from, double to, bool isHole, string source) =>
+            CountersinkFor(source) is { } hole && to > hole.ConeFrom + Tol
+                ? SurfaceGeometry.FromCone(new ConeSurface(new Point3D(hole.CenterX, hole.CenterY, hole.ConeFrom),
+                    Direction3D.Create(new Vector3D(0, 0, 1)), hole.Diameter / 2d, hole.SemiAngle, Direction3D.Create(new Vector3D(1, 0, 0))))
+                : SideSurface(curve, from, isHole);
         var variableIntervals = stack.VariableOuterIntervals ?? [];
         foreach (var interval in variableIntervals)
             d.AddRange(VariableOuterSectionIntervalValidator.Validate(interval).Diagnostics);
@@ -205,10 +240,13 @@ public static class PrismaticSectionStackEmitter
                 foreach (var segment in item.Profile.Loops[0].Segments)
                 foreach (var curve in Split(segment.Geometry, splitPoints))
                 {
-                    var endpoints = Ends(curve); var a = endpoints[0]; var b = endpoints[1]; var bottom = Edge(curve, slab.From); var top = Edge(curve, slab.To); var v0 = Vertical(a, slab.From, slab.To); var v1 = Vertical(b, slab.From, slab.To);
-                    var loop = AddLoop(builder, [new(bottom.Edge, bottom.Reverse), new(v1.Edge, v1.Reverse), new(top.Edge, !top.Reverse), new(v0.Edge, !v0.Reverse)]);
                     var source = SourceId(segment.Provenance.StableId);
-                    sideFaces.Add((loop, SideSurface(curve, slab.From, item.IsHole), !(item.IsHole && curve is LineArcCircularArc2D), source, $"slab:{slab.From:R}..{slab.To:R}:{segment.Provenance.Derivation}", slab.From, slab.To));
+                    var lower = AtStation(curve, slab.From, source); var upper = AtStation(curve, slab.To, source);
+                    var a = Ends(lower); var b = Ends(upper); var bottom = Edge(lower, slab.From); var top = Edge(upper, slab.To);
+                    var v0 = CountersinkFor(source) is null ? Vertical(a[0], slab.From, slab.To) : Transition(a[0], b[0], slab.From, slab.To);
+                    var v1 = CountersinkFor(source) is null ? Vertical(a[1], slab.From, slab.To) : Transition(a[1], b[1], slab.From, slab.To);
+                    var loop = AddLoop(builder, [new(bottom.Edge, bottom.Reverse), new(v1.Edge, v1.Reverse), new(top.Edge, !top.Reverse), new(v0.Edge, !v0.Reverse)]);
+                    sideFaces.Add((loop, WallSurface(curve, slab.From, slab.To, item.IsHole, source), !(item.IsHole && curve is LineArcCircularArc2D), source, $"slab:{slab.From:R}..{slab.To:R}:{segment.Provenance.Derivation}", slab.From, slab.To));
                 }
         foreach (var interval in variableIntervals)
         {
@@ -225,15 +263,20 @@ public static class PrismaticSectionStackEmitter
                 foreach (var segment in inner.LowerLoop.Loops[0].Segments)
                 foreach (var curve in Split(segment.Geometry, splitPoints))
                 {
-                    var ends = Ends(curve); var bottom = Edge(curve, interval.LowerStation); var top = Edge(curve, interval.UpperStation); var v0 = Vertical(ends[0], interval.LowerStation, interval.UpperStation); var v1 = Vertical(ends[1], interval.LowerStation, interval.UpperStation);
+                    var source = SourceId(segment.Provenance.StableId);
+                    var lowerCurve = AtStation(curve, interval.LowerStation, source); var upperCurve = AtStation(curve, interval.UpperStation, source);
+                    var lowerEnds = Ends(lowerCurve); var upperEnds = Ends(upperCurve);
+                    var bottom = Edge(lowerCurve, interval.LowerStation); var top = Edge(upperCurve, interval.UpperStation);
+                    var v0 = CountersinkFor(source) is null ? Vertical(lowerEnds[0], interval.LowerStation, interval.UpperStation) : Transition(lowerEnds[0], upperEnds[0], interval.LowerStation, interval.UpperStation);
+                    var v1 = CountersinkFor(source) is null ? Vertical(lowerEnds[1], interval.LowerStation, interval.UpperStation) : Transition(lowerEnds[1], upperEnds[1], interval.LowerStation, interval.UpperStation);
                     var loop = AddLoop(builder, [new(bottom.Edge, !bottom.Reverse), new(v0.Edge, v0.Reverse), new(top.Edge, top.Reverse), new(v1.Edge, !v1.Reverse)]);
-                    sideFaces.Add((loop, SideSurface(curve, interval.LowerStation, true), false, inner.FeatureId, $"variable:{interval.StableId}:inner:{inner.FeatureId}", interval.LowerStation, interval.UpperStation));
+                    sideFaces.Add((loop, WallSurface(curve, interval.LowerStation, interval.UpperStation, true, source), false, source, $"variable:{interval.StableId}:inner:{inner.FeatureId}", interval.LowerStation, interval.UpperStation));
                 }
         }
         foreach (var transition in stack.Transitions)
         {
-            foreach (var region in transition.UpwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, splitPoints), transition.Level, true));
-            foreach (var region in transition.DownwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, splitPoints), transition.Level, false));
+            foreach (var region in transition.UpwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, splitPoints, AtStation), transition.Level, true));
+            foreach (var region in transition.DownwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, splitPoints, AtStation), transition.Level, false));
         }
         var faces = new List<FaceId>();
         foreach (var cap in capFaces) faces.Add(cap.Face);
@@ -317,7 +360,8 @@ public static class PrismaticSectionStackEmitter
                          .Where(item => item.Side.Source.StartsWith(prefix, StringComparison.Ordinal)))
                 descendants.Add(new($"material:{feature.StableId}:wall:{item.Face.Value}", "Face", SemanticTopologyRole.ExtrusionSideFace, feature.StableId, Face: item.Face, ParentStableId: feature.StableId, GeometryPreview: feature.Kind));
         }
-        foreach (var hole in stack.Feature.ShaftHoles ?? [])
+        foreach (var hole in (stack.Feature.ShaftHoles ?? []).Concat(countersinks.Select(h => new PrismaticShaftHoleFeature(
+            h.Name, h.StableId, h.ShaftProfileReference, h.CenterX, h.CenterY, h.Diameter, h.From, h.To, h.SemanticRole, h.SourceSpan))))
         {
             var profilePrefix = $"profile:{hole.ProfileReference}.Outer.";
             // ThroughAll is declared over the composition interval, but a removal can only exist where
@@ -326,6 +370,7 @@ public static class PrismaticSectionStackEmitter
             // composition continues to Z=50 elsewhere).
             var holeSides = sideFaces.Select((side, index) => (Side: side, Face: faces[capFaces.Count + index]))
                 .Where(x => x.Side.Source.StartsWith(profilePrefix, StringComparison.Ordinal)).ToArray();
+            if (holeSides.Length == 0) return new(null, d.Append($"ComposeHoleSemanticSourceMissing:{hole.Name}:requested-shaft-has-no-materialized-wall").ToArray());
             var horizontalEdges = holeSides.SelectMany(x => builder.Model.Loops.Single(loop => loop.Id == x.Side.Loop).CoedgeIds)
                 .Select(id => builder.Model.Coedges.Single(coedge => coedge.Id == id).EdgeId).Distinct()
                 .Select(id => (Edge: id, Topology: builder.Model.Edges.Single(edge => edge.Id == id)))
@@ -335,10 +380,14 @@ public static class PrismaticSectionStackEmitter
             var exitZ = horizontalEdges.Min(x => x.Z);
             var entryEdges = horizontalEdges.Where(x => Math.Abs(x.Z - entryZ) <= Tol).Select(x => x.Edge).Distinct().OrderBy(x => x.Value).ToArray();
             var exitEdges = horizontalEdges.Where(x => Math.Abs(x.Z - exitZ) <= Tol).Select(x => x.Edge).Distinct().OrderBy(x => x.Value).ToArray();
-            var wallFaces = holeSides.Select(x => x.Face).Distinct().OrderBy(x => x.Value).ToArray();
             foreach (var edge in entryEdges) descendants.Add(new($"material:{hole.StableId}:entry-edge:{edge.Value}", "Edge", SemanticTopologyRole.TopBoundary, hole.StableId, Edge: edge, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
             foreach (var edge in exitEdges) descendants.Add(new($"material:{hole.StableId}:exit-edge:{edge.Value}", "Edge", SemanticTopologyRole.BottomBoundary, hole.StableId, Edge: edge, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
-            foreach (var face in wallFaces) descendants.Add(new($"material:{hole.StableId}:wall:{face.Value}", "Face", SemanticTopologyRole.HoleWallFace, hole.StableId, Face: face, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
+            foreach (var side in holeSides)
+            {
+                var cone = side.Side.Surface.Kind == SurfaceGeometryKind.Cone;
+                descendants.Add(new($"material:{hole.StableId}:wall:{side.Face.Value}", "Face", cone ? SemanticTopologyRole.HoleCountersinkWallFace : SemanticTopologyRole.HoleWallFace,
+                    hole.StableId, Face: side.Face, ParentStableId: hole.StableId, GeometryPreview: cone ? "conical-entry" : $"diameter={hole.Diameter:R}"));
+            }
             LoopId? LoopFor(IReadOnlyList<EdgeId> boundary)
             {
                 var expected = boundary.ToHashSet();
@@ -356,7 +405,8 @@ public static class PrismaticSectionStackEmitter
                 .Where(item => item.Side.Source.StartsWith(borePrefix, StringComparison.Ordinal)).ToArray();
             var shaftSides = sideFaces.Select((side, index) => (Side: side, Face: faces[capFaces.Count + index]))
                 .Where(item => item.Side.Source.StartsWith(shaftPrefix, StringComparison.Ordinal)).ToArray();
-            if (boreSides.Length == 0 || shaftSides.Length == 0) { d.Add($"ComposeCounterboreSemanticSourceMissing:{hole.Name}"); continue; }
+            if (boreSides.Length == 0 || shaftSides.Length == 0)
+                return new(null, d.Append($"ComposeCounterboreSemanticSourceMissing:{hole.Name}:both-recess-and-shaft-walls-are-required").ToArray());
             var boreEdges = boreSides.SelectMany(item => builder.Model.Loops.Single(loop => loop.Id == item.Side.Loop).CoedgeIds)
                 .Select(id => builder.Model.Coedges.Single(coedge => coedge.Id == id).EdgeId).Distinct()
                 .Select(id => (Edge: id, Topology: builder.Model.Edges.Single(edge => edge.Id == id)))
@@ -384,7 +434,7 @@ public static class PrismaticSectionStackEmitter
             var prefix = $"profile:{slot.ProfileReference}.Outer.";
             var slotSides = sideFaces.Select((side, index) => (Side: side, Face: faces[capFaces.Count + index]))
                 .Where(x => x.Side.Source.StartsWith(prefix, StringComparison.Ordinal)).ToArray();
-            if (slotSides.Length == 0) { d.Add($"SlotCorrespondenceMissing:{slot.Name}"); continue; }
+            if (slotSides.Length == 0) return new(null, d.Append($"SlotCorrespondenceMissing:{slot.Name}:requested-slot-has-no-materialized-wall").ToArray());
             var horizontalEdges = slotSides.SelectMany(x => builder.Model.Loops.Single(loop => loop.Id == x.Side.Loop).CoedgeIds)
                 .Select(id => builder.Model.Coedges.Single(coedge => coedge.Id == id).EdgeId).Distinct()
                 .Select(id => (Edge: id, Topology: builder.Model.Edges.Single(edge => edge.Id == id)))
@@ -408,6 +458,7 @@ public static class PrismaticSectionStackEmitter
         var provenance = new List<string> { "ProfileArrangement2D", "PrismaticSectionStackConstruction", "PrismaticSectionStackBrepPlan", "AuthoritativeBRepPlan" };
         if ((stack.Feature.ShaftHoles?.Count ?? 0) > 0) provenance.Insert(0, "SemanticHoleComposeLowering");
         if ((stack.Feature.CounterboreHoles?.Count ?? 0) > 0) provenance.Insert(0, "SemanticCounterboreComposeLowering");
+        if (countersinks.Count > 0) provenance.Insert(0, "SemanticCountersinkComposeLowering");
         if (stack.Feature.AllSlotProfiles.Any()) provenance.Insert(0, "SemanticSlotComposeLowering");
         var correspondence = new SemanticTopologyCorrespondence(stack.Feature.Name, descendants.DistinctBy(x => x.StableId).ToArray(), provenance);
         var faceMappings = new List<PrismaticSectionStackFacePlanMapping>();
@@ -427,13 +478,14 @@ public static class PrismaticSectionStackEmitter
         d.Add("compose-plan-first-materialization-boundary");
         return new(plan, d.Distinct().ToArray(), correspondence);
     }
-    private static FaceId AddCap(TopologyBuilder builder, PrismaticSectionRegion region, double z, Func<LineArcProfileCurve2D, double, (EdgeId Edge, bool Reverse)> edge, IReadOnlyList<(double X, double Y)> splitPoints)
+    private static FaceId AddCap(TopologyBuilder builder, PrismaticSectionRegion region, double z, Func<LineArcProfileCurve2D, double, (EdgeId Edge, bool Reverse)> edge, IReadOnlyList<(double X, double Y)> splitPoints,
+        Func<LineArcProfileCurve2D, double, string, LineArcProfileCurve2D> atStation)
     {
         var loops = new List<LoopId>();
         foreach (var item in Loops(region))
         {
             var segments = item.IsHole ? item.Profile.Loops[0].Segments.Reverse() : item.Profile.Loops[0].Segments;
-            var curves = segments.SelectMany(s => Split(s.Geometry, splitPoints)).ToArray();
+            var curves = segments.SelectMany(s => Split(s.Geometry, splitPoints).Select(curve => atStation(curve, z, s.Provenance.StableId))).ToArray();
             loops.Add(AddLoop(builder, curves.Select(curve => { var e = edge(curve, z); return new Use(e.Edge, item.IsHole ? !e.Reverse : e.Reverse); }).ToArray()));
         }
         return builder.AddFace(loops);
@@ -493,6 +545,7 @@ public static class PrismaticSectionStackEmitter
     {
         SurfaceGeometryKind.Plane => SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((surface.Plane!.Value.Origin.X, surface.Plane.Value.Origin.Y), surface.Plane.Value.Origin.Z), Direction3D.Create(frame.ToWorldDirection(surface.Plane.Value.Normal.ToVector())), Direction3D.Create(frame.ToWorldDirection(surface.Plane.Value.UAxis.ToVector())))),
         SurfaceGeometryKind.Cylinder => SurfaceGeometry.FromCylinder(new CylinderSurface(frame.ToWorld((surface.Cylinder!.Value.Origin.X, surface.Cylinder.Value.Origin.Y), surface.Cylinder.Value.Origin.Z), Direction3D.Create(frame.ToWorldDirection(surface.Cylinder.Value.Axis.ToVector())), surface.Cylinder.Value.Radius, Direction3D.Create(frame.ToWorldDirection(surface.Cylinder.Value.XAxis.ToVector())))),
+        SurfaceGeometryKind.Cone => SurfaceGeometry.FromCone(new ConeSurface(frame.ToWorld((surface.Cone!.Value.PlacementOrigin.X, surface.Cone.Value.PlacementOrigin.Y), surface.Cone.Value.PlacementOrigin.Z), Direction3D.Create(frame.ToWorldDirection(surface.Cone.Value.Axis.ToVector())), surface.Cone.Value.PlacementRadius, surface.Cone.Value.SemiAngleRadians, Direction3D.Create(frame.ToWorldDirection(surface.Cone.Value.ReferenceAxis.ToVector())))),
         SurfaceGeometryKind.LinearExtrusion => SurfaceGeometry.FromLinearExtrusion(new LinearExtrusionSurface(Transform(surface.LinearExtrusion!.Value.Directrix, frame),frame.ToWorldDirection(surface.LinearExtrusion.Value.ExtrusionVector))),
         _ => throw new NotSupportedException($"Section-stack frame transform does not support surface {surface.Kind}.")
     };

@@ -111,7 +111,7 @@ public static partial class FirmamentLanguageEditService
         var declarations = FirmamentLanguageOutlineService.Declarations(parse);
         if (declarations.First(d => d.Id == profileId).ParentId != declarations.First(d => d.Id == bodyId).ParentId)
             throw new FirmamentLanguageEditException("edit-profile-scope", "The pocket Profile and body must belong to the same container.");
-        var pocket = $"Pocket {RequireIdentifier(op.Name ?? "Recess", "pocket name")} {{ on: Top; profile: {profile.Name.Text}; depth: {RequireValue(op.Value, "depth")}; minimumFloorThickness: 0mm; }}";
+        var pocket = $"Pocket {RequireIdentifier(op.Name ?? "Recess", "pocket name")} {{ on: Top; profile: {profile.Name.Text}; depth: {RequireValue(op.Value, "depth")}; }}";
         if (body.Type.Name.Text == "Compose")
             return InsertDeclaration(text, parse, new("insertDeclaration") { Parent = bodyId, Source = pocket });
         if (body.Clauses.Count > 0 || BodyOf(body)?.Statements.Any(s => s is not FieldSyntax) == true)

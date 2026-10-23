@@ -59,6 +59,21 @@ public sealed class BossPocketSemanticFeatureTests
     }
 
     [Theory]
+    [InlineData("MinimumFloorThickness")]
+    [InlineData("minimumFloorThickness")]
+    public void PocketLocalMinimumFloor_IsEnforcedInEitherFieldSpelling(string field)
+    {
+        // The field reader admits camelCase; the floor policy must read the same spelling
+        // instead of silently falling back to the bounded default.
+        var source = FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(Fixture("Canonical/Features/Boss/boss-pocket-block.firmament")))
+            .Replace("MinimumFloorThickness: 2mm", $"{field}: 7mm", StringComparison.Ordinal);
+        var parsed = PrismaticProfileCompositionParser.Parse(source);
+        Assert.Null(parsed.Feature);
+        Assert.Contains(parsed.Diagnostics, diagnostic => diagnostic.StartsWith("firmament-pocket-minimum-floor-thickness:ElectronicsRecess", StringComparison.Ordinal)
+            && diagnostic.Contains("policy=Pocket.MinimumFloorThickness", StringComparison.Ordinal));
+    }
+
+    [Theory]
     [InlineData("minimumFloorThickness", "7", "Template.minimumFloorThickness")]
     [InlineData("minimumWallThickness", "7", "Template.minimumWallThickness")]
     public void PocketMinimumFloor_UsesExistingTemplateConceptChannel(string concept, string value, string policy)

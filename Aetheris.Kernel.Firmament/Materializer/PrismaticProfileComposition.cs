@@ -210,7 +210,7 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex SemanticSupport = new(@"\bOn\s*:\s*(?<face>[A-Za-z_]\w*(?:\.Top)?|[+-][XYZ])", RegexOptions.CultureInvariant);
     private static readonly Regex BossHeight = new(@"\bHeight\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
     private static readonly Regex PocketDepth = new(@"\bDepth\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
-    private static readonly Regex PocketMinimumFloor = new(@"\bMinimumFloorThickness\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
+    private static readonly Regex PocketMinimumFloor = new(@"\b[Mm]inimumFloorThickness\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
     private static readonly Regex TemplateMinimumFloor = new(@"\bconcept\s+(?<name>minimumFloorThickness|minimumWallThickness)\s*:\s*(?<value>[-+.\d]+)\s*mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex CncPolicyHead = new(@"\bConcept\s+Struct\s+(?<name>[A-Za-z_]\w*)\s*:\s*CncManufacturingPolicy\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex HoleHeader = new(@"\bHole\s*<\s*(?<variant>\w+)\s*>\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -1109,7 +1109,7 @@ public static class PrismaticProfileCompositionParser
         {
             var floor = PocketMinimumFloor.Match(canonical[0].Body!);
             if (floor.Success) return (N(floor, "value"), "CncManufacturingPolicy.MinimumFloorThickness");
-            var wall = Regex.Match(canonical[0].Body!, @"\bMinimumWallThickness\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
+            var wall = Regex.Match(canonical[0].Body!, @"\b[Mm]inimumWallThickness\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
             if (wall.Success) return (N(wall, "value"), "CncManufacturingPolicy.MinimumWallThickness");
         }
 

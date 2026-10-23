@@ -8,8 +8,24 @@ public static class FirmamentSyntaxParser
     public static SyntaxParseResult Parse(string source, string sourceFile = "inline")
     {
         ArgumentNullException.ThrowIfNull(source);
-        return new Parser(source, sourceFile).Parse();
+        ArgumentNullException.ThrowIfNull(sourceFile);
+        var key = (sourceFile, source);
+        lock (ParseCache)
+            if (ParseCache.TryGetValue(key, out var cached)) return cached;
+        var result = new Parser(source, sourceFile).Parse();
+        lock (ParseCache)
+        {
+            // The trees are immutable, so identical text can share one parse. Compilation
+            // helpers re-parse the same document many times (13,600 parses in one guitar
+            // build); clearing on overflow keeps memory bounded without LRU bookkeeping.
+            if (ParseCache.Count >= ParseCacheCapacity) ParseCache.Clear();
+            ParseCache[key] = result;
+        }
+        return result;
     }
+
+    private const int ParseCacheCapacity = 256;
+    private static readonly Dictionary<(string File, string Source), SyntaxParseResult> ParseCache = new();
 
     private sealed class ParseFailure : Exception;
     private sealed class Parser

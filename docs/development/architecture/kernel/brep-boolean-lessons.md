@@ -61,7 +61,7 @@ The generic CIR experiment recursively mapped a Boolean expression tree to `Brep
 
 Rotating a cylinder or cone changes more than an axis value: support intersections, seam placement, parameter intervals, face splitting, and orientation all change. The preserved rotated/conic regressions show why recognition success cannot substitute for a complete reconstruction contract. Overlap and tangency are similarly topological events, not merely small distances. A zero-distance witness may mean intended contact, a non-manifold result, coincident support, or tolerance noise; the owning bounded family must decide.
 
-The stepped-hole root-cause and continuation/history suites, overlap/tangency regressions, rotated/conic failures, mixed-continuation evidence, and generic CIR executor lab remain permanent educational evidence. Their entry points are indexed in the [M6 current-paths evidence](../system/artifacts/archaeology-m6/current-paths.md).
+The stepped-hole root-cause and continuation/history suites, overlap/tangency regressions, rotated/conic failures, mixed-continuation evidence, and generic CIR executor lab remain permanent educational evidence. Their entry points are indexed in the [M6 current-paths evidence](../../history/eras/07-previews-1-to-3.md).
 
 ## Contrasting recipe: polygonal through cut
 

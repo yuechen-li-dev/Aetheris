@@ -3,9 +3,9 @@
 The current source also qualifies [Concept-directed Fixed seating](../firmament/datum-seating.md):
 the planar body crown, pickups and bridge conform to one authored 53mm hardware deck.
 
-**Verdict: accepted for GUITAR-SURFACING-X0.** This is good enough as a presentation/dunk witness: a coherent surfaced guitar built from code, exact STEP export, a clean compiled USD display path and slide-ready Cycles images. The result demonstrates Aetheris's pipeline; the comparison does not claim a measured speed ratio against Zoo.
+This is a presentation piece: a coherent surfaced guitar built from code, exact STEP export, a clean compiled USD display path and slide-ready Cycles images. The result demonstrates Aetheris's pipeline; the comparison does not claim a measured speed ratio against Zoo.
 
-GUITAR-SURFACING-X0 is an original single-cut guitar presentation witness inspired by the Les Paul family. The supplied photographs guided proportions and finish; no photograph, logo, downloaded guitar model, or external product mesh is bundled. Aetheris constructs every guitar part. Blender imports the actual OpenUSD export and adds downstream appearance, studio lighting, floor, and camera.
+It is an original single-cut guitar inspired by the Les Paul family. The supplied photographs guided proportions and finish; no photograph, logo, downloaded guitar model, or external product mesh is bundled. Aetheris constructs every guitar part. Blender imports the actual OpenUSD export and adds downstream appearance, studio lighting, floor, and camera.
 
 The [authored assembly](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm) has a cubic single-cut outline, mahogany back, cream edge band, a five-section carved maple top with a 13 mm rise, a six-section D-profile G1 neck, tapered fretboard, tilted headstock, 22 frets, inlays, two pickups, bridge, stop tailpiece, four controls, selector, tuner placeholders, and six continuous formed strings. See [the multi-file subassembly layout](guitar-subassemblies.md) and [functional pickup construction](../firmament/functional-pickup.md) for the current source. Pickup consolidation changes current counts to 91 visible parts and 53 definitions; performance and render evidence below describe the earlier witness snapshots.
 
@@ -63,7 +63,7 @@ The benchmark excludes `dotnet build` and process startup. Cold includes JIT and
 
 This witness can support a visual comparison with another guitar demo. It does not establish a numerical speedup over Zoo: Zoo's example was not run or benchmarked here. The next useful refinement would be more sculpted tuner buttons and a shaped pickguard, rather than a new geometry engine.
 
-## X0 measurements
+## Measurements
 
 Measured locally on 2026-09-30 with .NET SDK 10.0.401, OpenUSD 25.08, Blender 5.2.2 LTS and an RTX 3070. The source compiles to 55 shared definitions and 107 guitar part occurrences. The display export contains 114,040 triangles across shared definitions.
 
@@ -104,7 +104,7 @@ Straight shaft validation: Release solution build and focused geometry regressio
 
 ## Source-authoring owl closeout, 2026-10-01
 
-The [updated checklist](../firmament/authoring-composition-proposal.md) and
+The [updated checklist](../../development/proposals/authoring-composition.md) and
 [implemented syntax](../firmament/source-owned-guitar-authoring.md) record this slice.
 Profile/section recipes are source-owned; fixed public endpoints drive strings;
 physical Material supplies Appearance defaults with explicit with overrides.

@@ -1,6 +1,6 @@
 # Historical JSON-shaped `.firmasm` model (legacy syntax)
 
-This document records the deprecated JSON-shaped `.firmasm` syntax. The `.firmasm` extension itself is current: it is the Firmament V2 Assembly document profile described in [Assembly M2](../assembly/assembly-m2.md). The historical details below remain only to explain legacy fixtures, migration, and compatibility commands.
+This document records the deprecated JSON-shaped `.firmasm` syntax. The `.firmasm` extension itself is current: it is the Firmament V2 Assembly document profile described in [Assembly M2](../../history/eras/07-previews-1-to-3.md). The historical details below remain only to explain legacy fixtures, migration, and compatibility commands.
 
 ## 1) Core philosophy
 

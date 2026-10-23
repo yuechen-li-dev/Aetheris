@@ -1,0 +1,39 @@
+// Lesson 3: one body built from a stack of manufacturing features.
+Model MachinedBlock {
+  units: mm
+
+  Profile stockOutline = Rect2 { center: [0mm, 0mm]; size: [70mm, 44mm] }
+  Profile padOutline = Rect2 { center: [-16mm, 0mm]; size: [14mm, 14mm] }
+  Profile recessOutline = Rect2 { center: [10mm, 0mm]; size: [20mm, 16mm] }
+
+  Compose body {
+    Base stock { profile: stockOutline; from: 0mm; to: 12mm; role: Stock }
+    Boss pad { on: Top; profile: padOutline; height: 6mm }
+    Pocket recess { on: Top; profile: recessOutline; depth: 4mm; minimumFloorThickness: 3mm }
+    Hole<Shaft> bore { on: +Z; center: [-16mm, 0mm]; diameter: 6mm; end: ThroughAll }
+    Hole<Counterbore> mountNorth {
+      on: +Z
+      center: [26mm, 13mm]
+      diameter: 6mm
+      counterboreDiameter: 11mm
+      counterboreDepth: 3mm
+      end: ThroughAll
+    }
+    Hole<Countersink> mountSouth {
+      on: +Z
+      center: [26mm, -13mm]
+      diameter: 6mm
+      countersinkDiameter: 12mm
+      countersinkAngle: 90deg
+      end: ThroughAll
+    }
+  }
+
+  Modify body {
+    EdgeFinish<Chamfer> perimeterBreak {
+      target: stockOutline.Outer
+      on: Top
+      distance: 1mm
+    }
+  }
+}

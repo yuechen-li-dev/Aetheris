@@ -27,7 +27,7 @@ asset requires no external files. UV seams must already be represented by separa
 display vertices. Invalid units, frames, normals, indices, hierarchy, materials,
 and texture bindings fail explicitly.
 
-The polished X0 witnesses use their existing Aetheris-generated USD/Blender
+The polished examples use their existing Aetheris-generated USD/Blender
 presentation scenes. `scripts/export-presentation-scene.py` preserves product
 positions and polygons, embeds the ATLAS maker label, and bakes the guitar's
 existing procedural sunburst/wood base color. It does not translate general
@@ -55,6 +55,6 @@ Paths in the JSON authoring input resolve relative to that input. After
 compilation, the PPTX needs no external model or image files. Desktop PowerPoint
 rotation and save/reopen qualification is separate from package/schema checks.
 
-See [PRESENTATION-3D-X0](../../release/PRESENTATION-3D-X0.md) for artifact and
+See [PRESENTATION-3D-X0](../../development/reports/2026-10/PRESENTATION-3D-X0.md) for artifact and
 PowerPoint qualification status. No animation, glTF import, compression, or
 game-engine integration is included.

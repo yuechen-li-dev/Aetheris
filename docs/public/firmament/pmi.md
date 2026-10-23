@@ -36,7 +36,7 @@ specialization and Feature parameter/local bindings; normal geometry uses only
 the nominal. Unprojected values generate no PMI. `dimension:` requires a
 toleranced Length; Angle values can be checked at compile time but are not a
 HoleDiameter target and do not grant angular PMI export. The scalar admission
-scope and arithmetic policy are in [syntax](syntax.md#typed-tolerances-and-pmi).
+scope and arithmetic policy are in [syntax](../reference/language/requirements.md#tolerances).
 The complete [Record/Template/Feature witness](../../../fixtures/Canonical/PMI/record-template-feature-tolerance.firmament)
 projects the original Record requirement after using it in a named Hole recipe.
 Validation JSON includes the authored projection source and structured

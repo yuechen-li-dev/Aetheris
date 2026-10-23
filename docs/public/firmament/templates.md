@@ -94,7 +94,7 @@ Struct Plate = PlateFamily<size: Compact>
 `Set<T>` contains all entries at once for Pattern; it does not replace choices.
 See the working
 [`table-driven-mounting-plate.firmament`](../../../fixtures/Canonical/Templates/table-driven-mounting-plate.firmament)
-for enum-valued Record data, and [Writing Firmament](syntax.md#choices-versus-collections)
+for enum-valued Record data, and [Writing Firmament](../reference/language/data-and-choices.md#choices-options-and-match)
 for the expression contract and the bounded legacy numeric Pattern-source selector.
 A match expression does not execute arbitrary declaration blocks or admit new
 geometry capabilities. Static Enum values use an explicit nominal type annotation,
@@ -110,7 +110,7 @@ Record; direct local aliases retain the allowance. Arithmetic retains the
 documented nominal-only policy and warns when it drops an allowance.
 This does not grant arbitrary scalar environments to every material domain or
 implement tolerance-stack arithmetic. See the complete
-[Record/Template/Feature example](syntax.md#typed-tolerances-and-pmi).
+[Record/Template/Feature example](../reference/language/requirements.md#tolerances).
 
 Value parameters use `Name: Type`. Defaults use `Name: Type = Value`. A real semantic/type parameter is explicit:
 
@@ -183,7 +183,7 @@ Use `Require dimensions => PlateRequirements(width, height)` to apply a predicat
 or bundle after argument binding. The same Boolean requirement syntax works in a
 native mechanical Model. Comparisons, bounded Boolean combinations and dimensional
 arithmetic use the shared AST; unapplied definitions are checked for type errors.
-See the complete [requirement and bundle example](syntax.md#contracts-semantic-interfaces-and-construction-geometry).
+See the complete [requirement and bundle example](../reference/language/requirements.md#conditions-concept-and-require).
 This is not a runtime script or a general constraint solver. Scalar inputs retain
 their dimensional type; tolerances contribute nominal values rather than an
 interval proof. Record fields can supply scalar arguments; whole Record and shape

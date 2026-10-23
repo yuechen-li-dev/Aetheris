@@ -149,7 +149,7 @@ multiple corners and obstacle search remain separate qualification work.
 
 `aetheris build <root.firmasm> --output artifacts/local/guitar.step` delegates to
 the existing native assembly exporter. Root-aware `inspect` delegates to assembly,
-SectionChain or ordinary part inspection. For a canonical ordinary M1 assembly:
+SectionChain or ordinary part inspection. For an ordinary assembly:
 
 ```powershell
 aetheris inspect fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm --json --profile --repeat 2 --out artifacts/local/guitar/inspect.json

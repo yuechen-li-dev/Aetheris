@@ -28,7 +28,7 @@ is also admitted for every closed family above, including generic Triangle2,
 Polygon2 and RegularPolygon2 forms. Both spellings use the same AST field binder,
 reject unknown fields and unsupported header placements, and emit the same
 geometry. `Concept Circle2` is a construction guide, not a Boolean requirement
-named Circle2. The [syntax guide](syntax.md#contracts-semantic-interfaces-and-construction-geometry)
+named Circle2. The [syntax guide](../reference/language/requirements.md#conditions-concept-and-require)
 separates requirements, requirement bundles and construction values.
 
 Every form is consumed identically inside a profile:

@@ -1,0 +1,31 @@
+// Lesson 5: state the requirement, publish it as PMI, and check the result.
+Model CheckedPlate {
+  units: mm
+
+  Static boreDiameter: Length = 8mm tol +0.10mm -0.05mm
+
+  Box stock { size: [40mm, 30mm, 8mm] }
+
+  Modify stock {
+    Hole<Shaft> bore {
+      on: +Z
+      center: Point2(0mm, 0mm)
+      diameter: boreDiameter
+      end: ThroughAll
+    }
+  }
+
+  // PMI travels with the STEP file as AP242 semantic annotation.
+  Pmi {
+    Datum A { target: face(+Z) }
+    HoleDiameter boreSize { target: bore; dimension: boreDiameter }
+  }
+
+  // Assertions fail the build if the exported body is not what you meant.
+  Assert Bounds stock {
+    min: [-20mm, -15mm, 0mm]
+    max: [20mm, 15mm, 8mm]
+    tolerance: 0mm
+  }
+  Assert Topology stock { faces: 7; edges: 15; vertices: 12; shells: 1 }
+}

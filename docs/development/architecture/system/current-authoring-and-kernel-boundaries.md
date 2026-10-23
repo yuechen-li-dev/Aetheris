@@ -51,4 +51,4 @@ Template / Module
 
 A new central `BrepBoolean` family requires a compatibility-critical reason, a documented owner, and a migration/removal plan. Numerical intersection never becomes topology authority.
 
-See [BRep Boolean lessons](../kernel/brep-boolean-lessons.md), [BRep Surgery](../kernel/brep-surgery.md), and the [M6 closeout evidence](artifacts/archaeology-m6/README.md).
+See [BRep Boolean lessons](../kernel/brep-boolean-lessons.md), [BRep Surgery](../kernel/brep-surgery.md), and the [M6 closeout evidence](../../history/eras/07-previews-1-to-3.md).

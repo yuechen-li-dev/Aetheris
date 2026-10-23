@@ -8,4 +8,4 @@
 - `ctc-01-stl-metrics.json`: triangle mesh validation report.
 
 The before/after comparison and known generic feature-band limitation are in
-[`surface-mesh-ir-m6-planar-decomposition.md`](../../surface-mesh-ir-m6-planar-decomposition.md).
+[`surface-mesh-ir-m6-planar-decomposition.md`](../../../eras/07-previews-1-to-3.md).

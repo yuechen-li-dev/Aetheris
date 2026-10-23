@@ -6,6 +6,16 @@
 
 - Follow the repository content-location policy before creating documentation, fixtures, samples, demos, or test-support assets. Current user documentation belongs only under `docs/public/`; Firmament-family test source belongs under `fixtures/`. Generated output must default to ignored `artifacts/local/` and follow `docs/development/GENERATED-ARTIFACT-POLICY.md`. Do not introduce a new top-level content bucket without an explicit architectural reason.
 
+## Documentation rules
+
+- **Read before writing Firmament.** `docs/public/learn/` and `docs/public/reference/language/` describe the language; the compiler (`aetheris validate --json`) is the final authority.
+- **Public docs describe behavior, not milestones.** Do not put milestone codes (X0, M2, SURF-X1a), verdicts, test counts or links to development reports in `docs/public`. Say what works, what is rejected, and how to use it.
+- **Public guide shape.** Title; one paragraph on what it is for; a complete, buildable example (prefer linking or quoting a file under `fixtures/`); fields and rules; limits ("rejects", "not supported"); links to related guides.
+- **Lessons are fixture-backed.** Every example in `docs/public/learn/` is a file in `fixtures/Canonical/Learn/` listed in `PublicDocumentationQualificationTests.LearnLessonExamplesBuildThroughRealCli`. Change both together.
+- **Work reports** go in `docs/development/reports/<yyyy-mm>/`, short: what changed, evidence, verdict. Not in `docs/release/`, which holds release notes and package readmes only.
+- **History.** When an era of reports closes, summarize it in `docs/development/history/eras/`, add lasting decisions to `history/DECISIONS.md`, list the originals in `history/ORIGINALS.md`, and delete them (git keeps them). Before deleting any doc, `git grep` its file name outside Markdown: tests, scripts and module descriptors read some docs by path.
+- **Experimental work** (humanoid, garments, reconstruction) is documented under `docs/public/experimental/` with an experimental banner, never presented as product.
+
 - Aetheris introduce utility scoring as a first class concept within its JudgmentEngine to use when appropriate.
   - When a subsystem must select among multiple bounded strategies, prefer JudgmentEngine so admissibility, scoring, tie-breaking, and rejection reasons are explicit.
   - Do not use JudgmentEngine for simple deterministic transformations, ordinary enum dispatch, null checks, or reductions where no competing interpretation exists.

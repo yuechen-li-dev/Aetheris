@@ -255,12 +255,12 @@ annotation rebinding; original vendor PMI is excluded only by explicit
 The older HostSize-based Box/shaft replacement prototype remains a compatibility
 route, reporting `holeShaft-bounded-rebuild` and `residualSurgery: false`. It does
 not provide this imported-body preservation contract. Its historical admission
-limitations are recorded in the [audit](../../release/HOLE-RECOGNIZE-REPLACE-AUDIT-2026-10-20.md).
+limitations are recorded in the [audit](../../development/reports/2026-10/HOLE-RECOGNIZE-REPLACE-AUDIT-2026-10-20.md).
 Use the pinned `within` form for the qualified production operation.
 
-See the [production closeout](../../release/IMPORTED-HOLE-REVISION-PRODUCTION-2026-10-20.md)
+See the [production closeout](../../development/reports/2026-10/IMPORTED-HOLE-REVISION-PRODUCTION-2026-10-20.md)
 for test evidence and the [design contract](../../development/architecture/imported-hole-revisions.md)
 for ownership and limits.
 
-See the [recovery-assistance qualification](../../release/IMPORTED-FEATURE-ASSISTANCE-2026-10-21.md)
+See the [recovery-assistance qualification](../../development/reports/2026-10/IMPORTED-FEATURE-ASSISTANCE-2026-10-21.md)
 for the cross-boss revision and admission evidence.

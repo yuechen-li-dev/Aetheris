@@ -11,4 +11,4 @@
 - `hashes.sha256`: artifact hashes.
 
 The design, algorithms, tradeoffs, validation, and remaining weaknesses are in
-[`surface-mesh-ir-m7-feature-bands.md`](../../surface-mesh-ir-m7-feature-bands.md).
+[`surface-mesh-ir-m7-feature-bands.md`](../../../eras/07-previews-1-to-3.md).

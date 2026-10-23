@@ -1,6 +1,6 @@
 # Forge Host invocation API
 
-Native C# remains the direct, first-class invocation path described here. Foreign-language callers use the deliberately smaller [Forge Host Protocol v1](protocol-v1.md), which resolves the same authoritative Firmament Template definitions without exposing managed object graphs or requiring C# callers to round-trip through JSON.
+Native C# remains the direct, first-class invocation path described here. Foreign-language callers use the deliberately smaller [Forge Host Protocol v1](../../history/eras/07-previews-1-to-3.md), which resolves the same authoritative Firmament Template definitions without exposing managed object graphs or requiring C# callers to round-trip through JSON.
 
 `Aetheris.Forge.Host` exposes the host workflow `ForgeHost -> ForgeModule -> ForgeTemplate -> ForgeInvocation -> ForgeCompilationResult`.
 

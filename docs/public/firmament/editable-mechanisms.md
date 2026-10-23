@@ -134,7 +134,7 @@ cam datum; the first-main-journal origin and existing engineering configuration
 remain the qualification reference.
 
 The compiler now retains articulated Subassembly graphs and admits typed Motion
-clips through its ordinary Assembly path. See [syntax](syntax.md#shared-datums-and-articulated-motion).
+clips through its ordinary Assembly path. See [syntax](../reference/language/assemblies-and-motion.md#shared-datums-and-articulated-motion).
 The V8 has **not** switched to those clips yet: its SliderCrank closure, external
 relation roles and axial spring baking still need compiler admission. Its
 `CylinderRest` records and existing native/browser motion adapter remain active.

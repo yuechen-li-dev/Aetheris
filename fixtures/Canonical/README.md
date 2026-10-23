@@ -4,6 +4,7 @@ Everything in this directory is current authoring guidance. Examples progress fr
 
 | I want to… | Start here | Main concepts |
 |---|---|---|
+| learn the language step by step | `Learn/01-plate.firmament` … `06-post-on-plate.firmament` | the [lessons](../../docs/public/learn/README.md) |
 | create a box | `Basics/box.firmament` | `Model`, `Units`, named `Box`, `Assert` |
 | create a cylinder | `Basics/cylinder.firmament` | direct `Cylinder` |
 | create analytic primitives | `Primitives/` | `Frustum`, `RoundedBox`, `Sphere`, `Cone`, `Torus` |

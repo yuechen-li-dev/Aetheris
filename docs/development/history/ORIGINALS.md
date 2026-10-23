@@ -1,0 +1,777 @@
+# Originals
+
+The development reports summarized in this history were removed from the working
+tree on 23 October 2026. Nothing was lost: every file below is still in git.
+
+To read one, find the commit that removed it and show the file as it was just
+before:
+
+```sh
+path=docs/development/milestones/general/cir-m0-design.md
+git show "$(git log -1 --format=%H --diff-filter=D -- "$path")^:$path"
+```
+
+To restore the whole set at once, check out `docs/` from the parent of that commit
+into a scratch directory. Dates are when each file was first written.
+
+## Era 1: Kernel bootstrap
+
+Summary: [Kernel bootstrap](eras/01-kernel-bootstrap.md). 5 files.
+
+- `docs/development/milestones/general/architecture-overview.md` (2026-02-25): Architecture Overview (Historical package sketch)
+- `docs/development/milestones/general/milestones.md` (2026-02-25): Milestones
+- `docs/development/milestones/general/non-goals.md` (2026-02-25): Non-goals (Early Milestones)
+- `docs/development/milestones/general/numerics-policy.md` (2026-02-25): Numerics Policy (Direction)
+- `docs/development/milestones/general/vision.md` (2026-02-25): Vision
+
+## Era 2: STEP and the NIST corpus
+
+Summary: [STEP and the NIST corpus](eras/02-step-and-the-nist-corpus.md). 4 files.
+
+- `docs/development/milestones/general/support-matrix-step242-v0.md` (2026-03-03): STEP242 v0 Support Matrix
+- `docs/development/milestones/general/v0-workflow.md` (2026-03-03): STEP242 Viewer v0 Workflow
+- `docs/development/milestones/general/m45-probe-step-export-validity.md` (2026-03-05): M45 Probe: STEP export edge/vertex geometric consistency
+- `docs/development/milestones/step242/mx119d-shared-helper-classification.md` (2026-03-10): Mx119d helper classification (diagnostics-first)
+
+## Era 3: Firmament V1 and the safe Booleans
+
+Summary: [Firmament V1 and the safe Booleans](eras/03-firmament-v1-and-safe-booleans.md). 23 files.
+
+- `docs/development/milestones/general/firmament-author-rules.md` (2026-03-14): Firmament Author Rules
+- `docs/development/milestones/general/firmament-language-shape.md` (2026-03-14): Firmament Language Shape
+- `docs/development/milestones/general/firmament-identity-invariants.md` (2026-03-15): Firmament Identity Invariants
+- `docs/development/milestones/general/firmament-build-workflow.md` (2026-03-18): Firmament Build and Export Workflow
+- `docs/development/milestones/general/firmament-demo.md` (2026-03-18): Firmament Demo Script
+- `docs/development/milestones/general/firmament-overview.md` (2026-03-18): Firmament Overview
+- `docs/development/milestones/general/firmament-selectors.md` (2026-03-18): Firmament Selector Contracts + Primitive Semantic Naming (current v1 reality)
+- `docs/development/milestones/general/boolean-deferred.md` (2026-04-03): Boolean deferred pile (safe-family snapshot)
+- `docs/development/history/firmament/legacy-authoring-reference/01-language-overview-and-pipeline.md` (2026-04-04): Firmament Overview and Compile Pipeline
+- `docs/development/history/firmament/legacy-authoring-reference/02-file-shape-and-sections.md` (2026-04-04): File Shape, Sections, and Canonical Authoring Form
+- `docs/development/history/firmament/legacy-authoring-reference/03-primitives-and-local-frames.md` (2026-04-04): Primitive Definitions, Parameters, and Default Spatial Frames
+- `docs/development/history/firmament/legacy-authoring-reference/04-placement-semantics.md` (2026-04-04): Placement Semantics (Anchor Frames, Offsets, and Timing)
+- `docs/development/history/firmament/legacy-authoring-reference/05-booleans-safe-families-patterns.md` (2026-04-04): Booleans, Safe-Family State, and Pattern Expansion
+- `docs/development/history/firmament/legacy-authoring-reference/06-supported-vs-deferred.md` (2026-04-04): What Works Reliably Today vs What Is Deferred
+- `docs/development/history/firmament/legacy-authoring-reference/07-semantic-mismatches-and-gotchas.md` (2026-04-04): Semantic Mismatches, Traps, and Caution Areas
+- `docs/development/history/firmament/legacy-authoring-reference/08-worked-examples.md` (2026-04-04): Worked Examples (Canonical, LLM-Oriented)
+- `docs/development/history/firmament/legacy-authoring-reference/README.md` (2026-04-04): Historical Firmament authoring reference
+- `docs/development/milestones/general/cli-baseline.md` (2026-04-12): Aetheris.CLI baseline (C3)
+- `docs/development/milestones/general/triangular-prism-contract.md` (2026-04-13): `triangular_prism` contract (P2 hardening)
+- `docs/development/milestones/general/asm-a2.5a-as1-assembly-analysis.md` (2026-04-14): ASM-A2.5a — Full assembly analysis for `as1.step` (analysis-only)
+- `docs/development/milestones/frictionlab/FRIC-B0-chimera-pressure-test.md` (2026-04-19): FRIC-B0 — chimera mixed-subtract pressure test and boundary classification
+- `docs/development/milestones/frictionlab/INV-B0-blind-hole-enclosed-void-diagnosis.md` (2026-04-19): INV-B0 — suspicious blind-hole → enclosed-void diagnosis
+- `docs/development/milestones/general/firmament-placement-semantics.md` (2026-04-19): Firmament Placement Semantics (current executable rules)
+
+## Era 4: CIR and the recovery wall
+
+Summary: [CIR and the recovery wall](eras/04-cir-and-the-recovery-wall.md). 123 files.
+
+- `docs/development/milestones/frictionlab/W2A-boolean-mixed-blind-void-design.md` (2026-05-04): Boolean Wave 2a — bounded mixed blind-void representation design
+- `docs/development/milestones/general/analyze-p1d-impl-2-blocker.md` (2026-05-04): ANALYZE-P1d-impl-2 blocker report (honest stop)
+- `docs/development/milestones/general/analyze-p1f-ray-hit-handoff.md` (2026-05-04): ANALYZE-P1f ray-hit handoff (post P1e)
+- `docs/development/milestones/general/analyze-p1g-curved-rayhit-blocker.md` (2026-05-04): ANALYZE-P1g curved analytic surface ray-hit blocker report
+- `docs/development/milestones/general/cir-m0-design.md` (2026-05-04): CIR-M0: Constructive Intermediate Representation (Design + POC)
+- `docs/development/milestones/general/cir-m1-lowering.md` (2026-05-04): CIR-M1: Experimental Firmament-to-CIR Lowering
+- `docs/development/milestones/general/cir-m2-differential-analysis.md` (2026-05-04): CIR-M2 differential CIR-vs-BRep analysis
+- `docs/development/milestones/general/cir-m3-placement-anchors.md` (2026-05-04): CIR-M3 placement anchor semantics alignment
+- `docs/development/milestones/general/firmament-semantic-topology-naming.md` (2026-05-04): SEM-A0 — Firmament semantic topology naming and selector provenance audit
+- `docs/development/milestones/general/cir-a0-analyzer-integration.md` (2026-05-05): CIR-A0: Analyzer Integration Design for CIR-Backed Native Firmament Analysis
+- `docs/development/milestones/general/cir-a1-native-analysis-service.md` (2026-05-05): CIR-A1: Native Internal CIR Analysis Service
+- `docs/development/milestones/general/cir-e0-evaluation-runtime.md` (2026-05-05): CIR-E0 evaluation runtime design
+- `docs/development/milestones/general/cir-f0-fall-forward-design.md` (2026-05-05): CIR-F0: BRep-first / CIR fall-forward execution design
+- `docs/development/milestones/general/cir-m4-differential-matrix.md` (2026-05-05): CIR-M4 differential matrix for CIR-vs-BRep semantic alignment
+- `docs/development/milestones/general/warn-clean-a1-inventory.md` (2026-05-05): WARN-CLEAN-A1 broader-gate inventory (post Core nullable cleanup)
+- `docs/development/milestones/general/cir-f1-native-geometry-state.md` (2026-05-06): CIR-F1: native geometry state + replay log skeleton
+- `docs/development/milestones/general/cir-f10-real-planar-source-emission.md` (2026-05-06): CIR-F10: real dry-run planar evidence integration (bounded scaffold)
+- `docs/development/milestones/general/cir-f101-bounded-planar-source-geometry.md` (2026-05-06): CIR-F10.1: bounded planar geometry for real `SourceSurfaceDescriptor` box faces
+- `docs/development/milestones/general/cir-f102-cylinder-cap-planar-geometry.md` (2026-05-06): CIR-F10.2: bounded planar geometry for cylinder cap source surfaces
+- `docs/development/milestones/general/cir-f103-circular-planar-cap-emission.md` (2026-05-06): CIR-F10.3: circular planar cap emission in `PlanarSurfaceMaterializer`
+- `docs/development/milestones/general/cir-f104-planar-inner-loop-policy.md` (2026-05-06): CIR-F10.4: bounded annular / trimmed planar loop policy for `PlanarSurfaceMaterializer`
+- `docs/development/milestones/general/cir-f2-cir-mirror.md` (2026-05-06): CIR-F2: bounded CIR mirror + state-backed differential harness
+- `docs/development/milestones/general/cir-f25-resolved-placement-replay.md` (2026-05-06): CIR-F2.5: resolved placement facts in NativeGeometry replay log
+- `docs/development/milestones/general/cir-f3-first-fall-forward.md` (2026-05-06): CIR-F3: First bounded runtime fall-forward to `CirOnly`
+- `docs/development/milestones/general/cir-f4-first-materializer.md` (2026-05-06): CIR-F4 first bounded CIR→BRep materializer checkpoint
+- `docs/development/milestones/general/cir-f5-second-materializer.md` (2026-05-06): CIR-F5 second bounded CIR→BRep materializer checkpoint
+- `docs/development/milestones/general/cir-f6-replay-guided-materializer-registry.md` (2026-05-06): CIR-F6: replay-guided materializer strategy registry
+- `docs/development/milestones/general/cir-f7-box-minus-torus-pressure-test.md` (2026-05-06): CIR-F7: replay-guided pressure test for `subtract(box, torus)`
+- `docs/development/milestones/general/cir-f8-guided-analytic-materialization.md` (2026-05-06): CIR-F8: guided analytic materialization capability audit for sphere/cone/torus subtract families
+- `docs/development/milestones/general/cir-f81-surface-patch-descriptors.md` (2026-05-06): CIR-F8.1 — Surface patch descriptor + surface-family materializer registry scaffold
+- `docs/development/milestones/general/cir-f810-materialization-readiness-gate.md` (2026-05-06): CIR-F8.10: topology readiness summary + first emission gate
+- `docs/development/milestones/general/cir-f82-source-surface-and-trim-capabilities.md` (2026-05-06): CIR-F8.2 — source-surface extraction + trim capability matrix
+- `docs/development/milestones/general/cir-f83-face-patch-dry-run.md` (2026-05-06): CIR-F8.3: Face patch dry-run candidates from source surfaces + trim capabilities
+- `docs/development/milestones/general/cir-f84-subtract-retention-classification.md` (2026-05-06): CIR-F8.4: bounded subtract retention classification for face patch dry-run candidates
+- `docs/development/milestones/general/cir-f85-retained-region-loop-scaffolding.md` (2026-05-06): CIR-F8.5: retained-region loop scaffolding for trim-ready face patch candidates
+- `docs/development/milestones/general/cir-f86-retained-loop-grouping.md` (2026-05-06): CIR-F8.6: retained-loop grouping + canonical ordering/orientation contracts
+- `docs/development/milestones/general/cir-f87-topology-assembly-dry-run.md` (2026-05-06): CIR-F8.7: topology assembly dry-run contracts for surface-family materialization
+- `docs/development/milestones/general/cir-f88-edge-coedge-pairing-evidence.md` (2026-05-06): CIR-F8.8: edge/coedge pairing + loop-closure evidence contracts
+- `docs/development/milestones/general/cir-f89-internal-trim-identity-tokens.md` (2026-05-06): CIR-F8.9 — internal trim identity tokens for coedge pairing promotion
+- `docs/development/milestones/general/cir-f9-planar-surface-materializer.md` (2026-05-06): CIR-F9: first gated PlanarSurfaceMaterializer BRep emission
+- `docs/development/milestones/general/cir-f105-retained-inner-circle-binding.md` (2026-05-07): CIR-F10.5: canonical retained-loop inner-circle geometry binding
+- `docs/development/milestones/general/cir-f106-cylindrical-source-geometry-evidence.md` (2026-05-07): CIR-F10.6: canonical cylindrical source geometry evidence
+- `docs/development/milestones/general/cir-f107-planar-one-inner-circle-emission.md` (2026-05-07): CIR-F10.7: bounded planar one-inner-circle emission
+- `docs/development/milestones/general/cir-f108-planar-patch-set-emission.md` (2026-05-07): CIR-F10.8 — Planar retained patch set emission (`Subtract(Box, Cylinder)`)
+- `docs/development/milestones/general/cir-f11-cylindrical-surface-materializer.md` (2026-05-07): CIR-F11: first bounded CylindricalSurfaceMaterializer emission
+- `docs/development/milestones/general/cir-f12-shell-stitching-dry-run.md` (2026-05-07): CIR-F12 — Shell stitching dry-run / coedge pairing validation (`Subtract(Box, Cylinder)`)
+- `docs/development/milestones/general/cir-f13-seam-orientation-proof-policy.md` (2026-05-07): CIR-F13 — seam self-closure + orientation proof policy (`Subtract(Box,Cylinder)`)
+- `docs/development/milestones/general/cir-f14-first-shell-assembly.md` (2026-05-07): CIR-F14 — First Surface-Family Shell Assembly (Bounded `subtract(box,cylinder)`)
+- `docs/development/milestones/general/cir-f15-emitted-topology-identity-map.md` (2026-05-07): CIR-F15: emitted topology identity map bridge
+- `docs/development/milestones/general/cir-f151-planar-patchset-inner-circle-token.md` (2026-05-07): CIR-F15.1 — real planar patch-set inner-circle token propagation
+- `docs/development/milestones/general/cir-f152-real-planar-retained-circle-promotion.md` (2026-05-07): CIR-F15.2 — real planar retained-circle evidence promotion for `Subtract(Box,Cylinder)`
+- `docs/development/milestones/general/cir-f16-emitted-token-pairing-analysis.md` (2026-05-07): CIR-F16 — Emitted token pairing analysis before stitching
+- `docs/development/milestones/general/cir-t0-surface-restricted-field-trim-oracle.md` (2026-05-10): CIR-T0: surface-restricted field / trim oracle design
+- `docs/development/milestones/general/cir-t1-planar-restricted-field.md` (2026-05-10): CIR-T1: planar rectangular surface-restricted field evaluator
+- `docs/development/milestones/general/cir-t10-oracle-trim-consumption.md` (2026-05-10): CIR-T10 — consume oracle-derived analytic circle trims in planar materializer path
+- `docs/development/milestones/general/cir-t2-restricted-field-grid-sampling.md` (2026-05-10): CIR-T2: restricted-field grid sampling + cell classification
+- `docs/development/milestones/general/cir-t3-marching-squares-contours.md` (2026-05-10): CIR-T3 — Deterministic marching-squares contour extraction over restricted-field grids
+- `docs/development/milestones/general/cir-t4-contour-stitching.md` (2026-05-10): CIR-T4 — deterministic contour stitching into chains/loops
+- `docs/development/milestones/general/cir-t5-analytic-snap-candidates.md` (2026-05-10): CIR-T5 — bounded analytic snap candidates for stitched restricted-field contours
+- `docs/development/milestones/general/cir-t6-snap-selection-gate.md` (2026-05-10): CIR-T6 — Snap Candidate Ranking/Selection + Analytic Acceptance Gate
+- `docs/development/milestones/general/cir-t7-tiered-trim-representation.md` (2026-05-10): CIR-T7: Selected trim candidate → tiered trim representation bridge
+- `docs/development/milestones/general/cir-t8-trim-oracle-retained-loop-integration.md` (2026-05-10): CIR-T8: Tiered trim integration into retained-loop/materialization evidence
+- `docs/development/milestones/general/cir-t81-opposite-surface-routing.md` (2026-05-10): CIR-T8.1 opposite-surface routing cleanup
+- `docs/development/milestones/general/cir-t9-selected-opposite-field-routing.md` (2026-05-10): CIR-T9 selected-opposite field routing
+- `docs/development/milestones/general/curve-a0-trim-curve-representation-audit.md` (2026-05-10): CURVE-A0: Trim-Curve Representation Audit (Exact Quartic / Surface-Intersection Feasibility)
+- `docs/development/milestones/general/groove-a0-bounded-revolved-groove-audit.md` (2026-05-10): GROOVE-A0: bounded toroidal / revolved groove feature audit
+- `docs/development/milestones/general/surface-feature-a0-architecture-audit.md` (2026-05-10): SURFACE-FEATURE-A0: First-class surface feature architecture audit
+- `docs/development/milestones/general/surface-feature-a1-descriptors.md` (2026-05-10): SURFACE-FEATURE-A1: descriptors, capability taxonomy, and validation-only contracts
+- `docs/development/milestones/general/surface-feature-a2-planning-bridge.md` (2026-05-10): SURFACE-FEATURE-A2: non-emitting feature planning bridge
+- `docs/development/milestones/general/surface-feature-a3-planar-groove-dry-run.md` (2026-05-10): SURFACE-FEATURE-A3 — planar round-groove dry-run patch generation
+- `docs/development/milestones/general/surface-feature-a4-planar-groove-evidence.md` (2026-05-10): SURFACE-FEATURE-A4 — planar round-groove evidence model
+- `docs/development/milestones/general/cir-brep-s0-stitch-candidate-generation.md` (2026-05-11): CIR-BREP-S0: stitch candidate generation from emitted topology identity maps
+- `docs/development/milestones/general/cir-brep-t0-tiered-circle-planar-loop.md` (2026-05-11): CIR-BREP-T0 — tiered analytic circle trim consumption for planar BRep loop emission
+- `docs/development/milestones/general/cir-brep-t1-planar-patchset-oracle-preference.md` (2026-05-11): CIR-BREP-T1: Planar patch-set tiered oracle trim preference
+- `docs/development/milestones/general/cir-brep-t2-oracle-admissibility-policy.md` (2026-05-11): CIR-BREP-T2 Oracle Admissibility Policy
+- `docs/development/milestones/general/cir-brep-t3-bounded-stitch-execution.md` (2026-05-11): CIR-BREP-T3: bounded stitch execution behind stitch-candidate gate
+- `docs/development/milestones/general/cir-brep-t4-emitted-topology-references.md` (2026-05-11): CIR-BREP-T4: concrete emitted topology references in identity maps
+- `docs/development/milestones/general/cir-brep-t5-shared-edge-stitch-mutation.md` (2026-05-11): CIR-BREP-T5: first bounded shared-edge stitch mutation
+- `docs/development/milestones/general/cir-brep-t6-combined-body-remap.md` (2026-05-11): CIR-BREP-T6: combined-body remap scaffold
+- `docs/development/milestones/general/cir-brep-t7-shared-edge-rewrite.md` (2026-05-11): CIR-BREP-T7: One bounded shared-edge/coedge rewrite using remapped topology references
+- `docs/development/milestones/general/cir-brep-x0-box-cylinder-pressure-test.md` (2026-05-11): CIR-BREP-X0 / X0.1: bounded box-cylinder shell merge pressure test
+- `docs/development/milestones/frictionlab/cir-brep-x31-firmament-lowering-entrypoint-lab.md` (2026-05-13): CIR-BREP-X3.1 — Firmament lowering shape and recognition entrypoint verification lab
+- `docs/development/milestones/frictionlab/cir-brep-x4-recognizer-source-contract-lab.md` (2026-05-13): CIR-BREP-X4: recognizer source-shape contract lab
+- `docs/development/milestones/frictionlab/cir-brep-x5-frep-brep-recovery-policy-lab.md` (2026-05-13): CIR-BREP-X5: JudgmentEngine FRep→BRep recovery policy lab
+- `docs/development/milestones/frictionlab/cir-brep-x6-policy-shape-doe.md` (2026-05-13): CIR-BREP-X6: policy-shape DoE for scalable FRep→BRep materialization
+- `docs/development/milestones/general/cir-5s-a0-namespace-organization.md` (2026-05-13): CIR-5S-A0 Namespace Organization (CirCore / Materializer / Diagnostics)
+- `docs/development/milestones/general/cir-brep-x1-duplicate-edge-cleanup.md` (2026-05-13): CIR-BREP-X1 — bounded duplicate-edge cleanup contract after stitch rewrite
+- `docs/development/milestones/general/cir-recovery-v1a-frep-materializer-policy-scaffold.md` (2026-05-13): CIR-RECOVERY-V1A: FrepMaterializer policy scaffold
+- `docs/development/milestones/general/cir-recovery-v1b-through-hole-policy.md` (2026-05-13): CIR-RECOVERY-V1B: ThroughHoleRecoveryPolicy scaffold
+- `docs/development/milestones/general/cir-recovery-v2-through-hole-executor.md` (2026-05-13): CIR-RECOVERY-V2 — Through-hole recovery executor (box/cylinder exact BRep)
+- `docs/development/milestones/general/cir-recovery-v3-through-hole-step-smoke.md` (2026-05-13): CIR-RECOVERY-V3 — bounded STEP smoke for through-hole recovery executor output
+- `docs/development/milestones/general/cir-recovery-v4-semantic-rematerializer-wiring.md` (2026-05-13): CIR-RECOVERY-V4: controlled rematerializer/fall-forward wiring for ThroughHoleRecoveryPolicy
+- `docs/development/milestones/general/cir-recovery-v41-firmament-export-regression.md` (2026-05-13): CIR-RECOVERY-V4.1: FirmamentStepExporter regression for semantic recovery rematerialization
+- `docs/development/milestones/general/cir-step-v1-box-cylinder-recognizer.md` (2026-05-13): CIR-STEP-V1 Box-Cylinder Recognizer
+- `docs/development/milestones/general/step-void-a0-brep-with-voids-audit.md` (2026-05-13): STEP-VOID-A0: BREP_WITH_VOIDS import/export and shell-role audit
+- `docs/development/milestones/frictionlab/cir-recovery-x7-hole-family-policy-shape-lab.md` (2026-05-14): CIR-RECOVERY-X7: semantic hole-family policy-shape lab
+- `docs/development/milestones/general/cir-cone-v1-cir-cone-primitive.md` (2026-05-14): CIR-CONE-V1: CIR cone primitive for Firmament path
+- `docs/development/milestones/general/cir-recovery-v10-countersink-variant-executor-step.md` (2026-05-14): CIR-RECOVERY-V10 — countersink variant/executor/STEP status
+- `docs/development/milestones/general/cir-recovery-v11-countersink-cone-execution-step.md` (2026-05-14): CIR-RECOVERY-V11: CountersinkVariant via SdfConeNode + executor + STEP smoke
+- `docs/development/milestones/general/cir-recovery-v12-hole-family-coverage-matrix.md` (2026-05-14): CIR-RECOVERY-V12: hole-family coverage matrix + diagnostics hardening
+- `docs/development/milestones/general/cir-recovery-v5-policy-catalog.md` (2026-05-14): CIR-RECOVERY-V5: expandable semantic recovery policy catalog scaffold
+- `docs/development/milestones/general/cir-recovery-v6-hole-recovery-policy.md` (2026-05-14): CIR-RECOVERY-V6: HoleRecoveryPolicy scaffold with ThroughHoleVariant
+- `docs/development/milestones/general/cir-recovery-v7a-counterbore-variant-plan.md` (2026-05-14): CIR-RECOVERY-V7A: CounterboreVariant recognition + HoleRecoveryPlan only
+- `docs/development/milestones/general/cir-recovery-v7b-counterbore-executor.md` (2026-05-14): CIR-RECOVERY-V7B: Counterbore executor for bounded HoleRecoveryPlan
+- `docs/development/milestones/general/cir-recovery-v7c-counterbore-step-smoke.md` (2026-05-14): CIR-RECOVERY-V7C: bounded counterbore STEP smoke / exporter regression
+- `docs/development/milestones/general/cir-recovery-v8-blind-hole-variant-executor-step.md` (2026-05-14): CIR-RECOVERY-V8: bounded blind-hole variant + executor + STEP smoke
+- `docs/development/milestones/general/cir-recovery-v9-blind-hole-hardening.md` (2026-05-14): CIR-RECOVERY-V9: bounded blind-hole hardening pass
+- `docs/development/milestones/general/step-void-a1-brep-with-voids-import.md` (2026-05-14): STEP-VOID-A1: BREP_WITH_VOIDS import support and shell-role preservation
+- `docs/development/milestones/general/step-void-a2-solid-root-export-planner.md` (2026-05-14): STEP-VOID-A2: JudgmentEngine STEP solid-root export planner
+- `docs/development/milestones/frictionlab/brep-boolean-stack-a3-stepped-execution-architecture-lab.md` (2026-05-22): BREP-BOOLEAN-STACK-A3: stepped-hole execution architecture lab (A3.1 diagnostic completion)
+- `docs/development/milestones/frictionlab/cir-brep-x8-generic-cir-brep-executor-lab.md` (2026-05-22): CIR-BREP-X8 generic CIR tree → BRep executor feasibility lab
+- `docs/development/milestones/general/brep-boolean-stack-a0-stepped-root-cause.md` (2026-05-22): BREP-BOOLEAN-STACK-A0 stepped coaxial stack root-cause verification
+- `docs/development/milestones/general/brep-boolean-stack-a1-nlevel-coaxial-validator.md` (2026-05-22): BREP-BOOLEAN-STACK-A1 N-level coaxial validator generalization
+- `docs/development/milestones/general/brep-boolean-stack-a2-stepped-downstream-blocker.md` (2026-05-22): BREP-BOOLEAN-STACK-A2 stepped-hole downstream blocker after A1/A1.1 validator fix
+- `docs/development/milestones/general/brep-boolean-stack-a4-stepped-repeated-subtract-productionization.md` (2026-05-22): BREP-BOOLEAN-STACK-A4: stepped repeated-subtract productionization (V13.3)
+- `docs/development/milestones/general/cir-recovery-v13-stepped-hole-variant-executor-step.md` (2026-05-22): CIR-RECOVERY-V13 / V13.1: bounded stepped-hole variant + executor characterization + gate restoration
+- `docs/development/milestones/general/cir-recovery-v132-stepped-tier-placement-semantics.md` (2026-05-22): CIR-RECOVERY-V13.2: explicit stepped-hole tier placement semantics
+- `docs/development/milestones/general/cir-recovery-v14-stepped-hole-corpus-hardening.md` (2026-05-22): CIR-RECOVERY-V14: stepped-hole explicit-placement corpus hardening
+- `docs/development/milestones/general/cir-recovery-v15-chamfered-entry-hole-variant.md` (2026-05-22): CIR-RECOVERY-V15 — bounded ChamferedEntryHoleVariant recognition + execution + STEP smoke (top-entry baseline; extended by V16 for bottom-entry)
+- `docs/development/milestones/general/cir-recovery-v16-bottom-entry-chamfered-hole.md` (2026-05-22): CIR-RECOVERY-V16 — bottom-entry support for bounded `ChamferedEntryHoleVariant`
+- `docs/development/milestones/general/cir-recovery-v17-hole-placement-semantics-harmonization.md` (2026-05-22): CIR-RECOVERY-V17: hole-family placement semantics harmonization
+- `docs/development/milestones/general/cir-recovery-v18-placement-driven-executor-harmonization.md` (2026-05-22): CIR-RECOVERY-V18: placement-driven hole executor harmonization
+- `docs/development/milestones/general/cir-recovery-v19-hole-family-capability-manifest.md` (2026-05-22): CIR-RECOVERY-V19: Hole-Family Semantic Recovery Capability Manifest
+
+## Era 5: AIR and sweep-first
+
+Summary: [AIR and sweep-first](eras/05-air-and-sweep-first.md). 107 files.
+
+- `docs/development/milestones/frictionlab/air-x1-profile-ir-profile-stack-extrude-lab.md` (2026-05-23): AIR-X1: minimal Profile IR + AirProfileStackExtrude EVT lab
+- `docs/development/milestones/frictionlab/air-x2-blind-counterbore-interval-semantics-lab.md` (2026-05-23): AIR-X2 blind/counterbore interval semantics lab (EVT)
+- `docs/development/milestones/frictionlab/air-x4-box-as-air-extrude-lab.md` (2026-05-23): AIR-X4 — Box-as-AirExtrude lab-only EVT
+- `docs/development/milestones/frictionlab/air-x5-remaining-primitives-air-matrix.md` (2026-05-23): AIR-X5 — Remaining primitives as AIR lab matrix
+- `docs/development/milestones/frictionlab/cir-sweep-x0-profile-stack-extrude-lab.md` (2026-05-23): CIR-SWEEP-X0 profile-stack extrude BRep emitter feasibility lab
+- `docs/development/milestones/general/aetheris-v2-sweep-first-architecture.md` (2026-05-23): Aetheris V2 — Sweep-first architecture
+- `docs/development/milestones/general/air-a0-architecture-probe-report.md` (2026-05-23): AIR-A0 architecture probe report
+- `docs/development/milestones/general/air-a0-atomic-intermediate-representation-kickoff.md` (2026-05-23): AIR-A0 — Atomic Intermediate Representation kickoff
+- `docs/development/milestones/general/air-v1-profile-stack-extrude-production-scaffold.md` (2026-05-23): AIR-V1: production AirProfileStackExtrude scaffold for cylindrical contiguous stacks
+- `docs/development/milestones/general/air-v2a-blind-counterbore-profile-stack-support.md` (2026-05-23): AIR-V2A / V2A.1: cylindrical blind-hole and counterbore profile-stack stabilization
+- `docs/development/milestones/general/air-v2b-blind-counterbore-interval-production.md` (2026-05-23): AIR-V2B blind/counterbore interval production
+- `docs/development/milestones/general/air-v3-box-as-air-extrude-production.md` (2026-05-23): AIR-V3 — Production Box-as-AirExtrude migration
+- `docs/development/milestones/general/air-x3-primitive-as-air-normalization-audit.md` (2026-05-23): AIR-X3 — Primitive-as-AIR normalization audit
+- `docs/development/milestones/general/cir-sweep-v1-profile-stack-extrude-executor.md` (2026-05-23): CIR-SWEEP-V1: production profile-stack extrude executor scaffold (bounded stepped-hole)
+- `docs/development/milestones/general/cir-sweep-v2-cylindrical-hole-profile-stack-migration.md` (2026-05-23): CIR-SWEEP-V2: Cylindrical hole-family → ProfileStackExtrude executor migration
+- `docs/development/milestones/frictionlab/air-x6-frustum-ruled-transition-lab.md` (2026-05-26): AIR-X6 — Frustum-as-AirRuledTransition lab
+- `docs/development/milestones/general/air-v4-cylinder-as-air-revolve-production.md` (2026-05-26): AIR-V4 — Cylinder as AirRevolve production migration
+- `docs/development/milestones/frictionlab/edge-x1-chamfer-fillet-capability-matrix.md` (2026-05-27): EDGE-X1 — Chamfer/fillet capability and diagnostic matrix
+- `docs/development/milestones/frictionlab/edge-x2-1-air-chamfer-policy-scaffold-lab.md` (2026-05-27): EDGE-X2.1: AirChamfer policy scaffold lab
+- `docs/development/milestones/frictionlab/edge-x2-2-nonorthogonal-concave-air-chamfer-policy-patch-lab.md` (2026-05-27): EDGE-X2.2 — Non-orthogonal concave planar AirChamfer policy+patch lab
+- `docs/development/milestones/frictionlab/edge-x2-concave-planar-chamfer-patch-lab.md` (2026-05-27): EDGE-X2 — Concave planar chamfer AirEdgeSweep patch lab
+- `docs/development/milestones/frictionlab/edge-x3-convex-planar-air-chamfer-judgment-policy-lab.md` (2026-05-27): EDGE-X3 — Convex planar AirChamfer Judgment policy lab
+- `docs/development/milestones/frictionlab/v2-v3-profile-boolean-to-extrude-pipeline.md` (2026-05-27): V2-V3 — Profile Boolean expression to ProfileHoleExtrude chained pipeline
+- `docs/development/milestones/frictionlab/v2-x1-resolved-profile2d-lab.md` (2026-05-27): V2-X1 — Minimal ResolvedProfile2D lab
+- `docs/development/milestones/frictionlab/v2-x3-profile-with-hole-extrude-lab.md` (2026-05-27): V2-X3 — Profile-with-hole AirExtrude lab
+- `docs/development/milestones/frictionlab/v2-x4-profile-boolean-normalization-lab.md` (2026-05-27): V2-X4 — Bounded 2D Profile Boolean Normalization Lab
+- `docs/development/milestones/frictionlab/v2-x6-slot-capsule-profile-lab.md` (2026-05-27): V2-X6 — Slot/capsule profile normalization and extrusion lab
+- `docs/development/milestones/frictionlab/v2-x7-line-arc-profile-extrude-lab.md` (2026-05-27): V2-X7 — Generic line/arc profile-loop extrusion emitter lab
+- `docs/development/milestones/frictionlab/v2-x8-1-triangle-chamfer-adjacency-parity-lab.md` (2026-05-27): V2-X8.1 — Triangle chamfer adjacency feature-recognition parity lab
+- `docs/development/milestones/frictionlab/v2-x8-2-triangle-adjacency-delta-audit.md` (2026-05-27): V2-X8.2 — Triangle legacy-vs-linearc adjacency delta audit
+- `docs/development/milestones/frictionlab/v2-x8-triangle-hex-prism-profile-parity-lab.md` (2026-05-27): V2-X8 — Triangle/hex prism line-profile extrusion parity lab
+- `docs/development/milestones/general/aetheris-v2-a1-resolved-profile2d-contract.md` (2026-05-27): Aetheris V2-A1 — Resolved Profile2D contract
+- `docs/development/milestones/general/air-v5-1-cli-validation.md` (2026-05-27): AIR-V5.1 CLI validation
+- `docs/development/milestones/general/air-v5-frustum-ruled-transition-production.md` (2026-05-27): AIR-V5 — Frustum ruled-transition production migration
+- `docs/development/milestones/general/edge-a0-air-edge-sweep-fillet-chamfer-audit.md` (2026-05-27): EDGE-A0 / V2-A4 — AirEdgeSweep fillet/chamfer architecture audit
+- `docs/development/milestones/general/v2-a2-prismatic-operation-migration-audit.md` (2026-05-27): V2-A2 — Prismatic operation migration audit
+- `docs/development/milestones/general/v2-a3-legacy-topology-contracts-and-parallel-emitter-lanes.md` (2026-05-27): V2-A3 — Legacy topology contracts and parallel V2 emitter lanes
+- `docs/development/milestones/general/v2-v1-profile-hole-extrude-production-evaluation.md` (2026-05-27): V2-V1 Production Evaluation — ProfileHoleExtrude through-hole emission
+- `docs/development/milestones/general/v2-v2-profile-hole-extrude-through-hole-integration.md` (2026-05-27): V2-V2: bounded ProfileHoleExtrude integration for through-hole route
+- `docs/development/milestones/general/v2-v3-profile-expression-hole-extrude-frontdoor.md` (2026-05-27): V2-V3: ProfileExpression-to-ProfileHoleExtrude internal front door
+- `docs/development/milestones/general/v2-v4-line-arc-profile-extrude-production-evaluation.md` (2026-05-27): V2-V4 — Line/Arc profile extrude production-adjacent evaluation
+- `docs/development/milestones/general/v2-v5-triangle-prism-profile-extrude-production.md` (2026-05-27): V2-V5 — Triangle prism production migration via line/arc profile extrusion
+- `docs/development/milestones/frictionlab/edge-prismatic-x1-section-transition-emitter-lab.md` (2026-05-28): EDGE-PRISMATIC-X1 — Section-transition emitter lab
+- `docs/development/milestones/frictionlab/edge-prismatic-x2-top-edge-chamfer-through-prismatic-emitter-lab.md` (2026-05-28): EDGE-PRISMATIC-X2 — Top-edge chamfer through the prismatic emitter lab
+- `docs/development/milestones/frictionlab/edge-prismatic-x3-generic-line-profile-transition-lab.md` (2026-05-28): EDGE-PRISMATIC-X3 — Generic line-only profile transition lab
+- `docs/development/milestones/frictionlab/edge-prismatic-x5-section-transition-artifact-corpus.md` (2026-05-28): EDGE-PRISMATIC-X5 — Prismatic section-transition artifact corpus
+- `docs/development/milestones/frictionlab/edge-prismatic-x6-corpus-stability-and-analyzer-confirmation.md` (2026-05-28): EDGE-PRISMATIC-X6 corpus stability and analyzer confirmation
+- `docs/development/milestones/frictionlab/edge-profile-x1-vertical-edge-chamfer-profile-extrude-lab.md` (2026-05-28): EDGE-PROFILE-X1 — Vertical-edge chamfer as profile extrusion lab
+- `docs/development/milestones/frictionlab/edge-profile-x2-top-edge-chamfer-profile-stack-lab.md` (2026-05-28): EDGE-PROFILE-X2 — Top-edge chamfer as profile-stack / section-transition lab
+- `docs/development/milestones/frictionlab/edge-x10-airchamfer-cube-step-artifact.md` (2026-05-28): EDGE-X10 AirChamfer cube STEP artifact
+- `docs/development/milestones/frictionlab/edge-x11-airchamfer-step-artifact-corpus.md` (2026-05-28): EDGE-X11 — AirChamfer STEP artifact regression corpus
+- `docs/development/milestones/frictionlab/edge-x12-airchamfer-corpus-stability.md` (2026-05-28): EDGE-X12 — Gated AirChamfer artifact corpus stability check
+- `docs/development/milestones/frictionlab/edge-x4-convex-planar-air-chamfer-topology-plan-lab.md` (2026-05-28): EDGE-X4 — Convex Planar AirChamfer Replacement Topology-Plan Lab
+- `docs/development/milestones/frictionlab/edge-x5-convex-planar-air-chamfer-geometry-artifact-lab.md` (2026-05-28): EDGE-X5 — Convex planar AirChamfer replacement geometry artifact lab
+- `docs/development/milestones/frictionlab/edge-x6-convex-planar-air-chamfer-closed-witness-lab.md` (2026-05-28): EDGE-X6 — Convex planar AirChamfer closed witness lab
+- `docs/development/milestones/frictionlab/edge-x7-controlled-real-body-air-chamfer-probe-lab.md` (2026-05-28): EDGE-X7 Controlled real-body AirChamfer probe lab
+- `docs/development/milestones/frictionlab/edge-x8-controlled-local-air-chamfer-topology-graft-lab.md` (2026-05-28): EDGE-X8 Controlled local AirChamfer topology graft lab
+- `docs/development/milestones/frictionlab/edge-x9-air-chamfer-feature-recognition-parity-lab.md` (2026-05-28): EDGE-X9 — AirChamfer candidate body feature-recognition parity lab
+- `docs/development/milestones/general/edge-a1-chamfer-fillet-support-compatibility-matrix.md` (2026-05-28): EDGE-A1 — Chamfer/fillet support compatibility matrix
+- `docs/development/milestones/general/edge-a2-constructive-chamfer-reframing-audit.md` (2026-05-28): EDGE-A2 — Constructive chamfer reframing audit
+- `docs/development/milestones/general/edge-prismatic-a0-section-transition-contract-audit.md` (2026-05-28): EDGE-PRISMATIC-A0 — Prismatic section-transition contract audit
+- `docs/development/milestones/general/edge-prismatic-v1-section-transition-emitter.md` (2026-05-28): EDGE-PRISMATIC-V1 — Internal prismatic section-transition emitter seam
+- `docs/development/milestones/general/edge-prismatic-v2-controlled-top-edge-chamfer-route.md` (2026-05-28): EDGE-PRISMATIC-V2 — Controlled top-edge chamfer route through prismatic section transition
+- `docs/development/milestones/general/edge-prismatic-x4-coplanar-split-merge-policy-audit.md` (2026-05-28): EDGE-PRISMATIC-X4 — Coplanar split/merge policy audit
+- `docs/development/milestones/general/edge-prismatic-x7-analyze-map-cir-frep-audit.md` (2026-05-28): EDGE-PRISMATIC-X7 — Analyze map CIR/FRep suitability audit for prismatic bodies
+- `docs/development/milestones/general/edge-profile-v1-profile-authored-chamfer-emitter.md` (2026-05-28): EDGE-PROFILE-V1 — Profile-authored chamfer emitter
+- `docs/development/milestones/general/edge-v1-convex-planar-air-chamfer-prototype.md` (2026-05-28): EDGE-V1 Convex Planar AirChamfer Prototype
+- `docs/development/milestones/general/edge-v2-real-body-air-chamfer-prototype.md` (2026-05-28): EDGE-V2 Real-body AirChamfer prototype
+- `docs/development/milestones/general/edge-v3-air-chamfer-shadow-route.md` (2026-05-28): EDGE-V3 — Non-authoritative AirChamfer shadow route
+- `docs/development/milestones/general/edge-v4-gated-opt-in-airchamfer-route.md` (2026-05-28): EDGE-V4 — gated opt-in Firmament AirChamfer route
+- `docs/development/milestones/general/edge-x13-firmament-airchamfer-shadow-diagnostics.md` (2026-05-28): EDGE-X13 — Firmament AirChamfer shadow diagnostics probe
+- `docs/development/milestones/frictionlab/edge-loop-x1-top-face-loop-chamfer-prismatic-lab.md` (2026-05-29): EDGE-LOOP-X1 — Top-face outer-loop chamfer through prismatic transition lab
+- `docs/development/milestones/frictionlab/edge-loop-x2-top-face-loop-chamfer-corpus.md` (2026-05-29): EDGE-LOOP-X2 — Top-face loop chamfer artifact corpus
+- `docs/development/milestones/frictionlab/edge-prismatic-x9-experimental-prismatic-map-cli.md` (2026-05-29): EDGE-PRISMATIC-X9 — Experimental generated-source prismatic map CLI
+- `docs/development/milestones/general/air-cir-a0-authority-and-mirror-contract.md` (2026-05-29): AIR-CIR-A0 — AIR/CIR/BRep authority and mirror contract audit
+- `docs/development/milestones/general/air-cir-x1-mirror-metadata-prototype.md` (2026-05-29): AIR-CIR-X1 — AIR/CIR mirror metadata prototype
+- `docs/development/milestones/general/cir-map-x1-primitive-map-prototype.md` (2026-05-29): CIR-MAP-X1 — CIR-backed primitive map prototype
+- `docs/development/milestones/general/cir-map-x2-mirror-aware-primitive-map-dispatch.md` (2026-05-29): CIR-MAP-X2 — Mirror-aware primitive map dispatch prototype
+- `docs/development/milestones/general/cir-prismatic-x1-prismatic-mirror-feasibility.md` (2026-05-29): CIR-PRISMATIC-X1 — Prismatic CIR mirror feasibility lab
+- `docs/development/milestones/general/cir-prismatic-x2-convex-polyhedron-mirror.md` (2026-05-29): CIR-PRISMATIC-X2 — Convex Polyhedron CIR Mirror
+- `docs/development/milestones/general/edge-a3-edge-finish-selection-taxonomy.md` (2026-05-29): EDGE-A3 — Edge-finish selection taxonomy and support collapse audit
+- `docs/development/milestones/general/edge-fillet-a0-selection-taxonomy-architecture-audit.md` (2026-05-29): EDGE-FILLET-A0 — Fillet architecture audit using selection taxonomy
+- `docs/development/milestones/general/edge-loop-a0-face-boundary-edge-finish-audit.md` (2026-05-29): EDGE-LOOP-A0 — Face-boundary loop edge-finish audit
+- `docs/development/milestones/general/edge-prismatic-x8-hybrid-map-dispatch-prismatic-mirror.md` (2026-05-29): EDGE-PRISMATIC-X8 — Hybrid map dispatch using admitted prismatic CIR mirrors
+- `docs/development/milestones/general/air-a0-aetheris-v2-compiler-ir-constitution.md` (2026-06-14): AIR-A0 — Aetheris V2 compiler IR constitution
+- `docs/development/milestones/general/air-x1-minimal-air-wrappers-for-proven-lanes.md` (2026-06-14): AIR-X1 — Minimal AIR wrappers for proven constructive lanes
+- `docs/development/milestones/general/air-x2-route-selection-and-admissibility.md` (2026-06-14): AIR-X2 Route Selection and Admissibility
+- `docs/development/milestones/general/air-x3-brep-plan-prismatic-section-transition.md` (2026-06-14): AIR-X3 — BRepPlan for PrismaticSectionTransition
+- `docs/development/milestones/general/air-x4-brep-plan-top-face-loop-chamfer-roles.md` (2026-06-14): AIR-X4 — BRepPlan roles/provenance for top-face loop chamfer
+- `docs/development/milestones/general/air-x5-air-to-cir-mirror-adapter-envelope.md` (2026-06-14): AIR-X5 — AIR-to-CIR mirror adapter envelope
+- `docs/development/milestones/general/air-a1-air-regions-scoped-feature-lowering-audit.md` (2026-06-15): AIR-A1 — AIR Regions and scoped feature lowering audit
+- `docs/development/milestones/general/air-region-x1-region-model-skeleton-trace-fixtures.md` (2026-06-15): AIR-REGION-X1 — Region model skeleton and trace fixtures
+- `docs/development/milestones/general/air-region-x2-side-hole-yield-boundary-contract.md` (2026-06-15): AIR-REGION-X2 — Side-hole yield boundary contract
+- `docs/development/milestones/general/air-region-x3-side-hole-cir-mirror-analysis.md` (2026-06-15): AIR-REGION-X3 — Side-hole CIR mirror analysis
+- `docs/development/milestones/general/air-region-x4-side-hole-brep-boundary-contract.md` (2026-06-15): AIR-REGION-X4 — Side-hole BRepPlan boundary contract
+- `docs/development/milestones/general/air-region-x5-side-hole-integration-route-decision.md` (2026-06-15): AIR-REGION-X5 — Side-hole integration route decision scaffold
+- `docs/development/milestones/general/air-region-x6-side-hole-brep-placeholders.md` (2026-06-15): AIR-REGION-X6 — Side-hole BRepPlan placeholders
+- `docs/development/milestones/general/air-x10-box-feature-air-to-constructive-air.md` (2026-06-15): AIR-X10 — Box Feature AIR to Constructive AIR/ProfileExtrude trace
+- `docs/development/milestones/general/air-x11-box-constructive-air-to-profile-emission-trace.md` (2026-06-15): AIR-X11 — Box Constructive AIR to profile emission trace
+- `docs/development/milestones/general/air-x6-aetheris-trace-lowering-report-cli.md` (2026-06-15): AIR-X6 — `aetheris trace` lowering report CLI
+- `docs/development/milestones/general/air-x7-firmament-fixture-trace-corpus.md` (2026-06-15): AIR-X7 — Firmament fixture trace corpus
+- `docs/development/milestones/general/air-x8-parser-backed-firmament-fixture.md` (2026-06-15): AIR-X8 — Parser-backed Firmament fixture
+- `docs/development/milestones/general/air-x9-firmament-to-air-box-boundary.md` (2026-06-15): AIR-X9 — Firmament-to-AIR box boundary
+- `docs/development/milestones/general/air-region-x10-side-hole-exit-loop-insertion.md` (2026-06-17): AIR-REGION-X10 — Side-hole exit loop insertion
+- `docs/development/milestones/general/air-region-x7-side-hole-materialization-golden-path.md` (2026-06-17): AIR-REGION-X7 — Side-hole materialization golden path
+- `docs/development/milestones/general/air-region-x8-side-hole-parent-integration-attempt.md` (2026-06-17): AIR-REGION-X8 — Side-hole parent integration attempt
+- `docs/development/milestones/general/air-region-x9-side-hole-face-splitting.md` (2026-06-17): AIR-REGION-X9 — Controlled side-hole face splitting
+
+## Era 6: Firmament V2 and the AP242 MVP
+
+Summary: [Firmament V2 and the AP242 MVP](eras/06-firmament-v2-and-the-ap242-mvp.md). 95 files.
+
+- `docs/development/milestones/general/air-firmament-a1-firmament-fixture-corpus.md` (2026-06-18): AIR-FIRMAMENT-A1 — Firmament fixture corpus and lowering-stage taxonomy
+- `docs/development/milestones/general/air-firmament-x1-v2-parser-box.md` (2026-06-18): AIR-FIRMAMENT-X1 — Tiny Firmament V2 parser for Box
+- `docs/development/milestones/general/air-firmament-x2-v2-parser-box-with.md` (2026-06-18): AIR-FIRMAMENT-X2 — Firmament V2 parser Box `with` derivation
+- `docs/development/milestones/general/air-firmament-x3-v2-semantic-refs-expose.md` (2026-06-18): AIR-FIRMAMENT-X3 — V2 Semantic Refs and `=>` Exposure for Box
+- `docs/development/milestones/general/air-firmament-x4-v2-side-hole-region.md` (2026-06-18): AIR-FIRMAMENT-X4 — Firmament V2 side-hole region parser slice
+- `docs/development/milestones/general/air-firmament-x5-v2-side-hole-artifacts-parity.md` (2026-06-18): AIR-FIRMAMENT-X5 — V2 side-hole artifacts and parity lock
+- `docs/development/milestones/general/air-firmament-x6-v2-side-hole-radius-variation.md` (2026-06-18): AIR-FIRMAMENT-X6 — V2 side-hole radius variation
+- `docs/development/milestones/general/air-firmament-x7-v2-side-hole-center-offset.md` (2026-06-18): AIR-FIRMAMENT-X7 — V2 side-hole center offset
+- `docs/development/milestones/general/air-region-x11-side-hole-cut-wall-shell-closure.md` (2026-06-18): AIR-REGION-X11 — Side-hole cut-wall attachment and shell closure
+- `docs/development/milestones/general/air-region-x12-side-hole-shell-closure.md` (2026-06-18): AIR-REGION-X12 — Controlled side-hole shell closure
+- `docs/development/milestones/general/air-region-x13-side-hole-golden-path-artifacts.md` (2026-06-18): AIR-REGION-X13 — Side-hole golden path artifacts
+- `docs/development/milestones/general/build-test-policy-net10-and-legacy-v1.md` (2026-06-18): BUILD-TEST-A0 — net10-only target and legacy V1 test policy
+- `docs/development/milestones/general/build-test-x1-long-running-testhost-triage.md` (2026-06-18): BUILD-TEST-X1 long-running testhost triage
+- `docs/development/milestones/general/step242-rational-bspline-circle-recovery.md` (2026-06-18): STEP AP242 rational B-spline circle recovery
+- `docs/development/milestones/general/air-firmament-x10-v2-side-hole-y-axis.md` (2026-06-19): AIR-FIRMAMENT-X10 — V2 side-hole Y-axis face-pair variation
+- `docs/development/milestones/general/air-firmament-x11-v2-side-hole-z-axis.md` (2026-06-19): AIR-FIRMAMENT-X11 — controlled Firmament V2 side-hole Z-axis routes
+- `docs/development/milestones/general/air-firmament-x12-side-hole-route-policy.md` (2026-06-19): AIR-FIRMAMENT-X12 — V2 side-hole route policy
+- `docs/development/milestones/general/air-firmament-x8-v2-side-hole-selector-aliases.md` (2026-06-19): AIR-FIRMAMENT-X8 — V2 side-hole selector aliases
+- `docs/development/milestones/general/air-firmament-x9-v2-side-hole-reverse-x.md` (2026-06-19): AIR-FIRMAMENT-X9 — controlled V2 side-hole reverse-X face-pair variation
+- `docs/development/milestones/general/build-hygiene-x1-local-build-fixes.md` (2026-06-19): BUILD-HYGIENE-X1 — local build fixes after FTC-06 validation
+- `docs/development/milestones/general/display-architecture-a0-materialization-audit.md` (2026-06-19): DISPLAY-ARCH-A0 — Display/materialization architecture audit
+- `docs/development/milestones/general/display-architecture-x1-displayir-partial-display.md` (2026-06-19): DISPLAY-ARCH-X1 — DisplayIR partial display contract
+- `docs/development/milestones/general/display-architecture-x2-bounded-mesh-lane.md` (2026-06-19): DISPLAY-ARCH-X2 — Explicit BoundedMesh DisplayIR lane
+- `docs/development/milestones/general/display-architecture-x3-planar-with-holes-materialization.md` (2026-06-19): DISPLAY-ARCH-X3 — planar-with-holes materialization
+- `docs/development/milestones/general/display-architecture-x4-wireframe-fallback.md` (2026-06-19): DISPLAY-ARCH-X4 — Wireframe fallback for unsupported faces
+- `docs/development/milestones/general/display-architecture-x5-1-tessellate-endpoint-contract.md` (2026-06-19): DISPLAY-ARCH-X5.1 — Tessellate endpoint contract for imported occurrences
+- `docs/development/milestones/general/display-architecture-x5-threejs-displayir-renderer-cleanup.md` (2026-06-19): DISPLAY-ARCH-X5 — Three.js DisplayIR renderer cleanup
+- `docs/development/milestones/general/display-architecture-x6-retire-legacy-mesh-scene.md` (2026-06-19): DISPLAY-ARCH-X6 — Retire Legacy Mesh-Scene Assumptions from the Frontend Viewer
+- `docs/development/milestones/general/display-qa-x1-ftc06-ftc07-local-visual-pass.md` (2026-06-19): DISPLAY-QA-X1: FTC-06 / FTC-07 local visual pass
+- `docs/development/milestones/general/display-qa-x2-imported-body-framing-status.md` (2026-06-19): DISPLAY-QA-X2: imported-body framing and display status
+- `docs/development/milestones/general/step-ap242-ftc06-import-validity-house-call.md` (2026-06-19): STEP-AP242-HARDEN-X1 — FTC-06 import validity house call
+- `docs/development/milestones/general/step-ap242-ftc07-import-hang-house-call.md` (2026-06-19): STEP-AP242-HARDEN-X2: FTC-07 Import Hang House Call
+- `docs/development/audits/forge-a0-semantic-extension-architecture-audit.md` (2026-06-20): FORGE-A0 — Aetheris.Forge and Standard Library semantic-extension architecture audit
+- `docs/development/audits/hole-a0-stacked-hole-air-recovery-audit.md` (2026-06-20): HOLE-A0 — stacked semantic hole AIR experiment recovery audit
+- `docs/development/implementation/forge-x1-concept-template-descriptor-scaffold.md` (2026-06-20): FORGE-X1 concept/template descriptor scaffold
+- `docs/development/implementation/hole-x1-semantic-hole-feature.md` (2026-06-20): HOLE-X1 semantic hole feature scaffold
+- `docs/development/implementation/hole-x2-simple-shaft-hole-materialization.md` (2026-06-20): HOLE-X2 simple shaft hole materialization
+- `docs/development/implementation/hole-x3-stacked-hole-components.md` (2026-06-20): HOLE-X3 stacked semantic hole components
+- `docs/development/implementation/hole-x4-firmament-v2-semantic-hole-source.md` (2026-06-20): HOLE-X4 — Firmament V2 semantic hole source hook
+- `docs/development/implementation/step-v2-a1-box-ap242-pipeline.md` (2026-06-20): STEP-V2-A1 — Firmament V2 Box AP242 pipeline
+- `docs/development/milestones/general/air-firmament-decompile-x1-ctc01-semantic-candidate.md` (2026-06-20): AIR-FIRMAMENT-DECOMPILE-X1 — CTC-01 semantic candidate
+- `docs/development/milestones/general/display-corruption-x1-ctc01-visual-house-call.md` (2026-06-20): DISPLAY-CORRUPTION-X1 — CTC-01 visual house call
+- `docs/development/milestones/general/display-phase-closeout-a1-workstream-boundary.md` (2026-06-20): DISPLAY-PHASE-CLOSEOUT-A1 — Frontend/display workstream boundary and Firmament V2 lowering guardrails
+- `docs/development/scope-contracts/mvp/firmament-v2-ap242-mvp-readiness-contract.md` (2026-06-20): Firmament V2 AP242 MVP readiness contract
+- `docs/development/audits/display-flake-a0-bounded-tessellation-test-hardening.md` (2026-06-21): DISPLAY-FLAKE-A0 bounded tessellation test hardening
+- `docs/development/audits/inline-step-a0-strangler-fig-migration-audit.md` (2026-06-21): INLINE-STEP-A0 — inline STEP and strangler-fig semantic migration architecture audit
+- `docs/development/audits/step-nist-snapshot-hotfix-a0.md` (2026-06-21): STEP-NIST-SNAPSHOT-HOTFIX-A0 triage
+- `docs/development/audits/step242-test-hang-a0-broad-filter-hardening.md` (2026-06-21): STEP242-TEST-HANG-A0 broad-filter hardening
+- `docs/development/implementation/canon-inline-x2-a0-production-canon-metadata-pmi.md` (2026-06-21): CANON-INLINE-X2-A0 production canon metadata/PMI audit
+- `docs/development/implementation/inline-step-x1-canonical-step-wrapper.md` (2026-06-21): INLINE-STEP-X1 canonical STEP wrapper
+- `docs/development/implementation/inline-step-x2-semantic-pmi-on-canonical-topology.md` (2026-06-21): INLINE-STEP-X2 semantic PMI on canonical inline STEP topology
+- `docs/development/implementation/inline-step-x3-recognition-labels.md` (2026-06-21): INLINE-STEP-X3 recognition labels
+- `docs/development/implementation/inline-step-x4-first-semantic-replacement.md` (2026-06-21): INLINE-STEP-X4 — first bounded semantic replacement
+- `docs/development/implementation/inline-step-x5-residual-accounting.md` (2026-06-21): INLINE-STEP-X5 residual accounting and migration progress metrics
+- `docs/development/implementation/inline-step-x6-recognition-evidence-proposals.md` (2026-06-21): INLINE-STEP-X6 recognition evidence and semantic proposals
+- `docs/development/implementation/inline-step-x7-proposal-replacement-assist.md` (2026-06-21): INLINE-STEP-X7 proposal-to-replacement assist
+- `docs/development/implementation/sidehole-real-x1-real-exporter-reroute.md` (2026-06-21): SIDEHOLE-REAL-X1 — real exporter reroute for locked Firmament V2 side-hole
+- `docs/development/implementation/step-v2-x1-analytic-primitives-ap242.md` (2026-06-21): STEP-V2-X1 Analytic Primitives AP242 Wiring
+- `docs/development/implementation/step-v2-x2-semantic-holes-ap242.md` (2026-06-21): STEP-V2-X2 semantic holes AP242 verification
+- `docs/development/implementation/step-v2-x3-derivation-semanticrefs-ap242.md` (2026-06-21): STEP-V2-X3 — derivation and semantic references AP242 verification
+- `docs/development/implementation/step-v2-x4-multi-feature-composition-ap242.md` (2026-06-21): STEP-V2-X4 — multi-feature composition AP242 verification
+- `docs/development/implementation/step-v2-x5-derived-variant-plus-hole-ap242.md` (2026-06-21): STEP-V2-X5 — derived variant plus semantic hole AP242 verification
+- `docs/development/implementation/step-v2-x6-dfm-concept-enforcement.md` (2026-06-21): STEP-V2-X6 — minimal DFM/concept build enforcement
+- `docs/development/implementation/step-v2-x7-semantic-pmi-ap242.md` (2026-06-21): STEP-V2-X7 semantic PMI AP242 emission
+- `docs/development/scope-contracts/mvp/firmament-v2-ap242-mvp-phase-closeout.md` (2026-06-21): Firmament V2 AP242 MVP phase closeout audit
+- `docs/development/audits/ruled-a0-ap242-ruled-swept-surface-audit.md` (2026-06-22): RULED-A0 AP242 exact ruled/swept surface audit
+- `docs/development/implementation/analyze-map-a0-ray-height-map.md` (2026-06-22): ANALYZE-MAP-A0 ray/height-map probe
+- `docs/development/implementation/analyze-map-a1-analytic-backend-provenance.md` (2026-06-22): ANALYZE-MAP-A1 analytic backend provenance
+- `docs/development/implementation/analyze-map-a2-cylinder-sphere-analytic-hits.md` (2026-06-22): ANALYZE-MAP-A2 Cylinder/Sphere Analytic Ray Hits
+- `docs/development/implementation/ruled-a1-exact-swept-surface-skeleton.md` (2026-06-22): RULED-A1 exact swept surface skeleton
+- `docs/development/implementation/analyze-map-a3-cone-torus-analytic-hits.md` (2026-06-23): ANALYZE-MAP-A3 Cone/Torus Analytic Ray Hits
+- `docs/development/implementation/analyze-map-a4-six-view-llm-summary.md` (2026-06-23): ANALYZE-MAP-A4 Six-view LLM Summary
+- `docs/development/implementation/analyze-map-a5-components-and-probes.md` (2026-06-23): ANALYZE-MAP-A5: connected components and suggested probes
+- `docs/development/implementation/analyze-map-a6-ranked-probes-and-section-bridge.md` (2026-06-23): ANALYZE-MAP-A6 ranked probes and section bridge
+- `docs/development/implementation/firmament-v2-f1-forge-concept-applications.md` (2026-06-23): Firmament V2 F1 Forge concept-family applications
+- `docs/development/implementation/firmament-v2-l1-let-primitive-literals.md` (2026-06-23): Firmament V2 L1 `let` primitive literals
+- `docs/development/implementation/firmament-v2-l2-let-record-groups.md` (2026-06-23): Firmament V2 L2 grouped `let` records
+- `docs/development/implementation/firmament-v2-l3-arithmetic-expression-graph.md` (2026-06-23): Firmament V2 L3 arithmetic expression graph
+- `docs/development/implementation/firmament-v2-l4-toleranced-values.md` (2026-06-23): Firmament V2 L4 toleranced let values
+- `docs/development/implementation/firmament-v2-p1-record-shaped-pmi.md` (2026-06-23): Firmament V2 P1 record-shaped PMI
+- `docs/development/implementation/v2-phase1-p2-record-pmi-ap242-export.md` (2026-06-23): V2 Phase 1 P2 record PMI AP242 export
+- `docs/development/implementation/v2-phase1-r1-validation-report.md` (2026-06-23): V2 Phase 1 R1 validation report
+- `docs/development/reports/analyze-map-dogfood-ctc01-a0.md` (2026-06-23): ANALYZE-MAP-DOGFOOD-CTC01-A0 — CTC-01 with current analyze-map tooling
+- `docs/development/reports/analyze-map-dogfood-ftc09-a0.md` (2026-06-23): ANALYZE-MAP-DOGFOOD-FTC09-A0 — FTC-09 LLM utility report
+- `docs/development/reports/analyze-map-phase-closeout-a0.md` (2026-06-23): ANALYZE-MAP-PHASE-CLOSEOUT-A0 — first LLM-oriented analyze-map phase closeout
+- `docs/development/scope-contracts/v2/aetheris-v2-phase1-closeout.md` (2026-06-23): Aetheris V2.0 Phase 1 closeout report
+- `docs/development/scope-contracts/v2/aetheris-v2-phase1-scope-contract.md` (2026-06-23): Aetheris V2.0 Phase 1 Scope Contract
+- `docs/development/scope-contracts/v2/aetheris-v2-phase2-csharp-interop-scope-contract.md` (2026-06-23): Aetheris V2.0 Phase 2 C# interop scope contract
+- `docs/development/scope-contracts/v2/firmament-v2-concept-template-syntax-reconciliation.md` (2026-06-23): Firmament V2 concept/template syntax reconciliation
+- `docs/development/implementation/forge-cs-a0-current-implementation-audit.md` (2026-07-07): FORGE-CS-A0 current implementation audit
+- `docs/development/implementation/forge-cs-a1-readonly-interop-facades.md` (2026-07-07): FORGE-CS-A1 read-only interop facades
+- `docs/development/implementation/forge-cs-a2-standard-concept-descriptors.md` (2026-07-08): FORGE-CS-A2 standard concept descriptors
+- `docs/development/implementation/forge-cs-a3-runtime-concept-validation.md` (2026-07-08): FORGE-CS-A3 runtime concept validation
+- `docs/development/implementation/forge-cs-a4-concept-pmi-obligations.md` (2026-07-08): FORGE-CS-A4 concept PMI obligations
+- `docs/development/implementation/forge-cs-a5-trusted-external-concept-packs.md` (2026-07-08): FORGE-CS-A5 trusted external concept packs
+
+## Era 7: Previews 1 to 3
+
+Summary: [Previews 1 to 3](eras/07-previews-1-to-3.md). 255 files.
+
+- `docs/development/architecture/air/air-edge-finish-consolidation-m2.md` (2026-08-03): AIR-EDGE-FINISH-CONSOLIDATION-M2
+- `docs/development/architecture/air/air-edge-finish-junction-m3.md` (2026-08-03): AIR-EDGE-FINISH-JUNCTION-M3
+- `docs/development/architecture/air/air-fillet-junction-m4.md` (2026-08-03): AIR-FILLET-DIRECT-JUNCTION-M4A
+- `docs/development/architecture/air/localized-planar-single-edge-chamfer-a1.md` (2026-08-03): AIR-CHAMFER-LOCALIZED-PLAN-A1
+- `docs/development/implementation/air-chamfer-corner-policy-a0.md` (2026-08-03): AIR-CHAMFER-CORNER-POLICY-A0 — chamfer corner-policy investigation
+- `docs/development/implementation/air-chamfer-production-m1.md` (2026-08-03): AIR-CHAMFER-PRODUCTION-M1 — authoritative bounded top-boundary chamfer
+- `docs/development/implementation/brep-export-preflight-a1-remediation.md` (2026-08-03): BREP-EXPORT-PREFLIGHT-A1 remediation
+- `docs/development/implementation/cad-assistant-independent-visual-validation.md` (2026-08-03): CAD Assistant independent visual validation
+- `docs/development/implementation/chamfer-fixture-pressure-m6.md` (2026-08-03): CHAMFER-FIXTURE-PRESSURE-M6 — bounded chamfer lowering report
+- `docs/development/implementation/hole-entry-occt-interop-a0.md` (2026-08-03): HOLE-ENTRY-OCCT-INTEROP-A0 — hole-entry STEP root cause
+- `docs/development/milestones/general/air-fillet-localized-m1.md` (2026-08-03): AIR-FILLET-LOCALIZED-M1 — exact localized tangent blend
+- `docs/development/milestones/general/air-firmament-m4-templates.md` (2026-08-03): Firmament M4B compile-time Templates and Patterns
+- `docs/development/milestones/general/concept-expansion-m1.md` (2026-08-03): CONCEPT-EXPANSION-M1: conceptual front end
+- `docs/development/milestones/general/concept-materialization-m2.md` (2026-08-03): CONCEPT-MATERIALIZATION-M2: typed points and materialized conformance
+- `docs/development/milestones/general/concept-static-logic-m3.md` (2026-08-03): CONCEPT-STATIC-LOGIC-M3: bounded static selection
+- `docs/development/milestones/general/concept-step-matching.md` (2026-08-03): Concept-to-STEP matching (M5)
+- `docs/development/scope-contracts/v2/aetheris-v2-phase3-air-chamfer-mvp-scope-contract.md` (2026-08-03): Aetheris V2.0 Phase 3 AIR chamfer MVP scope contract
+- `docs/development/scope-contracts/v2/aetheris-v2-phase3-air-compiler-architecture-addendum.md` (2026-08-03): PHASE3-ARCH-A0 — AIR compiler architecture investigation addendum
+- `docs/development/architecture/air/air-fillet-trihedral-m5.md` (2026-08-04): AIR-FILLET-TRIHEDRAL-M5
+- `docs/development/architecture/air/air-lattice-fill-m9.md` (2026-08-04): AIR-LATTICE-FILL-M9 — explicit-region lattice-fill foundation
+- `docs/development/architecture/air/air-lattice-primitive-m9r.md` (2026-08-04): AIR-LATTICE-PRIMITIVE-M9R — standalone exact CubicTruss
+- `docs/development/architecture/air/air-rounded-box-toroidal-edge-finish-m6.md` (2026-08-04): AIR-ROUNDED-BOX-M6 — rounded primitive and toroidal top edge finish
+- `docs/development/architecture/air/air-thinwall-hollow-m7.md` (2026-08-04): AIR-THINWALL-HOLLOW-M7
+- `docs/development/architecture/verification/aetheris-verification-m8.md` (2026-08-04): AETHERIS-VERIFICATION-M8
+- `docs/development/architecture/verification/m8-hole-loop-x1.md` (2026-08-04): M8-HOLE-LOOP-X1
+- `docs/development/architecture/verification/profile-compose-inner-loop-x1.md` (2026-08-04): Profile composition inner-loop X1 investigation
+- `docs/development/milestones/firmament-history/data-driven-geometry-x1.md` (2026-08-04): Data-driven geometry X1
+- `docs/development/milestones/firmament-history/profile-arrangement-x1.md` (2026-08-04): Profile arrangement X1
+- `docs/development/milestones/firmament-history/profile-composition-x1.md` (2026-08-04): Profile composition X1
+- `docs/development/milestones/reconstruction/ctc01-compose-x1.md` (2026-08-04): CTC-01 Profile + Compose blockout X2/X3
+- `docs/development/milestones/reconstruction/ctc01-sections-x1.md` (2026-08-04): CTC-01 sections
+- `docs/development/tooling/inspect-performance-x1.md` (2026-08-04): Inspect performance X1
+- `docs/development/tooling/step-sections-normalize-x2.md` (2026-08-04): STEP section normalization X2
+- `docs/development/milestones/cadmata/concept-visualization-x1.md` (2026-08-05): Cadmata concept visualization X1
+- `docs/development/milestones/firmament-history/blind-drill-clearance-contract-x1.md` (2026-08-05): Blind Drill clearance contract X1
+- `docs/development/milestones/firmament-history/combined-hole-edgefinish-export-x1.md` (2026-08-05): COMBINED-HOLE-EDGEFINISH-EXPORT-X1
+- `docs/development/milestones/firmament-history/composed-host-blind-drill-x1.md` (2026-08-05): COMPOSED-HOST-BLIND-DRILL-X1 corridor evidence
+- `docs/development/milestones/firmament-history/composed-host-hole-contracts-x5.md` (2026-08-05): Composed-host Hole contracts (X5 foundation)
+- `docs/development/milestones/firmament-history/concept-plane-drilled-holes-x1.md` (2026-08-05): CONCEPT-PLANE-DRILLED-HOLES-X1 — implementation boundary audit
+- `docs/development/milestones/firmament-history/construction-plane-hole-source-x3.md` (2026-08-05): Construction Plane Hole source X3
+- `docs/development/milestones/firmament-history/construction-planes-x1.md` (2026-08-05): Construction Planes X1
+- `docs/development/milestones/firmament-history/local-frame-drillpoint-x4.md` (2026-08-05): LOCAL-FRAME-DRILLPOINT-X4
+- `docs/development/milestones/firmament-history/local-frame-holes-x2.md` (2026-08-05): Local-frame semantic holes (X2)
+- `docs/development/milestones/firmament-history/section-stack-hole-traversal-x1.md` (2026-08-05): SECTION-STACK-HOLE-TRAVERSAL-X1 evidence foundation
+- `docs/development/milestones/firmament-history/semantic-selections-x1.md` (2026-08-05): SEMANTIC-LOOPS-X1 — source-grounded topology selections
+- `docs/development/milestones/firmament-history/semantic-slots-x1.md` (2026-08-05): SEMANTIC-SLOTS-X1
+- `docs/development/milestones/firmament-history/v2-advanced-grammar-moonshot-x2.md` (2026-08-05): Firmament V2 advanced grammar — X2 progress
+- `docs/development/milestones/firmament-history/v2-canonical-authoring.md` (2026-08-05): Firmament V2 canonical authoring
+- `docs/development/milestones/firmament-history/v2-canonical-safety-and-labeling-x4.md` (2026-08-05): CANONICAL-SAFETY-AND-LABELING-X4
+- `docs/development/milestones/firmament-history/v2-diagnostic-routing-x1.md` (2026-08-05): Firmament V2 diagnostic routing X1
+- `docs/development/milestones/firmament-history/v2-semantic-labeling.md` (2026-08-05): Firmament V2 semantic STEP labeling
+- `docs/development/milestones/firmament-history/v2-static-authoring-closure-x3.md` (2026-08-05): Firmament V2 static-authoring closure — X3 status
+- `docs/development/milestones/firmament-history/v2-unified-grammar-x1.md` (2026-08-05): FIRMAMENT-V2-UNIFIED-GRAMMAR-X1 reconciliation log
+- `docs/development/milestones/reconstruction/ctc01-llm-pressure-x4.md` (2026-08-05): CTC-01 LLM pressure X4
+- `docs/development/milestones/reconstruction/ctc01-llm-pressure-x5.md` (2026-08-05): CTC-01 LLM pressure X5 — evidence gate
+- `docs/development/milestones/firmament-history/assert-volume-comptime-csharp-m1.md` (2026-08-06): Assert Volume M1 scope update
+- `docs/development/milestones/firmament-history/assert-volume-m1.md` (2026-08-06): Assert Volume M1
+- `docs/development/milestones/firmament-history/canonical-construct-safety-pmi-x5.md` (2026-08-06): CANONICAL-CONSTRUCT-SAFETY-PMI-X5
+- `docs/development/milestones/firmament-history/composed-host-counterbore-pmi-x6.md` (2026-08-06): Composed-host Counterbore and PMI (X6)
+- `docs/development/milestones/firmament-history/composed-profile-chamfer-integration-m2.md` (2026-08-06): Composed Profile chamfer integration M2
+- `docs/development/milestones/firmament-history/concept-path-m1.md` (2026-08-06): Concept Path M1 design note
+- `docs/development/milestones/firmament-history/profile-boundary-chamfer-m1.md` (2026-08-06): Profile-boundary chamfer M1
+- `docs/development/milestones/firmament-history/profile-convex-fillet-junction-m2.md` (2026-08-06): Profile convex fillet junction M2
+- `docs/development/milestones/firmament-history/profile-edgefinish-chimera-closure-x2.md` (2026-08-06): Profile EdgeFinish chimera closure X2 — analytic policy card
+- `docs/development/milestones/firmament-history/profile-edgefinish-chimera-release-closure-x3.md` (2026-08-06): Profile EdgeFinish chimera release closure X3 — seven-station card
+- `docs/development/milestones/firmament-history/profile-edgefinish-chimera-x1.md` (2026-08-06): Profile EdgeFinish chimera X1 — source-card and planner boundary (superseded by X2 policy card)
+- `docs/development/milestones/firmament-history/profile-edgefinish-convex-concave-audit-x1.md` (2026-08-06): Profile EdgeFinish convex/reflex audit X1
+- `docs/development/milestones/firmament-history/profile-fillet-common-cases-x2.md` (2026-08-06): Profile fillet common cases X2 — current implementation boundary
+- `docs/development/milestones/firmament-history/profile-reflex-fillet-junction-m3.md` (2026-08-06): Profile reflex fillet junction M3
+- `docs/development/milestones/firmament-history/profile-straight-edge-fillet-m1.md` (2026-08-06): Profile straight-edge fillet M1
+- `docs/development/milestones/firmament-history/v2-concept-path.md` (2026-08-06): Firmament V2 Concept Path (M1)
+- `docs/development/milestones/firmament-history/v2-pmi-authoring.md` (2026-08-06): Firmament V2 PMI authoring
+- `docs/development/milestones/firmament-history/variable-outer-section-stack-m3.md` (2026-08-06): Variable outer section stack M3
+- `docs/development/milestones/firmament-history/fillet-contact-shell-composer-x6.md` (2026-08-07): Fillet contact-shell composer X6
+- `docs/development/milestones/firmament-history/fillet-contact-shell-emitter-x8.md` (2026-08-07): Fillet contact-shell emitter X8
+- `docs/development/milestones/firmament-history/fillet-patch-extraction-x5.md` (2026-08-07): Fillet patch extraction X5
+- `docs/development/milestones/firmament-history/fillet-side-contact-chain-x7.md` (2026-08-07): Fillet side-contact chain X7
+- `docs/development/milestones/firmament-history/mixed-analytic-edgefinish-shell-x4.md` (2026-08-07): Mixed analytic Profile EdgeFinish shell X4
+- `docs/development/milestones/firmament-history/pmi-constraint-projection-x1.md` (2026-08-07): PMI constraint projection (X1)
+- `docs/development/tooling/firmament-textmate-grammar.md` (2026-08-07): Firmament TextMate grammar
+- `docs/development/tooling/vscode-firmament-audit.md` (2026-08-07): Firmament VS Code M1 audit
+- `docs/release/p1-cadmata-m1.md` (2026-08-07): P1-CADMATA-M1 release hardening
+- `docs/release/p1-cli-ux-m1-audit.md` (2026-08-07): P1-CLI-UX-M1 CLI audit
+- `docs/release/p1-interop-m1-matrix.md` (2026-08-07): P1-INTEROP-M1 interoperability matrix
+- `docs/release/p1-vscode-m1-evidence.md` (2026-08-07): P1-VSCODE-M1 evidence
+- `docs/release/preview1-docs-claudefooding.md` (2026-08-07): Preview 1 documentation-only authoring review
+- `docs/release/preview1-feature-freeze.md` (2026-08-07): Preview 1 feature freeze
+- `docs/roadmap/cadmata-post-preview1-refactor-notes.md` (2026-08-07): Cadmata post-Preview-1 refactor notes
+- `docs/development/history/preview2/cadmata-refactor-m1.md` (2026-08-08): P2-CADMATA-M1 — Cadmata application-shell refactor
+- `docs/development/history/preview2/cadmata-semantic-inspector-m2.md` (2026-08-08): Cadmata semantic inspector M2
+- `docs/development/history/preview2/construction-ir-m1.md` (2026-08-08): P2-CONSTRUCTION-IR-M1 — exact coaxial construction extraction
+- `docs/development/history/preview2/firmament-tables-with-m1.md` (2026-08-08): Firmament Tables and immutable Record derivation (M1)
+- `docs/development/history/preview2/firmament-template-record-parameters-m2.md` (2026-08-08): Typed Record parameters for Firmament Templates (M2)
+- `docs/development/history/preview2/hexbolt-standard-library-m1.md` (2026-08-08): P2-TEMPLATE-PART-M1 — StandardLibrary HexBolt foundation
+- `docs/development/history/preview2/hexbolt-standards-data-m1.md` (2026-08-08): HexBolt standards data M1
+- `docs/development/history/preview2/hexbolt-template-m2.md` (2026-08-08): HexBolt as a Concept-constrained Firmament Template (M2)
+- `docs/development/history/preview2/mesh-dcc-export-m1.md` (2026-08-08): P2-MESH-DCC-EXPORT-M1 — direct SurfaceMeshIR OBJ export
+- `docs/development/history/preview2/surface-mesh-ir-m1.md` (2026-08-08): P2-SURFACE-MESH-IR-M1
+- `docs/development/history/preview2/surface-mesh-ir-m2.md` (2026-08-08): P2-SURFACE-MESH-IR-M2
+- `docs/development/history/preview2/surface-mesh-ir-m3.md` (2026-08-08): P2-SURFACE-MESH-IR-M3
+- `docs/development/history/preview2/surface-mesh-ir-m4.md` (2026-08-08): P2-SURFACE-MESH-IR-M4
+- `docs/development/history/preview2/surface-mesh-ir-m5-bspline-trims.md` (2026-08-08): SurfaceMeshIR M5: foreign B-spline trims
+- `docs/release/p1-cir-volume-closeout-m3.md` (2026-08-08): P1-CIR-VOLUME-CLOSEOUT-M3
+- `docs/release/p1-harden-m2-mass-audit.md` (2026-08-08): P1-HARDEN-M2 mass-property audit
+- `docs/release/p1-harden-m2.md` (2026-08-08): P1-HARDEN-M2 status
+- `docs/roadmap/cir-frep-authoritative-volume-post-preview1.md` (2026-08-08): CIR/FRep authoritative volume after Preview 1
+- `docs/roadmap/preview2-start.md` (2026-08-08): Preview 2 starting backlog
+- `docs/development/history/preview2/consolidation-gap-inventory.md` (2026-08-09): Preview 2 consolidation gap inventory
+- `docs/development/history/preview2/consolidation-m1.md` (2026-08-09): Preview 2 consolidation M1
+- `docs/development/history/preview2/surface-mesh-ir-m6-planar-decomposition.md` (2026-08-09): SurfaceMeshIR M6: planar domain decomposition
+- `docs/development/history/preview2/surface-mesh-ir-m7-feature-bands.md` (2026-08-09): SurfaceMeshIR M7: local planar feature bands
+- `docs/development/milestones/assembly/assembly-m0.md` (2026-08-09): Assembly M0 authoring and inspection
+- `docs/development/milestones/assembly/assembly-m1.md` (2026-08-09): Assembly M1: executable semantic product geometry
+- `docs/development/milestones/assembly/assembly-m2.md` (2026-08-09): Assembly M2: `.firmasm`, AP242 product structure, and Cadmata
+- `docs/development/milestones/assembly/interfaces.md` (2026-08-09): Interfaces and Mates
+- `docs/development/milestones/cadmata/themes.md` (2026-08-09): Cadmata viewport themes
+- `docs/development/milestones/continuum/architecture.md` (2026-08-09): Aetheris Continuum architecture
+- `docs/development/milestones/continuum/continuum-refactoring-notes.md` (2026-08-09): Continuum refactoring disposition after M4B
+- `docs/development/milestones/continuum/experiments/attention-e0.md` (2026-08-09): AETHERIS-CONTINUUM-ATTENTION-E0
+- `docs/development/milestones/continuum/experiments/attention-e1-three-fields.md` (2026-08-09): AETHERIS-CONTINUUM-ATTENTION-E1
+- `docs/development/milestones/continuum/m0-extraction.md` (2026-08-09): AETHERIS-CONTINUUM-M0 extraction report
+- `docs/development/milestones/continuum/m1-boundary-offset-msaa.md` (2026-08-09): AETHERIS-CONTINUUM-M1: fixed-lattice boundary offset maps and MSAA geometry sampling
+- `docs/development/milestones/continuum/m2-brep-curved-boundary.md` (2026-08-09): AETHERIS-CONTINUUM-M2: exact BRep curved boundaries
+- `docs/development/milestones/continuum/m3-torus-root-fillet.md` (2026-08-09): AETHERIS-CONTINUUM-M3: exact torus/root-fillet Cut cells
+- `docs/development/milestones/continuum/m4-whole-part-cut-cell-composition.md` (2026-08-09): M4 whole-part Cut-cell composition
+- `docs/development/milestones/continuum/m4b-constructive-alignment.md` (2026-08-09): M4B constructive CIR/BRep alignment
+- `docs/development/milestones/continuum/m4c-whole-part-integration-closeout.md` (2026-08-09): AETHERIS-CONTINUUM-M4C — whole-part curved-support integration closeout
+- `docs/development/milestones/fea/abaqus-export.md` (2026-08-09): Abaqus verification export
+- `docs/development/milestones/fea/architecture.md` (2026-08-09): Aetheris finite-element architecture
+- `docs/development/milestones/fea/artifacts/m5b/boundary-lowering-audit.md` (2026-08-09): M5 boundary-lowering audit
+- `docs/development/milestones/fea/artifacts/m5b/hashes.md` (2026-08-09): Deterministic hashes
+- `docs/development/milestones/fea/artifacts/m5b/inline-step-proof.md` (2026-08-09): Rotated InlineStep proof
+- `docs/development/milestones/fea/artifacts/m5b/orientation-tables.md` (2026-08-09): M5B load and mechanics tables
+- `docs/development/milestones/fea/m5-linear-elasticity.md` (2026-08-09): M5 linear elasticity
+- `docs/development/milestones/fea/m5b-semantic-boundary-quadrature.md` (2026-08-09): M5B semantic boundary quadrature
+- `docs/development/milestones/fea/m5c-immersed-basis-robustness.md` (2026-08-09): M5C immersed-basis robustness
+- `docs/development/milestones/firmament/language-audit-artifacts/language-audit-m1/binder-lowering-test-matrix.md` (2026-08-09): Binder, lowering, and test matrix
+- `docs/development/milestones/firmament/language-audit-artifacts/language-audit-m1/canonical-fixtures.md` (2026-08-09): Canonical fixture references
+- `docs/development/milestones/firmament/language-audit-artifacts/language-audit-m1/dead-legacy-syntax-inventory.md` (2026-08-09): Dead, legacy, and incomplete syntax inventory
+- `docs/development/milestones/firmament/language-audit-artifacts/language-audit-m1/deterministic-manifest-hash.md` (2026-08-09): Deterministic language audit hashes
+- `docs/development/milestones/firmament/language-audit-artifacts/language-audit-m1/docs-coverage-matrix.md` (2026-08-09): Documentation coverage matrix
+- `docs/development/milestones/firmament/language-audit-artifacts/language-audit-m1/lexer-token-inventory.md` (2026-08-09): Lexer/token inventory
+- `docs/development/milestones/firmament/language-audit-artifacts/language-audit-m1/parser-production-inventory.md` (2026-08-09): Parser production inventory
+- `docs/development/milestones/firmament/language-audit-m1.md` (2026-08-09): Firmament V2 language audit — Assembly M1
+- `docs/development/milestones/forge/architecture.md` (2026-08-09): Forge architecture
+- `docs/development/milestones/forge/capability-graduation.md` (2026-08-09): Forge capability graduation
+- `docs/development/milestones/forge/extension-sdk.md` (2026-08-09): Forge extension SDK
+- `docs/development/milestones/semantic/artifacts/m1/architecture-audit.md` (2026-08-09): Pre-change semantic identity audit
+- `docs/development/milestones/semantic/artifacts/m1/deterministic-hashes.md` (2026-08-09): Determinism and performance evidence
+- `docs/development/milestones/semantic/artifacts/m1/forge-proof.md` (2026-08-09): Forge proof
+- `docs/development/milestones/semantic/artifacts/m1/imported-proof.md` (2026-08-09): Imported proof
+- `docs/development/milestones/semantic/artifacts/m1/native-proof.md` (2026-08-09): Native proof
+- `docs/development/milestones/semantic/artifacts/m1/negative-diagnostics.md` (2026-08-09): Negative diagnostic evidence
+- `docs/development/milestones/semantic/artifacts/m1/producer-consumer-matrix.md` (2026-08-09): Producer / consumer matrix
+- `docs/development/milestones/semantic/artifacts/m1/provenance-traces.md` (2026-08-09): Provenance traces
+- `docs/development/milestones/semantic/artifacts/m1/stable-ids.md` (2026-08-09): Stable identity evidence
+- `docs/development/milestones/semantic/artifacts/m1/support-matrix.md` (2026-08-09): Semantic-value support matrix
+- `docs/development/milestones/semantic/semantic-value-m1.md` (2026-08-09): Semantic Value M1
+- `docs/development/milestones/assembly/assembly-m3.md` (2026-08-10): Assembly M3: template-produced assembly definitions
+- `docs/development/milestones/collaboration/architecture.md` (2026-08-10): Collaboration architecture
+- `docs/development/milestones/collaboration/dfm.md` (2026-08-10): DFM review artifacts
+- `docs/development/milestones/collaboration/reviews.md` (2026-08-10): Firmament engineering reviews
+- `docs/development/milestones/drawing/architecture.md` (2026-08-10): Drawing architecture
+- `docs/development/milestones/drawing/drawing-m0.md` (2026-08-10): Drawing M0B
+- `docs/development/milestones/drawing/pdf.md` (2026-08-10): Vector A4 PDF
+- `docs/development/milestones/drawing/pmi-layout.md` (2026-08-10): Deterministic PMI layout
+- `docs/development/milestones/drawing/pptx.md` (2026-08-10): Native editable PowerPoint drawings
+- `docs/development/milestones/drawing/templates.md` (2026-08-10): Drawing concepts and templates
+- `docs/development/milestones/forge/database-driven-cad.md` (2026-08-10): Database-driven CAD with SQLite, LINQ, and Forge Host
+- `docs/development/milestones/forge/kernel-sdk-migration.md` (2026-08-10): Forge SDK package migration
+- `docs/development/milestones/modules/panels.md` (2026-08-10): Panels
+- `docs/development/architecture/system/artifacts/archaeology-m1/README.md` (2026-08-13): AETHERIS-ARCHAEOLOGY-M1
+- `docs/development/architecture/system/artifacts/archaeology-m1/boolean-callers.md` (2026-08-13): BRep Boolean caller map
+- `docs/development/architecture/system/artifacts/archaeology-m1/boolean-internals-map.md` (2026-08-13): BRep Boolean internals map
+- `docs/development/architecture/system/artifacts/archaeology-m1/boolean-lessons.md` (2026-08-13): BRep Boolean lessons from the implemented families
+- `docs/development/architecture/system/artifacts/archaeology-m1/firmament-v1-map.md` (2026-08-13): Firmament V1 ownership map
+- `docs/development/architecture/system/artifacts/archaeology-m1/legacy-firmasm-map.md` (2026-08-13): Legacy JSON `.firmasm` map
+- `docs/development/architecture/system/artifacts/archaeology-m1/migration-plan.md` (2026-08-13): Phased migration, freeze, tests, and documentation plan
+- `docs/development/architecture/system/artifacts/archaeology-m1/surgery-candidates.md` (2026-08-13): BRep Surgery candidate surface
+- `docs/development/architecture/system/artifacts/archaeology-m1/validation-report.md` (2026-08-13): M1 validation report
+- `docs/development/architecture/system/artifacts/archaeology-m2/README.md` (2026-08-13): AETHERIS-ARCHAEOLOGY-M2 evidence
+- `docs/development/architecture/system/artifacts/archaeology-m2/cli-compatibility-matrix.md` (2026-08-13): CLI compatibility matrix
+- `docs/development/architecture/system/artifacts/archaeology-m2/format-routing.md` (2026-08-13): Format routing
+- `docs/development/architecture/system/artifacts/archaeology-m2/geometry-parity.md` (2026-08-13): Geometry parity
+- `docs/development/architecture/system/artifacts/archaeology-m2/model-equivalence.md` (2026-08-13): Model equivalence and deterministic serialization
+- `docs/development/architecture/system/artifacts/archaeology-m2/validation-report.md` (2026-08-13): Validation report
+- `docs/development/architecture/system/artifacts/archaeology-m3/README.md` (2026-08-13): AETHERIS-ARCHAEOLOGY-M3 evidence
+- `docs/development/architecture/system/artifacts/archaeology-m3/migrated-recipes.md` (2026-08-13): Migrated recipes
+- `docs/development/architecture/system/artifacts/archaeology-m3/orientation-validation.md` (2026-08-13): Orientation and validation
+- `docs/development/architecture/system/artifacts/archaeology-m3/surgery-extraction-map.md` (2026-08-13): Surgery extraction map
+- `docs/development/architecture/system/artifacts/archaeology-m3/topology-parity.md` (2026-08-13): Topology parity
+- `docs/development/architecture/system/artifacts/archaeology-m3/validation-report.md` (2026-08-13): M3 validation report
+- `docs/development/architecture/system/artifacts/archaeology-m4/README.md` (2026-08-13): AETHERIS-ARCHAEOLOGY-M4 evidence
+- `docs/development/architecture/system/artifacts/archaeology-m4/composition-history.md` (2026-08-13): Composition history
+- `docs/development/architecture/system/artifacts/archaeology-m4/educational-migration.md` (2026-08-13): Educational migration
+- `docs/development/architecture/system/artifacts/archaeology-m4/recipe-architecture.md` (2026-08-13): Recipe architecture
+- `docs/development/architecture/system/artifacts/archaeology-m4/second-recipe-parity.md` (2026-08-13): Polygonal through-cut parity
+- `docs/development/architecture/system/artifacts/archaeology-m4/through-hole-parity.md` (2026-08-13): Through-hole parity
+- `docs/development/architecture/system/artifacts/archaeology-m4/validation-report.md` (2026-08-13): Validation report
+- `docs/development/architecture/system/artifacts/archaeology-m5/README.md` (2026-08-13): Archaeology M5: production caller migration
+- `docs/development/architecture/system/artifacts/archaeology-m5/cir-migration.md` (2026-08-13): CIR migration
+- `docs/development/architecture/system/artifacts/archaeology-m5/firmament-migration.md` (2026-08-13): Firmament migration
+- `docs/development/architecture/system/artifacts/archaeology-m5/kernelsdk-boundary.md` (2026-08-13): KernelSDK and Surgery boundary
+- `docs/development/architecture/system/artifacts/archaeology-m5/production-caller-map.md` (2026-08-13): Production Boolean caller map
+- `docs/development/architecture/system/artifacts/archaeology-m5/remaining-boolean-callers.md` (2026-08-13): Remaining Boolean callers
+- `docs/development/architecture/system/artifacts/archaeology-m5/standardlibrary-migration.md` (2026-08-13): StandardLibrary migration
+- `docs/development/architecture/system/artifacts/archaeology-m5/topology-parity.md` (2026-08-13): Topology and artifact parity
+- `docs/development/architecture/system/artifacts/archaeology-m5/validation-report.md` (2026-08-13): Validation report
+- `docs/development/architecture/system/artifacts/archaeology-m6/README.md` (2026-08-13): AETHERIS-ARCHAEOLOGY-M6 closeout
+- `docs/development/architecture/system/artifacts/archaeology-m6/compatibility-surface.md` (2026-08-13): Compatibility surface inventory
+- `docs/development/architecture/system/artifacts/archaeology-m6/current-paths.md` (2026-08-13): Current path proofs and preserved regressions
+- `docs/development/architecture/system/artifacts/archaeology-m6/deprecation-table.md` (2026-08-13): Compatibility and deprecation table
+- `docs/development/architecture/system/artifacts/archaeology-m6/docs-cleanup.md` (2026-08-13): Documentation cleanup
+- `docs/development/architecture/system/artifacts/archaeology-m6/final-caller-map.md` (2026-08-13): Final production BrepBoolean caller map
+- `docs/development/architecture/system/artifacts/archaeology-m6/validation-report.md` (2026-08-13): M6 validation report
+- `docs/development/milestones/geometry/contact.md` (2026-08-13): Evidence-aware contact reasoning
+- `docs/development/milestones/geometry/differential-geometry.md` (2026-08-13): Differential geometry
+- `docs/development/milestones/geometry/experimental-remeshing.md` (2026-08-13): Experimental structured remeshing
+- `docs/development/milestones/geometry/intersection.md` (2026-08-13): Bounded intersection predicates
+- `docs/development/milestones/geometry/parametric-curves.md` (2026-08-13): Bounded parametric curves
+- `docs/development/milestones/geometry/reasoning-m3-distance-queries.md` (2026-08-13): Geometry reasoning M3: bounded distance queries
+- `docs/development/milestones/geometry/reasoning.md` (2026-08-13): Authored geometry reasoning
+- `docs/development/milestones/geometry/surface-reconstruction.md` (2026-08-13): Structured surface recovery
+- `docs/development/milestones/firmament-history/sheetmetal-product-templates-m5.md` (2026-08-14): Firmament generic Sheet Metal product families (M5)
+- `docs/development/milestones/sheetmetal/aetheris-sheetmetal-m6.md` (2026-08-14): Sheet Metal M6: generic enclosure products
+- `docs/development/milestones/sheetmetal/aetheris-sheetmetal-m7.md` (2026-08-14): Sheet Metal M7: semantic assembly datums and tolerance-aware fit
+- `docs/development/milestones/language/generic-profile-modifications-m10.md` (2026-08-15): Generic profile modifications (M10)
+- `docs/development/milestones/language/semantic-profile-corner-composition-m3.md` (2026-08-15): Semantic Profile shared-corner composition M3
+- `docs/development/milestones/language/semantic-profile-edge-composition-m2.md` (2026-08-15): Semantic Profile edge composition M2 report
+- `docs/development/milestones/language/sheetmetal-bend-terminations-m11.md` (2026-08-15): Sheet Metal bend termination
+- `docs/development/milestones/modules/sheetmetal/artifacts/m10/README.md` (2026-08-15): Sheet Metal M10 — generic profile programming
+- `docs/development/milestones/modules/sheetmetal/artifacts/m11/README.md` (2026-08-15): Sheet Metal M11 — finite bend/root termination
+- `docs/development/milestones/modules/sheetmetal/artifacts/m12/README.md` (2026-08-15): Sheet Metal M12 — semantic-local reconstruction comparison
+- `docs/development/milestones/modules/sheetmetal/artifacts/m9/README.md` (2026-08-15): Sheet Metal M9 — attachment paths and analytic profile rounds
+- `docs/development/milestones/modules/sheetmetal/artifacts/recovery-m1/README.md` (2026-08-15): Recognized imported Sheet Metal recovery M1
+- `docs/development/milestones/modules/sheetmetal/artifacts/recovery-m2/README.md` (2026-08-15): Sheet Metal Recovery M2 — topology-guided source-flat stitching
+- `docs/development/milestones/fea/production-x1.md` (2026-08-16): FEA-PROD-X1 production boundary
+- `docs/development/milestones/forge/forge-interop-x1.md` (2026-08-16): FORGE-INTEROP-X1 report
+- `docs/development/milestones/forge/protocol-v1.md` (2026-08-16): Forge Host Protocol v1
+- `docs/development/milestones/materials/MAT-DB-X1.md` (2026-08-16): MAT-DB-X1 — Standard Library material catalog
+- `docs/release/PREVIEW3-HARDEN-A1.md` (2026-08-16): PREVIEW3-HARDEN-A1 — release topology and qualification
+- `docs/release/PREVIEW3-HARDEN-A2.md` (2026-08-16): PREVIEW3-HARDEN-A2 — Firmament first-user and public-documentation hardening
+- `docs/release/PREVIEW3-HARDEN-A3.md` (2026-08-16): PREVIEW3-HARDEN-A3 — Normal CAD friction test and geometry/STEP qualification
+- `docs/release/PREVIEW3-HARDEN-A3b.md` (2026-08-16): PREVIEW3-HARDEN-A3b
+- `docs/release/PREVIEW3-HARDEN-A4.md` (2026-08-17): PREVIEW3-HARDEN-A4
+- `docs/release/PREVIEW3-HARDEN-A5.md` (2026-08-17): PREVIEW3-HARDEN-A5
+- `docs/release/PREVIEW3-RELEASE-STAGING.md` (2026-08-17): Preview 3 release staging
+- `docs/development/architecture/system/artifacts/archaeology-m3/boolean-lessons-progress.md` (2026-08-18): Boolean lessons progress
+- `docs/development/firmament-language-inconsistencies.md` (2026-08-18): Firmament language reconciliation register
+- `docs/development/firmament-v2-grammar-inventory.md` (2026-08-18): Firmament V2 active grammar inventory
+- `docs/development/milestones/general/display-quality-x1-ftc06-ftc07-post-displayscene-qa.md` (2026-08-18): DISPLAY-QUALITY-X1 — FTC-06 / FTC-07 post-DisplayScene QA
+- `docs/release/PREVIEW3-HARDEN-A5b.md` (2026-08-18): PREVIEW3-HARDEN-A5b — repository information architecture
+- `docs/release/PREVIEW3-HARDEN-A5c.md` (2026-08-18): PREVIEW3-HARDEN-A5c — Firmament V2 language reconciliation
+- `docs/release/PREVIEW3-HARDEN-A5d.md` (2026-08-18): PREVIEW3-HARDEN-A5d — Firmament Template metaprogramming reconciliation
+- `docs/release/PREVIEW3-HARDEN-A5e.md` (2026-08-18): PREVIEW3-HARDEN-A5e — fixture corpus qualification
+
+## Era 8: Domain expansion
+
+Summary: [Domain expansion](eras/08-domain-expansion.md). 110 files.
+
+- `docs/release/X0-MAXIMUM-PAPERCLIPS.md` (2026-08-19): X0 — MAXIMUM PAPERCLIPS
+- `docs/release/MOLD-X0-PLASTIC-SHELL-FOUNDATION.md` (2026-08-20): MOLD-X0 — Plastic Shell Foundation
+- `docs/release/MOLD-X0A-MOLDED-FEATURE-MATERIALIZATION.md` (2026-08-20): MOLD-X0a — Exact Molded-Feature B-rep
+- `docs/release/SURF-X0-GEOMETRIC-STATE-LOCALITY.md` (2026-08-20): SURF-X0 — geometric state and locality
+- `docs/release/SURF-X1-PATCH-SURFACING.md` (2026-08-20): SURF-X1 — patch surfacing and bounded replacement
+- `docs/release/SURF-X1A-TRIM-INTERSECTION-CLOSURE.md` (2026-08-20): SURF-X1a trim/intersection closure
+- `docs/release/SURF-X2-GENERALIZED-BLEND-FAIRNESS.md` (2026-08-20): SURF-X2 generalized blend and fairness judgment
+- `docs/release/X1-STANDARD-LIBRARY.md` (2026-08-20): X1 — Standard Library qualification
+- `docs/release/X1a-STANDARD-LIBRARY-SEMANTIC-CLOSURE.md` (2026-08-20): X1a — Standard Library semantic closure
+- `docs/release/X2-STRUCTURAL-WELDMENT.md` (2026-08-20): X2 — Structural / weldment foundation
+- `docs/release/X3-PIPING-LOCAL-AUTOROUTING.md` (2026-08-20): X3 — Piping and local autorouting
+- `docs/release/X3A-EQUIPMENT-PORT-NOZZLE-CONNECTION-HARDENING.md` (2026-08-20): X3a — Equipment port and nozzle connection hardening
+- `docs/release/ART-X0-SOL-1.md` (2026-08-24): ART-X0 — Sol 1 milestone report
+- `docs/release/SURF-X3-SECTION-CHAIN-LOFT.md` (2026-08-24): SURF-X3 — Section Chain / Loft consolidation
+- `docs/release/SURF-X3A-SECTION-CHAIN-SCULPT.md` (2026-08-24): SURF-X3a — SectionChain sculpt integration
+- `docs/release/SURF-X3B-GENERALIZED-BODYSTATE.md` (2026-08-24): SURF-X3b — generalized BodyState construction authority
+- `docs/release/SURF-X4-CONTINUOUS-SECTION-CHAINS.md` (2026-08-24): SURF-X4 — continuous section chains
+- `docs/release/WIRE-X0-FORMED-WIRE-FOUNDATION.md` (2026-08-24): WIRE-X0 — Formed Wire Foundation
+- `docs/release/HARDEN-X1-SEMANTIC-AUTHORITY-CONVERGENCE.md` (2026-08-25): HARDEN-X1 — Semantic authority convergence
+- `docs/release/WIRE-X1-COIL-SURFACECOIL.md` (2026-08-25): WIRE-X1 — Coil / SurfaceCoil foundation
+- `docs/release/WIRE-X2-MATHEMATICAL-KNOTS.md` (2026-08-25): WIRE-X2 — Mathematical Knot Paths
+- `docs/development/fea/FEA-SHELL-X0-PAPER-NOTES.md` (2026-09-12): FEA-SHELL-X0 source and implementation notes
+- `docs/release/ENGINE-X0.md` (2026-09-12): ENGINE-X0 — the editable V8
+- `docs/release/FEA-SHELL-X0.md` (2026-09-12): FEA-SHELL-X0 — experimental full-3D thin-wall finite cells
+- `docs/release/FEA-SHELL-X1.md` (2026-09-12): FEA-SHELL-X1 — native sheet-metal authority and thin-wall conditioning
+- `docs/release/GEOM-BOUNDARY2-X1.md` (2026-09-12): GEOM-BOUNDARY2-X1 — canonical 2D boundary families
+- `docs/release/LANG-ADMISSION-X1.md` (2026-09-12): LANG-ADMISSION-X1 — unified Firmament admission
+- `docs/release/LANG-BURN-X1-FIRMAMENT-BURN-IN.md` (2026-09-12): LANG-BURN-X1 — Firmament language burn-in
+- `docs/release/LANG-FEATURE-X1.md` (2026-09-12): LANG-FEATURE-X1 — pure Feature functions
+- `docs/release/LANG-PIPELINE-X1.md` (2026-09-12): LANG-PIPELINE-X1 — Profile / Path composition pipelines
+- `docs/release/LANG-SCHEMA-X1.md` (2026-09-12): LANG-SCHEMA-X1 — Explicit Firmament frontend schemas
+- `docs/release/LANG-SET-X1.md` (2026-09-12): LANG-SET-X1 — finite named sets and Pattern mapping
+- `docs/release/LANG-SPAN-SURFACE-X1.md` (2026-09-12): LANG-SPAN-SURFACE-X1 — bounded surface support semantics
+- `docs/release/LANG-SPAN-X1.md` (2026-09-12): LANG-SPAN-X1 — geometric span views
+- `docs/release/LANG-STOCK-FRAME-X1.md` (2026-09-12): LANG-STOCK-FRAME-X1 — stock-frame authority
+- `docs/development/audits/geom-offset-x1-material-delta-audit.md` (2026-09-13): GEOM-OFFSET-X1 material-delta audit
+- `docs/release/ASM-GEAR-BRIDGE-X1.md` (2026-09-13): ASM-GEAR-BRIDGE-X1 — Gear interface endpoint unification
+- `docs/release/ASM-INTERFACE-X1.md` (2026-09-13): ASM-INTERFACE-X1 — typed interface bundles and hierarchical subassemblies
+- `docs/release/BENCHCAD-AETHERIS-X0.md` (2026-09-13): BENCHCAD-AETHERIS-X0 — open-book reconstruction smoke qualification
+- `docs/release/BENCHCAD-PREP-X1.md` (2026-09-13): BENCHCAD-PREP-X1 — reconstruction primitive closure
+- `docs/release/DIFF-ENGINE-X0.md` (2026-09-13): DIFF-ENGINE-SHOWCASE-X0 — the Difference Engine showcase
+- `docs/release/GEAR-LIB-X0.md` (2026-09-13): GEAR-LIB-X0 — first-class gear geometry and library families
+- `docs/release/GEOM-OFFSET-X1.md` (2026-09-13): GEOM-OFFSET-X1 — bounded local material add/remove
+- `docs/release/GEOM-REVOLVE-X1.md` (2026-09-13): GEOM-REVOLVE-X1 — axis-defined bounded revolution
+- `docs/release/GEOM-SYMMETRY-X1.md` (2026-09-13): GEOM-SYMMETRY-X1 — semantic Mirror and radial Pattern
+- `docs/release/DRAWING-NOTES-X1.md` (2026-09-14): DRAWING-NOTES-X1 release report
+- `docs/release/FILLET-PROFILE-X1.md` (2026-09-14): FILLET-PROFILE-X1 � reuse the concave fillet section path
+- `docs/release/IPHONE-17-PRO-MAX-RECON-X0.md` (2026-09-14): IPHONE-17-PRO-MAX-RECON-X0
+- `docs/release/SMOOTH-CORNER-X1.md` (2026-09-14): SMOOTH-CORNER-X1 � bounded smooth footprint
+- `docs/release/SURF-G2-LOOP-X1.md` (2026-09-14): SURF-G2-LOOP-X1 � Polynomial contacts and trimmed G2 plateaus
+- `docs/release/SURF-G2-X1.md` (2026-09-14): SURF-G2-X1: normalization and geometric continuity evidence
+- `docs/release/HELIOS-X1.md` (2026-09-16): HELIOS-X1 release report
+- `docs/release/HUMANOID-RECON-X0.md` (2026-09-16): HUMANOID-RECON-X0 — canonical humanoid bootstrap study
+- `docs/release/HUMANOID-RERIG-X0.md` (2026-09-16): HUMANOID-RERIG-X0 — Blender re-rig experiment
+- `docs/release/HUMANOID-RERIG-X1.md` (2026-09-16): HUMANOID-RERIG-X1
+- `docs/release/HUMANOID-X1.md` (2026-09-16): HUMANOID-X1 — Original Antonia adoption and deformation gate
+- `docs/release/HUMANOID-X2.md` (2026-09-16): HUMANOID-X2 — constrained anatomical kinematics
+- `docs/release/HUMANOID-X3.md` (2026-09-16): HUMANOID-X3 — judgment-driven deformation
+- `docs/release/HUMANOID-X4.md` (2026-09-16): HUMANOID-X4 — source pose diff and frame verification
+- `docs/release/HUMANOID-X5.md` (2026-09-16): HUMANOID-X5 — reference rig adoption and pose parity
+- `docs/release/WEB-SDK-X1.md` (2026-09-16): WEB-SDK-X1 release report
+- `docs/release/CONTINUUM-TOOLS-X1.md` (2026-09-17): CONTINUUM-TOOLS-X1 — bounded implicit reconstruction utilities
+- `docs/release/HUMANOID-REST-X1.md` (2026-09-17): HUMANOID-REST-X1 — canonical A-pose and semantic pose normalization
+- `docs/release/HUMANOID-REST-X2.md` (2026-09-17): HUMANOID-REST-X2 — normalized cross-rig benchmark and A-pose weight ablation
+- `docs/development/firmament-v2-language-audit.md` (2026-09-21): Firmament V2 — corpus rewrite and language-surface audit
+- `docs/development/audits/test-iteration-speed-x0.md` (2026-09-22): Kernel test iteration speed, 2026-09-22
+- `docs/release/3DM-IMPORT-X0.md` (2026-09-22): 3DM-IMPORT-X0 — Cartesian Product geometry bridge
+- `docs/release/3DM-INTENT-X0.md` (2026-09-22): 3DM-INTENT-X0 — lamp base intent port
+- `docs/release/3DM-INTENT-X1.md` (2026-09-22): 3DM-INTENT-X1 — visible Cartesian lamp reconstruction
+- `docs/release/3DM-RECOVERY-X1.md` (2026-09-22): 3DM-RECOVERY-X1 — rational geometry recovery toolkit
+- `docs/release/FIRMAMENT-HOLE-SELECTOR-X0.md` (2026-09-22): FIRMAMENT-HOLE-SELECTOR-X0 — canonical Hole wall selection
+- `docs/release/FIRMAMENT-LX-X0.md` (2026-09-22): FIRMAMENT-LX-X0 — language experience contract
+- `docs/release/FIRMAMENT-PIPELINE-X2.md` (2026-09-22): FIRMAMENT-PIPELINE-X2 — pipeline surface coherence and Segment retirement
+- `docs/release/FIRMAMENT-UX-SURFACE-X0.md` (2026-09-22): FIRMAMENT-UX-SURFACE-X0 — Helix admission and topology selector audit
+- `docs/release/GEOM-SOURCEMAP-X0.md` (2026-09-22): GEOM-SOURCEMAP-X0 — compiler-owned geometry provenance
+- `docs/release/SEMANTIC-CORRESPONDENCE-X1.md` (2026-09-22): SEMANTIC-CORRESPONDENCE-X1
+- `docs/release/STEP-ORIENTATION-X1.md` (2026-09-22): STEP-ORIENTATION-X1 — Derived Face Orientation and `same_sense` Demotion
+- `docs/release/STEP-ORIENTATION-X1B.md` (2026-09-22): STEP-ORIENTATION-X1B — Periodic and Degenerate Boundary Winding Repair
+- `docs/release/STEP-ORIENTATION-X1C.md` (2026-09-22): STEP-ORIENTATION-X1C
+- `docs/development/audits/core-test-runtime-x1.md` (2026-09-23): Core test runtime audit
+- `docs/release/FIRMAMENT-SCHEMA-X0.md` (2026-09-23): FIRMAMENT-SCHEMA-X0
+- `docs/release/FIRMAMENT-SCHEMA-X1.md` (2026-09-23): FIRMAMENT-SCHEMA-X1 — Authored field projection and safe source rewrite
+- `docs/release/GEOM-PERFORATION-X0.md` (2026-09-23): GEOM-PERFORATION-X0 — qualification record
+- `docs/development/test-suite-performance.md` (2026-09-24): Test-suite performance profile — 2026-09-24
+- `docs/release/BREP-CROSSHOLE-X1.md` (2026-09-24): BREP-CROSSHOLE-X1 — seam-aware diametral cross-hole topology
+- `docs/release/BREP-HELICAL-RIB-X0.md` (2026-09-24): BREP-HELICAL-RIB-X0 — qualified geometry, topology stop
+- `docs/release/BREP-HELICAL-RIB-X1.md` (2026-09-24): BREP-HELICAL-RIB-X1 — manifold topology for bounded helical ribs
+- `docs/release/BREP-HOLLOW-RADIAL-CUT-X0.md` (2026-09-24): BREP-HOLLOW-RADIAL-CUT-X0
+- `docs/release/GEOM-CROSSHOLE-X0.md` (2026-09-24): GEOM-CROSSHOLE-X0 — qualification record
+- `docs/release/GEOM-INTERSECTION-CURVE-X0.md` (2026-09-24): GEOM-INTERSECTION-CURVE-X0 — qualification record
+- `docs/release/HOLLOW-BLEND-X0.md` (2026-09-24): HOLLOW-BLEND-X0 — coupled bottom transition
+- `docs/release/ORDNING-X0.md` (2026-09-24): ORDNING-X0 — perforated utensil-holder witness
+- `docs/release/PERFORATION-CYLINDRICAL-X1.md` (2026-09-24): PERFORATION-CYLINDRICAL-X1
+- `docs/release/TEXT-PLANAR-X0.md` (2026-09-24): TEXT-PLANAR-X0 — qualification status
+- `docs/release/TEXT-REGION-NORMALIZE-X1.md` (2026-09-24): TEXT-REGION-NORMALIZE-X1
+- `docs/release/THREAD-EXTERNAL-X0.md` (2026-09-24): THREAD-EXTERNAL-X0 — qualification stop
+- `docs/release/THREAD-EXTERNAL-X1.md` (2026-09-24): THREAD-EXTERNAL-X1 — one Firmament Thread on an existing HexBolt
+- `docs/release/AETHERIS-HARDENING-X4.md` (2026-09-25): AETHERIS-HARDENING-X4 — CI and regression closure
+- `docs/release/BREP-BEZIER-SECTION-X0.md` (2026-09-25): BREP-BEZIER-SECTION-X0
+- `docs/release/BREP-MULTIREGION-SLAB-X0.md` (2026-09-25): BREP-MULTIREGION-SLAB-X0
+- `docs/release/STEP-NURBS-RECOVERY-X0.md` (2026-09-25): STEP NURBS recovery X0
+- `docs/release/STEP-RECOVERED-PCURVE-X1.md` (2026-09-25): STEP recovered pcurve X1
+- `docs/release/TEXT-CODEX-FINISH-X2.md` (2026-09-25): TEXT-CODEX-FINISH-X2
+- `docs/release/3DM-BREP-BIND-X0.md` (2026-09-29): 3DM-BREP-BIND-X0 qualification
+- `docs/release/3DM-BREP-BIND-X1.md` (2026-09-29): 3DM-BREP-BIND-X1 — complete Product Design reference STEP
+- `docs/release/3DM-RECOVERY-X2.md` (2026-09-29): 3DM-RECOVERY-X2 qualification
+- `docs/release/ASSEMBLY-INTERFACE-X0.md` (2026-09-29): ASSEMBLY-INTERFACE-X0: audit and design
+- `docs/release/STEP-ASSEMBLY-X0.md` (2026-09-29): STEP-ASSEMBLY-X0 — AP242 product structure import
+- `docs/release/USD-EXPORT-X0.md` (2026-09-29): USD-EXPORT-X0 — assembly interoperability evidence
+- `docs/release/USD-INDUSTRIAL-ATLAS-X0.md` (2026-09-29): Industrial ATLAS — one bounded styling round

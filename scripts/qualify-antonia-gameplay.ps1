@@ -45,7 +45,7 @@ try {
     Invoke-Checked $Blender ($blenderArguments + @("--phase", "verify"))
     Invoke-Checked "dotnet" $qualificationArguments
     Copy-Item -LiteralPath "fixtures/Canonical/Humanoid/antonia-original-LICENSE.txt" -Destination "$bundle/ANTONIA-LICENSE.txt"
-    Copy-Item -LiteralPath "docs/public/humanoid-gameplay-body.md" -Destination "$bundle/README.md"
+    Copy-Item -LiteralPath "docs/public/experimental/humanoid/gameplay-body.md" -Destination "$bundle/README.md"
     Write-Output "ANTONIA_GAMEPLAY_QUALIFIED $bundle"
 }
 finally {

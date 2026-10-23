@@ -370,4 +370,4 @@ AIR-FIRMAMENT-A2.1 extends this source-language design with the semantic-referen
 
 ## AIR-FIRMAMENT-X4 side-hole parser slice
 
-The controlled parser-backed V2 side-hole region slice is documented in [AIR-FIRMAMENT-X4](air-firmament-x4-v2-side-hole-region.md). It preserves V1/V2 parser separation and supports only the canonical `modify base { region sideHole on face(+X) { cut Cylinder { radius: 1 through: face(-X) } } }` route.
+The controlled parser-backed V2 side-hole region slice is documented in [AIR-FIRMAMENT-X4](../../history/eras/06-firmament-v2-and-the-ap242-mvp.md). It preserves V1/V2 parser separation and supports only the canonical `modify base { region sideHole on face(+X) { cut Cylinder { radius: 1 through: face(-X) } } }` route.

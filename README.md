@@ -27,7 +27,7 @@ Automated design-for-manufacturing (DFM) checks, finite element analysis (FEA), 
 
 ## Architecture
 
-[Three Telos](Aetheris.Web.Runtime/telos/README.md) is the shared engineering display layer. It uses Three.js where Three.js is useful and replaces it where engineering visualization requires stronger guarantees. Reuse upstream data structures; own downstream GPU behavior. See the [X0 substrate qualification](docs/release/THREE-TELOS-X0.md) and [X1 Cadmata authoring/PMI migration](docs/release/THREE-TELOS-X1.md).
+[Three Telos](Aetheris.Web.Runtime/telos/README.md) is the shared engineering display layer. It uses Three.js where Three.js is useful and replaces it where engineering visualization requires stronger guarantees. Reuse upstream data structures; own downstream GPU behavior. See [Three Telos display](docs/public/three-telos.md).
 
 Aetheris' native representation format is **Firmament**, a domain specific programming language designed specifically for 3D modeling applications. Unlike other CAD software, Aetheris is AI-native and so designed to be **code-first**, enabling full headless usage from the CLI.
 
@@ -52,7 +52,7 @@ aetheris build fixtures/Canonical/PMI/hole-diameter-and-datum.firmament --output
 aetheris analyze out/first-part.step --json
 ```
 
-Go next to [Getting Started](docs/public/getting-started.md), the [public documentation](docs/public/README.md), or the [CLI reference](docs/public/reference/cli.md). 
+Go next to [Getting Started](docs/public/getting-started.md), then [Learn Firmament](docs/public/learn/README.md): six short lessons from a first part to an assembly. The [documentation index](docs/public/README.md) has everything else, and the [project history](docs/development/history/README.md) tells how Aetheris got here.
 
 The [machined mounting block](fixtures/Canonical/Integration/machined-mounting-block.firmament) is the canonical first serious CAD example; 
 

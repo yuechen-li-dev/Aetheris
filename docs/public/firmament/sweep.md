@@ -1,6 +1,6 @@
 # Circular Sweep
 
-X0 adds a deliberately bounded wire-geometry primitive: a constant circular section transported along a semantic `Concept Path`.
+Sweep is a deliberately bounded wire-geometry primitive: a constant circular section transported along a semantic `Concept Path`.
 
 ```firmament
 Concept Path Centerline {
@@ -19,7 +19,7 @@ Sweep Wire {
 
 `Diameter` is canonical and must be a positive finite `Length`. The path is resolved through the same domain-neutral Concept Path frontend used by profiles; Sweep does not introduce a second path model.
 
-## X0 boundary
+## Limits
 
 Supported:
 

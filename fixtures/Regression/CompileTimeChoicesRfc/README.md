@@ -31,7 +31,7 @@ the already-supported `Hole<Shaft>` return type, and the Concept specimens use
 the established Box/Modify/EdgeFinish consumer. The explicit references establish
 that these are real engineering consumers rather than speculative kernel tests.
 
-See [the assessment](../../../docs/development/FIRMAMENT-COMPILE-TIME-CHOICES-RFC.md).
+See [the assessment](../../../docs/development/reports/2026-10/FIRMAMENT-COMPILE-TIME-CHOICES-RFC.md).
 
 The static-choice specimen now includes the required Model units header; its
 original expression-binding failure had hidden that separate source defect.

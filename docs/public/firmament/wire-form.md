@@ -19,7 +19,7 @@ symbols retain their authored case.
 
 `Diameter` and `Material` define the stock. Direct WireForm authoring uses the catalog identity; a typed product policy may carry that identity through a `String` field. `StartFrame` supplies an origin, initial tangent, and perpendicular `Up` reference. A `Straight` advances along the current tangent and preserves the frame. A signed `Bend` rotates the tangent by `Angle` around either the current local `Up` or `Right` axis. Here `Plane` names the current local **plane normal/rotation axis**: `Plane: Up` bends in the tangent/right plane, while `Plane: Right` bends in the tangent/up plane. The frame is transported by the same rigid rotation, avoiding arbitrary spin. Start-frame transformations therefore carry the forming program without global-coordinate bend hacks.
 
-`Radius` is always the **centerline bend radius**. X0 applies a geometric-only minimum-radius rule: `Radius > Diameter / 2`. It does not invent material forming tables. Positive angles follow the right-hand rule about the selected local plane normal; negative angles reverse that normal. X0 admits nonzero angles through ±180°.
+`Radius` is always the **centerline bend radius**. Wire forming applies a geometric-only minimum-radius rule: `Radius > Diameter / 2`. It does not invent material forming tables. Positive angles follow the right-hand rule about the selected local plane normal; negative angles reverse that normal. X0 admits nonzero angles through ±180°.
 
 Each operation consumes a `WireState` (position, tangent, local frame, and accumulated length) and produces the next state. Changing an operation intentionally moves every downstream operation. The compiler retains operation identity and exposes the operation-to-line/arc-to-cylinder/torus correspondence through structured inspection.
 
@@ -29,11 +29,11 @@ The ideal cut-stock length is derived exactly:
 - Bend: `Radius × abs(AngleRadians)`
 - Total: the sum of all operation lengths
 
-Circular area times total length gives volume; density from the Material DB gives mass. These are idealized centerline quantities. X0 does not model springback, plastic stretch, forming allowance corrections, or manufacturing process simulation.
+Circular area times total length gives volume; density from the Material DB gives mass. These are idealized centerline quantities. It does not model springback, plastic stretch, forming allowance corrections, or manufacturing process simulation.
 
 The centerline lowers to explicit line and circular-arc AIR, then to exact circular Sweep geometry. Straights become cylinders, bends become toroidal patches, and open terminals become planar caps. Canonical WireForms have no rational B-spline surfaces and no faceted fallback. Both terminals retain position, tangent/frame, and section diameter.
 
-WIRE-X1 adds semantic winding generators without weakening the exact Straight/Bend route. `Helix` authors a cylindrical helix from `Radius`, `Turns`, either `Pitch` or `Height`, explicit `Handedness`, and an optional stable `StartPhase`. If both Pitch and Height are supplied they must agree with `Height = Turns × Pitch`. The compiler derives the missing value, exact helix length, terminal position/tangent/transported frame, turn clearance, volume, and mass. `AxisCoil` remains accepted as a compatibility spelling and lowers to the same semantic operation. The axis is derived from the current wire state rather than specified as an independent field.
+Winding generators extend wire forming without weakening the exact Straight/Bend route. `Helix` authors a cylindrical helix from `Radius`, `Turns`, either `Pitch` or `Height`, explicit `Handedness`, and an optional stable `StartPhase`. If both Pitch and Height are supplied they must agree with `Height = Turns × Pitch`. The compiler derives the missing value, exact helix length, terminal position/tangent/transported frame, turn clearance, volume, and mass. `AxisCoil` remains accepted as a compatibility spelling and lowers to the same semantic operation. The axis is derived from the current wire state rather than specified as an independent field.
 
 ```firmament
 Helix Winding {
@@ -73,7 +73,7 @@ SurfaceCoil Winding {
 
 The semantic/evaluable winding law remains authoritative. Coil-containing forms lower through deterministic rotation-minimal frame transport to cubic non-rational B-spline tube patches and planar caps; STEP uses no rational product surfaces and no faceted fallback. Coil-free forms still use exact cylinders and tori. The current approximation uses 32 longitudinal cubic spans per turn and four cubic polynomial quarter patches around the circular section; the compiler measures maximum/RMS centerline error against the winding law and fails if its 0.01 mm bound is exceeded.
 
-X1 coils remain continuous, unbranched, open paths. WIRE-X2 adds a distinct closed `Knot` operation for named mathematical knot families; it does not turn coils into closed paths or force Straight/Bend through spline approximation. See [Mathematical Knots](mathematical-knots.md). Arbitrary/freeform supports, variable pitch or section, intentional contact, spring mechanics, contact dynamics, and branching remain unsupported. Surface support identity is authored rather than imported-face-ID based. Direct `Concept Path` plus `Sweep` remains the lower-level choice for explicitly authored line/arc trajectories.
+Coils remain continuous, unbranched, open paths. A distinct closed `Knot` operation for named mathematical knot families; it does not turn coils into closed paths or force Straight/Bend through spline approximation. See [Mathematical Knots](mathematical-knots.md). Arbitrary/freeform supports, variable pitch or section, intentional contact, spring mechanics, contact dynamics, and branching remain unsupported. Surface support identity is authored rather than imported-face-ID based. Direct `Concept Path` plus `Sweep` remains the lower-level choice for explicitly authored line/arc trajectories.
 
 See the canonical [Helix](../../../fixtures/Canonical/WireForm/helix.firmament),
 [AxisCoil compatibility fixture](../../../fixtures/Canonical/WireForm/axis-coil.firmament),

@@ -45,6 +45,6 @@ final incidence, pcurves and export preflight. No general Boolean fallback occur
 CTC now qualifies all 636 trims at its declared 0.01 mm accuracy. A cone-apex chart
 fix repairs four singular generators; remaining strict .001 mm failures reflect
 actual source curve/support discrepancies around .0034 mm. Geometry is not refit.
-See the [production closeout](../../docs/release/IMPORTED-HOLE-REVISION-PRODUCTION-2026-10-20.md).
+See the [production closeout](../../docs/development/reports/2026-10/IMPORTED-HOLE-REVISION-PRODUCTION-2026-10-20.md).
 Original dual-strategy experiments are retained as historical reports, rather
 than executable alternative production implementations.

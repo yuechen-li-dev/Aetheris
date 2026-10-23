@@ -6,4 +6,4 @@ Serve over HTTP(S), not `file://`. Preserve `.wasm` files and serve them as `app
 
 If `compile` returns `model: null`, render the structured diagnostics. Do not parse exception strings. If a rebuild fails, the session still exposes its prior valid mesh and revision.
 
-`worker: true` is intentionally unavailable in X1. Omit it or pass `false`. SQLite materials, external file import, sheet metal, and FEA are likewise outside the admitted browser capability set.
+`worker: true` is intentionally unavailable. Omit it or pass `false`. SQLite materials, external file import, sheet metal, and FEA are likewise outside the admitted browser capability set.

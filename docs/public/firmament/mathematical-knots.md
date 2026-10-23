@@ -16,7 +16,7 @@ WireForm Knot1 {
 }
 ```
 
-WIRE-X2 supports `Trefoil`, `FigureEight`, and bounded `TorusKnot` families. `StartFrame` is the rigid placement frame: its origin locates the canonical curve center and its tangent/up axes orient the canonical x/z axes. `Phase` moves the stable semantic seam around the same periodic family. `Handedness` mirrors the canonical z coordinate; it preserves explicit Trefoil chirality instead of asking an agent to infer it from geometry.
+`Knot` supports `Trefoil`, `FigureEight`, and bounded `TorusKnot` families. `StartFrame` is the rigid placement frame: its origin locates the canonical curve center and its tangent/up axes orient the canonical x/z axes. `Phase` moves the stable semantic seam around the same periodic family. `Handedness` mirrors the canonical z coordinate; it preserves explicit Trefoil chirality instead of asking an agent to infer it from geometry.
 
 The exact parameterizations use `a = 2πt + Phase`, with periodic `t` and seam `t = 0`:
 
@@ -24,7 +24,7 @@ The exact parameterizations use `a = 2πt + Phase`, with periodic `t` and seam `
 - FigureEight: `Scale × ((2+cos(2a))cos(3a), (2+cos(2a))sin(3a), sin(4a))`. This is the mathematical figure-eight knot embedding, not a planar figure-eight curve.
 - TorusKnot: `((R+r cos(Qa))cos(Pa), (R+r cos(Qa))sin(Pa), r sin(Qa))`, authored with `MajorRadius: R`, `MinorRadius: r`, and coprime integers `P,Q >= 2`.
 
-`TorusKnot` rejects non-coprime P/Q because those parameters define a multi-component torus link. X2 does not silently label a link as a knot and does not yet materialize multi-component WireForms.
+`TorusKnot` rejects non-coprime P/Q because those parameters define a multi-component torus link. The compiler does not silently label a link as a knot and does not yet materialize multi-component WireForms.
 
 ## Tube qualification
 

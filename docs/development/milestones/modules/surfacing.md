@@ -32,7 +32,7 @@ new ParametricSurfaceIr(
 
 Named constructors cover `HyperbolicParaboloid`, `ParabolicCylinder`, `EllipticParaboloid`, and `Helicoid`. The first three pressure-test polynomial evaluation; the helicoid proves that exact procedural authoring does not have to fit STEP's native analytic subset.
 
-The Firmament V2 bridge now accepts these constructions inside an ordinary `Panel` declaration. Template expansion occurs first, then the bounded Surfacing compiler produces the same typed construction IR and wraps it as a Panel. The user-facing hierarchy is mathematical construction -> bounded Panel -> semantic edges -> Panel network. See [Panels](panels.md).
+The Firmament V2 bridge now accepts these constructions inside an ordinary `Panel` declaration. Template expansion occurs first, then the bounded Surfacing compiler produces the same typed construction IR and wraps it as a Panel. The user-facing hierarchy is mathematical construction -> bounded Panel -> semantic edges -> Panel network. See [Panels](../../history/eras/07-previews-1-to-3.md).
 
 ## Ruled surfaces and transitions
 

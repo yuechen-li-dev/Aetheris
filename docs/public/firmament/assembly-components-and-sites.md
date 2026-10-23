@@ -1,7 +1,7 @@
 # Components and mounting sites
 
 The knob stack now seats three rigid children on one Concept spindle at stations
-0, 3 and 12mm. See [Concept-directed coaxial mating](concept-axis-mating-proposal.md)
+0, 3 and 12mm. See [Concept-directed coaxial mating](../../development/proposals/concept-axis-mating.md)
 for its Fixed contract and the complete-knob Revolute example.
 
 Organize an assembly around complete components: a knob, selector or tuner owns

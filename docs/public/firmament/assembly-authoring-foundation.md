@@ -74,8 +74,8 @@ Expose { Semantic NutMount { DatumFrame Frame = Neck.Section.S5.Frame; } }
 
 The chain and section must exist. This aliases the section's exact frame rather
 than a tessellation sample. Concrete authored part ports are now published before
-M0 reusable local solving, through typed template specialization and the existing
-SectionChain binder without body materialization. M1 still owns exact geometry.
+reusable local solving, through typed template specialization and the existing
+SectionChain binder without body materialization. Exact geometry is still built in the later materialization stage.
 See [the multi-file guitar](../demos/guitar-subassemblies.md) for the motivating case.
 
 ## Keyed finite patterns
@@ -172,7 +172,7 @@ derives their lengths, angles and forming frames. Pearl inlays use explicit line
 stations seated on the board's published MarkerOrigin. Physical Material selects
 its default Appearance, with explicit with finish overrides; procedural Cycles
 shading remains downstream. See [source-owned guitar authoring](source-owned-guitar-authoring.md)
-and the [updated checkpoint](authoring-composition-proposal.md).
+and the [updated checkpoint](../../development/proposals/authoring-composition.md).
 
 Ground truth:
 
@@ -185,8 +185,8 @@ Generated reports, STEP/USD and Cycles artifacts go under ignored artifacts/loca
 
 ## Qualification on 2026-09-30
 
-Verdict: **success for this bounded foundation slice**. The motivating guitar
-used the implemented constructs through M1, exact STEP export, shared USD
+The motivating guitar
+uses these constructs through exact materialization, STEP export, shared USD
 prototypes and downstream rendering. This is the original foundation qualification;
 subsequent authoring slices are recorded in the session checkpoint above.
 

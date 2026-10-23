@@ -1,6 +1,6 @@
 # Semantic piping and local autorouting
 
-Aetheris X3/X3a separates connection intent from route geometry and hardens the equipment endpoint seam:
+Aetheris piping separates connection intent from route geometry and hardens the equipment endpoint seam:
 
 ```text
 PipingSystem → equipment-owned Port + Nozzle → Connection
@@ -43,7 +43,7 @@ Connection Supply {
 }
 ```
 
-Connections exist before routes. Different port policies require `reducer: true`; different connection styles require `adapter: true`. X3 records those requirements but does not claim a standards database.
+Connections exist before routes. Different port policies require `reducer: true`; different connection styles require `adapter: true`. Piping records those requirements but does not claim a standards database.
 
 Direct `PipePolicy` declarations require all three fields: `outerDiameter`, `wallThickness`, and `material`; there are no implicit dimensional or material defaults. Both dimensions must be positive and twice the wall thickness must be less than the OD.
 
@@ -94,7 +94,7 @@ For the admitted 90-degree route, a segment's cut length is its corner-to-corner
 
 ## KeepOut, clearance, and autorouting
 
-`KeepOut` is semantic obstacle geometry; names have no routing meaning. X3 uses conservative axis-aligned bounds for structural members, equipment proxies, and explicit service volumes.
+`KeepOut` is semantic obstacle geometry; names have no routing meaning. Routing uses conservative axis-aligned bounds for structural members, equipment proxies, and explicit service volumes.
 An existing structural body is not implicitly routable space: author or generate a `KeepOut` from its conservative bounds. This makes avoidance semantic and inspectable instead of depending on object names.
 
 ```firmament

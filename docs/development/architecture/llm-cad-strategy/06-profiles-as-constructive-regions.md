@@ -393,7 +393,7 @@ This lesson extends the spatial decomposition approach from [04 — Spatial deco
 
 ## Section-stack composition
 
-When several named profiles describe one stepped prismatic body, author one shared Concept scaffold, inspect every Profile, then declare explicit `Base`, `Add`, and `Remove` axial intervals in `Compose`. Inspect the normalized section stack before building. The compiler must resolve material per open Z interval and emit one final topology plan; do not construct temporary solids and ask generic 3D Booleans to recover the intended topology afterward. See [profile composition X1](../../milestones/firmament-history/profile-composition-x1.md) for the admitted contact policy and current verification boundary.
+When several named profiles describe one stepped prismatic body, author one shared Concept scaffold, inspect every Profile, then declare explicit `Base`, `Add`, and `Remove` axial intervals in `Compose`. Inspect the normalized section stack before building. The compiler must resolve material per open Z interval and emit one final topology plan; do not construct temporary solids and ask generic 3D Booleans to recover the intended topology afterward. See [profile composition X1](../../history/eras/07-previews-1-to-3.md) for the admitted contact policy and current verification boundary.
 
 It also follows [05 — CAD as semantic dependency graph](05-cad-as-semantic-dependency-graph.md). Raw boundaries are lowered forms. Constructive profile regions belong before extrusion when they define the trunk shape. Profile cornering belongs before extrusion when it changes the silhouette. 3D edge finish remains a late decorator in the dependency graph.
 

@@ -4,7 +4,7 @@
 |---|---:|---:|---|
 | Firmament V2 compile from memory | Yes | Yes | Same compiler/materializer |
 | Solid modeling | Yes | Yes | Qualified canonical box-with-hole fixture |
-| Assembly hierarchy and mesh | Yes | Yes | Same M1 assembly pipeline; referenced source files must be supplied in explicit project snapshots |
+| Assembly hierarchy and mesh | Yes | Yes | Same assembly pipeline; referenced source files must be supplied in explicit project snapshots |
 | Display mesh | Yes | Yes | Same B-rep tessellator, synchronous browser route |
 | Face/semantic selection | Yes | Yes | Triangle ranges plus occurrence IDs |
 | Property inspection/edit | Yes | Bounded | Scalar template arguments and canonical box/hole properties |
@@ -14,7 +14,7 @@
 | STL / OBJ download | Yes | Bounded | Part-only SurfaceMeshIR route; STL requires a validated closed triangle mesh |
 | PDF / SVG / PPTX drawing download | Yes | Bounded | Automatic dimensioned plate/box family; existing completeness and PMI checks; missing requirements remain explicit |
 | Multiple export formats | Yes | Yes | One ZIP download; no partial files on failure; transient drawing/STL scratch files are removed |
-| Sheet metal | Yes | No | Not qualified in browser X1 |
+| Sheet metal | Yes | No | Not qualified in the browser |
 | FEA | Yes | No | Deferred |
 | SQLite materials | Yes | No | Native vararg calls are not browser-safe |
 | External STEP file import | Yes | No | Browser filesystem/resource abstraction deferred |

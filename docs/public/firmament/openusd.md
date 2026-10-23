@@ -56,7 +56,7 @@ pwsh -File scripts/qualify-usd-export-x0.ps1
 pwsh -File scripts/qualify-usd-export-x0.ps1 -CaptureMotion
 ```
 
-ATLAS uses exact Aetheris pedestal, perforated housings, shared collars, and a two-finger gripper. The separate studio USD layer adds lights, camera, stage, and a reflective sphere; those are presentation-only. See [the milestone evidence report](../../release/USD-EXPORT-X0.md) for the pinned tool, source provenance, screenshots, physical-scale checks, and limits.
+ATLAS uses exact Aetheris pedestal, perforated housings, shared collars, and a two-finger gripper. The separate studio USD layer adds lights, camera, stage, and a reflective sphere; those are presentation-only. See [the milestone evidence report](../../development/history/eras/08-domain-expansion.md) for the pinned tool, source provenance, screenshots, physical-scale checks, and limits.
 
 ATLAS is an independent Aetheris demo robot. Aetheris is not affiliated with, endorsed by, or associated with Boston Dynamics. The shared name is coincidental.
 
@@ -68,4 +68,4 @@ After the solution build and installation above, reproduce its external validati
 pwsh -File scripts/qualify-industrial-atlas.ps1 -Render -Motion
 ```
 
-`-Render` and `-Motion` require Blender with Cycles; the script accepts `-Blender <executable>`. Motion encoding also needs ffmpeg. The default output is `artifacts/local/usd-industrial/`. Engineering solids are modeled in Aetheris and exported both as STEP and USD. Blender imports the actual USD and supplies the final studio render. The printed maker mark, floor, chrome target, camera and lights are downstream presentation; the mark is not BRep engraving. See [the industrial styling evidence](../../release/USD-INDUSTRIAL-ATLAS-X0.md).
+`-Render` and `-Motion` require Blender with Cycles; the script accepts `-Blender <executable>`. Motion encoding also needs ffmpeg. The default output is `artifacts/local/usd-industrial/`. Engineering solids are modeled in Aetheris and exported both as STEP and USD. Blender imports the actual USD and supplies the final studio render. The printed maker mark, floor, chrome target, camera and lights are downstream presentation; the mark is not BRep engraving. See [the industrial styling evidence](../../development/history/eras/08-domain-expansion.md).

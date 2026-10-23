@@ -1,0 +1,31 @@
+// Lesson 6: two parts, each publishing a mounting frame, joined by a Fixed mate.
+Template<thickness: Length> Struct BasePlate {
+  Profile outline = Rect2 { center: [0mm, 0mm]; size: [60mm, 40mm] }
+  Extrude body { profile: outline; from: 0mm; to: thickness }
+  expose {
+    // Where a post sits: the centre of the top face, Z pointing up.
+    Semantic Socket { DatumFrame Frame = [0mm, 0mm, thickness] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  }
+}
+
+Template<height: Length> Struct Post {
+  Profile outline = Circle2 { center: [0mm, 0mm]; radius: 5mm }
+  Extrude body { profile: outline; from: 0mm; to: height }
+  expose {
+    // The bottom of the post.
+    Semantic Foot { DatumFrame Frame = [0mm, 0mm, 0mm] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  }
+}
+
+Assembly PostOnPlate {
+  <Assembly PostOnPlate>
+    <Part Plate = BasePlate<thickness: 6mm>></Part>
+    <Part Upright = Post<height: 30mm>></Part>
+  </Assembly>
+
+  // The plate stays where it is; everything else is placed relative to it.
+  anchor: PostOnPlate.Plate;
+
+  // Fixed: put the post's Foot frame exactly on the plate's Socket frame.
+  Interface<Fixed> Install { a: PostOnPlate.Plate.Socket; b: PostOnPlate.Upright.Foot; }
+}

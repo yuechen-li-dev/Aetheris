@@ -2,7 +2,7 @@
 
 These 45 sources preserve the September 12, 2026 burn-in, including failed first attempts and successful workarounds. They are regression and diagnostic evidence, **not canonical examples or a claim that every source is valid**. Initially authored under ignored local artifacts, they were promoted only after command and artifact observations were recorded. Sources with name collisions intentionally retain them. `*.first-attempt.txt` preserves the initial imported-source spelling.
 
-See the [burn-in report](../../../docs/release/LANG-BURN-X1-FIRMAMENT-BURN-IN.md) for intent, verdicts, wrong-artifact cases, and deferred milestones. `manifest.json` records provenance and the final domain command. Public-doc authoring and fixture parameter variations are distinguished; no independent agent success rate is claimed.
+See the [burn-in report](../../../docs/development/history/eras/08-domain-expansion.md) for intent, verdicts, wrong-artifact cases, and deferred milestones. `manifest.json` records provenance and the final domain command. Public-doc authoring and fixture parameter variations are distinguished; no independent agent success rate is claimed.
 
 Reproduce CLI evidence from the repository root:
 

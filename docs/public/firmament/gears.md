@@ -79,9 +79,9 @@ The endpoint holds a typed reference to the existing Gear AIR. Definition-level 
 
 All lengths are millimetres. Pressure angles from 14 through 30 degrees are admitted. `BoreDiameter: 0mm` intentionally creates a solid member. A positive bore must leave root structure. `Backlash` is a linear reduction of circular tooth thickness at the pitch circle, divided symmetrically between the two flanks; it is not a scale factor.
 
-Gear AIR always carries an explicit axis. Omitted source uses `[0,0,1]`; X0 also accepts `Axis: [0,0,1]` explicitly and rejects other frames until frame-aware gear placement is qualified.
+Gear AIR always carries an explicit axis. Omitted source uses `[0,0,1]`; The current implementation also accepts `Axis: [0,0,1]` explicitly and rejects other frames until frame-aware gear placement is qualified.
 
-`HubDiameter` and `HubLength` are reserved but fail with `firmament-gear-hub-geometry-not-qualified` in X0. This prevents product-specific hub intent from being discarded. Keyways, set screws, profile shift, custom root fillets, helical/worm/spiral-bevel/hypoid gears, contact, and manufacturing quality classes are deferred.
+`HubDiameter` and `HubLength` are reserved but fail with `firmament-gear-hub-geometry-not-qualified` for now. This prevents product-specific hub intent from being discarded. Keyways, set screws, profile shift, custom root fillets, helical/worm/spiral-bevel/hypoid gears, contact, and manufacturing quality classes are deferred.
 
 ## Inspect and build
 

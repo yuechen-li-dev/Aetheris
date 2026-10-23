@@ -99,7 +99,7 @@ On a source checkout where the tool is not installed, replace `aetheris` with `d
 
 The compatibility command supports `flagship` (G1), `flagship-g0`, `twist`, and `two-profile`. Its structured inspection/evidence includes continuity intent, tangent derivation, candidate/rejection metrics, the selected policy, measured G0/G1 errors, representation, pcurves, topology, SHA-256, and STEP reimport. Its sibling preview uses the same general [BRep wireframe renderer](../reference/wireframe.md) exposed by `aetheris wireframe`; SectionChains no longer own a private visualization implementation.
 
-SURF-X3b adds a bounded `BodyState` composition lane. `AddSectionChain` retains the chain, terminal Section, semantic support, span correspondence, authorized envelope, preservation contracts, and requirements as one typed replay operation. `RemoveSectionChain` retains the changing-profile tool and both explicit penetration supports. Neither lowers to public `Union` or `Difference`; a SectionChain-specific builder emits the known shared topology directly.
+A bounded `BodyState` composition lane. `AddSectionChain` retains the chain, terminal Section, semantic support, span correspondence, authorized envelope, preservation contracts, and requirements as one typed replay operation. `RemoveSectionChain` retains the changing-profile tool and both explicit penetration supports. Neither lowers to public `Union` or `Difference`; a SectionChain-specific builder emits the known shared topology directly.
 
 The admitted additive lane attaches an `Open` first terminal to the complete planar `HousingSideEast` boundary, progresses in support-relative +X, and caps the free end. The admitted subtractive lane runs an `Open/Open` four-line-span chain monotonically from `HousingSideWest` to `HousingSideEast`, strictly inside the housing Y/Z boundary. These restrictions make intended attachment, remote intersection, connectedness, and opening topology explicit and deterministic.
 
@@ -130,7 +130,7 @@ The positional bound is `sqrt(2) * radius * abs(segmentSweep)^6 / (720 * 64)`, p
 
 `G2WithinSampledTolerance` is an inspection result at the reported samples, not a new G2 construction guarantee. The samples include endpoints, 33 regular parameters, and applicable spline knots. The rounded-section fixture measures zero position/normal mismatch but a 0.125/mm curvature jump at its R8 line/arc seams. Those joins are G1. Arc normalization does not smooth away source curvature jumps. `Continuity: G2` remains rejected for SectionChain.
 
-Editing a section normally retains the existing bounded G1 derivative neighborhood. If an edit changes the common normalization segment count, all transitions on that chain must be regenerated; the edit delta truthfully reports this wider dependency and does not claim the terminations are preserved. Source semantic span identities remain stable. See the [SURF-G2-X1 progression report](../../release/SURF-G2-X1.md) for the remaining G2 boundary-condition work.
+Editing a section normally retains the existing bounded G1 derivative neighborhood. If an edit changes the common normalization segment count, all transitions on that chain must be regenerated; the edit delta truthfully reports this wider dependency and does not claim the terminations are preserved. Source semantic span identities remain stable. See the [SURF-G2-X1 progression report](../../development/history/eras/08-domain-expansion.md) for the remaining G2 boundary-condition work.
 
 ## Owl authoring update
 

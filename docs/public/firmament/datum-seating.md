@@ -1,7 +1,7 @@
 # Concept-directed Fixed seating
 
 For spatial axes with station and clocking, including complete-component Revolute
-placement, see [Concept-directed coaxial mating](concept-axis-mating-proposal.md).
+placement, see [Concept-directed coaxial mating](../../development/proposals/concept-axis-mating.md).
 
 Author the layout first, declare which published seating ports conform to its
 plane, then realize each member at a complete frame on that plane. The product

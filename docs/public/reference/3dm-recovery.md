@@ -12,4 +12,4 @@ Reported BRep bounds use 129 deterministic samples on each trimmed edge. Rhino's
 
 Rational NURBS are source evidence. A simpler analytic carrier or non-rational spline may be proposed only with measured residuals and a stated qualification. A source geometric tolerance is not a manufacturing tolerance. Numerical agreement on sampled support geometry does not qualify face boundaries, edge uses, orientation, or shell enclosure. Production promotion needs those checks and an explicit caller policy. `TrustedProductionRoute` STEP export rejects rational B-spline surfaces and pcurves; legacy interchange output can retain them for compatibility and debugging.
 
-The private Cartesian Product Design `.3dm` used in the [X1 qualification report](../../release/3DM-RECOVERY-X1.md) is local-only and excluded from Git. Automation should keep detailed JSON under ignored `artifacts/local/`.
+The private Cartesian Product Design `.3dm` used in the [qualification work](../../development/history/eras/08-domain-expansion.md) is local-only and excluded from Git. Automation should keep detailed JSON under ignored `artifacts/local/`.

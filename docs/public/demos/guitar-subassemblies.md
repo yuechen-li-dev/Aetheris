@@ -46,7 +46,7 @@ recorded in the solved neck definition; it is not recreated as a root joint.
 The compiler now publishes concrete authored part ports before reusable local
 assembly solving. Template ports use the existing typed specialization frontend;
 section ports use the existing SectionChain binder with materialization disabled.
-Actual geometry still goes through M1 once per shared part definition. M1 replaces
+Actual geometry is still materialized once per shared part definition, which replaces
 early publication values with the materialized definition's ports without creating
 duplicates. Declaration collection retains geometry templates and finite data from
 all included modules, rather than stopping at the first subassembly declaration.

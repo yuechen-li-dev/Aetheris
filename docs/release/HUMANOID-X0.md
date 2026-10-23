@@ -6,7 +6,7 @@ Verdict: **Meaningful progression**
 **X1 status correction:** The procedural body below is now explicitly
 `NONCANONICAL-SyntheticRegressionFixture`; historical identity and test APIs
 remain for replay only. The earlier proposed follow-up of improving its Antonia
-fit is superseded by [HUMANOID-X1](HUMANOID-X1.md), which adopts original
+fit is superseded by [HUMANOID-X1](../development/history/eras/08-domain-expansion.md), which adopts original
 Antonia topology as an unpromoted candidate. Historical descriptions of the X0
 surface as canonical are not a current usability or production-admission claim.
 

@@ -1,0 +1,21 @@
+// Lesson 2: draw a closed 2D boundary, then extrude it.
+Model BracketPlate {
+  units: mm
+
+  // Construction geometry only: nothing here is material yet.
+  Concept Struct layout on XY {
+    Polygon2<Explicit> outline {
+      points: [[0mm, 0mm], [60mm, 0mm], [60mm, 15mm], [15mm, 15mm], [15mm, 40mm], [0mm, 40mm]]
+    }
+    Circle2 bore { center: [7.5mm, 30mm]; diameter: 6mm }
+  }
+
+  // A Profile turns guides into closed loops with an inside and an outside.
+  Profile section using layout {
+    Loop Outer { outline |> TraceLoop }
+    Loop Inner { bore |> TraceLoop }
+  }
+
+  // Extrude gives the Profile thickness, from Z = 0 to Z = 6mm.
+  Extrude bracket { profile: section; from: 0mm; to: 6mm }
+}

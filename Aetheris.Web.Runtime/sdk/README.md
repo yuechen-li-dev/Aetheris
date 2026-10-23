@@ -210,7 +210,7 @@ the normal compile/rebuild transaction. A refused edit returns its stable SDK
 error code and explanation, with no source mutation.
 
 This first contract addresses authored Profiles in one document. It does not
-rewrite included/generated declarations. See [the authoring guide](../../../docs/public/firmament/sketcher.md).
+rewrite included/generated declarations. See [the authoring guide](../../docs/public/firmament/sketcher.md).
 
 ### Pending graph authoring
 

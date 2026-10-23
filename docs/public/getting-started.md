@@ -43,4 +43,6 @@ When the elements need stable semantic names, use [`mounting-points.firmament`](
 aetheris build fixtures/Canonical/Patterns/record-array-hole-pattern.firmament --output artifacts/pattern.step --json
 ```
 
-Continue with [geometry](firmament/geometry.md), [materials](firmament/materials.md), [PMI](firmament/pmi.md), [Sheet Metal](firmament/sheet-metal.md), [FEA](firmament/fea.md), [STEP import](firmament/step-import.md), or [Forge interop](forge/interop.md).
+## Next
+
+Work through [Learn Firmament](learn/README.md) to write parts like these yourself, or browse the [guides](README.md#guides) for sheet metal, FEA, STEP import and the rest.

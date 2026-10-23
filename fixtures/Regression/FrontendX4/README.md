@@ -2,7 +2,7 @@
 
 This corpus covers what is still open after the X0–X2 frontend work. It is the "repeat all twelve
 sources" acceptance step from the
-[language decision register](../../../docs/development/FIRMAMENT-LANGUAGE-DECISIONS-2026-10.md),
+[language decision register](../../../docs/development/reports/2026-10/FIRMAMENT-LANGUAGE-DECISIONS-2026-10.md),
 made concrete. Each case is the smallest file showing one remaining problem. Each must-build case
 comes with a reference spelling that builds today, and the reference is the geometry oracle.
 
@@ -45,7 +45,7 @@ Each case goes through both `validate --json` and `build`.
    2026-10-15 follow-up now admits d05 (disjoint Box top-boundary Fillet + ThroughAll Hole).
    Its original source is unchanged; only that manifest expectation gains a geometry baseline.
    Touching/intersecting holes and unsupported selectors remain rejection tests. See the
-   [capability report](../../../docs/release/FIRMAMENT-FILLET-HOLE.md).
+   [capability report](../../../docs/development/reports/2026-10/FIRMAMENT-FILLET-HOLE.md).
 
 ## The chimera
 
@@ -119,7 +119,7 @@ removes about 31 mm³.
 
 ## Repair qualification (2026-10-15)
 
-See [the repair and qualification report](../../../docs/release/FIRMAMENT-FRONTEND-X4.md).
+See [the repair and qualification report](../../../docs/development/reports/2026-10/FIRMAMENT-FRONTEND-X4.md).
 The `Today` column above preserves Claude's original observations. The a01
 design specimen now uses the decided `Static` spelling, as its reference and
 the chimera already did. Other specimens and geometry goldens are unchanged.

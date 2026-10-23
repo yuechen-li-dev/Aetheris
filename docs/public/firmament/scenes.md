@@ -19,7 +19,7 @@ Scene Factory {
 ```
 
 `AssemblyFile` references an independently compiled `.firmament` Assembly source;
-it requires file/project directory context. X0 does not merge its declarations
+it requires file/project directory context. Scenes do not merge its declarations
 into the Scene or import its mechanical constraints into the Scene root.
 Individual Part occurrences use ordinary typed Template specializations declared
 before the Scene, for example `<Part package = Package<R:100mm,H:200mm>>`.
@@ -39,7 +39,7 @@ by zero fail. Assembly translation expressions retain the mm unit contract.
 
 A Room occupies `[0,width] × [0,depth] × [0,height]`, optionally translated by
 `at: [x,y,z]`. Its clear interior dimensions are `size`. Default enclosure
-thickness is `100mm`, placed outside the clear interior. X0 rooms are rectangular
+thickness is `100mm`, placed outside the clear interior. Rooms are rectangular
 and axis-aligned; dimensions and thickness must be positive.
 
 Every Room publishes case-sensitive `floor`, `ceiling`, `northWall`, `southWall`,
@@ -109,7 +109,7 @@ Named Scene `FrameTransform` declarations and Part source-port alignment are
 deferred; Scene rejects unsupported declarations with a diagnostic.
 
 The existing `Pattern name over keyedSet` frontend expands Parts and Assemblies;
-X0 adds no Scene loop language. Pattern containers are spatial groups, not
+Scenes have no loop language. Pattern containers are spatial groups, not
 engineered assemblies. Names, pattern keys, declaration spans, definition
 identities and placement authority survive inspection and USD metadata.
 Scenes also admit the existing `Linear Sites` and `Mirrored Sites` recipes.
@@ -153,7 +153,7 @@ hierarchy, shared instances, transforms, named opening metadata, cameras and
 appearance overrides. GLB uses the existing display exporter and the established
 mm/Z-up to m/Y-up boundary; material variants share geometry buffers. GLB is a
 static presentation asset. Assembly kinematics and STEP authority remain with
-the source assembly; X0 Scene USD does not export a combined physics articulation.
+the source assembly; Scene USD does not export a combined physics articulation.
 
 The existing PowerPoint 3D pipeline can embed the generated GLB and a rendered
 fallback PNG. Desktop rotation/save/reopen is a separate manual qualification.
@@ -168,12 +168,12 @@ an orbit-only viewer such as PowerPoint without deleting architecture in source.
 
 The [warm modern house](../../../fixtures/Canonical/Scene/WarmModernHouse/house.firmament)
 demonstrates top-down Concept layout, bottom-up furniture components, then Scene
-composition. Its [qualification report](../../release/ARCHVIZ-HOUSE-X0.md) records
+composition. Its [qualification report](../../development/reports/2026-10/ARCHVIZ-HOUSE-X0.md) records
 the exact presentation and retained-session evidence.
 
 The [factory witness](../../../fixtures/Canonical/Scene/FactoryX0/factory.firmament)
 composes three production lines, original robot islands and a reusable logistics
-kit in a 42 × 28 metre hall. Its [report](factory-scene-x0.md) gives reproduction
+kit in a 42 × 28 metre hall. Its [report](../demos/factory-scene.md) gives reproduction
 commands, measured reuse, export checks and presentation qualification limits.
 
 Completion, hover and source diagnostics use compiler-owned schemas. Scene
@@ -184,7 +184,7 @@ Project-snapshot language analysis reads Scene syntax; compiling AssemblyFile
 resources from a virtual/browser project is deferred.
 
 Nested Scenes, BIM/IFC, general walls, zones, lights, logistics, collision
-avoidance, path planning, physics and robotics control are outside X0.
+avoidance, path planning, physics and robotics control are outside the Scene domain.
 
 ## Inventory module composition
 

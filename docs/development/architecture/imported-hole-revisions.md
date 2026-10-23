@@ -3,7 +3,7 @@
 Implemented production contract for one isolated round principal-axis (X/Y/Z) through-hole move or removal.
 The [authoring guide](../../public/firmament/imported-feature-recognition.md) and
 [golden fixture](../../../fixtures/Regression/InlineStep/production/ctc01-hole-move.firmament)
-are the executable surface; the [closeout](../../release/IMPORTED-HOLE-REVISION-PRODUCTION-2026-10-20.md)
+are the executable surface; the [closeout](../reports/2026-10/IMPORTED-HOLE-REVISION-PRODUCTION-2026-10-20.md)
 records qualification. Original experiments remain historical evidence.
 
 ## Ownership

@@ -1,7 +1,7 @@
 # Typed interfaces and reusable subassemblies
 
 For common-axis placement and whole-component rotation, see
-[Concept-directed coaxial mating](concept-axis-mating-proposal.md).
+[Concept-directed coaxial mating](../../development/proposals/concept-axis-mating.md).
 
 For layout-first placement against authored Concept planes, see
 [Concept-directed Fixed seating](datum-seating.md).
@@ -50,7 +50,7 @@ Inline typed Interface applications shown below remain supported. Historical
 custom Role/Lower/Fit/Allow clauses now share structural AST admission and lower
 to the existing relationship IR. They are compatibility and specialist contract
 forms, not the introductory authoring style. `Interface<Custom>` remains the
-explicit atomic escape hatch; X1 does not replace the placement solver.
+explicit atomic escape hatch; it does not replace the placement solver.
 
 For `Fixed`, `Revolute`, and `Prismatic`, the preferred port is one `Semantic` value with a `DatumFrame`. `A` names the parent occurrence and `B` names the child. The two frame origins coincide at state zero; Z is the rotation or translation axis, and X fixes the angular reference. The compiler derives the zero transform directly. `Revolute` accepts angle state in degrees, `Prismatic` accepts position state in millimetres, and omitted state means zero. The compiled `AssemblyIr.Joints` and pure `AssemblyKinematics.Evaluate(ir, state)` expose the relationship, DOF, frames, and posed occurrence transforms. Changing state keeps part definitions and BReps shared. A cycle or multiple movable interfaces driving the same child is rejected.
 
@@ -146,7 +146,7 @@ ports retain the actual child occurrence rather than a frozen rest-frame copy.
 Fixed local relationships remain Fixed and do not make a route-bound assembly
 moving.
 
-See [shared datums and motion syntax](syntax.md#shared-datums-and-articulated-motion)
+See [shared datums and motion syntax](../reference/language/assemblies-and-motion.md#shared-datums-and-articulated-motion)
 and the executable [articulated assembly](../../../fixtures/Canonical/AssemblyInterfaces/articulated-subassemblies.firmament)
 and [clip](../../../fixtures/Canonical/AssemblyInterfaces/articulated-motion.firmament).
 `AssemblyMotion.Evaluate(ir, name, seconds, preserveEndpoint)` samples an admitted

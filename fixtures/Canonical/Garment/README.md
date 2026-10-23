@@ -34,17 +34,17 @@ fit. The actual local humanoid is supplied to `garment drape --body ...`.
 independent curve samples and provenance. `garmentcode-dress.firmament` is its
 editable translation; `garmentcode-dress-template.firmament` adds pure hem
 customization. These qualify source geometry/interchange, not production drape.
-See [workflow documentation](../../../docs/public/firmament/garmentcode.md).
+See [workflow documentation](../../../docs/public/experimental/garments/garmentcode.md).
 
 `garmentcode-dress-guided.firmament` preserves the imported cut and combines
 an erased Concept collar guide with T-pose sewing and a half-second transition
 to A-pose. The guide releases before the transition, with 40 unsupported fitting
 frames in the 60-frame experiment. It requires the actual figure artifact.
-See [armhole investigation](../../../docs/public/firmament/garment-armhole-experiment.md)
+See [armhole investigation](../../../docs/public/experimental/garments/armhole-experiment.md)
 for contact probes, checkpoint metrics and the unresolved strain limit.
 
 `temporary-fitting.firmament` is an analytic authoring/solver witness: an erased
 Concept plane supports named panel boundaries for five settling frames. The
 shared drape path then releases the guide and requires 15 unsupported frames.
 It introduces no permanent pins or additional material panel. See
-[temporary fitting](../../../docs/public/firmament/garment-temporary-fitting.md).
+[temporary fitting](../../../docs/public/experimental/garments/temporary-fitting.md).

@@ -1,0 +1,47 @@
+// Lesson 4: name the numbers, reuse the recipe, then specialize a family.
+Record PlateSpec {
+  width: Length
+  depth: Length
+  thickness: Length
+  boltDiameter: Length
+}
+
+Static standard: PlateSpec = PlateSpec { width: 80mm depth: 50mm thickness: 8mm boltDiameter: 6mm }
+Static heavy: PlateSpec = standard with { thickness: 12mm boltDiameter: 8mm }
+
+Concept Positive(value: Length) => value > 0mm
+
+Template<spec: PlateSpec> Model MountingPlate {
+  units: mm
+
+  Require positiveThickness => Positive(spec.thickness)
+  Require boltsFit => spec.boltDiameter < spec.depth / 4
+
+  // A Feature is a named, typed recipe. Calling it makes one hole.
+  Feature Bolt(center: Point2, diameter: Length) -> Hole<Shaft> {
+    return Hole<Shaft> {
+      on: +Z
+      center: center
+      diameter: diameter
+      end: ThroughAll
+    }
+  }
+
+  // A Set keeps every entry, by name and in order.
+  Static corners: Set<Point2> {
+    northEast => Point2(30mm, 15mm)
+    northWest => Point2(-30mm, 15mm)
+    southWest => Point2(-30mm, -15mm)
+    southEast => Point2(30mm, -15mm)
+  }
+
+  Box stock { size: [spec.width, spec.depth, spec.thickness] }
+
+  Modify stock {
+    Pattern bolts over corners {
+      corner => Bolt(center: corner, diameter: spec.boltDiameter)
+    }
+  }
+}
+
+Model StandardPlate = MountingPlate<spec: standard>

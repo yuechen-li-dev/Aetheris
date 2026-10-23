@@ -1,7 +1,7 @@
 # Geometry and semantic features
 
 For exact regular solids, ellipsoids and the bounded whole-stock fillet, see
-[regular polyhedra and ellipsoids in the syntax guide](syntax.md#regular-polyhedra-ellipsoids-and-whole-stock-rounding).
+[regular polyhedra and ellipsoids in the syntax guide](../reference/language/solids-and-features.md#primitives).
 `target: AllEdges` currently applies only to untouched size-based Box and regular
 Polyhedron stock. It does not admit rounding all edges of an arbitrary body.
 
@@ -10,7 +10,7 @@ native exact quadrics. STEP also defines an [`ELLIPSOID` CSG primitive](https://
 that entity is outside the [BRep face-surface select](https://www.steptools.com/docs/stp_aim/html/t_advanced_face_geometry_select.html).
 The current exporter retains the BRep artifact contract.
 
-Preview 3 plus bounded X0/X1 additions support production routes, not an unrestricted general-purpose CAD kernel. Public native examples cover Box, Cylinder, Frustum, RoundedBox, line/arc profile extrusion and composition, bounded [Revolve](revolve.md), bounded [circular Sweep](sweep.md), ordered [Formed Wire](wire-form.md), semantic shaft/counterbore/countersink holes, slots, patterns, selected chamfer/fillet routes, hollow bodies, and a bounded cubic lattice. Consult the [support matrix](../reference/supported-features.md) before relying on a combination.
+The current release supports production routes, not an unrestricted general-purpose CAD kernel. Public native examples cover Box, Cylinder, Frustum, RoundedBox, line/arc profile extrusion and composition, bounded [Revolve](revolve.md), bounded [circular Sweep](sweep.md), ordered [Formed Wire](wire-form.md), semantic shaft/counterbore/countersink holes, slots, patterns, selected chamfer/fillet routes, hollow bodies, and a bounded cubic lattice. Consult the [support matrix](../reference/supported-features.md) before relying on a combination.
 
 Analytic single solids use the same direct named declaration family: `Sphere Body { Radius: 7.5mm }`, `Cone Body { ... }`, and `Torus Body { ... }`. `Cone` includes a pointed zero-radius end. These forms round-trip as analytic AP242 surfaces, but they do not imply arbitrary Boolean or profile-composition support. The older `solid Body: Sphere { radius: ... }` spelling remains a compatibility input, not canonical authoring. Use the qualified [sphere](../../../fixtures/Canonical/Primitives/sphere.firmament), [pointed cone](../../../fixtures/Canonical/Primitives/pointed-cone.firmament), and [torus](../../../fixtures/Canonical/Primitives/torus.firmament) sources as the boundary examples.
 
@@ -47,7 +47,7 @@ Template, two-Rect2 traced L, countersink and PDF-only reconstruction witness.
 Direct Box stock and its semantic Hole host use the same bottom-anchored frame:
 X/Y are centered and Z runs from 0 to height. Adding a direct Hole does not
 recenter the stock. The earlier discrepancy in the
-[LANG-BURN-X1 report](../../release/LANG-BURN-X1-FIRMAMENT-BURN-IN.md) is historical;
+[LANG-BURN-X1 report](../../development/history/eras/08-domain-expansion.md) is historical;
 the [stock-frame regression](../../../Aetheris.Kernel.Firmament.Tests/FirmamentV2SemanticHoleTests.cs)
 checks host and materialized bounds. Profile/Compose construction uses its
 explicit `from`/`to` interval.
@@ -172,7 +172,7 @@ The canonical [Boss + Pocket block](../../../fixtures/Canonical/Features/Boss/bo
 
 For readable local geometry, start with the [line/arc Concept Path](../../../fixtures/Canonical/Profiles/concept-path-line-arc-profile.firmament). The [profile-delta recess](../../../fixtures/Canonical/Profiles/profile-delta-recess-extrusion.firmament) then shows that semantic `ProfileDelta` programming is not Sheet-Metal-specific: a Table row, `with` override, and typed Template modify an ordinary extruded profile.
 
-For geometry that already exposes named spans, prefer the finite [Profile pipeline flagship](../../../fixtures/Canonical/Pipeline/profile-pipeline-flagship.firmament). `Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close` inherits segment identities and derives endpoint continuity and orientation from the named source geometry. The [mixed line/arc witness](../../../fixtures/Canonical/Pipeline/line-arc-profile.firmament), [inner-loop witness](../../../fixtures/Canonical/Pipeline/profile-with-inner-loop.firmament), [open Concept Path](../../../fixtures/Canonical/Pipeline/open-path.firmament), and [whole-loop trace](../../../fixtures/Canonical/Pipeline/traceloop-profile.firmament) exercise the same resolved Profile/Path boundary. Pipelines also support named endpoint selection with `from`/`to` and arc traversal with `Reverse`; see [syntax](syntax.md#constructing-from-a-layout). Use manual `Segment` declarations when deliberate low-level control or debugging requires them.
+For geometry that already exposes named spans, prefer the finite [Profile pipeline flagship](../../../fixtures/Canonical/Pipeline/profile-pipeline-flagship.firmament). `Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close` inherits segment identities and derives endpoint continuity and orientation from the named source geometry. The [mixed line/arc witness](../../../fixtures/Canonical/Pipeline/line-arc-profile.firmament), [inner-loop witness](../../../fixtures/Canonical/Pipeline/profile-with-inner-loop.firmament), [open Concept Path](../../../fixtures/Canonical/Pipeline/open-path.firmament), and [whole-loop trace](../../../fixtures/Canonical/Pipeline/traceloop-profile.firmament) exercise the same resolved Profile/Path boundary. Pipelines also support named endpoint selection with `from`/`to` and arc traversal with `Reverse`; see [syntax](../reference/language/profiles.md#layouts-and-loops). Use manual `Segment` declarations when deliberate low-level control or debugging requires them.
 
 Sheet Metal has its own `Hole Name` syntax for planar circular openings; countersink and counterbore forms are Model-domain features and deliberately fail in Sheet Metal rather than being ignored.
 

@@ -12,7 +12,7 @@ This is verification scaffolding, not launch or Hacker News prose. Counts and ha
 | Cadmata tests | 81 passed in 16 files | final A5 validation report |
 | VS Code tests | 13 passed | final A5 validation report |
 | Serial .NET tests | 3,017 passed; 0 failed; 0 skipped | final A5 validation report |
-| CTC-03 manufacturing PMI | 3 datums, 13 dimensions, 5 position controls, 8 annotations, 23 associated items | [`PREVIEW3-HARDEN-A4.md`](PREVIEW3-HARDEN-A4.md), final PMI smoke |
+| CTC-03 manufacturing PMI | 3 datums, 13 dimensions, 5 position controls, 8 annotations, 23 associated items | [`PREVIEW3-HARDEN-A4.md`](../development/history/eras/07-previews-1-to-3.md), final PMI smoke |
 | A36 cantilever sanity witness | ~25.06 µm Aetheris vs ~24.7 µm simple beam theory | [`fea.md`](../public/firmament/fea.md), final FEA smoke |
 | Release integrity | deterministic archive normalization retained; the tag workflow generates and verifies all 19 binary hashes before publication | `scripts/package-release.ps1`, `scripts/finalize-publication.ps1`, release workflow |
 | Feature freeze | no new product capability in A5 | final A5 diff audit/report |

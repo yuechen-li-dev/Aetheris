@@ -73,7 +73,7 @@ number is from the author's Windows desktop running `npm run dev` (non-AOT dev r
 Exit: baselines reproducible within ±10% across three runs; every phase above 2% of guitar time
 is named.
 
-**Result** ([BUILD-PERF-M0](../../../release/BUILD-PERF-M0.md)): meaningful progression. Native and
+**Result** ([BUILD-PERF-M0](../../reports/2026-10/BUILD-PERF-M0.md)): meaningful progression. Native and
 dev-runtime browser baselines, instrumentation and the ratchet are in place. Open: AOT browser
 numbers (AOT link needs > 8 GB RAM), naming the bolt's part-compile interior.
 
@@ -91,7 +91,7 @@ numbers (AOT link needs > 8 GB RAM), naming the bolt's part-compile interior.
 Exit: guitar and bolt no-change rebuild < 100 ms native (from 2.9 s and 3.3 s); guitar no-change
 allocation < 50 MB (from 2.9 GB). STEP bytes unchanged per runtime.
 
-**Result** ([BUILD-PERF-M1](../../../release/BUILD-PERF-M1.md)): meaningful progression. The metric
+**Result** ([BUILD-PERF-M1](../../reports/2026-10/BUILD-PERF-M1.md)): meaningful progression. The metric
 is now the *root comment edit* (source changed, geometry unchanged), stated as kernel time before
 response serialization. Guitar 2.61 s → 214 ms (2.75 GB → 145 MB), ATLAS 432 → 74 ms; hashes
 unchanged; rebuilds reproduce the cold build; native and WASM STEP proven equivalent. Bolt
@@ -113,7 +113,7 @@ parse and the Scene path move to M2.
 Exit: the knob edit reuses ≥ 52 / 56 definitions and costs only the definitions it owns.
 Diagnostics, source maps and STEP match a clean build exactly.
 
-**Result** ([BUILD-PERF-M2](../../../release/BUILD-PERF-M2.md)): success. Definitions (and their
+**Result** ([BUILD-PERF-M2](../../reports/2026-10/BUILD-PERF-M2.md)): success. Definitions (and their
 published ports) compile from their declaration closure with a whole-catalog fallback; derived
 meshes and seat queries follow definition content; Scenes use the session caches. Knob edit 54/56
 reused, 3.57 s → ~0.4 s native; every incremental rebuild proven equal to a fresh build
@@ -131,7 +131,7 @@ import replay) cut spline-tube imports ~3–4× and the lane's two largest proje
 Exit: guitar JSON response < 1 MB; mesh content hash identical; browser time between "build done
 in C#" and "mesh on GPU" measured and reported.
 
-**Result** ([BUILD-PERF-M3](../../../release/BUILD-PERF-M3.md)): success. Duplicate top-level mesh
+**Result** ([BUILD-PERF-M3](../../reports/2026-10/BUILD-PERF-M3.md)): success. Duplicate top-level mesh
 removed (responses halved), binary arrays (`bridge: 1`, `TakeBinary`) and retained definitions.
 Guitar cold response 942 KB JSON + 4.8 MB binary; a root-comment edit 165 KB with 56/56 definitions
 retained; every bridged model proven identical to the legacy model (`verify-bridge`). Browser dev
@@ -152,14 +152,14 @@ In order of measured share, re-profiled after M1–M3:
 Exit: guitar warm native build target set from M0 data (working target ≤ 5 s from 13.9 s); full
 `Aetheris.slnx` test lane green; STEP unchanged or justified.
 
-**First pass** ([BUILD-PERF-M4](../../../release/BUILD-PERF-M4.md)): meaningful progression, all
+**First pass** ([BUILD-PERF-M4](../../reports/2026-10/BUILD-PERF-M4.md)): meaningful progression, all
 bit-exact. SectionChain self-intersection validation via an X sweep (same verdict, pair and
 counts), MaximumOvershoot bounding box hoisted, lazy preview SVG, B-spline V-span reuse, text
 profile memo. Guitar `CarvedMaple` edit 5.7 → 1.14 s, warm 7.6 → 5.3 s (target ≤ 5 s: at the line),
 bolt edit 3.1 → 1.6 s. Remaining share is the 8193-sample bounded-pcurve qualification (policy
 decision) and the bolt's two mass-property enclosure checks.
 
-**Result** ([BUILD-PERF-M4](../../../release/BUILD-PERF-M4.md)): success. Second pass: SectionChain
+**Result** ([BUILD-PERF-M4](../../reports/2026-10/BUILD-PERF-M4.md)): success. Second pass: SectionChain
 trims constructed with their patches (`ConstructedBoundary`: each edge is an isoparametric boundary
 of its own patch) instead of recovered and qualified at 8193 samples; the old density is now a test
 oracle. Guitar warm 3.9 s (target ≤ 5 s), `CarvedMaple` edit 0.64 s; STEP for guitar/ATLAS changes

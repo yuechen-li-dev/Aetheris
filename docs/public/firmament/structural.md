@@ -6,7 +6,7 @@ Firmament authors a weldment as a semantic structure, not as a Boolean union of 
 Structure → Member AIR → Joint resolution → Assembly Interfaces → finished members → AP242 Assembly + Cut List
 ```
 
-The bounded X2 workflow supports explicit 3D nodes, straight paths, constant structural sections, member orientation, catalog material resolution, two-member butt and polygonal miter joints, fillet-weld requirements, and deterministic JSON cut lists. Curved members, tube coping, three-member miters, connection design, weld sizing, and structural FEA are future work.
+The structural workflow supports explicit 3D nodes, straight paths, constant structural sections, member orientation, catalog material resolution, two-member butt and polygonal miter joints, fillet-weld requirements, and deterministic JSON cut lists. Curved members, tube coping, three-member miters, connection design, weld sizing, and structural FEA are future work.
 
 The shared AST admits a standalone Structural document or one nested `Model`/`Struct`
 owner chain, optionally selected with `schema Structural`. `Structure` owns its
@@ -30,11 +30,11 @@ Structure Corner {
 }
 ```
 
-X2 paths are straight segments and every path has exactly one Member assignment.
+Paths are straight segments and every path has exactly one Member assignment.
 
 ## 2. Define sections and members
 
-Section geometry and material identity are separate. X2 admits `Standard.Structural.SquareTube`, `RectangularTube`, `RoundTube`, `Angle`, `FlatBar`, and `RoundBar`.
+Section geometry and material identity are separate. The catalog admits `Standard.Structural.SquareTube`, `RectangularTube`, `RoundTube`, `Angle`, `FlatBar`, and `RoundBar`.
 
 Tube sections are genuinely hollow. Square tubes use `width` and `thickness`; an optional `height` must equal `width`. Rectangular tubes require `width`, `height` and `thickness`; round sections use `diameter`; angles use `width`, `height`, and `thickness`.
 

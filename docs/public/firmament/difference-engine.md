@@ -1,6 +1,9 @@
-# Difference Engine storage gate
+# Difference Engine storage research
 
-DIFF-ENGINE-X0 is **incomplete**. The current executable builds and qualifies a decimal storage candidate, not an operating three-register Difference Engine. Its next gate is non-destructive digit transfer, including source-triggered clutch release and an output coupling that does not back-drive storage during reader return.
+> This page records the earlier storage experiment behind the Difference Engine.
+> The finished, animated machine is described in the [Difference Engine showcase](../demos/difference-engine-showcase.md).
+
+The storage experiment is **incomplete**. Its executable builds and qualifies a decimal storage candidate, not an operating three-register Difference Engine. Its next gate is non-destructive digit transfer, including source-triggered clutch release and an output coupling that does not back-drive storage during reader return.
 
 From the repository root, run the headless qualification:
 
@@ -57,4 +60,4 @@ The next implementation must provide and qualify a physical output disengagement
 
 The frozen future operating order is `Result <- FirstDifference`, Result carries, `FirstDifference <- SecondDifference`, FirstDifference carries, controlled return. Squares start at `0000 / 0001 / 0002`. Arithmetic verification, carry latches, overflow, sequence presets and the diagnostic machine viewer remain unimplemented. There is no arithmetic oracle in the storage primitive.
 
-See the [release record](../../release/DIFF-ENGINE-X0.md) for scope, qualification and remaining limitations. Rotor/clutch and modular-adder inspiration is attributed to Andrew Carol's [A Difference Engine Built With LEGO Pieces](https://www.cs.princeton.edu/~chazelle/courses/BIB/babbage.pdf); the storage geometry here is independently authored.
+See the [release record](../../development/history/eras/08-domain-expansion.md) for scope, qualification and remaining limitations. Rotor/clutch and modular-adder inspiration is attributed to Andrew Carol's [A Difference Engine Built With LEGO Pieces](https://www.cs.princeton.edu/~chazelle/courses/BIB/babbage.pdf); the storage geometry here is independently authored.

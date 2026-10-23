@@ -57,6 +57,24 @@ public sealed class PublicDocumentationQualificationTests
         Assert.Equal(diameters, report.RootElement.GetProperty("pmiExportEvidence").GetProperty("diameter").GetArrayLength());
     }
 
+    // Every example in docs/public/learn is one of these files; the lessons quote them.
+    [Theory]
+    [InlineData("fixtures/Canonical/Learn/01-plate.firmament")]
+    [InlineData("fixtures/Canonical/Learn/02-bracket-profile.firmament")]
+    [InlineData("fixtures/Canonical/Learn/03-machined-block.firmament")]
+    [InlineData("fixtures/Canonical/Learn/04-plate-family.firmament")]
+    [InlineData("fixtures/Canonical/Learn/05-checked-plate.firmament")]
+    [InlineData("fixtures/Canonical/Learn/06-post-on-plate.firmament")]
+    public void LearnLessonExamplesBuildThroughRealCli(string relativeSource)
+    {
+        using var temp = TempDirectory.Create();
+        var output = new StringWriter(); var error = new StringWriter();
+        var step = Path.Combine(temp.Path, "lesson.step");
+        var exit = CliRunner.Run(["build", Path.Combine(RepoRoot, relativeSource), "--output", step], output, error);
+        Assert.True(exit == 0, $"{relativeSource}: {output}{error}");
+        Assert.True(File.Exists(step));
+    }
+
     [Fact]
     public void PublicBossPocketWitness_BuildsWithTruthfulFeatureInventory_AndReimportsEnclosed()
     {

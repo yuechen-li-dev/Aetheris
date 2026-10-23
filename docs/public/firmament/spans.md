@@ -2,7 +2,7 @@
 
 `Span<T>` is a named, bounded, oriented view of existing parameterized geometry. It preserves its parent's semantic identity and does not copy geometry.
 
-The X1 curve lane admits `Span<Line>`, `Span<Arc>`, and `Span<Curve>`. It uses named endpoints, so the bounds remain attached to the parent guide rather than to newly authored helper geometry.
+The curve lane admits `Span<Line>`, `Span<Arc>`, and `Span<Curve>`. It uses named endpoints, so the bounds remain attached to the parent guide rather than to newly authored helper geometry.
 
 ```firmament
 Span<Line> MountingEdge {

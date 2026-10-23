@@ -1,0 +1,15 @@
+// Lesson 1: a plate with one through hole.
+Model Plate {
+  units: mm
+
+  Box stock { size: [80mm, 50mm, 8mm] }
+
+  Modify stock {
+    Hole<Shaft> mount {
+      on: +Z
+      center: Point2(0mm, 0mm)
+      diameter: 8mm
+      end: ThroughAll
+    }
+  }
+}

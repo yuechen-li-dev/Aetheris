@@ -14,7 +14,7 @@ Firmament is a deterministic, statically evaluated CAD authoring language. Sourc
 
 Engineering Modules own domain vocabulary and lowering above the shared language/kernel. Built-ins are `Aetheris.Surfacing`, `Aetheris.Piping`, and `Aetheris.SheetMetal`. Firmament adds no `Module`, `Use`, or import keyword: module-owned declarations/Templates lower through their explicit built-in owner, while Forge capability boundaries use catalog-qualified IDs such as `Piping.PipeRoute`. Sheet Metal M1 adds the bounded authored `SheetMetal Name { ... }` document shape for a rectangular base, two opposite flanges, and base holes, plus a generated loss-aware recovery form with explicit `RecoveredRegion`, `RecoveredBend`, and `RecoveredCut` declarations. The recovery form recompiles recovered manufacturing intent without treating it as source-geometry authority. Both `aetheris build` and `aetheris sheetmetal` consume the applicable forms. See [Engineering Modules](../../../milestones/modules/architecture.md) and [Sheet Metal](../../../milestones/modules/sheet-metal.md).
 
-**The 3D semantic model is the product definition. A Drawing is a printable projection of that definition, not a parallel source of engineering truth.** Drawing M0B binds `Source` to an authoritative Part or AssemblyIR Product, retains occurrence identity, derives BOM directly from leaf Part instances, and lowers manually selected views/PMI to zoned DrawingIR plus A4 vector output. See [Drawing concepts and templates](../../../milestones/drawing/templates.md).
+**The 3D semantic model is the product definition. A Drawing is a printable projection of that definition, not a parallel source of engineering truth.** Drawing M0B binds `Source` to an authoritative Part or AssemblyIR Product, retains occurrence identity, derives BOM directly from leaf Part instances, and lowers manually selected views/PMI to zoned DrawingIR plus A4 vector output. See [Drawing concepts and templates](../../eras/07-previews-1-to-3.md).
 
 There are two current frontend lanes:
 
@@ -219,7 +219,7 @@ retains its structured private contributor chain.
 
 `Review StableId { ... }` is an ordinary Firmament declaration that compiles to backend-independent ReviewIR. `Target` names a stable semantic/PMI reference and `Status` is typed as `Open`, `Accepted`, `Rejected`, `Resolved`, or `Superseded`. Nested `Comment`, `Issue`, `Proposal`, and `Resolution` entries require a stable ID (an authored ID is recommended), `Author`, and an authored ISO `Date`. `Organization` and `Email` are optional.
 
-A `Proposal` may add `Property`, `Current`, `Proposed`, `Units`, and `Reason`. It records a candidate change but never mutates product source. Drawing compilation rejects unknown review targets and explicit current/proposed unit mismatches. See [the review reference](../../../milestones/collaboration/reviews.md).
+A `Proposal` may add `Property`, `Current`, `Proposed`, `Units`, and `Reason`. It records a candidate change but never mutates product source. Drawing compilation rejects unknown review targets and explicit current/proposed unit mismatches. See [the review reference](../../eras/07-previews-1-to-3.md).
 
 ## Status appendix
 

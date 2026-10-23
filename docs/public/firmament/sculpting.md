@@ -10,7 +10,7 @@ retains an admitted engineering product through its normal compiler. The legacy
 Its compact Station-based SectionChain
 form remains distinct from the framed Profile-based SectionChain frontend.
 
-SURF-X0 supports bounded mathematical sculpting and locality-preserving region modification. SURF-X1 adds direct rectangular patch replacement. SURF-X1a closes the trim path for the admitted housing: qualified surface intersections derive the outer boundary, face-local pcurves qualify every trim, circular inner loops preserve openings, and an imported `ADVANCED_FACE` can receive a bounded support-surface graft. SURF-X2 adds a qualified two-support crown-to-planar-shoulder `BlendBoundary` that generates and deterministically judges exact non-rational polynomial candidates. This is not full general surfacing.
+Sculpting supports bounded mathematical shaping and locality-preserving region modification, plus direct rectangular patch replacement. Trim closure works for the admitted housing: qualified surface intersections derive the outer boundary, face-local pcurves qualify every trim, circular inner loops preserve openings, and an imported `ADVANCED_FACE` can receive a bounded support-surface graft. SURF-X2 adds a qualified two-support crown-to-planar-shoulder `BlendBoundary` that generates and deterministically judges exact non-rational polynomial candidates. This is not full general surfacing.
 
 Sculpting is a lower-authority escape hatch for geometry that an engineering feature such as `Boss`, `Pocket`, `Hole`, `Sweep`, `Fillet`, or `Chamfer` cannot express. Prefer those features whenever they carry the intended engineering meaning.
 
@@ -22,7 +22,7 @@ exact BRep authority and can export STEP within their admitted capabilities.
 cage, then supports finite Catmull-Clark refinement, creases, vertex movement
 and positive scaling. It exports STL or GLB with a replay/provenance sidecar;
 it cannot export STEP. The source exact body remains unchanged. See the
-[complete syntax and examples](syntax.md#exact-face-editing-and-explicit-mesh-sculpting).
+[complete syntax and examples](../reference/language/domains-and-modules.md#exact-face-edits-and-mesh-sculpting).
 
 Every accepted operation consumes exactly one immutable semantic `BodyState` and produces a new one:
 
@@ -39,7 +39,7 @@ Rebuild means realizing the base and replaying operations in order. Each operati
 
 ### Construction and operation boundaries
 
-The [engineering-body example](syntax.md#bodystate-retain-an-engineering-body)
+The [engineering-body example](../reference/language/domains-and-modules.md#bodystate-keep-an-engineering-body)
 preserves the original STEP, including authored PMI. It assigns no synthetic
 housing crown, hole pattern or mounting interface to an arbitrary body.
 The retained engineering STEP keeps its authored Model/product name. The export
@@ -107,7 +107,7 @@ graft identities include actual geometry. This is distinct from a BodyState
 created from an admitted engineering-source import, whose source recipe can be
 replayed by the engineering compiler.
 
-## X0 authoring
+## Bounded region sculpting
 
 The current operation is `OffsetRegion`. The canonical controller-cover example is [`fixtures/Canonical/Sculpting/sculpted-housing.firmament`](../../../fixtures/Canonical/Sculpting/sculpted-housing.firmament):
 
@@ -127,7 +127,7 @@ SculptState CrownRaised {
 }
 ```
 
-`MayModify` grants authority; `Preserve` requires semantic identity and the declared geometry fingerprint to survive; `Require` is a postcondition on the result. They are deliberately different contracts. The X0 influence envelope is a conservative axis-aligned volume, not a general spatial-logic language.
+`MayModify` grants authority; `Preserve` requires semantic identity and the declared geometry fingerprint to survive; `Require` is a postcondition on the result. They are deliberately different contracts. The influence envelope is a conservative axis-aligned volume, not a general spatial-logic language.
 
 `Region` is ordered `[width, depth]` and bounds the raised crown plateau. The larger influence envelope must also contain the authorized G0 transition zone; in the flagship it covers the full footprint above `z=20`.
 
@@ -135,7 +135,7 @@ The accepted operation records reads, preserved/replaced/introduced/removed enti
 
 `build` performs export preflight and the rational-surface product-boundary guard; it does not report an independent STEP reimport. Run `aetheris analyze result.step --json` after building to exercise the production importer and report the reconstructed topology, surface inventory, and bounds.
 
-## X1 patch authoring
+## Patch replacement
 
 Use normal engineering features for normal CAD. `SurfacePatch` and `ReplaceRegion` are advanced sculpting tools for geometry that exact engineering features cannot express. The canonical witness is [`surf-x1-freeform-housing.firmament`](../../../fixtures/Canonical/Sculpting/surf-x1-freeform-housing.firmament).
 
@@ -216,7 +216,7 @@ An ordinary safe cylindrical `HoleFeature` can follow replacement on a surviving
 
 For low/high freeform alternatives, declare two complete `SurfacePatch` values and two sibling `SculptState` blocks whose `Input` is the same base state. Do not derive the high version from the accepted low version or edit an accepted control net in place. A model has one `Output`; select the sibling to build there, or keep separate small model files when both STEP variants are release artifacts.
 
-## X2 judged blend authoring
+## Judged blends
 
 Use `BlendBoundary` when the admitted housing crown must transition into its preserved planar top shoulder under an explicit continuity and quality policy. The canonical witness is [`surf-x2-judged-housing.firmament`](../../../fixtures/Canonical/Sculpting/surf-x2-judged-housing.firmament).
 
@@ -249,7 +249,7 @@ g_m(t) = 4^m [t(1-t)]^m
 
 with edge-vanishing orders `m=2,3,4,5`. They are genuinely different curvature distributions and materialize as degrees 4, 6, 8, and 10 with 25, 49, 81, and 121 control points. `m=2` is G1 but not G2; `m>=3` has zero first and second transverse derivatives at all four shoulder boundaries.
 
-Aetheris' bounded X2 G2 contract is precise: boundary positions coincide, tangent planes coincide, and the transition's transverse normal curvature equals the planar shoulder's zero normal curvature. Exact polynomial first and second jets are evaluated at 33 deterministic parameters per side. This formulation does not claim principal-direction matching, arbitrary cross-boundary reparameterization, or general G2 between unrelated supports.
+Aetheris' bounded G2 blend contract is precise: boundary positions coincide, tangent planes coincide, and the transition's transverse normal curvature equals the planar shoulder's zero normal curvature. Exact polynomial first and second jets are evaluated at 33 deterministic parameters per side. This formulation does not claim principal-direction matching, arbitrary cross-boundary reparameterization, or general G2 between unrelated supports.
 
 Candidate processing is strictly ordered:
 
@@ -298,7 +298,7 @@ The housing lane verifies:
 - failure atomicity: rejected operations never produce an accepted output state;
 - STEP reimport and a post-serialization rational-surface scan.
 
-`NoSelfIntersection` in X0 is a certified bounded guarantee for the admitted rectangular crown construction. It is not advertised as a universal intersection theorem.
+`NoSelfIntersection` is a certified bounded guarantee for the admitted rectangular crown construction. It is not advertised as a universal intersection theorem.
 
 ## Product surface boundary
 
@@ -306,7 +306,7 @@ The housing lane verifies:
 
 Internal algorithms may temporarily use rational spline mathematics, but exported product geometry must normalize to analytic or non-rational forms. The export order is exact analytic surface, exact or explicitly bounded non-rational B-spline, then a blocking diagnostic. Arbitrary rational NURBS fallback is prohibited. The diagnostic is `surf-surface-export-normalization-failed`.
 
-The X0 housing emits only `PLANE` and `CYLINDRICAL_SURFACE`. The X1 flagship adds one `B_SPLINE_SURFACE_WITH_KNOTS` with no rational complex entity. A final STEP scan must report `RationalNURBS = 0`; otherwise export fails.
+The base housing emits only `PLANE` and `CYLINDRICAL_SURFACE`. The patch-replacement example adds one `B_SPLINE_SURFACE_WITH_KNOTS` with no rational complex entity. A final STEP scan must report `RationalNURBS = 0`; otherwise export fails.
 
 > Non-rational B-spline surfaces are an advanced product representation used only when exact analytic geometry is insufficient.
 
@@ -314,4 +314,4 @@ The X0 housing emits only `PLANE` and `CYLINDRICAL_SURFACE`. The X1 flagship add
 
 ## Current limits
 
-The admitted X2 materializer is limited to one rectangular housing crown transitioning to its coplanar analytic shoulder through the exact polynomial family above. It does not provide arbitrary intersection networks, general Plane/Cylinder or Cylinder/Cylinder blends, general Cylinder/B-spline or B-spline/B-spline discovery, arbitrary nested islands, variable blend laws, a free control-net optimizer, N-way junctions, Shell, Draft, or arbitrary patch networks. [SectionChain](section-chains.md) BodyState composition is limited to the documented planar east attachment and west-to-east through-duct lanes. Existing exact Fillet and Chamfer authoring and materializers are unchanged: a fillet is conceptually a constrained blend specialization, while a planar chamfer should remain planar rather than being forced through freeform machinery.
+The admitted blend materializer is limited to one rectangular housing crown transitioning to its coplanar analytic shoulder through the exact polynomial family above. It does not provide arbitrary intersection networks, general Plane/Cylinder or Cylinder/Cylinder blends, general Cylinder/B-spline or B-spline/B-spline discovery, arbitrary nested islands, variable blend laws, a free control-net optimizer, N-way junctions, Shell, Draft, or arbitrary patch networks. [SectionChain](section-chains.md) BodyState composition is limited to the documented planar east attachment and west-to-east through-duct lanes. Existing exact Fillet and Chamfer authoring and materializers are unchanged: a fillet is conceptually a constrained blend specialization, while a planar chamfer should remain planar rather than being forced through freeform machinery.

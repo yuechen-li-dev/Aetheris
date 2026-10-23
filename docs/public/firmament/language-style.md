@@ -3,7 +3,7 @@
 Firmament uses mixed casing to make artifact definitions stand out from their
 descriptions. Preferred casing does not rename authored identifiers; admitted
 built-in spellings and aliases are defined by their compiler owners, without
-global case folding. The [design proposal](casing-and-layout-proposal.md) records the reasoning.
+global case folding. The [design proposal](../../development/proposals/casing-and-layout.md) records the reasoning.
 
 | Role | Convention | Examples |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ PascalCase aliases bind to the same AST fields. Unknown and duplicate fields
 reject. `Reverse`, `Close` and `TraceLoop` remain PascalCase geometry operations.
 The formatter recognizes these linking/field positions structurally and preserves
 authored identifiers. It does not impose this grammar on unrelated domain owners;
-the [syntax review](../../development/FIRMAMENT-SYNTAX-REVIEW-2026-10.md) tracks the
+the [syntax review](../../development/reports/2026-10/FIRMAMENT-SYNTAX-REVIEW-2026-10.md) tracks the
 remaining differences. Formatting is still not proof of successful compilation.
 
 ```firmament
@@ -77,7 +77,7 @@ aliases and Hole modifications now bind through the shared AST and existing
 engineering owners. The spelling pass leaves this grammar untouched: converting
 `solid stock: Box` to `Box stock` also requires making inherited length units
 explicit. Remaining PMI, lattice and manufacturing scopes retain their semantic
-owners; see the [migration boundary](../../release/FIRMAMENT-LOWERCASE-AST-MIGRATION.md).
+owners; see the [migration boundary](../../development/reports/2026-10/FIRMAMENT-LOWERCASE-AST-MIGRATION.md).
 
 Use lowercase `using` and `as` in Profile headers and pipelines. `Using` and `As`
 remain grammar-position aliases, and convention formatting prefers lowercase.

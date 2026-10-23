@@ -36,7 +36,7 @@ The viewport creates one Three.js `BufferGeometry` per SDK definition and one me
 
 ## Editing policy
 
-The X1 SDK represents supported property edits as typed effective overrides. Helios therefore keeps the authoritative source visible and labels the inspector values as overrides. Replacing source clears overrides according to the SDK contract.
+The SDK represents supported property edits as typed effective overrides. Helios therefore keeps the authoritative source visible and labels the inspector values as overrides. Replacing source clears overrides according to the SDK contract.
 
 Property edits commit only through **Apply** or Enter. A rejected edit remains in the field, the SDK keeps the last valid revision and geometry, and the diagnostic stays visible for correction. Source edits commit with Rebuild or Ctrl/Cmd+Enter.
 
@@ -52,6 +52,6 @@ On a viewport click, Three.js supplies only the definition, occurrence, and tria
 
 ## Browser and capability limits
 
-Chromium is the X1 browser baseline. Firefox is not claimed. The public runtime is main-thread WASM because `worker: true` returns `worker-unavailable`. Sheet metal, FEA, external STEP import, and Forge subprocess capabilities remain unavailable in browser X1 and Helios does not fake them.
+Chromium is the browser baseline. Firefox is not claimed. The public runtime is main-thread WASM because `worker: true` returns `worker-unavailable`. Sheet metal, FEA, external STEP import, and Forge subprocess capabilities remain unavailable in browser X1 and Helios does not fake them.
 
 Helios is intentionally bounded. It is an example frontend, not the only Aetheris frontend and not a feature-for-feature commercial CAD replacement.

@@ -41,4 +41,4 @@ line-guide.firmament, and the guitar strings-assembly.firmament. Python only run
 CLI reproduction and verifies that authored source was not changed.
 
 Exact-through Via, multiple corners, circular/spline guides and obstacle routing
-remain in the [routing proposal](wire-routing-and-guides-proposal.md).
+remain in the [routing proposal](../../development/proposals/wire-routing-and-guides.md).

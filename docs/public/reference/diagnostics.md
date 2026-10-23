@@ -62,17 +62,17 @@ topology and local foldover checks.
 When a planner reports one unambiguous EdgeFinish operation, the diagnostic uses
 that enclosing declaration's span; expanded provenance is mapped where retained.
 
-## Circular Sweep (X0)
+## Circular Sweep
 
 - `firmament-sweep-section-invalid`: circular diameter is missing, non-finite, or non-positive.
 - `firmament-sweep-path-disconnected`: a segment does not continue from its predecessor.
 - `firmament-sweep-path-not-tangent`: adjacent segments meet at a sharp corner.
-- `firmament-sweep-path-nonplanar`: the path is outside X0's planar XY boundary.
+- `firmament-sweep-path-nonplanar`: the path is outside the supported planar XY boundary.
 - `firmament-sweep-bend-radius-too-small`: an arc radius does not exceed the section radius.
 - `firmament-sweep-self-intersection`: nonadjacent centerline regions violate required clearance.
 - `firmament-sweep-material-unresolved`: the material identity is absent from the deployed catalog.
 
-## Formed Wire (WIRE-X0)
+## Formed Wire
 
 - `wireform-diameter-invalid`: stock diameter is missing, non-finite, or non-positive.
 - `wireform-start-frame-invalid`: Origin/Tangent/Up is missing, the tangent is zero, or Up is parallel to the tangent.
@@ -85,7 +85,7 @@ that enclosing declaration's span; expanded provenance is mapped where retained.
 
 The Standard Paperclip template has stricter product policy (`InnerBendRadius > WireDiameter`) than generic WireForm's geometric `Radius > Diameter / 2`; named Template `Require` clauses can therefore reject a Paperclip specialization before WireForm lowering.
 
-## Surface trim closure (SURF-X1a)
+## Surface trim closure
 
 - `surf-intersection-none`: the qualified supports do not intersect inside the bounded domains.
 - `surf-intersection-ambiguous`: multiple branches exist without an admissible seed/reference boundary.
@@ -105,7 +105,7 @@ The Standard Paperclip template has stricter product policy (`InnerBendRadius > 
 - `surf-certified-bounds-invalid`: a claimed exact polynomial bounds certificate does not contain deterministic surface samples.
 - `surf-selector-target-replaced`: a historical native or imported selector has an explicit successor and cannot be reused.
 
-## Construction-state replay and SectionChain sculpting (SURF-X3b)
+## Construction-state replay and SectionChain sculpting
 
 - `bodystate-operation-replay-failed`: replay stopped atomically at the named typed operation; the reported predecessor remains authoritative.
 - `bodystate-operation-order-invalid`: an operation's authored predecessor does not equal the preceding operation's authored output; replay does not reorder or guess intent.

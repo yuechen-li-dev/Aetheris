@@ -1130,6 +1130,13 @@ public static class PrismaticProfileCompositionParser
     private static string BindExternalModifyFeatures(string source, string composeName, string composeBody, List<string> diagnostics)
     {
         var boundFeatures = new List<string>();
+        // Modify holds feature declarations only. The readers below look for feature
+        // headers, so a stray field in the block would otherwise vanish.
+        foreach (var modifySyntax in FirmamentV2.Syntax.FirmamentSyntaxTraversal.Declarations(FirmamentV2.Syntax.FirmamentSyntaxParser.Parse(source).Document)
+                     .Where(d => d.Type.Name.Text == "Modify" && d.Name?.Text == composeName))
+            foreach (var statement in modifySyntax.Body?.Statements ?? [])
+                if (statement is FirmamentV2.Syntax.FieldSyntax field) diagnostics.Add($"{FirmamentV2Parser.CanonicalFieldUnknown}:Modify:{field.Name.Text}");
+                else if (statement is not FirmamentV2.Syntax.DeclarationSyntax) diagnostics.Add(FirmamentV2Parser.CanonicalModifyMalformed);
         foreach (Match modify in ModifyHead.Matches(source))
         {
             var body = Block(source, source.IndexOf('{', modify.Index));

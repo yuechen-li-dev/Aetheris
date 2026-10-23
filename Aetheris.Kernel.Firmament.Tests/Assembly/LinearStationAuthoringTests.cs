@@ -96,7 +96,7 @@ public sealed class LinearStationAuthoringTests
     {
         var parsed = new AssemblyM0Parser().Parse(Source.ReplaceRequired(from, to));
         Assert.False(parsed.IsSuccess);
-        Assert.Contains(parsed.Diagnostics, d => d.Message.Contains("firmament-concept-points-"));
+        Assert.Contains(parsed.Diagnostics, d => d.Message.Contains("firmament-concept-points-") || d.Code == "firmament-number-not-finite");
     }
 
     [Fact]

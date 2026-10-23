@@ -576,6 +576,13 @@ public static partial class FirmamentV2Parser
                 case "Struct" when declaration.Annotation is not null: break;
                 case "Struct" when !declaration.Modifiers.Any(m => m.Name.Text == "Concept"):
                     BindMechanicalScope(declaration.Body?.Statements ?? [], diagnostics); break;
+                case "Profile" when declaration.Body is not null:
+                    // A Profile body holds loops. Its readers look for Loop headers, so a
+                    // field here would otherwise be dropped without a diagnostic.
+                    // `From` is the derived-boundary form (`Profile copy { From: outline }`).
+                    foreach (var profileField in declaration.Body.Statements.OfType<FieldSyntax>().Where(f => !FirmamentSyntaxFields.SameField(f.Name.Text, "From")))
+                        diagnostics.Add($"{CanonicalFieldUnknown}:Profile:{profileField.Name.Text}");
+                    break;
                 case "Box" or "Cylinder" or "Cone" or "Sphere" or "Ellipsoid" or "Polyhedron" or "Torus" or "RoundedBox" or "Frustum" or "StandardPart" or "ExactCoaxialPart":
                 case "Plane" or "Axis" or "Axis2" or "Point2" or "Line2" or "CubicBezier2" or "Rect2" or "Square2" or "Triangle2" or "Polygon2" or "RegularPolygon2" or "Circle2" or "Ellipse2" or "Ellipse2Guide" or "Slot2" or "RoundedRect2" or "SmoothRoundedRect2" or "Path":
                 case "Plateau" or "Concept" or "Struct" or "Profile" or "Span" or "Compose" or "Boss" or "Pocket" or "AddOffset" or "RemoveOffset" or "EdgeFinish" or "Extrude":

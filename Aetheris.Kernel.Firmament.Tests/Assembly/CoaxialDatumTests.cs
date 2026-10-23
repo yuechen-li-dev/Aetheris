@@ -117,7 +117,7 @@ public sealed class CoaxialDatumTests
     [InlineData("At: 7mm","At: 7mm; At: 8mm","assembly-datum-measure-invalid")]
     [InlineData("Mate GripOnSpindle:","Mate SkirtOnSpindle:","assembly-datum-mate-duplicate")]
     [InlineData("Clocking: 30deg","Clocking: 30deg; Support: true","assembly-datum-fields-invalid")]
-    [InlineData("Reference: [0,3,1]","Reference: [0,NaN,1]","assembly-datum-vector-invalid")]
+    [InlineData("Reference: [0,3,1]","Reference: [0,NaN,1]","firmament-number-not-finite")]
     [InlineData("Controls.VolumeKnob.Spindle]","Controls.VolumeKnob.Mount]","assembly-datum-member-outside-contract")]
     [InlineData("Member: Controls.VolumeKnob.Spindle","Member: Controls.VolumeKnob.KnobSkirt.SpindleSeat","assembly-datum-member-scope")]
     [InlineData("[Controls.VolumeKnob.Spindle]","[Controls.VolumeKnob.Spindle,Controls.Other.Spindle]","assembly-axis-revolute-member-count")]

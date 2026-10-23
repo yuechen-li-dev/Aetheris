@@ -2350,6 +2350,12 @@ public static partial class FirmamentV2Parser
         var matches = PmiHeaderRegex.Matches(source);
         if (matches.Count == 0) return ([], null, null);
         if (matches.Count > 1) diagnostics.Add(PmiDuplicateBlock);
+        // The entry reader below matches record headers, so anything else in the block
+        // (a field, an expression) would otherwise be dropped without a diagnostic.
+        foreach (var pmiBlock in FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).Where(d => d.Type.Name.Text == "Pmi" && d.Name is null))
+            foreach (var statement in pmiBlock.Body?.Statements ?? [])
+                if (statement is FieldSyntax field) diagnostics.Add($"{PmiUnknownField}:{field.Name.Text}");
+                else if (statement is not DeclarationSyntax { Name: not null }) diagnostics.Add($"{PmiUnknownField}:statement");
         var match = matches[0];
         var open = source.IndexOf('{', match.Index);
         var close = FindMatchingBrace(source, open);

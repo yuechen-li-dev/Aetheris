@@ -38,4 +38,12 @@
   <ItemGroup>
     <None Include="..\docs\release\Aetheris.CLI.README.md" Pack="true" PackagePath="\" Link="Aetheris.CLI.README.md" />
   </ItemGroup>
+  <!-- Native packages such as SkiaSharp ship ~90 MB debug symbols per Windows RID. They are
+       not needed at run time and push the tool package past nuget.org's 250 MB limit. -->
+  <Target Name="ExcludeNativeDebugSymbols" AfterTargets="ResolvePackageAssets">
+    <ItemGroup>
+      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)" Condition="'%(Extension)' == '.pdb'" />
+      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
 </Project>

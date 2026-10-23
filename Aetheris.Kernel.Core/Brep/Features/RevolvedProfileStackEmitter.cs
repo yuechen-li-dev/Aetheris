@@ -29,6 +29,9 @@ internal sealed record RevolvedProfileStackResult(
     IReadOnlyList<string> Diagnostics)
 {
     public bool Succeeded => Body is not null;
+    public IReadOnlyList<FaceId> SideFaces { get; init; } = [];
+    public FaceId BottomFace { get; init; }
+    public FaceId TopFace { get; init; }
 }
 
 /// <summary>
@@ -154,7 +157,7 @@ internal static class RevolvedProfileStackEmitter
             "revolved-profile-authoritative-topology-plan-consumed",
             "revolved-profile-analytic-cylinder-and-cone-surfaces-emitted",
             "revolved-profile-section-splits-preserved",
-        ]);
+        ]) { SideFaces = sideFaces, BottomFace = bottomFace, TopFace = topFace };
     }
 
     private static List<KernelDiagnostic> Validate(

@@ -343,6 +343,22 @@ public static partial class FirmamentBuildAndExport
             if (!v2Parse.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(v2Parse.Diagnostics.Select(SchemaDiagnostic).ToArray());
             return PlateauAuthoring.Compile(materializerSource, v2Parse.BoundPlateau, v2Parse.BoundProfile, v2Parse.ExtrusionHeight);
         }
+        if (v2Parse.BoundCoaxialComposition is { } coaxial)
+        {
+            var built = Kernel.Core.Brep.Features.RevolvedProfileStackEmitter.Emit(coaxial.Topology);
+            if (!built.Succeeded || built.Body is null)
+                return KernelResult<FirmamentStepExportResult>.Failure(built.Diagnostics.Select(SchemaDiagnostic).ToArray());
+            var step = Step242Exporter.ExportBody(built.Body, new Step242ExportOptions { ProductName = coaxial.Name, BrepExportPreflightMode = BrepExportPreflightMode.Enforce });
+            if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+            return KernelResult<FirmamentStepExportResult>.Success(new(step.Value, v2Parse.Document!.ModelName, 0, "coaxial-primitive-compose", "compose",
+                EngineeringFeatures: coaxial.Spans.Select(span => new FirmamentEngineeringFeatureReport(span.Name, span.Kind,
+                    "compose:" + coaxial.Name + "." + span.Name, coaxial.Name, null, null, span.To - span.From, "Height", "Add",
+                    MaterializationRoute: "RevolvedProfileStack"))
+                    .Concat(coaxial.Chamfers.Select(chamfer => new FirmamentEngineeringFeatureReport(chamfer.Name, "Chamfer",
+                        "compose:" + coaxial.Name + "." + chamfer.Name, coaxial.Name, chamfer.On, null, chamfer.Distance, "Distance", "Remove",
+                        MaterializationRoute: "RevolvedProfileStack"))).ToArray())
+                { RuntimeBody = built.Body, RuntimeBodySourceName = coaxial.Name });
+        }
         if (v2Parse.BoundRevolve is { } boundRevolve)
         {
             var authored = boundRevolve;

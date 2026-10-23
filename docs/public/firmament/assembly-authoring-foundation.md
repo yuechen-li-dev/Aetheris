@@ -31,7 +31,7 @@ parent origin, and `World` the current assembly root. Relative ports resolve on
 the current occurrence, then its parent; qualified paths obey public boundaries.
 Named transforms are referenced as `Name.Frame`.
 
-Translations require finite mm lengths; checked scalar Static/Record fields can supply translation and dimensionless basis components. Rotation requires X/Y/Z and finite deg. Manufacturing tolerances belong to the owning Part and explicit PMI, rather than Assembly frame values.
+Translations require finite mm lengths; checked scalar Static/Record fields can supply translation and dimensionless basis components. Rotation requires X/Y/Z and finite deg. Manufacturing requirements belong to their declaring Part or Assembly and explicit PMI, rather than Assembly frame values. Part PMI is not inherited by assembly export: declare assembly PMI explicitly in the root `.firmasm`. Mates do not infer tolerance requirements. See [PMI ownership and assembly notes](pmi.md#assembly-release-records-and-design-notes).
 Optional paired Normal/Up vectors are dimensionless and expressed in the target
 frame. Normal supplies Z, projected Up supplies Y, and Y cross Z supplies X.
 Zero/parallel vectors fail. Rotation applies in that constructed basis,

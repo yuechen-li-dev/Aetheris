@@ -1,0 +1,23 @@
+include "bracket.firmament";
+include "fastener-library.firmament";
+
+Static bracketSpec: BracketSpec = BracketSpec {
+    width: 96mm; height: 60mm; legWidth: 20mm; legHeight: 20mm; thickness: 12mm
+    holeX: 76mm; holeY: 10mm; shaftDiameter: 6mm; entryDiameter: 12mm
+}
+
+Interface<Fixed> CountersunkSeat { }
+Static fastenerSpec: FastenerSpec = FastenerSpec {
+    shaftDiameter: 5.7mm; headDiameter: 12mm; length: 16mm; tipChamfer: 0.5mm
+}
+Assembly MountedBracket {
+    <Assembly MountedBracket>
+        <Part Bracket = Bracket<spec: bracketSpec>></Part>
+        <Part Fastener = Fastener<spec: fastenerSpec>></Part>
+    </Assembly>
+    anchor: MountedBracket.Bracket;
+    Mate InstallFastener: CountersunkSeat {
+        A: MountedBracket.Bracket.FastenerSeat;
+        B: MountedBracket.Fastener.HeadSeat;
+    }
+}

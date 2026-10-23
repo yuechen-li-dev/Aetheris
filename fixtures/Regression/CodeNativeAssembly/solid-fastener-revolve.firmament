@@ -1,0 +1,10 @@
+// Regression for the formerly rejected flat-ended axis-touching solid meridian.
+Model ChamferedFastener {
+    units: mm
+    Axis spindle { origin: [0mm, 0mm, 0mm]; direction: [0, 0, 1] }
+    Concept Struct meridian on XZ {
+        Polygon2 section { points: [[0mm, 0mm], [2.35mm, 0mm], [2.85mm, 0.5mm], [2.85mm, 12.85mm], [6mm, 16mm], [0mm, 16mm]] }
+    }
+    Profile outline using meridian { Loop Outer { section |> TraceLoop } }
+    Revolve body { profile: outline; about: spindle; angle: full }
+}

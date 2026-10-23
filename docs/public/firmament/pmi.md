@@ -104,6 +104,15 @@ Pattern-generated geometry may coexist with PMI, but the native lane does not ye
 
 ## Assembly release records and design notes
 
+PMI is owned by the document that declares it. A Part's `Pmi` describes that
+Part; assembling it does not copy, promote or reinterpret those requirements as
+assembly requirements. An assembly exported without its own `Pmi` or `Provenance` declaration has no
+assembly-owned PMI, even when its component sources contain PMI. This is
+intentional. Declare assembly requirements explicitly in the root `.firmasm`
+file, using the admitted assembly PMI forms below. The standalone Part export
+retains its own supported PMI. Mates determine placement; they do not infer
+manufacturing requirements or propagate tolerances.
+
 The assembly lane supports root-owned product annotations and a selected typed
 release Record. These lower through the existing semantic PMI note emitter to
 AP242 `SHAPE_ASPECT` and `PROPERTY_DEFINITION` entities, and are recovered by

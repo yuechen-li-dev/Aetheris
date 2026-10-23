@@ -60,6 +60,27 @@ A Pocket always leaves a floor. Its required floor comes from
 default, and the build fails when the floor would be thinner. Do not mix `depth`
 or a floor requirement with `end: ThroughAll`.
 
+### Coaxial primitive Compose
+
+A coaxial `Compose` can join positive-radius `Cylinder` and `Frustum` spans without sketches or Boolean union. The first span starts at the local origin along +Z; each later span names the previous span's top support, and their joining radii must match. For example:
+
+```firmament
+Model CountersunkFastener {
+  units: mm
+  Compose body {
+    Cylinder shaft { radius: 2.85mm; height: 12.85mm }
+    Frustum head { on: shaft.Top; bottomRadius: 2.85mm; topRadius: 6mm; height: 3.15mm }
+  }
+  Modify body {
+    EdgeFinish<Chamfer> tip { on: shaft.Bottom; target: Boundary; distance: 0.5mm }
+  }
+}
+```
+
+This produces exact cylindrical, conical and planar supports. A chamfer on an exposed terminal Cylinder rim removes equal axial and radial distance, giving a 45° lead-in. Its distance must be smaller than both cylinder radius and height. One chamfer per exposed end is admitted. For a reusable Record/Template and assembly seat, see the [fastener library](../../../../fixtures/Regression/CodeNativeAssembly/fastener-library.firmament).
+
+This bounded stack rejects arbitrary placements, mismatched joining radii, radial shoulders, overlapping or disjoint spans, mixed Profile/primitive operations, internal-rim finishes, Fillet, holes and part PMI on this Compose family. It also rejects typed tolerances that it cannot project. Other Compose families retain their own admitted operations.
+
 ## Holes
 
 | Variant | Fields |

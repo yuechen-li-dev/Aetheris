@@ -1,0 +1,40 @@
+schema SectionChain
+Model Fastener {
+    units: mm
+    Static shaftDiameter: Length = 5.7mm
+    Static headDiameter: Length = 12mm
+    Static length: Length = 16mm
+    Static tipChamfer: Length = 0.5mm
+
+    Concept Struct stations {
+        tip: Plane { origin: [0mm, 0mm, 0mm]; normal: [0,0,1]; up: [0,1,0] }
+        leadIn: Plane { origin: [0mm, 0mm, tipChamfer]; normal: [0,0,1]; up: [0,1,0] }
+        neck: Plane { origin: [0mm, 0mm, length - (headDiameter - shaftDiameter) / 2]; normal: [0,0,1]; up: [0,1,0] }
+        head: Plane { origin: [0mm, 0mm, length]; normal: [0,0,1]; up: [0,1,0] }
+    }
+    Construction Plane tipFrame { trace: stations.tip }
+    Construction Plane leadInFrame { trace: stations.leadIn }
+    Construction Plane neckFrame { trace: stations.neck }
+    Construction Plane headFrame { trace: stations.head }
+
+    Circle2 tipCircle { center: [0mm, 0mm]; radius: shaftDiameter / 2 - tipChamfer }
+    Circle2 shaftCircle { center: [0mm, 0mm]; radius: shaftDiameter / 2 }
+    Circle2 headCircle { center: [0mm, 0mm]; radius: headDiameter / 2 }
+    Profile tipOutline { Loop Outer { tipCircle |> TraceLoop } }
+    Profile shaftOutline { Loop Outer { shaftCircle |> TraceLoop } }
+    Profile headOutline { Loop Outer { headCircle |> TraceLoop } }
+
+    SectionChain Body {
+        continuity: G0
+        transition: Ruled
+        Section Tip { frame: tipFrame; profile: tipOutline }
+        Section LeadIn { frame: leadInFrame; profile: shaftOutline }
+        Section Neck { frame: neckFrame; profile: shaftOutline }
+        Section Head { frame: headFrame; profile: headOutline }
+        start: Cap
+        end: Cap
+    }
+    expose {
+        Semantic HeadSeat { DatumFrame Frame = Body.Section.Head.Frame; }
+    }
+}

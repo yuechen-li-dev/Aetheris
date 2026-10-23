@@ -1,0 +1,28 @@
+Record FastenerSpec {
+    shaftDiameter: Length
+    headDiameter: Length
+    length: Length
+    tipChamfer: Length
+}
+
+Template<spec: FastenerSpec> Struct Fastener {
+    Require positive => spec.shaftDiameter > 0mm && spec.headDiameter > spec.shaftDiameter && spec.tipChamfer > 0mm && spec.tipChamfer < spec.shaftDiameter / 2 && spec.length > (spec.headDiameter - spec.shaftDiameter) / 2 + spec.tipChamfer
+    Compose Body {
+        Cylinder shaft {
+            radius: spec.shaftDiameter / 2
+            height: spec.length - (spec.headDiameter - spec.shaftDiameter) / 2
+        }
+        Frustum head {
+            on: shaft.Top
+            bottomRadius: spec.shaftDiameter / 2
+            topRadius: spec.headDiameter / 2
+            height: (spec.headDiameter - spec.shaftDiameter) / 2
+        }
+    }
+    Modify Body {
+        EdgeFinish<Chamfer> tip { on: shaft.Bottom; target: Boundary; distance: spec.tipChamfer }
+    }
+    expose {
+        Semantic HeadSeat { DatumFrame Frame = [0mm, 0mm, spec.length] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    }
+}

@@ -60,13 +60,34 @@ public static class SectionChainAuthoringParser
         if (LoftAuthoringParser.IsLoftSource(source))
             return LoftAuthoringParser.Compile(source, materialize);
         var diagnostics = new List<string>();
-        var boundaries = ClosedBoundary2Authoring.Expand(source, diagnostics);
+        var values = new FirmamentCompileTimeValues(source);
+        values.BindExpandedScalars(source, diagnostics);
+        // Resolve named boundary sets while their declarations are still present.
+        // Static/Pattern expansion consumes them; inline Section profile recipes
+        // must in turn be exposed before Template specialization below.
+        var boundaries = ClosedBoundary2Authoring.Expand(source, diagnostics, values);
         if (boundaries is null || diagnostics.Count > 0) return new(false, null, null, diagnostics);
         source = boundaries.Source;
-        var staticSource = CanonicalStaticAuthoring.Expand(source, diagnostics);
+        var staticSource = CanonicalStaticAuthoring.Expand(source, diagnostics, values);
         if (staticSource is null || diagnostics.Count > 0) return new(false, null, null, diagnostics);
-        source = ExpandSectionValues(staticSource.Source, diagnostics);
-        var templates = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
+        var inputs = values.MaterialInputs(staticSource.Source);
+        if (inputs.Any(v => v.Tolerance is not null))
+            diagnostics.Add("section-chain-tolerance-consumer-unsupported: Manufacturing tolerances are not admitted by this domain; nominal values cannot silently erase them.");
+        diagnostics.AddRange(values.Diagnostics.Where(d => d.Severity is "error" or "fatal").Select(d => d.Code + ": " + d.Message));
+        if (diagnostics.Count > 0) return new(false, null, null, diagnostics);
+        source = ExpandSectionValues(FirmamentValueSubstitution.Apply(staticSource.Source,
+            inputs.ToDictionary(v => v.Name, v => values.NominalExpression(v.Name), StringComparer.Ordinal)), diagnostics);
+        // These declarations have been checked and projected by the shared value
+        // binder. Legacy geometry readers must not re-admit them as unknown scope
+        // statements. Preserve line positions and leave every unbound declaration.
+        var boundNames = inputs.Select(v => v.Name).ToHashSet(StringComparer.Ordinal);
+        var projection = source.ToCharArray();
+        foreach (var scalar in FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
+            .Where(d => d.Type.Name.Text == "Static" && d.Name is not null && boundNames.Contains(d.Name.Text)))
+            for (var index = scalar.Span.Start; index < scalar.Span.Start + scalar.Span.Length; index++)
+                if (projection[index] is not ('\r' or '\n')) projection[index] = ' ';
+        source = new string(projection);
+        var templates = FirmamentV2TemplateExpansion.Expand(source, diagnostics, values);
         if (templates is null || diagnostics.Count > 0) return new(false, null, null, diagnostics);
         source = templates.Source;
         var syntax = FirmamentSyntaxParser.Parse(source);
@@ -122,7 +143,7 @@ public static class SectionChainAuthoringParser
                 derivations.Add(new(authored.Name!.Text, profile.Name, provenance.ConceptStableId,
                     provenance.TracedFrom ?? "", provenance.Derivation, profile.PlaneFrame));
             if (profile.Loops.Count != 1) diagnostics.Add($"section-chain-profile-loop-count-invalid:{authored.Name!.Text}");
-            var spans = outer.Segments.Select(segment => Convert(segment, diagnostics, authored.Name!.Text)).Where(item => item is not null).Cast<SectionProfileSpan>().ToArray();
+            var spans = outer.Segments.SelectMany(segment => ConvertSpans(segment, diagnostics, authored.Name!.Text)).ToArray();
             var seamId = seam ?? spans.FirstOrDefault()?.SpanId ?? string.Empty;
             sections.Add(new(authored.Name!.Text, new(plane.Origin, plane.AxisX, plane.AxisY, plane.AxisZ), new(profile.Name, spans, seamId)));
         }
@@ -197,6 +218,22 @@ public static class SectionChainAuthoringParser
         foreach (var change in changes.OrderByDescending(c => c.Start)) source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
         return source;
         string Slice(FirmamentV2SourceSpan span) => source.Substring(span.Start, span.Length);
+    }
+
+    private static IEnumerable<SectionProfileSpan> ConvertSpans(ResolvedProfileSegment2D segment, List<string> diagnostics, string section)
+    {
+        // One closed circle has four deterministic semantic quadrants. Feed exact
+        // arcs to the existing ruled materializer; do not approximate the circle or
+        // make corresponding sections depend on their source declaration names.
+        if (segment.Geometry is LineArcFullCircle2D circle)
+        {
+            for (var quadrant = 0; quadrant < 4; quadrant++)
+                yield return new("CircleQuadrant" + quadrant, new SectionProfileCurve.Arc(
+                    new(circle.Center.X, circle.Center.Y), circle.Radius, quadrant * Math.PI / 2, Math.PI / 2));
+            yield break;
+        }
+        var span = Convert(segment, diagnostics, section);
+        if (span is not null) yield return span;
     }
 
     private static SectionProfileSpan? Convert(ResolvedProfileSegment2D segment, List<string> diagnostics, string section) => segment.Geometry switch

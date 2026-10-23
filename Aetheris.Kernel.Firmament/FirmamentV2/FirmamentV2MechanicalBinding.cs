@@ -95,7 +95,9 @@ public static partial class FirmamentV2Parser
         {
             // The construction adapter consumes serialized bound AST fields. An
             // unused Static is data, never a reason to reject a material owner.
-            var construction = BindMechanicalConstruction(source, model, diagnostics, templateInstantiations, compileTime);
+            var construction = constructions.Length == 1 && IsCoaxialComposition(constructions[0])
+                ? BindCoaxialComposition(model, constructions[0], source, diagnostics, staticValues.Values)
+                : BindMechanicalConstruction(source, model, diagnostics, templateInstantiations, compileTime);
             return construction.Document is null ? construction : construction with
             {
                 Document = construction.Document with { Lets = staticValues.Declarations, BoundLets = staticValues.Values },

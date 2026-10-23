@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
@@ -74,9 +75,51 @@ public static class ResolvedProfileRevolveEmitter
             ["revolve-profile-authoritative", "revolve-axis-explicit", isFull ? "revolve-periodic-seam" : "revolve-semantic-radial-caps"]);
 
         if (isFull && TryEmitSphere(revolve, plan, localAxisOrigin, localDx, localDy, out var sphere)) return sphere;
+        if (isFull && TryEmitAxisClosedStack(revolve, plan, localAxisOrigin, localDx, localDy, sideSign, out var stack)) return stack;
         return EmitGeneral(revolve, plan, localAxisOrigin, localDx, localDy, sideSign, sweepMagnitude);
 
         double Radius((double X, double Y) point) => localDx * (point.Y - localAxisOrigin.Y) - localDy * (point.X - localAxisOrigin.X);
+    }
+
+    // A flat-ended solid of revolution is the same analytic stack already used
+    // by circular rim chamfers. Erase only the non-material axis closure; keep
+    // both radial cap identities and every strictly monotone outer span.
+    private static bool TryEmitAxisClosedStack(ResolvedRevolve revolve, RevolveBRepPlan plan,
+        (double X, double Y, double Z) origin, double dx, double dy, int sideSign,
+        out ResolvedProfileRevolveResult result)
+    {
+        result = default!;
+        var segments = revolve.Profile.Loops[0].Segments;
+        if (segments.Count < 4 || segments.Any(s => s.Geometry is not LineArcLineSegment2D)) return false;
+        double Radius((double X, double Y) p) => sideSign * (dx * (p.Y - origin.Y) - dy * (p.X - origin.X));
+        double Axial((double X, double Y) p) => dx * (p.X - origin.X) + dy * (p.Y - origin.Y);
+        var axis = segments.Select((s, i) => (Line: (LineArcLineSegment2D)s.Geometry, Index: i))
+            .Where(s => Math.Abs(Radius(s.Line.Start)) <= Tol && Math.Abs(Radius(s.Line.End)) <= Tol).ToArray();
+        if (axis.Length != 1) return false;
+        var ordered = Enumerable.Range(1, segments.Count - 1).Select(i => segments[(axis[0].Index + i) % segments.Count]).ToArray();
+        var first = (LineArcLineSegment2D)ordered[0].Geometry;
+        var last = (LineArcLineSegment2D)ordered[^1].Geometry;
+        if (Math.Abs(Axial(first.Start) - Axial(first.End)) > Tol || Math.Abs(Axial(last.Start) - Axial(last.End)) > Tol) return false;
+        var outer = ordered.Skip(1).SkipLast(1).ToArray();
+        var points = new[] { first.End }.Concat(outer.Select(s => ((LineArcLineSegment2D)s.Geometry).End))
+            .Select(p => new ProfilePoint2D(Radius(p), Axial(p))).ToArray();
+        if (points.Any(p => p.X <= Tol)) return false;
+        var ascending = points[^1].Y > points[0].Y;
+        if (!ascending) { Array.Reverse(points); Array.Reverse(outer); }
+        if (points.Zip(points.Skip(1)).Any(p => p.Second.Y <= p.First.Y + Tol)) return false;
+        var frame = new ExtrudeFrame3D(plan.AxisOrigin, plan.AxisDirection, plan.RadialDirection);
+        var topology = RevolvedProfileStackEmitter.Plan(points, frame, new(plan.AxisOrigin, plan.AxisDirection.ToVector()));
+        if (!topology.IsSuccess) return false;
+        var emitted = RevolvedProfileStackEmitter.Emit(topology.Value);
+        if (!emitted.Succeeded)
+        { result = new(null, plan, emitted.Diagnostics); return true; }
+        var faces = outer.Select((s, i) => (Name: "RevolvedSpan:" + s.Name, Face: emitted.SideFaces[i]))
+            .ToDictionary(p => p.Name, p => p.Face, StringComparer.Ordinal);
+        faces["RevolvedSpan:" + ordered[0].Name] = ascending ? emitted.BottomFace : emitted.TopFace;
+        faces["RevolvedSpan:" + ordered[^1].Name] = ascending ? emitted.TopFace : emitted.BottomFace;
+        result = new(emitted.Body, plan with { SurfaceRoles = faces.Keys.ToArray() },
+            plan.Diagnostics.Concat(emitted.Diagnostics).Append("revolve-axis-closure-erased:flat-ended-monotone-line-stack").ToArray(), faces);
+        return true;
     }
 
     private static ResolvedProfileRevolveResult EmitGeneral(ResolvedRevolve revolve, RevolveBRepPlan plan,

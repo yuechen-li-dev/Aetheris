@@ -1,0 +1,9 @@
+include "fastener-library.firmament";
+
+Model FastenerPart {
+    units: mm
+    Static fastenerSpec: FastenerSpec = FastenerSpec {
+        shaftDiameter: 5.7mm; headDiameter: 12mm; length: 16mm; tipChamfer: 0.5mm
+    }
+    Struct fastener = Fastener<spec: fastenerSpec>
+}

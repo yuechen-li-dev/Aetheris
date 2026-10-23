@@ -4,6 +4,31 @@ A SectionChain builds a surface or closed body from an ordered sequence of frame
 
 For two framed circle or ellipse profiles, [`Loft` and `Loft<Hollow>`](loft.md) provide concise ruled authoring with explicit point correspondence and optional twist. They lower into the same SectionChain path.
 
+## Circular stations and checked dimensions
+
+Use a capped `SectionChain` when framed profiles and their correspondence express the design. The complete [circular-station witness](../../../fixtures/Regression/CodeNativeAssembly/fastener-sections.firmament) uses named `Static` lengths, `Circle2` guides, traced Profiles and four named Sections. For a shaft built from cylindrical and conical masses, [primitive Compose](../reference/language/solids-and-features.md#coaxial-primitive-compose) and a named edge finish express that intent more directly. Build the SectionChain witness through the normal command:
+
+```powershell
+aetheris build fixtures/Regression/CodeNativeAssembly/fastener-sections.firmament --out artifacts/local/fastener-sections.step --json
+```
+
+The shared compile-time binder checks scalar `Static` values before their nominal dimensions reach profiles and station frames. Manufacturing tolerances on those values are currently rejected with `section-chain-tolerance-consumer-unsupported`; this domain does not project them into PMI.
+
+Declare Concept plane values as fields when tracing them into construction frames:
+
+```firmament
+Concept Struct stations {
+    tip: Plane { origin: [0mm, 0mm, 0mm]; normal: [0, 0, 1]; up: [0, 1, 0] }
+}
+Construction Plane tipFrame { trace: stations.tip }
+```
+
+A full circular profile gets four exact arc spans named `CircleQuadrant0` through `CircleQuadrant3`, starting at local +X and progressing counterclockwise. Corresponding circles share these span identities even when their guide names differ. In the `G0`/`Ruled` lane, coaxial matching arc spans produce exact cylindrical or conical supports. Rotated phase, different sweeps or noncoaxial stations do not qualify for that analytic recognition. Existing explicitly segmented profiles retain their authored span names.
+
+For assembly placement, expose a terminal frame such as `Body.Section.Head.Frame` and bind it through an Interface and Mate. The [bracket and fastener assembly](../../../fixtures/Regression/CodeNativeAssembly/assembly.firmasm) uses primitive Compose with an explicit design-owned seating frame instead. A mathematical seating frame identifies placement; it does not itself assert planar material at the frame origin.
+
+## Sections and correspondence
+
 ```text
 Section0 -> Section1 -> Section2 -> Section3
 ```

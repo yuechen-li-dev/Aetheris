@@ -38,7 +38,20 @@ public static class RuledSurfaceLowering
             var surface = Bilinear(a.Start, a.End, b.Start, b.End);
             return Success(ir, SurfaceGeometry.FromBSplineSurfaceWithKnots(surface), Evaluate,developability,SurfaceMaterializationKind.ExactPolynomialBSpline,null);
         }
-        if (ir.BoundaryA is RuledBoundary.Circle c0 && ir.BoundaryB is RuledBoundary.Circle c1
+        var circularA = ir.BoundaryA as RuledBoundary.Circle;
+        var circularB = ir.BoundaryB as RuledBoundary.Circle;
+        if (ir.BoundaryA is RuledBoundary.Arc arcA && ir.BoundaryB is RuledBoundary.Arc arcB
+            && double.Abs(arcA.StartAngleRadians - arcB.StartAngleRadians) <= 1e-12
+            && double.Abs(arcA.SweepAngleRadians - arcB.SweepAngleRadians) <= 1e-12
+            && arcA.Normal.ToVector().Dot(arcB.Normal.ToVector()) > 0)
+        {
+            // Matching circular spans have the same analytic carrier as full
+            // circles. Keep the authored arc evaluators and trims; only reuse
+            // the existing coaxial cylinder/cone recognition below.
+            circularA = new(arcA.StableId, arcA.Center, arcA.Normal, arcA.Radius, arcA.ReferenceAxis);
+            circularB = new(arcB.StableId, arcB.Center, arcB.Normal, arcB.Radius, arcB.ReferenceAxis);
+        }
+        if (circularA is { } c0 && circularB is { } c1
             && c0.Normal.ToVector().Cross(c1.Normal.ToVector()).Length <= 1e-10
             && c0.Normal.ToVector().Cross(c1.Center-c0.Center).Length <= 1e-10
             && double.Abs((c1.Center-c0.Center).Dot(c0.Normal.ToVector())) > 1e-12

@@ -1,0 +1,46 @@
+Record BracketSpec {
+    width: Length
+    height: Length
+    legWidth: Length
+    legHeight: Length
+    thickness: Length
+    holeX: Length
+    holeY: Length
+    shaftDiameter: Length
+    entryDiameter: Length
+}
+
+Template<spec: BracketSpec> Struct Bracket {
+    Require positive => spec.width > spec.legWidth && spec.height > spec.legHeight && spec.legWidth > 0mm && spec.legHeight > 0mm && spec.thickness > 0mm
+    Concept Struct layout on XY {
+        Rect2 horizontal { center: [spec.width / 2, spec.legHeight / 2]; size: [spec.width, spec.legHeight] }
+        Rect2 vertical { center: [spec.legWidth / 2, spec.height / 2]; size: [spec.legWidth, spec.height] }
+        Point2 notch { position: [spec.legWidth, spec.legHeight] }
+    }
+    Profile outline using layout { Loop Outer {
+        horizontal.Bottom as south
+            |> horizontal.Right as east
+            |> horizontal.Top to notch as inner
+            |> vertical.Right to vertical.TopRight as upright
+            |> vertical.Top as north
+            |> vertical.Left to horizontal.BottomLeft as west
+            |> Close
+    } }
+    Compose body { Base stock { profile: outline; from: 0mm; to: spec.thickness; role: Stock } }
+    Modify body { Hole<Countersink> mount {
+        on: +Z
+        center: Point2(spec.holeX, spec.holeY)
+        diameter: spec.shaftDiameter
+        countersinkDiameter: spec.entryDiameter
+        countersinkAngle: 90deg
+        end: ThroughAll
+    } }
+    Pmi {
+        Datum A { target: face(+Z) }
+        HoleDiameter shaftSize { target: mount; value: spec.shaftDiameter; tolerance: PlusMinus(0.1mm) }
+    }
+    expose {
+        // Mathematical seating datum, not a claim of planar material at the hole center.
+        Semantic FastenerSeat { DatumFrame Frame = [spec.holeX, spec.holeY, spec.thickness] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    }
+}

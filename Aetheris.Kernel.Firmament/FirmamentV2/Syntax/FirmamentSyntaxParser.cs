@@ -414,6 +414,8 @@ public static class FirmamentSyntaxParser
                 {
                     var t = Current; at++;
                     left = new LiteralSyntax(t.Kind == SyntaxTokenKind.String ? LiteralKind.String : t.Kind == SyntaxTokenKind.Number ? LiteralKind.Number : LiteralKind.Boolean, t.Text, t.Span);
+                    if (t.Kind == SyntaxTokenKind.Number && !IsFiniteNumber(t.Text))
+                        Error("firmament-number-not-finite", $"'{t.Text}' is outside the finite double range. Use a finite value.", t.Span);
                     if (t.Kind == SyntaxTokenKind.Number && Current.Kind == SyntaxTokenKind.Number && Current.Text.StartsWith('.')
                         && (t.Span.Start + t.Span.Length) == Current.Span.Start && t.Text.Count(c => c == '.') == 1)
                     { at++; left = new LiteralSyntax(LiteralKind.Version, source[start..(Previous.Span.Start + Previous.Span.Length)], Span(start)); }
@@ -449,6 +451,10 @@ public static class FirmamentSyntaxParser
                 else if (Current.Kind == SyntaxTokenKind.Identifier)
                 {
                     var name = Identifier(); left = new ReferenceSyntax(name, name.Span);
+                    // .NET parses "NaN" and "Infinity" as numbers, so a value reader that falls back to
+                    // double.TryParse would turn these names into non-finite geometry input.
+                    if (double.TryParse(name.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
+                        Error("firmament-number-not-finite", $"'{name.Text}' is not a finite number. Use a finite value.", name.Span);
                     var compatibilityDepthEnd = name.Text == "depth" && at >= 3 && tokens[at - 2].Text == ":" && tokens[at - 3].Text is "end" or "End";
                     if ((name.Text is "Blind" or "CenteredAt" || compatibilityDepthEnd) && !Is("(") && !Is(">") && !Is(",") && !LineBreak)
                     {
@@ -657,6 +663,8 @@ public static class FirmamentSyntaxParser
                 at++;
             }
         }
+        private static bool IsFiniteNumber(string text) =>
+            !double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value) || double.IsFinite(value);
         private ParseFailure Fail(string code, string message) { Error(code, message, Current.Span); return new(); }
         private void Error(string code, string message, FirmamentV2SourceSpan span)
         {

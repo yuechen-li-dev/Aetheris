@@ -311,8 +311,16 @@ internal static class ConceptIrResolver
         boxFields.Complete();
         var modifySyntax = syntaxDeclarations.FirstOrDefault(d => d.Type.Name.Text == "Modify" && d.Body?.Span.Start == modifyOpen);
         foreach (var statement in modifySyntax?.Body?.Statements ?? [])
+        {
             if (statement is not DeclarationSyntax feature || !(feature.Type.Name.Text.Equals("Hole", StringComparison.OrdinalIgnoreCase) || feature.Type.Name.Text is "Pattern" or "EdgeFinish"))
                 diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:Modify:{(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}");
+            // The hole reader below looks fields up by name, so any other field would be
+            // dropped silently. This path admits shaft holes with exactly these fields.
+            else if (feature.Type.Name.Text.Equals("Hole", StringComparison.OrdinalIgnoreCase))
+                foreach (var holeField in feature.Body?.Statements.OfType<FieldSyntax>() ?? [])
+                    if (!ConceptHoleFields.Any(name => FirmamentSyntaxFields.SameField(holeField.Name.Text, name)))
+                        diagnostics.Add($"{FirmamentV2Parser.CanonicalFieldUnknown}:Hole:{holeField.Name.Text}");
+        }
         IReadOnlyList<double>? size = null;
         ConceptIrBox3Value? resolvedBounds = null;
         string boundsProvenance;
@@ -432,6 +440,8 @@ internal static class ConceptIrResolver
         if (value is not ConceptIrPlaneValue resolved) { diagnostic = "ConstructionPlaneTraceMissing: " + reference + " is not a Plane"; return false; }
         plane = resolved; return true;
     }
+
+    private static readonly string[] ConceptHoleFields = ["From", "On", "Center", "Diameter", "End", "Termination"];
 
     private static IReadOnlyList<FirmamentV2SemanticHoleDecl> ParseConceptHoles(
         string body,

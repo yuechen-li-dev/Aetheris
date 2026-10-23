@@ -662,6 +662,14 @@ public static class ProfileAuthoringParser
             curves = [new LineArcLineSegment2D(current, endpoint)]; headingDegrees = Heading(current, endpoint); return true;
         }
         var body = step.Body;
+        if (step.Kind is "Line" or "Span" or "Arc")
+        {
+            // Segment bodies are read by name; reject anything the binder would silently ignore.
+            string[] allowed = step.Kind == "Arc" ? ["Radius", "Turn"] : ["Turn", "Heading", "Length", "To"];
+            var unknown = Regex.Matches(body ?? string.Empty, @"(?<![\w.])(?<n>[A-Za-z_]\w*)\s*:", RegexOptions.CultureInvariant)
+                .Select(m => m.Groups["n"].Value).FirstOrDefault(n => !allowed.Contains(n, StringComparer.Ordinal));
+            if (unknown is not null) { diagnostic = $"concept-path-field-unknown:{path}:{step.Name}:{unknown}:allowed={string.Join(",", allowed)}"; return false; }
+        }
         var turn = Property(body, "Turn"); var absolute = Property(body, "Heading"); var length = Property(body, "Length"); var to = Property(body, "To");
         if (step.Kind is "Line" or "Span")
         {

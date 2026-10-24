@@ -55,18 +55,31 @@ public sealed class FirmamentAssertionsTests
     }
 
     [Theory]
-    [InlineData("expected: 480mm^3", "expected: 479mm^3", "firmament-v2-assert-volume-failed")]
-    [InlineData("faces: 6", "faces: 5", "firmament-v2-assert-topology-failed")]
-    [InlineData("max: [5mm", "max: [6mm", "firmament-v2-assert-bounds-failed")]
-    public void FalseAssertionsFailAtTheirOwnSourceSpan(string before, string after, string code)
+    [InlineData("expected: 480mm^3", "expected: 479mm^3", "firmament-v2-assert-volume-failed", "\n")]
+    [InlineData("faces: 6", "faces: 5", "firmament-v2-assert-topology-failed", "\n")]
+    [InlineData("max: [5mm", "max: [6mm", "firmament-v2-assert-bounds-failed", "\n")]
+    [InlineData("expected: 480mm^3", "expected: 479mm^3", "firmament-v2-assert-volume-failed", "\r\n")]
+    [InlineData("faces: 6", "faces: 5", "firmament-v2-assert-topology-failed", "\r\n")]
+    [InlineData("max: [5mm", "max: [6mm", "firmament-v2-assert-bounds-failed", "\r\n")]
+    public void FalseAssertionsFailAtTheirOwnSourceSpan(string before, string after, string code, string newline)
     {
-        var source = Source("box").Replace(before, after, StringComparison.Ordinal);
+        var source = Source("box").ReplaceLineEndings(newline).Replace(before, after, StringComparison.Ordinal);
         var built = FirmamentBuildAndExport.CompileSource(source);
         Assert.False(built.IsSuccess);
         var diagnostic = Assert.Single(built.Diagnostics.Where(d => d.Message.StartsWith(code, StringComparison.Ordinal)));
         Assert.NotNull(diagnostic.SourceSpan);
         Assert.StartsWith("Assert ", source.Substring(diagnostic.SourceSpan!.Start, diagnostic.SourceSpan.Length));
         Assert.True(FirmamentBuildAndExport.CompileForMeasurement(source).IsSuccess);
+    }
+
+    [Fact]
+    public void SourceLineEndingsDoNotChangeQualifiedGeometry()
+    {
+        var lf = FirmamentBuildAndExport.CompileSource(Source("box").ReplaceLineEndings("\n"));
+        var crlf = FirmamentBuildAndExport.CompileSource(Source("box").ReplaceLineEndings("\r\n"));
+        Assert.True(lf.IsSuccess);
+        Assert.True(crlf.IsSuccess, string.Join("; ", crlf.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(lf.Value.StepText, crlf.Value.StepText);
     }
 
     [Fact]

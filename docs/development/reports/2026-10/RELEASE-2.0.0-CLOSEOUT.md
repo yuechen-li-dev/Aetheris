@@ -104,9 +104,9 @@ with the new stable name retained. Five regression cases select that previously
 unused Plate recipe and confirm each inserted field rejects validate and build.
 These are explicit classifications, not a blanket exemption for Template bodies.
 
-The public-byte build passed 5,988 tests before those final eleven closures.
-The resulting source passes sixty focused CLI/edge-finish cases. A new complete
-solution run and final source qualification remain gates. Both completed
+The public-byte build passed 5,998 tests after those final eleven closures.
+The resulting source also passes sixty focused CLI/edge-finish cases. Final
+hosted release qualification remains a gate. Both completed
 380-file comparisons so far retained identical exits and byte-identical STEP
 for all 297 successful engineering builds. The remaining 83 files comprise
 library/inspection sources, garment sources needing body input, and non-STEP
@@ -118,3 +118,12 @@ alongside the corresponding source and command results.
 
 Qualification is in progress. No Aetheris stable tag has been published by this
 pass while the final gates remain open.
+
+The first Windows release rehearsal exposed CRLF assertion offsets being used
+against original source after LF normalization, and a stable-key test mutation
+that assumed LF. Compilation now preserves authored line endings instead of
+discarding those source offsets; six explicit LF/CRLF assertion cases and a
+byte-identical STEP witness cover the repair. The key-order test normalizes its
+own mutation input. Hosted qualification also serializes xUnit collections (in
+addition to test assemblies), so independent corpus tessellations do not contend
+against one another's bounded execution budgets. No product budget is enlarged.

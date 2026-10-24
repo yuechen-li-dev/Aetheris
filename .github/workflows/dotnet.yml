@@ -67,7 +67,7 @@ jobs:
       - name: Test full solution
         env:
           AETHERIS_TEST_PDFTOPPM: /usr/bin/pdftoppm
-        run: dotnet test Aetheris.slnx --configuration Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1
+        run: dotnet test Aetheris.slnx --configuration Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1 xUnit.ParallelizeTestCollections=false
 
       - name: Qualify portable CLI package
         shell: pwsh
@@ -139,7 +139,7 @@ jobs:
           dotnet restore Aetheris.slnx
           dotnet build Aetheris.slnx --no-restore /m:1 -c Release
       - name: Test the release candidate
-        run: dotnet test Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1
+        run: dotnet test Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1 xUnit.ParallelizeTestCollections=false
       - name: Package exact release bytes
         id: version
         shell: pwsh

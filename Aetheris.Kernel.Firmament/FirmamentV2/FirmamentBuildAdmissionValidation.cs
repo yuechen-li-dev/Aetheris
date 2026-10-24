@@ -43,7 +43,7 @@ public static class FirmamentBuildAdmissionValidation
             var parsed = FirmamentV2Parser.Parse(source);
             var original = parsed.SyntaxDiagnostics.FirstOrDefault(d => d.Code == code || d.Code.StartsWith(code + ":", StringComparison.Ordinal));
             if (original is not null) return Locate(original, source, sourceFile);
-            if (diagnostic.SourceSpan is { } produced && FirmamentV2Parser.Parse(source.ReplaceLineEndings("\n")).DiagnosticSource is { } input)
+            if (diagnostic.SourceSpan is { } produced && parsed.DiagnosticSource is { } input)
             {
                 var origins = new Syntax.FirmamentSyntaxOrigins(Syntax.FirmamentSyntaxParser.Parse(FirmamentSourceSpelling.Normalize(source)).Document,
                     Syntax.FirmamentSyntaxParser.Parse(input).Document);

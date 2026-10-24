@@ -7,6 +7,8 @@ $ErrorActionPreference = 'Stop'
 $bundle = (Resolve-Path -LiteralPath $BundleDirectory).Path
 if (Test-Path -LiteralPath (Join-Path $bundle 'cadmata')) { throw 'Obsolete duplicated server publish directory is present.' }
 if (-not (Test-Path -LiteralPath (Join-Path $bundle 'Cadmata.Desktop.dll'))) { throw 'The actual desktop host is missing.' }
+$metadata = Get-Content -LiteralPath (Join-Path $bundle 'BUILD-METADATA.json') -Raw | ConvertFrom-Json
+if ($env:GITHUB_ACTIONS -eq 'true' -and $metadata.modifiedSource) { throw 'Hosted release must identify clean product source.' }
 if (-not (Test-Path -LiteralPath (Join-Path $bundle 'CORRESPONDING-SOURCE.md'))) { throw 'The desktop corresponding-source notice is missing.' }
 $licenseAudit = Get-Content -LiteralPath (Join-Path $bundle 'licenses/AUDIT.json') -Raw | ConvertFrom-Json
 if (-not $licenseAudit.redistributionNoticesComplete) { throw 'Desktop redistribution notices are incomplete.' }

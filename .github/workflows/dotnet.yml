@@ -246,6 +246,13 @@ jobs:
           }
           ./scripts/Test-PublicPackageGraph.ps1 -PackageDirectory release/packages/public-libraries -Version $env:AETHERIS_RELEASE_VERSION
           ./scripts/Test-PublicPackageConsumer.ps1 -PackageDirectory release/packages/public-libraries -Version $env:AETHERIS_RELEASE_VERSION -OutputDirectory artifacts/local/release-public-consumer
+      - name: Preserve native desktop qualification evidence
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-qualification-evidence
+          path: artifacts/local/desktop-no-argument-smoke
+          if-no-files-found: ignore
 
   publish:
     if: ${{ !inputs.diagnostic_run_id && (startsWith(github.ref, 'refs/tags/v') || inputs.publish == true) }}

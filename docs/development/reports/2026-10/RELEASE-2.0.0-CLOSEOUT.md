@@ -1,6 +1,35 @@
 # Aetheris 2.0.0 release qualification
 
-**Success: the complete 2.0.0 release candidate is qualified.**
+**Release qualification reopened: the user reproduced a desktop launch blocker.**
+
+The previous candidate shipped the headless server as Cadmata. With no arguments
+it opens no window and binds port 5000, which can already be occupied. The
+headless HTTP smoke did not prove desktop launch. Separate self-contained CLI
+and server publishes also duplicated 215 DLL names. The historical evidence
+below remains valid for its stated automated paths; the desktop distribution
+is not accepted until its actual no-argument apphost is requalified.
+
+The repair publishes Aetheris.Cadmata.Desktop, gives its apphost the public
+Cadmata.exe name, and keeps the explicit headless entry as Cadmata.Server.exe.
+CLI/desktop dependencies occupy one root. Different WindowsDesktop framework
+facades are selected from SDK runtime-pack ownership; conflicting application
+DLLs fail packaging. Production frontend files, the existing pinned WebView2
+runtime, sample and redistribution notices are included. The standalone CLI
+NuGet tool does not acquire WebView2.
+
+Local actual-window tests now pass no-argument launch, authenticated local
+service, WebGPU rendering, orbit/selection, current generated STEP import,
+canonical export/reimport, invalid-file retention and native close/service
+shutdown. Evidence: desktop-repair/full-ui-test-v2/qualification.json. The
+first exploratory import used an older STEP whose orientation diagnostics are
+Degraded; that refusal of the test's Qualified expectation is preserved under
+desktop-repair/full-ui-test and was not hidden by weakening its assertion.
+The current through-hole build remains SHA256
+5999f127e5a1477e5825afa656dceb7f89241d8f85312b0e6bcd793639a0f548.
+
+Full requalification of a freshly rebuilt ZIP is still pending. The previous
+133 MB ZIP omitted the actual desktop/browser; its size and hashes below must
+not be assigned to the corrected distribution.
 
 Distribution candidate: `69bcc6bbd839fe2ce2a4e1bbd9231f28cd719286`.
 Baseline: `b05cca40ec3efd7540c647398892953299d2c136`.
@@ -217,7 +246,7 @@ crash minidumps; deletion requires the user's explicit -Apply invocation.
 
 ## Executive verdict
 
-**Success — accepted release candidate for Aetheris 2.0.0.** The four original
+**Superseded automated-candidate verdict; desktop release blocked.** The four original
 packaging blockers are closed, the reproduced admission/diagnostic defects are
 repaired, and the complete distribution passes its real hosted production path.
 Engineering parity holds for the qualified corpus.

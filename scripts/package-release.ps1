@@ -12,7 +12,8 @@ $env:MSBUILDDISABLENODEREUSE = '1'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $output = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $OutputDirectory))
-$stage = Join-Path $output 'stage'
+$workRoot = "$output.work"
+$stage = Join-Path $workRoot 'stage'
 
 function Normalize-ZipArchive([string]$Path, [switch]$NuGetPackage) {
     $temporary = "$Path.deterministic"
@@ -98,7 +99,7 @@ function Get-ReleaseRelativePath([string]$Root, [string]$Path) {
     return $canonicalPath.Substring($rootPrefix.Length)
 }
 
-if (Test-Path -LiteralPath $output) { throw 'Use a fresh release output directory.' }
+if ((Test-Path -LiteralPath $output) -or (Test-Path -LiteralPath $workRoot)) { throw 'Use fresh release output and work directories.' }
 New-Item -ItemType Directory -Force -Path $stage, (Join-Path $output 'packages') | Out-Null
 
 & (Join-Path $PSScriptRoot 'Build-CadmataFrontend.ps1')
@@ -112,8 +113,8 @@ dotnet publish (Join-Path $repoRoot 'Aetheris.CLI/Aetheris.CLI.csproj') -c Relea
 & (Join-Path $PSScriptRoot 'Test-CoreCliPayload.ps1') -AssetsPath (Join-Path $repoRoot 'Aetheris.CLI/obj/project.assets.json') -PublishDirectory (Join-Path $stage 'Aetheris-win-x64')
 dotnet publish (Join-Path $repoRoot 'Aetheris.Forge.Host/Aetheris.Forge.Host.csproj') -c Release -r win-x64 --self-contained true -m:1 -nr:false -p:UseSharedCompilation=false -t:Rebuild -p:PublishAot=true -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64/forge-host')
 Normalize-PeTimestamps (Join-Path $stage 'Aetheris-win-x64/forge-host/Aetheris.Forge.Host.exe')
-dotnet publish (Join-Path $repoRoot 'Aetheris.Server/Aetheris.Server.csproj') -c Release -r win-x64 --self-contained true -m:1 -nr:false -p:UseSharedCompilation=false -t:Rebuild -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64/cadmata')
-$endpoints = Join-Path $stage 'Aetheris-win-x64/cadmata/Cadmata.staticwebassets.endpoints.json'
+& (Join-Path $PSScriptRoot 'Publish-CadmataDesktop.ps1') -BundleDirectory (Join-Path $stage 'Aetheris-win-x64') -WorkDirectory (Join-Path $workRoot 'desktop-publish') -Version $Version
+$endpoints = Join-Path $stage 'Aetheris-win-x64/Cadmata.staticwebassets.endpoints.json'
 if (Test-Path -LiteralPath $endpoints) {
     $canonicalEndpoints = [Regex]::Replace([IO.File]::ReadAllText($endpoints),
         '"Last-Modified","Value":"[^"]+"', '"Last-Modified","Value":"Mon, 01 Jan 2024 00:00:00 GMT"')

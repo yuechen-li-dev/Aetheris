@@ -2,6 +2,13 @@
 
 This bundle is the `win-x64` product distribution. Run commands from the `Aetheris-win-x64` directory.
 
+Double-click `Cadmata.exe` in that directory to open the desktop application.
+It hosts its own local service on a temporary loopback port and closes that
+service with its window. The CLI and desktop share one set of .NET and CAD
+libraries. The `webview2` directory contains the desktop's pinned offline browser;
+keep it beside the executable. `Cadmata.Server.exe` is the explicit headless
+server entry point, not the desktop application.
+
 ```powershell
 .\aetheris.exe --help
 .\aetheris.exe validate .\fixtures\Canonical\PMI\hole-diameter-and-datum.firmament --json
@@ -12,7 +19,7 @@ This bundle is the `win-x64` product distribution. Run commands from the `Aether
 .\forge-host\Aetheris.Forge.Host.exe list
 ```
 
-The complete public guide is under `docs/public`, executable Firmament examples are under `fixtures`, foreign-language Forge clients are under `samples/forge-interop-x1`, and the deployed Standard Library material catalog is under `Materials`.
+The complete public guide is under `docs/public`, executable Firmament examples are under `fixtures`, and foreign-language Forge clients are under `samples/forge-interop-x1`. The default material catalog is embedded in the managed libraries.
 
 The ZIP is the complete end-user distribution. The `Aetheris.CLI` tool package, its dependency-closed public library set, and `aetheris-firmament-0.3.0-preview.3.vsix` are published as separate release assets rather than duplicated inside the runtime tree. Verify downloaded binary assets against the release's `SHA256SUMS.txt`.
 

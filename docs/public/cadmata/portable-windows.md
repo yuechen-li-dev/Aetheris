@@ -1,8 +1,10 @@
-# Cadmata — Aetheris Preview 4
+# Cadmata — portable Windows application
 
-Download `Cadmata-Preview4-win-x64.zip` from
-[Aetheris Preview 4](https://github.com/yuechen-li-dev/Aetheris/releases/tag/v2.0.0-preview.4).
-Extract the entire ZIP to a local folder. Run **Cadmata.exe**.
+Download `Aetheris-2.0.0-win-x64.zip` from
+[Aetheris releases](https://github.com/yuechen-li-dev/Aetheris/releases).
+Extract the entire ZIP to a local folder. Open `Aetheris-win-x64` and run
+**Cadmata.exe**. The CLI and desktop share their CAD and .NET libraries in this
+folder; keep the `webview2` directory beside the executable.
 
 The included mounting block opens automatically. Use STEP 242 Viewer to open
 your own STEP file and **Download Canonical 242** to save a canonical STEP file.
@@ -21,7 +23,7 @@ on the qualification machine. If the viewport reports Windows Error 87,
 close Cadmata and extract the entire ZIP to an ASCII path before reopening.
 
 The executable is unsigned. Windows may display an unknown-publisher warning
-for a downloaded ZIP. Preview 4 has no installer or automatic updater.
+for a downloaded ZIP. The portable application has no installer or automatic updater.
 Download a newer ZIP to update the bundled browser/security runtime.
 
 About Cadmata shows the version and source identity. Open diagnostic log shows

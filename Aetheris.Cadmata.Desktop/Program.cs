@@ -56,12 +56,12 @@ internal sealed class CadmataWindow : Form
         _args = args;
         _log = log;
         _profile = System.IO.Path.Combine(log.DataRoot, "sessions", Guid.NewGuid().ToString("N"));
-        Text = "Cadmata — Aetheris Preview 4";
+        Text = "Cadmata — Aetheris " + Program.BuildIdentity.Split('+')[0];
         Width = 1440; Height = 960; MinimumSize = new Size(900, 600);
         Controls.Add(_view); Controls.Add(_status);
         var menu = new MenuStrip();
         menu.Items.Add("About Cadmata", null, (_, _) => MessageBox.Show(
-            $"Cadmata — Aetheris Preview 4\n{Program.BuildIdentity}\n\nLogs: {_log.Path}\nSource: https://github.com/yuechen-li-dev/Aetheris",
+            $"Cadmata — Aetheris\n{Program.BuildIdentity}\n\nLogs: {_log.Path}\nSource: https://github.com/yuechen-li-dev/Aetheris",
             "About Cadmata"));
         menu.Items.Add("Open diagnostic log", null, (_, _) => Process.Start(new ProcessStartInfo(_log.Path) { UseShellExecute = true }));
         Controls.Add(menu); MainMenuStrip = menu;

@@ -5,13 +5,15 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $bundle = (Resolve-Path -LiteralPath $BundleDirectory).Path
+if (Test-Path -LiteralPath (Join-Path $bundle 'cadmata')) { throw 'Obsolete duplicated server publish directory is present.' }
+if (-not (Test-Path -LiteralPath (Join-Path $bundle 'Cadmata.Desktop.dll'))) { throw 'The actual desktop host is missing.' }
 $step = (Resolve-Path -LiteralPath $StepPath).Path
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $output) { throw 'Use a fresh smoke output directory.' }
 New-Item -ItemType Directory -Path $output | Out-Null
 $stdout = Join-Path $output 'cadmata.stdout.log'
 $stderr = Join-Path $output 'cadmata.stderr.log'
-$hostPath = Join-Path $bundle 'cadmata/Cadmata.exe'
+$hostPath = Join-Path $bundle 'Cadmata.Server.exe'
 
 # This test owns the child lifetime. It binds a temporary loopback port and
 # verifies the extracted production assets and STEP API without a dev server.

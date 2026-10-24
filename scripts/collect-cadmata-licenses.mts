@@ -90,7 +90,7 @@ for (const [identity, library] of Object.entries(assets.libraries) as [string, {
         const key = repository[1].replace(/\.git$/, "") + "/" + repository[2];
         let license = fetched.get(key);
         if (!license) {
-          for (const name of ["LICENSE", "LICENSE.txt", "LICENSE.TXT", "LICENSE.md", "License.txt"]) {
+          for (const name of ["LICENSE", "LICENSE.txt", "LICENSE.TXT", "LICENSE.md", "License.txt", "license.txt"]) {
             const url = `https://raw.githubusercontent.com/${key}/${name}`;
             const response = await fetch(url);
             if (!response.ok) continue;

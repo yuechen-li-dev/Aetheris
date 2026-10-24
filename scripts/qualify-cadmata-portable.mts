@@ -76,6 +76,14 @@ try {
   report.diagnosticLog = join(logs, logFile);
   report.unauthenticatedStatus = (await fetch(address + "/api/v1/startup/step", { method: "POST" })).status;
   assert.equal(report.unauthenticatedStatus, 403);
+  if (process.env.CADMATA_QUALIFICATION_LAUNCH_ONLY === "1") {
+    await page.locator('#root > *').first().waitFor({ state: "visible" });
+    assert((await readFile(join(logs, logFile), "utf8")).includes("UI visible"), "Desktop navigation must finish");
+    await page.screenshot({ path: join(outputDirectory, "desktop-no-argument-launch.png") });
+    report.mode = "no-argument desktop launch, frontend navigation and native close; GPU rendering not asserted";
+    report.errors = errors;
+    assert.equal(errors.length, 0, "No uncaught browser errors during launch");
+  } else {
   await page.locator('[aria-label="Assembly product tree"] button').first().waitFor({ timeout: 45000 });
   await page.waitForFunction(() => document.querySelector('[data-display-host="three-telos"]')?.getAttribute("aria-busy") === "false");
   report.sampleVisibleMs = Date.now() - started;
@@ -154,6 +162,7 @@ try {
   report.errors = errors;
   assert.equal(errors.length, 0, "No uncaught browser errors");
   await writeFile(join(outputDirectory, "page-text.txt"), await page.locator("body").innerText());
+  }
   // Integration-test WM_CLOSE on the owning form, including a window hidden
   // by the CI launcher. CloseMainWindow excludes hidden windows. This exercises
   // FormClosed cleanup, but is not the required human title-bar interaction.

@@ -201,6 +201,19 @@ jobs:
           Copy-Item '${{ github.workspace }}/fixtures/Canonical/Drawings/bearing-block-production-drawing.firmament' drawing.firmament
           & $cli drawing compile drawing.firmament --out-dir drawing-out --json
           if (-not (Test-Path drawing-out/*.pdf) -or -not (Test-Path drawing-out/*.pptx)) { throw 'Drawing PDF/PPTX smoke outputs missing.' }
+      - uses: actions/setup-node@v4
+        if: runner.os == 'Windows'
+        with:
+          node-version: 24
+      - name: Launch the actual extracted desktop with no arguments
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          CADMATA_QUALIFICATION_LAUNCH_ONLY: '1'
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm ci --prefix test-support/CadmataDesktopSmoke --ignore-scripts
+          node scripts/qualify-cadmata-portable.mts extracted/Aetheris-win-x64 artifacts/local/desktop-no-argument-smoke test-support/CadmataDesktopSmoke/node_modules/playwright-core/index.mjs smoke.step
       - name: Install and exercise the portable tool
         shell: pwsh
         run: |

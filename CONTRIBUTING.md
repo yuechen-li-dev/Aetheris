@@ -2,9 +2,9 @@
 
 Thank you for improving Aetheris. Keep changes focused, explain the engineering intent, and preserve the rule that supported semantics are emitted truthfully while unsupported semantics fail with actionable diagnostics.
 
-## Preview 3 status
+## Release scope
 
-`2.0.0-preview.3` is feature-frozen. Release-hygiene, documentation, tests, narrowly scoped correctness fixes, and post-Preview work on an explicitly agreed branch are appropriate; new Preview 3 CAD, Sheet Metal, PMI, FEA, Forge, material, platform, or Cadmata capability is not.
+The 2.0.0 release pass covers release hygiene, documentation, tests and narrowly scoped correctness fixes. Develop new capabilities on an explicitly agreed branch and keep experimental API status visible.
 
 ## Build and test
 
@@ -17,17 +17,10 @@ runtime assets and licenses are embedded; downloaded distributions stay ignored.
 Published Aetheris tools do not require Node or npm. See
 [`Aetheris.Drawing/Web/README.md`](Aetheris.Drawing/Web/README.md).
 
-Firmament uses an exact managed WGSL compiler package built from a reviewed
-Copeland commit. A fresh checkout must prepare that ignored local feed before
-restoring the solution:
-
-```powershell
-git clone --no-checkout https://github.com/yuechen-li-dev/Copeland.git artifacts/local/managed-wgsl/source
-git -C artifacts/local/managed-wgsl/source checkout (Get-Content scripts/managed-wgsl-commit-pin.txt -Raw).Trim()
-./scripts/prepare-managed-wgsl.ps1 -CopelandRoot artifacts/local/managed-wgsl/source
-```
-
-The preparation script checks the transitive compiler source hash with canonical LF text and `/` paths, so Windows and Linux checkouts produce the same package version. CI performs this prerequisite through `.github/actions/prepare-managed-wgsl`. Compiler source stays outside the tracked Aetheris tree. Then use the canonical solution:
+Firmament pins Copeland's published managed VTS/WGSL compiler family to 0.1.0.
+A fresh checkout restores it from NuGet.org without a Copeland checkout or local
+feed. The CI action `.github/actions/prepare-managed-wgsl` verifies this public
+restore. Use the canonical solution:
 
 ```powershell
 dotnet restore Aetheris.slnx
@@ -47,8 +40,8 @@ For the edit-run-edit inner loop there is a **fast lane** that skips the corpus-
 dotnet test Aetheris.Kernel.Core.Tests -c Release --no-build --filter "Category!=SlowCorpus"
 ```
 
-On a two-core machine that is roughly 9s against 31s for the full lane, over 959 of the 1092
-tests. Use it while iterating; never use it as the gate.
+Use the fast lane while iterating; never use it as the gate. Its test count and
+runtime vary with the source and available corpus witnesses.
 
 A test belongs in `[Trait("Category", "SlowCorpus")]` when its cost is dominated by importing a
 large corpus file rather than by the behaviour it is checking. Keep at least one cheap test per
@@ -88,9 +81,11 @@ import runs, and tests under `Step242Importer.PreserveRationalSurfaces()`, becau
 what the import produces.
 
 Cadmata and the VS Code extension use TSPack and their checked-in lock files:
-The release workflow pins TSPack source `aff35b9289a4636056c0fd41da0a8bd013144682`
-(npm peer alternatives, explicit-tool precedence and clean scoped installs). Build the local Telos
+The release workflow pins TSPack source `da68769bd03ab79172302e207eab2d1e43d31d54`
+(npm peer alternatives, scoped tools and local package runtime closure). Build the local Telos
 producer before syncing Cadmata; its exported `dist` files are ignored.
+`./scripts/Build-CadmataFrontend.ps1` runs the complete frontend producer and
+qualification below. CI runs it before the long .NET lane and again when staging.
 
 ```powershell
 Push-Location Aetheris.Web.Runtime/telos
@@ -138,7 +133,7 @@ The shell entry points under `scripts/` remain useful for targeted Linux/framewo
 
 | Location | Durable purpose |
 | --- | --- |
-| `docs/public/` | Authoritative current Preview 3 user documentation. |
+| `docs/public/` | Authoritative current user documentation. |
 | `docs/development/` | Historical engineering, architecture, milestones, experiments, and evidence. |
 | `docs/release/` | Release qualification, staging, claims, and contracts. |
 | `docs/legal/` | Legal-review candidates and counsel questions. |

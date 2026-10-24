@@ -101,28 +101,7 @@ function Get-ReleaseRelativePath([string]$Root, [string]$Path) {
 if (Test-Path -LiteralPath $output) { throw 'Use a fresh release output directory.' }
 New-Item -ItemType Directory -Force -Path $stage, (Join-Path $output 'packages') | Out-Null
 
-# Telos is a local package producer. Its exports point at dist, which is ignored
-# and must exist before TSPack hydrates Cadmata's path dependency on a clean clone.
-Push-Location (Join-Path $repoRoot 'Aetheris.Web.Runtime/telos')
-try {
-    npm ci --ignore-scripts
-    npm run build
-}
-finally { Pop-Location }
-
-Push-Location (Join-Path $repoRoot 'aetheris.client')
-try {
-    if (-not (Get-Command tspack -ErrorAction SilentlyContinue)) {
-        throw 'TSPack is required to build Cadmata. Restore the repository build prerequisite; do not substitute an npm lockfile.'
-    }
-    tspack sync --root $repoRoot
-    tspack check --root $repoRoot
-    tspack run typecheck --root $repoRoot
-    tspack run test --root $repoRoot
-    tspack run build --root $repoRoot
-    tspack run lint --root $repoRoot
-}
-finally { Pop-Location }
+& (Join-Path $PSScriptRoot 'Build-CadmataFrontend.ps1')
 
 # Release binaries must not inherit compiler state from an earlier publish with
 # different properties (notably PublishAot). Start the managed release graph

@@ -202,7 +202,8 @@ removed or replaced by a hand-edited lockfile, npm overlay or placeholder module
 The user authorized repairing TSPack and retaining the full bundle. The owner
 repair is [TSPack PR 208](https://github.com/yuechen-li-dev/tspack/pull/208),
 initial source `e92af3f529e84d97fd0a26a52ec244bf0478bfee`, extended at
-`aff35b9289a4636056c0fd41da0a8bd013144682` for clean installs. npm's mixed OR peer range
+`aff35b9289a4636056c0fd41da0a8bd013144682` for scoped tools/types, and
+`da68769bd03ab79172302e207eab2d1e43d31d54` for local runtime closure. npm's mixed OR peer range
 now keeps its valid SemVer alternatives in both version selection and
 requirement classification. All-invalid ranges still reject, prerelease
 exclusion remains, JSR stays strict, and authored range evidence survives.
@@ -274,6 +275,12 @@ runs against the extracted NativeAOT executable in the Windows release gate.
 
 ## Final candidate qualification
 
+Previous hosted candidate: `80a437a762cfecb6bf7f502bafb5ef17730000d6`, with
+[full hosted qualification](https://github.com/yuechen-li-dev/Aetheris/actions/runs/40087147044).
+The same candidate's [PR Linux check](https://github.com/yuechen-li-dev/Aetheris/actions/runs/40087151601)
+also passes. Its Windows .NET suite passed, then frontend runtime resolution
+failed during packaging; the follow-up below supersedes its local frontend claim.
+
 Kernel/native-host functional source: `03ff13d052de22962e2df2a3f1ea4ad61f94e30b`.
 The later packaging prerequisite/test changes below do not replace that source
 identity. The final managed string and
@@ -289,8 +296,14 @@ earlier kernel-only pass.
 | Extracted Windows ZIP | Actual self-contained CLI validate/build/verify, production Cadmata assets and STEP import, all fifteen native Forge templates/all 26 advertised artifacts, invalid-standoff refusal, and drawing PDF/SVG/PPTX pass. |
 | Installed CLI package | Fresh tool path/cache; reports 2.0.0; validate/build pass; STEP matches the original through-hole baseline. |
 | Public library consumer | Empty-cache standalone restore/build with repository MSBuild imports disabled; packaged material resolves; public Forge API emits reimportable AP242. |
-| Hosted Linux | 6,001 passed, zero failures, seven unavailable local 3DM witnesses skipped. Those witnesses pass locally. |
+| Hosted Linux at 80a437a7 | 6,001 passed, zero failures, seven unavailable local 3DM witnesses skipped. Those witnesses pass locally. Both PR and complete-distribution runs pass this gate. |
 | Hosted Windows at 03ff13d0 | 5,999 passed, zero failures; nine optional external/local-witness skips. Packaging then exposed the clean-install issue below; no hosted bundle success is claimed for that run. |
+| Hosted Windows at 80a437a7 | 5,999 passed, zero failures; nine optional skips. Cadmata typecheck passed, then seven frontend suites refused missing local runtime/config imports. |
+
+The tracked clean-checkout suite has 6,008 cases. The local 6,009 count includes
+one pre-existing ignored `TessellationHoleDiagnosticsTests.cs` scratch test;
+it was neither added to the release nor removed from the user's checkout.
+Hosted counts, rather than that extra local test, qualify the tracked source.
 
 The local ZIP is 133,022,508 bytes, SHA256
 `8c4e5084baeb59504aa9276065c84ce2f197ba2d87f3891be04ab62e699d72de`.
@@ -333,7 +346,39 @@ workspace. A pre-existing App test race now awaits the asynchronous startup
 claim rather than treating the initial Ready label as proof that it ran.
 Evidence: `clean-types-v2-*`, `clean-final-*` and
 `frontend-clean/clean-ts-final-resolution.log`. The final hosted bundle gate is
-being rerun with the exact updated TSPack source pin; publication remains off.
+was rerun with that source; publication remained off.
+
+### Local runtime dependency closure
+
+Run 40087147044 passed both complete .NET suites and clean Cadmata typecheck,
+then refused frontend tests: Telos could not resolve `three`, and PostCSS could
+not resolve `tailwindcss`. The earlier scratch workspace was source-clean but
+still nested under the developer checkout. Its successful runtime tests could
+fall through to parent dependencies; the TypeScript-only resolution trace did
+not prove runtime isolation. That evidence was insufficient for a cold bundle.
+
+The resolver's local package reader retained name/version/scripts while dropping
+`package.json` runtime requirements. Local path and Git packages now feed their
+runtime, optional and peer requirements through the existing npm normalization,
+registry frontier and module-instance graph, retaining aliases. Producer-only
+devDependencies stay excluded. Owning-layer tests cover both sources and prove
+the edges, optionality, peers, aliases and dev-tool exclusion. All 43 Go packages
+and broad vet pass again. The client also corrects two authored install aliases
+to the names actually imported by its configs: `tailwindcss` and
+`typescript-eslint`. A normal update regenerates the lock; no links or lock
+records were fabricated.
+
+A new source-only scratch workspace passes typecheck, all 96 tests, production
+build and lint with a Node resolution hook that rejects every successful
+node_modules resolution outside that workspace. A parent-package control proves
+the hook refuses the previously hidden fallback. Evidence: `closed-guard-control.log`,
+`closed-*.log`, `cadmata-local-deps-update.log`, `cadmata-closed-sync.log` and
+TSPack's `go-local-deps-complete.log`/`go-local-deps-vet.log`.
+
+`Build-CadmataFrontend.ps1` now owns the existing frontend producer commands.
+The packager reuses it; hosted qualification also runs it before the expensive
+.NET lane so a missing frontend dependency fails promptly. Full hosted bundle
+qualification is being rerun with the final owner repair pinned above.
 
 ## Executive verdict
 

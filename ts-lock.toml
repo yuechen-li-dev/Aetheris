@@ -358,147 +358,147 @@ Workspace = ''
 Hash = 'sha256:8b5f60bb490c0f306e9c01a51e1603442d04c666bb500e087e70dcfb1fbb0296'
 
 [[package]]
-ID = 'npm:@biomejs/biome@2.6.2'
+ID = 'npm:@biomejs/biome@2.6.3'
 Name = '@biomejs/biome'
-Version = '2.6.2'
+Version = '2.6.3'
 Source = 'npm'
-Integrity = 'sha512-JLTFAFF9vfJcWwLhwuL4ZHflLg+XfTEC4IUnAlJRX1cMRt57++Xd1Ysb9Fdmlh9YUrvyCXfPEHjjEIqKJGdPKw=='
+Integrity = 'sha512-va/0xPku7wnfzv+D8Zpdm5uKiGJWiV8neqoEPnRjvNQQwhl4tVXS4fETs4H0CCB2rGeqJ4cu9y4iOZOnOYKAUA=='
 Repo = ''
 Rev = ''
 TreeHash = ''
 Path = ''
 Workspace = ''
-Hash = 'sha256:f762b01daee9c97dda9198b02c470ab03803c2a19a1f58e7c1642f9dd57e523f'
+Hash = 'sha256:ed9b595120c4b5a3c2cf168bd1cdb0cc2c1d2fd66c9d8c088885e02794ac939f'
 
 [[package]]
-ID = 'npm:@biomejs/cli-android-arm64@2.6.2'
+ID = 'npm:@biomejs/cli-android-arm64@2.6.3'
 Name = '@biomejs/cli-android-arm64'
-Version = '2.6.2'
+Version = '2.6.3'
 Source = 'npm'
-Integrity = 'sha512-dMpdpH7zFEL5FxuIA9LJW+RoNyC3oeDB7PJyjqVVwtMNoKB5uo8OZYmrVSBikn71txzYwy/3xga7UME6bJQZ6A=='
+Integrity = 'sha512-5JD7QQDEHxdeEb4sftEHG+lsuUyu8Cob/hVLqRELbgGlFl68Rldv/PPi2k4dRjERZ/EItJ3O6Xmv8lqsEtUBiw=='
 Repo = ''
 Rev = ''
 TreeHash = ''
 Path = ''
 Workspace = ''
-Hash = 'sha256:5a26a9a3506c21b161f51f2791f08e20fc554957e57aca584404e8f1323d91f3'
+Hash = 'sha256:6f0512b19ef90d37966bacee1dd19793ee7102f0816791482568a4179b8e63c9'
 
 [[package]]
-ID = 'npm:@biomejs/cli-android-x64@2.6.2'
+ID = 'npm:@biomejs/cli-android-x64@2.6.3'
 Name = '@biomejs/cli-android-x64'
-Version = '2.6.2'
+Version = '2.6.3'
 Source = 'npm'
-Integrity = 'sha512-XCwEhPBGYzuRA502dRkCcQ+5cefQwuxQR7f9wa4do92dvIcuBL6VMLMFB/fL9hlpZ4dGSfHdpGFSIDlp52mg0A=='
+Integrity = 'sha512-70WOGKCgpT+Uqg6LFdTLqefV54/DypdZg+LnBQDO6AWvkgXO+9xhVClajQyDsIHYjnXMtI1pRO5sP+zMXlS/bw=='
 Repo = ''
 Rev = ''
 TreeHash = ''
 Path = ''
 Workspace = ''
-Hash = 'sha256:12ff3934d96564b3fb3fc1d7de0b12b315b7316d970f14fcd948e4b2b5f8fd5e'
+Hash = 'sha256:bb5e6fe816a0472715b05f1b985f8461d4c8040bcb8d6d1cdb27a4c0eeb2159d'
 
 [[package]]
-ID = 'npm:@biomejs/cli-darwin-arm64@2.6.2'
+ID = 'npm:@biomejs/cli-darwin-arm64@2.6.3'
 Name = '@biomejs/cli-darwin-arm64'
-Version = '2.6.2'
+Version = '2.6.3'
 Source = 'npm'
-Integrity = 'sha512-rpXtabRgyZNz3aCjd/cRoSZGYi92R9eAXdUUe1sigIsRDyfMwgThaa98Yxt1fiZ7mxquqkAyIHIo08N/e1ToBA=='
+Integrity = 'sha512-ezf+XEKeyJ2yYlBhrzyEEHLvfRYrhtNKc6maLzR/WcAcBccb4RVDeFxsymjBve2LO0bpIMRUAiS90D4bUBRT0A=='
 Repo = ''
 Rev = ''
 TreeHash = ''
 Path = ''
 Workspace = ''
-Hash = 'sha256:621ac3f02dd9a1f00ec61a549507d01222f26a2c02abc1d3cabb3391f381b63c'
+Hash = 'sha256:e8d9adfe3879939a07b404c0ddd4126659771886975cbef4741cd554e61dce8a'
 
 [[package]]
-ID = 'npm:@biomejs/cli-darwin-x64@2.6.2'
+ID = 'npm:@biomejs/cli-darwin-x64@2.6.3'
 Name = '@biomejs/cli-darwin-x64'
-Version = '2.6.2'
+Version = '2.6.3'
 Source = 'npm'
-Integrity = 'sha512-7GGzlm1GxUKoQ9CNV8tQZ+XXad4sz+v+uzNsWlhaGjsnZqUOVBw1OmAMpG3uNV/Mr0UrCpRJvSK0qvfuqSQOjg=='
+Integrity = 'sha512-Lg2tFdg4elJo+7i707PpLMs6N1hATVt4kqDo6MD/q/VnPs8rsKReKXsz1TA5GNdfRVAQNJ5GRiyK2EwNptK+MA=='
 Repo = ''
 Rev = ''
 TreeHash = ''
 Path = ''
 Workspace = ''
-Hash = 'sha256:3b7a7303b732b444c3203ea427dae9be8bd1557daf215e60c97dfc0b7eb0e701'
+Hash = 'sha256:c88bd29005136b7983c84c091d64112387af99be746142d1b137d5673e4225a8'
 
 [[package]]
-ID = 'npm:@biomejs/cli-linux-arm64-musl@2.6.2'
+ID = 'npm:@biomejs/cli-linux-arm64-musl@2.6.3'
 Name = '@biomejs/cli-linux-arm64-musl'
-Version = '2.6.2'
+Version = '2.6.3'
 Source = 'npm'
-Integrity = 'sha512-I+FYCLVSmR3cYfKcQ+KNeLOZ5w0wRd9fQFlw3JbSvy7bkegvTqdHaBRRcJzHQB/1ldldTLIcG21ka6X2cTWmJw=='
+Integrity = 'sha512-dYU70A89OFHzakQPE9VOPbE60JNcQt4mtxvUGQl+EgTkGtqCFxLD2RUn1SbiMu8Mu5xFscS1bfYDpoasaUrqNA=='
 Repo = ''
 Rev = ''
 TreeHash = ''
 Path = ''
 Workspace = ''
-Hash = 'sha256:2b260ce44f2e698d0e584f78cc2a95124aba329d443c2a07b8d86f9ec79eb311'
+Hash = 'sha256:36d83eafec087afc04925e5ede2c8031ce1ffc5e66546d829e6338ae0bbb7f03'
 
 [[package]]
-ID = 'npm:@biomejs/cli-linux-arm64@2.6.2'
+ID = 'npm:@biomejs/cli-linux-arm64@2.6.3'
 Name = '@biomejs/cli-linux-arm64'
-Version = '2.6.2'
+Version = '2.6.3'
 Source = 'npm'
-Integrity = 'sha512-Qs4CofCE8MdkjZFfEjswh2NAcbyQ7IVYtGSzQBvLqFlla/CSXroGbktUFndWG/kVSTywadauzAspYWtSfqAc2g=='
+Integrity = 'sha512-8Stcvq98n1gs9VyLKuaWrnsd8kbXE2nKDAHtuLHGSYdGyNWN5JIIm5a28xdnmgdKzKHmiDgYyATetkEv7+zGow=='
 Repo = ''
 Rev = ''
 TreeHash = ''
 Path = ''
 Workspace = ''
-Hash = 'sha256:7e2e4ade722a7647c72e79b1fef634d268195f32f7a5d904e0e242c7facbf727'
+Hash = 'sha256:a204cbee1f416c9548a2f63b36e070b3049c1d13db47f32fbcd8dbde3e9dc211'
 
 [[package]]
-ID = 'npm:@biomejs/cli-linux-x64-musl@2.6.2'
+ID = 'npm:@biomejs/cli-linux-x64-musl@2.6.3'
 Name = '@biomejs/cli-linux-x64-musl'
-Version = '2.6.2'
+Version = '2.6.3'
 Source = 'npm'
-Integrity = 'sha512-wnjEXAK2pDd2j8r9gKI3L+44sIxjkYzS5aHmD1+K57RNJ3sFyT4n22NH6QFPqqeVdRBxN54H3kckUUCrFKCcJw=='
+Integrity = 'sha512-j6eFjUcWSphmgVTbrobEMA0wdbfNHKrGi8hRsFkc17jeS1n7nHwFACxp6jWqe9sxQqyFAeyOgt2/1bOGVcbATA=='
 Repo = ''
 Rev = ''
 TreeHash = ''
 Path = ''
 Workspace = ''
-Hash = 'sha256:9626dcb6cc0703612c367b0193495207702c0d65bd1e1251dbc39c2f4ee28c36'
+Hash = 'sha256:a209dc2d55190f6d2640e3ad1cf9281e2a4dfdb535b7acbe5dc40173b0160252'
 
 [[package]]
-ID = 'npm:@biomejs/cli-linux-x64@2.6.2'
+ID = 'npm:@biomejs/cli-linux-x64@2.6.3'
 Name = '@biomejs/cli-linux-x64'
-Version = '2.6.2'
+Version = '2.6.3'
 Source = 'npm'
-Integrity = 'sha512-FJKsb95418139xDdbv9XnNJsIIwvsgR21Of0aE9B9U+nQlOtRq5gJl2ps0jZUmYBxTaOlP9BKo8N+Ff8+Rui1g=='
+Integrity = 'sha512-CShmx0bO6BngywT3minv8K1xsQX1ig1vsBqYTLnmDY3mBiDYHlaLRIsdHoM1pEU9dV3BN5a0uiH0IGDtYh9TWA=='
 Repo = ''
 Rev = ''
 TreeHash = ''
 Path = ''
 Workspace = ''
-Hash = 'sha256:1359a528c5e4e85a21cdc27a66fb80ee2b6bc2c797724b7c028271fa559ad245'
+Hash = 'sha256:20bc11e6e5ec9c40329c066c9ecdd17de8287c61d721c448273b6ac5c961d33a'
 
 [[package]]
-ID = 'npm:@biomejs/cli-win32-arm64@2.6.2'
+ID = 'npm:@biomejs/cli-win32-arm64@2.6.3'
 Name = '@biomejs/cli-win32-arm64'
-Version = '2.6.2'
+Version = '2.6.3'
 Source = 'npm'
-Integrity = 'sha512-/PEOo6evlgrQOfKhMNtC/4Gk8ai3hySXXEtjUzCqZe/4iAbMdqelpp7qvZEDyLxlZS+BjOMQFpq2gXI/BPaAqw=='
+Integrity = 'sha512-00SthDxBPwNiT7IL/mOneif6fiEU1PXK875zhr+InpeZjovY1mF5tCuDhXo1Hh0GYyiKHKzLbItzn58SAyLhJQ=='
 Repo = ''
 Rev = ''
 TreeHash = ''
 Path = ''
 Workspace = ''
-Hash = 'sha256:99d73afa75f53561778aaceeafedaca686b8d60d2094729b6adf66275159f5b2'
+Hash = 'sha256:bb9c4a8f6159f69bf1b36e0a2d81408ced7239f04900bc002dbbe33ca4e5163c'
 
 [[package]]
-ID = 'npm:@biomejs/cli-win32-x64@2.6.2'
+ID = 'npm:@biomejs/cli-win32-x64@2.6.3'
 Name = '@biomejs/cli-win32-x64'
-Version = '2.6.2'
+Version = '2.6.3'
 Source = 'npm'
-Integrity = 'sha512-FVlWD+mDDz8nN5LWKRWUhhb7wKIK0VE3oXQvQBX7Fwwj00CvqMVhMyiz1iz8O5aZGmnkhFlKSwJPrUvMh5prQw=='
+Integrity = 'sha512-GhtOPphBWlnCepqpNk/w5eGN5oGRCzL20EbAkL1XCIpyboeVC9R642noyT43l8LSenGS4qz9IL8sKPfwY37V/Q=='
 Repo = ''
 Rev = ''
 TreeHash = ''
 Path = ''
 Workspace = ''
-Hash = 'sha256:5f0f03e6c08568d7b6abb1ca25681f6b18bfea423ac9a27709cd4a26b4990bde'
+Hash = 'sha256:472cd9623f7032a8910f845b6e86713ed0b921ced5222dfd86492ad0684c47da'
 
 [[package]]
 ID = 'npm:@bramus/specificity@2.4.3'
@@ -2516,6 +2516,19 @@ TreeHash = ''
 Path = ''
 Workspace = ''
 Hash = 'sha256:0c25f072d4afcb52fa48266177111ca90bc4116c66473170959aae1d57db347d'
+
+[[package]]
+ID = 'npm:@webgpu/types@0.1.69'
+Name = '@webgpu/types'
+Version = '0.1.69'
+Source = 'npm'
+Integrity = 'sha512-RPmm6kgRbI8e98zSD3RVACvnuktIja5+yLgDAkTmxLr90BEwdTXRQWNLF3ETTTyH/8mKhznZuN5AveXYFEsMGQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:75cd353e673e49af2408248668c6e1004f4188559cce66ef2e36cc865a8923ef'
 
 [[package]]
 ID = 'npm:@webgpu/types@0.1.74'
@@ -6049,19 +6062,6 @@ script = 'prepublishOnly'
 command = 'npm install --force && npm run build'
 
 [[package]]
-ID = 'npm:tailwindcss@4.3.3'
-Name = 'tailwindcss'
-Version = '4.3.3'
-Source = 'npm'
-Integrity = 'sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ=='
-Repo = ''
-Rev = ''
-TreeHash = ''
-Path = ''
-Workspace = ''
-Hash = 'sha256:f1493c5bcb29a80310da63d19282d233ba259479f36561a27146cd4747d1faef'
-
-[[package]]
 ID = 'npm:thenify-all@1.6.0'
 Name = 'thenify-all'
 Version = '1.6.0'
@@ -7310,108 +7310,108 @@ Kind = 'runtime'
 InstanceID = 'npm:@babel/helper-validator-identifier@7.29.7#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
-ID = 'npm:@biomejs/biome@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-PackageID = 'npm:@biomejs/biome@2.6.2'
+ID = 'npm:@biomejs/biome@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+PackageID = 'npm:@biomejs/biome@2.6.3'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance.dependency]]
 Reference = '@biomejs/cli-android-arm64'
 Kind = 'runtime'
-InstanceID = 'npm:@biomejs/cli-android-arm64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+InstanceID = 'npm:@biomejs/cli-android-arm64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance.dependency]]
 Reference = '@biomejs/cli-android-x64'
 Kind = 'runtime'
-InstanceID = 'npm:@biomejs/cli-android-x64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+InstanceID = 'npm:@biomejs/cli-android-x64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance.dependency]]
 Reference = '@biomejs/cli-darwin-arm64'
 Kind = 'runtime'
-InstanceID = 'npm:@biomejs/cli-darwin-arm64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+InstanceID = 'npm:@biomejs/cli-darwin-arm64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance.dependency]]
 Reference = '@biomejs/cli-darwin-x64'
 Kind = 'runtime'
-InstanceID = 'npm:@biomejs/cli-darwin-x64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+InstanceID = 'npm:@biomejs/cli-darwin-x64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance.dependency]]
 Reference = '@biomejs/cli-linux-arm64'
 Kind = 'runtime'
-InstanceID = 'npm:@biomejs/cli-linux-arm64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+InstanceID = 'npm:@biomejs/cli-linux-arm64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance.dependency]]
 Reference = '@biomejs/cli-linux-arm64-musl'
 Kind = 'runtime'
-InstanceID = 'npm:@biomejs/cli-linux-arm64-musl@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+InstanceID = 'npm:@biomejs/cli-linux-arm64-musl@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance.dependency]]
 Reference = '@biomejs/cli-linux-x64'
 Kind = 'runtime'
-InstanceID = 'npm:@biomejs/cli-linux-x64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+InstanceID = 'npm:@biomejs/cli-linux-x64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance.dependency]]
 Reference = '@biomejs/cli-linux-x64-musl'
 Kind = 'runtime'
-InstanceID = 'npm:@biomejs/cli-linux-x64-musl@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+InstanceID = 'npm:@biomejs/cli-linux-x64-musl@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance.dependency]]
 Reference = '@biomejs/cli-win32-arm64'
 Kind = 'runtime'
-InstanceID = 'npm:@biomejs/cli-win32-arm64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+InstanceID = 'npm:@biomejs/cli-win32-arm64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance.dependency]]
 Reference = '@biomejs/cli-win32-x64'
 Kind = 'runtime'
-InstanceID = 'npm:@biomejs/cli-win32-x64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+InstanceID = 'npm:@biomejs/cli-win32-x64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
-ID = 'npm:@biomejs/cli-android-arm64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-PackageID = 'npm:@biomejs/cli-android-arm64@2.6.2'
+ID = 'npm:@biomejs/cli-android-arm64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+PackageID = 'npm:@biomejs/cli-android-arm64@2.6.3'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
-ID = 'npm:@biomejs/cli-android-x64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-PackageID = 'npm:@biomejs/cli-android-x64@2.6.2'
+ID = 'npm:@biomejs/cli-android-x64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+PackageID = 'npm:@biomejs/cli-android-x64@2.6.3'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
-ID = 'npm:@biomejs/cli-darwin-arm64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-PackageID = 'npm:@biomejs/cli-darwin-arm64@2.6.2'
+ID = 'npm:@biomejs/cli-darwin-arm64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+PackageID = 'npm:@biomejs/cli-darwin-arm64@2.6.3'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
-ID = 'npm:@biomejs/cli-darwin-x64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-PackageID = 'npm:@biomejs/cli-darwin-x64@2.6.2'
+ID = 'npm:@biomejs/cli-darwin-x64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+PackageID = 'npm:@biomejs/cli-darwin-x64@2.6.3'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
-ID = 'npm:@biomejs/cli-linux-arm64-musl@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-PackageID = 'npm:@biomejs/cli-linux-arm64-musl@2.6.2'
+ID = 'npm:@biomejs/cli-linux-arm64-musl@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+PackageID = 'npm:@biomejs/cli-linux-arm64-musl@2.6.3'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
-ID = 'npm:@biomejs/cli-linux-arm64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-PackageID = 'npm:@biomejs/cli-linux-arm64@2.6.2'
+ID = 'npm:@biomejs/cli-linux-arm64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+PackageID = 'npm:@biomejs/cli-linux-arm64@2.6.3'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
-ID = 'npm:@biomejs/cli-linux-x64-musl@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-PackageID = 'npm:@biomejs/cli-linux-x64-musl@2.6.2'
+ID = 'npm:@biomejs/cli-linux-x64-musl@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+PackageID = 'npm:@biomejs/cli-linux-x64-musl@2.6.3'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
-ID = 'npm:@biomejs/cli-linux-x64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-PackageID = 'npm:@biomejs/cli-linux-x64@2.6.2'
+ID = 'npm:@biomejs/cli-linux-x64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+PackageID = 'npm:@biomejs/cli-linux-x64@2.6.3'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
-ID = 'npm:@biomejs/cli-win32-arm64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-PackageID = 'npm:@biomejs/cli-win32-arm64@2.6.2'
+ID = 'npm:@biomejs/cli-win32-arm64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+PackageID = 'npm:@biomejs/cli-win32-arm64@2.6.3'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
-ID = 'npm:@biomejs/cli-win32-x64@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-PackageID = 'npm:@biomejs/cli-win32-x64@2.6.2'
+ID = 'npm:@biomejs/cli-win32-x64@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+PackageID = 'npm:@biomejs/cli-win32-x64@2.6.3'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
@@ -9372,6 +9372,11 @@ InstanceID = 'npm:convert-source-map@2.0.0#peers=b47b56855796ee10dd4f3e88cf5a62a
 Reference = 'tinyrainbow'
 Kind = 'runtime'
 InstanceID = 'npm:tinyrainbow@3.2.0#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+
+[[module_instance]]
+ID = 'npm:@webgpu/types@0.1.69#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+PackageID = 'npm:@webgpu/types@0.1.69'
+PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
 ID = 'npm:@webgpu/types@0.1.74#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
@@ -12392,11 +12397,6 @@ Kind = 'runtime'
 InstanceID = 'npm:sucrase@3.35.1#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance]]
-ID = 'npm:tailwindcss@4.3.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-PackageID = 'npm:tailwindcss@4.3.3'
-PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-
-[[module_instance]]
 ID = 'npm:thenify-all@1.6.0#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 PackageID = 'npm:thenify-all@1.6.0'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
@@ -13394,6 +13394,21 @@ ID = 'path:Aetheris.Web.Runtime/telos#84daa5bce1ebb6e068ad2599bc2eaa09a2d914727e
 PackageID = 'path:Aetheris.Web.Runtime/telos#84daa5bce1ebb6e068ad2599bc2eaa09a2d914727e2c3dd7c116940d6dc3caac'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
+[[module_instance.dependency]]
+Reference = '@types/three'
+Kind = 'runtime'
+InstanceID = 'npm:@types/three@0.183.1#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+
+[[module_instance.dependency]]
+Reference = '@webgpu/types'
+Kind = 'runtime'
+InstanceID = 'npm:@webgpu/types@0.1.69#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+
+[[module_instance.dependency]]
+Reference = 'three'
+Kind = 'runtime'
+InstanceID = 'npm:three@0.183.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+
 [[root_module_instance]]
 From = 'aetheris.client:target:browser'
 Reference = '@aetheris/three-telos'
@@ -13470,7 +13485,7 @@ InstanceID = 'npm:zod@3.25.76#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95
 From = 'aetheris.client:tool'
 Reference = '@biomejs/biome'
 Kind = 'tool'
-InstanceID = 'npm:@biomejs/biome@2.6.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+InstanceID = 'npm:@biomejs/biome@2.6.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[root_module_instance]]
 From = 'aetheris.client:tool'
@@ -13570,7 +13585,7 @@ InstanceID = 'npm:postcss@8.5.31#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7
 
 [[root_module_instance]]
 From = 'aetheris.client:tool'
-Reference = 'tailwind'
+Reference = 'tailwindcss'
 Kind = 'tool'
 InstanceID = 'npm:tailwindcss@3.4.19#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
@@ -13588,7 +13603,7 @@ InstanceID = 'npm:typescript@5.9.3#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3
 
 [[root_module_instance]]
 From = 'aetheris.client:tool'
-Reference = 'typescriptEslint'
+Reference = 'typescript-eslint'
 Kind = 'tool'
 InstanceID = 'npm:typescript-eslint@8.72.0#peers=a99dd49c545e01268260ae9745d800d4a45919dcd5a2bbbec27bdff14615fc7c'
 
@@ -13690,7 +13705,7 @@ Reference = '@aetheris/three-telos'
 
 [[edge]]
 From = 'aetheris.client:tool'
-To = 'npm:@biomejs/biome@2.6.2'
+To = 'npm:@biomejs/biome@2.6.3'
 Kind = 'tool'
 Optional = false
 Reference = '@biomejs/biome'
@@ -13819,14 +13834,14 @@ From = 'aetheris.client:tool'
 To = 'npm:tailwindcss@3.4.19'
 Kind = 'tool'
 Optional = false
-Reference = 'tailwind'
+Reference = 'tailwindcss'
 
 [[edge]]
 From = 'aetheris.client:tool'
 To = 'npm:typescript-eslint@8.72.0'
 Kind = 'tool'
 Optional = false
-Reference = 'typescriptEslint'
+Reference = 'typescript-eslint'
 
 [[edge]]
 From = 'aetheris.client:tool'
@@ -14270,71 +14285,71 @@ Optional = false
 Reference = '@babel/helper-validator-identifier'
 
 [[edge]]
-From = 'npm:@biomejs/biome@2.6.2'
-To = 'npm:@biomejs/cli-android-arm64@2.6.2'
+From = 'npm:@biomejs/biome@2.6.3'
+To = 'npm:@biomejs/cli-android-arm64@2.6.3'
 Kind = 'runtime'
 Optional = true
 Reference = '@biomejs/cli-android-arm64'
 
 [[edge]]
-From = 'npm:@biomejs/biome@2.6.2'
-To = 'npm:@biomejs/cli-android-x64@2.6.2'
+From = 'npm:@biomejs/biome@2.6.3'
+To = 'npm:@biomejs/cli-android-x64@2.6.3'
 Kind = 'runtime'
 Optional = true
 Reference = '@biomejs/cli-android-x64'
 
 [[edge]]
-From = 'npm:@biomejs/biome@2.6.2'
-To = 'npm:@biomejs/cli-darwin-arm64@2.6.2'
+From = 'npm:@biomejs/biome@2.6.3'
+To = 'npm:@biomejs/cli-darwin-arm64@2.6.3'
 Kind = 'runtime'
 Optional = true
 Reference = '@biomejs/cli-darwin-arm64'
 
 [[edge]]
-From = 'npm:@biomejs/biome@2.6.2'
-To = 'npm:@biomejs/cli-darwin-x64@2.6.2'
+From = 'npm:@biomejs/biome@2.6.3'
+To = 'npm:@biomejs/cli-darwin-x64@2.6.3'
 Kind = 'runtime'
 Optional = true
 Reference = '@biomejs/cli-darwin-x64'
 
 [[edge]]
-From = 'npm:@biomejs/biome@2.6.2'
-To = 'npm:@biomejs/cli-linux-arm64-musl@2.6.2'
+From = 'npm:@biomejs/biome@2.6.3'
+To = 'npm:@biomejs/cli-linux-arm64-musl@2.6.3'
 Kind = 'runtime'
 Optional = true
 Reference = '@biomejs/cli-linux-arm64-musl'
 
 [[edge]]
-From = 'npm:@biomejs/biome@2.6.2'
-To = 'npm:@biomejs/cli-linux-arm64@2.6.2'
+From = 'npm:@biomejs/biome@2.6.3'
+To = 'npm:@biomejs/cli-linux-arm64@2.6.3'
 Kind = 'runtime'
 Optional = true
 Reference = '@biomejs/cli-linux-arm64'
 
 [[edge]]
-From = 'npm:@biomejs/biome@2.6.2'
-To = 'npm:@biomejs/cli-linux-x64-musl@2.6.2'
+From = 'npm:@biomejs/biome@2.6.3'
+To = 'npm:@biomejs/cli-linux-x64-musl@2.6.3'
 Kind = 'runtime'
 Optional = true
 Reference = '@biomejs/cli-linux-x64-musl'
 
 [[edge]]
-From = 'npm:@biomejs/biome@2.6.2'
-To = 'npm:@biomejs/cli-linux-x64@2.6.2'
+From = 'npm:@biomejs/biome@2.6.3'
+To = 'npm:@biomejs/cli-linux-x64@2.6.3'
 Kind = 'runtime'
 Optional = true
 Reference = '@biomejs/cli-linux-x64'
 
 [[edge]]
-From = 'npm:@biomejs/biome@2.6.2'
-To = 'npm:@biomejs/cli-win32-arm64@2.6.2'
+From = 'npm:@biomejs/biome@2.6.3'
+To = 'npm:@biomejs/cli-win32-arm64@2.6.3'
 Kind = 'runtime'
 Optional = true
 Reference = '@biomejs/cli-win32-arm64'
 
 [[edge]]
-From = 'npm:@biomejs/biome@2.6.2'
-To = 'npm:@biomejs/cli-win32-x64@2.6.2'
+From = 'npm:@biomejs/biome@2.6.3'
+To = 'npm:@biomejs/cli-win32-x64@2.6.3'
 Kind = 'runtime'
 Optional = true
 Reference = '@biomejs/cli-win32-x64'
@@ -18211,6 +18226,27 @@ Optional = false
 Reference = 'use-sync-external-store'
 
 [[edge]]
+From = 'path:Aetheris.Web.Runtime/telos#84daa5bce1ebb6e068ad2599bc2eaa09a2d914727e2c3dd7c116940d6dc3caac'
+To = 'npm:@types/three@0.183.1'
+Kind = 'runtime'
+Optional = false
+Reference = '@types/three'
+
+[[edge]]
+From = 'path:Aetheris.Web.Runtime/telos#84daa5bce1ebb6e068ad2599bc2eaa09a2d914727e2c3dd7c116940d6dc3caac'
+To = 'npm:@webgpu/types@0.1.69'
+Kind = 'runtime'
+Optional = false
+Reference = '@webgpu/types'
+
+[[edge]]
+From = 'path:Aetheris.Web.Runtime/telos#84daa5bce1ebb6e068ad2599bc2eaa09a2d914727e2c3dd7c116940d6dc3caac'
+To = 'npm:three@0.183.2'
+Kind = 'runtime'
+Optional = false
+Reference = 'three'
+
+[[edge]]
 From = 'workspace:peer:npm:@babel/core'
 To = 'npm:@babel/core@7.29.7'
 Kind = 'peer'
@@ -18251,13 +18287,6 @@ To = 'npm:browserslist@4.29.4'
 Kind = 'peer'
 Optional = false
 Reference = 'browserslist'
-
-[[edge]]
-From = 'workspace:peer:npm:tailwindcss'
-To = 'npm:tailwindcss@4.3.3'
-Kind = 'peer'
-Optional = false
-Reference = 'tailwindcss'
 
 [[requirement]]
 ID = 'peer:npm:@babel/plugin-transform-react-jsx-self@7.29.7:@babel/core:000090'
@@ -18333,7 +18362,7 @@ Optional = false
 Controlling = true
 ShadowedBy = ''
 Status = 'controlling'
-SelectedVersion = '2.6.2'
+SelectedVersion = '2.6.3'
 
 [[requirement]]
 ID = 'peer:npm:@csstools/css-calc@3.4.3:@csstools/css-parser-algorithms:000159'
@@ -20540,6 +20569,25 @@ Status = 'controlling'
 SelectedVersion = '3.7.0'
 
 [[requirement]]
+ID = 'direct:aetheris.client:tool:tailwindcss:000027'
+Scope = 'workspace'
+TargetSource = 'npm'
+TargetName = 'tailwindcss'
+Reference = 'tailwindcss'
+Constraint = '^3.4.17'
+Kind = 'project-explicit'
+RequiringPackage = 'aetheris.client'
+PackageID = ''
+DependencyKey = 'tailwindcss'
+OriginSource = 'manifest'
+Order = 27
+Optional = false
+Controlling = true
+ShadowedBy = ''
+Status = 'controlling'
+SelectedVersion = '3.4.19'
+
+[[requirement]]
 ID = 'peer:npm:tailwindcss-animate@1.0.7:tailwindcss:000064'
 Scope = 'workspace'
 TargetSource = 'npm'
@@ -20553,10 +20601,10 @@ DependencyKey = 'tailwindcss'
 OriginSource = 'registry-metadata'
 Order = 64
 Optional = false
-Controlling = true
-ShadowedBy = ''
-Status = 'controlling'
-SelectedVersion = '4.3.3'
+Controlling = false
+ShadowedBy = 'direct:aetheris.client:tool:tailwindcss:000027'
+Status = 'shadowed-compatible'
+SelectedVersion = '3.4.19'
 
 [[requirement]]
 ID = 'direct:aetheris.client:tool:tailwindcss-animate:000028'
@@ -21110,6 +21158,25 @@ Status = 'shadowed-compatible'
 SelectedVersion = '5.9.3'
 
 [[requirement]]
+ID = 'direct:aetheris.client:tool:typescript-eslint:000030'
+Scope = 'workspace'
+TargetSource = 'npm'
+TargetName = 'typescript-eslint'
+Reference = 'typescript-eslint'
+Constraint = '^8.48.0'
+Kind = 'project-explicit'
+RequiringPackage = 'aetheris.client'
+PackageID = ''
+DependencyKey = 'typescript-eslint'
+OriginSource = 'manifest'
+Order = 30
+Optional = false
+Controlling = true
+ShadowedBy = ''
+Status = 'controlling'
+SelectedVersion = '8.72.0'
+
+[[requirement]]
 ID = 'peer:npm:zustand@5.0.16:use-sync-external-store:000144'
 Scope = 'workspace'
 TargetSource = 'npm'
@@ -21336,44 +21403,6 @@ Controlling = false
 ShadowedBy = 'direct:aetheris.client:target:browser:zod:000009'
 Status = 'shadowed-compatible'
 SelectedVersion = '3.25.76'
-
-[[requirement]]
-ID = 'direct:aetheris.client:tool:tailwind:000027'
-Scope = 'workspace:alias:tailwind'
-TargetSource = 'npm'
-TargetName = 'tailwindcss'
-Reference = 'tailwind'
-Constraint = '^3.4.17'
-Kind = 'project-explicit'
-RequiringPackage = 'aetheris.client'
-PackageID = ''
-DependencyKey = 'tailwind'
-OriginSource = 'manifest'
-Order = 27
-Optional = false
-Controlling = true
-ShadowedBy = ''
-Status = 'pending'
-SelectedVersion = ''
-
-[[requirement]]
-ID = 'direct:aetheris.client:tool:typescriptEslint:000030'
-Scope = 'workspace:alias:typescriptEslint'
-TargetSource = 'npm'
-TargetName = 'typescript-eslint'
-Reference = 'typescriptEslint'
-Constraint = '^8.48.0'
-Kind = 'project-explicit'
-RequiringPackage = 'aetheris.client'
-PackageID = ''
-DependencyKey = 'typescriptEslint'
-OriginSource = 'manifest'
-Order = 30
-Optional = false
-Controlling = true
-ShadowedBy = ''
-Status = 'pending'
-SelectedVersion = ''
 
 [[target]]
 Package = 'aetheris.client'

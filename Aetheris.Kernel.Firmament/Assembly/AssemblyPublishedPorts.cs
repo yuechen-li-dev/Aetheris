@@ -145,6 +145,7 @@ internal static class AssemblyPublishedPorts
     internal static string Strip(string source, List<AssemblyDiagnostic> diagnostics)
     {
         source = FirmamentSourceSpelling.Normalize(source);
+        ValidatePublicationSyntax(FirmamentSyntaxParser.Parse(source).Document, "<part>", diagnostics);
         var chars = source.ToCharArray();
         foreach (Match expose in Regex.Matches(source,@"\bExpose\s*\{"))
         {
@@ -155,10 +156,35 @@ internal static class AssemblyPublishedPorts
         return new(chars);
     }
 
+    internal static void ValidatePublicationSyntax(DocumentSyntax syntax, string identity, List<AssemblyDiagnostic> diagnostics)
+        => ValidatePublicationSyntax(FirmamentSyntaxTraversal.Declarations(syntax), identity, diagnostics);
+
+    internal static void ValidatePublicationSyntax(DeclarationSyntax syntax, string identity, List<AssemblyDiagnostic> diagnostics)
+        => ValidatePublicationSyntax(FirmamentSyntaxTraversal.Declarations(syntax), identity, diagnostics);
+
+    private static void ValidatePublicationSyntax(IEnumerable<DeclarationSyntax> declarations, string identity, List<AssemblyDiagnostic> diagnostics)
+    {
+        foreach (var declaration in declarations)
+        {
+            if (declaration.Type.Name.Text == "Semantic")
+                foreach (var statement in declaration.Body?.Statements ?? [])
+                    if (statement is not DeclarationSyntax { Type.Name.Text: "Axis" or "Plane" or "Point" or "DatumFrame" or "Dimension" })
+                        diagnostics.Add(AssemblyInterfaceSyntax.Diagnostic(statement is DeclarationSyntax ? "assembly-semantic-unresolved-member" : "assembly-semantic-field-unknown",
+                            $"Unrecognized member in Semantic '{declaration.Name?.Text}'; publish a typed Axis, Plane, Point, DatumFrame or Dimension.", identity, statement.Span));
+            if (declaration.Type.Name.Text == "Expose" && declaration.Body?.Statements.OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text == "Semantic" && d.Body is not null) == true)
+                foreach (var statement in declaration.Body.Statements)
+                    if (statement is not DeclarationSyntax { Type.Name.Text: "Semantic" })
+                        diagnostics.Add(AssemblyInterfaceSyntax.Diagnostic("assembly-port-publication-unknown",
+                            "This expose block publishes named Semantic blocks; unrecognized fields or statements cannot be discarded.", identity, statement.Span));
+        }
+    }
+
     internal static IReadOnlyList<SemanticValue> Read(string source,string owner,string identity,
         string sourceIdentity,List<AssemblyDiagnostic> diagnostics,SectionChain? chain = null, bool includeWinding = false)
     {
         source = FirmamentSourceSpelling.Normalize(source);
+        ValidatePublicationSyntax(FirmamentSyntaxParser.Parse(source).Document, sourceIdentity, diagnostics);
+        if (diagnostics.Count > 0) return [];
         var valueErrors = new List<string>();
         var valuesForPorts = new FirmamentCompileTimeValues(source);
         _ = FirmamentV2TemplateExpansion.ReadDataCatalog(source, valueErrors, valuesForPorts, initialize: true);

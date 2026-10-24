@@ -27,6 +27,7 @@ public static class FirmamentFrontendSchemas
     public static FirmamentFrontendSelection Select(string source)
     {
         ArgumentNullException.ThrowIfNull(source);
+        source = FirmamentSourceSpelling.Normalize(source);
         if (!source.Contains("schema", StringComparison.Ordinal) && !FirmamentV2Parser.IsV2AdmissionCandidate(source)) return new(null, source, []);
         var syntax = FirmamentSyntaxParser.Parse(source);
         if (syntax.Diagnostics.FirstOrDefault(d => d.Code == "firmament-schema-malformed") is { SourceSpan: { } malformedSpan } malformed)

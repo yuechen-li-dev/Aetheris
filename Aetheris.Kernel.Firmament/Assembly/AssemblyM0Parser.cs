@@ -89,6 +89,27 @@ public sealed class AssemblyM0Parser
         if (!syntax.IsSuccess)
             return new(null, syntax.Diagnostics.Select(d => new AssemblyDiagnostic(d.Code, d.Message)
                 { SourceSpan = d.SourceSpan is { } span ? new(sourceIdentity, span.Start, span.Length) : null }).ToArray(), watch.Elapsed.TotalMilliseconds);
+        foreach (var declaration in FirmamentSyntaxTraversal.Declarations(syntax.Document))
+        {
+            if (declaration.Occurrence)
+                foreach (var field in declaration.Body?.Statements.OfType<FieldSyntax>() ?? [])
+                    if (!AssemblyAppearanceAuthoring.OwnsSelectionField(field.Name.Text))
+                        diagnostics.Add(AssemblyInterfaceSyntax.Diagnostic("assembly-occurrence-field-unknown",
+                            $"Unknown field '{field.Name.Text}' on occurrence '{declaration.Name?.Text}'.", sourceIdentity, field.Name.Span));
+            if (declaration.Type.Name.Text is "Assembly" or "Subassembly")
+            {
+                // Anchor is the field consumed by this owner. Product declarations,
+                // mates, layouts and motion clauses have their own binders below.
+                var fields = declaration.Body?.Statements.OfType<FieldSyntax>().ToArray() ?? [];
+                foreach (var field in fields.Where(f => !FirmamentSyntaxFields.SameField(f.Name.Text, "Anchor") && !AssemblyPmiAuthoring.OwnsRootField(f.Name.Text)))
+                    diagnostics.Add(AssemblyInterfaceSyntax.Diagnostic("assembly-field-unknown",
+                        $"Unknown field '{field.Name.Text}' in {declaration.Type.Name.Text} '{declaration.Name?.Text}'.", sourceIdentity, field.Span));
+                if (fields.Count(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Anchor")) > 1)
+                    diagnostics.Add(AssemblyInterfaceSyntax.Diagnostic("assembly-field-duplicate", "Anchor may be declared only once.", sourceIdentity, declaration.Span));
+            }
+        }
+        AssemblyPublishedPorts.ValidatePublicationSyntax(syntax.Document, sourceIdentity, diagnostics);
+        if (diagnostics.Count > 0) return new(null, diagnostics, watch.Elapsed.TotalMilliseconds);
         input = FirmamentSourceSpelling.Normalize(input);
         var blankcommentsPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.blank-comments");
         var source = Regex.Replace(input, "\"(?:\\\\.|[^\"\\\\])*\"|//[^\\r\\n]*", m => m.Value.StartsWith('"') ? m.Value : new string(' ',m.Length));

@@ -300,12 +300,24 @@ public static partial class FirmamentV2Parser
     private static FirmamentV2PrimitiveRecord? BindMechanicalPrimitive(FirmamentSyntaxFields f, List<string> diagnostics)
     {
         var type = f.Declaration.Type.Name.Text;
-        double Length(string name) => f.Number(name, "mm");
+        bool Representable(double value, string field)
+        {
+            if (!double.IsFinite(value)) return false;
+            if (Math.BitIncrement(Math.Abs(value)) - Math.Abs(value) <= Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear) return true;
+            diagnostics.Add($"firmament-dimension-precision-unsupported:{type}:{field}: The dimension is too large for the kernel's linear tolerance. Use a smaller model extent or a local coordinate frame.");
+            return false;
+        }
+        double Length(string name)
+        {
+            var value = f.Number(name, "mm");
+            return Representable(value, name) ? value : double.NaN;
+        }
         double[]? Size()
         {
             if (!f.Vector("Size", "mm", out var values)) return null;
             if (values.Length != 3) { diagnostics.Add(BoxSizeArity); return null; }
             if (values.Any(v => v <= 0)) { diagnostics.Add(DegenerateDimension); return null; }
+            if (values.Any(v => !Representable(v, "Size"))) return null;
             return values;
         }
         switch (type)
@@ -576,17 +588,25 @@ public static partial class FirmamentV2Parser
                 case "Struct" when declaration.Annotation is not null: break;
                 case "Struct" when !declaration.Modifiers.Any(m => m.Name.Text == "Concept"):
                     BindMechanicalScope(declaration.Body?.Statements ?? [], diagnostics); break;
+                case "Extrude":
+                    ProfileAuthoringParser.ReadExtrudeFields(declaration, diagnostics); break;
                 case "Profile" when declaration.Body is not null:
-                    // A Profile body holds loops. Its readers look for Loop headers, so a
-                    // field here would otherwise be dropped without a diagnostic.
-                    // `From` is the derived-boundary form (`Profile copy { From: outline }`).
-                    foreach (var profileField in declaration.Body.Statements.OfType<FieldSyntax>().Where(f => !FirmamentSyntaxFields.SameField(f.Name.Text, "From")))
-                        diagnostics.Add($"{CanonicalFieldUnknown}:Profile:{profileField.Name.Text}");
+                    ProfileAuthoringParser.ValidateProfileBody(declaration, diagnostics);
+                    break;
+                case "Modify":
+                    foreach (var item in declaration.Body?.Statements ?? [])
+                        if (item is FieldSyntax unknown) diagnostics.Add($"{CanonicalFieldUnknown}:Modify:{unknown.Name.Text}");
+                        else if (item is not DeclarationSyntax) diagnostics.Add(CanonicalModifyMalformed);
+                    break;
+                case "Expose":
+                    var publications = new List<Assembly.AssemblyDiagnostic>();
+                    Assembly.AssemblyPublishedPorts.ValidatePublicationSyntax(declaration, "inline", publications);
+                    diagnostics.AddRange(publications.Select(d => d.Code + ": " + d.Message));
                     break;
                 case "Box" or "Cylinder" or "Cone" or "Sphere" or "Ellipsoid" or "Polyhedron" or "Torus" or "RoundedBox" or "Frustum" or "StandardPart" or "ExactCoaxialPart":
                 case "Plane" or "Axis" or "Axis2" or "Point2" or "Line2" or "CubicBezier2" or "Rect2" or "Square2" or "Triangle2" or "Polygon2" or "RegularPolygon2" or "Circle2" or "Ellipse2" or "Ellipse2Guide" or "Slot2" or "RoundedRect2" or "SmoothRoundedRect2" or "Path":
-                case "Plateau" or "Concept" or "Struct" or "Profile" or "Span" or "Compose" or "Boss" or "Pocket" or "AddOffset" or "RemoveOffset" or "EdgeFinish" or "Extrude":
-                case "Enum" or "Expose" or "Record" or "Template" or "template" or "Feature" or "Pattern" or "ProfileDelta" or "Selection" or "InlineStep" or "Recognize" or "Replace" or "Remove" or "Pmi" or "Modify" or "Match" or "Require" or "Assert" or "Thread":
+                case "Plateau" or "Concept" or "Struct" or "Profile" or "Span" or "Compose" or "Boss" or "Pocket" or "AddOffset" or "RemoveOffset" or "EdgeFinish":
+                case "Enum" or "Record" or "Template" or "template" or "Feature" or "Pattern" or "ProfileDelta" or "Selection" or "InlineStep" or "Recognize" or "Replace" or "Remove" or "Pmi" or "Match" or "Require" or "Assert" or "Thread":
                     break;
                 case "Solid": diagnostics.Add(CanonicalConstructNotYetSupported + ":Solid"); break;
                 default: diagnostics.Add(CanonicalDeclarationUnrecognized); diagnostics.Add($"{CanonicalDeclarationUnknown}:{declaration.Type.Name.Text}"); break;

@@ -497,13 +497,20 @@ public static class PrismaticProfileCompositionParser
                 if (!string.Equals(toolFamily, "Prism", StringComparison.Ordinal))
                 { diagnostics.Add($"offset-tool-family-not-qualified:{name}:tool={toolFamily}:qualified=Prism"); continue; }
 
-                var targetMatch = OffsetTarget.Match(body);
-                var profileMatch = SemanticProfile.Match(body);
-                var supportMatch = SemanticSupport.Match(body);
-                var directionMatch = OffsetDirection.Match(body);
-                var heightMatch = BossHeight.Match(body);
-                var depthMatch = PocketDepth.Match(body);
-                var throughAll = OffsetThroughAll.IsMatch(body);
+                var authored = operationsSyntax.Document.Statements.OfType<DeclarationSyntax>().Single(d => d.Name?.Text == name && d.Type.Name.Text == intentText);
+                var fields = new FirmamentSyntaxFields(authored, diagnostics);
+                var targetMatch = ReadFeatureField(fields, composeBody, OffsetTarget, "Target");
+                var profileMatch = ReadFeatureField(fields, composeBody, SemanticProfile, "Profile");
+                var supportMatch = ReadFeatureField(fields, composeBody, SemanticSupport, "On");
+                var directions = new[] { "Along", "Axis", "Direction" }.Select(n => ReadFeatureField(fields, composeBody, OffsetDirection, n)).Where(m => m.Success).ToArray();
+                var directionMatch = directions.FirstOrDefault() ?? Match.Empty;
+                if (directions.Length > 1) diagnostics.Add($"offset-direction-conflict:{name}");
+                var heightMatch = ReadFeatureField(fields, composeBody, BossHeight, "Height");
+                var depthMatch = ReadFeatureField(fields, composeBody, PocketDepth, "Depth");
+                var terminations = new[] { "Termination", "Extent" }.Select(n => ReadFeatureField(fields, composeBody, OffsetThroughAll, n)).Where(m => m.Success).ToArray();
+                var throughAll = terminations.Length > 0;
+                if (terminations.Length > 1) diagnostics.Add($"offset-termination-conflict:{name}");
+                fields.Complete();
                 if (!targetMatch.Success || !profileMatch.Success || !supportMatch.Success)
                 { diagnostics.Add($"offset-missing-required-field:{name}:required=Target,On,Profile"); continue; }
                 var target = targetMatch.Groups["value"].Value;

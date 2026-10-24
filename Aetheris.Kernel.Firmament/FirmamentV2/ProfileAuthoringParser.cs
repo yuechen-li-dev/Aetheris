@@ -59,6 +59,9 @@ public static class ProfileAuthoringParser
         var diagnostics = new List<string>();
         if (!visiting.Add(profileName)) { reportedDiagnostics = [$"concept-profile-dependency-cycle:{profileName}"]; return null; }
         source = ProfileModificationTemplateLibrary.ResolveImports(source);
+        foreach (var authored in SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements)
+            .Where(d => d.Type.Name.Text == "Profile" && d.Name?.Text == profileName))
+            ValidateProfileBody(authored, diagnostics);
         source = ExpandBuiltInPolygons(source, diagnostics,scalars);
         var expansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics,scalars);
         if (expansion is not null) source = expansion.Source;
@@ -337,6 +340,23 @@ public static class ProfileAuthoringParser
         return diagnostics;
     }
 
+    internal static void ValidateProfileBody(DeclarationSyntax profile, List<string> diagnostics)
+    {
+        if (profile.Body is null) return;
+        var fields = new FirmamentSyntaxFields(profile, diagnostics);
+        fields.Take("From");
+        fields.Complete(profile.Body.Statements.Where(s => s is ExpressionStatementSyntax
+            || s is DeclarationSyntax d && (d.Type.Name.Text is "Loop" or "Segment" or "Replace" or "Apply"
+                || ClosedBoundary2Authoring.IsBoundaryType(d.Type.Name.Text))).ToHashSet(), admitPlacement: true);
+        foreach (var loop in profile.Body.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Loop"))
+        {
+            var loopFields = new FirmamentSyntaxFields(loop, diagnostics);
+            loopFields.Take("From");
+            loopFields.Complete((loop.Body?.Statements.Where(s => s is ExpressionStatementSyntax
+                || s is DeclarationSyntax d && d.Type.Name.Text == "Segment") ?? []).ToHashSet(), admitPlacement: true);
+        }
+    }
+
     private static IEnumerable<DeclarationSyntax> SourceDeclarations(IEnumerable<StatementSyntax> statements)
     {
         foreach (var d in statements.OfType<DeclarationSyntax>())
@@ -366,14 +386,19 @@ public static class ProfileAuthoringParser
             if (close < 0) { diagnostics.Add($"firmament-span-domain-invalid:{name}"); continue; }
             if (!names.Add(name) || guides.ContainsKey(name)) { diagnostics.Add($"firmament-span-duplicate:{name}"); continue; }
             var body = source[(open + 1)..close];
-            var parent = Property(body, "On");
+            var spanSyntax = FirmamentSyntaxParser.Parse("Span " + name + " {" + body + "}").Document.Statements.OfType<DeclarationSyntax>().Single();
+            var spanFields = new FirmamentSyntaxFields(spanSyntax, diagnostics);
+            string? SpanField(string field) => spanFields.Take(field) is { } expression ? FirmamentSyntaxWriter.Expression(expression) : null;
+            var parent = SpanField("On");
             if (parent is null) { diagnostics.Add($"firmament-span-parent-not-found:{name}"); continue; }
 
             // Plane spans are semantic surface views only in X1: a named, already-authored
             // Profile is their boundary authority. They intentionally do not create a face.
             if (type == "Plane")
             {
-                var boundary = Property(body, "Boundary");
+                var boundary = SpanField("Boundary");
+                var orientation = SpanField("Orientation") ?? "Forward";
+                spanFields.Complete();
                 var planeDiagnostics = new List<string>();
                 var parentPlane = ResolveConstructionPlane(source, parent, planeDiagnostics);
                 if (!ConstructionPlanes(source).Any(plane => plane.Name?.Text == parent) || parentPlane is null)
@@ -397,7 +422,6 @@ public static class ProfileAuthoringParser
                     (loop.IsOuter ? 1d : -1d) * Math.Abs(PrismaticSectionStackCompiler.ProfileArea(boundaryProfile with { Loops = [loop] })));
                 if (!double.IsFinite(area) || area <= Tolerance) { diagnostics.Add($"firmament-span-surface-domain-invalid:{name}"); continue; }
                 var normal = parentPlane.AxisZ.ToVector();
-                var orientation = string.Equals(Property(body, "Orientation"), "Reverse", StringComparison.Ordinal) ? "Reverse" : "Forward";
                 var consumers = FindSpanConsumers(source, name);
                 result.Add(new(name, type, parent, "Plane", $"Boundary:{boundary}", orientation, null, null, boundary, null,
                     $"span:{name};parent:{parent};boundary:{boundary}", Area: area,
@@ -411,15 +435,16 @@ public static class ProfileAuthoringParser
             var parentType = parentGeometry switch { LineArcLineSegment2D => "Line", LineArcFullCircle2D => "Arc", LineArcCircularArc2D => "Arc", _ => parentGeometry.GetType().Name };
             if ((type == "Line" && parentGeometry is not LineArcLineSegment2D) || (type == "Arc" && parentGeometry is not LineArcFullCircle2D and not LineArcCircularArc2D))
             { diagnostics.Add($"firmament-span-type-invalid:{type}"); continue; }
-            var fromName = Property(body, "From"); var toName = Property(body, "To");
+            var fromName = SpanField("From"); var toName = SpanField("To");
+            var sweep = SpanField("Sweep") ?? "CounterClockwise";
+            var reverse = string.Equals(SpanField("Orientation"), "Reverse", StringComparison.Ordinal);
+            spanFields.Complete();
             if (fromName is null || toName is null || !points.TryGetValue(fromName, out var from) || !points.TryGetValue(toName, out var to))
             { diagnostics.Add($"firmament-span-domain-invalid:{name}"); continue; }
-            var sweep = Property(body, "Sweep") ?? "CounterClockwise";
             var curve = SelectGuide(parentGeometry, from, to, sweep, name, parent, diagnostics);
             if (curve is null) continue;
             var length = CurveLength(curve);
             if (!double.IsFinite(length) || length <= Tolerance) { diagnostics.Add($"firmament-span-zero-length:{name}"); continue; }
-            var reverse = string.Equals(Property(body, "Orientation"), "Reverse", StringComparison.Ordinal);
             if (reverse) curve = Reverse(curve);
             var domain = curve switch
             {
@@ -473,6 +498,13 @@ public static class ProfileAuthoringParser
             { diagnostics.Add($"concept-path-header-invalid:{name}"); continue; }
             var content = declaration.Body.ContentSpan;
             var pathBody = source.Substring(content.Start, content.Length);
+            var pathFields = new FirmamentSyntaxFields(declaration with { Modifiers = [] }, diagnostics);
+            pathFields.Take("Start");
+            pathFields.Take("Heading");
+            var recognizedSteps = FindPathSteps(pathBody).Select(s => content.Start + s.Index).ToHashSet();
+            var steps = declaration.Body.Statements.Where(s => s is DeclarationSyntax d && recognizedSteps.Contains(d.Span.Start)
+                || s is ExpressionStatementSyntax).ToHashSet();
+            pathFields.Complete(steps);
             if (!result.TryAdd(name, default!)) { diagnostics.Add($"concept-path-duplicate:{name}"); continue; }
             if (pathBody.Contains("|>", StringComparison.Ordinal))
             {
@@ -774,6 +806,12 @@ public static class ProfileAuthoringParser
                 AddPathLoop(loop.Groups["name"].Value, string.Equals(loop.Groups["name"].Value, "Outer", StringComparison.Ordinal), loop.Groups["path"].Value, profile, paths, loops, diagnostics);
         foreach (var loop in loopBlocks)
         {
+            var loopSyntax = FirmamentSyntaxParser.Parse("Loop " + loop.Match.Groups["name"].Value + " {" + loop.Body + "}")
+                .Document.Statements.OfType<DeclarationSyntax>().Single();
+            var loopFields = new FirmamentSyntaxFields(loopSyntax, diagnostics);
+            loopFields.Take("From");
+            loopFields.Complete((loopSyntax.Body?.Statements.Where(s => s is ExpressionStatementSyntax
+                || s is DeclarationSyntax d && d.Type.Name.Text == "Segment") ?? []).ToHashSet());
             var loopName = loop.Match.Groups["name"].Value; var fromPath = loop.Match.Groups["path"].Success ? loop.Match.Groups["path"].Value : null;
             var fromInsideMatch = Regex.Match(loop.Body, @"^\s*From\s*:\s*(?<path>[A-Za-z_]\w*)\b", RegexOptions.CultureInvariant);
             var fromInside = fromInsideMatch.Success ? fromInsideMatch.Groups["path"].Value : null;
@@ -1220,14 +1258,28 @@ public static class ProfileAuthoringParser
         return result;
     }
 
+    internal static (ExpressionSyntax? Profile, ExpressionSyntax? From, ExpressionSyntax? To) ReadExtrudeFields(DeclarationSyntax declaration, List<string> diagnostics)
+    {
+        var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+        var profile = fields.Take("Profile");
+        var from = fields.Take("From");
+        var to = fields.Take("To");
+        fields.Complete();
+        return (profile, from, to);
+    }
+
     private static (double Start, double End, double Height) ResolveExtrude(string source, string profileName, List<string> diagnostics)
     {
         foreach (var d in SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Where(d => d.Type.Name.Text == "Extrude"))
         {
-            var fields = new FirmamentSyntaxFields(d, diagnostics);
-            if (fields.Word("Profile") != profileName) continue;
-            var start = fields.Number("From", "mm"); var end = fields.Number("To", "mm");
-            fields.Complete();
+            var fields = ReadExtrudeFields(d, diagnostics);
+            if (FirmamentSyntaxValues.Reference(fields.Profile) != profileName) continue;
+            if (!FirmamentSyntaxValues.TryMeasure(fields.From, "mm", out var start)
+                || !FirmamentSyntaxValues.TryMeasure(fields.To, "mm", out var end))
+            {
+                diagnostics.Add($"profile-extrusion-length-required:{d.Name?.Text}: Extrude from/to must be lengths in mm, not angles or scalars.");
+                continue;
+            }
             if (!double.IsFinite(start) || !double.IsFinite(end)) break;
             return (start, end, Math.Abs(end - start));
         }

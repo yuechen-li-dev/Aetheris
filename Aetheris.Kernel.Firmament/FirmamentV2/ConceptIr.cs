@@ -547,7 +547,12 @@ internal static class ConceptIrResolver
             var open = body.IndexOf('{', pattern.Index); var close = FindMatchingBrace(body, open);
             if (close < 0) { diagnostics.Add("firmament-pattern-invalid-source"); continue; }
             var patternBody = body[(open + 1)..close];
-            var source = FieldValue(patternBody, "Source");
+            var patternSyntax = FirmamentSyntaxParser.Parse("Pattern " + pattern.Groups["name"].Value + " {" + patternBody + "}")
+                .Document.Statements.OfType<DeclarationSyntax>().Single();
+            var fields = new FirmamentSyntaxFields(patternSyntax, diagnostics);
+            var source = fields.Take("Source") is { } sourceValue ? FirmamentSyntaxWriter.Expression(sourceValue) : "";
+            var child = patternSyntax.Body?.Statements.OfType<DeclarationSyntax>().FirstOrDefault(d => d.Type.Name.Text == "Hole");
+            fields.Complete(child is null ? new HashSet<StatementSyntax>() : new HashSet<StatementSyntax> { child });
             var reference = Regex.Match(source, @"^(?<instance>[A-Za-z_][A-Za-z0-9_]*)\.(?<member>[A-Za-z_][A-Za-z0-9_]*)$", RegexOptions.CultureInvariant);
             if (!reference.Success || !instances.TryGetValue(reference.Groups["instance"].Value, out var instance) || !instance.Members.TryGetValue(reference.Groups["member"].Value, out var member) || member is not ConceptIrPointSetValue points)
             { diagnostics.Add("firmament-pattern-source-not-static-point3-collection:" + source); continue; }
@@ -818,7 +823,17 @@ internal static class ConceptIrResolver
             expression = expression.Trim();
             var provenance = $"{instanceName}.{target.Name}";
             if (expression.StartsWith(materializedName + ".", StringComparison.Ordinal)) { diagnostics.Add(MaterializedPhaseReference); return null; }
-            if (FirmamentSyntaxParser.ParseExpression(expression).Expression is MatchSyntax match) return EvaluateMatch(match, target);
+            var syntax = FirmamentSyntaxParser.ParseExpression(expression).Expression;
+            if (syntax is MatchSyntax match) return EvaluateMatch(match, target);
+            if (syntax is ObjectSyntax spatial && FirmamentSyntaxValues.Reference(spatial.Type) is { } spatialType
+                && SpatialFields.TryGetValue(spatialType, out var schema))
+            {
+                var before = diagnostics.Count;
+                var fields = FirmamentSyntaxFields.Object(spatial, target.Name, diagnostics);
+                foreach (var field in schema.Keys) fields.Take(field);
+                fields.Complete();
+                if (diagnostics.Count > before) return null;
+            }
 
             var box = Regex.Match(expression, @"^Box3\s*\{(?<body>.*)\}$", RegexOptions.Singleline | RegexOptions.CultureInvariant);
             if (box.Success)

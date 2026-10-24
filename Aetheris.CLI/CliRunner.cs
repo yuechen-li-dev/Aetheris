@@ -260,6 +260,16 @@ public static class CliRunner
                 _ => UnknownCommand(args[0], stderr)
             };
         }
+        catch (FileNotFoundException ex)
+        {
+            var diagnostic = new FirmamentV2ValidationDiagnostic("source-file-not-found", "error",
+                $"Source or referenced input file '{ex.FileName}' was not found. Check the path and the working directory.")
+            { SourceFile = ex.FileName, Stage = "Input", LocationNote = "No source span is available because the file could not be opened." };
+            if (args.Contains("--json", StringComparer.Ordinal))
+                stdout.WriteLine(JsonSerializer.Serialize(new { command = args[0], success = false, diagnostics = new[] { diagnostic } }, JsonOptions));
+            else stderr.WriteLine($"{ex.FileName}: error {diagnostic.Code}: {diagnostic.Message}");
+            return 1;
+        }
         catch (Exception ex)
         {
             stderr.WriteLine(ex.Message);
@@ -502,13 +512,16 @@ public static class CliRunner
             }
         }
 
+        FirmamentCommandDomain? domain = null;
         if (File.Exists(sourcePath))
         {
             if (!DependencyLockCommand.Verify(sourcePath, locked, json, stdout, stderr, JsonOptions, "build")) return 1;
             var source = File.ReadAllText(sourcePath);
             var frontend = FirmamentFrontendSchemas.Select(source);
             if (!frontend.IsSuccess) return WriteFrontendRejection(frontend, source, sourcePath, "build", json, stdout, stderr);
-            if((FirmamentDrawingCompiler.IsDrawingSource(source)||FirmamentAnalysisCompiler.IsAnalysisSource(source)) && outPath is not null && Path.GetExtension(outPath).Equals(".step",StringComparison.OrdinalIgnoreCase))
+            source = frontend.Source;
+            domain = FirmamentCommandRouting.Select(source, sourcePath, frontend.Schema);
+            if((domain == FirmamentCommandDomain.Drawing||domain == FirmamentCommandDomain.Analysis) && outPath is not null && Path.GetExtension(outPath).Equals(".step",StringComparison.OrdinalIgnoreCase))
             {
                 var diagnostic=FirmamentBuildAdmissionValidation.Present(new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed,KernelDiagnosticSeverity.Error,
                     "firmament-product-output-directory-required: Drawing and Analysis builds produce artifact directories. Use --out <directory>; export the geometry source separately for STEP.","Firmament.Build"),sourcePath,source);
@@ -516,24 +529,24 @@ public static class CliRunner
                 else stderr.WriteLine($"{sourcePath}:{diagnostic.Line}:{diagnostic.Column}: {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}");
                 return 1;
             }
-            if(FirmamentDrawingCompiler.IsDrawingSource(source))
+            if(domain == FirmamentCommandDomain.Drawing)
                 return RunDrawing(["compile",sourcePath,"--out-dir",outPath??Path.GetFullPath(Path.Combine("artifacts","local","drawing",Path.GetFileNameWithoutExtension(sourcePath))),..(json?new[]{"--json"}:[])],stdout,stderr);
-            if (FirmamentAnalysisCompiler.IsAnalysisSource(source))
+            if (domain == FirmamentCommandDomain.Analysis)
                 return RunFea([sourcePath,"--out-dir",outPath??Path.GetFullPath(Path.Combine("artifacts","local","analysis",Path.GetFileNameWithoutExtension(sourcePath))),..(json?new[]{"--json"}:[])],stdout,stderr);
-            if (Aetheris.Kernel.Firmament.Garment.GarmentAuthoring.HasRoot(source))
+            if (domain == FirmamentCommandDomain.Garment)
             { stderr.WriteLine("garment-step-export-unsupported: Fabric is a material-space surface; use garment build or garment drape."); return 1; }
-            if (Aetheris.Kernel.Firmament.Scene.SceneAuthoring.HasRoot(source))
+            if (domain == FirmamentCommandDomain.Scene)
             { stderr.WriteLine("scene-step-export-unsupported: Scene is a spatial product; use scene export-usd or scene export-glb."); return 1; }
-            if (Path.GetExtension(sourcePath).Equals(".firmasm", StringComparison.OrdinalIgnoreCase) || FirmamentLanguageAnalysisService.HasAssemblyRoot(source, sourcePath))
+            if (domain == FirmamentCommandDomain.Assembly)
                 return RunAsmExportAp242([sourcePath, "--out", outPath ?? Path.GetFullPath(Path.Combine("artifacts", "local", "build", Path.GetFileNameWithoutExtension(sourcePath) + ".step")), .. (json ? new[] { "--json" } : [])], stdout, stderr);
-            if (SectionChainAuthoringParser.IsSectionChainSource(source))
+            if (domain == FirmamentCommandDomain.SectionChain)
                 return RunSectionChain(["build", sourcePath, .. (outPath is null ? Array.Empty<string>() : ["--out", outPath]), .. (json ? new[] { "--json" } : [])], stdout, stderr);
         }
-        if (File.Exists(sourcePath) && PlasticShellFirmament.LooksLikePlasticShell(File.ReadAllText(sourcePath)))
+        if (domain == FirmamentCommandDomain.PlasticShell)
             return RunPlasticShellBuild(sourcePath, outPath, json, stdout, stderr);
-        if (File.Exists(sourcePath) && SheetMetalFirmament.LooksLikeSheetMetal(File.ReadAllText(sourcePath)))
+        if (domain == FirmamentCommandDomain.SheetMetal)
             return RunSheetMetalAuthoredBuild(sourcePath, outPath, json, stdout, stderr);
-        if (File.Exists(sourcePath) && SculptingAuthoring.IsSculptingSource(File.ReadAllText(sourcePath)))
+        if (domain == FirmamentCommandDomain.Sculpting)
             return RunSculptingBuild(sourcePath, outPath, json, stdout, stderr);
 
         var build = FirmamentBuildAndExport.Run(sourcePath, outPath);
@@ -2480,7 +2493,9 @@ Model CanonicalPanel {
         var authoredValidationSource = validationSource;
         var frontend = FirmamentFrontendSchemas.Select(validationSource);
         if (!frontend.IsSuccess) return WriteFrontendRejection(frontend, validationSource, sourcePath, "validate", json, stdout, stderr);
-        if(FirmamentDrawingCompiler.IsDrawingSource(validationSource))
+        validationSource = frontend.Source;
+        var domain = FirmamentCommandRouting.Select(validationSource, sourcePath, frontend.Schema);
+        if(domain == FirmamentCommandDomain.Drawing)
         {
             if (parseOnly) return RejectParseOnly("Drawing");
             var output=Path.GetFullPath(Path.Combine("artifacts","local","drawing-validation",Guid.NewGuid().ToString("N")));
@@ -2495,7 +2510,7 @@ Model CanonicalPanel {
             }
             finally {if(Directory.Exists(output))Directory.Delete(output,true);}
         }
-        if (FirmamentAnalysisCompiler.IsAnalysisSource(validationSource))
+        if (domain == FirmamentCommandDomain.Analysis)
         {
             if (parseOnly) return RejectParseOnly("Analysis");
             var analysis=FirmamentAnalysisCompiler.Compile(frontend.Source,Path.GetFullPath(sourcePath),Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
@@ -2505,12 +2520,12 @@ Model CanonicalPanel {
             else {stdout.WriteLine(analysis.IsSuccess?"Analysis bound; solver execution has not been validated.":"Analysis rejected.");foreach(var d in diagnostics)stderr.WriteLine($"{d.SourceFile}:{d.Line}:{d.Column}: {d.Severity} {d.Code}: {d.Message}");}
             return analysis.IsSuccess?0:1;
         }
-        if (Aetheris.Kernel.Firmament.Garment.GarmentAuthoring.HasRoot(validationSource)
+        if (domain == FirmamentCommandDomain.Garment
             || frontend.Schema == FirmamentFrontendSchema.Garment)
         {
             if (parseOnly)
             {
-                var garment = Aetheris.Kernel.Firmament.Garment.GarmentAuthoring.Parse(validationSource, Path.GetFullPath(sourcePath));
+                var garment = Aetheris.Kernel.Firmament.Garment.GarmentAuthoring.Parse(authoredValidationSource, Path.GetFullPath(sourcePath));
                 var diagnostics = garment.Diagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(new KernelDiagnostic(
                     KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, d.Code + ": " + d.Message, "Firmament.Garment"), sourcePath, validationSource)).ToArray();
                 var payload = new { source = sourcePath, status = garment.IsSuccess ? "parsed-not-built" : "invalid", domain = "Garment",
@@ -2521,7 +2536,7 @@ Model CanonicalPanel {
             }
             return GarmentCommand.Run(["inspect", sourcePath, .. (json ? new[] { "--json" } : Array.Empty<string>())], stdout, stderr);
         }
-        if (FirmamentLanguageAnalysisService.HasAssemblyRoot(validationSource, sourcePath))
+        if (domain == FirmamentCommandDomain.Assembly)
         {
             var sheetMetalAssembly = validationSource.Contains("Use SheetMetal.ProductFamilies", StringComparison.Ordinal);
             var parsedAssembly = parseOnly ? sheetMetalAssembly
@@ -2536,7 +2551,7 @@ Model CanonicalPanel {
             else { stdout.WriteLine(validAssembly ? "Assembly admitted." : "Assembly rejected."); foreach(var d in payload.diagnostics) stderr.WriteLine(d.Code+": "+d.Message); }
             return validAssembly ? 0 : 1;
         }
-        if (Aetheris.Kernel.Firmament.Scene.SceneAuthoring.HasRoot(validationSource))
+        if (domain == FirmamentCommandDomain.Scene)
         {
             using var sceneSession = new Aetheris.Kernel.Firmament.Scene.FirmamentSceneSession();
             var parsedScene = parseOnly ? Aetheris.Kernel.Firmament.Scene.SceneAuthoring.Parse(validationSource,Path.GetFullPath(sourcePath)) : null;
@@ -2548,7 +2563,7 @@ Model CanonicalPanel {
             return sceneValid ? 0 : 1;
         }
         validationSource = frontend.Source;
-        if (PlasticShellFirmament.LooksLikePlasticShell(validationSource))
+        if (domain == FirmamentCommandDomain.PlasticShell)
         {
             if (parseOnly) return RejectParseOnly("PlasticShell");
             var plastic = PlasticShellFirmament.Compile(validationSource, Path.GetFullPath(sourcePath));
@@ -2557,7 +2572,7 @@ Model CanonicalPanel {
             else {stdout.WriteLine($"PlasticShell validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, {payload.summary.warningDiagnosticCount} warning)");WriteFrontendDiagnostics(payload.diagnostics,stderr);}
             return plastic.IsSuccess ? 0 : 1;
         }
-        if (SculptingAuthoring.IsSculptingSource(validationSource))
+        if (domain == FirmamentCommandDomain.Sculpting)
         {
             if (parseOnly) return RejectParseOnly("Sculpting");
             var sculpt = SculptingAuthoring.Compile(validationSource,Path.GetFullPath(sourcePath));
@@ -2566,7 +2581,7 @@ Model CanonicalPanel {
             else {stdout.WriteLine($"Firmament V2 Sculpting validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");WriteFrontendDiagnostics(payload.diagnostics,stderr);}
             return sculpt.IsSuccess ? 0 : 1;
         }
-        if (PlateauAuthoring.IsSource(validationSource) && !System.Text.RegularExpressions.Regex.IsMatch(validationSource, @"\bAssembly\s+"))
+        if (domain == FirmamentCommandDomain.Plateau)
         {
             if (parseOnly) return RejectParseOnly("Plateau");
             var plateau = FirmamentBuildAndExport.CompileSource(validationSource, Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
@@ -2575,7 +2590,7 @@ Model CanonicalPanel {
             else stdout.WriteLine($"Plateau validation: {payload.status}");
             return plateau.IsSuccess ? 0 : 1;
         }
-        if (PipingAuthoring.IsPipingSource(validationSource))
+        if (domain == FirmamentCommandDomain.Piping)
         {
             if (parseOnly) return RejectParseOnly("Piping");
             var piping = PipingAuthoring.Compile(validationSource, Path.GetFullPath(sourcePath));
@@ -2588,7 +2603,7 @@ Model CanonicalPanel {
             }
             return piping.IsSuccess ? 0 : 1;
         }
-        if (StructuralAuthoring.IsStructuralSource(validationSource))
+        if (domain == FirmamentCommandDomain.Structural)
         {
             if (parseOnly)
             {
@@ -2607,7 +2622,7 @@ Model CanonicalPanel {
             else {stdout.WriteLine($"Firmament V2 Structural validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");WriteFrontendDiagnostics(payload.diagnostics,stderr);}
             return structural.IsSuccess ? 0 : 1;
         }
-        if (frontend.Schema == FirmamentFrontendSchema.SectionChain)
+        if (domain == FirmamentCommandDomain.SectionChain)
         {
             var section = SectionChainAuthoringParser.CompileFile(sourcePath, materialize: !parseOnly);
             var diagnostics = section.Diagnostics.Select(message => FirmamentBuildAdmissionValidation.Present(new KernelDiagnostic(
@@ -2619,7 +2634,7 @@ Model CanonicalPanel {
             else stdout.WriteLine($"Firmament V2 SectionChain validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
             return section.IsSuccess ? 0 : 1;
         }
-        if (WireFormAuthoring.IsWireFormSource(validationSource))
+        if (domain == FirmamentCommandDomain.WireForm)
         {
             var wireSource = ExpandSweepInspectionSource(validationSource, out var expansionDiagnostics);
             var authored = wireSource is null ? null : WireFormAuthoring.Parse(wireSource);
@@ -2645,7 +2660,7 @@ Model CanonicalPanel {
             }
             return valid ? 0 : 1;
         }
-        if (CircularSweepAuthoring.IsSweepSource(validationSource))
+        if (domain == FirmamentCommandDomain.Sweep)
         {
             var sweepSource = ExpandSweepInspectionSource(validationSource, out var sweepExpansionDiagnostics);
             var authored = sweepSource is null ? null : CircularSweepAuthoring.Parse(sweepSource);
@@ -2672,7 +2687,7 @@ Model CanonicalPanel {
             }
             return valid ? 0 : 1;
         }
-        if(SheetMetalFirmament.LooksLikeSheetMetal(validationSource))
+        if(domain == FirmamentCommandDomain.SheetMetal)
         {
             var sheet=SheetMetalFirmament.Compile(validationSource,Path.GetFullPath(sourcePath));
             var status=sheet.IsSuccess?"valid":"invalid";

@@ -18,21 +18,28 @@ export type { AetherisViewportProps } from "./viewportProps";
 
 /** One graphics authority; legacy rendering is loaded only for unsupported browsers. */
 export function AetherisViewport(props: AetherisViewportProps) {
-  const panel = useRef<HTMLDivElement>(null), tool = useRef<MeasurementTool | undefined>(undefined), latest = useRef(props); latest.current = props;
+  const panel = useRef<HTMLDivElement>(null);
+  const latest = useRef(props);
+  const [tool, setTool] = useState<MeasurementTool>();
   const [tick, setTick] = useState(0);
   useEffect(() => {
+    latest.current = props;
+  }, [props]);
+  useEffect(() => {
     if (!panel.current) return;
-    tool.current = new MeasurementTool(panel.current, request => {
-      const query = latest.current.measurementQuery; if (!query) throw new Error('No measurement geometry is available.');
+    const measurementTool = new MeasurementTool(panel.current, request => {
+      const query = latest.current.measurementQuery;
+      if (!query) throw new Error('No measurement geometry is available.');
       return query(request);
     }, () => setTick(n => n + 1));
-    setTick(n => n + 1);
-    return () => { tool.current?.dispose(); tool.current = undefined; };
+    setTool(measurementTool);
+    return () => measurementTool.dispose();
   }, []);
-  useEffect(() => { tool.current?.setContext(props.measurementQuery, props.measurementDisabledReason || (!props.measurementQuery ? 'Load a BRep model to measure.' : '')); },
-    [props.measurementQuery, props.measurementDisabledReason, props.displayScene, props.assemblyPacket]);
+  useEffect(() => {
+    tool?.setContext(props.measurementQuery, props.measurementDisabledReason || (!props.measurementQuery ? 'Load a BRep model to measure.' : ''));
+  }, [tool, props.measurementQuery, props.measurementDisabledReason, props.displayScene, props.assemblyPacket]);
   return <div tabIndex={0} style={{width:'100%',height:'100%',position:'relative'}} aria-label="Model measurement workspace">
-    <ViewportRenderer {...props} measurementTool={tool.current} measurementTick={tick} /><div ref={panel} />
+    <ViewportRenderer {...props} measurementTool={tool} measurementTick={tick} /><div ref={panel} />
   </div>;
 }
 function ViewportRenderer(props: AetherisViewportProps) {

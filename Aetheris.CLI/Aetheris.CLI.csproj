@@ -16,7 +16,7 @@
     <ProjectUrl>https://yuechen-li-dev.github.io/aetheris/</ProjectUrl>
     <PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
     <PackageReadmeFile>Aetheris.CLI.README.md</PackageReadmeFile>
-    <PackageReleaseNotes>Preview 3: Firmament V2 semantic CAD, bounded Boss/Pocket and AP242 workflows, Sheet Metal, PMI, materials, and linear-elastic FEA. Windows x64 is the qualified release target.</PackageReleaseNotes>
+    <PackageReleaseNotes>Aetheris $(Version): Firmament engineering compilation, STEP AP242, assemblies, semantic PMI, drawings, materials and bounded analysis. The core tool includes no third-party OS-native libraries; native interoperability is optional.</PackageReleaseNotes>
     <AllowedOutputExtensionsInPackageBuildOutputFolder>.dll;.exe;.json</AllowedOutputExtensionsInPackageBuildOutputFolder>
   </PropertyGroup>
 

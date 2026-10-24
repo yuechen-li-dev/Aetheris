@@ -25,16 +25,18 @@ internal static class WireCoilAuthoring
 
     internal static KernelResult<WireAxisCoilAir> CreateAxis(string name, int ordinal, string body, WireState input, double diameter)
     {
-        if (!Length(body, RadiusField, out var radius) || radius <= 0d) return FailAxis("wireform-coil-radius-invalid", name, "Radius must be finite and greater than zero.");
-        if (!Number(body, TurnsField, out var turns) || turns <= 0d) return FailAxis("wireform-coil-turns-invalid", name, "Turns must be finite and greater than zero.");
-        var hasPitch = Length(body, PitchField, out var pitch); var hasHeight = Length(body, HeightField, out var height);
+        var fields = new WireFormFields("Helix", body);
+        if (!Length(fields, RadiusField, out var radius) || radius <= 0d) return FailAxis("wireform-coil-radius-invalid", name, "Radius must be finite and greater than zero.");
+        if (!Number(fields, TurnsField, out var turns) || turns <= 0d) return FailAxis("wireform-coil-turns-invalid", name, "Turns must be finite and greater than zero.");
+        var hasPitch = Length(fields, PitchField, out var pitch); var hasHeight = Length(fields, HeightField, out var height);
         if (!hasPitch && !hasHeight) return FailAxis("wireform-coil-parameters-inconsistent", name, "Specify Turns and either Pitch or Height.");
         if (hasPitch && pitch <= 0d || hasHeight && height <= 0d) return FailAxis("wireform-coil-parameters-inconsistent", name, "Pitch and Height must be greater than zero.");
         if (!hasPitch) pitch = height / turns; else if (!hasHeight) height = pitch * turns;
         else if (Math.Abs(height - pitch * turns) > 1e-8 * Math.Max(1d, height))
             return FailAxis("wireform-coil-parameters-inconsistent", name, $"Height must equal Turns × Pitch ({turns * pitch:G12} mm).");
-        if (!Hand(body, out var hand)) return FailAxis("wireform-coil-handedness-invalid", name, "Handedness must be RightHanded or LeftHanded.");
-        if (!Phase(body, out var phase)) return FailAxis("wireform-coil-start-phase-invalid", name, "StartPhase must be a finite angle.");
+        if (!Hand(fields, out var hand)) return FailAxis("wireform-coil-handedness-invalid", name, "Handedness must be RightHanded or LeftHanded.");
+        if (!Phase(fields, out var phase)) return FailAxis("wireform-coil-start-phase-invalid", name, "StartPhase must be a finite angle.");
+        if (fields.Complete() is { } fieldError) return FailAxis("wireform-fields-invalid", name, fieldError);
         var sign = hand == WireCoilHandedness.RightHanded ? 1d : -1d;
         var q = height / (2d * Math.PI * turns);
         var axis = Direction3D.Create(input.Tangent.ToVector() * q + input.Up.ToVector() * (sign * radius));
@@ -53,19 +55,22 @@ internal static class WireCoilAuthoring
 
     internal static KernelResult<WireSurfaceCoilAir> CreateSurface(string source, string name, int ordinal, string body, WireState input, double diameter)
     {
-        var supportName = WireFormAuthoring.Property(body, "Surface") ?? WireFormAuthoring.Property(body, "Support");
+        var fields = new WireFormFields("SurfaceCoil", body);
+        var supportName = fields.Read("Surface") ?? fields.Read("Support");
         if (string.IsNullOrWhiteSpace(supportName)) return FailSurface("wireform-surfacecoil-support-unsupported", name, "Surface must name an authored Cylinder, Frustum, Cone, or Sphere.");
         var declaration = Regex.Match(source, $@"\b(?<kind>Cylinder|Frustum|Cone|Sphere)\s+{Regex.Escape(supportName.Trim())}\s*\{{", RegexOptions.CultureInvariant);
         if (!declaration.Success) return FailSurface("wireform-surfacecoil-support-unsupported", supportName.Trim(), "Only authored analytic Cylinder, Frustum/Cone, and Sphere supports are admitted.");
         var open = source.IndexOf('{', declaration.Index); var close = MatchingBrace(source, open);
         if (close < 0) return FailSurface("wireform-surfacecoil-support-unsupported", supportName.Trim(), "Support declaration is malformed.");
-        var supportBody = source[(open + 1)..close]; var kind = declaration.Groups["kind"].Value; if (kind == "Cone") kind = "Frustum";
-        if (!Number(body, "Turns", out var turns) || turns <= 0d) return FailSurface("wireform-coil-turns-invalid", name, "Turns must be finite and greater than zero.");
-        if (!Hand(body, out var hand)) return FailSurface("wireform-coil-handedness-invalid", name, "Handedness must be RightHanded or LeftHanded.");
-        if (!Phase(body, out var phase)) return FailSurface("wireform-coil-start-phase-invalid", name, "StartPhase must be a finite angle.");
-        var sideText = WireFormAuthoring.Property(body, "Side") ?? "Outside";
+        var supportBody = source[(open + 1)..close];
+        var supportFields = new WireFormFields(declaration.Groups["kind"].Value, supportBody);
+        supportFields.Read("Role"); var kind = declaration.Groups["kind"].Value; if (kind == "Cone") kind = "Frustum";
+        if (!Number(fields, "Turns", out var turns) || turns <= 0d) return FailSurface("wireform-coil-turns-invalid", name, "Turns must be finite and greater than zero.");
+        if (!Hand(fields, out var hand)) return FailSurface("wireform-coil-handedness-invalid", name, "Handedness must be RightHanded or LeftHanded.");
+        if (!Phase(fields, out var phase)) return FailSurface("wireform-coil-start-phase-invalid", name, "StartPhase must be a finite angle.");
+        var sideText = fields.Read("Side") ?? "Outside";
         if (!Enum.TryParse<WireSurfaceSide>(sideText, false, out var side)) return FailSurface("wireform-surfacecoil-side-invalid", name, "Side must be Outside or Inside.");
-        var hasClearance = Length(body, "Clearance", out var clearance); var hasOffset = Length(body, "CenterlineOffset", out var offset);
+        var hasClearance = Length(fields, "Clearance", out var clearance); var hasOffset = Length(fields, "CenterlineOffset", out var offset);
         if (hasClearance == hasOffset) return FailSurface("wireform-surfacecoil-offset-invalid", name, "Specify exactly one of Clearance or CenterlineOffset.");
         if (hasClearance && clearance < 0d || hasOffset && offset <= 0d) return FailSurface("wireform-surfacecoil-offset-invalid", name, "Clearance cannot be negative and CenterlineOffset must be positive.");
         if (hasClearance) offset = diameter / 2d + clearance; else clearance = offset - diameter / 2d;
@@ -74,9 +79,9 @@ internal static class WireCoilAuthoring
         double r0, r1, supportHeight, pitch = 0d, startLat = 0d, endLat = 0d;
         if (kind == "Sphere")
         {
-            if (!Length(supportBody, "Radius", out r0) || r0 <= 0d) return FailSurface("wireform-surfacecoil-support-unsupported", supportName.Trim(), "Sphere Radius must be positive.");
+            if (!Length(supportFields, "Radius", out r0) || r0 <= 0d) return FailSurface("wireform-surfacecoil-support-unsupported", supportName.Trim(), "Sphere Radius must be positive.");
             r1 = r0; supportHeight = 2d * r0;
-            if (!Angle(body, "StartLatitude", out startLat) || !Angle(body, "EndLatitude", out endLat)) return FailSurface("wireform-surfacecoil-pole-singularity", name, "Sphere winding requires StartLatitude and EndLatitude.");
+            if (!Angle(fields, "StartLatitude", out startLat) || !Angle(fields, "EndLatitude", out endLat)) return FailSurface("wireform-surfacecoil-pole-singularity", name, "Sphere winding requires StartLatitude and EndLatitude.");
             if (Math.Abs(startLat) >= Math.PI / 2d - 1e-6 || Math.Abs(endLat) >= Math.PI / 2d - 1e-6)
                 return FailSurface("wireform-surfacecoil-pole-singularity", name, "Latitude bounds must remain away from ±90 degrees.");
             var rho = side == WireSurfaceSide.Outside ? r0 + offset : r0 - offset;
@@ -86,19 +91,21 @@ internal static class WireCoilAuthoring
         {
             if (kind == "Cylinder")
             {
-                if (!Length(supportBody, "Radius", out r0) || r0 <= 0d) return FailSurface("wireform-surfacecoil-support-unsupported", supportName.Trim(), "Cylinder Radius must be positive.");
+                if (!Length(supportFields, "Radius", out r0) || r0 <= 0d) return FailSurface("wireform-surfacecoil-support-unsupported", supportName.Trim(), "Cylinder Radius must be positive.");
                 r1 = r0;
             }
             else
             {
-                if (!Length(supportBody, "BottomRadius", out r0) || !Length(supportBody, "TopRadius", out r1) || r0 < 0d || r1 < 0d || r0 + r1 <= 0d)
+                if (!Length(supportFields, "BottomRadius", out r0) || !Length(supportFields, "TopRadius", out r1) || r0 < 0d || r1 < 0d || r0 + r1 <= 0d)
                     return FailSurface("wireform-surfacecoil-support-unsupported", supportName.Trim(), "Frustum requires nonnegative BottomRadius and TopRadius.");
             }
-            if (!Length(supportBody, "Height", out supportHeight) || supportHeight <= 0d) return FailSurface("wireform-surfacecoil-support-unsupported", supportName.Trim(), "Support Height must be positive.");
-            if (!Length(body, "AxialPitch", out pitch) && !Length(body, "Pitch", out pitch) || pitch <= 0d) return FailSurface("wireform-coil-parameters-inconsistent", name, "Cylinder/frustum winding requires positive AxialPitch.");
+            if (!Length(supportFields, "Height", out supportHeight) || supportHeight <= 0d) return FailSurface("wireform-surfacecoil-support-unsupported", supportName.Trim(), "Support Height must be positive.");
+            if (!Length(fields, "AxialPitch", out pitch) && !Length(fields, "Pitch", out pitch) || pitch <= 0d) return FailSurface("wireform-coil-parameters-inconsistent", name, "Cylinder/frustum winding requires positive AxialPitch.");
             if (turns * pitch > supportHeight + 1e-9) return FailSurface("wireform-surfacecoil-span-invalid", name, "Turns × AxialPitch exceeds support Height.");
         }
 
+        if (supportFields.Complete() is { } supportError) return FailSurface("wireform-fields-invalid", name, supportError);
+        if (fields.Complete() is { } fieldError) return FailSurface("wireform-fields-invalid", name, fieldError);
         var sign = hand == WireCoilHandedness.RightHanded ? 1d : -1d;
         Direction3D axis, radial, longitude, latitude; Point3D origin;
         if (kind == "Sphere")
@@ -140,11 +147,11 @@ internal static class WireCoilAuthoring
         return KernelResult<WireSurfaceCoilAir>.Success(prototype with { LengthMm = length, MinimumSelfClearanceMm = self, Output = output });
     }
 
-    private static bool Length(string body, string name, out double value) => WireFormAuthoring.TryLength(WireFormAuthoring.Property(body, name), out value);
-    private static bool Angle(string body, string name, out double value) => WireFormAuthoring.TryAngle(WireFormAuthoring.Property(body, name), out value);
-    private static bool Number(string body, string name, out double value) => double.TryParse(WireFormAuthoring.Property(body, name), NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
-    private static bool Hand(string body, out WireCoilHandedness hand) => Enum.TryParse(WireFormAuthoring.Property(body, HandednessField) ?? "RightHanded", false, out hand);
-    private static bool Phase(string body, out double phase) { var text = WireFormAuthoring.Property(body, StartPhaseField); if (text is null) { phase = 0d; return true; } return WireFormAuthoring.TryAngle(text, out phase); }
+    private static bool Length(WireFormFields fields, string name, out double value) => WireFormAuthoring.TryLength(fields.Read(name), out value);
+    private static bool Angle(WireFormFields fields, string name, out double value) => WireFormAuthoring.TryAngle(fields.Read(name), out value);
+    private static bool Number(WireFormFields fields, string name, out double value) => double.TryParse(fields.Read(name), NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
+    private static bool Hand(WireFormFields fields, out WireCoilHandedness hand) => Enum.TryParse(fields.Read(HandednessField) ?? "RightHanded", false, out hand);
+    private static bool Phase(WireFormFields fields, out double phase) { var text = fields.Read(StartPhaseField); if (text is null) { phase = 0d; return true; } return WireFormAuthoring.TryAngle(text, out phase); }
     private static int MatchingBrace(string source, int open) { var depth = 0; for (var i = open; i >= 0 && i < source.Length; i++) { if (source[i] == '{') depth++; else if (source[i] == '}' && --depth == 0) return i; } return -1; }
     private static Vector3D Rotate(Vector3D v, Vector3D a, double angle) => v * Math.Cos(angle) + WireFormAuthoring.Cross(a, v) * Math.Sin(angle) + a * (WireFormAuthoring.Dot(a, v) * (1d - Math.Cos(angle)));
     private static KernelResult<WireAxisCoilAir> FailAxis(string code, string name, string message) => KernelResult<WireAxisCoilAir>.Failure([Diagnostic($"{code}:{name}: {message}")]);

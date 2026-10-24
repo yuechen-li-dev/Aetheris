@@ -57,7 +57,7 @@ internal sealed partial class FirmamentModuleGraph
                 path = reference.Path;
                 var folder = Path.GetDirectoryName(module.Path);
                 var relative = Path.GetRelativePath(string.IsNullOrEmpty(folder) ? "." : folder, path).Replace('\\', '/');
-                module.Edits.Add(new(from[0].Span, "path: " + JsonSerializer.Serialize(relative) + ";"));
+                module.Edits.Add(new(from[0].Span, "path: " + JsonSerializer.Serialize(relative, FirmamentJsonContext.Default.String) + ";"));
             }
             else if (paths is [{ Value: LiteralSyntax { Kind: LiteralKind.String } literal }])
             {
@@ -70,7 +70,7 @@ internal sealed partial class FirmamentModuleGraph
                 && (d.Name?.Text == step.Name?.Text || d.Name?.Text.StartsWith(step.Name!.Text + ".", StringComparison.Ordinal) == true))) SurgicalAssets.Add(Relative(path));
             var locked = Locked?.Dependencies.SingleOrDefault(d => d.Path == Relative(path));
             if (locked is not null && !fields.Any(f => f.Name.Text is "sha256" or "Sha256" or "textSha256" or "TextSha256"))
-                module.Edits.Add(new(new(step.Body.Span.Start + 1, 0), "\nsha256: " + JsonSerializer.Serialize(locked.Sha256) + ";\n"));
+                module.Edits.Add(new(new(step.Body.Span.Start + 1, 0), "\nsha256: " + JsonSerializer.Serialize(locked.Sha256, FirmamentJsonContext.Default.String) + ";\n"));
         }
     }
 }

@@ -13,6 +13,7 @@ internal static class LinearFeatureAuthoring
     {
         var reports = new List<FirmamentV2LinearPatternDecl>();
         var axes = new Dictionary<string, FirmamentV2Axis2Decl>(StringComparer.Ordinal);
+        var declarations = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).ToArray();
         foreach (Match axis in Regex.Matches(source, @"\bAxis2\s+(?<name>[A-Za-z_]\w*)\s*\{"))
         {
             var end = Matching(source, source.IndexOf('{', axis.Index));
@@ -21,9 +22,13 @@ internal static class LinearFeatureAuthoring
                 if (axis.Index > owner.Index && axis.Index < Matching(source, source.IndexOf('{', owner.Index)))
                     identity = owner.Groups["name"].Value + "." + axis.Groups["name"].Value;
             if (end < 0) { Error("axis-malformed", identity); continue; }
-            var fields = source[(source.IndexOf('{', axis.Index) + 1)..end];
-            var origin = Regex.Match(fields, @"\bOrigin\s*:\s*\[(?<x>[^,]+),(?<y>[^]]+)\]");
-            var vector = Regex.Match(fields, @"\bDirection\s*:\s*\[(?<x>[^,]+),(?<y>[^]]+)\]");
+            var declaration = declarations.FirstOrDefault(d => d.Type.Name.Text == "Axis2" && d.Body?.Span.Start == source.IndexOf('{', axis.Index));
+            if (declaration is null) { Error("axis-malformed", identity); continue; }
+            var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+            string FieldSource(string name) => fields.Take(name) is { } value ? name + ": " + source.Substring(value.Span.Start, value.Span.Length) : "";
+            var origin = Regex.Match(FieldSource("Origin"), @"\bOrigin\s*:\s*\[(?<x>[^,]+),(?<y>[^]]+)\]");
+            var vector = Regex.Match(FieldSource("Direction"), @"\bDirection\s*:\s*\[(?<x>[^,]+),(?<y>[^]]+)\]");
+            fields.Complete();
             if (!origin.Success || !vector.Success
                 || !FirmamentNumericEvaluation.TryEvaluateScalar(origin.Groups["x"].Value, out var x, out var xu) || xu != "mm"
                 || !FirmamentNumericEvaluation.TryEvaluateScalar(origin.Groups["y"].Value, out var y, out var yu) || yu != "mm"

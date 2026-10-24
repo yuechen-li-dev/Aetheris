@@ -88,15 +88,23 @@ import runs, and tests under `Step242Importer.PreserveRationalSurfaces()`, becau
 what the import produces.
 
 Cadmata and the VS Code extension use TSPack and their checked-in lock files:
+The release workflow pins TSPack source `aff35b9289a4636056c0fd41da0a8bd013144682`
+(npm peer alternatives, explicit-tool precedence and clean scoped installs). Build the local Telos
+producer before syncing Cadmata; its exported `dist` files are ignored.
 
 ```powershell
+Push-Location Aetheris.Web.Runtime/telos
+npm ci --ignore-scripts
+npm run build
+Pop-Location
+
 Push-Location aetheris.client
-tspack sync
-tspack check
-tspack run typecheck
-tspack run test
-tspack run build
-tspack run lint
+tspack sync --root ..
+tspack check --root ..
+tspack run typecheck --root ..
+tspack run test --root ..
+tspack run build --root ..
+tspack run lint --root ..
 Pop-Location
 
 Push-Location tools/vscode-firmament
@@ -115,7 +123,7 @@ dotnet run --project Aetheris.CLI -c Release -- --help
 dotnet run --project Aetheris.CLI -c Release -- analyze path/to/part.step --json
 ```
 
-The shell entry points under `scripts/` remain useful for targeted Linux/framework automation. The release qualification commands above are the authoritative Windows path for Preview 3.
+The shell entry points under `scripts/` remain useful for targeted Linux/framework automation. The release qualification commands above are the authoritative Windows path for 2.0.0.
 
 ## Contribution expectations
 

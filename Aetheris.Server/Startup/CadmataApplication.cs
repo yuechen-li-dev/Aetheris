@@ -11,7 +11,9 @@ public static class CadmataApplication
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
-            Args = args,
+            // Cadmata owns this valueless switch. Passing it to configuration's
+            // key/value parser consumes the following --urls option as its value.
+            Args = args.Where(argument => argument != "--no-browser").ToArray(),
             EnvironmentName = portable ? Environments.Production : null,
             ContentRootPath = AppContext.BaseDirectory,
         });

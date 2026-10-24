@@ -463,7 +463,7 @@ internal sealed partial class FirmamentCompileTimeValues(string source)
     private static string Nominal(FirmamentV2BoundLet value) => value.Type switch
     {
         FirmamentV2PrimitiveType.Bool => (bool)value.Value.Value ? "true" : "false",
-        FirmamentV2PrimitiveType.String => System.Text.Json.JsonSerializer.Serialize(value.Value.Value),
+        FirmamentV2PrimitiveType.String => System.Text.Json.JsonSerializer.Serialize((string)value.Value.Value, FirmamentJsonContext.Default.String),
         _ => value.Value.NumericValue!.Value.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + value.Value.Unit
     };
 

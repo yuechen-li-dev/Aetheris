@@ -28,7 +28,8 @@ foreach ($file in $files) {
 }
 $manifest = ($sourceHashes.GetEnumerator() | ForEach-Object { $_.Key + ':' + $_.Value }) -join "`n"
 $hash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($manifest))).ToLowerInvariant()
-$version = '0.1.0-preview.1-a3.' + $hash.Substring(0,16)
+[xml]$properties = Get-Content (Join-Path $repo 'Directory.Build.props') -Raw
+$version = [string]$properties.Project.PropertyGroup.ManagedWgslVersion
 $pin = Join-Path $repo 'scripts/managed-wgsl-source-pin.txt'
 if (-not (Test-Path $pin)) { throw 'Managed WGSL producer source pin is missing.' }
 if ((Get-Content $pin -Raw).Trim() -ne $hash) { throw "Managed WGSL producer source differs from the reviewed source pin: actual $hash." }
@@ -38,6 +39,6 @@ if ($VerifyOnly) { return }
 $output = Join-Path $repo 'artifacts/local/cir-artifact-binding/packages'
 New-Item -ItemType Directory -Force $output | Out-Null
 foreach ($project in $projects | Sort-Object) {
-    dotnet pack $project -c Release -o $output "-p:PackageVersion=$version" "-p:Version=$version" --nologo
+    dotnet pack $project -c Release -m:1 -nr:false -p:UseSharedCompilation=false -o $output "-p:PackageVersion=$version" "-p:Version=$version" --nologo
     if ($LASTEXITCODE -ne 0) { throw "Managed WGSL dependency pack failed: $project" }
 }

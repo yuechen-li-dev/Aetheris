@@ -94,6 +94,8 @@ internal static class AssemblyAppearanceAuthoring
         return fields.Count == 1 ? new(fields[0].Groups["material"].Value, fields[0].Groups["look"].Success ? fields[0].Groups["look"].Value : null) : null;
     }
 
+    internal static bool OwnsSelectionField(string name) => FirmamentV2.Syntax.FirmamentSyntaxFields.SameField(name, "Material");
+
     internal static AssemblyIr Bind(AssemblyIr ir, AssemblyAppearanceCatalog? catalog, List<AssemblyDiagnostic> diagnostics)
     {
         // Locally solved subassemblies retain selections until the root catalog binds them.

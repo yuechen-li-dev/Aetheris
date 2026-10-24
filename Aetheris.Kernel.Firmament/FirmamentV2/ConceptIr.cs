@@ -303,6 +303,8 @@ internal static class ConceptIrResolver
         var allInstances = instanceList.ToDictionary(i => i.Name, StringComparer.Ordinal);
         var boxBody = source[(boxOpen + 1)..boxClose];
         var syntaxDeclarations = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).ToArray();
+        var materializedSyntax = syntaxDeclarations.FirstOrDefault(d => d.Body?.Span.Start == materializedOpen);
+        if (materializedSyntax?.Body is not null) FirmamentV2Parser.BindMechanicalScope(materializedSyntax.Body.Statements, diagnostics);
         var boxSyntax = syntaxDeclarations.FirstOrDefault(d => d.Type.Name.Text == "Box" && d.Body?.Span.Start == boxOpen);
         if (boxSyntax is null) { diagnostics.Add(FirmamentV2Parser.CanonicalPrimitiveMalformed); return null; }
         var boxFields = new FirmamentSyntaxFields(boxSyntax, diagnostics);
@@ -314,12 +316,8 @@ internal static class ConceptIrResolver
         {
             if (statement is not DeclarationSyntax feature || !(feature.Type.Name.Text.Equals("Hole", StringComparison.OrdinalIgnoreCase) || feature.Type.Name.Text is "Pattern" or "EdgeFinish"))
                 diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:Modify:{(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}");
-            // The hole reader below looks fields up by name, so any other field would be
-            // dropped silently. This path admits shaft holes with exactly these fields.
-            else if (feature.Type.Name.Text.Equals("Hole", StringComparison.OrdinalIgnoreCase))
-                foreach (var holeField in feature.Body?.Statements.OfType<FieldSyntax>() ?? [])
-                    if (!ConceptHoleFields.Any(name => FirmamentSyntaxFields.SameField(holeField.Name.Text, name)))
-                        diagnostics.Add($"{FirmamentV2Parser.CanonicalFieldUnknown}:Hole:{holeField.Name.Text}");
+            // ParseConceptHoles owns field consumption, including generated
+            // Pattern elements; do not maintain a second check here.
         }
         IReadOnlyList<double>? size = null;
         ConceptIrBox3Value? resolvedBounds = null;
@@ -357,7 +355,10 @@ internal static class ConceptIrResolver
             var edgeClose = FindMatchingBrace(source, edgeOpen);
             if (edgeClose < 0) { diagnostics.Add(FirmamentV2Parser.Phase3EdgeFinishSyntaxInvalid); return null; }
             var edgeBody = source[(edgeOpen + 1)..edgeClose];
-            var faceSource = FieldValue(edgeBody, "Face");
+            var edgeSyntax = syntaxDeclarations.First(d => d.Type.Name.Text == "EdgeFinish" && d.Body?.Span.Start == edgeOpen);
+            var edgeFields = new FirmamentSyntaxFields(edgeSyntax, diagnostics);
+            string EdgeField(string name) => edgeFields.Take(name) is { } value ? FirmamentSyntaxWriter.Expression(value) : "";
+            var faceSource = EdgeField("Face");
             var faceAxis = faceSource;
             var faceProvenance = $"{materialized.Groups["name"].Value}.{edge.Groups["name"].Value}.Face";
             var faceRef = Regex.Match(faceSource, @"^(?<instance>[A-Za-z_][A-Za-z0-9_]*)\.(?<member>[A-Za-z_][A-Za-z0-9_]*)$", RegexOptions.CultureInvariant);
@@ -366,9 +367,10 @@ internal static class ConceptIrResolver
                 faceAxis = AxisOf(plane!.Normal);
                 faceProvenance = plane.Provenance;
             }
-            var target = FieldValue(edgeBody, "Target");
-            var kind = FieldValue(edgeBody, "Kind");
-            var distanceSource = FieldValue(edgeBody, "Distance");
+            var target = EdgeField("Target");
+            var kind = EdgeField("Kind");
+            var distanceSource = EdgeField("Distance");
+            edgeFields.Complete();
             var distance = ParseLength(distanceSource);
             var distanceProvenance = $"{materialized.Groups["name"].Value}.{edge.Groups["name"].Value}.Distance";
             var distanceRef = Regex.Match(distanceSource, @"^(?<instance>[A-Za-z_][A-Za-z0-9_]*)\.(?<member>[A-Za-z_][A-Za-z0-9_]*)$", RegexOptions.CultureInvariant);
@@ -464,6 +466,12 @@ internal static class ConceptIrResolver
             var open = body.IndexOf('{', header.Index); var close = FindMatchingBrace(body, open);
             if (close < 0) { diagnostics.Add(FirmamentV2Parser.RegionUnsupported); continue; }
             var holeBody = body[(open + 1)..close];
+            var holeSyntax = FirmamentSyntaxParser.Parse(body.Substring(header.Index, close - header.Index + 1))
+                .Document.Statements.OfType<DeclarationSyntax>().FirstOrDefault();
+            if (holeSyntax is null) { diagnostics.Add(FirmamentV2Parser.CanonicalModifyMalformed); continue; }
+            var holeFields = new FirmamentSyntaxFields(holeSyntax, diagnostics);
+            foreach (var field in ConceptHoleFields) holeFields.Take(field);
+            holeFields.Complete();
             var from = FieldValue(holeBody, "from");
             var on = FieldValue(holeBody, "on");
             if (FieldCount(holeBody, "from") > 1 || FieldCount(holeBody, "on") > 1)
@@ -547,7 +555,12 @@ internal static class ConceptIrResolver
             var open = body.IndexOf('{', pattern.Index); var close = FindMatchingBrace(body, open);
             if (close < 0) { diagnostics.Add("firmament-pattern-invalid-source"); continue; }
             var patternBody = body[(open + 1)..close];
-            var source = FieldValue(patternBody, "Source");
+            var patternSyntax = FirmamentSyntaxParser.Parse("Pattern " + pattern.Groups["name"].Value + " {" + patternBody + "}")
+                .Document.Statements.OfType<DeclarationSyntax>().Single();
+            var fields = new FirmamentSyntaxFields(patternSyntax, diagnostics);
+            var source = fields.Take("Source") is { } sourceValue ? FirmamentSyntaxWriter.Expression(sourceValue) : "";
+            var child = patternSyntax.Body?.Statements.OfType<DeclarationSyntax>().FirstOrDefault(d => d.Type.Name.Text == "Hole");
+            fields.Complete(child is null ? new HashSet<StatementSyntax>() : new HashSet<StatementSyntax> { child });
             var reference = Regex.Match(source, @"^(?<instance>[A-Za-z_][A-Za-z0-9_]*)\.(?<member>[A-Za-z_][A-Za-z0-9_]*)$", RegexOptions.CultureInvariant);
             if (!reference.Success || !instances.TryGetValue(reference.Groups["instance"].Value, out var instance) || !instance.Members.TryGetValue(reference.Groups["member"].Value, out var member) || member is not ConceptIrPointSetValue points)
             { diagnostics.Add("firmament-pattern-source-not-static-point3-collection:" + source); continue; }
@@ -818,7 +831,17 @@ internal static class ConceptIrResolver
             expression = expression.Trim();
             var provenance = $"{instanceName}.{target.Name}";
             if (expression.StartsWith(materializedName + ".", StringComparison.Ordinal)) { diagnostics.Add(MaterializedPhaseReference); return null; }
-            if (FirmamentSyntaxParser.ParseExpression(expression).Expression is MatchSyntax match) return EvaluateMatch(match, target);
+            var syntax = FirmamentSyntaxParser.ParseExpression(expression).Expression;
+            if (syntax is MatchSyntax match) return EvaluateMatch(match, target);
+            if (syntax is ObjectSyntax spatial && FirmamentSyntaxValues.Reference(spatial.Type) is { } spatialType
+                && SpatialFields.TryGetValue(spatialType, out var schema))
+            {
+                var before = diagnostics.Count;
+                var fields = FirmamentSyntaxFields.Object(spatial, target.Name, diagnostics);
+                foreach (var field in schema.Keys) fields.Take(field);
+                fields.Complete();
+                if (diagnostics.Count > before) return null;
+            }
 
             var box = Regex.Match(expression, @"^Box3\s*\{(?<body>.*)\}$", RegexOptions.Singleline | RegexOptions.CultureInvariant);
             if (box.Success)

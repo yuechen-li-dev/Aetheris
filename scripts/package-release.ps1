@@ -8,6 +8,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
+$env:MSBUILDDISABLENODEREUSE = '1'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $output = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $OutputDirectory))
@@ -97,8 +98,17 @@ function Get-ReleaseRelativePath([string]$Root, [string]$Path) {
     return $canonicalPath.Substring($rootPrefix.Length)
 }
 
-Remove-Item -LiteralPath $output -Recurse -Force -ErrorAction SilentlyContinue
+if (Test-Path -LiteralPath $output) { throw 'Use a fresh release output directory.' }
 New-Item -ItemType Directory -Force -Path $stage, (Join-Path $output 'packages') | Out-Null
+
+# Telos is a local package producer. Its exports point at dist, which is ignored
+# and must exist before TSPack hydrates Cadmata's path dependency on a clean clone.
+Push-Location (Join-Path $repoRoot 'Aetheris.Web.Runtime/telos')
+try {
+    npm ci --ignore-scripts
+    npm run build
+}
+finally { Pop-Location }
 
 Push-Location (Join-Path $repoRoot 'aetheris.client')
 try {
@@ -117,13 +127,13 @@ finally { Pop-Location }
 # Release binaries must not inherit compiler state from an earlier publish with
 # different properties (notably PublishAot). Start the managed release graph
 # from a clean configuration so identical inputs produce identical archives.
-dotnet clean (Join-Path $repoRoot 'Aetheris.slnx') -c Release
+dotnet clean (Join-Path $repoRoot 'Aetheris.slnx') -c Release -m:1 -nr:false
 
 dotnet publish (Join-Path $repoRoot 'Aetheris.CLI/Aetheris.CLI.csproj') -c Release -r win-x64 --self-contained true -m:1 -nr:false -p:UseSharedCompilation=false -t:Rebuild -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64')
 & (Join-Path $PSScriptRoot 'Test-CoreCliPayload.ps1') -AssetsPath (Join-Path $repoRoot 'Aetheris.CLI/obj/project.assets.json') -PublishDirectory (Join-Path $stage 'Aetheris-win-x64')
-dotnet publish (Join-Path $repoRoot 'Aetheris.Forge.Host/Aetheris.Forge.Host.csproj') -c Release -r win-x64 --self-contained true -t:Rebuild -p:PublishAot=true -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64/forge-host')
+dotnet publish (Join-Path $repoRoot 'Aetheris.Forge.Host/Aetheris.Forge.Host.csproj') -c Release -r win-x64 --self-contained true -m:1 -nr:false -p:UseSharedCompilation=false -t:Rebuild -p:PublishAot=true -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64/forge-host')
 Normalize-PeTimestamps (Join-Path $stage 'Aetheris-win-x64/forge-host/Aetheris.Forge.Host.exe')
-dotnet publish (Join-Path $repoRoot 'Aetheris.Server/Aetheris.Server.csproj') -c Release -r win-x64 --self-contained true -t:Rebuild -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64/cadmata')
+dotnet publish (Join-Path $repoRoot 'Aetheris.Server/Aetheris.Server.csproj') -c Release -r win-x64 --self-contained true -m:1 -nr:false -p:UseSharedCompilation=false -t:Rebuild -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64/cadmata')
 $endpoints = Join-Path $stage 'Aetheris-win-x64/cadmata/Cadmata.staticwebassets.endpoints.json'
 if (Test-Path -LiteralPath $endpoints) {
     $canonicalEndpoints = [Regex]::Replace([IO.File]::ReadAllText($endpoints),
@@ -182,18 +192,20 @@ Get-ChildItem -LiteralPath $stage -Recurse -Filter '*.pdb' -File | Remove-Item -
 
 $extensionRoot = Join-Path $repoRoot 'tools/vscode-firmament'
 $extensionArtifact = Join-Path $output 'aetheris-firmament-0.3.0-preview.3.vsix'
+$extensionPackage = Join-Path $repoRoot 'artifacts/local/vscode-firmament/aetheris-firmament-0.3.0-preview.3.vsix'
 Push-Location $extensionRoot
 try {
     # A prior local package must not be selected as input while vsce overwrites
     # that same path. This keeps repeated release qualification reproducible.
     Remove-Item -LiteralPath (Join-Path $extensionRoot 'dist/aetheris-firmament-0.3.0-preview.3.vsix') -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $extensionPackage -Force -ErrorAction SilentlyContinue
     tspack sync
     tspack check
     tspack run typecheck
     tspack run test
     tspack run build
     tspack run package
-    Move-Item -LiteralPath (Join-Path $extensionRoot 'dist/aetheris-firmament-0.3.0-preview.3.vsix') -Destination $extensionArtifact -Force
+    Move-Item -LiteralPath $extensionPackage -Destination $extensionArtifact -Force
 }
 finally { Pop-Location }
 Normalize-ZipArchive $extensionArtifact
@@ -235,5 +247,5 @@ $inventory = @(
 $inventory += $releaseHashes | ForEach-Object { "| ``$($_.Path)`` | $($_.Bytes) | ``$($_.Sha256)`` |" }
 $inventory += @(
     "",
-    "The 16 public library packages are generated separately by ``scripts/package-public-libraries.ps1``. Public documentation is in ``docs/public`` and is also included in the Windows ZIP.")
+    "The public package dependency closure is generated separately by ``scripts/package-public-libraries.ps1``. Public documentation is in ``docs/public`` and is also included in the Windows ZIP.")
 [IO.File]::WriteAllLines((Join-Path $output 'RELEASE-INVENTORY.md'), [string[]]$inventory, [Text.UTF8Encoding]::new($false))

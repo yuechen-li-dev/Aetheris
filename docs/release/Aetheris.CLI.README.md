@@ -4,7 +4,7 @@
 Firmament exact-CAD and STEP AP242 workflow.
 
 ```powershell
-dotnet tool install --global Aetheris.CLI --prerelease
+dotnet tool install --global Aetheris.CLI --version 2.0.0
 aetheris --help
 ```
 
@@ -25,8 +25,8 @@ download the Windows bundle from the GitHub release for package-relative Cadmata
 discovery and the complete desktop experience.
 
 See the [Aetheris manual](https://yuechen-li-dev.github.io/aetheris/) for the
-supported Firmament surface and Preview 3 limitations.
+supported Firmament surface and capability limits.
 
-The core CLI bundles no third-party OS-native libraries. The .NET runtime/apphost is still required (or included in self-contained distributions). 3DM inspection and recovery are supplied by the separate `Aetheris.ThreeDm.CLI` tool (`dotnet tool install --global Aetheris.ThreeDm.CLI --prerelease`), which includes native Rhino3dm. The built-in material catalog is managed; custom SQLite catalogs use the optional `Aetheris.Materials.Sqlite` library.
+The core CLI bundles no third-party OS-native libraries. The .NET runtime/apphost is still required (or included in self-contained distributions). 3DM inspection and recovery are supplied by the separate `Aetheris.ThreeDm.CLI` tool (`dotnet tool install --global Aetheris.ThreeDm.CLI --version 2.0.0`), which includes native Rhino3dm. The built-in material catalog is managed; custom SQLite catalogs use the optional `Aetheris.Materials.Sqlite` library.
 
 Drawing Notes previews and crops render locally in the browser using bundled PDF.js assets; no CDN or native PDF renderer is required. Headless PNG render/crop commands require `--renderer <path-to-pdftoppm>`, selecting an external Poppler installation explicitly. PDF drawing generation itself remains managed vector output and needs no rasterizer.

@@ -8,6 +8,31 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class WireFormTests
 {
     [Fact]
+    public void CommentedOperationsDoNotCreateGeometryOrProvenance()
+    {
+        var source = File.ReadAllText(Fixture("Canonical", "WireForm", "straight-wire.firmament"));
+        var control = WireFormAuthoring.Parse(source);
+        var commented = WireFormAuthoring.Parse(source.Replace("Straight Body {", "/* Straight Phantom { Length: 30mm } */ Straight Body {", StringComparison.Ordinal));
+        Assert.True(control.IsSuccess);
+        Assert.True(commented.IsSuccess, string.Join("; ", commented.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(control.Value.Operations, commented.Value.Operations);
+        Assert.Equal("Body", Assert.Single(commented.Value.AuthoredOperations!).Name);
+        var built = FirmamentBuildAndExport.CompileSource(source);
+        var withComment = FirmamentBuildAndExport.CompileSource(source.Replace("Straight Body {", "/* Straight Phantom { Length: 30mm } */ Straight Body {", StringComparison.Ordinal));
+        Assert.True(built.IsSuccess, Messages(built));
+        Assert.True(withComment.IsSuccess, Messages(withComment));
+        Assert.Equal(built.Value.StepText, withComment.Value.StepText);
+    }
+
+    [Fact]
+    public void MissingStartFrameBodyProducesAnActionableRefusal()
+    {
+        var result = WireFormAuthoring.Parse("Model Invalid { units: mm WireForm Wire { Diameter: 2mm StartFrame Empty; Straight Body { Length: 20mm } } }");
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("StartFrame requires a body", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ThinGuitarStringNutBreakKeepsItsTangentJoinAndExactSweep()
     {
         var source = File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(

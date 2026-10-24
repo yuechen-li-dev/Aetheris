@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Semantics;
 
@@ -25,6 +26,7 @@ public static class AssemblyPmiNoteDeclaration { }
 /// this seam only selects that data and binds annotation owners, without manufacturing geometry.</summary>
 internal static class AssemblyPmiAuthoring
 {
+    internal static bool OwnsRootField(string name) => FirmamentSyntaxFields.SameField(name, "Provenance");
     internal static AssemblyAnnotations Parse(ref string source, string identity, List<AssemblyDiagnostic> diagnostics)
     {
         var original = source;
@@ -36,7 +38,7 @@ internal static class AssemblyPmiAuthoring
         var notes = new List<AssemblyPmiNote>();
         AssemblyReleaseRecord? release = null;
         var fields = roots[0].Body!.Statements.OfType<Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FieldSyntax>()
-            .Where(f => f.Name.Text is "Provenance" or "provenance").ToArray();
+            .Where(f => OwnsRootField(f.Name.Text)).ToArray();
         if (fields.Length > 1) Error("provenance-selection-invalid", "Select one release Record.", roots[0].Span);
         foreach (var selection in fields)
         {
@@ -86,7 +88,7 @@ internal static class AssemblyPmiAuthoring
                 var owned = new Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FirmamentSyntaxFields(note, errors);
                 var target = owned.Reference("Target");
                 var text = owned.Take("Text") is Aetheris.Kernel.Firmament.FirmamentV2.Syntax.LiteralSyntax { Kind: Aetheris.Kernel.Firmament.FirmamentV2.Syntax.LiteralKind.String } literal
-                    ? JsonSerializer.Deserialize<string>(literal.Raw) : null;
+                    ? JsonSerializer.Deserialize(literal.Raw, FirmamentJsonContext.Default.String) : null;
                 owned.Complete();
                 if (errors.Count > 0 || target is null || string.IsNullOrWhiteSpace(text) || text.Any(char.IsControl))
                     Error("pmi-note-invalid", string.Join(" | ", errors), note.Span);

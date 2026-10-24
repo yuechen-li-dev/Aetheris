@@ -19,11 +19,12 @@ public static class WireRouteAuthoring
 
     public static KernelResult<WireFormFeatureAir> Parse(string source)
     {
-        source = FirmamentV2.FirmamentSourceSpelling.Normalize(source);
+        var frontend = FirmamentFrontendSchemas.Select(source);
+        if (!frontend.IsSuccess) return Fail(frontend.Diagnostics[0].Split(':')[0], string.Join("; ", frontend.Diagnostics));
+        source = frontend.Source;
         var syntax = FirmamentV2.Syntax.FirmamentSyntaxParser.Parse(source);
         var scopeDiagnostics = new List<string>();
-        FirmamentV2.FirmamentV2Parser.BindMechanicalScope(FirmamentV2.Syntax.FirmamentSyntaxTraversal.Declarations(syntax.Document)
-            .Where(d => d.Type.Name.Text == "Static").Cast<FirmamentV2.Syntax.StatementSyntax>().ToArray(), scopeDiagnostics);
+        WireFormAuthoring.BindConstructionScope(syntax.Document, "WireRoute", scopeDiagnostics);
         if (scopeDiagnostics.Count > 0)
             return Fail(scopeDiagnostics[0].Split(':')[0], string.Join("; ", scopeDiagnostics));
         // Comments cannot contribute operations or fields.

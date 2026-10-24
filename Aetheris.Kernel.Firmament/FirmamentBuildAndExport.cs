@@ -46,6 +46,8 @@ public static partial class FirmamentBuildAndExport
         if (lockDiagnostics.Count > 0) return KernelResult<FirmamentBuildAndExportResult>.Failure(
             lockDiagnostics.Select(d => SchemaDiagnostic(d.Code + ": " + d.Message)).ToArray());
         var sourceText = File.ReadAllText(fullSourcePath, Encoding.UTF8);
+        // The lexer accepts authored line endings. Keep their offsets intact for
+        // admission diagnostics and runtime assertion spans on Windows as well.
         var frontend = FirmamentFrontendSchemas.Select(sourceText);
         if (!frontend.IsSuccess) return KernelResult<FirmamentBuildAndExportResult>.Failure(frontend.LocatedDiagnostics.Select(d => SchemaDiagnostic(d.Code + ": " + d.Message)).ToArray());
         sourceText = frontend.Source;
@@ -66,7 +68,6 @@ public static partial class FirmamentBuildAndExport
             return KernelResult<FirmamentBuildAndExportResult>.Success(new(fullSourcePath, pipingOutputPath,
                 new(piping.StepText, "piping-system:" + report.PipingSystem, -1, "Assembly", "PipingSystem", Piping: report)));
         }
-        sourceText = NormalizeLf(sourceText);
         if (StructuralAuthoring.IsStructuralSource(sourceText))
         {
             var structural = StructuralAuthoring.Compile(sourceText, fullSourcePath);
@@ -136,6 +137,7 @@ public static partial class FirmamentBuildAndExport
         IReadOnlyDictionary<string, string>? resources = null)
     {
         ArgumentNullException.ThrowIfNull(sourceText);
+        // Do not collapse CRLF here: bound declaration spans belong to this input.
         var normalized = sourceText;
         var frontend = FirmamentFrontendSchemas.Select(normalized);
         if (!frontend.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(frontend.LocatedDiagnostics.Select(d => SchemaDiagnostic(d.Code + ": " + d.Message)).ToArray());
@@ -147,7 +149,6 @@ public static partial class FirmamentBuildAndExport
                 ? KernelResult<FirmamentStepExportResult>.Success(new(piping.StepText, "piping-system:" + piping.Report.PipingSystem, -1, "Assembly", "PipingSystem", Piping: piping.Report))
                 : KernelResult<FirmamentStepExportResult>.Failure(piping.KernelDiagnostics());
         }
-        normalized = NormalizeLf(normalized);
         if (StructuralAuthoring.IsStructuralSource(normalized))
         {
             var structural = StructuralAuthoring.Compile(normalized, sourceDirectory ?? "memory");
@@ -3057,6 +3058,4 @@ public static partial class FirmamentBuildAndExport
         return Path.ChangeExtension(fullSourcePath, ".step");
     }
 
-    private static string NormalizeLf(string value) =>
-        value.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);
 }

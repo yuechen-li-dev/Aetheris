@@ -99,7 +99,8 @@ public static partial class Program
 
     private static object Info() => new
     {
-        packageVersion = "2.0.0-preview.3",
+        packageVersion = typeof(Program).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .Cast<System.Reflection.AssemblyInformationalVersionAttribute>().Single().InformationalVersion.Split('+')[0],
         runtimeVersion = typeof(Program).Assembly.GetName().Version?.ToString() ?? "2.0.0",
         contractVersion = ContractVersion,
         language = "Firmament",

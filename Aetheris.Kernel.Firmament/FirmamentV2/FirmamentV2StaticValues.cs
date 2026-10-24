@@ -183,7 +183,7 @@ public static partial class FirmamentV2Parser
                 try
                 {
                     object value = inferred == FirmamentV2PrimitiveType.String
-                        ? System.Text.Json.JsonSerializer.Deserialize<string>(literal.Raw)!
+                        ? System.Text.Json.JsonSerializer.Deserialize(literal.Raw, FirmamentJsonContext.Default.String)!
                         : bool.Parse(literal.Raw);
                     return new FirmamentV2LiteralExpression(new(inferred.Value, value, Raw: literal.Raw));
                 }
@@ -239,7 +239,7 @@ public static partial class FirmamentV2Parser
         }, value.Type switch
         {
             FirmamentV2PrimitiveType.Bool => (bool)value.Value.Value ? "true" : "false",
-            FirmamentV2PrimitiveType.String => System.Text.Json.JsonSerializer.Serialize(value.Value.Value),
+            FirmamentV2PrimitiveType.String => System.Text.Json.JsonSerializer.Serialize((string)value.Value.Value, FirmamentJsonContext.Default.String),
             _ => value.Value.NumericValue!.Value.ToString("R", CultureInfo.InvariantCulture)
         }, span);
         return value.Value.Unit is { } unit ? new QuantitySyntax(literal, new(unit, span), span) : literal;

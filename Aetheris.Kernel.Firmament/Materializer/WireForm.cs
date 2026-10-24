@@ -9,6 +9,7 @@ using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Kernel.StandardLibrary.Materials;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
@@ -135,81 +136,123 @@ public static class WireFormAuthoring
         return false;
     }
 
-    public static bool IsWireFormSource(string source) => Declaration.IsMatch(source) || WireRouteAuthoring.IsSource(source);
+    public static bool IsWireFormSource(string source) => FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
+        .Any(d => d.Type.Name.Text == "WireForm") || WireRouteAuthoring.IsSource(source);
+
+    internal static void BindConstructionScope(DocumentSyntax syntax, string materialKind, List<string> diagnostics)
+    {
+        void Bind(IReadOnlyList<StatementSyntax> statements)
+        {
+            bool Wrapper(DeclarationSyntax d) => d.Type.Name.Text is "Model" or "Struct"
+                && !d.Modifiers.Any(m => m.Name.Text is "Concept" or "Template");
+            foreach (var wrapper in statements.OfType<DeclarationSyntax>().Where(Wrapper)) Bind(wrapper.Body?.Statements ?? []);
+            FirmamentV2Parser.BindMechanicalScope(statements.Where(s => s is not DeclarationSyntax d
+                || !(Wrapper(d) || d.Type.Name.Text == materialKind)).ToArray(), diagnostics);
+        }
+        Bind(syntax.Statements);
+    }
 
     public static KernelResult<WireFormFeatureAir> Parse(string source)
     {
         ArgumentNullException.ThrowIfNull(source);
-        source = FirmamentV2.FirmamentSourceSpelling.Normalize(source);
+        var frontend = FirmamentFrontendSchemas.Select(source);
+        if (!frontend.IsSuccess) return Fail(frontend.Diagnostics[0].Split(':')[0], string.Join("; ", frontend.Diagnostics));
+        source = frontend.Source;
         if (WireRouteAuthoring.IsSource(source)) return WireRouteAuthoring.Parse(source);
         var syntax = FirmamentV2.Syntax.FirmamentSyntaxParser.Parse(source);
-        var scopeDiagnostics = new List<string>();
-        FirmamentV2.FirmamentV2Parser.BindMechanicalScope(FirmamentV2.Syntax.FirmamentSyntaxTraversal.Declarations(syntax.Document)
-            .Where(d => d.Type.Name.Text == "Static").Cast<FirmamentV2.Syntax.StatementSyntax>().ToArray(), scopeDiagnostics);
+        var scopeDiagnostics = syntax.Diagnostics.Select(d => d.Code + ": " + d.Message).ToList();
+        BindConstructionScope(syntax.Document, "WireForm", scopeDiagnostics);
         if (scopeDiagnostics.Count > 0)
             return Fail(scopeDiagnostics[0].Split(':')[0], string.Join("; ", scopeDiagnostics));
-        var declaration = Declaration.Match(source);
-        if (!declaration.Success) return Fail("wireform-declaration-missing", "No WireForm declaration was found.");
-        var open = source.IndexOf('{', declaration.Index);
-        var close = MatchingBrace(source, open);
-        var name = declaration.Groups["name"].Value;
-        if (close < 0) return Fail("wireform-declaration-malformed", $"WireForm '{name}' has no closing brace.");
-        var body = source[(open + 1)..close];
+        var declarations = FirmamentV2Parser.MechanicalDeclarations(syntax.Document.Statements).Where(d => d.Type.Name.Text == "WireForm").ToArray();
+        if (declarations.Length > 1) return Fail("wireform-multiple-bodies-unsupported", "One WireForm product is admitted per part; place separate Parts in an Assembly. No declared wire may be discarded.");
+        var declaration = declarations.FirstOrDefault();
+        if (declaration?.Name is null || declaration.Body is null)
+            return Fail("wireform-declaration-missing", "Expected WireForm Name { ... }.");
+        var name = declaration.Name.Text;
+        if (UnsupportedHeader(declaration)) return Fail("wireform-header-unsupported", $"WireForm '{name}' does not admit placement, generic, parameter or initializer clauses; author its StartFrame fields explicitly.");
+        foreach (var child in declaration.Body.Statements.OfType<DeclarationSyntax>())
+        {
+            if (child.Body is null)
+                return child.Type.Name.Text == "StartFrame"
+                    ? Fail("wireform-start-frame-invalid", "StartFrame requires a body containing Origin, Tangent and Up.")
+                    : Fail("wireform-operation-malformed", $"Wire operation '{child.Name?.Text ?? child.Type.Name.Text}' requires a body.");
+            if (UnsupportedHeader(child) || child.Type.Name.Text != "StartFrame" && child.Name is null)
+                return Fail("wireform-header-unsupported", $"Wire operation '{child.Name?.Text ?? child.Type.Name.Text}' requires a named operation and a field body; placement and parameter clauses are not supported.");
+        }
+        var body = source.Substring(declaration.Body.ContentSpan.Start, declaration.Body.ContentSpan.Length);
+        var wireFields = new WireFormFields("WireForm", body);
+        var children = wireFields.Declaration.Body!.Statements.OfType<DeclarationSyntax>()
+            .Where(d => d.Type.Name.Text is "StartFrame" or "Straight" or "Bend" or "Helix" or "AxisCoil" or "Coil" or "SurfaceCoil" or "Knot")
+            .Cast<StatementSyntax>().ToHashSet();
+        var startFrames = children.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "StartFrame").ToArray();
+        if (startFrames.Length > 1) return Fail("wireform-start-frame-invalid", "Declare only one StartFrame.");
+        // Direct Origin/Tangent/Up fields are an admitted historical spelling.
+        // A block and direct fields together leave unconsumed fields and reject.
+        var frameFields = wireFields;
+        if (startFrames.Length == 1)
+        {
+            if (startFrames[0].Body is not { } frameBody)
+                return Fail("wireform-start-frame-invalid", "StartFrame requires a body containing Origin, Tangent and Up.");
+            var frame = frameBody.ContentSpan;
+            frameFields = new WireFormFields("StartFrame", ("WireForm {\n" + body + "\n}").Substring(frame.Start, frame.Length));
+        }
 
-        if (!TryLength(Property(body, "Diameter"), out var diameter) || diameter <= 0d)
+        if (!TryLength(wireFields.Read("Diameter"), out var diameter) || diameter <= 0d)
             return Fail("wireform-diameter-invalid", $"WireForm '{name}' Diameter must be a finite length greater than zero.");
-        var materialReference = (Property(body, "Material") ?? "Standard.Materials.StainlessSteel.304_Annealed").Trim('"');
+        var materialReference = (wireFields.Read("Material") ?? "Standard.Materials.StainlessSteel.304_Annealed").Trim('"');
         var material = new MaterialResolver().Resolve(materialReference);
         if (!material.IsSuccess || material.Material is null)
             return Fail("wireform-material-unresolved", material.Message ?? $"Material '{materialReference}' could not be resolved.");
 
-        if (!TryVector(Property(body, "Origin"), out var origin))
+        if (!TryVector(frameFields.Read("Origin"), out var origin, length: true))
             return Fail("wireform-start-frame-invalid", $"WireForm '{name}' requires StartFrame Origin: [x,y,z].");
-        if (!TryVector(Property(body, "Tangent"), out var tangentVector) || !TryDirection(tangentVector, out var tangent))
+        if (!TryVector(frameFields.Read("Tangent"), out var tangentVector) || !TryDirection(tangentVector, out var tangent))
             return Fail("wireform-start-frame-invalid", $"WireForm '{name}' requires a nonzero StartFrame Tangent.");
-        if (!TryVector(Property(body, "Up"), out var upVector))
+        if (!TryVector(frameFields.Read("Up"), out var upVector))
             return Fail("wireform-start-frame-invalid", $"WireForm '{name}' requires StartFrame Up.");
         var upRejected = upVector - tangent.ToVector() * Dot(upVector, tangent.ToVector());
         if (!TryDirection(upRejected, out var up))
             return Fail("wireform-start-frame-invalid", $"WireForm '{name}' Up must not be parallel to Tangent.");
 
+        if (wireFields.Complete(children) is { } rootError) return Fail("wireform-fields-invalid", rootError);
+        if (!ReferenceEquals(frameFields, wireFields) && frameFields.Complete() is { } frameError) return Fail("wireform-fields-invalid", frameError);
         var state = new WireState(new(origin.X, origin.Y, origin.Z), tangent, up, 0d);
         var operations = new List<WireFormOperationAir>();
         var provenance = new List<WireFormOperationProvenance>();
-        foreach (Match match in Operation.Matches(body))
+        foreach (var operation in declaration.Body.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text != "StartFrame"))
         {
-            var operationOpen = body.IndexOf('{', match.Index);
-            var operationClose = MatchingBrace(body, operationOpen);
-            if (operationClose < 0) return Fail("wireform-operation-malformed", $"Operation '{match.Groups["name"].Value}' has no closing brace.");
-            var operationBody = body[(operationOpen + 1)..operationClose];
-            var operationName = match.Groups["name"].Value;
+            var operationBody = source.Substring(operation.Body!.ContentSpan.Start, operation.Body.ContentSpan.Length);
+            var operationName = operation.Name!.Text;
+            var operationKind = operation.Type.Name.Text;
+            var operationFields = new WireFormFields(operationKind, operationBody);
             provenance.Add(new(operationName,
-                new FirmamentV2SourceSpan(open + 1 + match.Index, operationClose - match.Index + 1),
-                FirmamentV2Parser.ReadAuthoredFields(operationBody, open + 1 + operationOpen + 1)));
+                operation.Span, FirmamentV2Parser.ReadAuthoredFields(operationBody, operation.Body.ContentSpan.Start)));
             var ordinal = operations.Count + 1;
-            if (match.Groups["kind"].Value == "Straight")
+            if (operationKind == "Straight")
             {
-                if (!TryLength(Property(operationBody, "Length"), out var length) || length <= 0d)
+                if (!TryLength(operationFields.Read("Length"), out var length) || length <= 0d)
                     return Fail("wireform-straight-length-invalid", $"{operationName}: Length must be finite and greater than zero.");
+                if (operationFields.Complete() is { } straightError) return Fail("wireform-fields-invalid", straightError);
                 var output = state with { Position = state.Position + state.Tangent.ToVector() * length, AccumulatedLengthMm = state.AccumulatedLengthMm + length };
                 operations.Add(new WireStraightAir(operationName, ordinal, length, state, output));
                 state = output;
                 continue;
             }
 
-            if (match.Groups["kind"].Value is "Helix" or "AxisCoil" or "Coil")
+            if (operationKind is "Helix" or "AxisCoil" or "Coil")
             {
                 var coil = WireCoilAuthoring.CreateAxis(operationName, ordinal, operationBody, state, diameter);
                 if (!coil.IsSuccess) return KernelResult<WireFormFeatureAir>.Failure(coil.Diagnostics);
                 operations.Add(coil.Value); state = coil.Value.Output; continue;
             }
-            if (match.Groups["kind"].Value == "SurfaceCoil")
+            if (operationKind == "SurfaceCoil")
             {
                 var coil = WireCoilAuthoring.CreateSurface(source, operationName, ordinal, operationBody, state, diameter);
                 if (!coil.IsSuccess) return KernelResult<WireFormFeatureAir>.Failure(coil.Diagnostics);
                 operations.Add(coil.Value); state = coil.Value.Output; continue;
             }
-            if (match.Groups["kind"].Value == "Knot")
+            if (operationKind == "Knot")
             {
                 if (operations.Count != 0 || Operation.Matches(body).Count != 1)
                     return Fail("wireform-knot-composition-unsupported", $"{operationName}: X2 KnotPath must be the sole closed operation in a WireForm.");
@@ -218,15 +261,16 @@ public static class WireFormAuthoring
                 operations.Add(knotResult.Value); state = knotResult.Value.Output; continue;
             }
 
-            if (!TryLength(Property(operationBody, "Radius"), out var radius) || radius <= 0d)
+            if (!TryLength(operationFields.Read("Radius"), out var radius) || radius <= 0d)
                 return Fail("wireform-bend-radius-invalid", $"{operationName}: centerline Radius must be finite and greater than zero.");
             if (radius <= diameter / 2d + ToleranceContext.Default.Linear)
                 return Fail("wireform-bend-radius-invalid", $"{operationName}: centerline Radius {radius:G6} mm must exceed wire radius {diameter / 2d:G6} mm (geometric-only policy).");
-            if (!TryAngle(Property(operationBody, "Angle"), out var angle) || Math.Abs(angle) <= ToleranceContext.Default.Angular || Math.Abs(angle) > Math.PI + ToleranceContext.Default.Angular)
+            if (!TryAngle(operationFields.Read("Angle"), out var angle) || Math.Abs(angle) <= ToleranceContext.Default.Angular || Math.Abs(angle) > Math.PI + ToleranceContext.Default.Angular)
                 return Fail("wireform-bend-angle-invalid", $"{operationName}: Angle must be nonzero and no greater than 180 degrees in magnitude.");
-            var plane = Property(operationBody, "Plane") ?? "Up";
+            var plane = operationFields.Read("Plane") ?? "Up";
             if (plane is not ("Up" or "Right"))
                 return Fail("wireform-bend-plane-invalid", $"{operationName}: Plane must be Up or Right in the current local frame.");
+            if (operationFields.Complete() is { } bendError) return Fail("wireform-fields-invalid", bendError);
             var authoredNormal = plane == "Up" ? state.Up : state.Right;
             var axis = angle >= 0d ? authoredNormal : Direction3D.Create(authoredNormal.ToVector() * -1d);
             var sweep = Math.Abs(angle);
@@ -246,6 +290,11 @@ public static class WireFormAuthoring
             operations[0] is WireKnotPathAir ? operations[0].Input : authoredStart, operations,
             operations[0] is WireKnotPathAir knot ? knot.FrameClosure.Policy : FrameTransportPolicy, provenance));
     }
+
+    private static bool UnsupportedHeader(DeclarationSyntax declaration) => declaration.Clauses.Count > 0
+        || declaration.Modifiers.Count > 0 || declaration.Type.Arguments.Count > 0 || declaration.Parameters.Count > 0
+        || declaration.HasParameterList || declaration.Annotation is not null || declaration.ResultType is not null
+        || declaration.Initializer is not null || declaration.Occurrence;
 
     internal static string? Property(string body, string name)
     {
@@ -271,7 +320,7 @@ public static class WireFormAuthoring
         var match = Regex.Match(text, $@"^(?<value>[-+.\deE]+){unit}$", RegexOptions.CultureInvariant);
         return match.Success && double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
     }
-    private static bool TryVector(string? text, out Vector3D value)
+    private static bool TryVector(string? text, out Vector3D value, bool length = false)
     {
         value = default;
         if (text is null) return false;
@@ -280,7 +329,7 @@ public static class WireFormAuthoring
         var values = new double[3];
         for (var i = 0; i < 3; i++)
         {
-            var token = parts[i].EndsWith("mm", StringComparison.Ordinal) ? parts[i][..^2] : parts[i];
+            var token = length && parts[i].EndsWith("mm", StringComparison.Ordinal) ? parts[i][..^2] : parts[i];
             if (!double.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out values[i]) || !double.IsFinite(values[i])) return false;
         }
         value = new(values[0], values[1], values[2]); return true;

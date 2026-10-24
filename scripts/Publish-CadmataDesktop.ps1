@@ -7,6 +7,12 @@ param(
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 $repo = Split-Path $PSScriptRoot -Parent
+$sourceRevision = git -C $repo rev-parse HEAD
+$sourceStatus = @(git -C $repo status --porcelain)
+$modified = $sourceStatus.Count -gt 0
+if ($env:GITHUB_ACTIONS -eq 'true' -and $modified) {
+    throw "Hosted desktop publication requires clean product source. Unexpected paths:`n$($sourceStatus -join "`n")"
+}
 $bundle = (Resolve-Path -LiteralPath $BundleDirectory).Path
 $work = [IO.Path]::GetFullPath($WorkDirectory)
 if (Test-Path -LiteralPath $work) { throw 'Use a fresh desktop publish work directory.' }
@@ -63,8 +69,6 @@ $frontend = Join-Path $repo 'aetheris.client/dist'
 if (-not (Test-Path -LiteralPath (Join-Path $frontend 'bundled-packages.json'))) { throw 'Build the production frontend before publishing the desktop.' }
 New-Item -ItemType Directory -Force -Path (Join-Path $bundle 'wwwroot') | Out-Null
 Get-ChildItem -LiteralPath $frontend | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $bundle 'wwwroot') -Recurse -Force }
-$modified = [bool](git -C $repo status --porcelain)
-$sourceRevision = git -C $repo rev-parse HEAD
 $compilerRevision = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'managed-wgsl-commit-pin.txt') -Raw).Trim()
 @{version=$Version;identity="$Version+$sourceRevision" + $(if ($modified) { '.modified' } else { '' });sourceRevision=$sourceRevision;modifiedSource=$modified;webviewVersion=$runtimeVersion;webviewCabUrl=$runtimeUrl;webviewCabSha256=$runtimeHash} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $bundle 'BUILD-METADATA.json')
 @"

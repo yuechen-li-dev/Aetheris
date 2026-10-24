@@ -7,6 +7,9 @@ $ErrorActionPreference = 'Stop'
 $bundle = (Resolve-Path -LiteralPath $BundleDirectory).Path
 if (Test-Path -LiteralPath (Join-Path $bundle 'cadmata')) { throw 'Obsolete duplicated server publish directory is present.' }
 if (-not (Test-Path -LiteralPath (Join-Path $bundle 'Cadmata.Desktop.dll'))) { throw 'The actual desktop host is missing.' }
+if (-not (Test-Path -LiteralPath (Join-Path $bundle 'CORRESPONDING-SOURCE.md'))) { throw 'The desktop corresponding-source notice is missing.' }
+$licenseAudit = Get-Content -LiteralPath (Join-Path $bundle 'licenses/AUDIT.json') -Raw | ConvertFrom-Json
+if (-not $licenseAudit.redistributionNoticesComplete) { throw 'Desktop redistribution notices are incomplete.' }
 $step = (Resolve-Path -LiteralPath $StepPath).Path
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $output) { throw 'Use a fresh smoke output directory.' }

@@ -64,5 +64,22 @@ if (-not (Test-Path -LiteralPath (Join-Path $frontend 'bundled-packages.json')))
 New-Item -ItemType Directory -Force -Path (Join-Path $bundle 'wwwroot') | Out-Null
 Get-ChildItem -LiteralPath $frontend | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $bundle 'wwwroot') -Recurse -Force }
 $modified = [bool](git -C $repo status --porcelain)
-@{version=$Version;identity="$Version+$(git -C $repo rev-parse HEAD)" + $(if ($modified) { '.modified' } else { '' });modifiedSource=$modified;webviewVersion=$runtimeVersion;webviewCabUrl=$runtimeUrl;webviewCabSha256=$runtimeHash} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $bundle 'BUILD-METADATA.json')
+$sourceRevision = git -C $repo rev-parse HEAD
+$compilerRevision = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'managed-wgsl-commit-pin.txt') -Raw).Trim()
+@{version=$Version;identity="$Version+$sourceRevision" + $(if ($modified) { '.modified' } else { '' });sourceRevision=$sourceRevision;modifiedSource=$modified;webviewVersion=$runtimeVersion;webviewCabUrl=$runtimeUrl;webviewCabSha256=$runtimeHash} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $bundle 'BUILD-METADATA.json')
+@"
+# Corresponding source
+
+Aetheris / Cadmata (AGPL-3.0-only):
+https://github.com/yuechen-li-dev/Aetheris/tree/$sourceRevision
+https://github.com/yuechen-li-dev/Aetheris/archive/$sourceRevision.zip
+
+Copeland managed WGSL compiler (GPL-3.0):
+https://github.com/yuechen-li-dev/Copeland/tree/$compilerRevision
+https://github.com/yuechen-li-dev/Copeland/archive/$compilerRevision.zip
+
+Build scripts and exact compiler source pins are in the Aetheris revision above.
+The projects retain their licenses and are combined under GPLv3 / AGPLv3
+section 13. Full dependency notices are under licenses/.
+"@ | Set-Content -LiteralPath (Join-Path $bundle 'CORRESPONDING-SOURCE.md') -Encoding utf8
 node (Join-Path $repo 'scripts/collect-cadmata-licenses.mts') $repo $bundle (Join-Path $repo 'Aetheris.Cadmata.Desktop/obj/project.assets.json')

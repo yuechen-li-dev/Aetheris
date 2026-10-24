@@ -36,6 +36,6 @@ Aetheris is AGPL-3.0-only; the managed Copeland compiler retains GPLv3.
 See LICENSE and licenses/ for bundled dependency notices.
 CORRESPONDING-SOURCE.md supplies exact source revisions and downloadable source
 archives for both projects. Source: https://github.com/yuechen-li-dev/Aetheris.
-BUILD-METADATA.json identifies the source revision, modifications and files.
+BUILD-METADATA.json identifies the source revision, modifications and browser pin.
 A package marked `modifiedSource` is a local qualification candidate, not a
 published source-identical release.

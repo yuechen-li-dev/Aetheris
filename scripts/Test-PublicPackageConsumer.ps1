@@ -17,9 +17,9 @@ $escaped = [Security.SecurityElement]::Escape($feed)
 [IO.File]::WriteAllText((Join-Path $output 'NuGet.Config'), "<configuration><packageSources><clear/><add key='candidate' value='$escaped'/><add key='nuget.org' value='https://api.nuget.org/v3/index.json'/></packageSources></configuration>")
 $cache = Join-Path $output 'packages'
 $project = Join-Path $output 'PublicPackageSmoke.csproj'
-dotnet restore $project --configfile (Join-Path $output 'NuGet.Config') --packages $cache --no-cache -m:1 -nr:false -p:AetherisReleaseVersion=$Version
+dotnet restore $project --configfile (Join-Path $output 'NuGet.Config') --packages $cache --no-cache -m:1 -nr:false -p:ImportDirectoryBuildProps=false -p:ImportDirectoryBuildTargets=false -p:AetherisReleaseVersion=$Version
 if ($LASTEXITCODE -ne 0) { throw 'Empty-cache public consumer restore failed.' }
-dotnet build $project -c Release --no-restore -m:1 -nr:false -p:UseSharedCompilation=false -p:RestorePackagesPath=$cache -p:AetherisReleaseVersion=$Version
+dotnet build $project -c Release --no-restore -m:1 -nr:false -p:UseSharedCompilation=false -p:ImportDirectoryBuildProps=false -p:ImportDirectoryBuildTargets=false -p:RestorePackagesPath=$cache -p:AetherisReleaseVersion=$Version
 if ($LASTEXITCODE -ne 0) { throw 'Public consumer build failed.' }
 $previousVersion = $env:AETHERIS_RELEASE_VERSION
 try {

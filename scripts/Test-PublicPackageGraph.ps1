@@ -27,7 +27,7 @@ if ($available.Count -ne $order.Count) { throw 'Manifest count differs from pack
 $visited = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
 foreach ($id in $order) {
     if (-not $available.ContainsKey($id)) { throw "Missing public package $id." }
-    foreach ($dependency in $available[$id].SelectNodes('.//dependency')) {
+    foreach ($dependency in $available[$id].SelectNodes(".//*[local-name()='dependency']")) {
         if ($dependency.id -notlike 'Aetheris.*') { continue }
         if (-not $visited.Contains($dependency.id)) { throw "$id depends on missing or unordered package $($dependency.id)." }
         if ($dependency.version -ne $Version) { throw "$id has a mismatched dependency: $($dependency.id) $($dependency.version)." }

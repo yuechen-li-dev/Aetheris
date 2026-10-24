@@ -71,6 +71,11 @@ and Termination/Extent, reject conflicts, and require whole-field consumption.
 No geometry algorithm, fillet planner, tessellator or STEP orientation resolver
 was changed.
 
+The final owner review also reproduced a malformed `StartFrame Empty;` crash.
+It now rejects with `wireform-start-frame-invalid` in both real CLI commands,
+retaining an explanation and producing no STEP. This is a reader guard, not a
+new fallback or recovery interpretation.
+
 CLI diagnostics carry code, severity, explanation, source file, stage and source
 location when available. Missing-file diagnostics have no invented span. Legacy
 and expanded producers still disclose enclosing locations where exact provenance
@@ -127,3 +132,19 @@ byte-identical STEP witness cover the repair. The key-order test normalizes its
 own mutation input. Hosted qualification also serializes xUnit collections (in
 addition to test assemblies), so independent corpus tessellations do not contend
 against one another's bounded execution budgets. No product budget is enlarged.
+
+## Code-quality review
+
+Consumption was checked at the existing field readers before their rewrites.
+There is no new error-code fatality list, whole-document parser dispatch or
+geometry strategy. Command routing is shared and delegates to existing owners;
+spatial fields reuse existing metadata. Temporary probe files are cleaned in
+finally blocks; parse state and product runtime state were not made global.
+
+The package verifier now reads dependency nodes regardless of the NuGet XML
+namespace. A real package manifest mutated to depend on `Aetheris.NotPublished`
+is rejected; the real 25-package graph passes. The consumer smoke disables
+repository Directory.Build props/targets, uses only staged packages plus
+nuget.org and an empty cache, then invokes the public Forge API and reimports
+its STEP. This prevents a repository-local build from masquerading as package
+qualification. The desktop smoke also invokes the actual NativeAOT host.

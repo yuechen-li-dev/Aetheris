@@ -1,9 +1,10 @@
 param(
-    [string]$Version = "2.0.0-preview.3",
-    [string]$OutputDirectory = "artifacts/packages/public-libraries"
+    [string]$Version = "2.0.0",
+    [string]$OutputDirectory = "artifacts/local/public-libraries"
 )
 
 $ErrorActionPreference = "Stop"
+$env:MSBUILDDISABLENODEREUSE = '1'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $outputPath = [IO.Path]::GetFullPath((Join-Path $repoRoot $OutputDirectory))
@@ -54,8 +55,8 @@ if (Test-Path -LiteralPath $outputPath) {
     New-Item -ItemType Directory -Path $outputPath | Out-Null
 }
 
-# Topological order is also the intended NuGet publication order.
-$projects = @(
+# Explicit public products; derive their complete project dependency closure.
+$roots = @(
     "Aetheris.Kernel.Core/Aetheris.Kernel.Core.csproj",
     "Aetheris.Modules/Aetheris.Modules.csproj",
     "Aetheris.Geometry/Aetheris.Geometry.csproj",
@@ -71,17 +72,37 @@ $projects = @(
     "Aetheris.Kernel.Firmament/Aetheris.Kernel.Firmament.csproj",
     "Aetheris.FEA/Aetheris.FEA.csproj",
     "Aetheris.Forge.Host/Aetheris.Forge.Host.csproj",
-    "Aetheris.Forge.KernelSDK/Aetheris.Forge.KernelSDK.csproj"
+    "Aetheris.Forge.KernelSDK/Aetheris.Forge.KernelSDK.csproj",
+    "Aetheris.Drawing/Aetheris.Drawing.csproj",
+    "Aetheris.Sculpture/Aetheris.Sculpture.csproj",
+    "Aetheris.Materials.Sqlite/Aetheris.Materials.Sqlite.csproj",
+    "Aetheris.ThreeDm/Aetheris.ThreeDm.csproj",
+    "Aetheris.ThreeDm.CLI/Aetheris.ThreeDm.CLI.csproj"
 )
+$projects = [Collections.Generic.List[string]]::new()
+function Visit-PublicProject([string]$relative) {
+    $path = [IO.Path]::GetFullPath((Join-Path $repoRoot $relative))
+    $relative = [IO.Path]::GetRelativePath($repoRoot, $path).Replace('\', '/')
+    if ($projects.Contains($relative)) { return }
+    [xml]$project = Get-Content -LiteralPath $path -Raw
+    foreach ($reference in $project.Project.ItemGroup.ProjectReference) {
+        if ($reference.Include -and $reference.ReferenceOutputAssembly -ne 'false') {
+            $dependency = [IO.Path]::GetFullPath((Join-Path (Split-Path $path -Parent) $reference.Include))
+            Visit-PublicProject ([IO.Path]::GetRelativePath($repoRoot, $dependency))
+        }
+    }
+    $projects.Add($relative)
+}
+foreach ($root in $roots) { Visit-PublicProject $root }
 
 Push-Location $repoRoot
 try {
     foreach ($project in $projects) {
         # The package payload must not inherit assemblies from an earlier commit
-        # or a RID-specific publish. Rebuild every public package payload and
+        # or a RID-specific publish. Build every public package payload and
         # exclude debug symbols so the staged bytes reflect this invocation.
-        dotnet pack $project --configuration Release --output $outputPath -t:Rebuild `
-            -p:PackageVersion=$Version -p:DebugType=None -p:DebugSymbols=false
+        dotnet pack $project --configuration Release --output $outputPath -m:1 -nr:false -p:UseSharedCompilation=false `
+            -p:Version=$Version -p:PackageVersion=$Version -p:DebugType=None -p:DebugSymbols=false
         if ($LASTEXITCODE -ne 0) {
             throw "dotnet pack failed for $project"
         }
@@ -98,6 +119,7 @@ try {
         throw "Expected $($projects.Count) packages but found $($packages.Count)."
     }
     $packages | ForEach-Object { Normalize-NuGetPackage $_.FullName }
+    & (Join-Path $PSScriptRoot 'Test-PublicPackageGraph.ps1') -PackageDirectory $outputPath -Version $Version
 } finally {
     Pop-Location
 }

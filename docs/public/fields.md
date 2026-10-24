@@ -23,7 +23,8 @@ dotnet pack Aetheris.Fields -c Release -o artifacts/local/field-packages
 ```
 
 Building the complete Firmament/application stack still restores its explicitly
-pinned `Copeland.TS.Backend.Wgsl` package family. That is a downstream display
+pinned `Copeland.TS.Backend.Wgsl` 0.1.0 package family from nuget.org.
+A Copeland checkout or private package feed is not required to build Aetheris. That is a downstream display
 compiler dependency, not a dependency of native fields. Applications consuming
 only fields need no Copeland checkout or compiler packages.
 

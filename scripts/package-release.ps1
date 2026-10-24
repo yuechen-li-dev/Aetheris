@@ -8,6 +8,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
+$env:MSBUILDDISABLENODEREUSE = '1'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $output = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $OutputDirectory))
@@ -97,7 +98,7 @@ function Get-ReleaseRelativePath([string]$Root, [string]$Path) {
     return $canonicalPath.Substring($rootPrefix.Length)
 }
 
-Remove-Item -LiteralPath $output -Recurse -Force -ErrorAction SilentlyContinue
+if (Test-Path -LiteralPath $output) { throw 'Use a fresh release output directory.' }
 New-Item -ItemType Directory -Force -Path $stage, (Join-Path $output 'packages') | Out-Null
 
 Push-Location (Join-Path $repoRoot 'aetheris.client')
@@ -117,13 +118,13 @@ finally { Pop-Location }
 # Release binaries must not inherit compiler state from an earlier publish with
 # different properties (notably PublishAot). Start the managed release graph
 # from a clean configuration so identical inputs produce identical archives.
-dotnet clean (Join-Path $repoRoot 'Aetheris.slnx') -c Release
+dotnet clean (Join-Path $repoRoot 'Aetheris.slnx') -c Release -m:1 -nr:false
 
 dotnet publish (Join-Path $repoRoot 'Aetheris.CLI/Aetheris.CLI.csproj') -c Release -r win-x64 --self-contained true -m:1 -nr:false -p:UseSharedCompilation=false -t:Rebuild -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64')
 & (Join-Path $PSScriptRoot 'Test-CoreCliPayload.ps1') -AssetsPath (Join-Path $repoRoot 'Aetheris.CLI/obj/project.assets.json') -PublishDirectory (Join-Path $stage 'Aetheris-win-x64')
-dotnet publish (Join-Path $repoRoot 'Aetheris.Forge.Host/Aetheris.Forge.Host.csproj') -c Release -r win-x64 --self-contained true -t:Rebuild -p:PublishAot=true -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64/forge-host')
+dotnet publish (Join-Path $repoRoot 'Aetheris.Forge.Host/Aetheris.Forge.Host.csproj') -c Release -r win-x64 --self-contained true -m:1 -nr:false -p:UseSharedCompilation=false -t:Rebuild -p:PublishAot=true -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64/forge-host')
 Normalize-PeTimestamps (Join-Path $stage 'Aetheris-win-x64/forge-host/Aetheris.Forge.Host.exe')
-dotnet publish (Join-Path $repoRoot 'Aetheris.Server/Aetheris.Server.csproj') -c Release -r win-x64 --self-contained true -t:Rebuild -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64/cadmata')
+dotnet publish (Join-Path $repoRoot 'Aetheris.Server/Aetheris.Server.csproj') -c Release -r win-x64 --self-contained true -m:1 -nr:false -p:UseSharedCompilation=false -t:Rebuild -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64/cadmata')
 $endpoints = Join-Path $stage 'Aetheris-win-x64/cadmata/Cadmata.staticwebassets.endpoints.json'
 if (Test-Path -LiteralPath $endpoints) {
     $canonicalEndpoints = [Regex]::Replace([IO.File]::ReadAllText($endpoints),
@@ -235,5 +236,5 @@ $inventory = @(
 $inventory += $releaseHashes | ForEach-Object { "| ``$($_.Path)`` | $($_.Bytes) | ``$($_.Sha256)`` |" }
 $inventory += @(
     "",
-    "The 16 public library packages are generated separately by ``scripts/package-public-libraries.ps1``. Public documentation is in ``docs/public`` and is also included in the Windows ZIP.")
+    "The public package dependency closure is generated separately by ``scripts/package-public-libraries.ps1``. Public documentation is in ``docs/public`` and is also included in the Windows ZIP.")
 [IO.File]::WriteAllLines((Join-Path $output 'RELEASE-INVENTORY.md'), [string[]]$inventory, [Text.UTF8Encoding]::new($false))

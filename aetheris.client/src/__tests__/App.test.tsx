@@ -235,7 +235,7 @@ describe("App STEP file upload flow", () => {
 		render(<App />);
 
 		await screen.findByText("Ready. Select a file to import.");
-		expect(apiMocks.claimStartupStep).toHaveBeenCalledTimes(1);
+		await waitFor(() => expect(apiMocks.claimStartupStep).toHaveBeenCalledTimes(1));
 		expect(apiMocks.importStep).not.toHaveBeenCalled();
 	});
 

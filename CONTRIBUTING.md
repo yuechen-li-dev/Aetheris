@@ -88,8 +88,8 @@ import runs, and tests under `Step242Importer.PreserveRationalSurfaces()`, becau
 what the import produces.
 
 Cadmata and the VS Code extension use TSPack and their checked-in lock files:
-The release workflow pins TSPack source `e92af3f529e84d97fd0a26a52ec244bf0478bfee`
-(npm peer alternatives and explicit-tool precedence). Build the local Telos
+The release workflow pins TSPack source `aff35b9289a4636056c0fd41da0a8bd013144682`
+(npm peer alternatives, explicit-tool precedence and clean scoped installs). Build the local Telos
 producer before syncing Cadmata; its exported `dist` files are ignored.
 
 ```powershell

@@ -11,7 +11,7 @@ findings rather than replacing them with an assumed green status.
 | B1: incomplete public dependency graph | Confirmed: the fixed sixteen-package list omitted Fields, Cloth3D, Humanoid and PlasticShell. | Public products now derive their ProjectReference closure. A manifest gate checks identities, aligned versions, missing dependencies and publication order. The local rehearsal packed 25 packages; an empty-cache consumer restored and produced reimportable STEP. |
 | B2: native CLI footprint | Already fixed before this pass. | Retain the native-asset build/pack guards. Drawing Notes use PDF.js; SQLite and 3DM are optional adapters. Do not reintroduce PDFium/Skia to support raster previews. |
 | B3: unpublished/prerelease shader graph | Confirmed. | Publish all seven managed Copeland compiler dependencies at 0.1.0 and pin Firmament to that public version. Remove automatic private-feed injection and CI sibling checkout. |
-| B4: preview-only release lane | Confirmed; full bundle remains blocked. | Product/SDK/Cadmata metadata is 2.0.0. The lane derives its version, checks tags and gates publication on exact staged-byte smoke tests. Windows full regression now passes, but a clean Cadmata producer exposes the TSPack lock/resolution blocker below. No stable release is claimed. |
+| B4: preview-only release lane | Confirmed; full bundle repaired and undergoing final hosted qualification. | Product/SDK/Cadmata metadata is 2.0.0. The lane derives its version, checks tags and gates publication on exact staged-byte smoke tests. The TSPack graph, producer handoffs and native-host failures below are closed locally. No stable release is claimed. |
 | S1: ignored intent | Confirmed: Extrude, assembly root/Semantic, WireForm, SectionChain Point2/Line2/Path/Loop and wrong coordinate units. | Consumption checks belong to their actual readers, using shared AST fields and existing spatial metadata. Also close occurrence fields, standalone port publications, Span fields, Modify fields, prism offsets, semantic Require and projected PMI before their erasure. |
 | S2: validate/build route split | Confirmed with lowercase native model: rejected validation, successful build and wrong summary owner. | One command-level domain selector; case-only native root normalization; existing lowerers retain execution authority. Legacy solid grammar remains separate. |
 | S3: diagnostics | Reproduced missing-file raw errors, wrong units and vague scale failures. | Missing-file failures now use the structured frontend diagnostic shape. Extrude dimensions identify required lengths; precision-incompatible primitive dimensions reject at the field owner. Wire field errors include readable explanations. Capability errors remain distinct from syntax failures. |
@@ -116,7 +116,7 @@ with the new stable name retained. Five regression cases select that previously
 unused Plate recipe and confirm each inserted field rejects validate and build.
 These are explicit classifications, not a blanket exemption for Template bodies.
 
-The final public-byte build passed 6,007 tests across twenty suites, with zero
+The initial kernel public-byte build passed 6,007 tests across twenty suites, with zero
 failures and zero skips; the optional external PDF renderer was enabled. The
 fast kernel lane passed 1,088 tests. Sixty focused CLI/edge-finish cases also
 pass. Final hosted release qualification remains a gate. All completed
@@ -131,13 +131,13 @@ The real product-path rehearsal also generated a production PDF/SVG/PPTX drawing
 a warehouse GLB and cantilever analysis artifacts. Raw evidence is retained
 alongside the corresponding source and command results.
 
-Kernel source qualification is complete at `c86282e5a15863203633d62b8960d111632e455c`.
-No Aetheris stable tag or package was published by this pass. Full distribution
-qualification remains blocked as described below.
+Initial kernel source qualification completed at `c86282e5a15863203633d62b8960d111632e455c`.
+Final candidate evidence follows the repair history below. No Aetheris stable
+tag or package was published by this pass.
 
 | Lane | Result | Boundary |
 |---|---|---|
-| Local complete solution | 6,007 passed; zero failed/skipped | Includes optional PDF renderer and locally available 3DM witnesses. |
+| Initial local complete solution | 6,007 passed; zero failed/skipped | Includes optional PDF renderer and locally available 3DM witnesses. |
 | Linux CI, final kernel source | 5,999 passed; seven skipped | Seven local 3DM fixtures unavailable on the runner; those pass locally. [Run](https://github.com/yuechen-li-dev/Aetheris/actions/runs/40074676010). |
 | Windows CI, preceding kernel candidate | 5,993 passed; nine skipped | Before the final WireForm closure. Seven local 3DM fixtures and two optional external-renderer tests unavailable; all pass locally. The CRLF and timeout failures are closed. [Run](https://github.com/yuechen-li-dev/Aetheris/actions/runs/40072419493). |
 | Canonical source replay | 380 matched outcomes; 297 byte-identical STEP builds | Final kernel source, compared with the original baseline. |
@@ -167,8 +167,8 @@ is rejected; the real 25-package graph passes. The consumer smoke disables
 repository Directory.Build props/targets, uses only staged packages plus
 nuget.org and an empty cache, then invokes the public Forge API and reimports
 its STEP. This prevents a repository-local build from masquerading as package
-qualification. The desktop smoke is configured to invoke the actual NativeAOT
-host, but that hosted gate has not run because the frontend producer is blocked.
+qualification. The distribution smoke invokes the actual NativeAOT host and
+starts the extracted Cadmata server; final evidence follows below.
 
 ## Cadmata's TSPack graph repair
 
@@ -201,7 +201,8 @@ removed or replaced by a hand-edited lockfile, npm overlay or placeholder module
 
 The user authorized repairing TSPack and retaining the full bundle. The owner
 repair is [TSPack PR 208](https://github.com/yuechen-li-dev/tspack/pull/208),
-source `e92af3f529e84d97fd0a26a52ec244bf0478bfee`. npm's mixed OR peer range
+initial source `e92af3f529e84d97fd0a26a52ec244bf0478bfee`, extended at
+`aff35b9289a4636056c0fd41da0a8bd013144682` for clean installs. npm's mixed OR peer range
 now keeps its valid SemVer alternatives in both version selection and
 requirement classification. All-invalid ranges still reject, prerelease
 exclusion remains, JSR stays strict, and authored range evidence survives.
@@ -209,11 +210,15 @@ Explicit tools now enter the existing requirement tape instead of bypassing
 it; TypeScript ~5.9.3 controls its environment ahead of transitive peers.
 There is no new resolver or dependency override layer.
 
-All 43 Go test packages pass. Vet passes for the modified owners; broad vet
-separately reports four pre-existing lock-copy diagnostics in materialize tests.
+All 43 Go test packages and broad vet pass. Four pre-existing lock-copy
+diagnostics in materializer test failure formatting now print pointers rather
+than copying the mutex-bearing observer value.
 The manifest frontend and embedded executable build successfully. Aetheris's
 workflow builds that exact source commit, identified with build metadata rather
 than pretending this is a newly published TSPack release.
+TSPack's existing hosted workflow references a missing `@v1` setup action and
+does not start; no hosted TSPack-suite success is claimed. The Aetheris lane
+builds its exact source directly rather than using that broken bootstrap.
 
 The lockfile was regenerated through normal `tspack update`, then hydrated with
 `sync`. Targeted path update remains unsupported; it was not necessary to add
@@ -266,6 +271,69 @@ all fifteen templates and all 26 advertised artifacts, checks their byte/hash
 receipts, and rejects a complete invalid standoff record with the real
 `firmament-concept-requirement-failed` diagnostic and no artifacts. The probe
 runs against the extracted NativeAOT executable in the Windows release gate.
+
+## Final candidate qualification
+
+Kernel/native-host functional source: `03ff13d052de22962e2df2a3f1ea4ad61f94e30b`.
+The later packaging prerequisite/test changes below do not replace that source
+identity. The final managed string and
+cut-list serializer changes were qualified again rather than relying on the
+earlier kernel-only pass.
+
+| Lane | Observed final result |
+|---|---|
+| Local full solution | 6,009 passed across twenty suites; zero failed or skipped. Optional PDF rendering and local 3DM witnesses enabled. |
+| Canonical source/geometry replay | All 380 validate/build outcomes match the original baseline. All 297 successful STEP artifacts are byte-identical. All seven structural cut lists are also byte-identical. |
+| Cadmata/extension/TSPack | 96 frontend tests; 13 extension tests; 43 Go test packages pass. Typecheck, production assets, lint, VSIX and embedded-tool build pass. |
+| Full local publication staging | All 28 artifact checksums verify: Windows ZIP, VSIX, CLI and 25 public packages. |
+| Extracted Windows ZIP | Actual self-contained CLI validate/build/verify, production Cadmata assets and STEP import, all fifteen native Forge templates/all 26 advertised artifacts, invalid-standoff refusal, and drawing PDF/SVG/PPTX pass. |
+| Installed CLI package | Fresh tool path/cache; reports 2.0.0; validate/build pass; STEP matches the original through-hole baseline. |
+| Public library consumer | Empty-cache standalone restore/build with repository MSBuild imports disabled; packaged material resolves; public Forge API emits reimportable AP242. |
+| Hosted Linux | 6,001 passed, zero failures, seven unavailable local 3DM witnesses skipped. Those witnesses pass locally. |
+| Hosted Windows at 03ff13d0 | 5,999 passed, zero failures; nine optional external/local-witness skips. Packaging then exposed the clean-install issue below; no hosted bundle success is claimed for that run. |
+
+The local ZIP is 133,022,508 bytes, SHA256
+`8c4e5084baeb59504aa9276065c84ce2f197ba2d87f3891be04ab62e699d72de`.
+The CLI nupkg is 18,002,105 bytes; the native-payload guard passes. These are
+local-candidate receipts, not hashes claimed for a separately rebuilt hosted
+artifact. The extracted and freshly installed tools both emit through-hole
+STEP SHA256 `5999f127e5a1477e5825afa656dceb7f89241d8f85312b0e6bcd793639a0f548`.
+
+Final raw evidence remains under `artifacts/local/release-2-readiness/`:
+`final-test-summary.json`, `final-geometry-parity.json`, `cut-list-parity.json`,
+`full-bundle-qualified/`, `cadmata-extracted-smoke.log`,
+`forge-extracted-smoke/`, `drawing-extracted-smoke/`, `final-tool-*` and
+`final-package-consumer.log`. No local .NET build/test or Cadmata hosts remain.
+Windows retained ten minidumps (about 37 MB) from the earlier failing native
+probes outside the repository. `cleanup-native-probe-dumps.ps1` in that evidence
+directory previews those exact filenames/timestamps; `-Apply` removes only
+those files. No user files outside the repository were moved or deleted.
+
+### Clean-install qualification repair
+
+[Run 40082869172](https://github.com/yuechen-li-dev/Aetheris/actions/runs/40082869172)
+passed complete Linux and Windows .NET suites, then refused Cadmata typecheck:
+`TSPACK_RUN_TOOL_NOT_FOUND: tsc`. The local client junction had hidden that
+module-instance tools live in the declaring package while `run` searched only
+workspace `.bin`. TSPack now carries package ownership into executable lookup
+and child PATH, even for a target with workspace cwd. Workspace fallback remains.
+
+The empty frontend workspace then exposed declaration resolution from shared
+instance real paths: directly declared `@types/*` providers were visible only
+to the consumer, not the instance store. Their existing root projections now
+live at the workspace compatibility root. No transitive type package or runtime
+package is promoted. Materialization planning and writing share that placement;
+ordinary collision checks still apply.
+
+New owning-layer tests prove scoped executable execution/PATH and type-root
+visibility without promoting transitive providers. All 43 Go packages and vet
+pass. The clean authored frontend passes typecheck, 96 tests, build and lint.
+TypeScript's resolution trace records zero type resolutions outside that
+workspace. A pre-existing App test race now awaits the asynchronous startup
+claim rather than treating the initial Ready label as proof that it ran.
+Evidence: `clean-types-v2-*`, `clean-final-*` and
+`frontend-clean/clean-ts-final-resolution.log`. The final hosted bundle gate is
+being rerun with the exact updated TSPack source pin; publication remains off.
 
 ## Executive verdict
 

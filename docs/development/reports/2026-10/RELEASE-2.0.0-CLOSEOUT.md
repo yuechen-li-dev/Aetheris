@@ -31,6 +31,24 @@ Full requalification of a freshly rebuilt ZIP is still pending. The previous
 133 MB ZIP omitted the actual desktop/browser; its size and hashes below must
 not be assigned to the corrected distribution.
 
+The subsequent canonical-box warning hotfix corrects four STEP records in
+testdata/firmament/inline-step/canonical-through-hole.step: the cavity sense,
+seam vertex references and bottom/top circular edge uses. The nominal 10x8x6 mm
+body, 2 mm bore and all face entity IDs are preserved. Duplicate seam vertices
+are no longer referenced; import topology has ten vertices rather than twelve,
+with seven faces and fifteen edges. It now has connected trim loops, Qualified
+pcurves and zero source-orientation mismatches. The importer warning is retained
+for genuinely inconsistent source. Canonical import/Pmi regressions cover the
+fix; STEP bytes involving this corrected fixture are intentionally changed.
+The repaired canonical fixture also passes the actual packaged WebView2 import,
+export/reimport, selection, invalid-file retention and native-close workflow
+(desktop-repair/canonical-hole-ui/qualification.json). The new clean-import
+regression and 63 InlineStep/Pmi tests pass. Before this fixture addition, the
+local full suite passed 6,007 tests with two optional external-PDF witnesses
+skipped. An earlier concurrent UI/full-suite run exceeded an existing imported
+rod tessellation time budget; that exact case and the entire suite both pass
+when rerun without concurrent UI qualification. No budget was increased.
+
 Distribution candidate: `69bcc6bbd839fe2ce2a4e1bbd9231f28cd719286`.
 Baseline: `b05cca40ec3efd7540c647398892953299d2c136`.
 TSPack: `01051b791cf83757a1c419ef7bc276d9de787a9d`.

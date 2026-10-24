@@ -2,12 +2,43 @@ using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Brep.Verification;
+using Aetheris.Kernel.Core.Import;
 using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Core.Tests.Step242;
 
 public sealed class Step242DerivedFaceOrientationTests
 {
+    [Fact]
+    public void CanonicalThroughHole_IsQuietQualifiedAndKeepsItsGeometryAndPmiIdentity()
+    {
+        var import = Step242Corpus.Import("testdata/firmament/inline-step/canonical-through-hole.step");
+        Assert.True(import.IsSuccess);
+        Assert.Empty(import.Diagnostics);
+        var body = import.Value;
+        Assert.Equal(7, body.Topology.Faces.Count());
+        Assert.Equal(15, body.Topology.Edges.Count());
+        Assert.Equal(10, body.Topology.Vertices.Count()); // Seam shares the two circular boundary vertices.
+        Assert.Equal(0, body.FaceOrientationReport!.SourceMismatchCount);
+        var qualification = Assert.IsType<BrepImportQualificationReport>(body.ImportQualification);
+        Assert.Equal(ImportQualificationStatus.Qualified, qualification.Status);
+        Assert.Empty(qualification.Reasons);
+        Assert.True(qualification.PcurveEvidence.LoopClosureValid);
+        Assert.True(Assert.Single(qualification.Shells).Enclosed);
+        var cavity = Assert.Single(body.Bindings.FaceBindings, binding => binding.SourceStepEntityId == 191);
+        Assert.False(cavity.Orientation.IsAlignedWithSurface);
+        Assert.True(body.TryGetFaceSurfaceGeometry(cavity.FaceId, out var surface));
+        Assert.Equal(1d, surface!.Cylinder!.Value.Radius);
+        var points = body.Topology.Vertices.Select(vertex =>
+        {
+            Assert.True(body.TryGetVertexPoint(vertex.Id, out var point));
+            return point;
+        }).ToArray();
+        Assert.Equal((-5d, 5d), (points.Min(point => point.X), points.Max(point => point.X)));
+        Assert.Equal((-4d, 4d), (points.Min(point => point.Y), points.Max(point => point.Y)));
+        Assert.Equal((-3d, 3d), (points.Min(point => point.Z), points.Max(point => point.Z)));
+    }
+
     [Fact]
     public void ClosedBox_OneHostileSameSenseFlag_DerivesIdenticalCanonicalBodyAndReportsMismatch()
     {

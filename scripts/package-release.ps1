@@ -192,18 +192,20 @@ Get-ChildItem -LiteralPath $stage -Recurse -Filter '*.pdb' -File | Remove-Item -
 
 $extensionRoot = Join-Path $repoRoot 'tools/vscode-firmament'
 $extensionArtifact = Join-Path $output 'aetheris-firmament-0.3.0-preview.3.vsix'
+$extensionPackage = Join-Path $repoRoot 'artifacts/local/vscode-firmament/aetheris-firmament-0.3.0-preview.3.vsix'
 Push-Location $extensionRoot
 try {
     # A prior local package must not be selected as input while vsce overwrites
     # that same path. This keeps repeated release qualification reproducible.
     Remove-Item -LiteralPath (Join-Path $extensionRoot 'dist/aetheris-firmament-0.3.0-preview.3.vsix') -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $extensionPackage -Force -ErrorAction SilentlyContinue
     tspack sync
     tspack check
     tspack run typecheck
     tspack run test
     tspack run build
     tspack run package
-    Move-Item -LiteralPath (Join-Path $extensionRoot 'dist/aetheris-firmament-0.3.0-preview.3.vsix') -Destination $extensionArtifact -Force
+    Move-Item -LiteralPath $extensionPackage -Destination $extensionArtifact -Force
 }
 finally { Pop-Location }
 Normalize-ZipArchive $extensionArtifact

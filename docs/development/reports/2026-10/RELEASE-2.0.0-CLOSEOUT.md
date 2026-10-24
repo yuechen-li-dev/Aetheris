@@ -226,7 +226,7 @@ candidate. New lint checks exposed ref access during render in the measurement
 wrapper; the rendered tool is now state and latest props update in an effect.
 
 Raw continuation evidence: `cadmata-lock-plan-tools-fixed.json`,
-`cadmata-lock-update.json`, `cadmata-sync-fixed.log` and
+`cadmata-lock-update.log`, `cadmata-sync-fixed.log` and
 `cadmata-*-qualified.log`. The complete hosted bundle rehearsal is next.
 Its extracted-byte smoke now starts Cadmata on a temporary loopback port,
 checks production asset responses and imports the emitted STEP through its
@@ -239,6 +239,11 @@ valueless switch before passing arguments to that parser. Both switch orders
 bind the requested ephemeral loopback port in regression tests (eight startup
 tests pass). The rebuilt-host smoke serves three production assets and imports
 the STEP witness. Final qualification still uses the actual extracted ZIP.
+
+The extension's sync/check, typecheck, 13 tests, build and VSIX packaging also
+pass with the pinned tool. Its producer writes to `artifacts/local`; the bundle
+script's stale `dist` pickup was repaired to consume that actual artifact. A
+fresh package is required before staging, so an old VSIX cannot hide failure.
 
 ## Executive verdict
 

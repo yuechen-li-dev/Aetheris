@@ -428,6 +428,15 @@ Independent Windows and Linux qualification jobs now run concurrently. Publicati
 requires both complete test jobs and both staged-byte consumer jobs. The final
 hosted run is pending; no stable Aetheris publication is claimed.
 
+The run at `d53be5a401f6521a47d91f7bc5ebd6eb7984e461` passes complete Linux and
+Windows regression, frontend qualification and native publication, then reaches
+the final VSIX producer. Its missing `artifacts/local/vscode-firmament` parent
+causes vsce ENOENT on the fresh runner. The packager now creates that producer
+directory explicitly. A missing-directory rehearsal preserves the prior local
+output, creates the directory and emits the actual VSIX successfully
+(`vsix-fresh-directory.log`). This is a producer handoff repair; no managed
+source or geometry behavior changed. Final complete staging remains the gate.
+
 ## Executive verdict
 
 **Meaningful progression.** The managed compiler family is publicly released;

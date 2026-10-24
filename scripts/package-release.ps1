@@ -172,6 +172,7 @@ Get-ChildItem -LiteralPath $stage -Recurse -Filter '*.pdb' -File | Remove-Item -
 $extensionRoot = Join-Path $repoRoot 'tools/vscode-firmament'
 $extensionArtifact = Join-Path $output 'aetheris-firmament-0.3.0-preview.3.vsix'
 $extensionPackage = Join-Path $repoRoot 'artifacts/local/vscode-firmament/aetheris-firmament-0.3.0-preview.3.vsix'
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $extensionPackage) | Out-Null
 Push-Location $extensionRoot
 try {
     # A prior local package must not be selected as input while vsce overwrites

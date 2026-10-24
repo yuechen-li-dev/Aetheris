@@ -10,8 +10,8 @@ internal static class DrawingNotesCli
     internal const string Usage = """
 Usage:
   aetheris drawing inspect <drawing.pdf> [--json]
-  aetheris drawing render <drawing.pdf> --page <N> --out <page.png> [--dpi <N>] [--json]
-  aetheris drawing crop <drawing.pdf> --page <N> --bounds <x,y,width,height> --name <name> --out <crop.png> [--dpi <N>] [--json]
+  aetheris drawing render <drawing.pdf> --page <N> --out <page.png> [--dpi <N>] --renderer <path-to-pdftoppm> [--json]
+  aetheris drawing crop <drawing.pdf> --page <N> --bounds <x,y,width,height> --name <name> --out <crop.png> [--dpi <N>] --renderer <path-to-pdftoppm> [--json]
   aetheris drawing notes create <drawing.pdf> --out <directory> [--name <name>] [--title <title>] [--visible-date <date>] [--sheets <id,...>] [--json]
   aetheris drawing notes add-region <drawing-notes.json> --id <id> --name <name> --page <N> --bounds <x,y,width,height> --type <type> [--parent <id>] [--confidence <level>] [--json]
   aetheris drawing notes add-note <drawing-notes.json> --id <id> --label <label> --category <category> --page <N> --bounds <x,y,width,height> [--region <id>] [--note <text>] [--original-text <text>] [--aliases <a,b>] [--tags <a,b>] [--class <class>] [--confidence <level>] [--pass <id>] [--json]
@@ -33,14 +33,24 @@ Confidence: High, Medium, Low, Unresolved. Classification: ProductGeometry, Acce
     public static int Run(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length == 0 || IsHelp(args[0])) { stdout.WriteLine(Usage); return 0; }
-        return args[0] switch
+        try
         {
-            "inspect" => Inspect(args[1..], stdout, stderr),
-            "render" => Render(args[1..], stdout, stderr),
-            "crop" => Crop(args[1..], stdout, stderr),
-            "notes" => Notes(args[1..], stdout, stderr),
-            _ => Fail(stderr, $"Unknown drawing command '{args[0]}'.")
-        };
+            return args[0] switch
+            {
+                "inspect" => Inspect(args[1..], stdout, stderr),
+                "render" => Render(args[1..], stdout, stderr),
+                "crop" => Crop(args[1..], stdout, stderr),
+                "notes" => Notes(args[1..], stdout, stderr),
+                _ => Fail(stderr, $"Unknown drawing command '{args[0]}'.")
+            };
+        }
+        catch (DrawingNotesException e)
+        {
+            if (args.Contains("--json", StringComparer.Ordinal))
+                stdout.WriteLine(JsonSerializer.Serialize(new { success = false, diagnostics = new[] { new { code = e.Code, severity = "error", message = e.Message } } }, CliRunner.JsonOptions));
+            else stderr.WriteLine($"{e.Code}: {e.Message}");
+            return 1;
+        }
     }
 
     private static int Inspect(string[] args, TextWriter stdout, TextWriter stderr)
@@ -63,11 +73,15 @@ Confidence: High, Medium, Low, Unresolved. Classification: ProductGeometry, Acce
         var options = Options(args[1..]);
         if (!Int(options, "--page", out var page) || !Required(options, "--out", out var output)) return Fail(stderr, Usage);
         var dpi = OptionalInt(options, "--dpi", 200);
-        DrawingPdf.RenderPage(args[0], page, output, dpi);
-        var report = new { success = true, source = Path.GetFullPath(args[0]), page, output = Path.GetFullPath(output), dpi, renderer = DrawingPdf.RendererVersion };
+        var renderer = Renderer(options);
+        DrawingPdf.RenderPage(args[0], page, output, dpi, renderer);
+        var report = new { success = true, source = Path.GetFullPath(args[0]), page, output = Path.GetFullPath(output), dpi, renderer = renderer?.Version };
         Write(stdout, options, report, $"Rendered page {page} to {Path.GetFullPath(output)}.");
         return 0;
     }
+
+    private static IDrawingPdfRasterizer? Renderer(Dictionary<string, string?> options) =>
+        Value(options, "--renderer") is { } path ? new PopplerPdfRasterizer(path) : null;
 
     private static int Crop(string[] args, TextWriter stdout, TextWriter stderr)
     {
@@ -75,7 +89,7 @@ Confidence: High, Medium, Low, Unresolved. Classification: ProductGeometry, Acce
         var options = Options(args[1..]);
         if (!Int(options, "--page", out var page) || !Bounds(options, out var bounds) || !Required(options, "--name", out var name) || !Required(options, "--out", out var output)) return Fail(stderr, Usage);
         var dpi = OptionalInt(options, "--dpi", 300);
-        var metadata = DrawingPdf.Crop(args[0], page, bounds, name, output, dpi);
+        var metadata = DrawingPdf.Crop(args[0], page, bounds, name, output, dpi, Renderer(options));
         Write(stdout, options, new { success = true, output = Path.GetFullPath(output), metadata }, $"Exported source-linked crop '{name}' to {Path.GetFullPath(output)}.");
         return 0;
     }

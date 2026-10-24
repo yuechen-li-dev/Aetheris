@@ -5,16 +5,37 @@ namespace Aetheris.CLI.Tests;
 public sealed class DrawingNotesCliTests
 {
     [Fact]
-    public void InspectRenderAndCrop_UseCoherentDrawingFamily()
+    public void InspectAndNotes_NeedNoRendererAndMissingRasterizerFailsClearly()
     {
         using var temp = new TempDirectory();
         var inspect = Run(["drawing", "inspect", Fixture(), "--json"]);
         Assert.Equal(0, inspect.Exit); Assert.Equal(string.Empty, inspect.Error);
         using (var json = JsonDocument.Parse(inspect.Output)) Assert.Equal(1, json.RootElement.GetProperty("document").GetProperty("pageCount").GetInt32());
         var page = Path.Combine(temp.Path, "page.png"); var crop = Path.Combine(temp.Path, "detail.png");
-        Assert.Equal(0, Run(["drawing", "render", Fixture(), "--page", "1", "--out", page, "--dpi", "96", "--json"]).Exit);
-        Assert.Equal(0, Run(["drawing", "crop", Fixture(), "--page", "1", "--bounds", "465,60,180,200", "--name", "DetailD", "--out", crop, "--dpi", "96", "--json"]).Exit);
-        Assert.True(File.Exists(page)); Assert.True(File.Exists(crop)); Assert.True(File.Exists(Path.ChangeExtension(crop, ".crop.json")));
+        var render = Run(["drawing", "render", Fixture(), "--page", "1", "--out", page, "--dpi", "96", "--json"]);
+        Assert.NotEqual(0, render.Exit); Assert.Contains("drawing-renderer-required", render.Error + render.Output);
+        using (var json = JsonDocument.Parse(render.Output))
+        {
+            Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+            var diagnostic = json.RootElement.GetProperty("diagnostics")[0];
+            Assert.Equal("drawing-renderer-required", diagnostic.GetProperty("code").GetString());
+            Assert.Equal("error", diagnostic.GetProperty("severity").GetString());
+            Assert.Contains("--renderer", diagnostic.GetProperty("message").GetString());
+        }
+        var cropped = Run(["drawing", "crop", Fixture(), "--page", "1", "--bounds", "465,60,180,200", "--name", "DetailD", "--out", crop, "--dpi", "96", "--json"]);
+        Assert.NotEqual(0, cropped.Exit); Assert.Contains("drawing-renderer-required", cropped.Error + cropped.Output);
+        Assert.False(File.Exists(page)); Assert.False(File.Exists(crop)); Assert.False(File.Exists(Path.ChangeExtension(crop, ".crop.json")));
+    }
+
+    [Theory]
+    [InlineData("inspect-3dm")]
+    [InlineData("recover-3dm")]
+    public void CoreCli_ExplainsOptionalThreeDmTool(string command)
+    {
+        var result = Run([command, "source.3dm"]);
+        Assert.NotEqual(0, result.Exit);
+        Assert.Contains("aetheris-3dm-required", result.Error);
+        Assert.Contains("Aetheris.ThreeDm.CLI", result.Error);
     }
 
     [Fact]

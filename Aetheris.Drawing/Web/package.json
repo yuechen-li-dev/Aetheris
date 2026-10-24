@@ -1,0 +1,9 @@
+{
+  "name": "aetheris-drawing-browser-assets",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Build-time browser PDF assets; no Node renderer or native canvas dependency.",
+  "dependencies": {
+    "pdfjs-dist": "6.4.299"
+  }
+}

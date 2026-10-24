@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>aetheris-3dm</ToolCommandName>
+    <PackageId>Aetheris.ThreeDm.CLI</PackageId>
+    <Description>Optional Aetheris 3DM inspection and recovery tool. Includes the native Rhino3dm interoperability library.</Description>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Aetheris.ThreeDm/Aetheris.ThreeDm.csproj" /></ItemGroup>
+</Project>

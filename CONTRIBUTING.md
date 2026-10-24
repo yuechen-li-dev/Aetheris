@@ -8,7 +8,18 @@ Thank you for improving Aetheris. Keep changes focused, explain the engineering 
 
 ## Build and test
 
-Install the .NET SDK selected by [`global.json`](global.json). Firmament uses an exact managed WGSL compiler package built from a reviewed Copeland commit. A fresh checkout must prepare that ignored local feed before restoring the solution:
+Install the .NET SDK selected by [`global.json`](global.json).
+
+Source builds that include Drawing Notes also require Node 24 and npm. MSBuild
+restores the pinned PDF.js dependency from `Aetheris.Drawing/Web/package-lock.json`
+with install scripts and optional native packages disabled. Only selected browser
+runtime assets and licenses are embedded; downloaded distributions stay ignored.
+Published Aetheris tools do not require Node or npm. See
+[`Aetheris.Drawing/Web/README.md`](Aetheris.Drawing/Web/README.md).
+
+Firmament uses an exact managed WGSL compiler package built from a reviewed
+Copeland commit. A fresh checkout must prepare that ignored local feed before
+restoring the solution:
 
 ```powershell
 git clone --no-checkout https://github.com/yuechen-li-dev/Copeland.git artifacts/local/managed-wgsl/source

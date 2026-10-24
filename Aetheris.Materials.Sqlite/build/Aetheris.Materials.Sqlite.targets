@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <_AetherisSqliteCatalog>$(MSBuildThisFileDirectory)..\contentFiles\any\any\Materials\aetheris-materials-x1.sqlite</_AetherisSqliteCatalog>
+  </PropertyGroup>
+  <Target Name="CopyAetherisSqliteCatalogToOutput" AfterTargets="Build" Condition="Exists('$(_AetherisSqliteCatalog)')">
+    <Copy SourceFiles="$(_AetherisSqliteCatalog)" DestinationFolder="$(TargetDir)Materials" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="CopyAetherisSqliteCatalogToPublish" AfterTargets="Publish" Condition="Exists('$(_AetherisSqliteCatalog)') and '$(PublishDir)' != ''">
+    <Copy SourceFiles="$(_AetherisSqliteCatalog)" DestinationFolder="$(PublishDir)Materials" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

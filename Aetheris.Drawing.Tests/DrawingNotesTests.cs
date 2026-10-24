@@ -6,7 +6,7 @@ namespace Aetheris.Drawing.Tests;
 public sealed class DrawingNotesTests
 {
     [Fact]
-    public void SyntheticPdf_InspectsAndRendersDeterministically()
+    public void SyntheticPdf_InspectsWithoutNativeRenderer()
     {
         var pdf = Fixture();
         var document = DrawingPdf.Inspect(pdf, "Synthetic Fixture", sheets: ["SHEET 1 OF 1"]);
@@ -15,9 +15,9 @@ public sealed class DrawingNotesTests
         Assert.Equal(612, document.Pages[0].HeightPoints);
         Assert.Equal(64, document.Sha256.Length);
         using var temp = new TempDirectory();
-        var first = Path.Combine(temp.Path, "first.png"); var second = Path.Combine(temp.Path, "second.png");
-        DrawingPdf.RenderPage(pdf, 1, first, 120); DrawingPdf.RenderPage(pdf, 1, second, 120);
-        Assert.Equal(SHA256.HashData(File.ReadAllBytes(first)), SHA256.HashData(File.ReadAllBytes(second)));
+        var first = Path.Combine(temp.Path, "first.png");
+        Assert.Equal("drawing-renderer-required", Assert.Throws<DrawingNotesException>(() => DrawingPdf.RenderPage(pdf, 1, first, 120)).Code);
+        Assert.False(File.Exists(first));
     }
 
     [Fact]
@@ -98,13 +98,22 @@ public sealed class DrawingNotesTests
         Assert.Contains("Unknown leader", unresolved); Assert.DoesNotContain("Body width", unresolved);
     }
 
-    [Fact]
+    [ExternalPdfRendererFact]
     public void CropCarriesSourceMetadataAndIsDeterministic()
     {
         using var temp = new TempDirectory(); var output = Path.Combine(temp.Path, "detail.png");
-        var metadata = DrawingPdf.Crop(Fixture(), 1, new(465, 60, 180, 200), "Detail D", output, 120);
+        var renderer = new PopplerPdfRasterizer(Environment.GetEnvironmentVariable("AETHERIS_TEST_PDFTOPPM")!);
+        var metadata = DrawingPdf.Crop(Fixture(), 1, new(465, 60, 180, 200), "Detail D", output, 120, renderer);
         Assert.True(File.Exists(output)); Assert.True(File.Exists(Path.ChangeExtension(output, ".crop.json")));
         Assert.Equal(DrawingPdf.Hash(Fixture()), metadata.DocumentSha256); Assert.Equal(1, metadata.Page);
+        Assert.StartsWith("pdftoppm version ", metadata.RendererVersion);
+        var first = File.ReadAllBytes(output);
+        DrawingPdf.Crop(Fixture(), 1, metadata.Bounds, "Detail D", output, 120, renderer);
+        Assert.Equal(first, File.ReadAllBytes(output));
+        DrawingPdf.RenderPage(Fixture(), 1, output, 120, renderer);
+        var rendered = SHA256.HashData(File.ReadAllBytes(output));
+        DrawingPdf.RenderPage(Fixture(), 1, output, 120, renderer);
+        Assert.Equal(rendered, SHA256.HashData(File.ReadAllBytes(output)));
     }
 
     [Fact]
@@ -114,14 +123,67 @@ public sealed class DrawingNotesTests
         DrawingNotesPersistence.Save(path, project); DrawingNotesUi.WriteAssets(Path.Combine(temp.Path, "ui"));
         Assert.Equal(project.Document.Sha256, DrawingNotesPersistence.Load(path).Document.Sha256);
         var html = File.ReadAllText(Path.Combine(temp.Path, "ui", "index.html"));
-        Assert.Contains("/api/project", html); Assert.Contains("Fit page", html); Assert.Contains("Drag highlight", html); Assert.Contains("Shift-drag pan", html); Assert.Contains("/api/thumb/", html);
+        Assert.Contains("/api/project", html); Assert.Contains("Fit page", html); Assert.Contains("Drag highlight", html); Assert.Contains("Shift-drag pan", html);
+        Assert.True(File.Exists(Path.Combine(temp.Path, "ui", "pdfjs", "build", "pdf.mjs")));
+        Assert.True(File.Exists(Path.Combine(temp.Path, "ui", "pdfjs", "build", "pdf.worker.mjs")));
+        Assert.Contains("/api/source.pdf", html);
+        var assets = Directory.GetFiles(Path.Combine(temp.Path, "ui", "pdfjs"), "*", SearchOption.AllDirectories);
+        Assert.DoesNotContain(assets, x => x.EndsWith(".map", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(assets, x => x.EndsWith("package.json", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(assets, x => x.EndsWith(".node", StringComparison.OrdinalIgnoreCase));
+        Assert.False(Directory.Exists(Path.Combine(temp.Path, "ui", "pdfjs", "legacy")));
+        Assert.False(Directory.Exists(Path.Combine(temp.Path, "ui", "pdfjs", "web")));
+        Assert.True(File.Exists(Path.Combine(temp.Path, "ui", "pdfjs", "LICENSE")));
+        Assert.True(File.Exists(Path.Combine(temp.Path, "ui", "pdfjs", "cmaps", "LICENSE")));
+        Assert.True(File.Exists(Path.Combine(temp.Path, "ui", "pdfjs", "standard_fonts", "LICENSE_FOXIT")));
     }
 
-    private static string Fixture()
+    [Fact]
+    public void PageCoordinates_UseRotatedVisibleCropAndPhysicalUserUnits()
+    {
+        var document = DrawingPdf.Inspect(Fixture("page-coordinates.pdf"));
+        Assert.Equal(4, document.PageCount);
+        Assert.Equal([400d, 200d, 400d, 200d], document.Pages.Select(x => x.WidthPoints));
+        Assert.Equal([200d, 400d, 200d, 400d], document.Pages.Select(x => x.HeightPoints));
+        Assert.Equal([0, 90, 180, 270], document.Pages.Select(x => x.RotationDegrees));
+        Assert.All(document.Pages, p => Assert.Equal(2, p.UserUnit));
+    }
+
+    [ExternalPdfRendererFact]
+    public void ExternalRenderer_RejectsWrongDimensionsAndHonorsRotatedCrop()
+    {
+        using var temp = new TempDirectory();
+        var pdf = Fixture("page-coordinates.pdf");
+        var renderer = new PopplerPdfRasterizer(Environment.GetEnvironmentVariable("AETHERIS_TEST_PDFTOPPM")!);
+        foreach (var page in DrawingPdf.Inspect(pdf).Pages)
+        {
+            var output = Path.Combine(temp.Path, $"p{page.Number}.png");
+            DrawingPdf.RenderPage(pdf, page.Number, output, 72, renderer);
+            DrawingPdf.Crop(pdf, page.Number, new(20, 20, 60, 40), "crop", output, 72, renderer);
+            // The adapter checks actual PNG pixel dimensions, rather than trusting process exit.
+            Assert.True(new FileInfo(output).Length > 24);
+        }
+    }
+
+    [Fact]
+    public void InvalidInputAndBounds_FailBeforeRendererOrOutput()
+    {
+        using var temp = new TempDirectory();
+        var path = Path.Combine(temp.Path, "bad.pdf");
+        File.WriteAllText(path, "not a PDF");
+        Assert.Equal("drawing-pdf-inspection-failed", Assert.Throws<DrawingNotesException>(() => DrawingPdf.Inspect(path)).Code);
+        var output = Path.Combine(temp.Path, "out.png");
+        Assert.Equal("drawing-page-invalid", Assert.Throws<DrawingNotesException>(() => DrawingPdf.RenderPage(Fixture(), 99, output)).Code);
+        Assert.Equal("drawing-render-dpi-invalid", Assert.Throws<DrawingNotesException>(() => DrawingPdf.Crop(Fixture(), 1, new(0, 0, 10, 10), "crop", output, 1)).Code);
+        Assert.Equal("drawing-bounds-outside-page", Assert.Throws<DrawingNotesException>(() => DrawingPdf.Crop(Fixture(), 1, new(790, 0, 10, 10), "crop", output)).Code);
+        Assert.False(File.Exists(output));
+    }
+
+    private static string Fixture(string name = "synthetic-engineering-drawing.pdf")
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Aetheris.slnx"))) directory = directory.Parent;
-        return Path.Combine(directory?.FullName ?? throw new InvalidOperationException("Repository root not found."), "fixtures", "DrawingNotes", "synthetic-engineering-drawing.pdf");
+        return Path.Combine(directory?.FullName ?? throw new InvalidOperationException("Repository root not found."), "fixtures", "DrawingNotes", name);
     }
 
     private sealed class TempDirectory : IDisposable
@@ -129,5 +191,14 @@ public sealed class DrawingNotesTests
         public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"aetheris-drawing-tests-{Guid.NewGuid():N}");
         public TempDirectory() => Directory.CreateDirectory(Path);
         public void Dispose() { if (Directory.Exists(Path)) Directory.Delete(Path, true); }
+    }
+}
+
+public sealed class ExternalPdfRendererFactAttribute : FactAttribute
+{
+    public ExternalPdfRendererFactAttribute()
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AETHERIS_TEST_PDFTOPPM")))
+            Skip = "Optional external renderer: set AETHERIS_TEST_PDFTOPPM to the pdftoppm executable to qualify headless rasterization.";
     }
 }

@@ -9,12 +9,12 @@ internal static class ThreeDmCli
     {
         if (args.Length == 1 && args[0] is "--help" or "-h")
         {
-            stdout.WriteLine("Usage: aetheris recover-3dm <file.3dm> [--recovery-tolerance-mm <positive-mm>] [--body <index> [--edge <index>|--face <index>]] [--bind-step --out-dir <local-directory> [--combined-step]] [--json]");
+            stdout.WriteLine("Usage: aetheris-3dm recover <file.3dm> [--recovery-tolerance-mm <positive-mm>] [--body <index> [--edge <index>|--face <index>]] [--bind-step --out-dir <local-directory> [--combined-step]] [--json]");
             return 0;
         }
         if (args.Length < 1)
         {
-            stderr.WriteLine("Usage: aetheris recover-3dm <file.3dm> [--recovery-tolerance-mm <positive-mm>] [--body <index> [--edge <index>|--face <index>]] [--bind-step --out-dir <local-directory> [--combined-step]] [--json]");
+            stderr.WriteLine("Usage: aetheris-3dm recover <file.3dm> [--recovery-tolerance-mm <positive-mm>] [--body <index> [--edge <index>|--face <index>]] [--bind-step --out-dir <local-directory> [--combined-step]] [--json]");
             return 1;
         }
         var json = false;
@@ -118,12 +118,12 @@ internal static class ThreeDmCli
     {
         if (args.Length == 1 && args[0] is "--help" or "-h")
         {
-            stdout.WriteLine("Usage: aetheris inspect-3dm <file.3dm> [--json]");
+            stdout.WriteLine("Usage: aetheris-3dm inspect <file.3dm> [--json]");
             return 0;
         }
         if (args.Length is < 1 or > 2 || (args.Length == 2 && args[1] != "--json"))
         {
-            stderr.WriteLine("Usage: aetheris inspect-3dm <file.3dm> [--json]");
+            stderr.WriteLine("Usage: aetheris-3dm inspect <file.3dm> [--json]");
             return 1;
         }
         var inventory = ThreeDmInspector.Inspect(args[0]);

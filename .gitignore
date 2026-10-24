@@ -354,6 +354,13 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 
+# PDF.js is restored from Aetheris.Drawing/Web/package-lock.json, not vendored.
+/Aetheris.Drawing/Web/pdfjs/
+/Aetheris.Drawing/Web/pdfjs-dist/
+/Aetheris.Drawing/Web/package/
+/Aetheris.Drawing/Web/*.tgz
+/Aetheris.Drawing/Web/*.zip
+
 # Visual Studio 6 build log
 *.plg
 

@@ -16,7 +16,8 @@
 | Multiple export formats | Yes | Yes | One ZIP download; no partial files on failure; transient drawing/STL scratch files are removed |
 | Sheet metal | Yes | No | Not qualified in the browser |
 | FEA | Yes | No | Deferred |
-| SQLite materials | Yes | No | Native vararg calls are not browser-safe |
+| Built-in materials | Yes | Yes | Shared managed catalog; same identity, properties and provenance |
+| External SQLite catalogs | Optional adapter | No | `Aetheris.Materials.Sqlite`; excluded from compiler and browser dependencies |
 | External STEP file import | Yes | No | Browser filesystem/resource abstraction deferred |
 | Forge process/subprocess operations | Yes | No | Browser host exposes editor operations only |
 | Web Worker | N/A | Yes | Dedicated module Worker; used by Helios for builds and exports |

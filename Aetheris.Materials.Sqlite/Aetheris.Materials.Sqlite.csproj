@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.EntityFrameworkCore.GeneratedInterceptors</InterceptorsNamespaces>
+    <Description>Optional SQLite catalog interoperability for Aetheris. Includes native SQLite.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Aetheris.Kernel.StandardLibrary/Aetheris.Kernel.StandardLibrary.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+    <Content Include="aetheris-materials-x1.sqlite" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Link="Materials/aetheris-materials-x1.sqlite" Pack="true" PackagePath="contentFiles/any/any/Materials/aetheris-materials-x1.sqlite" PackageCopyToOutput="true" />
+    <None Include="build/Aetheris.Materials.Sqlite.targets" Pack="true" PackagePath="buildTransitive/Aetheris.Materials.Sqlite.targets" />
+  </ItemGroup>
+</Project>

@@ -55,14 +55,19 @@ Do not force uncertainty into a known type. Use `Unknown`, `Low`, or `Unresolved
 
 ## Highlight and crop
 
-Render a crisp page or export pixels from the source PDF only:
+The browser UI renders PDF pages, thumbnails and crops with locally bundled PDF.js. It works offline and does not require PDFium, Skia, Poppler or a CDN. Select a note or drag a rectangle, then click **Export crop** to download its PNG and `.crop.json` source metadata (allow multiple downloads if your browser asks).
+
+For headless automation, explicitly select an external Poppler `pdftoppm` executable. Aetheris does not install or bundle it. Omitting the renderer produces `drawing-renderer-required`; inspection, notes and vector drawing generation need no native backend:
 
 ```powershell
-aetheris drawing render drawing.pdf --page 1 --out page-1.png --dpi 240
+$renderer = "C:/tools/poppler/bin/pdftoppm.exe" # or /usr/bin/pdftoppm
+aetheris drawing render drawing.pdf --page 1 --out page-1.png --dpi 240 --renderer $renderer
 aetheris drawing crop drawing.pdf --page 1 `
   --bounds "465,60,180,200" --name DetailD `
-  --out notes/crops/p01-detail-d.png --dpi 300
+  --out notes/crops/p01-detail-d.png --dpi 300 --renderer $renderer
 ```
+
+Crop coordinates are relative to the top-left of the **rotated, visible CropBox**, in physical PDF points (1/72 inch, including UserUnit). Raster boundaries round outward to whole pixels at the selected DPI; the sidecar keeps the requested page-space bounds. The browser checks the source hash and page dimensions before enabling annotation. Older notebooks retain their renderer provenance; incompatible coordinates require explicit reconciliation.
 
 Every crop receives a `.crop.json` sidecar containing its page, source bounds, document hash, renderer, and DPI. The PNG is a rendering of the real source area, not an OCR redraw.
 

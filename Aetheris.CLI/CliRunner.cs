@@ -190,6 +190,12 @@ public static class CliRunner
     public static int Run(string[] args, TextWriter stdout, TextWriter stderr)
         => Run(args, stdout, stderr, new SystemCadmataProcessLauncher(), AppContext.BaseDirectory);
 
+    private static int MissingThreeDmTool(TextWriter stderr)
+    {
+        stderr.WriteLine("aetheris-3dm-required: 3DM interoperability is an optional tool. Install with 'dotnet tool install --global Aetheris.ThreeDm.CLI --prerelease', then use 'aetheris-3dm inspect' or 'aetheris-3dm recover'.");
+        return 1;
+    }
+
     internal static int Run(string[] args, TextWriter stdout, TextWriter stderr, ICadmataProcessLauncher cadmataLauncher, string cliBaseDirectory)
     {
         if (args.Length == 0)
@@ -224,8 +230,8 @@ public static class CliRunner
                 "lock" => DependencyLockCommand.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 "inspect" => RunInspect(args.Skip(1).ToArray(), stdout, stderr),
                 "measure" => FirmamentMeasureCommand.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
-                "inspect-3dm" => ThreeDmCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
-                "recover-3dm" => ThreeDmCli.Recover(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
+                "inspect-3dm" => MissingThreeDmTool(stderr),
+                "recover-3dm" => MissingThreeDmTool(stderr),
                 "inspect-profile" => RunInspectProfile(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-spans" => RunInspectSpans(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-compose" => RunInspectCompose(args.Skip(1).ToArray(), stdout, stderr),
@@ -5346,8 +5352,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  lock          Generate or explicitly update firmament.lock.toml dependency receipts.");
         stdout.WriteLine("  inspect    Inspect Firmament semantics or STEP topology.");
         stdout.WriteLine("  measure    Measure a compiled part and print assertion templates without claiming its assertions passed.");
-        stdout.WriteLine("  inspect-3dm Inventory local Rhino 3DM geometry and import blockers.");
-        stdout.WriteLine("  recover-3dm Measure Rhino recovery candidates or bind qualified BReps to STEP.");
+        stdout.WriteLine("  3DM interop   Optional aetheris-3dm tool: inspect/recover Rhino geometry and bind qualified BReps to STEP.");
         stdout.WriteLine("  analyze    Analyze STEP topology and analytic surfaces.");
         stdout.WriteLine("  fea        Compile and solve a Firmament linear-elastic analysis and export Abaqus verification input.");
         stdout.WriteLine("  drawing    Compile production drawings or inspect/highlight PDFs with source-linked Drawing Notes.");

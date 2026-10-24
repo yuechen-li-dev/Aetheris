@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="Aetheris.Materials.Sqlite/Aetheris.Materials.Sqlite.csproj" />
+  <Project Path="Aetheris.ThreeDm.CLI/Aetheris.ThreeDm.CLI.csproj" />
   <Project Path="Aetheris.Cloth3D/Aetheris.Cloth3D.csproj" />
   <Project Path="test-support/Aetheris.StepLegacyCorpus/Aetheris.StepLegacyCorpus.csproj" />
   <Project Path="Aetheris.Cadmata.Desktop/Aetheris.Cadmata.Desktop.csproj" />

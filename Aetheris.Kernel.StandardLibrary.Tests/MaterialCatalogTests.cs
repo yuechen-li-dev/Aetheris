@@ -1,6 +1,6 @@
 using Aetheris.Kernel.StandardLibrary.Materials;
 using Aetheris.Kernel.StandardLibrary.Materials.Database;
-using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Aetheris.Kernel.StandardLibrary.Tests;
 
@@ -32,7 +32,7 @@ public sealed class MaterialCatalogTests
             MaterialCatalogDatabase.Recreate(path);
             MaterialCatalogDatabase.Recreate(secondPath);
             Assert.Equal(File.ReadAllBytes(path), File.ReadAllBytes(secondPath));
-            using var catalog = new MaterialCatalog(path);
+            using var catalog = SqliteMaterialCatalog.Open(path);
             Assert.Equal(MaterialCatalog.ExpectedSeedMaterialCount, catalog.Materials.Count());
             Assert.NotNull(catalog.GetById("standard", "aluminum/5052-h32"));
         }
@@ -40,6 +40,19 @@ public sealed class MaterialCatalogTests
         {
             if (File.Exists(path)) File.Delete(path);
             if (File.Exists(secondPath)) File.Delete(secondPath);
+        }
+    }
+
+    [Fact]
+    public void ManagedDefault_PreservesEverySqliteValueIdentityAndProvenance()
+    {
+        using var managed = MaterialCatalog.OpenDefault();
+        using var legacy = SqliteMaterialCatalog.Open(MaterialCatalogDatabase.DefaultDatabasePath);
+        foreach (var item in legacy.Materials)
+        {
+            var expected = legacy.GetById(item.CatalogId, item.StableId);
+            var actual = managed.GetById(item.CatalogId, item.StableId);
+            Assert.Equal(JsonSerializer.Serialize(expected), JsonSerializer.Serialize(actual));
         }
     }
 

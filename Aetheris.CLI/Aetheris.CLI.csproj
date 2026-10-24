@@ -23,8 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Kernel.Firmament\Aetheris.Kernel.Firmament.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.Core\Aetheris.Kernel.Core.csproj" />
-    <ProjectReference Include="..\Aetheris.ThreeDm\Aetheris.ThreeDm.csproj" />
-    <ProjectReference Include="..\Aetheris.Firmament.FrictionLab\Aetheris.Firmament.FrictionLab.csproj" />
+    <ProjectReference Include="..\Aetheris.Firmament.FrictionLab\Aetheris.Firmament.FrictionLab.csproj" GlobalPropertiesToRemove="SelfContained" />
     <ProjectReference Include="..\Aetheris.FEA\Aetheris.FEA.csproj" />
     <ProjectReference Include="..\Aetheris.Modules.BuiltIn\Aetheris.Modules.BuiltIn.csproj" />
     <ProjectReference Include="..\Aetheris.Reconstruction\Aetheris.Reconstruction.csproj" />
@@ -38,12 +37,12 @@
   <ItemGroup>
     <None Include="..\docs\release\Aetheris.CLI.README.md" Pack="true" PackagePath="\" Link="Aetheris.CLI.README.md" />
   </ItemGroup>
-  <!-- Native packages such as SkiaSharp ship ~90 MB debug symbols per Windows RID. They are
-       not needed at run time and push the tool package past nuget.org's 250 MB limit. -->
-  <Target Name="ExcludeNativeDebugSymbols" AfterTargets="ResolvePackageAssets">
+  <!-- Fail at the dependency owner, before packing or RID publishing. -->
+  <Target Name="RejectThirdPartyNativeAssets" AfterTargets="ResolvePackageAssets">
     <ItemGroup>
-      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)" Condition="'%(Extension)' == '.pdb'" />
-      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)" Condition="'%(Extension)' == '.pdb'" />
+      <_ThirdPartyNative Include="@(NativeCopyLocalItems)" Condition="!$([System.String]::Copy('%(NuGetPackageId)').StartsWith('Microsoft.NETCore.App.Runtime.'))" />
+      <_ThirdPartyNative Include="@(RuntimeTargetsCopyLocalItems)" Condition="'%(AssetType)' == 'native' and !$([System.String]::Copy('%(NuGetPackageId)').StartsWith('Microsoft.NETCore.App.Runtime.'))" />
     </ItemGroup>
+    <Error Condition="'@(_ThirdPartyNative)' != ''" Text="The default Aetheris CLI must not bundle third-party native assets: @(_ThirdPartyNative). Move native interoperability to an optional tool." />
   </Target>
 </Project>

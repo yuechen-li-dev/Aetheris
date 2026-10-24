@@ -31,7 +31,7 @@ public sealed record DrawingBounds(double X, double Y, double Width, double Heig
     public override string ToString() => string.Create(CultureInfo.InvariantCulture, $"[{X:0.##},{Y:0.##},{Width:0.##},{Height:0.##}]");
 }
 
-public sealed record DrawingPage(int Number, double WidthPoints, double HeightPoints);
+public sealed record DrawingPage(int Number, double WidthPoints, double HeightPoints, int RotationDegrees = 0, double UserUnit = 1);
 
 public sealed record DrawingSourceDocument(
     string FileName,
@@ -42,8 +42,10 @@ public sealed record DrawingSourceDocument(
     string? VisibleDate = null,
     string? VisibleRevision = null,
     IReadOnlyList<string>? SheetIdentifiers = null,
-    string Renderer = "PDFium",
-    string RendererVersion = "PDFtoImage-5.4.0");
+    string Renderer = "PDF.js",
+    string RendererVersion = DrawingPdf.RendererVersion,
+    string? Inspector = null,
+    string? InspectorVersion = null);
 
 public sealed record DrawingRegion(
     string Id,

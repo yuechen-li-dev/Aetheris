@@ -119,7 +119,8 @@ finally { Pop-Location }
 # from a clean configuration so identical inputs produce identical archives.
 dotnet clean (Join-Path $repoRoot 'Aetheris.slnx') -c Release
 
-dotnet publish (Join-Path $repoRoot 'Aetheris.CLI/Aetheris.CLI.csproj') -c Release -r win-x64 --self-contained true -t:Rebuild -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64')
+dotnet publish (Join-Path $repoRoot 'Aetheris.CLI/Aetheris.CLI.csproj') -c Release -r win-x64 --self-contained true -m:1 -nr:false -p:UseSharedCompilation=false -t:Rebuild -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64')
+& (Join-Path $PSScriptRoot 'Test-CoreCliPayload.ps1') -AssetsPath (Join-Path $repoRoot 'Aetheris.CLI/obj/project.assets.json') -PublishDirectory (Join-Path $stage 'Aetheris-win-x64')
 dotnet publish (Join-Path $repoRoot 'Aetheris.Forge.Host/Aetheris.Forge.Host.csproj') -c Release -r win-x64 --self-contained true -t:Rebuild -p:PublishAot=true -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64/forge-host')
 Normalize-PeTimestamps (Join-Path $stage 'Aetheris-win-x64/forge-host/Aetheris.Forge.Host.exe')
 dotnet publish (Join-Path $repoRoot 'Aetheris.Server/Aetheris.Server.csproj') -c Release -r win-x64 --self-contained true -t:Rebuild -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64/cadmata')
@@ -174,8 +175,9 @@ foreach ($relativeExample in $publicExamples) {
 }
 # Build the framework-dependent tool payload explicitly. Reusing the preceding
 # RID-specific publish output can package stale non-RID bytes with a new filename.
-dotnet pack (Join-Path $repoRoot 'Aetheris.CLI/Aetheris.CLI.csproj') -c Release -t:Rebuild -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $output 'packages')
+dotnet pack (Join-Path $repoRoot 'Aetheris.CLI/Aetheris.CLI.csproj') -c Release -m:1 -nr:false -p:UseSharedCompilation=false -t:Rebuild -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $output 'packages')
 Get-ChildItem -LiteralPath (Join-Path $output 'packages') -Filter '*.nupkg' -File | ForEach-Object { Normalize-ZipArchive $_.FullName -NuGetPackage }
+Get-ChildItem -LiteralPath (Join-Path $output 'packages') -Filter 'Aetheris.CLI.*.nupkg' -File | ForEach-Object { & (Join-Path $PSScriptRoot 'Test-CoreCliPayload.ps1') -AssetsPath (Join-Path $repoRoot 'Aetheris.CLI/obj/project.assets.json') -PackagePath $_.FullName }
 Get-ChildItem -LiteralPath $stage -Recurse -Filter '*.pdb' -File | Remove-Item -Force
 
 $extensionRoot = Join-Path $repoRoot 'tools/vscode-firmament'

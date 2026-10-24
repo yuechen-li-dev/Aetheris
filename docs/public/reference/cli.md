@@ -2,14 +2,16 @@
 
 Primary public commands:
 
+Commands use `aetheris` unless a separate executable is shown. The optional `aetheris-3dm` tool includes native Rhino3dm; [installation and source usage](3dm-recovery.md).
+
 | Command | Purpose |
 |---|---|
 | `validate <file> [--json]` | Check admission; generic mechanical validation includes in-memory geometry preflight |
 | `frontend-shadow <file> [--json] [--ast] [--validate] [--benchmark]` | Developer-only original-source structural evidence and bounded production comparison |
 | `build <file> [--output path] [--json]` | Materialize and export exact STEP AP242 |
 | `inspect <firmament-or-step> [--json]` | Inspect source semantics or route STEP to analysis |
-| `inspect-3dm <file.3dm> [--json]` | Inventory Rhino/OpenNURBS metadata, units, BRep topology, and unsupported objects |
-| `recover-3dm <file.3dm> [--body N [--edge N\|--face N]] [--json]` | Measure provisional analytic/non-rational recovery candidates; see [3DM recovery evidence](3dm-recovery.md) |
+| `aetheris-3dm inspect <file.3dm> [--json]` | Inventory Rhino/OpenNURBS metadata, units, BRep topology, and unsupported objects |
+| `aetheris-3dm recover <file.3dm> [--body N [--edge N\|--face N]] [--json]` | Measure provisional analytic/non-rational recovery candidates; see [3DM recovery evidence](3dm-recovery.md) |
 | `analyze <step> [--json]` | Reinspect topology, surfaces, bounds, manifold state, and PMI |
 | `analyze section <step> ((--xy\|--xz\|--yz) --offset value\|--origin x,y,z --normal x,y,z) [--out section.svg] [--json]` | Extract trim-aware analytic section loops in a principal or arbitrary plane and optionally render deterministic SVG evidence |
 | `analyze compound <step> [--json]` | Inspect every disconnected rigid root without silently selecting or merging one |

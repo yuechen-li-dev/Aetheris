@@ -11,6 +11,26 @@ namespace Aetheris.Server.Tests;
 
 public sealed class CadmataStartupTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task NoBrowser_DoesNotConsumeExplicitHostUrl(bool flagFirst)
+    {
+        string[] args = flagFirst
+            ? ["--no-browser", "--urls", "http://127.0.0.1:0"]
+            : ["--urls", "http://127.0.0.1:0", "--no-browser"];
+        await using var app = CadmataApplication.Create(args, CadmataLaunchOptions.Parse(args));
+        Assert.Equal("http://127.0.0.1:0", app.Configuration["urls"]);
+        await app.StartAsync();
+        try
+        {
+            var address = Assert.Single(app.Urls);
+            Assert.StartsWith("http://127.0.0.1:", address);
+            Assert.DoesNotContain(":0", address);
+        }
+        finally { await app.StopAsync(); }
+    }
+
     [Fact]
     public async Task PortableHost_BindsLoopbackEphemeralPortAndRequiresSessionCookie()
     {

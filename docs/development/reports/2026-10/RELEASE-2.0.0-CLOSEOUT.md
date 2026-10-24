@@ -170,7 +170,7 @@ its STEP. This prevents a repository-local build from masquerading as package
 qualification. The desktop smoke is configured to invoke the actual NativeAOT
 host, but that hosted gate has not run because the frontend producer is blocked.
 
-## Remaining release blocker: Cadmata's TSPack graph
+## Cadmata's TSPack graph repair
 
 The Windows rehearsal reached packaging after its complete .NET suite passed.
 It stopped at `tspack sync` with `TSPACK_IR_INVALID_SOURCE`: the pinned 0.1.8
@@ -199,18 +199,52 @@ Raw evidence: `tspack-sync-new.log`, `cadmata-typecheck.log`,
 `hosted-windows.log` under the evidence root. The incomplete UI checks were not
 removed or replaced by a hand-edited lockfile, npm overlay or placeholder module.
 
-The next step requires a release-boundary decision: authorize a bounded TSPack
-owner repair (including truthful local dependency refresh), or deliberately
-separate the kernel/CLI/library release from the Cadmata bundle. Repository
-locality currently authorizes Aetheris/Copeland edits, not a TSPack repository
-repair. A scope question is pending; this report does not treat silence as
-approval.
+The user authorized repairing TSPack and retaining the full bundle. The owner
+repair is [TSPack PR 208](https://github.com/yuechen-li-dev/tspack/pull/208),
+source `e92af3f529e84d97fd0a26a52ec244bf0478bfee`. npm's mixed OR peer range
+now keeps its valid SemVer alternatives in both version selection and
+requirement classification. All-invalid ranges still reject, prerelease
+exclusion remains, JSR stays strict, and authored range evidence survives.
+Explicit tools now enter the existing requirement tape instead of bypassing
+it; TypeScript ~5.9.3 controls its environment ahead of transitive peers.
+There is no new resolver or dependency override layer.
+
+All 43 Go test packages pass. Vet passes for the modified owners; broad vet
+separately reports four pre-existing lock-copy diagnostics in materialize tests.
+The manifest frontend and embedded executable build successfully. Aetheris's
+workflow builds that exact source commit, identified with build metadata rather
+than pretending this is a newly published TSPack release.
+
+The lockfile was regenerated through normal `tspack update`, then hydrated with
+`sync`. Targeted path update remains unsupported; it was not necessary to add
+another update mode. The full refresh adds 177 and removes 173 registry/local
+realizations, updates one existing package's metadata, and records requirement
+and module-instance evidence. This includes dependency updates within the
+authored ranges, not just Telos; no lock records were hand-edited. Cadmata's
+typecheck, 96 tests, production build and lint all pass through the embedded
+candidate. New lint checks exposed ref access during render in the measurement
+wrapper; the rendered tool is now state and latest props update in an effect.
+
+Raw continuation evidence: `cadmata-lock-plan-tools-fixed.json`,
+`cadmata-lock-update.json`, `cadmata-sync-fixed.log` and
+`cadmata-*-qualified.log`. The complete hosted bundle rehearsal is next.
+Its extracted-byte smoke now starts Cadmata on a temporary loopback port,
+checks production asset responses and imports the emitted STEP through its
+actual document API, then terminates its owned process. This qualifies host
+wiring; it does not claim browser interaction or GPU rendering from HTTP alone.
+
+The first real-process rehearsal exposed `--no-browser` consuming the following
+`--urls` option inside .NET's configuration parser. Cadmata now removes its own
+valueless switch before passing arguments to that parser. Both switch orders
+bind the requested ephemeral loopback port in regression tests (eight startup
+tests pass). The rebuilt-host smoke serves three production assets and imports
+the STEP witness. Final qualification still uses the actual extracted ZIP.
 
 ## Executive verdict
 
 **Meaningful progression.** The managed compiler family is publicly released;
 the Aetheris public graph restores; known frontend honesty findings are closed;
 full kernel tests and geometry parity pass. A full Aetheris 2.0.0 distribution is
-not yet qualified: Cadmata's missing TSPack dependency cannot currently be
-refreshed through its package-manager owner. Keep the stable publication gate
-closed until that bounded blocker or the explicit release boundary is resolved.
+not yet qualified: the TSPack blocker and local frontend checks are closed,
+but final hosted Windows packaging and extracted-bundle smoke remain gates.
+Keep stable publication closed until those exact staged bytes pass.

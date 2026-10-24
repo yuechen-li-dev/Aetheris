@@ -1,0 +1,65 @@
+name: Diagnose an existing Cadmata release artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Producer run containing the aetheris-release artifact
+        type: number
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  desktop:
+    runs-on: windows-latest
+    steps:
+      - name: Resolve the artifact's test source
+        id: source
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCER_RUN: ${{ inputs.run_id }}
+        run: |
+          $source = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:PRODUCER_RUN" --jq .head_sha
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve producer source' }
+          "revision=$source" >> $env:GITHUB_OUTPUT
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.revision }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: aetheris-release
+          path: release
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Exercise that source's actual desktop qualifier
+        shell: pwsh
+        env:
+          CADMATA_QUALIFICATION_LAUNCH_ONLY: '1'
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $zip = Get-ChildItem release/Aetheris-*-win-x64.zip | Select-Object -First 1
+          Expand-Archive $zip.FullName extracted
+          npm ci --prefix test-support/CadmataDesktopSmoke --ignore-scripts
+          node scripts/qualify-cadmata-portable.mts extracted/Aetheris-win-x64 artifacts/local/desktop-diagnostic test-support/CadmataDesktopSmoke/node_modules/playwright-core/index.mjs testdata/firmament/inline-step/canonical-through-hole.step
+      - name: Preserve native startup diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/local/desktop-diagnostic | Out-Null
+          Get-ChildItem "$env:LOCALAPPDATA/Aetheris/Cadmata/logs/*.log" -ErrorAction SilentlyContinue | ForEach-Object {
+            $text = [IO.File]::ReadAllText($_.FullName) -replace '/__cadmata/session/[A-Fa-f0-9]+', '/__cadmata/session/[redacted]'
+            $text | Set-Content "artifacts/local/desktop-diagnostic/$($_.Name)"
+            Write-Output $text
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cadmata-desktop-diagnostic-${{ inputs.run_id }}
+          path: artifacts/local/desktop-diagnostic

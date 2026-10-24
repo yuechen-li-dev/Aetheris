@@ -11,12 +11,17 @@ on:
         description: Publish the qualified release candidate
         type: boolean
         default: false
+      diagnostic_run_id:
+        description: Diagnose an existing release artifact without rebuilding it (0 runs full qualification)
+        type: number
+        default: 0
 
 env:
   MSBUILDDISABLENODEREUSE: '1'
 
 jobs:
   build-test:
+    if: ${{ !inputs.diagnostic_run_id }}
     runs-on: ubuntu-latest
 
     steps:
@@ -81,7 +86,7 @@ jobs:
   release-build:
     outputs:
       version: ${{ steps.version.outputs.version }}
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    if: ${{ !inputs.diagnostic_run_id && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') }}
     runs-on: windows-latest
     permissions:
       contents: read
@@ -243,7 +248,7 @@ jobs:
           ./scripts/Test-PublicPackageConsumer.ps1 -PackageDirectory release/packages/public-libraries -Version $env:AETHERIS_RELEASE_VERSION -OutputDirectory artifacts/local/release-public-consumer
 
   publish:
-    if: startsWith(github.ref, 'refs/tags/v') || inputs.publish == true
+    if: ${{ !inputs.diagnostic_run_id && (startsWith(github.ref, 'refs/tags/v') || inputs.publish == true) }}
     needs: [build-test, release-build, release-smoke]
     runs-on: ubuntu-latest
     environment: production
@@ -279,3 +284,12 @@ jobs:
           gh release create "v${RELEASE_VERSION}" --target "$GITHUB_SHA" --repo "${GITHUB_REPOSITORY}" --title "Aetheris ${RELEASE_VERSION}" --latest --notes-file docs/release/${{ needs.release-build.outputs.version }}-notes.md release/Aetheris-*.zip release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/RELEASE-INVENTORY.md release/packages/*.nupkg release/packages/public-libraries/*.nupkg || \
           gh release upload "v${RELEASE_VERSION}" --repo "${GITHUB_REPOSITORY}" --clobber release/Aetheris-*.zip release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/RELEASE-INVENTORY.md release/packages/*.nupkg release/packages/public-libraries/*.nupkg
           gh release edit "v${RELEASE_VERSION}" --repo "${GITHUB_REPOSITORY}" --latest --prerelease=false --notes-file docs/release/${{ needs.release-build.outputs.version }}-notes.md
+
+  desktop-diagnostic:
+    if: ${{ inputs.diagnostic_run_id }}
+    permissions:
+      actions: read
+      contents: read
+    uses: ./.github/workflows/cadmata-desktop-diagnostic.yml
+    with:
+      run_id: ${{ inputs.diagnostic_run_id }}

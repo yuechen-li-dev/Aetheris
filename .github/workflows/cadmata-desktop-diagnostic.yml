@@ -1,6 +1,11 @@
 name: Diagnose an existing Cadmata release artifact
 
 on:
+  workflow_call:
+    inputs:
+      run_id:
+        type: number
+        required: true
   workflow_dispatch:
     inputs:
       run_id:

@@ -380,6 +380,54 @@ The packager reuses it; hosted qualification also runs it before the expensive
 .NET lane so a missing frontend dependency fails promptly. Full hosted bundle
 qualification is being rerun with the final owner repair pinned above.
 
+### Explicit runtime providers and isolated rehearsal
+
+Candidate `69a2204d5f2d2f43f7027b7b0eb9fa6018a83c84` passes complete Linux
+regression and hosted frontend typecheck/all 96 tests. Its early production build
+refuses `tunnel-rat` importing undeclared `react`. The upstream 0.1.2 package
+declares React only as a development dependency. The Node hook did not intercept
+Rollup's independent filesystem resolver, so a nested local build could still
+find a parent provider. This supersedes that rehearsal's claim of complete
+dependency isolation; its actual kernel and extracted artifact results remain
+recorded with their source identities.
+
+TSPack source `01051b791cf83757a1c419ef7bc276d9de787a9d` retains each consumer's
+runtime roots and also projects unambiguous, explicitly declared runtime roots
+at the existing workspace compatibility directory. Shared instance real paths
+can use ordinary Node ancestor lookup for application-supplied providers. It
+does not fabricate dependency edges, promote transitive-only packages or select
+a winner across conflicting consumer instances. Tools stay package-owned.
+The planner and writer share the placement rule. Tests prove explicit aliases,
+tool exclusion, transitive exclusion, and two distinct consumer versions with
+no shared winner. All 43 Go packages and broad vet pass again.
+
+A separate temporary workspace outside the checkout's dependency ancestry
+contains only archived source and a copied content-addressed artifact cache.
+It has no ancestor `node_modules` and runs with `NODE_PATH` cleared. The previous
+tool reproduces the React build failure there. The repaired tool runs the real
+frontend producer: check, typecheck, 96 tests, production build and lint all pass.
+All twelve frontend payload files agree after explicit LF/cache-URL and HTML
+line-whitespace normalization; raw hashes and differences are retained too.
+This is not presented as byte-identical frontend output across checkout EOLs.
+Evidence: `isolated-before-build.log`, `isolated-after-producer.log`,
+`isolated-frontend-payload-differences.json`,
+`isolated-frontend-normalized-parity.json`, and TSPack's
+`go-runtime-providers-final.log`/`go-runtime-providers-vet-final.log`.
+
+The complete local candidate at 69a2204d stages all 28 checksum-verified assets
+and passes extracted CLI/Cadmata/15 native-template/26-export/drawing tests,
+fresh installed-tool and empty-cache library consumers. Its ZIP is 133,022,726
+bytes, SHA256 `c0edd65aac4e1268d0c2ce3f8a4abbacac9ae476ba5137fcbb0c5c1fe88e5ee7`;
+the CLI package is 18,002,227 bytes. Receipts: `closed-distribution-receipts.json`
+and `full-bundle-closed-v2/`. The old local generated client junction was removed
+without deleting its target, then dependencies were regenerated normally.
+No local .NET/Cadmata host remains. The isolated temporary source copy has a
+dry-run cleanup script in the evidence directory; no outside user files were deleted.
+
+Independent Windows and Linux qualification jobs now run concurrently. Publication
+requires both complete test jobs and both staged-byte consumer jobs. The final
+hosted run is pending; no stable Aetheris publication is claimed.
+
 ## Executive verdict
 
 **Meaningful progression.** The managed compiler family is publicly released;

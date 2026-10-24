@@ -81,11 +81,13 @@ import runs, and tests under `Step242Importer.PreserveRationalSurfaces()`, becau
 what the import produces.
 
 Cadmata and the VS Code extension use TSPack and their checked-in lock files:
-The release workflow pins TSPack source `da68769bd03ab79172302e207eab2d1e43d31d54`
-(npm peer alternatives, scoped tools and local package runtime closure). Build the local Telos
+The release workflow pins TSPack source `01051b791cf83757a1c419ef7bc276d9de787a9d`
+(npm peers, scoped tools, local dependencies and explicit runtime providers). Build the local Telos
 producer before syncing Cadmata; its exported `dist` files are ignored.
 `./scripts/Build-CadmataFrontend.ps1` runs the complete frontend producer and
 qualification below. CI runs it before the long .NET lane and again when staging.
+Use separate generated dependency directories for each package; remove obsolete
+client-to-workspace `node_modules` junctions before regenerating with `sync --force`.
 
 ```powershell
 Push-Location Aetheris.Web.Runtime/telos

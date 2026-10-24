@@ -81,7 +81,7 @@ const boundaries = {
 export default definePackage(
 		<Package
 			name="aetheris.client"
-			version="2.0.0-preview.3"
+			version="2.0.0"
 			kind="app"
 			license="AGPL-3.0-only"
 			dependencies={{

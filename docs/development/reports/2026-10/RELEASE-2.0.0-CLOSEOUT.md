@@ -11,7 +11,7 @@ findings rather than replacing them with an assumed green status.
 | B1: incomplete public dependency graph | Confirmed: the fixed sixteen-package list omitted Fields, Cloth3D, Humanoid and PlasticShell. | Public products now derive their ProjectReference closure. A manifest gate checks identities, aligned versions, missing dependencies and publication order. The local rehearsal packed 25 packages; an empty-cache consumer restored and produced reimportable STEP. |
 | B2: native CLI footprint | Already fixed before this pass. | Retain the native-asset build/pack guards. Drawing Notes use PDF.js; SQLite and 3DM are optional adapters. Do not reintroduce PDFium/Skia to support raster previews. |
 | B3: unpublished/prerelease shader graph | Confirmed. | Publish all seven managed Copeland compiler dependencies at 0.1.0 and pin Firmament to that public version. Remove automatic private-feed injection and CI sibling checkout. |
-| B4: preview-only release lane | Confirmed. | Product/SDK version is 2.0.0; release tooling derives the version from props, validates a tag against it, tests exact staged package bytes on Windows/Linux, and only publishes on a tag or explicit publish input. Manual rehearsal defaults to no publication. |
+| B4: preview-only release lane | Confirmed; full bundle remains blocked. | Product/SDK/Cadmata metadata is 2.0.0. The lane derives its version, checks tags and gates publication on exact staged-byte smoke tests. Windows full regression now passes, but a clean Cadmata producer exposes the TSPack lock/resolution blocker below. No stable release is claimed. |
 | S1: ignored intent | Confirmed: Extrude, assembly root/Semantic, WireForm, SectionChain Point2/Line2/Path/Loop and wrong coordinate units. | Consumption checks belong to their actual readers, using shared AST fields and existing spatial metadata. Also close occurrence fields, standalone port publications, Span fields, Modify fields, prism offsets, semantic Require and projected PMI before their erasure. |
 | S2: validate/build route split | Confirmed with lowercase native model: rejected validation, successful build and wrong summary owner. | One command-level domain selector; case-only native root normalization; existing lowerers retain execution authority. Legacy solid grammar remains separate. |
 | S3: diagnostics | Reproduced missing-file raw errors, wrong units and vague scale failures. | Missing-file failures now use the structured frontend diagnostic shape. Extrude dimensions identify required lengths; precision-incompatible primitive dimensions reject at the field owner. Wire field errors include readable explanations. Capability errors remain distinct from syntax failures. |
@@ -116,7 +116,7 @@ with the new stable name retained. Five regression cases select that previously
 unused Plate recipe and confirm each inserted field rejects validate and build.
 These are explicit classifications, not a blanket exemption for Template bodies.
 
-The final public-byte build passed 6,003 tests across twenty suites, with zero
+The final public-byte build passed 6,007 tests across twenty suites, with zero
 failures and zero skips; the optional external PDF renderer was enabled. The
 fast kernel lane passed 1,088 tests. Sixty focused CLI/edge-finish cases also
 pass. Final hosted release qualification remains a gate. All completed
@@ -131,8 +131,18 @@ The real product-path rehearsal also generated a production PDF/SVG/PPTX drawing
 a warehouse GLB and cantilever analysis artifacts. Raw evidence is retained
 alongside the corresponding source and command results.
 
-Qualification is in progress. No Aetheris stable tag has been published by this
-pass while the final gates remain open.
+Kernel source qualification is complete at `c86282e5a15863203633d62b8960d111632e455c`.
+No Aetheris stable tag or package was published by this pass. Full distribution
+qualification remains blocked as described below.
+
+| Lane | Result | Boundary |
+|---|---|---|
+| Local complete solution | 6,007 passed; zero failed/skipped | Includes optional PDF renderer and locally available 3DM witnesses. |
+| Linux CI, final kernel source | 5,999 passed; seven skipped | Seven local 3DM fixtures unavailable on the runner; those pass locally. [Run](https://github.com/yuechen-li-dev/Aetheris/actions/runs/40074676010). |
+| Windows CI, preceding kernel candidate | 5,993 passed; nine skipped | Before the final WireForm closure. Seven local 3DM fixtures and two optional external-renderer tests unavailable; all pass locally. The CRLF and timeout failures are closed. [Run](https://github.com/yuechen-li-dev/Aetheris/actions/runs/40072419493). |
+| Canonical source replay | 380 matched outcomes; 297 byte-identical STEP builds | Final kernel source, compared with the original baseline. |
+| Public graph and standalone consumer | 25 packages; empty-cache restore/build/API invocation passed | Repository MSBuild imports disabled; Forge output reimports as AP242. |
+| Installed managed tool | Version 2.0.0; validate/build/verify passed | Fresh tool installation; 17,993,291-byte nupkg; no third-party native assets. Its through-hole STEP matches the baseline SHA256. |
 
 The first Windows release rehearsal exposed CRLF assertion offsets being used
 against original source after LF normalization, and a stable-key test mutation
@@ -157,4 +167,50 @@ is rejected; the real 25-package graph passes. The consumer smoke disables
 repository Directory.Build props/targets, uses only staged packages plus
 nuget.org and an empty cache, then invokes the public Forge API and reimports
 its STEP. This prevents a repository-local build from masquerading as package
-qualification. The desktop smoke also invokes the actual NativeAOT host.
+qualification. The desktop smoke is configured to invoke the actual NativeAOT
+host, but that hosted gate has not run because the frontend producer is blocked.
+
+## Remaining release blocker: Cadmata's TSPack graph
+
+The Windows rehearsal reached packaging after its complete .NET suite passed.
+It stopped at `tspack sync` with `TSPACK_IR_INVALID_SOURCE`: the pinned 0.1.8
+rejects the legitimate sibling `../Aetheris.Web.Runtime/telos` path. The build
+prerequisite is now pinned to released 0.1.14-m80i.2, source
+`c830bd678f3e74700f89851af4f394d5a4054012`, which accepts that bounded path.
+Its Windows release archive was checked against SHA256
+`2b242166f3a112e0cd254ef984844b3eb889124d7c0344462bb7a295e33a395b`.
+
+Telos's ignored `dist` exports must also be built before hydration on a clean
+clone. Its existing npm lock/build producer now runs explicitly with install
+lifecycle scripts disabled. This does not introduce an npm lockfile for Cadmata.
+
+That removes the old source-path stop and exposes the next, genuine problem:
+the committed `ts-lock.toml` contains no Telos entry. Sync does not add the
+missing dependency; Cadmata typechecking accurately refuses the missing module.
+`tspack update @aetheris/three-telos` refuses because targeted update supports
+npm sources only. A full update fails with `TSPACK_RESOLVE_NPM_INVALID_RANGE`
+on `tailwindcss`'s `>=3.0.0 || insiders` peer range. npm's own semver control
+accepts its `>=3.0.0` branch in loose mode and satisfies 3.4.17. The dry-run also
+reports TypeScript 7.0.2 peer selections despite the declared ~5.9.3 tool; no
+resulting lockfile or dependency upgrade was applied.
+
+Raw evidence: `tspack-sync-new.log`, `cadmata-typecheck.log`,
+`telos-lock-plan.json`, `cadmata-lock-plan.json`, `npm-semver-control.json` and
+`hosted-windows.log` under the evidence root. The incomplete UI checks were not
+removed or replaced by a hand-edited lockfile, npm overlay or placeholder module.
+
+The next step requires a release-boundary decision: authorize a bounded TSPack
+owner repair (including truthful local dependency refresh), or deliberately
+separate the kernel/CLI/library release from the Cadmata bundle. Repository
+locality currently authorizes Aetheris/Copeland edits, not a TSPack repository
+repair. A scope question is pending; this report does not treat silence as
+approval.
+
+## Executive verdict
+
+**Meaningful progression.** The managed compiler family is publicly released;
+the Aetheris public graph restores; known frontend honesty findings are closed;
+full kernel tests and geometry parity pass. A full Aetheris 2.0.0 distribution is
+not yet qualified: Cadmata's missing TSPack dependency cannot currently be
+refreshed through its package-manager owner. Keep the stable publication gate
+closed until that bounded blocker or the explicit release boundary is resolved.

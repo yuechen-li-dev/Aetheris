@@ -181,7 +181,9 @@ public static class WireFormAuthoring
         var frameFields = wireFields;
         if (startFrames.Length == 1)
         {
-            var frame = startFrames[0].Body!.ContentSpan;
+            if (startFrames[0].Body is not { } frameBody)
+                return Fail("wireform-start-frame-invalid", "StartFrame requires a body containing Origin, Tangent and Up.");
+            var frame = frameBody.ContentSpan;
             frameFields = new WireFormFields("StartFrame", ("WireForm {\n" + body + "\n}").Substring(frame.Start, frame.Length));
         }
 

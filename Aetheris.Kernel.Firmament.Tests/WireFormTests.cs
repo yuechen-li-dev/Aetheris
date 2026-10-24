@@ -8,6 +8,14 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class WireFormTests
 {
     [Fact]
+    public void MissingStartFrameBodyProducesAnActionableRefusal()
+    {
+        var result = WireFormAuthoring.Parse("Model Invalid { units: mm WireForm Wire { Diameter: 2mm StartFrame Empty; Straight Body { Length: 20mm } } }");
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("StartFrame requires a body", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ThinGuitarStringNutBreakKeepsItsTangentJoinAndExactSweep()
     {
         var source = File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(

@@ -1,5 +1,8 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="PublishAot">
   <PropertyGroup>
+    <!-- Roslyn loads this compiler tool as managed code, including during an
+         executable's NativeAOT restore/build. It is never a published runtime. -->
+    <PublishAot>false</PublishAot>
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>

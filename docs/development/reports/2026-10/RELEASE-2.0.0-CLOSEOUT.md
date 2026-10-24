@@ -245,6 +245,16 @@ pass with the pinned tool. Its producer writes to `artifacts/local`; the bundle
 script's stale `dist` pickup was repaired to consume that actual artifact. A
 fresh package is required before staging, so an old VSIX cannot hide failure.
 
+The first full local packager run passed the CLI native-payload guard, then
+failed NativeAOT restore with NETSDK1207 in the netstandard2.0 schema generator.
+That compiler-only project now owns `PublishAot=false` as a local property;
+the Forge executable and its runtime graph remain NativeAOT. Removing the flag
+only at the ProjectReference did not fix NuGet restore and was discarded.
+The actual native executable now runs `info`, `list`, `describe` and the
+ElectronicsEnclosure invocation, producing AP242, flat AP242 and SVG. Existing
+trim/AOT analysis warnings are retained; this is execution evidence for the
+qualified host path, not a claim that every library API is AOT-safe.
+
 ## Executive verdict
 
 **Meaningful progression.** The managed compiler family is publicly released;

@@ -219,7 +219,7 @@ public static class FirmamentSyntaxParser
             if (name is null && type.Name.Text is "RecoveredRegion" or "RecoveredBend" or "RecoveredCut" && Current.Kind==SyntaxTokenKind.String)
             {
                 var token=Current;at++;
-                name=new(System.Text.Json.JsonSerializer.Deserialize<string>(token.Text)!,token.Span);
+                name=new(System.Text.Json.JsonSerializer.Deserialize(token.Text,FirmamentJsonContext.Default.String)!,token.Span);
             }
             ExpressionSyntax? target = null;
             if (type.Name.Text is "CornerProfile" or "EdgeProfile" && name is not null)

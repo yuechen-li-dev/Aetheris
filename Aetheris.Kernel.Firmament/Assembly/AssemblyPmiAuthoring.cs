@@ -88,7 +88,7 @@ internal static class AssemblyPmiAuthoring
                 var owned = new Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FirmamentSyntaxFields(note, errors);
                 var target = owned.Reference("Target");
                 var text = owned.Take("Text") is Aetheris.Kernel.Firmament.FirmamentV2.Syntax.LiteralSyntax { Kind: Aetheris.Kernel.Firmament.FirmamentV2.Syntax.LiteralKind.String } literal
-                    ? JsonSerializer.Deserialize<string>(literal.Raw) : null;
+                    ? JsonSerializer.Deserialize(literal.Raw, FirmamentJsonContext.Default.String) : null;
                 owned.Complete();
                 if (errors.Count > 0 || target is null || string.IsNullOrWhiteSpace(text) || text.Any(char.IsControl))
                     Error("pmi-note-invalid", string.Join(" | ", errors), note.Span);

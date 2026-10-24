@@ -191,6 +191,7 @@ jobs:
           $forge = (Resolve-Path extracted/Aetheris-win-x64/forge-host/Aetheris.Forge.Host.exe)
           & $forge info
           & $forge list
+          ./scripts/Test-ForgeHostTemplates.ps1 -ExecutablePath $forge -OutputDirectory artifacts/local/native-forge-templates
           & $forge invoke Standard.SheetMetal.ElectronicsEnclosure --request extracted/Aetheris-win-x64/samples/forge-interop-x1/request.json --out forge-out
           if (-not (Test-Path forge-out/*.step) -or -not (Test-Path forge-out/*.svg)) { throw 'NativeAOT Forge artifacts missing.' }
           Copy-Item '${{ github.workspace }}/fixtures/Regression/Assembly/bearing-module-family-with-legacy-placement.firmament' assembly.firmament

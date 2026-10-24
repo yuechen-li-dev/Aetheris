@@ -250,7 +250,7 @@ public static partial class FirmamentV2Parser
         return FirmamentSyntaxFields.Object(obj.Type is null ? obj with { Type = new ReferenceSyntax(new(type, obj.Span), obj.Span) } : obj, null, diagnostics);
     }
     private static string? StringValue(ExpressionSyntax? value) => value is LiteralSyntax { Kind: LiteralKind.String } literal
-        ? System.Text.Json.JsonSerializer.Deserialize<string>(literal.Raw) : null;
+        ? System.Text.Json.JsonSerializer.Deserialize(literal.Raw, FirmamentJsonContext.Default.String) : null;
     private static Point3D? Point(ExpressionSyntax? value) => value is CallSyntax { Target: ReferenceSyntax { Name.Text: "Point3" } }
         && FirmamentSyntaxValues.Vector(value, "mm", out var xyz) && xyz.Length == 3 ? new(xyz[0], xyz[1], xyz[2]) : null;
 }

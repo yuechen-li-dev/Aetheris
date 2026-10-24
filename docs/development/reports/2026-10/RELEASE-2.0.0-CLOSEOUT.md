@@ -255,6 +255,18 @@ ElectronicsEnclosure invocation, producing AP242, flat AP242 and SVG. Existing
 trim/AOT analysis warnings are retained; this is execution evidence for the
 qualified host path, not a claim that every library API is AOT-safe.
 
+Broader native execution then reproduced ten product-template crashes in
+compile-time string binding; the five Sheet Metal defaults passed. Language
+string JSON now uses explicit generated primitive metadata at its existing
+readers/writers. All fifteen public templates then built STEP. Requesting every
+advertised artifact isolated one remaining reflection-based serializer: the
+workbench cut list. Its owner now uses a typed generated JSON contract with the
+same keys, units, ordering and indentation. The native catalog probe now builds
+all fifteen templates and all 26 advertised artifacts, checks their byte/hash
+receipts, and rejects a complete invalid standoff record with the real
+`firmament-concept-requirement-failed` diagnostic and no artifacts. The probe
+runs against the extracted NativeAOT executable in the Windows release gate.
+
 ## Executive verdict
 
 **Meaningful progression.** The managed compiler family is publicly released;

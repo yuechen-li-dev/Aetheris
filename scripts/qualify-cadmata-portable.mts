@@ -20,6 +20,8 @@ await new Promise<void>((resolve, reject) => {
 const debugPort = Number(process.env.CADMATA_QUALIFICATION_DEBUG_PORT ?? (reservation.address() as { port: number }).port);
 await new Promise<void>(resolve => reservation.close(() => resolve()));
 const metadata = JSON.parse(await readFile(join(packageDirectory, "BUILD-METADATA.json"), "utf8"));
+if (process.env.GITHUB_ACTIONS === "true")
+  assert.equal(metadata.modifiedSource, false, "Hosted release must identify clean product source; keep generated build tools under ignored artifacts");
 const executableSha256 = createHash("sha256").update(await readFile(join(packageDirectory, "Cadmata.exe"))).digest("hex");
 const started = Date.now();
 const app = spawn(join(packageDirectory, "Cadmata.exe"), startupFile ? [startupFile] : [], {

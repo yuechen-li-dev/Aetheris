@@ -97,16 +97,16 @@ jobs:
         with:
           repository: yuechen-li-dev/tspack
           ref: 01051b791cf83757a1c419ef7bc276d9de787a9d # scoped tools, local dependencies and explicit shared runtime providers
-          path: .release-tools/tspack
+          path: artifacts/local/release-tools/tspack
           persist-credentials: false
       - uses: actions/setup-go@v5
         with:
-          go-version-file: .release-tools/tspack/go.mod
-          cache-dependency-path: .release-tools/tspack/go.sum
+          go-version-file: artifacts/local/release-tools/tspack/go.mod
+          cache-dependency-path: artifacts/local/release-tools/tspack/go.sum
       - name: Build pinned TSPack
         shell: pwsh
         run: |
-          $source = Resolve-Path '.release-tools/tspack'
+          $source = Resolve-Path 'artifacts/local/release-tools/tspack'
           Push-Location "$source/manifest-frontend"
           try {
             npm install --no-package-lock

@@ -109,13 +109,16 @@ with the new stable name retained. Five regression cases select that previously
 unused Plate recipe and confirm each inserted field rejects validate and build.
 These are explicit classifications, not a blanket exemption for Template bodies.
 
-The public-byte build passed 5,998 tests after those final eleven closures.
-The resulting source also passes sixty focused CLI/edge-finish cases. Final
-hosted release qualification remains a gate. Both completed
-380-file comparisons so far retained identical exits and byte-identical STEP
+The final public-byte build passed 6,003 tests across twenty suites, with zero
+failures and zero skips; the optional external PDF renderer was enabled. The
+fast kernel lane passed 1,088 tests. Sixty focused CLI/edge-finish cases also
+pass. Final hosted release qualification remains a gate. All completed
+380-file comparisons retained identical exits and byte-identical STEP
 for all 297 successful engineering builds. The remaining 83 files comprise
 library/inspection sources, garment sources needing body input, and non-STEP
 products; they are not relabeled as geometry regressions.
+After the CRLF repair, all twenty-three CRLF corpus specimens were replayed
+against the original baseline: identical command outcomes and STEP bytes.
 
 The real product-path rehearsal also generated a production PDF/SVG/PPTX drawing,
 a warehouse GLB and cantilever analysis artifacts. Raw evidence is retained

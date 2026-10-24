@@ -43,13 +43,13 @@ Dangerous operations which may generate degenerate/sliver/zero-dimension geometr
 
 ## Try it
 
-The easiest complete experience is the `Aetheris-2.0.0-preview.3-win-x64.zip` release bundle. It includes the CLI, Cadmata, NativeAOT Forge Host, public documentation, examples, and material catalog. The standalone .NET tool provides the CLI but not Cadmata:
+The complete Windows experience is the `Aetheris-2.0.0-win-x64.zip` release bundle. It includes the CLI, Cadmata, NativeAOT Forge Host, public documentation, examples, and material catalog. The standalone managed .NET tool provides the CLI on Windows and Linux x64:
 
 ```powershell
-dotnet tool install --global Aetheris.CLI --version 2.0.0-preview.3
+dotnet tool install --global Aetheris.CLI --version 2.0.0
 aetheris --version
-aetheris build fixtures/Canonical/PMI/hole-diameter-and-datum.firmament --output out/first-part.step --json
-aetheris analyze out/first-part.step --json
+aetheris build fixtures/Canonical/PMI/hole-diameter-and-datum.firmament --output artifacts/local/first-part.step --json
+aetheris analyze artifacts/local/first-part.step --json
 ```
 
 Go next to [Getting Started](docs/public/getting-started.md), then [Learn Firmament](docs/public/learn/README.md): six short lessons from a first part to an assembly. The [documentation index](docs/public/README.md) has everything else, and the [project history](docs/development/history/README.md) tells how Aetheris got here.
@@ -65,25 +65,25 @@ See [cantilever](fixtures/Canonical/FEA/material-resolved-cantilever.firmament) 
 *A qualified flat-pattern sheet metal artifact, created entirely by GPT 5.6 Sol with human guidance, including formed STEP, flat STEP, SVG, bend identity, material identity, and DFM evidence on the documented Sheet Metal routes.*
 
 ```powershell
-$host = ".\forge-host\Aetheris.Forge.Host.exe"
-& $host list
-& $host describe Standard.SheetMetal.ElectronicsEnclosure
-python .\samples\forge-interop-x1\python\client.py $host .\samples\forge-interop-x1\request.json .\out\forge-python
+$forgeHost = ".\forge-host\Aetheris.Forge.Host.exe"
+& $forgeHost list
+& $forgeHost describe Standard.SheetMetal.ElectronicsEnclosure
+python .\samples\forge-interop-x1\python\client.py $forgeHost .\samples\forge-interop-x1\request.json .\out\forge-python
 ```
 
-The bundle contains equivalent [Go, Rust, and TypeScript clients](samples/forge-interop-x1/README.md). Forge Host Protocol v1 is independently versioned from Aetheris `2.0.0-preview.3`.
+The bundle contains equivalent [Go, Rust, and TypeScript clients](samples/forge-interop-x1/README.md). Forge Host Protocol v1 is independently versioned from Aetheris `2.0.0`.
 
 ## Installation surfaces
 
-| Surface | Use | Preview 3 status |
+| Surface | Use | 2.0.0 status |
 |---|---|---|
 | Windows release ZIP | Complete CLI + Cadmata + Forge.Host experience | Qualified on `win-x64` |
 | `Aetheris.CLI` .NET tool | Firmament, STEP, Sheet Metal, and FEA commands | Published package; Cadmata not included |
-| Public NuGet libraries | Direct .NET integration | 16 version-aligned packages |
+| Public NuGet libraries | Direct .NET integration | 25 dependency-closed, version-aligned packages |
 | Forge.Host | Language-neutral Template invocation | NativeAOT `win-x64`, Protocol v1 |
 | VS Code extension | Firmament syntax and CLI-backed commands | Independently versioned `0.3.0-preview.3` VSIX |
 
-Linux and macOS release binaries are **not** qualified in Preview 3. Framework-level portability tests do not expand the release-binary promise.
+The managed CLI is qualified on Windows x64 and Linux x64. The self-contained desktop ZIP targets Windows x64; macOS is not a qualified release target. See the [release notes](docs/release/2.0.0-notes.md) for capability and experimental API boundaries.
 
 ## License and acknowledgments
 

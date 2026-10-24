@@ -15,13 +15,17 @@ on:
         description: Diagnose an existing release artifact without rebuilding it (empty runs full qualification)
         type: string
         default: ''
+      qualification_run_id:
+        description: Requalify immutable artifacts from a producer with both full regression lanes passed (empty rebuilds)
+        type: string
+        default: ''
 
 env:
   MSBUILDDISABLENODEREUSE: '1'
 
 jobs:
   build-test:
-    if: ${{ !inputs.diagnostic_run_id }}
+    if: ${{ !inputs.diagnostic_run_id && !inputs.qualification_run_id }}
     runs-on: ubuntu-latest
 
     steps:
@@ -86,7 +90,7 @@ jobs:
   release-build:
     outputs:
       version: ${{ steps.version.outputs.version }}
-    if: ${{ !inputs.diagnostic_run_id && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') }}
+    if: ${{ !inputs.diagnostic_run_id && !inputs.qualification_run_id && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') }}
     runs-on: windows-latest
     permissions:
       contents: read
@@ -166,16 +170,57 @@ jobs:
 
   release-smoke:
     needs: release-build
+    if: ${{ always() && !inputs.diagnostic_run_id && (needs.release-build.result == 'success' || inputs.qualification_run_id != '') }}
+    permissions:
+      actions: read
+      contents: read
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - name: Verify producer identity and regression gates
+        id: producer
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QUALIFIED_RUN: ${{ inputs.qualification_run_id }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $source = $env:GITHUB_SHA
+          if ($env:QUALIFIED_RUN) {
+            if ($env:QUALIFIED_RUN -notmatch '^\d+$') { throw 'Producer run ID must contain only digits' }
+            $source = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:QUALIFIED_RUN" --jq .head_sha
+            $jobs = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:QUALIFIED_RUN/jobs?per_page=100" | ConvertFrom-Json
+            foreach ($name in @('build-test', 'release-build')) {
+              if (-not ($jobs.jobs | Where-Object { $_.name -eq $name -and $_.conclusion -eq 'success' })) {
+                throw "Producer must pass $name before artifact requalification"
+              }
+            }
+          }
+          "revision=$source" >> $env:GITHUB_OUTPUT
       - uses: actions/download-artifact@v4
         with:
           name: aetheris-release
           path: release
+          run-id: ${{ inputs.qualification_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+      - name: Read version from the actual CLI package
+        id: artifact
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem release/packages/Aetheris.CLI.*.nupkg)
+          if ($packages.Count -ne 1) { throw 'Expected one staged CLI package' }
+          $zip = [IO.Compression.ZipFile]::OpenRead($packages[0].FullName)
+          try {
+            $manifest = @($zip.Entries | Where-Object FullName -Like '*.nuspec')
+            if ($manifest.Count -ne 1) { throw 'Expected one CLI package manifest' }
+            $reader = [IO.StreamReader]::new($manifest[0].Open())
+            try { [xml]$nuspec = $reader.ReadToEnd() } finally { $reader.Dispose() }
+            "version=$($nuspec.package.metadata.version)" >> $env:GITHUB_OUTPUT
+          }
+          finally { $zip.Dispose() }
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
@@ -186,6 +231,8 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           $zip = Get-ChildItem release/Aetheris-*-win-x64.zip | Select-Object -First 1
           Expand-Archive $zip.FullName extracted
+          $metadata = Get-Content extracted/Aetheris-win-x64/BUILD-METADATA.json -Raw | ConvertFrom-Json
+          if ($metadata.sourceRevision -ne '${{ steps.producer.outputs.revision }}') { throw 'Artifact and producer source identity disagree' }
           $cli = (Resolve-Path extracted/Aetheris-win-x64/aetheris.exe)
           & $cli --version
           & $cli --help
@@ -227,7 +274,7 @@ jobs:
           $package = Get-ChildItem release/packages/*.nupkg | Select-Object -First 1
           New-Item -ItemType Directory local-feed, installed-tool | Out-Null
           Copy-Item $package.FullName local-feed
-          dotnet tool install --tool-path installed-tool Aetheris.CLI --version ${{ needs.release-build.outputs.version }} --add-source local-feed --ignore-failed-sources
+          dotnet tool install --tool-path installed-tool Aetheris.CLI --version ${{ steps.artifact.outputs.version }} --add-source local-feed --ignore-failed-sources
           & installed-tool/aetheris --version
           & installed-tool/aetheris validate tool-smoke.firmament --json
           & installed-tool/aetheris build tool-smoke.firmament --out tool-smoke.step --json
@@ -235,7 +282,7 @@ jobs:
       - name: Verify checksums and public packages
         shell: pwsh
         env:
-          AETHERIS_RELEASE_VERSION: ${{ needs.release-build.outputs.version }}
+          AETHERIS_RELEASE_VERSION: ${{ steps.artifact.outputs.version }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           foreach ($line in Get-Content release/SHA256SUMS.txt) {
@@ -255,7 +302,7 @@ jobs:
           if-no-files-found: ignore
 
   publish:
-    if: ${{ !inputs.diagnostic_run_id && (startsWith(github.ref, 'refs/tags/v') || inputs.publish == true) }}
+    if: ${{ !inputs.diagnostic_run_id && !inputs.qualification_run_id && (startsWith(github.ref, 'refs/tags/v') || inputs.publish == true) }}
     needs: [build-test, release-build, release-smoke]
     runs-on: ubuntu-latest
     environment: production

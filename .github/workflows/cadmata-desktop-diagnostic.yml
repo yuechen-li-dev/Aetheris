@@ -4,13 +4,13 @@ on:
   workflow_call:
     inputs:
       run_id:
-        type: number
+        type: string
         required: true
   workflow_dispatch:
     inputs:
       run_id:
         description: Producer run containing the aetheris-release artifact
-        type: number
+        type: string
         required: true
 
 permissions:
@@ -28,6 +28,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PRODUCER_RUN: ${{ inputs.run_id }}
         run: |
+          if ($env:PRODUCER_RUN -notmatch '^\d+$') { throw 'Producer run ID must contain only digits' }
           $source = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:PRODUCER_RUN" --jq .head_sha
           if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve producer source' }
           "revision=$source" >> $env:GITHUB_OUTPUT

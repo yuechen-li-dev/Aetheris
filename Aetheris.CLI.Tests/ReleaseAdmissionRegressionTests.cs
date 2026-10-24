@@ -23,9 +23,23 @@ public sealed class ReleaseAdmissionRegressionTests
     [InlineData("Offset/prism-pad.firmament", "AddOffset<Prism> LocalPad {", "AddOffset<Prism> LocalPad { zzUnknownField: 1mm;")]
     [InlineData("Offset/prism-pad.firmament", "Height: 3mm", "Height: 3mm; Axis: +Z; Along: -Z")]
     [InlineData("Offset/prism-pad.firmament", "Height: 3mm", "Height: 3mm; Axis: WrongDirection")]
+    [InlineData("Assembly/template-block-pair.firmament", "Struct AssemblyBlock: AssemblyBlockConcept {", "Struct AssemblyBlock: AssemblyBlockConcept { zzUnknownField: 1mm;")]
+    [InlineData("Assembly/template-block-pair.firmament", "EdgeFinish ProofBreak {", "EdgeFinish ProofBreak { zzUnknownField: 1mm;")]
+    [InlineData("Feature/feature-pattern.firmament", "return Hole<Shaft> {", "return Hole<Shaft> { zzUnknownField: 1mm;")]
+    [InlineData("Feature/pickup-functional.firmament", "Profile Section {", "Profile Section { zzUnknownField: 1mm;")]
+    [InlineData("Feature/pickup-functional.firmament", "Axis2 Longitudinal {", "Axis2 Longitudinal { zzUnknownField: 1mm;")]
+    [InlineData("Templates/local-closed-boundaries.firmament", "Struct Plate {", "Struct Plate { zzUnknownField: 1mm;")]
+    [InlineData("Templates/local-closed-boundaries.firmament", "Rect2 Outside {", "Rect2 Outside { zzUnknownField: 1mm;")]
+    [InlineData("Templates/local-closed-boundaries.firmament", "Profile Section {", "Profile Section { zzUnknownField: 1mm;")]
+    [InlineData("Templates/local-closed-boundaries.firmament", "Loop Outer {", "Loop Outer { zzUnknownField: 1mm;")]
+    [InlineData("Templates/local-closed-boundaries.firmament", "Extrude Body {", "Extrude Body { zzUnknownField: 1mm;")]
     public void UnconsumedIntentAndWrongDimensionsRejectBothCommands(string fixture, string original, string replacement)
     {
         var source = File.ReadAllText(Path.Combine(Root(), "fixtures/Canonical", fixture));
+        // The other definition is deliberately unused by the original fixture.
+        // Qualify that its fields reject when that exact recipe is selected.
+        if (fixture == "Templates/local-closed-boundaries.firmament")
+            source = source.Replace("Struct Selected = Disc<R: 20mm>", "Struct Selected = Plate<Width: 40mm>", StringComparison.Ordinal);
         Assert.Contains(original, source);
         var directory = Directory.CreateTempSubdirectory("aetheris-release-admission-").FullName;
         try

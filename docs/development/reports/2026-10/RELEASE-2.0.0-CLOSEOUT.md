@@ -90,9 +90,31 @@ finally blocks. Accepted probes require classification: authored publications,
 named mappings and unused definitions are not automatically correctness defects.
 Replay fails if it accidentally matches no specimens.
 
-The first broad run covered 3,317 declaration bodies. Repairs were followed by
-replay and full regression; the final counts and geometry-parity verdict are
-recorded below only after completion.
+The first broad run covered 3,317 declaration bodies. An expanded run then
+covered 3,752 declaration/object bodies. It caught eleven additional accepted
+cases in instantiated recipes: semantic Struct roots and EdgeFinish, Feature
+return holes, private Profiles and Axis2. Those are closed at ConceptIR,
+profile-binding and linear-pattern ownership, before erasure or geometry work.
+
+A replay of all seventeen accepted non-data cases now leaves six deliberate
+admissions: one named Stations entry and five edits inside the unselected Plate
+recipe in local-closed-boundaries. The Stations witness compiles both variants:
+adding the named entry increases realized part occurrences from four to five,
+with the new stable name retained. Five regression cases select that previously
+unused Plate recipe and confirm each inserted field rejects validate and build.
+These are explicit classifications, not a blanket exemption for Template bodies.
+
+The public-byte build passed 5,988 tests before those final eleven closures.
+The resulting source passes sixty focused CLI/edge-finish cases. A new complete
+solution run and final source qualification remain gates. Both completed
+380-file comparisons so far retained identical exits and byte-identical STEP
+for all 297 successful engineering builds. The remaining 83 files comprise
+library/inspection sources, garment sources needing body input, and non-STEP
+products; they are not relabeled as geometry regressions.
+
+The real product-path rehearsal also generated a production PDF/SVG/PPTX drawing,
+a warehouse GLB and cantilever analysis artifacts. Raw evidence is retained
+alongside the corresponding source and command results.
 
 Qualification is in progress. No Aetheris stable tag has been published by this
 pass while the final gates remain open.

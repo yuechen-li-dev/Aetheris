@@ -8,7 +8,7 @@ var output = Path.GetFullPath(args[0]);
 Directory.CreateDirectory(output);
 if (File.Exists(Path.Combine(output, "probes.jsonl"))) throw new ArgumentException("Use a fresh evidence directory.");
 var replay = args.Length == 2 ? JsonDocument.Parse(File.ReadAllText(args[1])).RootElement.EnumerateArray()
-    .Where(r => r.GetProperty("accepted").GetBoolean() && r.GetProperty("category").GetString() == "closed-authoring")
+    .Where(r => r.GetProperty("accepted").GetBoolean() && r.GetProperty("category").GetString() != "authored-data")
     .Select(r => (Path.GetFullPath(r.GetProperty("source").GetString()!), r.GetProperty("offset").GetInt32())).ToHashSet() : null;
 var results = new List<object>();
 var files = Directory.GetFiles(Path.Combine(root, "fixtures/Canonical"), "*", SearchOption.AllDirectories)

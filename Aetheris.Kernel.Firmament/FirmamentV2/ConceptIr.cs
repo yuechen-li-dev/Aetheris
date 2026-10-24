@@ -303,6 +303,8 @@ internal static class ConceptIrResolver
         var allInstances = instanceList.ToDictionary(i => i.Name, StringComparer.Ordinal);
         var boxBody = source[(boxOpen + 1)..boxClose];
         var syntaxDeclarations = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).ToArray();
+        var materializedSyntax = syntaxDeclarations.FirstOrDefault(d => d.Body?.Span.Start == materializedOpen);
+        if (materializedSyntax?.Body is not null) FirmamentV2Parser.BindMechanicalScope(materializedSyntax.Body.Statements, diagnostics);
         var boxSyntax = syntaxDeclarations.FirstOrDefault(d => d.Type.Name.Text == "Box" && d.Body?.Span.Start == boxOpen);
         if (boxSyntax is null) { diagnostics.Add(FirmamentV2Parser.CanonicalPrimitiveMalformed); return null; }
         var boxFields = new FirmamentSyntaxFields(boxSyntax, diagnostics);
@@ -357,7 +359,10 @@ internal static class ConceptIrResolver
             var edgeClose = FindMatchingBrace(source, edgeOpen);
             if (edgeClose < 0) { diagnostics.Add(FirmamentV2Parser.Phase3EdgeFinishSyntaxInvalid); return null; }
             var edgeBody = source[(edgeOpen + 1)..edgeClose];
-            var faceSource = FieldValue(edgeBody, "Face");
+            var edgeSyntax = syntaxDeclarations.First(d => d.Type.Name.Text == "EdgeFinish" && d.Body?.Span.Start == edgeOpen);
+            var edgeFields = new FirmamentSyntaxFields(edgeSyntax, diagnostics);
+            string EdgeField(string name) => edgeFields.Take(name) is { } value ? FirmamentSyntaxWriter.Expression(value) : "";
+            var faceSource = EdgeField("Face");
             var faceAxis = faceSource;
             var faceProvenance = $"{materialized.Groups["name"].Value}.{edge.Groups["name"].Value}.Face";
             var faceRef = Regex.Match(faceSource, @"^(?<instance>[A-Za-z_][A-Za-z0-9_]*)\.(?<member>[A-Za-z_][A-Za-z0-9_]*)$", RegexOptions.CultureInvariant);
@@ -366,9 +371,10 @@ internal static class ConceptIrResolver
                 faceAxis = AxisOf(plane!.Normal);
                 faceProvenance = plane.Provenance;
             }
-            var target = FieldValue(edgeBody, "Target");
-            var kind = FieldValue(edgeBody, "Kind");
-            var distanceSource = FieldValue(edgeBody, "Distance");
+            var target = EdgeField("Target");
+            var kind = EdgeField("Kind");
+            var distanceSource = EdgeField("Distance");
+            edgeFields.Complete();
             var distance = ParseLength(distanceSource);
             var distanceProvenance = $"{materialized.Groups["name"].Value}.{edge.Groups["name"].Value}.Distance";
             var distanceRef = Regex.Match(distanceSource, @"^(?<instance>[A-Za-z_][A-Za-z0-9_]*)\.(?<member>[A-Za-z_][A-Za-z0-9_]*)$", RegexOptions.CultureInvariant);
@@ -464,6 +470,12 @@ internal static class ConceptIrResolver
             var open = body.IndexOf('{', header.Index); var close = FindMatchingBrace(body, open);
             if (close < 0) { diagnostics.Add(FirmamentV2Parser.RegionUnsupported); continue; }
             var holeBody = body[(open + 1)..close];
+            var holeSyntax = FirmamentSyntaxParser.Parse(body.Substring(header.Index, close - header.Index + 1))
+                .Document.Statements.OfType<DeclarationSyntax>().FirstOrDefault();
+            if (holeSyntax is null) { diagnostics.Add(FirmamentV2Parser.CanonicalModifyMalformed); continue; }
+            var holeFields = new FirmamentSyntaxFields(holeSyntax, diagnostics);
+            foreach (var field in ConceptHoleFields) holeFields.Take(field);
+            holeFields.Complete();
             var from = FieldValue(holeBody, "from");
             var on = FieldValue(holeBody, "on");
             if (FieldCount(holeBody, "from") > 1 || FieldCount(holeBody, "on") > 1)

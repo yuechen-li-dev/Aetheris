@@ -218,6 +218,8 @@ public static class ProfileAuthoringParser
         // This is the canonical semantic-profile adapter used by Compose and SectionChain.
         // Its historical name remains source-compatible; pipeline syntax is erased here too.
         source = ProfileModificationTemplateLibrary.ResolveImports(source);
+        foreach (var authored in SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Where(d => d.Type.Name.Text == "Profile"))
+            ValidateProfileBody(authored, diagnostics);
         source = ExpandBuiltInPolygons(source, diagnostics);
         var templates = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
         if (templates is not null) source = templates.Source;

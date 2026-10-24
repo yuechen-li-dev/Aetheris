@@ -1,53 +1,123 @@
 # Aetheris 2.0.0 release qualification
 
-**Release qualification reopened: the user reproduced a desktop launch blocker.**
+**Accepted: the desktop, canonical-sample hotfix and exact distribution are qualified.**
 
-The previous candidate shipped the headless server as Cadmata. With no arguments
-it opens no window and binds port 5000, which can already be occupied. The
-headless HTTP smoke did not prove desktop launch. Separate self-contained CLI
-and server publishes also duplicated 215 DLL names. The historical evidence
-below remains valid for its stated automated paths; the desktop distribution
-is not accepted until its actual no-argument apphost is requalified.
+Shipping product source: `c279d98d44701f2bbfa78622d0a99023dde44db8`.
+[Producer and full regressions](https://github.com/yuechen-li-dev/Aetheris/actions/runs/40132493203); [complete Windows/Linux artifact requalification](https://github.com/yuechen-li-dev/Aetheris/actions/runs/40135607129).
+Subsequent commits change test/CI qualification and this report only. No stable Aetheris tag or
+package has been published by this pass.
 
-The repair publishes Aetheris.Cadmata.Desktop, gives its apphost the public
-Cadmata.exe name, and keeps the explicit headless entry as Cadmata.Server.exe.
-CLI/desktop dependencies occupy one root. Different WindowsDesktop framework
-facades are selected from SDK runtime-pack ownership; conflicting application
-DLLs fail packaging. Production frontend files, the existing pinned WebView2
-runtime, sample and redistribution notices are included. The standalone CLI
-NuGet tool does not acquire WebView2.
+## Desktop and canonical-sample hotfix
 
-Local actual-window tests now pass no-argument launch, authenticated local
-service, WebGPU rendering, orbit/selection, current generated STEP import,
-canonical export/reimport, invalid-file retention and native close/service
-shutdown. Evidence: desktop-repair/full-ui-test-v2/qualification.json. The
-first exploratory import used an older STEP whose orientation diagnostics are
-Degraded; that refusal of the test's Qualified expectation is preserved under
-desktop-repair/full-ui-test and was not hidden by weakening its assertion.
-The current through-hole build remains SHA256
-5999f127e5a1477e5825afa656dceb7f89241d8f85312b0e6bcd793639a0f548.
+| Reproduction | Repair and evidence |
+|---|---|
+| The user-extracted ZIP opened no window. It shipped Aetheris.Server as Cadmata.exe; no-argument startup hosts a headless service on port 5000. The previous HTTP smoke did not prove a desktop. | Publish the existing Aetheris.Cadmata.Desktop WinForms/WebView2 host as root Cadmata.exe. Preserve explicit Cadmata.Server.exe for headless use. The real desktop owns an authenticated ephemeral loopback service and closes it with its window. |
+| Separate CLI/server publishes duplicated 215 DLL names (110,931,664 bytes). | Merge into one root. Identical shared files occupy one path; SDK WindowsDesktop runtime-pack metadata selects required framework facades. Other differing shared files fail packaging. Vendor browser architecture files, localized resources and SDK WebView2Loader locations are retained. |
+| The restored desktop also requires its production frontend and offline browser, which the headless ZIP omitted. | Include the pinned fixed WebView2 runtime, compiled assets, sample, complete notice audit and corresponding-source notice. The standalone CLI NuGet tool does not acquire the desktop browser. Staging/CAB/expanded work stays outside the uploaded publication directory. |
+| Canonical through-hole STEP imports with orientation/trim warnings. | Correct four records: cavity same_sense, seam endpoint references and swapped top/bottom circular edge uses. Current generation already emits the quiet positive control. No importer warning is suppressed. |
+| Hosted desktop test times out although its native log shows backend ready and UI visible. | The test incorrectly required a DevTools connection for its launch-only level. Inspect the actual app's PID-bound native window, WebView navigation log, unauthenticated 403 and native WM_CLOSE/service shutdown. Full rendered/interactive testing remains a separate real-app CDP path. |
+| Temporary CI tool checkout makes clean source appear modified. | Put TSPack under ignored artifacts/local. Hosted publication rejects dirty source before expensive desktop publishing, with exact unexpected paths; artifact consumers reject modifiedSource metadata. |
 
-Full requalification of a freshly rebuilt ZIP is still pending. The previous
-133 MB ZIP omitted the actual desktop/browser; its size and hashes below must
-not be assigned to the corrected distribution.
+The repaired stored STEP remains a 10x8x6 mm body with a 2 mm through bore.
+All face entity IDs survive, including #191 used by PMI. Referencing the actual
+circular boundary vertices welds the seam: topology is seven faces, fifteen edges
+and ten vertices instead of twelve. Trim loops close, the shell is enclosed,
+pcurves qualify and all seven source face senses agree with derived orientation.
+Export/reimport also qualifies without diagnostics. These STEP bytes and seam
+vertex identities intentionally change; this is not a blanket claim of byte
+parity for outputs involving the formerly malformed fixture.
 
-The subsequent canonical-box warning hotfix corrects four STEP records in
-testdata/firmament/inline-step/canonical-through-hole.step: the cavity sense,
-seam vertex references and bottom/top circular edge uses. The nominal 10x8x6 mm
-body, 2 mm bore and all face entity IDs are preserved. Duplicate seam vertices
-are no longer referenced; import topology has ten vertices rather than twelve,
-with seven faces and fifteen edges. It now has connected trim loops, Qualified
-pcurves and zero source-orientation mismatches. The importer warning is retained
-for genuinely inconsistent source. Canonical import/Pmi regressions cover the
-fix; STEP bytes involving this corrected fixture are intentionally changed.
-The repaired canonical fixture also passes the actual packaged WebView2 import,
-export/reimport, selection, invalid-file retention and native-close workflow
-(desktop-repair/canonical-hole-ui/qualification.json). The new clean-import
-regression and 63 InlineStep/Pmi tests pass. Before this fixture addition, the
-local full suite passed 6,007 tests with two optional external-PDF witnesses
-skipped. An earlier concurrent UI/full-suite run exceeded an existing imported
-rod tessellation time budget; that exact case and the entire suite both pass
-when rerun without concurrent UI qualification. No budget was increased.
+The new corpus regression uses Step242Corpus and checks acceptance, zero
+messages, qualification, connected/enclosed topology, bounds, radius and PMI
+face identity. All 63 focused InlineStep/PMI cases pass. Hostile-source tests
+retain the importer's diagnostic behavior.
+
+## Current qualification evidence
+
+| Gate | Observed result |
+|---|---|
+| Clean-source full Linux regression | 6,002 passed, 7 optional 3DM skips, 0 failed; 20 suites and 6,009 tracked cases. Fast Core lane: 1,088 passed. |
+| Clean-source full Windows regression | 6,000 passed, 9 optional skips, 0 failed; 20 suites and 6,009 tracked cases. Seven need external 3DM inputs; two need the external PDF renderer, which runs on Linux. |
+| Complete clean-source producer | Passed: clean frontend check/typecheck, 96 tests, production build and lint; CLI, NativeAOT Forge, actual desktop/offline browser, VSIX (13 tests) and 25 libraries. Source identity is clean. |
+| Exact immutable artifact consumers | Passed on both OSes in run 40135607129: all 28 receipts, portable tool, public API consumers and 25-package closure. Windows also passes actual native launch/close, production assets/import, all 15 native templates and advertised exports, assembly inspection and PDF/PPTX generation. |
+| Actual downloaded desktop | The final clean hosted ZIP passes real native-window/WebGPU sample rendering, orbit/selection, its bundled repaired STEP import/export/reimport, invalid-file retention and native close/service shutdown on Windows 11/NVIDIA Ampere; no uncaught browser errors. Sample visible in 3.2 seconds. |
+| Native hosted launch control | [Final hosted native qualification](https://github.com/yuechen-li-dev/Aetheris/actions/runs/40135607129) passes window ownership, browser navigation, 403 and close/shutdown. Its no-GPU telos-adapter-unavailable diagnostic is preserved. This does not certify rendered geometry on GitHub's server VM. |
+| Negative provenance control | [Requalification control](https://github.com/yuechen-li-dev/Aetheris/actions/runs/40133808301) rejects the older modifiedSource ZIP; it is not relabelled as a successful release. |
+| Engineering witness | CLI through-hole STEP remains SHA256 5999f127e5a1477e5825afa656dceb7f89241d8f85312b0e6bcd793639a0f548 with the shared runtime. No geometry algorithm, planner, tessellator or orientation resolver changed. |
+
+Local evidence is under artifacts/local/release-2-readiness/desktop-repair.
+The initial full local suite exceeded an existing imported-rod tessellation
+budget while GPU/UI testing ran concurrently. The exact test and full suite both
+pass when rerun without concurrent UI load: 6,007 passed, two optional PDF-renderer
+skips, zero failed before adding the canonical fixture regression. No budget was
+increased. Historical source/count receipts remain distinct below.
+
+Artifact requalification uses the existing release-smoke matrix against the
+producer's immutable staged ZIP/packages. It verifies both original full
+regression jobs succeeded, checks producer source identity, reads version from
+the actual NuGet manifest, and verifies all checksums and dependency closure.
+It never publishes. This permits a corrected test harness to qualify the same
+bytes without pretending a rebuild or skipped regression was a full run.
+
+The final artifact is ID 12576947757 from producer run 40132493203. Its
+BUILD-METADATA identifies c279d98d and modifiedSource=false. The actual desktop
+apphost SHA256 is e3dde19afe2566fdf1b9ee0e2c9dc61a85fe275c9dd53c800aa9c9f15cbf35ed;
+this matches the separately downloaded hosted native qualification receipt.
+The notice audit is complete; the source notice and one fixed browser tree are
+present, with no obsolete cadmata dependency directory.
+
+| Corrected hosted artifact | Bytes | SHA256 |
+|---|---:|---|
+| `Aetheris-2.0.0-win-x64.zip` | 416022516 | `7160f36a9cecacd68c3dff06cfb326fc88502f9d0ca10c97e81fc68bc6a033fc` |
+| `packages/Aetheris.CLI.2.0.0.nupkg` | 18002334 | `ed0c9338f5e3dbb30db80ad01343c2fe5c1bbcc82f9e4f7a798a56d0d28a4c31` |
+| `aetheris-firmament-0.3.0-preview.3.vsix` | 13191 | `cae2cb93c955d93e7e030e6bc4ea9598ab65bcdba15afc4ca9551910ee9a2eed` |
+
+The 416 MB ZIP now includes the actual offline desktop/browser. The core CLI
+remains about 18 MB. This does not add the browser to its NuGet payload.
+
+Final receipts: desktop-repair/final-clean-distribution-receipts.json,
+final-clean-hosted-ui/qualification.json, final-canonical-reexport-analysis.json,
+clean-hosted-native-evidence/qualification.json, hosted-clean-linux-summary.json,
+hosted-clean-windows-summary.json and clean-requalification-run.json.
+The final exported canonical box is again an enclosed manifold, seven faces,
+fifteen edges, ten vertices, unchanged bounds and zero source mismatches/reasons.
+
+The producer's original Windows consumer used the earlier DevTools-dependent
+harness and failed that connection; its full regression/build gates passed.
+That failure is preserved, not relabelled. The corrected harness then qualifies
+both OS consumers of the exact immutable producer artifacts in the separate
+green run linked above. No shipping C# or model source changed after c279d98d;
+only test/CI qualification and this report did.
+
+## Current executive verdict
+
+**Accepted for the tested release scope.** The public executable is the actual
+desktop, the redundant server dependency tree is gone, the canonical box is
+quiet and Qualified, source identity is clean, both full regression lanes pass
+and the exact distribution passes both consumer lanes plus local GPU interaction.
+Geometry algorithms are unchanged; the malformed stored STEP is explicitly
+repaired with stable nominal geometry and PMI face identity.
+
+Qualification remains bounded: Windows 11/NVIDIA Ampere supplies the actual
+rendered/interactive proof; GitHub's server VM supplies native host/navigation
+proof and explicitly reports no GPU adapter. No human SmartScreen/title-bar
+session, macOS desktop or broad hardware certification is claimed. Aetheris
+publication remains separate; this pass has not created a stable tag/package.
+
+Quality pass: shared-file conflicts fail rather than bind ambiguously; facade
+ownership comes from SDK metadata; temporary tools/staging are ignored and kept
+out of publication; diagnostic logs survive test failures. The failed candidate
+is preserved. Its verified orphan headless process 42152 was stopped, and the
+qualification app sessions close their own services. No background service,
+startup hook or scheduled task was installed.
+
+## Historical readiness qualification
+
+The following receipts belong to source 69bcc6bb and its stated automated paths.
+They preserve earlier frontend, package-graph and engineering-parity evidence.
+They did not establish desktop acceptance: the headless-only Windows packaging
+and its 133 MB ZIP are superseded by the repair above. Their hashes and counts
+must not be assigned to the corrected distribution.
 
 Distribution candidate: `69bcc6bbd839fe2ce2a4e1bbd9231f28cd719286`.
 Baseline: `b05cca40ec3efd7540c647398892953299d2c136`.
@@ -262,7 +332,7 @@ the layout. No outside user files were deleted. Evidence-directory cleanup
 scripts preview the exact temporary qualification copy and ten earlier native
 crash minidumps; deletion requires the user's explicit -Apply invocation.
 
-## Executive verdict
+## Historical executive verdict
 
 **Superseded automated-candidate verdict; desktop release blocked.** The four original
 packaging blockers are closed, the reproduced admission/diagnostic defects are

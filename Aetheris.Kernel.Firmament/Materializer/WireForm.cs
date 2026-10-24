@@ -136,7 +136,8 @@ public static class WireFormAuthoring
         return false;
     }
 
-    public static bool IsWireFormSource(string source) => Declaration.IsMatch(source) || WireRouteAuthoring.IsSource(source);
+    public static bool IsWireFormSource(string source) => FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
+        .Any(d => d.Type.Name.Text == "WireForm") || WireRouteAuthoring.IsSource(source);
 
     internal static void BindConstructionScope(DocumentSyntax syntax, string materialKind, List<string> diagnostics)
     {
@@ -159,17 +160,27 @@ public static class WireFormAuthoring
         source = frontend.Source;
         if (WireRouteAuthoring.IsSource(source)) return WireRouteAuthoring.Parse(source);
         var syntax = FirmamentV2.Syntax.FirmamentSyntaxParser.Parse(source);
-        var scopeDiagnostics = new List<string>();
+        var scopeDiagnostics = syntax.Diagnostics.Select(d => d.Code + ": " + d.Message).ToList();
         BindConstructionScope(syntax.Document, "WireForm", scopeDiagnostics);
         if (scopeDiagnostics.Count > 0)
             return Fail(scopeDiagnostics[0].Split(':')[0], string.Join("; ", scopeDiagnostics));
-        var declaration = Declaration.Match(source);
-        if (!declaration.Success) return Fail("wireform-declaration-missing", "No WireForm declaration was found.");
-        var open = source.IndexOf('{', declaration.Index);
-        var close = MatchingBrace(source, open);
-        var name = declaration.Groups["name"].Value;
-        if (close < 0) return Fail("wireform-declaration-malformed", $"WireForm '{name}' has no closing brace.");
-        var body = source[(open + 1)..close];
+        var declarations = FirmamentV2Parser.MechanicalDeclarations(syntax.Document.Statements).Where(d => d.Type.Name.Text == "WireForm").ToArray();
+        if (declarations.Length > 1) return Fail("wireform-multiple-bodies-unsupported", "One WireForm product is admitted per part; place separate Parts in an Assembly. No declared wire may be discarded.");
+        var declaration = declarations.FirstOrDefault();
+        if (declaration?.Name is null || declaration.Body is null)
+            return Fail("wireform-declaration-missing", "Expected WireForm Name { ... }.");
+        var name = declaration.Name.Text;
+        if (UnsupportedHeader(declaration)) return Fail("wireform-header-unsupported", $"WireForm '{name}' does not admit placement, generic, parameter or initializer clauses; author its StartFrame fields explicitly.");
+        foreach (var child in declaration.Body.Statements.OfType<DeclarationSyntax>())
+        {
+            if (child.Body is null)
+                return child.Type.Name.Text == "StartFrame"
+                    ? Fail("wireform-start-frame-invalid", "StartFrame requires a body containing Origin, Tangent and Up.")
+                    : Fail("wireform-operation-malformed", $"Wire operation '{child.Name?.Text ?? child.Type.Name.Text}' requires a body.");
+            if (UnsupportedHeader(child) || child.Type.Name.Text != "StartFrame" && child.Name is null)
+                return Fail("wireform-header-unsupported", $"Wire operation '{child.Name?.Text ?? child.Type.Name.Text}' requires a named operation and a field body; placement and parameter clauses are not supported.");
+        }
+        var body = source.Substring(declaration.Body.ContentSpan.Start, declaration.Body.ContentSpan.Length);
         var wireFields = new WireFormFields("WireForm", body);
         var children = wireFields.Declaration.Body!.Statements.OfType<DeclarationSyntax>()
             .Where(d => d.Type.Name.Text is "StartFrame" or "Straight" or "Bend" or "Helix" or "AxisCoil" or "Coil" or "SurfaceCoil" or "Knot")
@@ -209,19 +220,16 @@ public static class WireFormAuthoring
         var state = new WireState(new(origin.X, origin.Y, origin.Z), tangent, up, 0d);
         var operations = new List<WireFormOperationAir>();
         var provenance = new List<WireFormOperationProvenance>();
-        foreach (Match match in Operation.Matches(body))
+        foreach (var operation in declaration.Body.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text != "StartFrame"))
         {
-            var operationOpen = body.IndexOf('{', match.Index);
-            var operationClose = MatchingBrace(body, operationOpen);
-            if (operationClose < 0) return Fail("wireform-operation-malformed", $"Operation '{match.Groups["name"].Value}' has no closing brace.");
-            var operationBody = body[(operationOpen + 1)..operationClose];
-            var operationName = match.Groups["name"].Value;
-            var operationFields = new WireFormFields(match.Groups["kind"].Value, operationBody);
+            var operationBody = source.Substring(operation.Body!.ContentSpan.Start, operation.Body.ContentSpan.Length);
+            var operationName = operation.Name!.Text;
+            var operationKind = operation.Type.Name.Text;
+            var operationFields = new WireFormFields(operationKind, operationBody);
             provenance.Add(new(operationName,
-                new FirmamentV2SourceSpan(open + 1 + match.Index, operationClose - match.Index + 1),
-                FirmamentV2Parser.ReadAuthoredFields(operationBody, open + 1 + operationOpen + 1)));
+                operation.Span, FirmamentV2Parser.ReadAuthoredFields(operationBody, operation.Body.ContentSpan.Start)));
             var ordinal = operations.Count + 1;
-            if (match.Groups["kind"].Value == "Straight")
+            if (operationKind == "Straight")
             {
                 if (!TryLength(operationFields.Read("Length"), out var length) || length <= 0d)
                     return Fail("wireform-straight-length-invalid", $"{operationName}: Length must be finite and greater than zero.");
@@ -232,19 +240,19 @@ public static class WireFormAuthoring
                 continue;
             }
 
-            if (match.Groups["kind"].Value is "Helix" or "AxisCoil" or "Coil")
+            if (operationKind is "Helix" or "AxisCoil" or "Coil")
             {
                 var coil = WireCoilAuthoring.CreateAxis(operationName, ordinal, operationBody, state, diameter);
                 if (!coil.IsSuccess) return KernelResult<WireFormFeatureAir>.Failure(coil.Diagnostics);
                 operations.Add(coil.Value); state = coil.Value.Output; continue;
             }
-            if (match.Groups["kind"].Value == "SurfaceCoil")
+            if (operationKind == "SurfaceCoil")
             {
                 var coil = WireCoilAuthoring.CreateSurface(source, operationName, ordinal, operationBody, state, diameter);
                 if (!coil.IsSuccess) return KernelResult<WireFormFeatureAir>.Failure(coil.Diagnostics);
                 operations.Add(coil.Value); state = coil.Value.Output; continue;
             }
-            if (match.Groups["kind"].Value == "Knot")
+            if (operationKind == "Knot")
             {
                 if (operations.Count != 0 || Operation.Matches(body).Count != 1)
                     return Fail("wireform-knot-composition-unsupported", $"{operationName}: X2 KnotPath must be the sole closed operation in a WireForm.");
@@ -282,6 +290,11 @@ public static class WireFormAuthoring
             operations[0] is WireKnotPathAir ? operations[0].Input : authoredStart, operations,
             operations[0] is WireKnotPathAir knot ? knot.FrameClosure.Policy : FrameTransportPolicy, provenance));
     }
+
+    private static bool UnsupportedHeader(DeclarationSyntax declaration) => declaration.Clauses.Count > 0
+        || declaration.Modifiers.Count > 0 || declaration.Type.Arguments.Count > 0 || declaration.Parameters.Count > 0
+        || declaration.HasParameterList || declaration.Annotation is not null || declaration.ResultType is not null
+        || declaration.Initializer is not null || declaration.Occurrence;
 
     internal static string? Property(string body, string name)
     {

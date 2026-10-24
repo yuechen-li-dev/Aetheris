@@ -85,3 +85,8 @@ operations, SectionChain guides, assembly occurrences and published Semantic
 blocks. `validate --parse-only` reports a limited validation level; normal
 validation performs the owning domain admission and required engineering
 preflight, which can take time for swept or spline-heavy geometry.
+
+A WireForm part admits one wire product. Its named operations require field
+bodies; unsupported placement or parameter headers reject. Use StartFrame for
+the authored frame and an Assembly for separate Parts. Comments never contribute
+wire operations or operation provenance.

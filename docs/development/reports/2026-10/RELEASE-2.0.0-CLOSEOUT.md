@@ -75,6 +75,13 @@ The final owner review also reproduced a malformed `StartFrame Empty;` crash.
 It now rejects with `wireform-start-frame-invalid` in both real CLI commands,
 retaining an explanation and producing no STEP. This is a reader guard, not a
 new fallback or recovery interpretation.
+The follow-up operation check also reproduced `Straight Ignored;` being omitted
+when followed by a real operation. WireForm now consumes the existing AST's
+root and ordered child spans, instead of rediscovering execution statements by
+regex. Missing bodies, unsupported headers and multiple wire products reject.
+A commented-out operation contributes neither geometry nor provenance, and its
+accepted STEP is byte-identical to the control. The geometry state machine and
+coil/knot construction algorithms remain unchanged.
 
 CLI diagnostics carry code, severity, explanation, source file, stage and source
 location when available. Missing-file diagnostics have no invented span. Legacy

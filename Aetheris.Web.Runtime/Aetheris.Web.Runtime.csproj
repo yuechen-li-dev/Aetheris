@@ -25,5 +25,7 @@
          including on native authored bodies. Reflection JSON needs their named
          constructor parameters in trimmed/AOT browser publishes as well. -->
     <TrimmerRootAssembly Include="Aetheris.Kernel.Core" />
+    <!-- Artifact/display metadata also carries collaboration review contracts. -->
+    <TrimmerRootAssembly Include="Aetheris.Collaboration" />
   </ItemGroup>
 </Project>

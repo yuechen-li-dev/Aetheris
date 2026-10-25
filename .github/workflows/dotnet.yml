@@ -102,44 +102,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - uses: actions/checkout@v4
-        with:
-          repository: yuechen-li-dev/tspack
-          ref: 01051b791cf83757a1c419ef7bc276d9de787a9d # scoped tools, local dependencies and explicit shared runtime providers
-          path: artifacts/local/release-tools/tspack
-          persist-credentials: false
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: artifacts/local/release-tools/tspack/go.mod
-          cache-dependency-path: artifacts/local/release-tools/tspack/go.sum
-      - name: Build pinned TSPack
-        shell: pwsh
-        run: |
-          $source = Resolve-Path 'artifacts/local/release-tools/tspack'
-          Push-Location "$source/manifest-frontend"
-          try {
-            npm install --no-package-lock
-            if ($LASTEXITCODE -ne 0) { throw 'TSPack manifest frontend dependency installation failed.' }
-            npm run build
-            if ($LASTEXITCODE -ne 0) { throw 'TSPack manifest frontend build failed.' }
-          }
-          finally { Pop-Location }
-
-          Push-Location $source
-          try {
-            go run ./tools/generate-embedded-bridges
-            if ($LASTEXITCODE -ne 0) { throw 'TSPack embedded bridge generation failed.' }
-            New-Item -ItemType Directory -Force dist | Out-Null
-            go build -trimpath -buildvcs=false -tags tspack_embedded_bridges `
-              -ldflags '-X github.com/yuechen-li-dev/tspack/internal/version.Version=v0.1.14-m80i.2+01051b791cf8 -X github.com/yuechen-li-dev/tspack/internal/version.Commit=01051b791cf8 -X github.com/yuechen-li-dev/tspack/internal/version.Date=2026-10-24T17:54:42Z' `
-              -o dist/tspack.exe ./cmd/tspack
-            if ($LASTEXITCODE -ne 0) { throw 'Pinned TSPack build failed.' }
-          }
-          finally { Pop-Location }
-
-          $toolDirectory = "$source/dist"
-          $toolDirectory | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
-          & "$toolDirectory/tspack.exe" --version
+      - uses: ./.github/actions/prepare-tspack
       - name: Prepare managed WGSL dependency
         uses: ./.github/actions/prepare-managed-wgsl
       - name: Qualify clean Cadmata frontend
@@ -301,9 +264,20 @@ jobs:
           path: artifacts/local/desktop-no-argument-smoke
           if-no-files-found: ignore
 
+  release-portable:
+    needs: release-build
+    if: ${{ !inputs.diagnostic_run_id && !inputs.qualification_run_id && needs.release-build.result == 'success' }}
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/portable-release.yml
+    with:
+      product_ref: ${{ github.sha }}
+      frontend_run_id: "${{ github.run_id }}"
+
   publish:
     if: ${{ !inputs.diagnostic_run_id && !inputs.qualification_run_id && (startsWith(github.ref, 'refs/tags/v') || inputs.publish == true) }}
-    needs: [build-test, release-build, release-smoke]
+    needs: [build-test, release-build, release-smoke, release-portable]
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -315,6 +289,14 @@ jobs:
         with:
           name: aetheris-release
           path: release
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: portable-bundle-*
+          merge-multiple: true
+          path: portable
+      - name: Include qualified native distributions
+        shell: pwsh
+        run: ./scripts/Add-PortableReleaseArtifacts.ps1 -ReleaseDirectory release -PortableDirectory portable
       - name: Authenticate to NuGet with trusted publishing
         id: nuget-login
         uses: NuGet/login@v1
@@ -335,8 +317,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ needs.release-build.outputs.version }}
         run: |
-          gh release create "v${RELEASE_VERSION}" --target "$GITHUB_SHA" --repo "${GITHUB_REPOSITORY}" --title "Aetheris ${RELEASE_VERSION}" --latest --notes-file docs/release/${{ needs.release-build.outputs.version }}-notes.md release/Aetheris-*.zip release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/RELEASE-INVENTORY.md release/packages/*.nupkg release/packages/public-libraries/*.nupkg || \
-          gh release upload "v${RELEASE_VERSION}" --repo "${GITHUB_REPOSITORY}" --clobber release/Aetheris-*.zip release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/RELEASE-INVENTORY.md release/packages/*.nupkg release/packages/public-libraries/*.nupkg
+          gh release create "v${RELEASE_VERSION}" --target "$GITHUB_SHA" --repo "${GITHUB_REPOSITORY}" --title "Aetheris ${RELEASE_VERSION}" --latest --notes-file docs/release/${{ needs.release-build.outputs.version }}-notes.md release/Aetheris-*.zip release/Aetheris-*.tar.gz release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/RELEASE-INVENTORY.md release/packages/*.nupkg release/packages/public-libraries/*.nupkg || \
+          gh release upload "v${RELEASE_VERSION}" --repo "${GITHUB_REPOSITORY}" --clobber release/Aetheris-*.zip release/Aetheris-*.tar.gz release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/RELEASE-INVENTORY.md release/packages/*.nupkg release/packages/public-libraries/*.nupkg
           gh release edit "v${RELEASE_VERSION}" --repo "${GITHUB_REPOSITORY}" --latest --prerelease=false --notes-file docs/release/${{ needs.release-build.outputs.version }}-notes.md
 
   desktop-diagnostic:

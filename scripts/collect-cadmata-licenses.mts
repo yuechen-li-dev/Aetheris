@@ -1,8 +1,8 @@
-import { readFile, readdir, mkdir, copyFile, writeFile, realpath } from "node:fs/promises";
+import { readFile, readdir, mkdir, copyFile, writeFile, realpath, cp } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
-const [root, stage, assetsPath] = process.argv.slice(2).map(path => resolve(path));
+const [root, stage, assetsPath, frontendNotices] = process.argv.slice(2).map(path => resolve(path));
 const output = join(stage, "licenses");
 await mkdir(output, { recursive: true });
 const notices: string[] = [];
@@ -67,14 +67,33 @@ async function visit(directory: string, includeOwnNotice = true) {
     }
   }
 }
-await visit(join(root, "aetheris.client"), false);
-await visit(join(root, "Aetheris.Web.Runtime/telos"));
-for (const identity of bundled) {
-  if (!auditedFrontend.has(identity) && !identity.startsWith("@aetheris/"))
-    unresolved.push(identity + ": emitted frontend package was not found in the notice dependency graph");
+if (frontendNotices) {
+  // Native bundles reuse the exact qualified frontend, not a second frontend
+  // build. Carry its audited frontend notices, then audit this RID's own NuGet
+  // graph below. Do not inherit Windows runtime/WebView2 package notices.
+  const audit = JSON.parse(await readFile(join(frontendNotices, "AUDIT.json"), "utf8"));
+  if (!audit.redistributionNoticesComplete) throw new Error("Reference frontend notices are incomplete");
+  assertSameInventory(await readFile(join(frontendNotices, "../wwwroot/bundled-packages.json")));
+  for (const item of await readdir(frontendNotices, { withFileTypes: true })) {
+    if (!item.isDirectory() || item.name.startsWith("nuget-")) continue;
+    await cp(join(frontendNotices, item.name), join(output, item.name), { recursive: true });
+  }
+  const inherited = (await readFile(join(frontendNotices, "INDEX.txt"), "utf8")).split("\n");
+  notices.push(...inherited.filter(line => line && !line.startsWith("nuget-")));
+} else {
+  await visit(join(root, "aetheris.client"), false);
+  await visit(join(root, "Aetheris.Web.Runtime/telos"));
+  for (const identity of bundled) {
+    if (!auditedFrontend.has(identity) && !identity.startsWith("@aetheris/"))
+      unresolved.push(identity + ": emitted frontend package was not found in the notice dependency graph");
+  }
 }
-const assets = JSON.parse(await readFile(assetsPath, "utf8"));
-for (const [identity, library] of Object.entries(assets.libraries) as [string, { type: string; path: string }][]) {
+function assertSameInventory(reference: Buffer) {
+  if (JSON.stringify(JSON.parse(reference.toString("utf8"))) !== JSON.stringify(bundle))
+    throw new Error("Reused frontend inventory differs from its audited source");
+}
+const assets = assetsPath ? JSON.parse(await readFile(assetsPath, "utf8")) : null;
+for (const [identity, library] of Object.entries(assets?.libraries ?? {}) as [string, { type: string; path: string }][]) {
   if (library.type !== "package") continue;
   const directory = join(Object.keys(assets.packageFolders)[0], library.path);
   await collect(directory, `nuget-${identity}`);

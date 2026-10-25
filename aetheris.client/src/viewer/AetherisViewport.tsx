@@ -44,8 +44,22 @@ export function AetherisViewport(props: AetherisViewportProps) {
 }
 function ViewportRenderer(props: AetherisViewportProps) {
   const [generation, setGeneration] = useState(0);
-  const supported = typeof navigator !== "undefined" && !!navigator.gpu;
-  const legacyReason = !supported ? "WebGPU unavailable" : null;
+  const [admission, setAdmission] = useState<{ checked: boolean; legacyReason: string | null }>({ checked: false, legacyReason: null });
+  useEffect(() => {
+    let active = true;
+    async function admit() {
+      let legacyReason: string | null = "WebGPU unavailable";
+      if (typeof navigator !== "undefined" && navigator.gpu) {
+        try { legacyReason = await navigator.gpu.requestAdapter() ? null : "No WebGPU adapter available"; }
+        catch { legacyReason = "WebGPU adapter unavailable"; }
+      }
+      if (active) setAdmission({ checked: true, legacyReason });
+    }
+    void admit();
+    return () => { active = false; };
+  }, []);
+  if (!admission.checked) return <div role="status">Checking graphics support…</div>;
+  const legacyReason = admission.legacyReason;
   if (legacyReason)
     return (
       <div

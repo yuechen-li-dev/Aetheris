@@ -43,7 +43,7 @@ Dangerous operations which may generate degenerate/sliver/zero-dimension geometr
 
 ## Try it
 
-The complete Windows experience is the `Aetheris-2.0.0-win-x64.zip` release bundle. It includes the CLI, Cadmata, NativeAOT Forge Host, public documentation, examples, and material catalog. The standalone managed .NET tool provides the CLI on Windows and Linux x64:
+Download a self-contained [release bundle](https://github.com/yuechen-li-dev/Aetheris/releases/tag/v2.0.0) for Windows x64, Linux x64 or macOS Apple Silicon. Each includes the CLI, Cadmata browser viewer, Forge Host, documentation, examples and material catalog; no SDK or Node.js installation is needed. Follow the [bundle walkthrough](docs/public/release-bundle.md). For the CLI alone, install the managed .NET tool with the .NET 10 SDK:
 
 ```powershell
 dotnet tool install --global Aetheris.CLI --version 2.0.0

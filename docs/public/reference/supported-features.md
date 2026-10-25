@@ -1,8 +1,8 @@
-# Preview 3 supported features
+# Aetheris supported features
 
-`Supported` means a qualified public path. `Bounded` means the documented subset is production-tested. `Experimental` is usable evidence without a general product promise. `Not in Preview 3` is intentionally deferred.
+`Supported` means a qualified public path. `Bounded` means the documented subset is production-tested. `Experimental` is usable evidence without a general product promise. `Not supported` is intentionally deferred.
 
-| Area | Status | Preview 3 boundary |
+| Area | Status | Boundary |
 |---|---|---|
 | Firmament V2 native primitives/profiles | Bounded | Named Box/Cylinder/Frustum/RoundedBox, exact Ellipsoid, regular Polyhedron<4/6/8/12/20>, and admitted line/arc profile construction/composition |
 | Drawing generation | Bounded | Complete nominal PDF/SVG/editable PPTX for rectangular plates/boxes with disjoint Z-through holes: stock/thickness dimensions, coordinate schedule and grouped limits. Explicit reference-only mode for incomplete PMI views; no process-capability or manufacturing-release claim. Authored Assembly drawings remain available. See [drawings](../drawings.md). |
@@ -43,12 +43,11 @@
 | Forge Protocol v1 | Supported | List/describe/invoke embedded public templates; process JSON and file artifacts |
 | Cadmata | Bounded | Geometry inspection, selection, semantic PMI presentation and filtering |
 | Assemblies | Bounded | Typed Firmament assembly inspection plus explicitly identified legacy `.firmasm` compatibility |
-| Platform qualification | Supported | Windows x64 bundle; NativeAOT Forge Host on `win-x64` |
-| Linux/macOS release binaries | Not in Preview 3 | Framework logic tests do not constitute binary qualification |
-| Post-Preview-3 feature families | Exception | Circular Sweep, Formed Wire, and Standard Products Paperclip are bounded additions; other new geometry/PMI/FEA/Forge families remain frozen |
-| General smooth/rail/topology-changing loft and freeform surface features | Not in Preview 3 | The bounded two-section lofts, G1 SectionChains, and WireForm `Helix` do not qualify arbitrary smooth loft, guide rails, topology-changing correspondence, arbitrary dumb-solid editing, G2 continuity, or surface networks. |
+| Platform qualification | Supported | Self-contained CLI, browser viewer and NativeAOT Forge Host on Windows x64, Linux x64 (glibc) and macOS arm64; optional dedicated window on Windows |
+| Other platform binaries | Not supported | No Intel macOS, Linux arm64 or Alpine/musl bundle |
+| General smooth/rail/topology-changing loft and freeform surface features | Not supported | The bounded two-section lofts, G1 SectionChains, and WireForm `Helix` do not qualify arbitrary smooth loft, guide rails, topology-changing correspondence, arbitrary dumb-solid editing, G2 continuity, or surface networks. |
 | Through profile removal | Bounded semantic operations | Use qualified `Hole`, `Slot`, explicit `Pocket { end: ThroughAll }`, or `Remove` with `role: ThroughCut`; depth-based Pocket must leave its admitted floor |
-| Arbitrary solid Boolean subtraction / hemispherical cavity | Not in Preview 3 | No public `Union`, `Subtract`, `Intersect`, CSG tree, Sphere-from-Block subtraction, or hemisphere special case |
+| Arbitrary solid Boolean subtraction / hemispherical cavity | Not supported | No public `Union`, `Subtract`, `Intersect`, CSG tree, Sphere-from-Block subtraction, or hemisphere special case |
 
 ## Template capability matrix
 
@@ -64,8 +63,8 @@
 | Materials | Bounded by consuming domain | semantic identity can flow through existing Firmament/Forge paths; no SQLite or catalog queries in Templates |
 | Sheet Metal product families | Supported | five embedded public families and Forge Protocol v1 exposure |
 | Nested Templates | Bounded | acyclic concrete specialization only; Templates are not values |
-| Recursive or higher-order metaprogramming | Not in Preview 3 | cycles are rejected; Template parameters are unsupported |
-| Direct array/Table parameters | Not in Preview 3 | select/derive a finite Record or use bounded feature Pattern data |
+| Recursive or higher-order metaprogramming | Not supported | cycles are rejected; Template parameters are unsupported |
+| Direct array/Table parameters | Not supported | select/derive a finite Record or use bounded feature Pattern data |
 | FEA specialization | Bounded by concrete Model output | an admitted specialized Model can contain existing Analysis; no generic Analysis output family |
 | PMI specialization | Bounded by existing concrete semantics | specialized dimensions can feed existing PMI; no new PMI kinds |
 | Forge introspection | Supported | stable ID plus generic display signature, categories, units, defaults, enum cases, Record fields, constraints, output kind, artifacts |

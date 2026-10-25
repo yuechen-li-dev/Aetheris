@@ -21,5 +21,9 @@
     <!-- Assembly/Scene snapshots serialize semantic provenance records. Preserve
          their constructor parameter metadata for the reflection JSON bridge. -->
     <TrimmerRootAssembly Include="Aetheris.Semantics" />
+    <!-- Mesh snapshots expose kernel import-qualification/provenance records,
+         including on native authored bodies. Reflection JSON needs their named
+         constructor parameters in trimmed/AOT browser publishes as well. -->
+    <TrimmerRootAssembly Include="Aetheris.Kernel.Core" />
   </ItemGroup>
 </Project>

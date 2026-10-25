@@ -68,6 +68,8 @@ public static class SectionChainAuthoringParser
         var boundaries = ClosedBoundary2Authoring.Expand(source, diagnostics, values);
         if (boundaries is null || diagnostics.Count > 0) return new(false, null, null, diagnostics);
         source = boundaries.Source;
+        diagnostics.AddRange(ProfileAuthoringParser.ValidateConstructionGuides(source, values.NominalExpression));
+        if (diagnostics.Count > 0) return new(false, null, null, diagnostics);
         var staticSource = CanonicalStaticAuthoring.Expand(source, diagnostics, values);
         if (staticSource is null || diagnostics.Count > 0) return new(false, null, null, diagnostics);
         var inputs = values.MaterialInputs(staticSource.Source);

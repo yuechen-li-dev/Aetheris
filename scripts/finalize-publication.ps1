@@ -15,8 +15,9 @@ $publicPackageDestination = Join-Path $releaseRoot "packages/public-libraries"
 New-Item -ItemType Directory -Force -Path $publicPackageDestination | Out-Null
 
 $publicPackages = @(Get-ChildItem -LiteralPath $publicLibrariesRoot -Filter "*.nupkg" -File | Sort-Object Name)
-if ($publicPackages.Count -ne 16) {
-    throw "Expected 16 public library packages in '$publicLibrariesRoot', found $($publicPackages.Count)."
+$expectedIds = @(Get-Content (Join-Path $publicLibrariesRoot 'PACKAGE_ORDER.txt'))
+if ($publicPackages.Count -ne $expectedIds.Count) {
+    throw "Expected $($expectedIds.Count) public packages in '$publicLibrariesRoot', found $($publicPackages.Count)."
 }
 
 foreach ($package in $publicPackages) {
@@ -49,7 +50,7 @@ $checksumLines = $releaseHashes | ForEach-Object { "$($_.Sha256)  $($_.Path)" }
 Set-Content -LiteralPath (Join-Path $releaseRoot "SHA256SUMS.txt") -Value $checksumLines -Encoding utf8NoBOM
 
 $inventoryLines = @(
-    "# Preview 3 release inventory"
+    "# Aetheris release inventory"
     ""
     "Generated from the staged publication directory. Hashes use SHA-256."
     ""
@@ -59,7 +60,7 @@ $inventoryLines = @(
 $inventoryLines += $releaseHashes | ForEach-Object { "| ``$($_.Path)`` | $($_.Bytes) | ``$($_.Sha256)`` |" }
 $inventoryLines += @(
     ""
-    "The inventory contains the Windows x64 bundle, Firmament VSIX, CLI package, and all 16 public library packages."
+    "The inventory contains the Windows x64 bundle, Firmament VSIX, CLI package, and all $($publicPackages.Count) public packages."
 )
 Set-Content -LiteralPath (Join-Path $releaseRoot "RELEASE-INVENTORY.md") -Value $inventoryLines -Encoding utf8NoBOM
 

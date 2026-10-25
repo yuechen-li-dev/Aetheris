@@ -219,7 +219,7 @@ public static class FirmamentSyntaxParser
             if (name is null && type.Name.Text is "RecoveredRegion" or "RecoveredBend" or "RecoveredCut" && Current.Kind==SyntaxTokenKind.String)
             {
                 var token=Current;at++;
-                name=new(System.Text.Json.JsonSerializer.Deserialize<string>(token.Text)!,token.Span);
+                name=new(System.Text.Json.JsonSerializer.Deserialize(token.Text,FirmamentJsonContext.Default.String)!,token.Span);
             }
             ExpressionSyntax? target = null;
             if (type.Name.Text is "CornerProfile" or "EdgeProfile" && name is not null)
@@ -405,7 +405,9 @@ public static class FirmamentSyntaxParser
             {
                 var start = Current.Span.Start;
                 ExpressionSyntax left;
-                if (Take("+") || Take("-") || Take("!") || Take("Reverse"))
+                var reverseOperand = Peek(1).Kind != SyntaxTokenKind.End && Peek(1).Text is not ("}" or ";" or "," or ")" or "]")
+                    && Peek(2).Text != ":";
+                if (Take("+") || Take("-") || Take("!") || Is("Reverse") && reverseOperand && Take("Reverse"))
                 {
                     var op = Previous.Text switch { "+" => UnaryOperator.Positive, "-" => UnaryOperator.Negative, "Reverse" => UnaryOperator.Reverse, _ => UnaryOperator.Not };
                     left = new UnarySyntax(op, Expression(80, allowObject, stopGreater), Span(start));

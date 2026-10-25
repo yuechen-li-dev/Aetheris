@@ -33,6 +33,9 @@ Circular area times total length gives volume; density from the Material DB give
 
 The centerline lowers to explicit line and circular-arc AIR, then to exact circular Sweep geometry. Straights become cylinders, bends become toroidal patches, and open terminals become planar caps. Canonical WireForms have no rational B-spline surfaces and no faceted fallback. Both terminals retain position, tangent/frame, and section diameter.
 
+STEP export retains these analytic surfaces and circular edge bases. Face boundaries follow their outward normals, so a downstream CAD reader receives the intended bend side without needing to repair the wire's winding.
+When STEP edges lack surface-parameter trims, import derives exact linear trims for cylinder generators and rings, and torus major and minor circles. Straight/Bend wire forms do not need fitted B-spline trim curves; seam boundaries retain their full angular spans. Existing source trim curves are preserved rather than rewritten.
+
 Winding generators extend wire forming without weakening the exact Straight/Bend route. `Helix` authors a cylindrical helix from `Radius`, `Turns`, either `Pitch` or `Height`, explicit `Handedness`, and an optional stable `StartPhase`. If both Pitch and Height are supplied they must agree with `Height = Turns × Pitch`. The compiler derives the missing value, exact helix length, terminal position/tangent/transported frame, turn clearance, volume, and mass. `AxisCoil` remains accepted as a compatibility spelling and lowers to the same semantic operation. The axis is derived from the current wire state rather than specified as an independent field.
 
 ```firmament

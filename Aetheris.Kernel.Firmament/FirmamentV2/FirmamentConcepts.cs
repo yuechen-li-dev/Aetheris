@@ -230,7 +230,7 @@ internal sealed class FirmamentConcepts
         Value Eval(ExpressionSyntax child) => Evaluate(child, scope, stack, depth + 1, typeOnly);
         if (e is SequenceSyntax { Kind: SequenceKind.Tuple, Items.Count: 1 } group) return Eval(group.Items[0].Value);
         if (e is LiteralSyntax { Kind: LiteralKind.Boolean } boolean) return new("Bool", bool.Parse(boolean.Raw), e);
-        if (e is LiteralSyntax { Kind: LiteralKind.String } text) return new("String", System.Text.Json.JsonSerializer.Deserialize<string>(text.Raw)!, e);
+        if (e is LiteralSyntax { Kind: LiteralKind.String } text) return new("String", System.Text.Json.JsonSerializer.Deserialize(text.Raw, FirmamentJsonContext.Default.String)!, e);
         if (e is ReferenceSyntax or MemberSyntax)
         {
             var name = FirmamentSyntaxValues.Reference(e)!;

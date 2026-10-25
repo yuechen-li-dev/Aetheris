@@ -6,12 +6,18 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.StaticFiles;
 using System.Diagnostics;
+using System.Reflection;
+using System.Security.Cryptography;
+
+// An embedded host (including WebApplicationFactory) owns its own presentation
+// and lifetime. Only the real executable launches a browser window.
+var ownsProcess = Assembly.GetEntryAssembly() == typeof(Program).Assembly;
 
 CadmataLaunchOptions launchOptions;
 try
 {
     launchOptions = CadmataLaunchOptions.Parse(args);
-    launchOptions.ValidateProductionAssets(AppContext.BaseDirectory);
+    if (ownsProcess) launchOptions.ValidateProductionAssets(AppContext.BaseDirectory);
 }
 catch (CadmataLaunchException exception)
 {
@@ -19,9 +25,10 @@ catch (CadmataLaunchException exception)
     return 2;
 }
 
-var app = CadmataApplication.Create(args, launchOptions);
-
-if (launchOptions.Step is null)
+var browserSession = ownsProcess && !launchOptions.NoBrowser && !launchOptions.HasExplicitUrls;
+var sessionToken = browserSession ? Convert.ToHexString(RandomNumberGenerator.GetBytes(32)) : null;
+var app = CadmataApplication.Create(args, launchOptions, sessionToken: sessionToken);
+if (!ownsProcess)
 {
     app.Run();
     return 0;
@@ -35,13 +42,15 @@ var address = addresses?.FirstOrDefault(static value => value.StartsWith("http:/
     ?? throw new InvalidOperationException("Cadmata started without a browser address.");
 
 Console.WriteLine($"Cadmata ready: {address}");
-Console.WriteLine($"Opening: {launchOptions.Step.Path}");
+if (launchOptions.Step is not null) Console.WriteLine($"Opening: {launchOptions.Step.Path}");
+if (ownsProcess) Console.WriteLine("Close this server window or press Ctrl+C to end the Cadmata session.");
 
-if (!launchOptions.NoBrowser)
+if (ownsProcess && !launchOptions.NoBrowser)
 {
     try
     {
-        Process.Start(new ProcessStartInfo(address) { UseShellExecute = true });
+        var browserAddress = sessionToken is null ? address : address + "/__cadmata/session/" + sessionToken;
+        Process.Start(new ProcessStartInfo(browserAddress) { UseShellExecute = true });
     }
     catch (Exception exception)
     {

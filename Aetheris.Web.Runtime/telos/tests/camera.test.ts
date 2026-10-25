@@ -9,6 +9,28 @@ import {
 } from "../dist/index.js";
 import type { TelosScene } from "../dist/index.js";
 
+test("orbit crosses both world poles without a guard, singularity or lost pan basis", () => {
+  const camera = new TelosCamera();
+  camera.position.set(0, -10, 0); camera.target.set(0, 0, 0); camera.up.set(0, 0, 1); camera.update();
+  for (let quarter = 0; quarter < 4; quarter++) {
+    for (let step = 0; step < 90; step++) camera.orbit(0, Math.PI / 180);
+    assert(Math.abs(camera.position.length() - 10) < 1e-10);
+    assert(camera.viewProjection.elements.every(Number.isFinite));
+    assert(new Vector3().setFromMatrixColumn(camera.inverseView, 0).length() > .999);
+    if (quarter % 2 === 0) assert(Math.abs(camera.position.z) > 9.999);
+  }
+  assert(camera.position.distanceTo(new Vector3(0, -10, 0)) < 1e-10);
+  for (const [direction, up] of [[[0,0,1],[0,1,0]], [[0,0,-1],[0,-1,0]]]) {
+    camera.orient(direction, up);
+    assert(Math.abs(camera.position.z) > 9.999);
+    assert.deepEqual(camera.project([0,0,0]).slice(0,2), [.5,.5]);
+    camera.fit([-5, -3, 0], [5, 3, 2]);
+    assert(camera.position.clone().sub(camera.target).normalize().distanceTo(new Vector3(...direction)) < 1e-10);
+    camera.orbit(.1, .1);
+    assert(camera.view.elements.every(Number.isFinite));
+  }
+});
+
 test("resolved occurrence materials retain shared geometry and camera metadata uses Telos authority", () => {
   const definition = {
     id: "shared",

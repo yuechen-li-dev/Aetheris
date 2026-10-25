@@ -1992,7 +1992,10 @@ public static class SurfaceMeshIrTessellator
         var ac = (positions[a] - positions[c]).Length; var bd = (positions[b] - positions[d]).Length;
         var acValid = TriangleAreaMagnitude(positions[a], positions[b], positions[c]) > Epsilon && TriangleAreaMagnitude(positions[a], positions[c], positions[d]) > Epsilon;
         var bdValid = TriangleAreaMagnitude(positions[a], positions[b], positions[d]) > Epsilon && TriangleAreaMagnitude(positions[b], positions[c], positions[d]) > Epsilon;
-        if (acValid && (!bdValid || ac <= bd)) indices.AddRange([a, b, c, a, c, d]);
+        // Symmetric ruled quads have equal diagonals. Ignore only rounding-scale
+        // length differences so platform libm does not select a different split.
+        var tieTolerance = 1e-12d * double.Max(1d, double.Max(ac, bd));
+        if (acValid && (!bdValid || ac <= bd + tieTolerance)) indices.AddRange([a, b, c, a, c, d]);
         else indices.AddRange([a, b, d, b, c, d]);
     }
 

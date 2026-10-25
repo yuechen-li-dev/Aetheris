@@ -9,7 +9,9 @@ public static class ForgeHostProtocol
     public const string Name = "Forge Host Protocol";
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<ForgeProtocolDiagnosticSeverity>))]
 public enum ForgeProtocolDiagnosticSeverity { Info, Warning, Error }
+[JsonConverter(typeof(JsonStringEnumConverter<ForgeArtifactKind>))]
 public enum ForgeArtifactKind { StepAp242, FlatStep, Svg, CutListJson }
 
 public sealed record ForgeHostInfo(

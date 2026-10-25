@@ -7,7 +7,9 @@ import { STEP_UPLOAD_LIMIT_BYTES } from "../config/stepUpload";
 const apiMocks = vi.hoisted(() => ({
 	createDocument: vi.fn(),
 	claimStartupStep: vi.fn(),
-	createBox: vi.fn(),
+	composeBlock: vi.fn(),
+	listGalleryTemplates: vi.fn(),
+	invokeGalleryTemplate: vi.fn(),
 	executeBoolean: vi.fn(),
 	exportDefinitionStep: vi.fn(),
 	getDocumentSummary: vi.fn(),
@@ -26,7 +28,9 @@ vi.mock("../api/aetherisApi", async () => {
 		...actual,
 		createDocument: apiMocks.createDocument,
 		claimStartupStep: apiMocks.claimStartupStep,
-		createBox: apiMocks.createBox,
+		composeBlock: apiMocks.composeBlock,
+		listGalleryTemplates: apiMocks.listGalleryTemplates,
+		invokeGalleryTemplate: apiMocks.invokeGalleryTemplate,
 		executeBoolean: apiMocks.executeBoolean,
 		exportDefinitionStep: apiMocks.exportDefinitionStep,
 		getDocumentSummary: apiMocks.getDocumentSummary,
@@ -48,14 +52,8 @@ vi.mock("../viewer/AetherisViewport", () => ({
 function setupDocumentApiMocks(): void {
 	apiMocks.createDocument.mockResolvedValue({ documentId: "doc-1", name: "Test", volatile: true });
 	apiMocks.claimStartupStep.mockResolvedValue(null);
-	apiMocks.createBox.mockResolvedValue({
-		documentId: "doc-1",
-		bodyId: "occ-2",
-		definitionId: "def-2",
-		faceCount: 6,
-		edgeCount: 12,
-		vertexCount: 8,
-	});
+	apiMocks.importStep.mockResolvedValue({ documentId: 'doc-1', definitionId: 'def-2', occurrenceId: 'occ-2', name: 'Imported', diagnostics: [] });
+	apiMocks.composeBlock.mockResolvedValue({ stepText: 'STEP', exportPath: 'composed-block.step', source: 'Model ComposedBlock {}', materializationRoute: 'PrismaticSectionStack/Add' });
 	apiMocks.getDocumentSummary.mockResolvedValue({
 		documentId: "doc-1",
 		name: "Test",
@@ -112,8 +110,8 @@ describe("App STEP file upload flow", () => {
 
 		fireEvent.click(screen.getByRole("tab", { name: /Modeling Demo/i }));
 
-		expect(screen.getByText("Modeling Demo (Non-production)")).toBeTruthy();
-		expect(screen.getByRole("button", { name: "Create Box" })).toBeTruthy();
+		expect(screen.getByText("Compose blocks")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Build composed part" })).toBeTruthy();
 	});
 
 	it("auto-creates a workspace and shows connected/ready status on startup", async () => {
@@ -122,6 +120,34 @@ describe("App STEP file upload flow", () => {
 		await screen.findByText("Server: Connected");
 		await screen.findByText("Document: Ready");
 		expect(apiMocks.createDocument).toHaveBeenCalledTimes(1);
+		expect(apiMocks.importStep).not.toHaveBeenCalled();
+		expect(apiMocks.composeBlock).not.toHaveBeenCalled();
+		expect((screen.getByRole("button", { name: "Refresh Display Data" }) as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	it("previews the gallery artifact with its authored export path", async () => {
+		apiMocks.listGalleryTemplates.mockResolvedValue([{ id: "Standard.Products.Mechanical.MountingPlate", displayName: "Mounting Plate", parameters: [], artifacts: ["StepAp242"] }]);
+		apiMocks.invokeGalleryTemplate.mockResolvedValue({ artifacts: [{ kind: "StepAp242", name: "part.step", exportPath: "products/mounting-plate.step", content: "GENERATED STEP", sha256: "abcdef" }], executionMilliseconds: 10 });
+		render(<App />);
+		await screen.findByText("Document: Ready");
+		fireEvent.click(screen.getByRole("tab", { name: /Product Gallery/i }));
+		await screen.findByRole("button", { name: "Generate / Update Part" });
+		fireEvent.click(screen.getByRole("button", { name: "Generate / Update Part" }));
+		await screen.findByText(/Generated in/);
+		expect(apiMocks.importStep).toHaveBeenCalledWith("doc-1", "GENERATED STEP", "products/mounting-plate.step");
+		expect(apiMocks.prepareBodyDisplay).toHaveBeenCalledWith("doc-1", "occ-2");
+	});
+
+	it("builds the composed part instead of invoking the retired Boolean controls", async () => {
+		render(<App />);
+		await screen.findByText("Document: Ready");
+		fireEvent.click(screen.getByRole("tab", { name: /Modeling Demo/i }));
+		expect(screen.queryByRole("button", { name: "Execute Boolean" })).toBeNull();
+		fireEvent.click(screen.getByRole("button", { name: "Build composed part" }));
+		await screen.findByText(/Composed block built/);
+		expect(apiMocks.composeBlock).toHaveBeenCalledWith({ width: 80, depth: 50, height: 8, padWidth: 30, padDepth: 20, padHeight: 12 });
+		expect(apiMocks.importStep).toHaveBeenCalledWith("doc-1", "STEP", "composed-block.step");
+		expect(apiMocks.executeBoolean).not.toHaveBeenCalled();
 	});
 
 	it("switches the complete viewport theme without changing shell geography", () => {
@@ -212,6 +238,13 @@ describe("App STEP file upload flow", () => {
 			screen.getByText("No semantic Mates were inferred from occurrence transforms."),
 		).toBeTruthy();
 		expect(apiMocks.importStep).not.toHaveBeenCalled();
+		fireEvent.change(screen.getByTestId("step-import-file-input"), { target: { files: [new File(["STEP"], "replacement.step")] } });
+		await screen.findByText("replacement.step");
+		fireEvent.click(screen.getByRole("button", { name: "Import STEP 242" }));
+		await screen.findByText(/^Inspectable: Import complete/);
+		fireEvent.click(screen.getByRole("button", { name: "Refresh Display Data" }));
+		await waitFor(() => expect(apiMocks.prepareBodyDisplay).toHaveBeenCalledTimes(2));
+		expect(apiMocks.prepareAssemblyDisplay).toHaveBeenCalledTimes(1);
 	});
 
 	it("shows a readable startup STEP load failure", async () => {
@@ -235,7 +268,7 @@ describe("App STEP file upload flow", () => {
 		render(<App />);
 
 		await screen.findByText("Ready. Select a file to import.");
-		expect(apiMocks.claimStartupStep).toHaveBeenCalledTimes(1);
+		await waitFor(() => expect(apiMocks.claimStartupStep).toHaveBeenCalledTimes(1));
 		expect(apiMocks.importStep).not.toHaveBeenCalled();
 	});
 
@@ -463,6 +496,23 @@ describe("App STEP file upload flow", () => {
 		});
 		expect(apiMocks.exportDefinitionStep).toHaveBeenCalledWith("doc-1", "def-2");
 		await screen.findByText("hash-123");
+	});
+
+	it("preserves degraded import status without flooding the viewer with nonfatal diagnostics", async () => {
+		apiMocks.importStep.mockResolvedValue({
+			importStatus: "Degraded", documentId: "doc-1", definitionId: "def-2", occurrenceId: "occ-2", name: "Screw",
+			diagnostics: Array.from({ length: 35 }, (_, i) => ({ code: "Unknown", severity: "Info", source: "Importer.Surface", message: `Spline #${i} reduced within budget; lengthy candidate details.` })),
+		});
+		render(<App />);
+		await screen.findByText("Document: Ready");
+		fireEvent.change(screen.getByTestId("step-import-file-input"), { target: { files: [new File(["STEP"], "screw.step")] } });
+		await screen.findByText("screw.step");
+		fireEvent.click(screen.getByRole("button", { name: "Import STEP 242" }));
+		await screen.findByText(/^Degraded: Import complete\./);
+		expect(screen.getByText(/35 informational messages/)).toBeTruthy();
+		expect(screen.queryByText(/lengthy candidate details/)).toBeNull();
+		expect(screen.getByRole("button", { name: "Download diagnostic log" })).toBeTruthy();
+		expect(apiMocks.exportDefinitionStep).not.toHaveBeenCalled();
 	});
 
 	it("App_DisplayStatus_ShowsMixedFallbackAsDisplayStatus", async () => {
@@ -779,9 +829,10 @@ describe("App STEP file upload flow", () => {
 		render(<App />);
 		await screen.findByText("Document: Ready");
 
-		fireEvent.click(screen.getByRole("tab", { name: /Modeling Demo/i }));
-		fireEvent.click(screen.getByRole("button", { name: "Create Box" }));
-		await screen.findByText(/Create box complete/i);
+		fireEvent.change(screen.getByTestId("step-import-file-input"), { target: { files: [new File(["STEP"], "bracket.step")] } });
+		await screen.findByText("bracket.step");
+		fireEvent.click(screen.getByRole("button", { name: "Import STEP 242" }));
+		await screen.findByText(/^Inspectable: Import complete/);
 
 		fireEvent.click(screen.getByRole("tab", { name: /STEP 242 Viewer/i }));
 		fireEvent.click(screen.getByRole("button", { name: "Export Active (STEP)" }));
@@ -797,7 +848,7 @@ describe("App STEP file upload flow", () => {
 		expect(await blob.text()).toBe("ISO-10303-21;DATA;ENDSEC;");
 
 		const downloadAnchor = appendSpy.mock.calls.at(-1)?.[0] as HTMLAnchorElement;
-		expect(downloadAnchor.download).toBe("aetheris-def-2.step");
+		expect(downloadAnchor.download).toBe("bracket.step");
 		expect(anchorClickSpy).toHaveBeenCalledTimes(1);
 		expect(revokeObjectUrlSpy).toHaveBeenCalledWith("blob:download");
 
@@ -891,9 +942,10 @@ describe("App STEP file upload flow", () => {
 
 		render(<App />);
 		await screen.findByText("Document: Ready");
-		fireEvent.click(screen.getByRole("tab", { name: /Modeling Demo/i }));
-		fireEvent.click(screen.getByRole("button", { name: "Create Box" }));
-		await screen.findByText(/Create box complete/i);
+		fireEvent.change(screen.getByTestId("step-import-file-input"), { target: { files: [new File(["STEP"], "bracket.step")] } });
+		await screen.findByText("bracket.step");
+		fireEvent.click(screen.getByRole("button", { name: "Import STEP 242" }));
+		await screen.findByText(/^Inspectable: Import complete/);
 		fireEvent.click(screen.getByRole("tab", { name: /STEP 242 Viewer/i }));
 
 		fireEvent.click(screen.getByRole("button", { name: "Download Canonical 242" }));

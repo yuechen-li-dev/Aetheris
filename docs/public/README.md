@@ -107,7 +107,7 @@ cannot honour.
 - [Targets and selectors](reference/targets.md)
 - [Supported features](reference/supported-features.md) and [known issues](reference/known-issues.md)
 - [Wireframe SVG previews](reference/wireframe.md)
-- Release notes: [Preview 3](reference/release-notes.md), [Preview 4 Cadmata](cadmata/preview4-release-notes.md)
+- Release notes: [2.0.0](reference/release-notes.md), [historical Preview 4 Cadmata](cadmata/preview4-release-notes.md)
 
 ## Showcases
 

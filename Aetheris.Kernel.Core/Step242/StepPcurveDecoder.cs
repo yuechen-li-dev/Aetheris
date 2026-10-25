@@ -1,6 +1,7 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 
@@ -29,6 +30,12 @@ internal static class StepPcurveDecoder
             return KernelResult<IReadOnlyList<ImportedStepPcurve>>.Success([]);
         if (surfaceCurve.Arguments.ElementAtOrDefault(2) is not Step242ListValue associated)
             return Failure<IReadOnlyList<ImportedStepPcurve>>("SURFACE_CURVE/SEAM_CURVE associated_geometry must be a list.", "Importer.Pcurve.AssociatedGeometry");
+
+        if (surfaceCurve.Arguments.ElementAtOrDefault(1) is not Step242EntityReference basisReference)
+            return Failure<IReadOnlyList<ImportedStepPcurve>>("SURFACE_CURVE/SEAM_CURVE must reference its 3D basis.", "Importer.Pcurve.Binding");
+        var basis = document.TryGetEntity(basisReference.TargetId);
+        if (!basis.IsSuccess) return KernelResult<IReadOnlyList<ImportedStepPcurve>>.Failure(basis.Diagnostics);
+        var periodicBasis = basis.Value.Name is "CIRCLE" or "ELLIPSE";
 
         var result = new List<ImportedStepPcurve>();
         foreach (var item in associated.Items)
@@ -60,7 +67,8 @@ internal static class StepPcurveDecoder
                     System.Globalization.CultureInfo.InvariantCulture, out var parsedTolerance)
                 && double.IsFinite(parsedTolerance) && parsedTolerance is > 0d and <= 0.1d)
                 declaredTolerance = parsedTolerance;
-            result.Add(new ImportedStepPcurve(geometryResult.Value.Geometry, geometryResult.Value.SameSense,
+            var geometry = periodicBasis ? AlignPeriodicPcurve(geometryResult.Value.Geometry, edgeDomain) : geometryResult.Value.Geometry;
+            result.Add(new ImportedStepPcurve(geometry, geometryResult.Value.SameSense,
                 pcurve.Id, curveResult.Value.Id, DescribeCurveType(curveResult.Value), supportReference.TargetId,
                 declaredTolerance));
         }
@@ -155,6 +163,32 @@ internal static class StepPcurveDecoder
 
         KernelResult<DecodedPcurveGeometry> Success(PcurveGeometry geometry) =>
             KernelResult<DecodedPcurveGeometry>.Success(new(geometry, sameSense));
+    }
+
+    private static PcurveGeometry AlignPeriodicPcurve(PcurveGeometry curve, ParameterInterval edgeDomain)
+    {
+        // A CIRCLE edge inferred from its vertices can unwrap across zero after
+        // roundoff. Its conic pcurve must use the same period, otherwise Evaluate
+        // clamps all samples to an endpoint. Shift by whole periods only; never
+        // stretch a pcurve to conceal a genuinely different trim.
+        var shift = double.Round((edgeDomain.Start - curve.Domain.Start) / double.Tau) * double.Tau;
+        if (shift == 0d || double.Abs(curve.Domain.Start + shift - edgeDomain.Start) > 1e-8d
+            || double.Abs(curve.Domain.End + shift - edgeDomain.End) > 1e-8d) return curve;
+        var domain = new ParameterInterval(curve.Domain.Start + shift, curve.Domain.End + shift);
+        if (curve.PolynomialCurve is { } spline)
+        {
+            var translated = new BSpline3Curve(spline.Degree, spline.ControlPoints, spline.KnotMultiplicities,
+                spline.KnotValues.Select(value => value + shift).ToArray(), spline.CurveForm, spline.ClosedCurve, spline.SelfIntersect, spline.KnotSpec);
+            return curve.RationalWeights is { } weights ? PcurveGeometry.RationalPolynomial(domain, translated, weights)
+                : PcurveGeometry.Polynomial(domain, translated);
+        }
+        return curve.Kind switch
+        {
+            PcurveGeometryKind.Line => PcurveGeometry.Line(domain, curve.Points[0], curve.Points[1]),
+            PcurveGeometryKind.Circle => PcurveGeometry.Circle(domain, curve.Points[0], curve.Points[1].U, curve.Points[1].V),
+            PcurveGeometryKind.Ellipse => PcurveGeometry.Ellipse(domain, curve.Points[0], curve.Points[1], curve.Points[2]),
+            _ => PcurveGeometry.Polyline(domain, curve.Points),
+        };
     }
 
     private static KernelResult<PcurveGeometry> DecodeConic(Step242ParsedDocument document, Step242EntityConstructor conic, ParameterInterval domain, bool circle)

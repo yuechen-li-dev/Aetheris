@@ -1,4 +1,4 @@
-"""Recover the V8 numeric golden only from meshes matching the existing hashes."""
+"""Recover the V8 numeric golden only from meshes matching the qualified hashes."""
 
 import argparse
 import hashlib
@@ -25,10 +25,10 @@ def freeze(source: Path, output: Path) -> None:
         data.extend(struct.pack(f"<{len(indices)}i", *indices))
         fingerprint = hashlib.sha256(data).hexdigest().upper()
         if fingerprint not in expected:
-            raise ValueError(f"Mesh does not match the original baseline: {fingerprint}")
+            raise ValueError(f"Mesh does not match the qualified baseline: {fingerprint}")
         entries[fingerprint] = data
     if set(entries) != expected:
-        raise ValueError("Missing original baseline definitions")
+        raise ValueError("Missing qualified baseline definitions")
     output.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output, "w") as archive:
         for fingerprint, data in sorted(entries.items()):

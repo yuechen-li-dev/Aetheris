@@ -1,9 +1,9 @@
 # Getting Started
 
-Preview 3 is qualified for Windows x64. Install the published .NET global tool with the .NET 10 SDK, or run the CLI from a source checkout:
+Aetheris 2.0.0 qualifies the managed CLI on Windows x64 and Linux x64. Install the .NET global tool with the .NET 10 SDK, or run the CLI from a source checkout:
 
 ```powershell
-dotnet tool install --global Aetheris.CLI --prerelease
+dotnet tool install --global Aetheris.CLI --version 2.0.0
 aetheris --help
 ```
 
@@ -15,11 +15,11 @@ The qualified first part is [`hole-diameter-and-datum.firmament`](../../fixtures
 
 ```powershell
 aetheris validate fixtures/Canonical/PMI/hole-diameter-and-datum.firmament --json
-aetheris build fixtures/Canonical/PMI/hole-diameter-and-datum.firmament --output artifacts/first-part.step --json
-aetheris analyze artifacts/first-part.step --json
+aetheris build fixtures/Canonical/PMI/hole-diameter-and-datum.firmament --output artifacts/local/first-part.step --json
+aetheris analyze artifacts/local/first-part.step --json
 ```
 
-`validate` checks syntax, binding, units, targets, and supported/deferred PMI without materializing geometry. A successful validation exits zero and reports `firmamentV2Validation.status: "valid"`. `build` runs the real geometry and AP242 path; its JSON includes `success`, output path, diagnostics, feature reports, and `pmiExportEvidence` describing what was actually emitted. `analyze` independently reinspects topology and semantic PMI.
+Normal `validate` checks syntax, binding, units, targets and capability admission, including the engineering preflight required by the domain. It can construct geometry in memory; it does not write a build artifact. A successful validation exits zero and reports `firmamentV2Validation.status: "valid"` with its validation level. `--parse-only` is a limited check and does not prove build admission. `build` writes the real geometry and AP242 artifact; its JSON includes `success`, output path, diagnostics, feature reports, and `pmiExportEvidence` describing what was actually emitted. `analyze` independently reinspects topology and semantic PMI.
 
 Use `aetheris view ...` to open Firmament or STEP in Cadmata when using the Windows bundle.
 

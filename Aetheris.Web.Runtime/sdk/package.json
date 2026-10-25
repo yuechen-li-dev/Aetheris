@@ -1,6 +1,6 @@
 {
   "name": "@aetheris/cad",
-  "version": "2.0.0-preview.3",
+  "version": "2.0.0",
   "description": "Browser-embeddable Aetheris semantic CAD runtime",
   "type": "module",
   "license": "AGPL-3.0-only",

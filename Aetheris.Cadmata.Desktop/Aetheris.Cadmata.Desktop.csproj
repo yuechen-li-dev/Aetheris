@@ -5,7 +5,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Cadmata.Desktop</AssemblyName>
-    <Product>Cadmata — Aetheris Preview 4</Product>
+    <Product>Cadmata — Aetheris</Product>
     <Description>Portable Windows host for Cadmata</Description>
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>

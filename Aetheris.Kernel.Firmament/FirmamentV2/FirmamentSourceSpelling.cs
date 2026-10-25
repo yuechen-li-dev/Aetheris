@@ -66,6 +66,17 @@ public static class FirmamentSourceSpelling
             .Select(alias => tokens.LastOrDefault(t => t.Start < alias.Name.Span.Start && t.Start >= alias.Value.Span.Start + alias.Value.Span.Length && t.Text is "As" or "as")?.Start)
             .Where(position => position.HasValue).Select(position => position!.Value).ToHashSet() : [];
         var output = new StringBuilder(source);
+        // A lowercase root with native V2 contents is a case-only compatibility
+        // alias. Historical solid/modify documents retain
+        // their explicit compatibility grammar.
+        foreach (var root in syntax.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "model" && d.Body is not null))
+        {
+            var legacy = root.Body!.Statements.Any(s => s is DeclarationSyntax d
+                && d.Type.Name.Text is "solid" or "modify" or "region" or "cut");
+            if (legacy) continue;
+            var span = root.Type.Name.Span;
+            output[span.Start] = 'M';
+        }
         var scopes = new Stack<Scope>();
         var parentheses = 0;
         var angles = 0;

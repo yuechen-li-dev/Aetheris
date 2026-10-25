@@ -9,14 +9,12 @@ import {
 	type ReactNode,
 } from "react";
 import { useDeusMachine } from "machinalayout/react";
-import { machinaRegion } from "./application/shellLayout";
+import { machinaRegion, viewportToolbarStyle } from "./application/shellLayout";
 import "./App.css";
 import {
 	ApiError,
 	claimStartupStep,
-	createBox,
 	createDocument,
-	executeBoolean,
 	exportDefinitionStep,
 	getDocumentSummary,
 	measureDocument,
@@ -25,8 +23,6 @@ import {
 	pickBody,
 	prepareBodyDisplay,
 	prepareAssemblyDisplay,
-	translateBody,
-	type BooleanOperation,
 	type BodyOccurrenceSummaryDto,
 	type DiagnosticDto,
 	type PickHitDto,
@@ -35,7 +31,10 @@ import {
 	type PaperclipDemoResponseDto,
 } from "./api/aetherisApi";
 import { StepImportDropzone } from "./components/StepImportDropzone";
+import { DiagnosticSummary } from "./components/DiagnosticSummary";
 import { ProductGallery } from "./components/ProductGallery";
+import { ModelingDemo } from "./components/ModelingDemo";
+import { stepExportFileName } from "./application/exportFileName";
 import { PropertyTable, type PropertyRecord } from "./components/PropertyTable";
 import { SemanticInspector } from "./components/SemanticInspector";
 import { Button } from "./components/ui/button";
@@ -63,7 +62,6 @@ import {
 import { DEFAULT_PMI_VISIBILITY, type PmiCategory, type PmiVisibility } from "./viewer/pmiPresentation";
 
 type RequestStatus = "idle" | "loading" | "success" | "error";
-type BooleanOperationUi = "Union" | "Subtract" | "Intersect";
 type TopLevelTab = "gallery" | "viewer" | "paperclips" | "modeling-demo";
 type ServerStatus = "connecting" | "connected" | "disconnected" | "error";
 type DocumentStatus = "creating" | "ready" | "error";
@@ -118,12 +116,6 @@ interface RefreshDisplayResult {
 	preparation: DisplayPreparationResponseDto | null;
 	error: ApiError | null;
 }
-
-const BOOLEAN_OP_TO_API: Record<BooleanOperationUi, BooleanOperation> = {
-	Union: "union",
-	Subtract: "subtract",
-	Intersect: "intersect",
-};
 
 function createDisplayStatusSummary(
 	preparation: DisplayPreparationResponseDto | null,
@@ -210,22 +202,14 @@ function App() {
 	);
 	const [pickDiagnostics, setPickDiagnostics] = useState<DiagnosticDto[]>([]);
 	const [pickHits, setPickHits] = useState<PickHitDto[]>([]);
-	const [boxWidth, setBoxWidth] = useState("1.75");
-	const [boxHeight, setBoxHeight] = useState("1.25");
-	const [boxDepth, setBoxDepth] = useState("1.1");
 	const [paperclipWireDiameter, setPaperclipWireDiameter] = useState("1");
 	const [paperclipOuterLegLength, setPaperclipOuterLegLength] = useState("15");
 	const [paperclipInnerLegLength, setPaperclipInnerLegLength] = useState("14");
 	const [paperclipOuterBendRadius, setPaperclipOuterBendRadius] = useState("5");
 	const [paperclipInnerBendRadius, setPaperclipInnerBendRadius] = useState("3");
 	const [paperclipResult, setPaperclipResult] = useState<PaperclipDemoResponseDto | null>(null);
-	const [tx, setTx] = useState("0");
-	const [ty, setTy] = useState("0");
-	const [tz, setTz] = useState("0");
-	const [booleanTargetBodyId, setBooleanTargetBodyId] = useState<string>("");
-	const [booleanToolBodyId, setBooleanToolBodyId] = useState<string>("");
-	const [booleanOperation, setBooleanOperation] = useState<BooleanOperationUi>("Union");
 	const [stepExportText, setStepExportText] = useState("");
+	const [stepExportName, setStepExportName] = useState<string | null>(null);
 	const [stepImportFile, setStepImportFile] = useState<File | null>(null);
 	const [stepDropzoneResetToken, setStepDropzoneResetToken] = useState(0);
 	const [stepCanonicalHash, setStepCanonicalHash] = useState<string | null>(null);
@@ -243,6 +227,18 @@ function App() {
 	const [isPmiVisible, setIsPmiVisible] = useState(true);
 	const [pmiVisibility, setPmiVisibility] = useState<PmiVisibility>(DEFAULT_PMI_VISIBILITY);
 	const startupStepClaimed = useRef(false);
+	const viewportControls = useRef<HTMLDivElement>(null);
+	const [displayControlsHeight, setDisplayControlsHeight] = useState(34);
+	useEffect(() => {
+		const controls = viewportControls.current;
+		if (!controls || typeof ResizeObserver === "undefined") return;
+		const measure = () => setDisplayControlsHeight(Math.max(34, Math.ceil(controls.getBoundingClientRect().height)));
+		const observer = new ResizeObserver(measure);
+		observer.observe(controls);
+		measure();
+		return () => observer.disconnect();
+	}, []);
+	const viewportToolbarVariables = useMemo(() => viewportToolbarStyle(displayControlsHeight) as CSSProperties, [displayControlsHeight]);
 	const viewportTheme = useMemo(() => viewportThemeById(viewportThemeId), [viewportThemeId]);
 	useEffect(() => saveViewportThemePreference(viewportThemeId), [viewportThemeId]);
 	const shellThemeVariables = useMemo(() => shellThemeCssVariables() as CSSProperties, []);
@@ -260,10 +256,8 @@ function App() {
 		setPickMessage("Click in the viewport to run nearest-hit pick.");
 		setPickDiagnostics([]);
 		setPickHits([]);
-		setBooleanTargetBodyId("");
-		setBooleanToolBodyId("");
-		setBooleanOperation("Union");
 		setStepExportText("");
+		setStepExportName(null);
 		setStepImportFile(null);
 		setStepDropzoneResetToken((value) => value + 1);
 		setStepCanonicalHash(null);
@@ -396,82 +390,6 @@ function App() {
 		void handleCreateDocument();
 	}, [handleCreateDocument]);
 
-	const handleCreateBox = useCallback(async () => {
-		if (!documentId) {
-			return;
-		}
-
-		const width = Number(boxWidth);
-		const height = Number(boxHeight);
-		const depth = Number(boxDepth);
-
-		if (
-			width <= 0 ||
-			height <= 0 ||
-			depth <= 0 ||
-			Number.isNaN(width) ||
-			Number.isNaN(height) ||
-			Number.isNaN(depth)
-		) {
-			setStatus("error");
-			setStatusMessage("Box dimensions must be positive numbers.");
-			return;
-		}
-
-		await runAction("Create box", async () => {
-			const created = await createBox(documentId, width, height, depth);
-			await refreshSummaryAndActiveTessellation(created.bodyId);
-			setPickStatus("idle");
-			setPickMessage("Click in the viewport to run nearest-hit pick.");
-			setPickDiagnostics([]);
-			setPickHits([]);
-		});
-	}, [boxDepth, boxHeight, boxWidth, documentId, refreshSummaryAndActiveTessellation, runAction]);
-
-	const handleSelectBody = useCallback(
-		async (nextBodyId: string) => {
-			if (!documentId) {
-				return;
-			}
-
-			await runAction("Select active body", async () => {
-				const preparedDisplay = await prepareBodyDisplay(documentId, nextBodyId);
-				setActiveBodyId(nextBodyId);
-				setDisplayPreparation(preparedDisplay);
-				setPickStatus("idle");
-				setPickMessage("Active body changed. Click in viewport to pick nearest hit.");
-				setPickDiagnostics([]);
-				setPickHits([]);
-			});
-		},
-		[documentId, runAction],
-	);
-
-	const handleApplyTranslation = useCallback(async () => {
-		if (!documentId || !activeBodyId) {
-			return;
-		}
-
-		const x = Number(tx);
-		const y = Number(ty);
-		const z = Number(tz);
-
-		if ([x, y, z].some((value) => Number.isNaN(value))) {
-			setStatus("error");
-			setStatusMessage("Translation values must be valid numbers.");
-			return;
-		}
-
-		await runAction("Apply translation", async () => {
-			await translateBody(documentId, activeBodyId, { x, y, z });
-			await refreshSummaryAndActiveTessellation(activeBodyId);
-			setPickStatus("idle");
-			setPickMessage("Occurrence translated. Click in viewport to refresh nearest hit.");
-			setPickDiagnostics([]);
-			setPickHits([]);
-		});
-	}, [activeBodyId, documentId, refreshSummaryAndActiveTessellation, runAction, tx, ty, tz]);
-
 	const handleRefreshDisplay = useCallback(async () => {
 		if (!assemblySourcePath && (!documentId || !activeBodyId)) {
 			return;
@@ -530,7 +448,7 @@ function App() {
 			try {
 				const anchor = document.createElement("a");
 				anchor.href = objectUrl;
-				anchor.download = `aetheris-${activeOccurrence.definitionId}.step`;
+				anchor.download = stepExportName ?? stepExportFileName(activeOccurrence.name);
 				document.body.appendChild(anchor);
 				anchor.click();
 				document.body.removeChild(anchor);
@@ -538,7 +456,7 @@ function App() {
 				URL.revokeObjectURL(objectUrl);
 			}
 		});
-	}, [activeOccurrence, documentId, runAction]);
+	}, [activeOccurrence, documentId, runAction, stepExportName]);
 
 	const handleCopyCanonicalHash = useCallback(async () => {
 		if (!stepCanonicalHash) {
@@ -559,7 +477,7 @@ function App() {
 			fileName: string,
 			sourceKind: "browser-file" | "startup-file" = "browser-file",
 		) => {
-			if (!documentId || documentStatus !== "ready" || serverStatus !== "connected") return;
+			if (!documentId || documentStatus !== "ready" || serverStatus !== "connected") return false;
 			dispatchDocumentEvent({ type: "Open", source: { kind: sourceKind, fileName } });
 			setImportStatus("importing");
 			setImportStatusMessage(`Importing ${fileName}…`);
@@ -575,6 +493,8 @@ function App() {
 				}
 
 				const imported = await importStep(documentId, stepText, fileName);
+				setAssemblySourcePath(null);
+				setStepExportName(stepExportFileName(fileName));
 				const qualificationStatus = imported.importStatus ?? "Inspectable";
 				setDiagnostics(imported.diagnostics);
 				if (imported.assemblyPresentation) {
@@ -592,7 +512,7 @@ function App() {
 					setImportStatus("success");
 					setImportStatusMessage(`${qualificationStatus}: ${imported.assemblyPresentation.occurrences.length - 1} occurrences, ${imported.assemblyPresentation.definitions.length} definitions. ${qualificationStatus === "Degraded" ? "Engineering checks are incomplete; see diagnostics." : qualificationStatus === "Inspectable" ? "Import qualification is incomplete." : ""}`);
 					dispatchDocumentEvent({ type: "LoadSucceeded", documentId });
-					return;
+					return true;
 				}
 				setAssemblyPacket(null);
 				const semanticPresentation = imported.semanticPresentation
@@ -635,6 +555,7 @@ function App() {
 					);
 				}
 				dispatchDocumentEvent({ type: "LoadSucceeded", documentId });
+				return !displayRefresh.error;
 			} catch (error) {
 				const apiError =
 					error instanceof ApiError
@@ -646,6 +567,7 @@ function App() {
 				setImportStatus("error");
 				setImportStatusMessage(`Import error: ${apiError.message}`);
 				dispatchDocumentEvent({ type: "LoadFailed", error: apiError.message });
+				return false;
 			} finally {
 				setIsImporting(false);
 			}
@@ -695,7 +617,7 @@ function App() {
 			const generated = await maximizePaperclips({ wireDiameter, outerLegLength, innerLegLength, outerBendRadius, innerBendRadius,
 				material: "Standard.Materials.StainlessSteel.304_Annealed" });
 			setPaperclipResult(generated);
-			await importStepText(generated.stepText, "maximum-paperclip.step");
+			if (!await importStepText(generated.stepText, "maximum-paperclip.step")) return;
 			setStatus("success"); setStatusMessage("Optimization complete. 1 manufacturable paperclip generated. No planetary resources consumed.");
 		} catch (error) {
 			const apiError = error instanceof ApiError ? error : new ApiError((error as Error).message || "Paperclip generation failed.", []);
@@ -766,65 +688,6 @@ function App() {
 	const clearStepFileSelection = useCallback(() => {
 		setStepImportFile(null);
 	}, []);
-
-	const handleUseActiveBodyAsTarget = useCallback(() => {
-		if (activeBodyId) {
-			setBooleanTargetBodyId(activeBodyId);
-		}
-	}, [activeBodyId]);
-
-	const handleUseActiveBodyAsTool = useCallback(() => {
-		if (activeBodyId) {
-			setBooleanToolBodyId(activeBodyId);
-		}
-	}, [activeBodyId]);
-
-	const handleExecuteBoolean = useCallback(async () => {
-		if (!documentId) {
-			return;
-		}
-
-		if (!booleanTargetBodyId || !booleanToolBodyId) {
-			setStatus("error");
-			setStatusMessage("Boolean operation requires both target and tool occurrences.");
-			setDiagnostics([]);
-			return;
-		}
-
-		if (booleanTargetBodyId === booleanToolBodyId) {
-			setStatus("error");
-			setStatusMessage("Boolean target and tool must be different occurrences.");
-			setDiagnostics([]);
-			return;
-		}
-
-		await runAction(`Boolean ${booleanOperation}`, async () => {
-			const result = await executeBoolean(documentId, {
-				leftBodyId: booleanTargetBodyId,
-				rightBodyId: booleanToolBodyId,
-				operation: BOOLEAN_OP_TO_API[booleanOperation],
-			});
-
-			await refreshSummaryAndActiveTessellation(result.bodyId);
-			setBooleanTargetBodyId(result.bodyId);
-			setPickStatus("idle");
-			setPickMessage(
-				`Boolean ${booleanOperation} succeeded. Result body ${result.bodyId} is now active.`,
-			);
-			setPickDiagnostics([]);
-			setPickHits([]);
-			setStatusMessage(
-				`Boolean ${booleanOperation} succeeded: target ${booleanTargetBodyId}, tool ${booleanToolBodyId}, result ${result.bodyId}.`,
-			);
-		});
-	}, [
-		booleanOperation,
-		booleanTargetBodyId,
-		booleanToolBodyId,
-		documentId,
-		refreshSummaryAndActiveTessellation,
-		runAction,
-	]);
 
 	const handlePickRay = useCallback(
 		async (
@@ -908,14 +771,6 @@ function App() {
 			documentStatus === "ready" &&
 			stepImportFile &&
 			!isImporting &&
-			status !== "loading",
-	);
-	const canExecuteBoolean = Boolean(
-		documentId &&
-			bodyIds.length >= 2 &&
-			booleanTargetBodyId &&
-			booleanToolBodyId &&
-			booleanTargetBodyId !== booleanToolBodyId &&
 			status !== "loading",
 	);
 	const serverStatusLabel: Record<ServerStatus, string> = {
@@ -1076,8 +931,8 @@ function App() {
 
 			<main className="main-layout" {...machinaRegion("workspace")}>
 				<section className="viewport-column" {...machinaRegion("viewport")}>
-					<div className="viewport-frame">
-						<div className="viewport-controls" role="group" aria-label="Viewport display controls">
+					<div className="viewport-frame" style={viewportToolbarVariables}>
+						<div ref={viewportControls} className="viewport-controls" role="group" aria-label="Viewport display controls">
 							<button type="button" className={`viewport-segmented__button${showConcepts ? " is-active" : ""}`} aria-pressed={showConcepts}
 								disabled={!assemblyPacket?.display?.definitions.some(d => d.concepts?.length) && !assemblyPacket?.display?.occurrences.some(o => o.concepts?.length)}
 								title="Show Concept Structs as gold construction wireframes" onClick={() => setShowConcepts(value => !value)}>Concepts</button>
@@ -1411,29 +1266,12 @@ function App() {
 										<>
 											<p className="import-status-box__summary">Import failed</p>
 											<p className="import-status-box__detail">{statusMessage}</p>
-											{diagnostics.length === 0 ? null : (
-												<ul className="import-status-box__details-list">
-													{diagnostics.map((diagnostic, index) => (
-														<li key={`${diagnostic.code}-${index}`}>
-															[{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
-														</li>
-													))}
-												</ul>
-											)}
 										</>
 									) : (
 										<p>{importStatusMessage}</p>
 									)}
 								</div>
-								{importStatus === "error" || diagnostics.length === 0 ? null : (
-									<ul>
-										{diagnostics.map((diagnostic, index) => (
-											<li key={`${diagnostic.code}-${index}`}>
-												[{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
-											</li>
-										))}
-									</ul>
-								)}
+								<DiagnosticSummary diagnostics={diagnostics} />
 							</section>
 
 							<section className="tool-section">
@@ -1493,7 +1331,7 @@ function App() {
 							</section>
 						</>
 					) : activeTab === "gallery" ? (
-						<ProductGallery onPreview={async (step, name) => { await importStepText(step, name); }} />
+						<ProductGallery onPreview={importStepText} />
 					) : activeTab === "paperclips" ? (
 						<section className="tool-section paperclip-forge">
 							<p className="paperclip-forge__eyebrow">OBJECTIVE: MAKE PAPERCLIPS.</p>
@@ -1513,9 +1351,7 @@ function App() {
 									</label>
 								))}
 								<label>Material
-									<select value="Standard.Materials.StainlessSteel.304_Annealed" disabled>
-										<option>Standard.Materials.StainlessSteel.304_Annealed</option>
-									</select>
+									<input value="304 SS" readOnly title="Stainless steel 304, annealed (Standard.Materials.StainlessSteel.304_Annealed)" />
 								</label>
 							</div>
 							<Button type="button" onClick={() => void handleMaximizePaperclips()} disabled={status === "loading"}>
@@ -1533,195 +1369,9 @@ function App() {
 						</section>
 					) : (
 						<>
-							<section className="tool-section">
-								<h2 className="section-title">Modeling Demo Notice</h2>
-								<p>Modeling Demo (Non-production)</p>
-								<p className="demo-notice">
-									This is a demo environment. Not part of Viewer v0 contract.
-								</p>
-							</section>
-
-							<section className="tool-section">
-								<h2 className="section-title">Create Box</h2>
-								<div className="form-grid">
-									<label>
-										Width{" "}
-										<input
-											type="number"
-											value={boxWidth}
-											onChange={(event) => setBoxWidth(event.target.value)}
-										/>
-									</label>
-									<label>
-										Height{" "}
-										<input
-											type="number"
-											value={boxHeight}
-											onChange={(event) => setBoxHeight(event.target.value)}
-										/>
-									</label>
-									<label>
-										Depth{" "}
-										<input
-											type="number"
-											value={boxDepth}
-											onChange={(event) => setBoxDepth(event.target.value)}
-										/>
-									</label>
-								</div>
-								<button
-									type="button"
-									onClick={() => void handleCreateBox()}
-									disabled={!documentId || status === "loading"}
-								>
-									Create Box
-								</button>
-							</section>
-
-							<section className="tool-section">
-								<h2 className="section-title">Body List</h2>
-								{bodyIds.length === 0 ? (
-									<p>No occurrences in document.</p>
-								) : (
-									<ul>
-										{bodyIds.map((bodyId) => {
-											const occurrence = occurrences.find((item) => item.occurrenceId === bodyId);
-											const label = occurrence
-												? `${bodyId} (def ${occurrence.definitionId.slice(0, 8)}, t=[${occurrence.translation.x.toFixed(2)}, ${occurrence.translation.y.toFixed(2)}, ${occurrence.translation.z.toFixed(2)}])`
-												: bodyId;
-
-											return (
-												<li key={bodyId}>
-													<button
-														type="button"
-														className={bodyId === activeBodyId ? "active-row" : ""}
-														onClick={() => void handleSelectBody(bodyId)}
-														disabled={status === "loading"}
-													>
-														{label}
-													</button>
-												</li>
-											);
-										})}
-									</ul>
-								)}
-							</section>
-
-							<section className="tool-section">
-								<h2 className="section-title">Translate Active Body</h2>
-								<div className="form-grid">
-									<label>
-										X{" "}
-										<input
-											type="number"
-											value={tx}
-											onChange={(event) => setTx(event.target.value)}
-										/>
-									</label>
-									<label>
-										Y{" "}
-										<input
-											type="number"
-											value={ty}
-											onChange={(event) => setTy(event.target.value)}
-										/>
-									</label>
-									<label>
-										Z{" "}
-										<input
-											type="number"
-											value={tz}
-											onChange={(event) => setTz(event.target.value)}
-										/>
-									</label>
-								</div>
-								<button
-									type="button"
-									onClick={() => void handleApplyTranslation()}
-									disabled={!activeBodyId || status === "loading"}
-								>
-									Apply Translation
-								</button>
-							</section>
-
-							<section className="tool-section">
-								<h2 className="section-title">Boolean (Two-body)</h2>
-								<div className="form-grid boolean-grid">
-									<label>
-										Target Body
-										<select
-											value={booleanTargetBodyId}
-											onChange={(event) => setBooleanTargetBodyId(event.target.value)}
-										>
-											<option value="">Select target body</option>
-											{bodyIds.map((bodyId) => (
-												<option key={`target-${bodyId}`} value={bodyId}>
-													{bodyId}
-												</option>
-											))}
-										</select>
-									</label>
-									<label>
-										Tool Body
-										<select
-											value={booleanToolBodyId}
-											onChange={(event) => setBooleanToolBodyId(event.target.value)}
-										>
-											<option value="">Select tool body</option>
-											{bodyIds.map((bodyId) => (
-												<option key={`tool-${bodyId}`} value={bodyId}>
-													{bodyId}
-												</option>
-											))}
-										</select>
-									</label>
-									<label>
-										Operation
-										<select
-											value={booleanOperation}
-											onChange={(event) =>
-												setBooleanOperation(event.target.value as BooleanOperationUi)
-											}
-										>
-											<option value="Union">Union</option>
-											<option value="Subtract">Subtract</option>
-											<option value="Intersect">Intersect</option>
-										</select>
-									</label>
-								</div>
-								<div className="stack-row boolean-actions">
-									<button
-										type="button"
-										onClick={handleUseActiveBodyAsTarget}
-										disabled={!activeBodyId || status === "loading"}
-									>
-										Use Active as Target
-									</button>
-									<button
-										type="button"
-										onClick={handleUseActiveBodyAsTool}
-										disabled={!activeBodyId || status === "loading"}
-									>
-										Use Active as Tool
-									</button>
-								</div>
-								<button
-									type="button"
-									onClick={() => void handleExecuteBoolean()}
-									disabled={!canExecuteBoolean}
-								>
-									Execute Boolean
-								</button>
-								{bodyIds.length < 2 ? <p>Need at least 2 bodies to run a boolean.</p> : null}
-								{booleanTargetBodyId &&
-								booleanToolBodyId &&
-								booleanTargetBodyId === booleanToolBodyId ? (
-									<p>Target and tool must be different body IDs.</p>
-								) : null}
-							</section>
-
-							<section className="tool-section">
-								<h2 className="section-title">Debug/Status</h2>
+							<ModelingDemo onPreview={importStepText} />
+							<details className="tool-section">
+								<summary className="section-title">Developer diagnostics</summary>
 								<p>
 									<strong>Request status:</strong> {status}
 								</p>
@@ -1820,15 +1470,9 @@ function App() {
 								{diagnostics.length === 0 ? (
 									<p>None</p>
 								) : (
-									<ul>
-										{diagnostics.map((diagnostic, index) => (
-											<li key={`${diagnostic.code}-${index}`}>
-												[{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
-											</li>
-										))}
-									</ul>
+									<DiagnosticSummary diagnostics={diagnostics} />
 								)}
-							</section>
+							</details>
 						</>
 					)}
 				</aside>

@@ -11,12 +11,14 @@ public static class CadmataApplication
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
-            Args = args,
+            // Cadmata owns this valueless switch. Passing it to configuration's
+            // key/value parser consumes the following --urls option as its value.
+            Args = args.Where(argument => argument != "--no-browser").ToArray(),
             EnvironmentName = portable ? Environments.Production : null,
             ContentRootPath = AppContext.BaseDirectory,
         });
 
-        if (!portable && launchOptions.Step is not null && !launchOptions.HasExplicitUrls)
+        if (!portable && !launchOptions.HasExplicitUrls)
         {
             builder.WebHost.UseUrls("http://127.0.0.1:0");
         }
@@ -63,6 +65,7 @@ public static class CadmataApplication
         app.MapKernelApi();
         app.MapCadmataStartupApi();
         app.MapPaperclipDemoApi();
+        app.MapModelingDemoApi();
         app.MapStandardProductGalleryApi();
 
         app.UseDefaultFiles();

@@ -66,14 +66,15 @@ internal static class WireKnotAuthoring
 
     internal static KernelResult<WireKnotPathAir> Create(string name, int ordinal, string body, WireState authoredFrame, double diameter)
     {
-        var familyText = WireFormAuthoring.Property(body, "Family") ?? name;
+        var fields = new WireFormFields("Knot", body);
+        var familyText = fields.Read("Family") ?? name;
         if (!Enum.TryParse<WireKnotFamily>(familyText, false, out var family))
             return Fail("wireform-knot-parameters-invalid", name, "Family must be Trefoil, FigureEight, or TorusKnot.");
-        var handText = WireFormAuthoring.Property(body, "Handedness") ?? "RightHanded";
+        var handText = fields.Read("Handedness") ?? "RightHanded";
         if (!Enum.TryParse<WireCoilHandedness>(handText, false, out var handedness))
             return Fail("wireform-knot-parameters-invalid", name, "Handedness must be RightHanded or LeftHanded.");
         var phase = 0d;
-        var phaseText = WireFormAuthoring.Property(body, "Phase") ?? WireFormAuthoring.Property(body, "StartPhase");
+        var phaseText = fields.Read("Phase") ?? fields.Read("StartPhase");
         if (phaseText is not null && !WireFormAuthoring.TryAngle(phaseText, out phase))
             return Fail("wireform-knot-parameters-invalid", name, "Phase must be a finite angle.");
 
@@ -81,20 +82,21 @@ internal static class WireKnotAuthoring
         double scale, major = 0d, minor = 0d;
         if (family == WireKnotFamily.TorusKnot)
         {
-            if (!Integer(body, "P", out var pi) || !Integer(body, "Q", out var qi) || pi < 2 || qi < 2)
+            if (!Integer(fields, "P", out var pi) || !Integer(fields, "Q", out var qi) || pi < 2 || qi < 2)
                 return Fail("wireform-knot-parameters-invalid", name, "TorusKnot requires integers P >= 2 and Q >= 2.");
             if (Gcd(pi, qi) != 1)
                 return Fail("wireform-knot-not-single-component", name, $"P={pi}, Q={qi} have gcd={Gcd(pi, qi)} and define a link, not one knot component.");
-            if (!Length(body, "MajorRadius", out major) || !Length(body, "MinorRadius", out minor) || major <= 0d || minor <= 0d || major <= minor)
+            if (!Length(fields, "MajorRadius", out major) || !Length(fields, "MinorRadius", out minor) || major <= 0d || minor <= 0d || major <= minor)
                 return Fail("wireform-knot-parameters-invalid", name, "TorusKnot requires MajorRadius > MinorRadius > 0.");
             p = pi; q = qi; scale = major;
         }
         else
         {
-            if (!Length(body, "Scale", out scale) || scale <= 0d)
+            if (!Length(fields, "Scale", out scale) || scale <= 0d)
                 return Fail("wireform-knot-scale-invalid", name, "Scale must be a finite positive length.");
         }
 
+        if (fields.Complete() is { } fieldError) return Fail("wireform-fields-invalid", name, fieldError);
         var basisX = authoredFrame.Tangent;
         var basisZ = authoredFrame.Up;
         var basisY = Direction3D.Create(WireFormAuthoring.Cross(basisZ.ToVector(), basisX.ToVector()));
@@ -117,8 +119,8 @@ internal static class WireKnotAuthoring
         return KernelResult<WireKnotPathAir>.Success(seed with { Qualification = qualification, FrameClosure = closure });
     }
 
-    private static bool Length(string body, string name, out double value) => WireFormAuthoring.TryLength(WireFormAuthoring.Property(body, name), out value);
-    private static bool Integer(string body, string name, out int value) => int.TryParse(WireFormAuthoring.Property(body, name), NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+    private static bool Length(WireFormFields fields, string name, out double value) => WireFormAuthoring.TryLength(fields.Read(name), out value);
+    private static bool Integer(WireFormFields fields, string name, out int value) => int.TryParse(fields.Read(name), NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
     private static int Gcd(int a, int b) { while (b != 0) (a, b) = (b, a % b); return Math.Abs(a); }
     private static KernelResult<WireKnotPathAir> Fail(string code, string name, string message) => KernelResult<WireKnotPathAir>.Failure([new(
         Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Core.Diagnostics.KernelDiagnosticSeverity.Error,

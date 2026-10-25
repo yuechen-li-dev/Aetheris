@@ -96,10 +96,10 @@ export interface PaperclipDemoResponseDto {
 	deterministic: boolean;
 }
 
-export type ForgeArtifactKindDto = "StepAp242" | "FlatStep" | "Svg";
+export type ForgeArtifactKindDto = "StepAp242" | "FlatStep" | "Svg" | "CutListJson";
 export interface ForgeTemplateParameterDto { name: string; type: string; required: boolean; default?: string | null; dimension?: string | null; unit?: string | null; allowedValues?: string[] | null; fields?: ForgeTemplateParameterDto[] | null; category: string; constraint?: string | null; }
 export interface ForgeTemplateDescriptionDto { id: string; displayName: string; version: string; documentation: string; parameters: ForgeTemplateParameterDto[]; artifacts: ForgeArtifactKindDto[]; signature: string; outputKind: string; constraints: { name: string; expression: string }[]; }
-export interface GalleryArtifactDto { kind: ForgeArtifactKindDto; name: string; contentType: string; size: number; sha256: string; content: string; }
+export interface GalleryArtifactDto { kind: ForgeArtifactKindDto; name: string; exportPath?: string | null; contentType: string; size: number; sha256: string; content: string; }
 export interface GalleryInvocationResponseDto { success: boolean; identity: { template: string; templateVersion: string; specialization?: string | null }; diagnostics: { code: string; severity: string; message: string; target?: string | null }[]; artifacts: GalleryArtifactDto[]; executionMilliseconds: number; }
 
 export type BooleanOperation = "union" | "subtract" | "intersect";
@@ -481,11 +481,15 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
 
 	try {
 		const result = await parseEnvelope<T>(response);
+		if (result && typeof result === "object" && "diagnostics" in result
+			&& Array.isArray(result.diagnostics) && result.diagnostics.length > 0)
+			reportDesktopDiagnostic("CAD diagnostics", { path, status: response.status, diagnostics: result.diagnostics });
 		if (/import\/step|export\/step|assembly/.test(path))
 			reportDesktopDiagnostic("CAD request", { path, status: response.status });
 		return result;
 	} catch (error) {
-		reportDesktopDiagnostic("CAD request failed", { path, status: response.status, message: String(error) });
+		reportDesktopDiagnostic("CAD request failed", { path, status: response.status, message: String(error),
+			diagnostics: error instanceof ApiError ? error.diagnostics : [] });
 		throw error;
 	}
 }
@@ -609,6 +613,12 @@ export async function importStep(
 	});
 }
 
+export function composeBlock(dimensions: { width: number; depth: number; height: number; padWidth: number; padDepth: number; padHeight: number }) {
+	return request<{ stepText: string; exportPath: string; source: string; materializationRoute: string }>("/api/v1/demos/composed-block", {
+		method: "POST", body: JSON.stringify(dimensions),
+	});
+}
+
 export async function claimStartupStep(): Promise<StartupStepDto | null> {
 	const response = await fetch("/api/v1/startup/step", { method: "POST" });
 	if (response.status === 204) {
@@ -631,9 +641,9 @@ export async function listGalleryTemplates(): Promise<ForgeTemplateDescriptionDt
 	return request<ForgeTemplateDescriptionDto[]>("/api/v1/gallery/templates", {});
 }
 
-export async function invokeGalleryTemplate(templateId: string, parameters: Record<string, unknown>, artifacts: ForgeArtifactKindDto[]): Promise<GalleryInvocationResponseDto> {
+export async function invokeGalleryTemplate(templateId: string, parameters: Record<string, unknown>, artifacts: ForgeArtifactKindDto[], exportPath?: string): Promise<GalleryInvocationResponseDto> {
 	return request<GalleryInvocationResponseDto>(`/api/v1/gallery/templates/${encodeURIComponent(templateId)}`, {
-		method: "POST", body: JSON.stringify({ arguments: parameters, artifacts }),
+		method: "POST", body: JSON.stringify({ arguments: parameters, artifacts, exportPath }),
 	});
 }
 

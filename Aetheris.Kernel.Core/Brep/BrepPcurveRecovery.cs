@@ -90,6 +90,8 @@ public static class BrepPcurveRecovery
     private static (PcurveGeometry? Pcurve, double MaximumResidual, string? Diagnostic) Build(
         SurfaceGeometry surface, CurveGeometry curve, ParameterInterval interval, double tolerance, int samples)
     {
+        if (TryBuildIsoParametricPcurve(surface, curve, interval) is { } exact)
+            return (exact, 0d, null);
         if (surface.Plane is { } plane)
         {
             var start = PlaneUv(plane, EvaluateCurve(curve, interval.Start));
@@ -341,6 +343,70 @@ public static class BrepPcurveRecovery
         var axial = d.Dot(torus.Axis.ToVector());
         return new(double.Atan2(y, x), double.Atan2(axial, double.Sqrt(x * x + y * y) - torus.MajorRadius));
     }
+    // Recognize analytic isoparametric edges before the general inverse/fit path.
+    // Geometry identities, rather than the import tolerance, establish this case.
+    // Populate still independently validates the lifted curve over its full span.
+    internal static PcurveGeometry? TryBuildIsoParametricPcurve(
+        SurfaceGeometry surface, CurveGeometry curve, ParameterInterval interval)
+    {
+        const double angularRoundoff = 1e-12d;
+        var span = interval.End - interval.Start;
+        if (surface.Cylinder is { } cylinder)
+        {
+            var axis = cylinder.Axis.ToVector();
+            var epsilon = 1e-12d * double.Max(1d, cylinder.Radius);
+            if (curve.Line3 is { } generator
+                && generator.Direction.ToVector().Cross(axis).Length <= angularRoundoff)
+            {
+                var offset = generator.Origin - cylinder.Origin;
+                if (double.Abs((offset - axis * offset.Dot(axis)).Length - cylinder.Radius) > epsilon) return null;
+                var start = CylinderUv(cylinder, generator.Evaluate(interval.Start));
+                return PcurveGeometry.Line(interval, start,
+                    new(start.U, start.V + span * generator.Direction.ToVector().Dot(axis)));
+            }
+            if (curve.Circle3 is { } ring && ring.Normal.ToVector().Cross(axis).Length <= angularRoundoff)
+            {
+                var offset = ring.Center - cylinder.Origin;
+                if ((offset - axis * offset.Dot(axis)).Length > epsilon
+                    || double.Abs(ring.Radius - cylinder.Radius) > epsilon) return null;
+                var start = CylinderUv(cylinder, ring.Evaluate(interval.Start));
+                return PcurveGeometry.Line(interval, start,
+                    new(start.U + span * double.CopySign(1d, ring.Normal.ToVector().Dot(axis)), start.V));
+            }
+        }
+        if (surface.Torus is { } torus && torus.MajorRadius > torus.MinorRadius && curve.Circle3 is { } circle)
+        {
+            var axis = torus.Axis.ToVector();
+            var normal = circle.Normal.ToVector();
+            var offset = circle.Center - torus.Center;
+            var epsilon = 1e-12d * double.Max(1d, torus.MajorRadius + torus.MinorRadius);
+            var start = TorusUv(torus, circle.Evaluate(interval.Start));
+            if (normal.Cross(axis).Length <= angularRoundoff)
+            {
+                // Constant minor angle: a circle about the torus axis.
+                if ((offset - axis * offset.Dot(axis)).Length > epsilon
+                    || double.Abs(offset.Dot(axis) - torus.MinorRadius * double.Sin(start.V)) > epsilon
+                    || double.Abs(circle.Radius - torus.MajorRadius - torus.MinorRadius * double.Cos(start.V)) > epsilon) return null;
+                return PcurveGeometry.Line(interval, start,
+                    new(start.U + span * double.CopySign(1d, normal.Dot(axis)), start.V));
+            }
+            if (double.Abs(normal.Dot(axis)) <= angularRoundoff
+                && double.Abs(offset.Dot(axis)) <= epsilon
+                && double.Abs(offset.Length - torus.MajorRadius) <= epsilon
+                && double.Abs(normal.Dot(offset)) <= epsilon
+                && double.Abs(circle.Radius - torus.MinorRadius) <= epsilon)
+            {
+                // Constant major angle: the generating circle in a radial plane.
+                var radial = offset / torus.MajorRadius;
+                var positiveTangent = radial * -double.Sin(start.V) + axis * double.Cos(start.V);
+                var direction = circle.Tangent(interval.Start).Dot(positiveTangent);
+                return PcurveGeometry.Line(interval, start,
+                    new(start.U, start.V + span * double.CopySign(1d, direction)));
+            }
+        }
+        return null;
+    }
+
     private static (PcurveGeometry? Pcurve, double MaximumResidual, string? Diagnostic) BuildPeriodicAnalytic(
         SurfaceGeometry surface, CurveGeometry curve, ParameterInterval interval, double tolerance,
         Func<Point3D, SurfaceParameterPoint> inverse, bool unwrapV = false)

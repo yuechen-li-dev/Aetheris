@@ -35,11 +35,12 @@ public static class CadmataDiscovery
             if (File.Exists(fullPath)) return new CadmataDiscoveryResult(fullPath, candidate.Source);
         }
 
+        var executableName = OperatingSystem.IsWindows() ? "Cadmata.exe" : "Cadmata";
         var packagedCandidates = new[]
         {
-            (Path: Path.Combine(cliBaseDirectory, "Cadmata.exe"), Source: "sibling Cadmata executable"),
-            (Path: Path.Combine(cliBaseDirectory, "cadmata", "Cadmata.exe"), Source: "package-relative cadmata directory"),
-            (Path: Path.Combine(cliBaseDirectory, "tools", "cadmata", "Cadmata.exe"), Source: "package-relative tools/cadmata directory"),
+            (Path: Path.Combine(cliBaseDirectory, executableName), Source: "sibling Cadmata executable"),
+            (Path: Path.Combine(cliBaseDirectory, "cadmata", executableName), Source: "package-relative cadmata directory"),
+            (Path: Path.Combine(cliBaseDirectory, "tools", "cadmata", executableName), Source: "package-relative tools/cadmata directory"),
         };
 
         foreach (var candidate in packagedCandidates)
@@ -75,7 +76,7 @@ public static class CadmataDiscovery
         if (directory is null) return null;
         foreach (var configuration in new[] { "Release", "Debug" })
         {
-            var candidate = Path.Combine(directory.FullName, "Aetheris.Server", "bin", configuration, "net10.0", "Cadmata.exe");
+            var candidate = Path.Combine(directory.FullName, "Aetheris.Server", "bin", configuration, "net10.0", OperatingSystem.IsWindows() ? "Cadmata.exe" : "Cadmata");
             if (File.Exists(candidate)) return new CadmataDiscoveryResult(candidate, "development build fallback");
         }
 
@@ -95,7 +96,7 @@ internal sealed class SystemCadmataProcessLauncher : ICadmataProcessLauncher
         var startInfo = new ProcessStartInfo(executablePath)
         {
             UseShellExecute = true,
-            WindowStyle = ProcessWindowStyle.Hidden,
+            WindowStyle = ProcessWindowStyle.Normal,
             WorkingDirectory = Path.GetDirectoryName(executablePath) ?? AppContext.BaseDirectory,
         };
         startInfo.ArgumentList.Add(stepPath);

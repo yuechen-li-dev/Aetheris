@@ -12,6 +12,44 @@ namespace Aetheris.Server.Tests;
 public sealed class CadmataStartupTests
 {
     [Fact]
+    public void NoArguments_LeavesTheWorkspaceBlank()
+        => Assert.Null(CadmataLaunchOptions.Parse([]).Step);
+
+    [Fact]
+    public async Task BrowserHost_NoArgumentsBindsOnlyAnEphemeralLoopbackPort()
+    {
+        await using var app = CadmataApplication.Create([], CadmataLaunchOptions.Parse([]));
+        await app.StartAsync();
+        try
+        {
+            var address = Assert.Single(app.Urls);
+            Assert.StartsWith("http://127.0.0.1:", address);
+            Assert.DoesNotContain(":0", address);
+        }
+        finally { await app.StopAsync(); }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task NoBrowser_DoesNotConsumeExplicitHostUrl(bool flagFirst)
+    {
+        string[] args = flagFirst
+            ? ["--no-browser", "--urls", "http://127.0.0.1:0"]
+            : ["--urls", "http://127.0.0.1:0", "--no-browser"];
+        await using var app = CadmataApplication.Create(args, CadmataLaunchOptions.Parse(args));
+        Assert.Equal("http://127.0.0.1:0", app.Configuration["urls"]);
+        await app.StartAsync();
+        try
+        {
+            var address = Assert.Single(app.Urls);
+            Assert.StartsWith("http://127.0.0.1:", address);
+            Assert.DoesNotContain(":0", address);
+        }
+        finally { await app.StopAsync(); }
+    }
+
+    [Fact]
     public async Task PortableHost_BindsLoopbackEphemeralPortAndRequiresSessionCookie()
     {
         await using var app = CadmataApplication.Create([], new(null, true, false), portable: true, sessionToken: "test-secret");
@@ -106,7 +144,9 @@ public sealed class CadmataStartupTests
             File.WriteAllText(Path.Combine(directory, "wwwroot", "index.html"), "<!doctype html>");
             options.ValidateProductionAssets(directory);
 
-            new CadmataLaunchOptions(null, false, false).ValidateProductionAssets(Path.Combine(directory, "missing"));
+            Assert.Throws<CadmataLaunchException>(() =>
+                new CadmataLaunchOptions(null, false, false).ValidateProductionAssets(Path.Combine(directory, "missing")));
+            new CadmataLaunchOptions(null, true, false).ValidateProductionAssets(Path.Combine(directory, "missing"));
         }
         finally
         {

@@ -168,10 +168,9 @@ public static class StructuralAuthoring
         return FirmamentDomainDiagnostics.Present(messages,frontend,"Firmament.Structural");
     }
 
-    public static string CutListJson(StructuralReport report) => JsonSerializer.Serialize(new
-    {
-        schema = "aetheris:structural-cut-list:x2", structure = report.Structure, units = new { length = "mm", mass = "kg" }, entries = report.CutList
-    }, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+    public static string CutListJson(StructuralReport report) => JsonSerializer.Serialize(
+        new StructuralCutListDocument("aetheris:structural-cut-list:x2", report.Structure, new("mm", "kg"), report.CutList),
+        StructuralJsonContext.Default.StructuralCutListDocument);
 
     private sealed record Parsed(string Name, IReadOnlyList<StructuralNodeAir> Nodes, IReadOnlyList<StructuralPathAir> Paths, IReadOnlyList<StructuralSectionAir> Sections, IReadOnlyList<StructuralMemberAir> Members, IReadOnlyList<StructuralJointAir> Joints, IReadOnlyList<StructuralWeldAir> Welds, IReadOnlyDictionary<string, ResolvedMaterial> Materials);
     private sealed record MemberEnds(StructuralEndPlane Start, StructuralEndPlane End);

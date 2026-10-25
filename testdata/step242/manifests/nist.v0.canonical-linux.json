@@ -1,5 +1,5 @@
 {
-  "testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp": "4020b5730a2b71e9d3678f171c46f4b5891ce3beff5c344eff7cd6dbda10e6cd",
-  "testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp": "21b87111a1f61ba064f488b29c159536452aa461810cdbb3c3e3c9a7fcaef4e9",
-  "testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp": "0a97849ebbb96a0c7761516b769faf7425ff99e1080e74a6e9a3ec0eb704e7c5"
+  "testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp": "85a88b7063e6d569b7a44e23c00fd18b573918220b8282d08cb976c90a620b5e",
+  "testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp": "c7e42e6a6e0aad2c48f646e03f6a5097429b7a4d9ed24468718512b1ff8088a6",
+  "testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp": "b1b0532b01efb53e726adc1ae371ce41e0114698dcb63d9885a62d8758498f38"
 }

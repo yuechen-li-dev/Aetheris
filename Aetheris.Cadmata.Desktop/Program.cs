@@ -43,6 +43,7 @@ internal sealed class CadmataWindow : Form
 {
     private readonly WebView2 _view = new() { Dock = DockStyle.Fill };
     private readonly Label _status = new() { Dock = DockStyle.Fill, Text = "Starting Cadmata…", TextAlign = ContentAlignment.MiddleCenter };
+    private readonly Panel _runtimeHelp = new() { Dock = DockStyle.Fill, Visible = false };
     private readonly DiagnosticLog _log;
     private readonly CancellationTokenSource _lifetime = new();
     private Microsoft.AspNetCore.Builder.WebApplication? _server;
@@ -50,18 +51,33 @@ internal sealed class CadmataWindow : Form
     private readonly string[] _args;
     private bool _closing;
     private bool _shutdownComplete;
+    private bool _initializing;
 
     internal CadmataWindow(string[] args, DiagnosticLog log)
     {
         _args = args;
         _log = log;
         _profile = System.IO.Path.Combine(log.DataRoot, "sessions", Guid.NewGuid().ToString("N"));
-        Text = "Cadmata — Aetheris Preview 4";
+        Text = "Cadmata — Aetheris " + Program.BuildIdentity.Split('+')[0];
         Width = 1440; Height = 960; MinimumSize = new Size(900, 600);
         Controls.Add(_view); Controls.Add(_status);
+        var runtimeMessage = new Label { Dock = DockStyle.Top, Height = 130, TextAlign = ContentAlignment.MiddleCenter,
+            Text = "Cadmata needs the Microsoft Edge WebView2 Runtime.\n\nInstall the Evergreen Runtime from Microsoft, then select Retry.\nThe Edge browser alone is not a substitute. Local CAD works offline once the runtime is installed." };
+        var runtimeActions = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 50, Padding = new Padding(20, 5, 0, 0) };
+        var installRuntime = new Button { Text = "Get WebView2 from Microsoft", AutoSize = true };
+        installRuntime.Click += (_, _) =>
+        {
+            try { Process.Start(new ProcessStartInfo("https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section") { UseShellExecute = true }); }
+            catch (Exception exception) { _log.Write("runtime download page " + exception); MessageBox.Show("Open https://developer.microsoft.com/microsoft-edge/webview2/ in your browser to install the Evergreen Runtime.", "Install WebView2"); }
+        };
+        var retryRuntime = new Button { Text = "Retry", AutoSize = true };
+        retryRuntime.Click += async (_, _) => await InitializeAsync();
+        runtimeActions.Controls.Add(installRuntime); runtimeActions.Controls.Add(retryRuntime);
+        _runtimeHelp.Controls.Add(runtimeActions); _runtimeHelp.Controls.Add(runtimeMessage);
+        Controls.Add(_runtimeHelp);
         var menu = new MenuStrip();
         menu.Items.Add("About Cadmata", null, (_, _) => MessageBox.Show(
-            $"Cadmata — Aetheris Preview 4\n{Program.BuildIdentity}\n\nLogs: {_log.Path}\nSource: https://github.com/yuechen-li-dev/Aetheris",
+            $"Cadmata — Aetheris\n{Program.BuildIdentity}\n\nLogs: {_log.Path}\nSource: https://github.com/yuechen-li-dev/Aetheris",
             "About Cadmata"));
         menu.Items.Add("Open diagnostic log", null, (_, _) => Process.Start(new ProcessStartInfo(_log.Path) { UseShellExecute = true }));
         Controls.Add(menu); MainMenuStrip = menu;
@@ -70,14 +86,29 @@ internal sealed class CadmataWindow : Form
 
     private async Task InitializeAsync()
     {
+        if (_initializing || _lifetime.IsCancellationRequested) return;
+        _initializing = true;
+        _runtimeHelp.Visible = false;
         try
         {
-            var runtime = System.IO.Path.Combine(AppContext.BaseDirectory, "webview2");
-            if (!File.Exists(System.IO.Path.Combine(runtime, "msedgewebview2.exe")))
-                throw new FileNotFoundException("Bundled WebView2 runtime is missing. Extract the complete Cadmata ZIP again.");
-            var options = CadmataLaunchOptions.Parse(_args.Length == 0
-                ? [System.IO.Path.Combine(AppContext.BaseDirectory, "samples", "mounting-block.firmament")]
-                : _args);
+            var bundledRuntime = System.IO.Path.Combine(AppContext.BaseDirectory, "webview2");
+            string? runtime = Directory.Exists(bundledRuntime) ? bundledRuntime : null;
+            if (runtime is not null && !File.Exists(System.IO.Path.Combine(runtime, "msedgewebview2.exe")))
+                throw new FileNotFoundException("The optional bundled WebView2 runtime is incomplete. Extract the complete offline package to a fresh folder.");
+            var browserOptions = new CoreWebView2EnvironmentOptions { ReleaseChannels = CoreWebView2ReleaseChannels.Stable };
+            try
+            {
+                var version = CoreWebView2Environment.GetAvailableBrowserVersionString(runtime, browserOptions);
+                _log.Write($"webview2 runtime mode={(runtime is null ? "Evergreen" : "Fixed")} version={version}");
+            }
+            catch (WebView2RuntimeNotFoundException)
+            {
+                _log.Write("webview2 runtime unavailable; awaiting user installation");
+                _runtimeHelp.Visible = true;
+                _runtimeHelp.BringToFront();
+                return;
+            }
+            var options = CadmataLaunchOptions.Parse(_args);
             options.ValidateProductionAssets(AppContext.BaseDirectory);
             var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
             _server = CadmataApplication.Create([], options, portable: true, logging: _log.Provider, sessionToken: token);
@@ -93,7 +124,7 @@ internal sealed class CadmataWindow : Form
                     BeginInvoke(() => ShowFailure(new InvalidOperationException("The local CAD service stopped unexpectedly. Reopen Cadmata.")));
             });
             Directory.CreateDirectory(_profile);
-            var environment = await CoreWebView2Environment.CreateAsync(runtime, _profile);
+            var environment = await CoreWebView2Environment.CreateAsync(runtime, _profile, browserOptions);
             await _view.EnsureCoreWebView2Async(environment).WaitAsync(startup.Token);
             if (_lifetime.IsCancellationRequested) return;
             _view.CoreWebView2.Settings.AreDevToolsEnabled = false;
@@ -134,6 +165,7 @@ internal sealed class CadmataWindow : Form
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception exception) { if (!IsDisposed) ShowFailure(exception); }
+        finally { _initializing = false; }
     }
 
     internal void ShowFailure(Exception exception)

@@ -10,7 +10,7 @@ public static class FirmamentSyntaxValues
         MemberSyntax m when Reference(m.Target) is { } target => target + "." + m.Member.Text,
         UnarySyntax { Operator: UnaryOperator.Positive } u when Reference(u.Operand) is { } axis => "+" + axis,
         UnarySyntax { Operator: UnaryOperator.Negative } u when Reference(u.Operand) is { } axis => "-" + axis,
-        LiteralSyntax { Kind: LiteralKind.String } s => System.Text.Json.JsonSerializer.Deserialize<string>(s.Raw),
+        LiteralSyntax { Kind: LiteralKind.String } s => System.Text.Json.JsonSerializer.Deserialize(s.Raw, FirmamentJsonContext.Default.String),
         _ => null
     };
 

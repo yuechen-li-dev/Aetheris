@@ -196,7 +196,7 @@ public sealed class CadmataViewTests
 
         public string AddPackagedCadmata()
         {
-            var path = Path.Combine(CliBase, "cadmata", "Cadmata.exe");
+            var path = Path.Combine(CliBase, "cadmata", OperatingSystem.IsWindows() ? "Cadmata.exe" : "Cadmata");
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllText(path, "placeholder");
             return path;

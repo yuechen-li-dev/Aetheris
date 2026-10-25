@@ -32,5 +32,5 @@ internal static class FirmamentMetadata
             value.Fields.ToDictionary(p => p.Key, p => String(p.Value), StringComparer.Ordinal),
             value.Fields.ToDictionary(p => p.Key, p => TypeOf(p.Key), StringComparer.Ordinal));
     }
-    internal static string String(string value) => value.StartsWith('"') ? JsonSerializer.Deserialize<string>(value)! : value;
+    internal static string String(string value) => value.StartsWith('"') ? JsonSerializer.Deserialize(value, FirmamentJsonContext.Default.String)! : value;
 }

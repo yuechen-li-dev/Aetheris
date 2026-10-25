@@ -235,7 +235,7 @@ internal sealed partial class FirmamentCompileTimeValues
                     {
                         if (statement is not FieldSyntax f)
                         { Fail(FirmamentV2Parser.ExpressionUnsupported, $"{objectType} requires named value fields.", statement.Span); continue; }
-                        var name = spatialSchema.Keys.FirstOrDefault(k => FirmamentSyntaxFields.SameField(k, f.Name.Text));
+                        var name = spatialSchema.Keys.FirstOrDefault(k => FirmamentSyntaxFields.SameField(f.Name.Text, k));
                         if (name is null) { Fail("firmament-v2-canonical-field-unknown", $"Unknown field '{f.Name.Text}' in {objectType}.", f.Name.Span); continue; }
                         if (!seen.Add(name)) Fail("firmament-v2-field-duplicate", $"Duplicate field '{f.Name.Text}' in {objectType}.", f.Name.Span);
                         var actual = TypeOf(f.Value, null, stack);

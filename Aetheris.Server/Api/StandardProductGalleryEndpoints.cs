@@ -6,7 +6,8 @@ namespace Aetheris.Server.Api;
 
 public sealed record GalleryInvocationRequest(
     IReadOnlyDictionary<string, JsonElement>? Arguments,
-    IReadOnlyList<ForgeArtifactKind>? Artifacts);
+    IReadOnlyList<ForgeArtifactKind>? Artifacts,
+    string? ExportPath = null);
 
 public sealed record GalleryArtifactContent(
     ForgeArtifactKind Kind,
@@ -14,7 +15,8 @@ public sealed record GalleryArtifactContent(
     string ContentType,
     long Size,
     string Sha256,
-    string Content);
+    string Content,
+    string? ExportPath = null);
 
 public sealed record GalleryInvocationResponse(
     bool Success,
@@ -40,6 +42,9 @@ public static class StandardProductGalleryEndpoints
 
         app.MapPost("/api/v1/gallery/templates/{**templateId}", (string templateId, GalleryInvocationRequest request) =>
         {
+            if (request.ExportPath is { } requested && (string.IsNullOrWhiteSpace(requested)
+                || !(requested.EndsWith(".step", StringComparison.OrdinalIgnoreCase) || requested.EndsWith(".stp", StringComparison.OrdinalIgnoreCase))))
+                return ApiMappings.BadRequestFromMessage("The STEP export path must end in .step or .stp. It is a download name, not a server filesystem destination.", "gallery.exportPath");
             var output = Path.Combine(Path.GetTempPath(), "aetheris-gallery-" + Guid.NewGuid().ToString("N"));
             try
             {
@@ -49,7 +54,7 @@ public static class StandardProductGalleryEndpoints
                 {
                     var path = Path.Combine(output, artifact.Path);
                     return new GalleryArtifactContent(artifact.Kind, artifact.Name, artifact.ContentType,
-                        artifact.Size, artifact.Sha256, File.ReadAllText(path));
+                        artifact.Size, artifact.Sha256, File.ReadAllText(path), artifact.Kind == ForgeArtifactKind.StepAp242 ? request.ExportPath ?? artifact.Path : artifact.Path);
                 }).ToArray();
                 var response = new GalleryInvocationResponse(result.Success, result.Identity, result.Diagnostics,
                     artifacts, result.ExecutionMilliseconds);

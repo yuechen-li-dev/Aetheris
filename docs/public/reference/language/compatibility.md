@@ -7,9 +7,12 @@ read it; do not write it.
 
 ## Firmament V1
 
-Lowercase `model`, `units mm`, `solid name: Box`, `modify` and `hole<shaft>` are
+The historical combination `model` with `units mm`, `solid name: Box`, `modify` and `hole<shaft>` are
 V1 forms, still accepted for compatibility. Bare lengths inherit millimetres only in the historical
-primitive grammar that admits them. This is not a second preferred style.
+primitive grammar and domain fields that admit them. Length fields in current
+mechanical authoring require explicit units. Historical Piping, Structural,
+SectionChain and Set positions may accept bare millimetres; WireForm Length
+requires a unit. An explicit angle is never a substitute for a length. This is not a second preferred style.
 
 Historical immutable Box derivation uses
 `solid tall: stock with { size: [30, 24, 20] }`. Exposure uses
@@ -22,6 +25,12 @@ files are also legacy; current `.firmasm` uses the V2 assembly syntax.
 The formatter preserves names, published members and numeric values. It does
 not migrate solid grammar into native declarations or prove a program builds.
 Validate the consuming artifact after formatting.
+
+A lowercase `model` wrapping native V2 declarations is a case alias for `Model`;
+it does not switch native source into the historical `solid` grammar. Constructs
+use PascalCase, built-in fields use camelCase, and connectives such as `using`,
+`as`, `on` and `with` use lowercase. Established aliases are normalized at syntax
+positions, preserving user-defined names and engineering values.
 
 ## Known inconsistencies
 
@@ -66,3 +75,18 @@ definition/use links the compiler has.
 If you find source that is silently ignored, or a documented form that does not
 behave as described, that is a bug. Capability limits are listed in
 [supported features](../supported-features.md).
+
+Reusable Templates and Features are recipes: material capability and value checks
+run on their concrete specializations. An unused recipe does not prove a
+supported materialization. Record members and Concept Struct publications are
+authored data, not a fixed built-in field vocabulary. Unknown fields in a
+materialized built-in construct are errors, including fields inside WireForm
+operations, SectionChain guides, assembly occurrences and published Semantic
+blocks. `validate --parse-only` reports a limited validation level; normal
+validation performs the owning domain admission and required engineering
+preflight, which can take time for swept or spline-heavy geometry.
+
+A WireForm part admits one wire product. Its named operations require field
+bodies; unsupported placement or parameter headers reject. Use StartFrame for
+the authored frame and an Assembly for separate Parts. Comments never contribute
+wire operations or operation provenance.

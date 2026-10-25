@@ -1,4 +1,4 @@
-import { Vector3, Quaternion } from "three";
+import { Vector3 } from "three";
 import type { TelosCamera } from "./camera.js";
 
 /** Inputs change Telos state directly, rather than copying authoritative camera state from controls. */
@@ -20,19 +20,7 @@ export function attachNavigation(
     drag.y = event.clientY;
     const offset = camera.position.clone().sub(camera.target);
     if (drag.button === 0 && !event.shiftKey) {
-      offset.applyQuaternion(
-        new Quaternion().setFromAxisAngle(
-          camera.up.clone().normalize(),
-          -dx * 0.006,
-        ),
-      );
-      const right = new Vector3().crossVectors(offset, camera.up).normalize();
-      const next = offset
-        .clone()
-        .applyQuaternion(new Quaternion().setFromAxisAngle(right, -dy * 0.006));
-      if (Math.abs(next.clone().normalize().dot(camera.up)) < 0.995)
-        offset.copy(next);
-      camera.position.copy(camera.target).add(offset);
+      camera.orbit(-dx * 0.006, -dy * 0.006);
     } else {
       const scale =
         (camera.mode === "orthographic"

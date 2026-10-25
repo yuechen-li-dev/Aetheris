@@ -51,7 +51,7 @@ const deps = defineDeps({
 	nodeTypes: tool(npm("@types/node", "^24.10.1"), { key: "@types/node" }),
 	eslint: tool(npm("eslint", "^9.39.1")),
 	eslintJs: tool(npm("@eslint/js", "^9.39.1"), { key: "@eslint/js" }),
-	typescriptEslint: tool(npm("typescript-eslint", "^8.48.0"), { key: "typescriptEslint" }),
+	typescriptEslint: tool(npm("typescript-eslint", "^8.48.0"), { key: "typescript-eslint" }),
 	reactHooks: tool(npm("eslint-plugin-react-hooks", "^7.0.1"), {
 		key: "eslint-plugin-react-hooks",
 	}),
@@ -59,7 +59,7 @@ const deps = defineDeps({
 		key: "eslint-plugin-react-refresh",
 	}),
 	globals: tool(npm("globals", "^16.5.0")),
-	tailwind: tool(npm("tailwindcss", "^3.4.17"), { key: "tailwind" }),
+	tailwind: tool(npm("tailwindcss", "^3.4.17"), { key: "tailwindcss" }),
 	tailwindAnimate: tool(npm("tailwindcss-animate", "^1.0.7"), { key: "tailwindcss-animate" }),
 	postcss: tool(npm("postcss", "^8.5.8")),
 	autoprefixer: tool(npm("autoprefixer", "^10.4.27")),
@@ -81,7 +81,7 @@ const boundaries = {
 export default definePackage(
 		<Package
 			name="aetheris.client"
-			version="2.0.0-preview.3"
+			version="2.0.0"
 			kind="app"
 			license="AGPL-3.0-only"
 			dependencies={{

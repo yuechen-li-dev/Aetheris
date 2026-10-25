@@ -11,6 +11,30 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242PcurveAndVertexLoopTests
 {
     [Theory]
+    [InlineData(-2e-9d)]
+    [InlineData(2e-9d)]
+    public void CircularSeamRoundoff_PreservesConicPcurvesAcrossTheParameterPeriod(double seamAngle)
+    {
+        var source = AddCylinderPcurves(BrepPrimitives.CreateCylinder(2d, 10d).Value);
+        var points = source.Topology.Vertices.ToDictionary(vertex => vertex.Id, vertex =>
+        {
+            var ring = source.Topology.Edges.FirstOrDefault(edge => edge.StartVertexId == vertex.Id
+                && source.GetEdgeCurve(edge.Id).Kind == CurveGeometryKind.Circle3);
+            source.TryGetVertexPoint(vertex.Id, out var point);
+            return ring is null ? point : source.GetEdgeCurve(ring.Id).Circle3!.Value.Evaluate(seamAngle);
+        });
+        var perturbed = new BrepBody(source.Topology, source.Geometry, source.Bindings, points);
+        var exported = Step242Exporter.ExportBody(perturbed);
+        Assert.True(exported.IsSuccess, string.Join(" | ", exported.Diagnostics.Select(d => d.Message)));
+        var imported = Step242Importer.ImportBody(exported.Value);
+        Assert.True(imported.IsSuccess, string.Join(" | ", imported.Diagnostics.Select(d => d.Message)));
+        var evidence = BrepPcurveValidator.Validate(imported.Value, 1e-6d);
+        Assert.True(evidence.IsValid, string.Join(" | ", evidence.Diagnostics));
+        Assert.InRange(evidence.MaximumReconstructionDeviation, 0d, 1e-7d);
+        Assert.Equal(source.Bindings.PcurveBindings.Count(), imported.Value.Bindings.PcurveBindings.Count());
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void ReparameterizedPolynomialLinePcurve_PreservesExactDomainEndpointsAndUvLocus(bool rational)

@@ -74,7 +74,7 @@ public sealed class AssemblyTypedModuleTests
     public void ReorderingKeysPreservesOccurrenceIdentityAndPlacement()
     {
         var first = new AssemblyM1Pipeline().CompileProject(Project());
-        var reordered = Root.Replace("C1 => standard\n  C2 => standard with { x: 40mm }", "C2 => standard with { x: 40mm }\n  C1 => standard");
+        var reordered = Root.ReplaceLineEndings("\n").Replace("C1 => standard\n  C2 => standard with { x: 40mm }", "C2 => standard with { x: 40mm }\n  C1 => standard");
         Assert.NotEqual(Root,reordered);
         var second = new AssemblyM1Pipeline().CompileProject(Project(reordered));
         Assert.True(first.IsSuccess); Assert.True(second.IsSuccess);

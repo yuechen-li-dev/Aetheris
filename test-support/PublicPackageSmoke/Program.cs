@@ -19,7 +19,7 @@ foreach (var assemblyName in packageAssemblies)
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
         .InformationalVersion;
 
-    if (version is null || !version.StartsWith("2.0.0-preview.3", StringComparison.Ordinal))
+    if (version is null || version.Split('+')[0] != (Environment.GetEnvironmentVariable("AETHERIS_RELEASE_VERSION") ?? "2.0.0"))
     {
         throw new InvalidOperationException($"{assemblyName} reported unexpected version '{version}'.");
     }
@@ -30,7 +30,7 @@ foreach (var assemblyName in packageAssemblies)
 var material = new MaterialResolver().Resolve("Standard.Materials.Aluminum.5052_H32");
 if (!material.IsSuccess || material.Material?.Identity.StableId != "aluminum/5052-h32")
     throw new InvalidOperationException($"Packaged material resolution failed: {material.Message}");
-Console.WriteLine($"Material {material.Material.Identity.FirmamentPath} resolved from the packaged SQLite catalog.");
+Console.WriteLine($"Material {material.Material.Identity.FirmamentPath} resolved from the packaged material catalog.");
 
 var host = new ForgeProtocolHost();
 if (host.GetHostInfo().ProtocolVersion != ForgeHostProtocol.Version || host.ListTemplates().Templates.Count == 0)

@@ -457,7 +457,7 @@ internal static class CanonicalStaticAuthoring
         {
             var open = source.IndexOf('{', header.Index); var close = MatchPair(source, open, '{', '}');
             if (close < 0) { diagnostics.Add(FirmamentV2Parser.SemanticConstraintMalformed); continue; }
-            var fields = RequireFields(source[(open + 1)..close]);
+            var fields = ClosedProjectionFields("Require", source[(open + 1)..close], diagnostics, "Actual", "Expected", "Tolerance");
             if (!fields.TryGetValue("Actual", out var actual) || !fields.TryGetValue("Expected", out var expected))
             { diagnostics.Add(FirmamentV2Parser.SemanticConstraintMalformed); continue; }
             if (!TrySubject(actual, out var subject, out var property) || !TryLength(ResolveStaticValue(source, expected), out var nominal))
@@ -710,8 +710,26 @@ internal static class CanonicalStaticAuthoring
     }
     private static Dictionary<string, string> Fields(string body) => Regex.Matches(body, "\\b(?<name>[A-Za-z_]\\w*)\\s*:\\s*(?<value>\"[^\"]*\"|(?:Point2|Point3|Vector2|PlusMinus)\\s*\\([^)]*\\)|\\d+\\.\\d+\\.\\d+|\\d{4}-\\d{2}-\\d{2}|[A-Za-z_]\\w*|[-+]?\\d+(?:\\.\\d+)?(?:mm|deg)?)", RegexOptions.CultureInvariant)
         .Cast<Match>().ToDictionary(m => m.Groups["name"].Value, m => m.Groups["value"].Value, StringComparer.Ordinal);
-    private static Dictionary<string, string> RequireFields(string body) => Regex.Matches(body, @"(?<name>[A-Za-z_]\w*)\s*:\s*(?<value>.*?)(?=\s+[A-Za-z_]\w*\s*:|$)", RegexOptions.CultureInvariant | RegexOptions.Singleline)
-        .Cast<Match>().ToDictionary(m => m.Groups["name"].Value, m => m.Groups["value"].Value.Trim(), StringComparer.Ordinal);
+    private static Dictionary<string, string> ClosedProjectionFields(string kind, string body, List<string> diagnostics, params string[] consumed)
+    {
+        var parsed = FirmamentSyntaxParser.Parse(kind + " Entry {" + body + "}");
+        var declaration = parsed.Document.Statements.OfType<DeclarationSyntax>().FirstOrDefault();
+        if (!parsed.IsSuccess || declaration is null)
+        {
+            diagnostics.AddRange(parsed.Diagnostics.Select(d => d.Code + ": " + d.Message));
+            return new(StringComparer.Ordinal);
+        }
+        // Ordinary PMI belongs to ParsePmi. Only From projections are erased by
+        // this owner and therefore need consumption before that rewrite.
+        if (kind != "Require" && declaration.Body?.Statements.OfType<FieldSyntax>()
+            .Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "From")) != true) return new(StringComparer.Ordinal);
+        var reader = new FirmamentSyntaxFields(declaration, diagnostics);
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var name in consumed)
+            if (reader.Take(name) is { } expression) result[name] = FirmamentSyntaxWriter.Expression(expression);
+        reader.Complete();
+        return result;
+    }
     private static bool TrySubject(string text, out string subject, out string property)
     { var m = Regex.Match(text.Trim(), @"^(?<subject>[A-Za-z_]\w*)\.(?<property>Diameter)$", RegexOptions.CultureInvariant); subject = m.Groups["subject"].Value; property = m.Groups["property"].Value; return m.Success; }
     private static bool TryLength(string text, out FirmamentV2LiteralValue value)
@@ -738,7 +756,8 @@ internal static class CanonicalStaticAuthoring
             foreach (Match entry in Regex.Matches(body, @"\b(?<kind>[A-Za-z_]\w*)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
             {
                 var entryOpen = outerOpen + 1 + body.IndexOf('{', entry.Index); var entryClose = MatchPair(source, entryOpen, '{', '}'); if (entryClose < 0) continue;
-                var fields = RequireFields(source[(entryOpen + 1)..entryClose]);
+                var fields = ClosedProjectionFields(entry.Groups["kind"].Value, source[(entryOpen + 1)..entryClose], diagnostics,
+                    "From", "As", "DatumRefs", "Target", "Value", "Tolerance", "Dimension", "Diameter");
                 if (!fields.TryGetValue("From", out var from)) continue;
                 if (!fields.TryGetValue("As", out var asKind) || !string.Equals(asKind, "HoleDiameter", StringComparison.Ordinal) || !string.Equals(entry.Groups["kind"].Value, "HoleDiameter", StringComparison.Ordinal)) { diagnostics.Add(FirmamentV2Parser.PmiProjectionUnsupportedKind); continue; }
                 if (fields.Keys.Any(key => key is "Target" or "Value" or "Tolerance" or "Dimension" or "Diameter")) { diagnostics.Add(FirmamentV2Parser.PmiProjectedFieldMustNotOverrideSourceConstraint); continue; }

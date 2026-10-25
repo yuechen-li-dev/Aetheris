@@ -54,7 +54,10 @@ public sealed class Step242ExportOptions
     /// <summary>Source-declared vertex tolerances for an imported topology, capped by its binder.</summary>
     public IReadOnlyDictionary<VertexId, double>? ImportedSourceVertexTolerancesMillimetres { get; init; }
 
-    /// <summary>Preserve a full circular edge's declared parameter interval as TRIMMED_CURVE.</summary>
+    /// <summary>
+    /// Retained for source compatibility; no effect. Advanced-face edges use their
+    /// underlying CIRCLE, with vertices, sense and pcurves defining the boundary.
+    /// </summary>
     public bool EmitFullCircleTrimmedCurves { get; init; }
 
     /// <summary>Emit qualified coedge pcurves; false leaves STEP trim binding to the importer.</summary>

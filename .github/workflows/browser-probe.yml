@@ -49,19 +49,22 @@ jobs:
             const modes=[
               ['default',[]],
               ['vulkan',['--enable-unsafe-webgpu','--enable-features=Vulkan','--use-angle=vulkan','--use-vulkan=swiftshader','--use-webgpu-adapter=swiftshader','--disable-vulkan-surface']],
-              ['webgl',['--disable-unsafe-webgpu','--use-angle=swiftshader','--enable-unsafe-swiftshader']]
+              ['webgl',['--disable-blink-features=WebGPU','--use-angle=swiftshader','--enable-unsafe-swiftshader']]
             ];
             for(const [name,args] of modes){
               const browser=await chromium.launch({channel:'chromium',headless:true,args});
               try{
                 const context=await browser.newContext();const page=await context.newPage();
+                await page.addInitScript(()=>{window.gpuLifecycle=[];if(globalThis.GPUDevice){const destroy=GPUDevice.prototype.destroy;GPUDevice.prototype.destroy=function(){window.gpuLifecycle.push({event:'destroy',stack:new Error().stack});return destroy.call(this);};}});
                 const messages=[];page.on('console',m=>messages.push(m.type()+': '+m.text()));page.on('pageerror',e=>messages.push(String(e)));
                 await page.goto(origin);await page.getByText('Ready. Select a file to import.',{exact:true}).waitFor();
+                await new Promise(r=>setTimeout(r,5000));
+                await writeFile('artifacts/local/diagnostic/'+name+'-before.txt',await page.locator('body').textContent());
                 await page.locator('input[type="file"]').setInputFiles('testdata/firmament/inline-step/canonical-through-hole.step');
                 await page.getByRole('button',{name:'Import STEP 242',exact:true}).click();
                 await page.getByText(/^(Qualified|Inspectable|Degraded): Import complete\./).waitFor();
                 await new Promise(r=>setTimeout(r,5000));
-                const result={name,messages,text:await page.locator('body').textContent(),display:await page.locator('canvas').getAttribute('data-telos-display'),gpu:await page.evaluate(()=>({exposed:!!navigator.gpu}))};
+                const result={name,messages,text:await page.locator('body').textContent(),display:await page.locator('canvas').getAttribute('data-telos-display'),gpu:await page.evaluate(()=>({exposed:!!navigator.gpu,events:window.gpuLifecycle}))};
                 await writeFile('artifacts/local/diagnostic/'+name+'.json',JSON.stringify(result,null,2));
                 await page.screenshot({path:'artifacts/local/diagnostic/'+name+'.png'});
               }finally{await browser.close();}

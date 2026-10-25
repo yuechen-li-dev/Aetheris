@@ -6,9 +6,12 @@ on:
       - '.github/workflows/portable-release.yml'
       - 'scripts/package-portable.ps1'
       - 'scripts/Test-PortableBundle.ps1'
+      - 'scripts/Test-ForgeHostTemplates.ps1'
       - 'scripts/qualify-cadmata-browser.mts'
       - 'scripts/collect-cadmata-licenses.mts'
       - 'scripts/Add-PortableReleaseArtifacts.ps1'
+      - 'Aetheris.Kernel.Core.Tests/Step242/Step242NistAuditHarnessTests.cs'
+      - 'testdata/step242/manifests/**'
   workflow_dispatch:
     inputs:
       release_tag:

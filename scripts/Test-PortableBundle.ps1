@@ -12,7 +12,7 @@ New-Item -ItemType Directory -Path $output | Out-Null
 $cli = Join-Path $bundle 'aetheris'
 $metadata = Get-Content (Join-Path $bundle 'BUILD-METADATA.json') -Raw | ConvertFrom-Json
 if ($metadata.modifiedSource -or $metadata.defaultPresentation -ne 'Browser') { throw 'Invalid portable source/presentation metadata.' }
-if ((Test-Path (Join-Path $bundle 'webview2')) -or (Test-Path (Join-Path $bundle 'cadmata'))) { throw 'Private browser/duplicated server in portable bundle.' }
+if ((Test-Path (Join-Path $bundle 'webview2') -PathType Container) -or (Test-Path (Join-Path $bundle 'cadmata') -PathType Container)) { throw 'Private browser/duplicated server in portable bundle.' }
 $env:DOTNET_ROOT = Join-Path $output 'no-installed-dotnet'
 & $cli --version
 Copy-Item (Join-Path $source 'fixtures/Canonical/Features/Holes/through-hole.firmament') (Join-Path $output 'hole.firmament')

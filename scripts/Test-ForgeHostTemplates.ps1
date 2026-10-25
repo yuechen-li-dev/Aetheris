@@ -57,3 +57,6 @@ if ($invalid.success -or $invalid.artifacts.Count -ne 0 -or -not ($invalid.diagn
     throw "Invalid standoff did not preserve its semantic diagnostic and artifact refusal. See $invalidLog"
 }
 Write-Output "Qualified $($rows.Count) public Forge templates with their declared defaults."
+# The expected negative test returned 4. Report this script's successful result,
+# rather than leaking that child exit code into its caller/CI shell.
+exit 0

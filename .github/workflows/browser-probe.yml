@@ -1,0 +1,74 @@
+name: Linux browser diagnostic
+on:
+  push:
+    branches: [codex/macos-release-probe]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v2.0.0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Prepare tagged server and qualified frontend
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          dotnet publish Aetheris.Server -c Release -r linux-x64 --self-contained true -m:1 -nr:false -p:UseSharedCompilation=false -o artifacts/local/browser-server
+          gh release download v2.0.0 --pattern Aetheris-2.0.0-win-x64.zip --dir artifacts/local/reference
+          Expand-Archive artifacts/local/reference/Aetheris-2.0.0-win-x64.zip artifacts/local/reference/extracted
+          Copy-Item artifacts/local/reference/extracted/Aetheris-win-x64/wwwroot artifacts/local/browser-server/wwwroot -Recurse -Force
+          npm ci --prefix test-support/CadmataDesktopSmoke --ignore-scripts
+          node test-support/CadmataDesktopSmoke/node_modules/playwright-core/cli.js install --with-deps chromium
+      - name: Diagnose three browser modes
+        shell: bash
+        run: |
+          cat > artifacts/local/browser-diagnostic.mjs <<'JS'
+          import {spawn} from 'node:child_process';
+          import {writeFile,mkdir} from 'node:fs/promises';
+          import {resolve} from 'node:path';
+          import {pathToFileURL} from 'node:url';
+          const {chromium}=await import(pathToFileURL(resolve('test-support/CadmataDesktopSmoke/node_modules/playwright-core/index.mjs')));
+          const child=spawn(resolve('artifacts/local/browser-server/Cadmata'),['--no-browser','--urls','http://127.0.0.1:0']);
+          let stdout='';child.stdout.on('data',d=>stdout+=d);child.stderr.pipe(process.stderr);
+          await mkdir('artifacts/local/diagnostic',{recursive:true});
+          try{
+            let origin;for(let i=0;i<200;i++){origin=stdout.match(/Cadmata ready: (http:\/\/127\.0\.0\.1:\d+)/)?.[1];if(origin)break;await new Promise(r=>setTimeout(r,100));}
+            if(!origin)throw Error(stdout);
+            const modes=[
+              ['default',[]],
+              ['vulkan',['--enable-unsafe-webgpu','--enable-features=Vulkan','--use-angle=vulkan','--use-vulkan=swiftshader','--use-webgpu-adapter=swiftshader','--disable-vulkan-surface']],
+              ['webgl',['--disable-unsafe-webgpu','--use-angle=swiftshader','--enable-unsafe-swiftshader']]
+            ];
+            for(const [name,args] of modes){
+              const browser=await chromium.launch({channel:'chromium',headless:true,args});
+              try{
+                const context=await browser.newContext();const page=await context.newPage();
+                const messages=[];page.on('console',m=>messages.push(m.type()+': '+m.text()));page.on('pageerror',e=>messages.push(String(e)));
+                await page.goto(origin);await page.getByText('Ready. Select a file to import.',{exact:true}).waitFor();
+                await page.locator('input[type="file"]').setInputFiles('testdata/firmament/inline-step/canonical-through-hole.step');
+                await page.getByRole('button',{name:'Import STEP 242',exact:true}).click();
+                await page.getByText(/^(Qualified|Inspectable|Degraded): Import complete\./).waitFor();
+                await new Promise(r=>setTimeout(r,5000));
+                const result={name,messages,text:await page.locator('body').textContent(),display:await page.locator('canvas').getAttribute('data-telos-display'),gpu:await page.evaluate(()=>({exposed:!!navigator.gpu}))};
+                await writeFile('artifacts/local/diagnostic/'+name+'.json',JSON.stringify(result,null,2));
+                await page.screenshot({path:'artifacts/local/diagnostic/'+name+'.png'});
+              }finally{await browser.close();}
+            }
+          }finally{child.kill('SIGTERM');}
+          JS
+          node artifacts/local/browser-diagnostic.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-browser-diagnostic
+          path: artifacts/local/diagnostic

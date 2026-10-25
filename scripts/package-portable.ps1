@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory)][string]$Version,
     [Parameter(Mandatory)][string]$SourceDirectory,
     [Parameter(Mandatory)][string]$ReferenceBundleDirectory,
+    [string]$QualifiedFrontendDirectory,
     [Parameter(Mandatory)][string]$OutputDirectory
 )
 $ErrorActionPreference = 'Stop'
@@ -51,9 +52,16 @@ foreach ($file in Get-ChildItem -LiteralPath $server -Recurse -File) {
 # graph. Finish/check the two managed consumers before building the separate
 # native host, so AOT-generated assemblies cannot leak into shared files.
 dotnet publish (Join-Path $source 'Aetheris.Forge.Host/Aetheris.Forge.Host.csproj') @publishArgs -p:PublishAot=true -o (Join-Path $bundle 'forge-host')
-foreach ($directory in @('wwwroot', 'fixtures', 'testdata', 'samples')) {
+foreach ($directory in @('fixtures', 'testdata', 'samples')) {
     Copy-Item -LiteralPath (Join-Path $reference $directory) -Destination (Join-Path $bundle $directory) -Recurse
 }
+$frontend = if ($QualifiedFrontendDirectory) { (Resolve-Path -LiteralPath $QualifiedFrontendDirectory).Path } else { $reference }
+$webRoot = Join-Path $bundle 'wwwroot'
+New-Item -ItemType Directory -Force -Path $webRoot | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $frontend 'wwwroot') | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $webRoot -Recurse -Force }
+$frontendRevision = if ($QualifiedFrontendDirectory) {
+    (Get-Content (Join-Path $frontend 'FRONTEND-METADATA.json') -Raw | ConvertFrom-Json).sourceRevision
+} else { $referenceMetadata.sourceRevision }
 New-Item -ItemType Directory -Path (Join-Path $bundle 'docs') | Out-Null
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../docs/public') -Destination (Join-Path $bundle 'docs/public') -Recurse
 foreach ($name in @('LICENSE', 'THIRD_PARTY_NOTICES.md', 'CORRESPONDING-SOURCE.md')) {
@@ -65,9 +73,10 @@ $readme = Join-Path $bundle 'README.md'
 $packagingRevision = (git -C (Split-Path $PSScriptRoot -Parent) rev-parse HEAD).Trim()
 Add-Content -LiteralPath (Join-Path $bundle 'CORRESPONDING-SOURCE.md') -Value "`nPortable packaging scripts: https://github.com/yuechen-li-dev/Aetheris/tree/$packagingRevision/scripts"
 @{ version=$Version; identity="$Version+$revision"; sourceRevision=$revision; modifiedSource=$false;
-   runtime=$Runtime; defaultPresentation='Browser'; webviewMode=$null; packagingRevision=$packagingRevision } |
+   runtime=$Runtime; defaultPresentation='Browser'; webviewMode=$null; packagingRevision=$packagingRevision; frontendRevision=$frontendRevision } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $bundle 'BUILD-METADATA.json')
-node (Join-Path $PSScriptRoot 'collect-cadmata-licenses.mts') $source $bundle (Join-Path $source 'Aetheris.Server/obj/project.assets.json') (Join-Path $reference 'licenses')
+node (Join-Path $PSScriptRoot 'collect-cadmata-licenses.mts') $source $bundle (Join-Path $source 'Aetheris.Server/obj/project.assets.json') (Join-Path $frontend 'licenses')
+Add-Content -LiteralPath (Join-Path $bundle 'CORRESPONDING-SOURCE.md') -Value "`nViewer source: https://github.com/yuechen-li-dev/Aetheris/tree/$frontendRevision/aetheris.client"
 if ($IsMacOS) {
     $launcher = Join-Path $bundle 'Open Cadmata.command'
     [IO.File]::WriteAllText($launcher, "#!/bin/sh`ncd `"`$(dirname `"`$0`")`" || exit 1`nexec ./Cadmata `"`$@`"`n", [Text.UTF8Encoding]::new($false))

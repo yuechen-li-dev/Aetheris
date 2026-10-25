@@ -1,6 +1,6 @@
 import { bindMeasurementPicking, measurementGroup, type MeasurementTool } from '@aetheris/three-telos';
 /* eslint-disable react-hooks/immutability -- Three.js cameras/renderers are intentionally configured through their imperative mutable API. */
-import { Line, OrbitControls, Text } from "@react-three/drei";
+import { Html, Line, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { matchKind } from "machinalayout/match";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -352,14 +352,14 @@ function AxisGuide({ theme }: { theme: ViewportTheme }) {
 				lineWidth={1}
 			/>
 			{(["X", "Y", "Z"] as const).map((label, index) => (
-				<Text
+				<Html
 					key={label}
 					position={index === 0 ? [2.14, 0, 0] : index === 1 ? [0, 2.14, 0] : [0, 0, 2.14]}
-					fontSize={0.16}
-					color={theme.axis.label}
+					center
+					style={{ color: theme.axis.label, fontSize: 12, pointerEvents: "none" }}
 				>
 					{label}
-				</Text>
+				</Html>
 			))}
 		</group>
 	);

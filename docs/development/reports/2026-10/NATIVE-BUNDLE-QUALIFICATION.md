@@ -1,8 +1,14 @@
 # Native bundle qualification
 
-The Linux x64 and macOS arm64 distributions reuse the qualified 2.0.0 viewer
-assets and build the tagged product source. Packaging provenance is recorded
-separately. Existing Windows and NuGet binaries are preserved.
+The Linux x64 and macOS arm64 distributions build the tagged 2.0.0 kernel and
+share a separately qualified viewer artifact. Kernel, viewer and packaging
+provenance are recorded separately. Existing Windows and NuGet binaries are preserved.
+
+Linux CPU browser qualification exposed a real capability-admission gap:
+`navigator.gpu` may exist while `requestAdapter()` returns null. The existing
+WebGL renderer is now selected on actual adapter availability. Its axis labels
+use local DOM text so fallback startup does not fetch a default remote font.
+GPU-capable browsers retain Telos; geometry authority and exports are unchanged.
 
 ## Apple Silicon corpus classification
 

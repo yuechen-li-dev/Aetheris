@@ -26,11 +26,11 @@ try {
     address = stdout.match(/Cadmata ready: (http:\/\/127\.0\.0\.1:\d+)/)?.[1] ?? "";
     if (!address) await new Promise(resolve => setTimeout(resolve, 200));
   }
-  // Linux headless has no display/GPU. Use Chromium's software Vulkan adapter
-  // explicitly; exposing navigator.gpu alone does not supply a usable adapter.
+  // Linux CPU CI exercises the admitted WebGL fallback when WebGPU exposes no
+  // adapter. macOS exercises Telos. Browser test runtimes are never shipped.
   browser = await chromium.launch({ headless: true, ...(process.platform === "linux" ? { channel: "chromium" } : {}),
     args: process.platform === "linux"
-      ? ["--enable-unsafe-webgpu", "--enable-features=Vulkan", "--use-angle=vulkan", "--use-vulkan=swiftshader", "--use-webgpu-adapter=swiftshader", "--disable-vulkan-surface"]
+      ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
       : ["--enable-unsafe-webgpu", "--use-angle=swiftshader"] });
   const context = await browser.newContext({ acceptDownloads: true });
   await context.route("**/*", route => {
@@ -41,8 +41,14 @@ try {
   page.setDefaultTimeout(120000);
   page.on("pageerror", error => errors.push(String(error)));
   page.on("console", message => consoleMessages.push(`${message.type()}: ${message.text()}`));
-  await page.goto(address);
+  await page.goto(address + '/?perf');
   await page.getByText("Ready. Select a file to import.", { exact: true }).waitFor();
+  await page.waitForFunction(() => {
+    const host = document.querySelector('[data-display-host]');
+    return host?.getAttribute('data-display-host') === 'transitional-webgl'
+      ? !!host.querySelector('canvas')
+      : host?.getAttribute('aria-busy') === 'false';
+  });
   const before = await page.locator("canvas").screenshot();
   await page.screenshot({ path: join(output, "blank.png") });
   await page.locator('input[type="file"]').setInputFiles(step);
@@ -50,10 +56,13 @@ try {
   await page.getByText("Qualified: Import complete.", { exact: true }).waitFor();
   await page.waitForFunction(() => {
     const canvas = document.querySelector<HTMLCanvasElement>("canvas");
-    return JSON.parse(canvas?.dataset.telosDisplay ?? "{}").meshSurfaces > 0 &&
-      document.querySelector('[data-display-host="three-telos"]')?.getAttribute("aria-busy") === "false";
+    const host = document.querySelector('[data-display-host]');
+    return host?.getAttribute('data-display-host') === 'transitional-webgl'
+      ? JSON.parse(canvas?.dataset.cadmataPerformance ?? '{}').triangles > 0
+      : JSON.parse(canvas?.dataset.telosDisplay ?? "{}").meshSurfaces > 0 && host?.getAttribute('aria-busy') === 'false';
   });
-  const display = JSON.parse(await page.locator("canvas").getAttribute("data-telos-display") ?? "{}");
+  const displayHost = await page.locator('[data-display-host]').getAttribute('data-display-host');
+  const display = JSON.parse(await page.locator("canvas").getAttribute(displayHost === 'transitional-webgl' ? 'data-cadmata-performance' : "data-telos-display") ?? "{}");
   assert(!before.equals(await page.locator("canvas").screenshot()), "STEP import must visibly change the rendered canvas");
   await page.screenshot({ path: join(output, "imported.png") });
   const downloadEvent = page.waitForEvent("download");
@@ -70,7 +79,7 @@ try {
   assert.deepEqual(errors, []);
   await writeFile(join(output, "qualification.json"), JSON.stringify({ runtime: metadata.runtime,
     sourceRevision: metadata.sourceRevision, mode: "extracted self-contained server and headless Chromium",
-    blankStartup: true, stepImport: true, display, canonicalReimport: true, errors }, null, 2));
+    blankStartup: true, stepImport: true, displayHost, display, canonicalReimport: true, errors }, null, 2));
 } catch (error) {
   if (page) {
     await page.screenshot({ path: join(output, "failure.png") }).catch(() => {});

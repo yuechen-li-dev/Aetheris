@@ -12,6 +12,8 @@ on:
       - 'scripts/Add-PortableReleaseArtifacts.ps1'
       - 'Aetheris.Kernel.Core.Tests/Step242/Step242NistAuditHarnessTests.cs'
       - 'testdata/step242/manifests/**'
+      - 'aetheris.client/**'
+      - '.github/actions/prepare-tspack/**'
   workflow_dispatch:
     inputs:
       release_tag:
@@ -35,7 +37,32 @@ env:
   MSBUILDDISABLENODEREUSE: '1'
 
 jobs:
+  frontend:
+    if: ${{ !inputs.frontend_run_id }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: ./.github/actions/prepare-tspack
+      - name: Qualify platform-independent viewer
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          ./scripts/Build-CadmataFrontend.ps1
+          New-Item -ItemType Directory -Force artifacts/local/qualified-frontend | Out-Null
+          Copy-Item aetheris.client/dist artifacts/local/qualified-frontend/wwwroot -Recurse
+          node scripts/collect-cadmata-licenses.mts . artifacts/local/qualified-frontend
+          @{ sourceRevision=(git rev-parse HEAD).Trim() } | ConvertTo-Json | Set-Content artifacts/local/qualified-frontend/FRONTEND-METADATA.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cadmata-qualified-frontend
+          path: artifacts/local/qualified-frontend
+          if-no-files-found: error
   bundle:
+    needs: frontend
+    if: ${{ always() && !cancelled() && (needs.frontend.result == 'success' || needs.frontend.result == 'skipped') }}
     strategy:
       fail-fast: false
       matrix:
@@ -58,6 +85,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - uses: actions/download-artifact@v4
+        if: ${{ !inputs.frontend_run_id }}
+        with:
+          name: cadmata-qualified-frontend
+          path: artifacts/local/qualified-frontend
       - name: Read product version and qualified frontend
         shell: pwsh
         env:
@@ -76,7 +108,7 @@ jobs:
           git fetch origin $revision --depth=1
           $changes = @(git diff --name-only $revision HEAD)
           $productionChanges = @($changes | Where-Object {
-            $_ -notmatch '^(docs/|scripts/|\.github/|Aetheris\.Kernel\.Core\.Tests/|testdata/step242/manifests/|README\.md$)'
+            $_ -notmatch '^(docs/|scripts/|\.github/|aetheris\.client/|Aetheris\.Kernel\.Core\.Tests/|testdata/step242/manifests/|README\.md$)'
           })
           if ($productionChanges.Count) { throw "Qualification and product code differ: $($productionChanges -join ', ')" }
           if ($env:FRONTEND_RUN) {
@@ -93,7 +125,9 @@ jobs:
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          ./scripts/package-portable.ps1 -Runtime '${{ matrix.rid }}' -Version $env:PRODUCT_VERSION -SourceDirectory artifacts/local/product-source -ReferenceBundleDirectory artifacts/local/reference/extracted/Aetheris-win-x64 -OutputDirectory artifacts/local/portable
+          $frontend = @{}
+          if (Test-Path artifacts/local/qualified-frontend) { $frontend.QualifiedFrontendDirectory = 'artifacts/local/qualified-frontend' }
+          ./scripts/package-portable.ps1 -Runtime '${{ matrix.rid }}' -Version $env:PRODUCT_VERSION -SourceDirectory artifacts/local/product-source -ReferenceBundleDirectory artifacts/local/reference/extracted/Aetheris-win-x64 -OutputDirectory artifacts/local/portable @frontend
           New-Item -ItemType Directory artifacts/local/extracted | Out-Null
           tar -xzf "artifacts/local/portable/Aetheris-$env:PRODUCT_VERSION-${{ matrix.rid }}.tar.gz" -C artifacts/local/extracted
           ./scripts/Test-PortableBundle.ps1 -BundleDirectory 'artifacts/local/extracted/Aetheris-${{ matrix.rid }}' -SourceDirectory artifacts/local/product-source -OutputDirectory artifacts/local/native-smoke

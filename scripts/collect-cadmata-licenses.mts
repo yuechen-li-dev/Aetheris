@@ -92,8 +92,8 @@ function assertSameInventory(reference: Buffer) {
   if (JSON.stringify(JSON.parse(reference.toString("utf8"))) !== JSON.stringify(bundle))
     throw new Error("Reused frontend inventory differs from its audited source");
 }
-const assets = JSON.parse(await readFile(assetsPath, "utf8"));
-for (const [identity, library] of Object.entries(assets.libraries) as [string, { type: string; path: string }][]) {
+const assets = assetsPath ? JSON.parse(await readFile(assetsPath, "utf8")) : null;
+for (const [identity, library] of Object.entries(assets?.libraries ?? {}) as [string, { type: string; path: string }][]) {
   if (library.type !== "package") continue;
   const directory = join(Object.keys(assets.packageFolders)[0], library.path);
   await collect(directory, `nuget-${identity}`);

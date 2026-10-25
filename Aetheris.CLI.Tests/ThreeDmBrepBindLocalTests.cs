@@ -16,7 +16,8 @@ public sealed class ThreeDmBrepBindLocalTests
         var report = ThreeDmStepRecovery.Run(source, output, emitCombinedStep: true);
 
         Assert.Equal(27, report.Bodies.Count);
-        Assert.Equal(27, report.QualifiedBodyCount);
+        Assert.True(report.QualifiedBodyCount == 27, string.Join("; ", report.Bodies
+            .Where(body => !body.StepReimported).SelectMany(body => body.Diagnostics)));
         Assert.Equal(0, report.PartialBodyCount);
         Assert.Equal(185, report.BoundFaceCount);
         Assert.Equal(742, report.BoundTrimCount);

@@ -18,7 +18,7 @@ public static class CadmataApplication
             ContentRootPath = AppContext.BaseDirectory,
         });
 
-        if (!portable && launchOptions.Step is not null && !launchOptions.HasExplicitUrls)
+        if (!portable && !launchOptions.HasExplicitUrls)
         {
             builder.WebHost.UseUrls("http://127.0.0.1:0");
         }
@@ -65,6 +65,7 @@ public static class CadmataApplication
         app.MapKernelApi();
         app.MapCadmataStartupApi();
         app.MapPaperclipDemoApi();
+        app.MapModelingDemoApi();
         app.MapStandardProductGalleryApi();
 
         app.UseDefaultFiles();

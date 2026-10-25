@@ -2,12 +2,17 @@
 
 This bundle is the `win-x64` product distribution. Run commands from the `Aetheris-win-x64` directory.
 
-Double-click `Cadmata.exe` in that directory to open the desktop application.
-It hosts its own local service on a temporary loopback port and closes that
-service with its window. The CLI and desktop share one set of .NET and CAD
-libraries. The `webview2` directory contains the desktop's pinned offline browser;
-keep it beside the executable. `Cadmata.Server.exe` is the explicit headless
-server entry point, not the desktop application.
+Double-click `Cadmata.exe` to open Cadmata in your existing default browser.
+It starts a local service on a temporary loopback port. Close the server console
+or press Ctrl+C there to stop it; closing the browser tab alone does not end the
+session. `Cadmata.exe --no-browser --urls http://127.0.0.1:5090` is the explicit
+headless entry point.
+
+`Cadmata.Desktop.exe` is the optional dedicated Windows window. It uses the
+shared Evergreen WebView2 Runtime and owns its server lifetime. Normal browser
+mode does not need WebView2. The normal ZIP includes no browser engine, and
+neither launcher installs one automatically. Both share the CAD and .NET
+libraries in the bundle. See [Cadmata launch and runtime requirements](cadmata/portable-windows.md).
 
 ```powershell
 .\aetheris.exe --help

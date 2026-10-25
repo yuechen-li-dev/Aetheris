@@ -8,7 +8,7 @@ public sealed record CadmataLaunchOptions(CadmataStartupStepContent? Step, bool 
 {
     public void ValidateProductionAssets(string applicationDirectory)
     {
-        if (Step is null)
+        if (Step is null && NoBrowser)
         {
             return;
         }

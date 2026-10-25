@@ -72,6 +72,22 @@ export class TelosCamera {
     this.fov = value.fovDegrees;
     this.update();
   }
+  /** Tumble the viewing frame together with the eye; poles are ordinary orientations. */
+  orbit(yaw: number, pitch: number) {
+    const offset = this.position.clone().sub(this.target);
+    offset.applyAxisAngle(this.up.clone().normalize(), yaw);
+    const right = new Vector3().crossVectors(offset, this.up).normalize();
+    offset.applyAxisAngle(right, pitch);
+    this.up.applyAxisAngle(right, pitch).normalize();
+    this.position.copy(this.target).add(offset);
+    this.update();
+  }
+  orient(direction: NumericArray, up: NumericArray) {
+    const distance = this.position.distanceTo(this.target);
+    this.position.copy(this.target).add(new Vector3(direction[0], direction[1], direction[2]).normalize().multiplyScalar(distance));
+    this.up.set(up[0], up[1], up[2]).normalize();
+    this.update();
+  }
   update() {
     if (!(this.near > 0 && this.far > this.near && this.span > 0))
       throw new Error("telos-camera-clipping-invalid");
@@ -129,6 +145,7 @@ export class TelosCamera {
     return { origin, direction: end.clone().sub(origin).normalize() };
   }
   fit(minimum: NumericArray, maximum: NumericArray) {
+    const direction = this.position.clone().sub(this.target).normalize();
     const min = new Vector3(minimum[0], minimum[1], minimum[2]),
       max = new Vector3(maximum[0], maximum[1], maximum[2]);
     if (
@@ -142,11 +159,7 @@ export class TelosCamera {
       Math.tan((this.fov * Math.PI) / 360) * Math.min(1, aspect),
     );
     const distance = (radius / Math.sin(halfAngle)) * 1.15;
-    // Respect each product's world-up convention instead of imposing a Y-up view.
-    const direction =
-      Math.abs(this.up.z) > 0.5
-        ? new Vector3(1, -1, 0.8)
-        : new Vector3(1, 0.8, 1);
+    // Fit changes framing, not the user's orientation or the viewing-frame up.
     this.position
       .copy(this.target)
       .add(direction.normalize().multiplyScalar(distance));

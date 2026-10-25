@@ -20,9 +20,10 @@ await new Promise<void>((resolve, reject) => {
 const debugPort = Number(process.env.CADMATA_QUALIFICATION_DEBUG_PORT ?? (reservation.address() as { port: number }).port);
 await new Promise<void>(resolve => reservation.close(() => resolve()));
 const metadata = JSON.parse(await readFile(join(packageDirectory, "BUILD-METADATA.json"), "utf8"));
-const executableSha256 = createHash("sha256").update(await readFile(join(packageDirectory, "Cadmata.exe"))).digest("hex");
+const desktopExecutable = (await readdir(packageDirectory)).includes("Cadmata.Desktop.exe") ? "Cadmata.Desktop.exe" : "Cadmata.exe";
+const executableSha256 = createHash("sha256").update(await readFile(join(packageDirectory, desktopExecutable))).digest("hex");
 const started = Date.now();
-const app = spawn(join(packageDirectory, "Cadmata.exe"), startupFile ? [startupFile] : [], {
+const app = spawn(join(packageDirectory, desktopExecutable), startupFile ? [startupFile] : [], {
   cwd: process.env.CADMATA_QUALIFICATION_CWD ?? process.env.SystemRoot,
   windowsHide: false, // WinExe has no console; qualify the visible product window.
   env: {
@@ -36,11 +37,15 @@ const app = spawn(join(packageDirectory, "Cadmata.exe"), startupFile ? [startupF
 assert(app.pid, "The extracted app must start");
 let closed = false;
 app.on("exit", () => closed = true);
-const report: Record<string, unknown> = { executable: join(packageDirectory, "Cadmata.exe"), pid: app.pid,
+const report: Record<string, unknown> = { executable: join(packageDirectory, desktopExecutable), pid: app.pid,
   qualification: "automated actual packaged WebView2 session; not a human manual session",
   guards: ["System32-only application PATH", "unrelated CWD", "fresh browser profile", "external web requests blocked by desktop host"], };
-report.package = { identity: metadata.identity, webviewVersion: metadata.webviewVersion,
+report.package = { identity: metadata.identity, webviewMode: metadata.webviewMode ?? "Fixed", webviewVersion: metadata.webviewVersion,
   executableSha256, modifiedSource: metadata.modifiedSource };
+if (metadata.webviewMode === "Evergreen") {
+  assert(!(await readdir(packageDirectory)).includes("webview2"), "Evergreen package must not carry a private browser runtime");
+  assert.equal(metadata.webviewVersion, null, "Evergreen package must not claim a pinned browser version");
+}
 const logs = join(process.env.LOCALAPPDATA!, "Aetheris/Cadmata/logs");
 async function nativeWindows(sendClose: boolean): Promise<number> {
   const closeCommand = `
@@ -135,7 +140,55 @@ try {
     report.diagnosticLog = join(logs, logFile);
     report.unauthenticatedStatus = (await fetch(address + "/api/v1/startup/step", { method: "POST" })).status;
     assert.equal(report.unauthenticatedStatus, 403);
-    await page.locator('[aria-label="Assembly product tree"] button').first().waitFor({ timeout: 45000 });
+    if (startupFile) await page.locator('[aria-label="Assembly product tree"] button').first().waitFor({ timeout: 45000 });
+    else {
+      await page.getByText("Ready. Select a file to import.", { exact: true }).waitFor();
+      assert(await page.getByRole("button", { name: "Refresh Display Data", exact: true }).isDisabled(), "Blank workspace cannot refresh stale geometry");
+      assert.equal(await page.locator('[aria-label="Assembly product tree"]').count(), 0);
+      report.blankStartup = true;
+      await page.screenshot({ path: join(outputDirectory, "packaged-blank-startup.png") });
+      await page.getByRole("tab", { name: "Product Gallery", exact: true }).click();
+      await page.getByLabel("Export filename").fill("products/mounting-plate.step");
+      const generatedResponse = page.waitForResponse(response => response.request().method() === "POST" && response.url().includes("/gallery/templates/"));
+      await page.getByRole("button", { name: "Generate / Update Part", exact: true }).click();
+      const generated = await (await generatedResponse).json();
+      assert(generated.success);
+      const artifact = generated.data.artifacts.find((a: { kind: string }) => a.kind === "StepAp242");
+      assert(artifact, "Gallery wire artifact kind must match the UI contract");
+      assert.equal(artifact.exportPath, "products/mounting-plate.step");
+      await page.getByText(/Generated in/).waitFor({ timeout: 120000 });
+      await page.waitForFunction(() => {
+        const display = JSON.parse(document.querySelector("canvas")?.getAttribute("data-telos-display") ?? "{}");
+        return display.meshSurfaces > 0 || display.fields > 0;
+      });
+      await page.screenshot({ path: join(outputDirectory, "packaged-gallery-preview.png") });
+      report.galleryPreview = { artifactKind: artifact.kind, exportPath: artifact.exportPath, sha256: artifact.sha256 };
+      await page.getByRole("tab", { name: "STEP 242 Viewer", exact: true }).click();
+      const galleryDownloadSession = await context.newCDPSession(page);
+      await galleryDownloadSession.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: outputDirectory, eventsEnabled: true });
+      const galleryDownload = new Promise<string>(resolve => galleryDownloadSession.once("Browser.downloadWillBegin", (event: { suggestedFilename: string }) => resolve(event.suggestedFilename)));
+      await page.getByRole("button", { name: "Download Canonical 242", exact: true }).click();
+      assert.equal(await Promise.race([galleryDownload, new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Gallery canonical download missing")), 15000))]), "mounting-plate.step");
+      await galleryDownloadSession.detach();
+      report.productDownloadName = "mounting-plate.step";
+      await page.getByRole("button", { name: "New Document", exact: true }).click();
+      await page.getByText("Ready. Select a file to import.", { exact: true }).waitFor();
+      assert(await page.getByRole("button", { name: "Refresh Display Data", exact: true }).isDisabled());
+      await page.getByRole("tab", { name: /Modeling Demo/ }).click();
+      const composedResponse = page.waitForResponse(response => response.url().endsWith("/demos/composed-block"));
+      await page.getByRole("button", { name: "Build composed part", exact: true }).click();
+      const composed = await (await composedResponse).json();
+      assert(composed.success);
+      assert.equal(composed.data.materializationRoute, "PrismaticSectionStack/Add");
+      await writeFile(join(outputDirectory, "composed-block.firmament"), composed.data.source);
+      await page.getByText(/Composed block built/).waitFor({ timeout: 120000 });
+      await page.getByRole("button", { name: "Refresh Display Data", exact: true }).click();
+      await page.getByRole("button", { name: "Refresh Display Data", exact: true }).waitFor({ state: "visible" });
+      await page.waitForFunction(() => ![...document.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Refresh Display Data")?.disabled);
+      await page.screenshot({ path: join(outputDirectory, "packaged-composed-block.png") });
+      report.modelingDemo = { route: composed.data.materializationRoute, refreshed: true };
+      await page.getByRole("tab", { name: "STEP 242 Viewer", exact: true }).click();
+    }
     await page.waitForFunction(() => document.querySelector('[data-display-host="three-telos"]')?.getAttribute("aria-busy") === "false");
     report.sampleVisibleMs = Date.now() - started;
     report.gpu = await page.evaluate(async () => {
@@ -166,9 +219,51 @@ try {
     await page.mouse.up({ button: "right" });
     await page.mouse.wheel(0, -130);
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-    await page.locator('[aria-label="Assembly product tree"] .active-row').waitFor();
+    if (startupFile) await page.locator('[aria-label="Assembly product tree"] .active-row').waitFor();
     await page.screenshot({ path: join(outputDirectory, "packaged-orbit-selection.png") });
     report.navigationAndSelection = true;
+    const standardView = page.getByRole("combobox", { name: "Standard view", exact: true });
+    await standardView.selectOption("top");
+    await page.waitForTimeout(200);
+    const topView = await canvas.screenshot();
+    await standardView.selectOption("bottom");
+    await page.waitForTimeout(200);
+    assert(!topView.equals(await canvas.screenshot()), "Top and bottom orientations must produce distinct projected views");
+    await standardView.selectOption("iso");
+    report.standardViews = ["top", "bottom", "iso"];
+    if (process.env.CADMATA_QUALIFICATION_DIAGNOSTIC_STEP) {
+      // Optional real noisy import: prove that presentation is concise without
+      // discarding diagnostics or changing the importer qualification.
+      await page.locator('input[type="file"]').setInputFiles(resolve(process.env.CADMATA_QUALIFICATION_DIAGNOSTIC_STEP));
+      const importedResponse = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/import/step"), { timeout: 120000 });
+      await page.getByRole("button", { name: "Import STEP 242", exact: true }).click();
+      const imported = await (await importedResponse).json();
+      assert(imported.success, "Noisy STEP must be imported, not rejected");
+      const diagnostics = imported.data.diagnostics as { severity: string; code: string; source: string | null; message: string }[];
+      assert(diagnostics.some(d => ["info", "information", "warning"].includes(d.severity.toLowerCase())), "Fixture must exercise nonfatal diagnostic noise");
+      await page.getByText(new RegExp(`^${imported.data.importStatus}: Import complete\\.`)).waitFor({ timeout: 120000 });
+      await page.waitForFunction(() => !document.querySelector('[data-display-host="three-telos"][aria-busy="true"]'), undefined, { timeout: 120000 });
+      for (const d of diagnostics.filter(d => ["info", "information", "warning"].includes(d.severity.toLowerCase())))
+        assert.equal(await page.getByText(`[${d.severity}] ${d.code}: ${d.message}`, { exact: true }).count(), 0, "Nonfatal diagnostic text must not flood the UI");
+      await page.screenshot({ path: join(outputDirectory, "packaged-import-diagnostic-summary.png") });
+      const logSession = await context.newCDPSession(page);
+      await logSession.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: outputDirectory, eventsEnabled: true });
+      const download = new Promise<string>(resolve => logSession.once("Browser.downloadWillBegin", (event: { suggestedFilename: string }) => resolve(event.suggestedFilename)));
+      await page.getByRole("button", { name: "Download diagnostic log", exact: true }).click();
+      const logName = await Promise.race([download, new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Diagnostic log download missing")), 15000))]);
+      let downloaded = "";
+      for (let attempt = 0; ; attempt++) {
+        try { downloaded = await readFile(join(outputDirectory, logName), "utf8"); assert(downloaded.length > 0); break; }
+        catch (error) { if (attempt > 60) throw error; await new Promise(resolve => setTimeout(resolve, 250)); }
+      }
+      for (const d of diagnostics) assert(downloaded.includes(d.message), "Downloaded log must retain every original diagnostic message");
+      const nativeLog = await readFile(String(report.diagnosticLog), "utf8");
+      const events = nativeLog.split("\n").filter(line => line.includes("frontend ")).map(line => JSON.parse(line.slice(line.indexOf("frontend ") + 9)));
+      assert(events.some(event => event.event === "CAD diagnostics" && JSON.stringify(event.detail.diagnostics) === JSON.stringify(diagnostics)), "Desktop session log must retain the full structured diagnostic list");
+      report.noisyImport = { status: imported.data.importStatus, qualifications: imported.data.importQualifications,
+        diagnosticCount: diagnostics.length, downloadedLog: logName, nativeLogPreserved: true, inlineNonfatalMessages: 0 };
+      await logSession.detach();
+    }
     await page.locator('input[type="file"]').setInputFiles(stepFile);
     await page.getByRole("button", { name: "Import STEP 242", exact: true }).click();
     await page.getByText("Qualified: Import complete.", { exact: true }).waitFor({ timeout: 120000 });

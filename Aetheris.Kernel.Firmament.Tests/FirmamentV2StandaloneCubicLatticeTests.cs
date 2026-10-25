@@ -42,7 +42,7 @@ public sealed class FirmamentV2StandaloneCubicLatticeTests
             Assert.Equal(lattice.AnalyticVolume, lattice.BrepVolume, 8);
             Assert.Contains("SPHERICAL_SURFACE", build.Value.Export.StepText, StringComparison.Ordinal);
             Assert.Contains("CYLINDRICAL_SURFACE", build.Value.Export.StepText, StringComparison.Ordinal);
-            Assert.Contains("TRIMMED_CURVE", build.Value.Export.StepText, StringComparison.Ordinal);
+            Assert.Contains("CIRCLE", build.Value.Export.StepText, StringComparison.Ordinal);
             Assert.True(Step242Importer.ImportBody(build.Value.Export.StepText).IsSuccess);
         }
         finally

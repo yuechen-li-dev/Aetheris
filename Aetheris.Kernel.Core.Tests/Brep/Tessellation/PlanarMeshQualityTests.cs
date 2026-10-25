@@ -5,6 +5,20 @@ namespace Aetheris.Kernel.Core.Tests.Brep.Tessellation;
 
 public sealed class PlanarMeshQualityTests
 {
+    [Theory]
+    [InlineData(-1e-14d, true)]
+    [InlineData(0d, true)]
+    [InlineData(1e-14d, true)]
+    [InlineData(-.01d, true)]
+    [InlineData(.01d, false)]
+    public void QuadDiagonal_UsesStableRoundingTiesButRetainsTheShorterSplit(double perturbation, bool ac)
+    {
+        Point3D[] points = [new(0, 0, 0), new(1, 0, 0), new(1 + perturbation, 1, 0), new(0, 1, 0)];
+        var indices = new List<int>();
+        SurfaceMeshIrTessellator.AppendQuadTriangles(points, [0, 1, 2, 3], indices);
+        Assert.Equal(ac ? new[] { 0, 1, 2, 0, 2, 3 } : [0, 1, 3, 1, 2, 3], indices);
+    }
+
     [Fact]
     public void InteriorFillPreservesConcaveDomainAndBoundaryWhileImprovingPointDistribution()
     {

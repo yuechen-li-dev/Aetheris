@@ -101,9 +101,13 @@
 	overflow-wrap: anywhere;
 }
 
-.import-status-box__details-list {
+.diagnostic-summary {
+	display: grid;
+	gap: 8px;
+}
+
+.diagnostic-summary p {
 	margin: 0;
-	padding-left: 16px;
 }
 
 .import-status-box--success {
@@ -348,14 +352,6 @@
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: var(--layout-space-1);
-}
-
-.boolean-grid {
-	grid-template-columns: 1fr;
-}
-
-.boolean-actions {
-	margin-bottom: var(--layout-space-1);
 }
 
 .tool-rail ul {

@@ -2,11 +2,117 @@ using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Brep;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class WireFormTests
 {
+    [Fact]
+    public void PaperclipImportExport_PreservesAnalyticGeometryWithoutFittedUvSplines()
+    {
+        var compiled = FirmamentBuildAndExport.CompileSource(File.ReadAllText(Fixture("Canonical", "WireForm", "paperclip.firmament")));
+        Assert.True(compiled.IsSuccess, string.Join("; ", compiled.Diagnostics.Select(d => d.Message)));
+        var step = compiled.Value.StepText;
+        for (var roundtrip = 0; roundtrip < 2; roundtrip++)
+        {
+            // The source is generated here: exercise recovery, not a cached import.
+            var imported = Step242Importer.ImportBody(step);
+            Assert.True(imported.IsSuccess, string.Join("; ", imported.Diagnostics.Select(d => d.Message)));
+            var body = imported.Value;
+            Assert.Equal(9, body.Topology.Faces.Count());
+            Assert.Equal(15, body.Topology.Edges.Count());
+            Assert.Equal(8, body.Topology.Vertices.Count());
+            Assert.Equal(3, body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Torus));
+            Assert.Equal(4, body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Cylinder));
+            Assert.Equal(30, body.Bindings.PcurveBindings.Count());
+            foreach (var binding in body.Bindings.PcurveBindings)
+            {
+                Assert.Null(binding.Pcurve.PolynomialCurve);
+                if (body.GetFaceSurface(binding.FaceId).Kind is SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Torus)
+                    Assert.Equal(PcurveGeometryKind.Line, binding.Pcurve.Kind);
+            }
+            var evidence = BrepPcurveValidator.Validate(body, 1e-9, requireEveryCoedge: true);
+            Assert.True(evidence.IsValid, string.Join("; ", evidence.Diagnostics));
+            Assert.True(evidence.MaximumReconstructionDeviation < 1e-10);
+            var exported = Step242Exporter.ExportBody(body);
+            Assert.True(exported.IsSuccess);
+            step = exported.Value;
+            Assert.DoesNotContain("B_SPLINE", step, StringComparison.Ordinal);
+            Assert.DoesNotContain("POLYLINE", step, StringComparison.Ordinal);
+            Assert.Contains("SEAM_CURVE", step, StringComparison.Ordinal);
+            Assert.True(step.Length < 20_000, "Analytic paperclip trims must retain a bounded compact representation.");
+        }
+    }
+
+    [Theory]
+    [InlineData("straight-wire.firmament")]
+    [InlineData("u-wire.firmament")]
+    [InlineData("paperclip.firmament")]
+    [InlineData("three-dimensional-bends.firmament")]
+    public void ExactSweep_BoundariesAgreeWithOutwardNormalsBeforeAnyImport(string fixture)
+    {
+        var parsed = WireFormAuthoring.Parse(File.ReadAllText(Fixture("Canonical", "WireForm", fixture)));
+        Assert.True(parsed.IsSuccess, string.Join(" | ", parsed.Diagnostics.Select(d => d.Message)));
+        var built = WireFormBRepMaterializer.Build(parsed.Value);
+        Assert.True(built.IsSuccess, string.Join(" | ", built.Diagnostics.Select(d => d.Message)));
+        var body = built.Value.Body;
+        foreach (var face in body.Topology.Faces)
+        {
+            var surface = body.GetFaceSurface(face.Id);
+            var uses = face.LoopIds.SelectMany(id => body.Topology.GetLoop(id).CoedgeIds)
+                .Select(body.Topology.GetCoedge).ToArray();
+            foreach (var use in uses.Where(use => body.GetEdgeCurve(use.EdgeId).Kind == CurveGeometryKind.Circle3
+                && body.Topology.GetEdge(use.EdgeId).StartVertexId == body.Topology.GetEdge(use.EdgeId).EndVertexId))
+            {
+                var circle = body.GetEdgeCurve(use.EdgeId).Circle3!.Value;
+                var sense = (use.IsReversed ? -1d : 1d)
+                    * (body.Bindings.GetEdgeBinding(use.EdgeId).OrientedEdgeSense ? 1d : -1d);
+                if (surface.Plane is { } plane)
+                {
+                    Assert.True(circle.Normal.ToVector().Dot(plane.Normal.ToVector()) * sense > .999999,
+                        $"{fixture}, cap {face.Id}: boundary must turn about its outward normal.");
+                    continue;
+                }
+                // At either end ring, n x boundary-tangent must point along the
+                // centerline into this segment, rather than into its neighbor.
+                var operation = parsed.Value.Operations[face.Id.Value - 1];
+                var atStart = (circle.Center - operation.Input.Position).Length < 1e-8;
+                var inward = atStart ? operation.Input.Tangent.ToVector() : operation.Output.Tangent.ToVector() * -1d;
+                var point = circle.Evaluate(.73);
+                var normal = (point - circle.Center) / circle.Radius;
+                Assert.True(normal.Cross(circle.Tangent(.73) * sense).Dot(inward) > 0d,
+                    $"{fixture}, side {face.Id}: boundary must have the face interior to its left.");
+            }
+        }
+
+        var step = Step242Exporter.ExportBody(body);
+        Assert.True(step.IsSuccess);
+        var document = Step242SubsetParser.Parse(step.Value).Value;
+        foreach (var face in document.Entities.Where(e => e.Name == "ADVANCED_FACE"))
+        {
+            var supportId = Step242SubsetDecoder.ReadReference(face, 2, "face surface").Value.TargetId;
+            var support = document.Entities.Single(e => e.Id == supportId);
+            if (support.Name != "PLANE") continue;
+            var plane = Step242SubsetDecoder.ReadPlaneSurface(document, support).Value;
+            var boundId = Assert.Single(Step242SubsetDecoder.ReadReferenceList(face, 1, "face bounds").Value).TargetId;
+            var bound = document.Entities.Single(e => e.Id == boundId);
+            var loopId = Step242SubsetDecoder.ReadReference(bound, 1, "bound loop").Value.TargetId;
+            var loop = document.Entities.Single(e => e.Id == loopId);
+            var useId = Assert.Single(Step242SubsetDecoder.ReadReferenceList(loop, 1, "loop uses").Value).TargetId;
+            var use = document.Entities.Single(e => e.Id == useId);
+            var edgeId = Step242SubsetDecoder.ReadReference(use, 3, "oriented edge").Value.TargetId;
+            var edge = document.Entities.Single(e => e.Id == edgeId);
+            var curveId = Step242SubsetDecoder.ReadReference(edge, 3, "edge basis").Value.TargetId;
+            var circle = Step242SubsetDecoder.ReadCircleCurve(document, document.Entities.Single(e => e.Id == curveId)).Value;
+            var sign = new[] { (face, 3), (bound, 2), (use, 4), (edge, 4) }
+                .Aggregate(1d, (s, item) => s * (Step242SubsetDecoder.ReadBoolean(item.Item1, item.Item2, "orientation").Value ? 1d : -1d));
+            Assert.True(circle.Normal.ToVector().Dot(plane.Normal.ToVector()) * sign > .999999);
+        }
+        Assert.DoesNotContain("TRIMMED_CURVE", step.Value, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void CommentedOperationsDoNotCreateGeometryOrProvenance()
     {

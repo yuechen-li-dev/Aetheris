@@ -4,6 +4,8 @@ using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.StandardLibrary;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.Surgery;
@@ -29,7 +31,8 @@ public sealed class BrepSurgeryRecipeParityTests
             new AxisAlignedBoxExtents(5d, 15d, -3d, 3d, -45d, 45d)).Value;
         var body = BrepBoolean.Subtract(shaft, tool).Value;
 
-        AssertCanonical(body, 8, 12, 6, "3b5b0ee1132a27427365ec19e9c6973cd702d3a5d27e8f4c977ea745ee79b12e", expectClosedManifold: true);
+        // Partial circular edges now reference legal CIRCLE bases; geometry is unchanged.
+        AssertCanonical(body, 8, 12, 6, "9e3ae6915a10875e081e9eaa9f676f4e8e7bda8ed05a1872ab81da0dbf709fb0", expectClosedManifold: true);
     }
 
     [Fact]
@@ -63,6 +66,13 @@ public sealed class BrepSurgeryRecipeParityTests
         var reimport = Step242Importer.ImportBody(export.Value);
         Assert.True(reimport.IsSuccess, string.Join(Environment.NewLine, reimport.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.True(BrepBindingValidator.Validate(reimport.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        var sourceSamples = SampleEdges(body);
+        var reimportedSamples = SampleEdges(reimport.Value);
+        Assert.Equal(sourceSamples.Length, reimportedSamples.Length);
+        foreach (var sample in sourceSamples)
+            Assert.True(reimportedSamples.Min(point => (point - sample).Length) < 1e-7d);
+        foreach (var sample in reimportedSamples)
+            Assert.True(sourceSamples.Min(point => (point - sample).Length) < 1e-7d);
         if (expectClosedManifold)
         {
             var mass = BrepMassProperties.Evaluate(reimport.Value);
@@ -73,4 +83,20 @@ public sealed class BrepSurgeryRecipeParityTests
 
     private static string Sha256(string value)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
+
+    private static Point3D[] SampleEdges(BrepBody body) => body.Bindings.EdgeBindings.SelectMany(binding =>
+    {
+        var curve = body.GetEdgeCurve(binding.EdgeId);
+        var interval = binding.TrimInterval!.Value;
+        return Enumerable.Range(0, 5).Select(i =>
+        {
+            var t = interval.Start + (interval.End - interval.Start) * i / 4d;
+            return curve.Kind switch
+            {
+                CurveGeometryKind.Line3 => curve.Line3!.Value.Evaluate(t),
+                CurveGeometryKind.Circle3 => curve.Circle3!.Value.Evaluate(t),
+                _ => throw new InvalidOperationException($"Unexpected recipe curve {curve.Kind}."),
+            };
+        });
+    }).ToArray();
 }

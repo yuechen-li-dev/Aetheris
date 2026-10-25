@@ -19,7 +19,7 @@ public sealed class Step242HyperbolaEdgeTests
 
         Assert.True(exported.IsSuccess, string.Join(Environment.NewLine, exported.Diagnostics.Select(d => d.Message)));
         Assert.Contains("HYPERBOLA", exported.Value, StringComparison.Ordinal);
-        Assert.Contains("TRIMMED_CURVE", exported.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("TRIMMED_CURVE", exported.Value, StringComparison.Ordinal);
 
         var imported = Step242Importer.ImportBody(exported.Value);
         Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(d => d.Message)));

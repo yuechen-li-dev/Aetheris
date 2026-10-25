@@ -43,7 +43,8 @@ public sealed class LocalizedTangentBlendFilletPipelineTests
 
         var stepPath = json.RootElement.GetProperty("outputPath").GetString()!;
         var bytes = File.ReadAllBytes(stepPath);
-        Assert.Contains("TRIMMED_CURVE", Encoding.UTF8.GetString(bytes), StringComparison.Ordinal);
+        Assert.Contains("CIRCLE", Encoding.UTF8.GetString(bytes), StringComparison.Ordinal);
+        Assert.DoesNotContain("TRIMMED_CURVE", Encoding.UTF8.GetString(bytes), StringComparison.Ordinal);
         Assert.Equal(Convert.ToHexString(SHA256.HashData(bytes)), Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(JsonDocument.Parse(second.Output).RootElement.GetProperty("outputPath").GetString()!))));
         var imported = Step242Importer.ImportBody(Encoding.UTF8.GetString(bytes));
         Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(d => d.Message)));

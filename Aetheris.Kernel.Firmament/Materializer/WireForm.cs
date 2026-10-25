@@ -408,15 +408,17 @@ public static class WireFormBRepMaterializer
                     geometry.AddSurface(surface, SurfaceGeometry.FromTorus(new TorusSurface(bend.Center, bend.PlaneNormal, bend.RadiusMm, feature.WireRadiusMm, bend.StartRadial)));
                 }
                 else throw new NotSupportedException("WireForm X0 admits Straight and Bend only.");
-                var side = AddFace(builder, [(seam, false), (ringEdges[i + 1], false), (seam, true), (ringEdges[i], true)]);
+                // Walk the boundary with the face interior to the left of its
+                // outward analytic normal (including both uses of the seam).
+                var side = AddFace(builder, [(ringEdges[i], false), (seam, false), (ringEdges[i + 1], true), (seam, true)]);
                 bindings.AddFaceBinding(new(side, surface)); faces.Add(side);
             }
             var startSurface = new SurfaceGeometryId(nextSurface++);
             geometry.AddSurface(startSurface, SurfaceGeometry.FromPlane(new PlaneSurface(feature.StartState.Position, Direction3D.Create(feature.StartState.Tangent.ToVector() * -1d), feature.StartState.Up)));
-            var startFace = AddFace(builder, [(ringEdges[0], false)]); bindings.AddFaceBinding(new(startFace, startSurface)); faces.Add(startFace);
+            var startFace = AddFace(builder, [(ringEdges[0], true)]); bindings.AddFaceBinding(new(startFace, startSurface)); faces.Add(startFace);
             var endSurface = new SurfaceGeometryId(nextSurface++);
             geometry.AddSurface(endSurface, SurfaceGeometry.FromPlane(new PlaneSurface(feature.EndState.Position, feature.EndState.Tangent, feature.EndState.Up)));
-            var endFace = AddFace(builder, [(ringEdges[^1], true)]); bindings.AddFaceBinding(new(endFace, endSurface)); faces.Add(endFace);
+            var endFace = AddFace(builder, [(ringEdges[^1], false)]); bindings.AddFaceBinding(new(endFace, endSurface)); faces.Add(endFace);
             var shell = builder.AddShell(faces); builder.AddBody([shell]); var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints);
             var bindingValidation = BrepBindingValidator.Validate(body, true);
             if (!bindingValidation.IsSuccess) return KernelResult<WireFormBuildResult>.Failure(bindingValidation.Diagnostics);

@@ -112,7 +112,7 @@ public static class Step242Exporter
             ? writer.AddEntity("REPRESENTATION_CONTEXT", Step242TextWriter.String("2D"), Step242TextWriter.String("parameter space"))
             : null;
 
-        var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, advancedFaceIds, pcurveContextId, options.EmitFullCircleTrimmedCurves);
+        var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, advancedFaceIds, pcurveContextId);
         EmitAuxiliaryVertexPointForVertexlessAnalyticBody(writer, body, model);
         if (outerClosedShellId is null)
         {
@@ -129,7 +129,7 @@ public static class Step242Exporter
             var orientedVoidShellIds = new List<string>();
             foreach (var innerShellId in shellRepresentation.InnerShellIds.OrderBy(id => id.Value))
             {
-                var innerClosedShellId = BuildClosedShell(writer, body, model, innerShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, advancedFaceIds, pcurveContextId, options.EmitFullCircleTrimmedCurves);
+                var innerClosedShellId = BuildClosedShell(writer, body, model, innerShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, advancedFaceIds, pcurveContextId);
                 if (innerClosedShellId is null)
                 {
                     return Failure($"Shell {innerShellId.Value} could not be exported.", $"Shell:{innerShellId.Value}");
@@ -218,8 +218,7 @@ public static class Step242Exporter
         Dictionary<EdgeId, string> hyperbolaIds,
         Dictionary<SurfaceGeometryId, string> surfaceIds,
         Dictionary<FaceId, string> advancedFaceIds,
-        string? pcurveContextId,
-        bool emitFullCircleTrimmedCurves)
+        string? pcurveContextId)
     {
         if (!model.TryGetShell(shellId, out var shell) || shell is null)
         {
@@ -295,7 +294,7 @@ public static class Step242Exporter
 
                     if (!edgeCurveIds.TryGetValue(coedge.EdgeId, out var edgeCurveId))
                     {
-                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, pcurveContextId, emitFullCircleTrimmedCurves);
+                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, pcurveContextId);
                         if (!edgeResult.IsSuccess)
                         {
                             return null;
@@ -937,8 +936,7 @@ public static class Step242Exporter
         IDictionary<EdgeId, string> ellipseIds,
         IDictionary<EdgeId, string> hyperbolaIds,
         IReadOnlyDictionary<SurfaceGeometryId, string> surfaceIds,
-        string? pcurveContextId,
-        bool emitFullCircleTrimmedCurves)
+        string? pcurveContextId)
     {
         var edge = model.GetEdge(edgeId);
 
@@ -1034,23 +1032,10 @@ public static class Step242Exporter
                 circleIds[edgeId] = circleId;
             }
 
-            // EDGE_CURVE endpoints alone do not disambiguate the minor and major arcs
-            // of a CIRCLE for all downstream CAD kernels. Preserve the actual bounded
-            // analytic edge, rather than relying on a viewer to infer it from a wire.
-            var trim = edgeBinding.TrimInterval.Value;
-            var isFullCircle = double.Abs((trim.End - trim.Start) - (2d * double.Pi)) <= 1e-12d;
-            // A qualified pcurve is parameter-bound. Reconstructing a full-circle
-            // seam from an approximate source vertex can change its angular origin
-            // even though the circle geometry is unchanged. Keep the native interval
-            // whenever face-local bindings depend on it.
-            var hasPcurves = pcurveContextId is not null
-                && body.Bindings.PcurveBindings.Any(binding => model.GetCoedge(binding.CoedgeId).EdgeId == edgeId);
-            geometryCurveId = isFullCircle && !emitFullCircleTrimmedCurves && !hasPcurves
-                ? circleId
-                : writer.AddEntity("TRIMMED_CURVE", "$", Step242TextWriter.Ref(circleId),
-                    Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(trim.Start)})"),
-                    Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(trim.End)})"),
-                    Step242TextWriter.BooleanLogical(true), Step242TextWriter.Enum("PARAMETER"));
+            // ADVANCED_FACE requires an admitted basis curve, not TRIMMED_CURVE.
+            // Edge vertices and same_sense bound the arc; face-local pcurves
+            // retain periodic trim information without wrapping the 3D basis.
+            geometryCurveId = circleId;
         }
         else if (curve.Kind == CurveGeometryKind.BSpline3 && curve.BSpline3 is BSpline3Curve spline)
         {
@@ -1116,11 +1101,7 @@ public static class Step242Exporter
                 hyperbolaIds[edgeId] = hyperbolaId;
             }
 
-            var trim = edgeBinding.TrimInterval.Value;
-            geometryCurveId = writer.AddEntity("TRIMMED_CURVE", "$", Step242TextWriter.Ref(hyperbolaId),
-                Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(trim.Start)})"),
-                Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(trim.End)})"),
-                Step242TextWriter.BooleanLogical(true), Step242TextWriter.Enum("PARAMETER"));
+            geometryCurveId = hyperbolaId;
         }
         else
         {

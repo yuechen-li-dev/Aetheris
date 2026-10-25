@@ -1355,7 +1355,6 @@ public static partial class FirmamentBuildAndExport
             ApplicationName = "Aetheris.Firmament.CubicTruss.M9R",
             BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
             BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
-            EmitFullCircleTrimmedCurves = true,
         });
         if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
         var reimport = Step242Importer.ImportBody(step.Value);

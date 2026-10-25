@@ -18,7 +18,10 @@ if (Test-Path -LiteralPath $output) { throw 'Use a fresh smoke output directory.
 New-Item -ItemType Directory -Path $output | Out-Null
 $stdout = Join-Path $output 'cadmata.stdout.log'
 $stderr = Join-Path $output 'cadmata.stderr.log'
-$hostPath = Join-Path $bundle 'Cadmata.Server.exe'
+$hostPath = Join-Path $bundle $(if (Test-Path -LiteralPath (Join-Path $bundle 'Cadmata.Desktop.exe')) { 'Cadmata.exe' } else { 'Cadmata.Server.exe' })
+if ($metadata.webviewMode -eq 'Evergreen' -and (Test-Path -LiteralPath (Join-Path $bundle 'webview2'))) {
+    throw 'An Evergreen bundle must not carry a private browser runtime.'
+}
 
 # This test owns the child lifetime. It binds a temporary loopback port and
 # verifies the extracted production assets and STEP API without a dev server.

@@ -29,13 +29,16 @@ public sealed class StandardProductGalleryIntegrationTests : IClassFixture<WebAp
             ["material"] = "Standard.Materials.Aluminum.6061_T6",
         };
         var request = new GalleryInvocationRequest(values.ToDictionary(pair => pair.Key,
-            pair => JsonSerializer.SerializeToElement(pair.Value), StringComparer.Ordinal), [ForgeArtifactKind.StepAp242]);
+            pair => JsonSerializer.SerializeToElement(pair.Value), StringComparer.Ordinal), [ForgeArtifactKind.StepAp242], "products/mounting-plate.step");
         var response = await client.PostAsJsonAsync("/api/v1/gallery/templates/Standard.Products.Mechanical.MountingPlate", request);
         response.EnsureSuccessStatusCode();
+        using var wire = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("StepAp242", wire.RootElement.GetProperty("data").GetProperty("artifacts")[0].GetProperty("kind").GetString());
         var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<GalleryInvocationResponse>>();
         var artifact = Assert.Single(envelope!.Data!.Artifacts);
         Assert.Contains("ISO-10303-21", artifact.Content, StringComparison.Ordinal);
         Assert.Equal("part.step", artifact.Name);
+        Assert.Equal("products/mounting-plate.step", artifact.ExportPath);
     }
 
     [Fact]

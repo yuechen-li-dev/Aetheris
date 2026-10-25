@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import * as desktopDiagnostics from "../desktopDiagnostics";
 import {
 	ApiError,
 	executeBoolean,
@@ -307,6 +308,21 @@ describe("STEP API", () => {
 				},
 			]),
 		);
+	});
+
+	it.each([true, false])("copies complete import diagnostics to the native log (success=%s)", async success => {
+		const diagnostics = [{ code: "Unknown", severity: success ? "Info" : "Error", message: "Spline source #4617: full diagnostic evidence.", source: "Importer.Surface" }];
+		const report = vi.spyOn(desktopDiagnostics, "reportDesktopDiagnostic").mockImplementation(() => {});
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+			success, data: success ? { documentId: "doc-1", diagnostics } : null, diagnostics: success ? [] : diagnostics,
+		}), { status: success ? 200 : 422 })));
+		try {
+			if (success) expect((await importStep("doc-1", "STEP")).diagnostics).toEqual(diagnostics);
+			else await expect(importStep("doc-1", "BAD")).rejects.toBeInstanceOf(ApiError);
+			expect(report).toHaveBeenCalledWith(success ? "CAD diagnostics" : "CAD request failed", expect.objectContaining({
+				path: "/api/v1/documents/doc-1/import/step", diagnostics,
+			}));
+		} finally { report.mockRestore(); }
 	});
 
 	it("parses importStep success envelope", async () => {

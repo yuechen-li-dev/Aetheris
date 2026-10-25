@@ -211,6 +211,7 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
         setLabelHost(current);
         current.camera.mode = "orthographic";
         current.camera.up.set(0, 0, 1);
+        current.camera.position.set(1, -1, .8);
         current.gridPlane = "xy";
         current.attach(container.current!);
         apply();
@@ -249,6 +250,19 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
         aria-label="Engineering WebGPU viewport"
         style={{ display: "block", width: "100%", height: "100%" }}
       />
+      <select aria-label="Standard view" defaultValue="" style={{ position: "absolute", left: 12, top: 54, zIndex: 3, width: 150 }}
+        onChange={event => {
+          const views: Record<string, [number[], number[]]> = {
+            iso: [[1, -1, .8], [0, 0, 1]], top: [[0, 0, 1], [0, 1, 0]], bottom: [[0, 0, -1], [0, -1, 0]],
+            front: [[0, -1, 0], [0, 0, 1]], back: [[0, 1, 0], [0, 0, 1]], left: [[-1, 0, 0], [0, 0, 1]], right: [[1, 0, 0], [0, 0, 1]],
+          };
+          const view = views[event.target.value];
+          if (view && host.current) { host.current.camera.orient(...view); host.current.invalidate(); }
+          event.target.value = "";
+        }}>
+        <option value="" disabled>Standard view</option><option value="iso">Isometric</option><option value="top">Top</option><option value="bottom">Bottom</option>
+        <option value="front">Front</option><option value="back">Back</option><option value="left">Left</option><option value="right">Right</option>
+      </select>
       {inspectionFaces.length > 0 && (
         <details style={{ position: "absolute", left: 12, bottom: 12, zIndex: 3,
           background: (props.theme ?? ATELIER_VIEWPORT_THEME).annotation.background,

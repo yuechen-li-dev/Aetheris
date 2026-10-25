@@ -12,6 +12,37 @@ public sealed class Step242ExporterTests
     private const double EdgeOnLineTolerance = 1e-6;
 
     [Theory]
+    [InlineData("cylinder", false)]
+    [InlineData("cylinder", true)]
+    [InlineData("torus", false)]
+    [InlineData("sphere", false)]
+    [InlineData("slot", false)]
+    public void AnalyticEdges_UseAdmittedBasisCurvesWithoutTrimmedWrappers(string primitive, bool legacyTrimOption)
+    {
+        var body = primitive switch
+        {
+            "cylinder" => BrepPrimitives.CreateCylinder(2d, 10d).Value,
+            "torus" => BrepPrimitives.CreateTorus(5d, 1d).Value,
+            "sphere" => BrepPrimitives.CreateSphere(2d).Value,
+            _ => BrepPrimitives.CreateStraightSlot(10d, 4d, 3d).Value,
+        };
+        var exported = Step242Exporter.ExportBody(body, new Step242ExportOptions { EmitFullCircleTrimmedCurves = legacyTrimOption });
+        Assert.True(exported.IsSuccess, string.Join(" | ", exported.Diagnostics.Select(d => d.Message)));
+        var document = Step242SubsetParser.Parse(exported.Value).Value;
+        foreach (var edge in document.Entities.Where(e => e.Name == "EDGE_CURVE"))
+        {
+            var basisId = Step242SubsetDecoder.ReadReference(edge, 3, "edge basis").Value.TargetId;
+            var basis = document.Entities.Single(e => e.Id == basisId);
+            Assert.Contains(basis.Name, new[] { "LINE", "CIRCLE", "ELLIPSE", "HYPERBOLA", "B_SPLINE_CURVE_WITH_KNOTS", "SURFACE_CURVE", "SEAM_CURVE" });
+        }
+        Assert.DoesNotContain("TRIMMED_CURVE", exported.Value, StringComparison.Ordinal);
+        var imported = Step242Importer.ImportBody(exported.Value);
+        Assert.True(imported.IsSuccess, string.Join(" | ", imported.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(body.Topology.Faces.Count(), imported.Value.Topology.Faces.Count());
+        Assert.Equal(body.Topology.Edges.Count(), imported.Value.Topology.Edges.Count());
+    }
+
+    [Theory]
     [InlineData(4.414213562373095, 4.414213562373094, "4.4142135623731")]
     [InlineData(0.634393284163645, 0.634393284163646, "0.6343932841636")]
     public void Number_FinalBitPlatformVariation_ProducesCanonicalText(double first, double second, string expected)

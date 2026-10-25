@@ -35,7 +35,8 @@ export class MeasurementTool {
     }
   };
   constructor(private host: HTMLElement, private query: (request: MeasurementRequest) => Promise<MeasurementResult>, private changed: () => void) {
-    host.style.cssText = 'position:absolute;top:54px;right:12px;z-index:20;max-width:min(330px,90%);font:12px/1.5 system-ui;color:#202020';
+    host.classList.add('telos-measurement');
+    host.style.cssText = 'position:absolute;top:var(--telos-measurement-top,54px);right:12px;z-index:20;max-width:min(330px,90%);font:var(--telos-measurement-font,12px/1.5 system-ui);color:var(--telos-measurement-color,#202020)';
     host.addEventListener('pointerdown', event => event.stopPropagation());
     host.addEventListener('click', event => event.stopPropagation());
     document.addEventListener('keydown', this.keyboard);
@@ -75,13 +76,16 @@ export class MeasurementTool {
     this.host.style.background = ''; this.host.style.padding = ''; this.host.style.border = '';
     const button = (label: string, action: () => void) => {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
-      b.style.cssText = 'padding:5px 9px;margin:2px;border:1px solid #bbb;background:white;color:#222;border-radius:4px;cursor:pointer';
+      b.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;min-height:var(--telos-control-height,34px);padding:5px 9px;margin:2px;border:1px solid var(--telos-measurement-border,#bbb);background:var(--telos-measurement-button-background,white);color:inherit;border-radius:var(--telos-measurement-radius,4px);font:inherit;cursor:pointer';
       b.onclick = action; this.host.append(b); return b;
     };
     const toggle = button(this.active ? 'Close measurement (Esc)' : 'Measure · M', () => this.toggle());
+    toggle.classList.add('telos-measurement__toggle');
+    toggle.setAttribute('aria-expanded', String(this.active));
+    if (!this.active) toggle.style.margin = '0';
     toggle.disabled = !!this.disabled && !this.active; toggle.title = this.disabled || 'Measure two references in the current built model';
     if (!this.active) return;
-    this.host.style.background = '#fffef9'; this.host.style.padding = '8px'; this.host.style.border = '1px solid #c6aa62'; this.host.style.borderRadius = '6px';
+    this.host.style.background = 'var(--telos-measurement-background,#fffef9)'; this.host.style.padding = '8px'; this.host.style.border = '1px solid var(--telos-measurement-border,#c6aa62)'; this.host.style.borderRadius = 'var(--telos-measurement-radius,6px)';
     const line = (text: string) => { const p = document.createElement('div'); p.textContent = text; this.host.append(p); return p; };
     const select = document.createElement('select'); select.setAttribute('aria-label', 'Measurement mode');
     for (const [value, label] of [['points','Surface points'], ['planes','Support planes'], ['axes','Axes']]) {

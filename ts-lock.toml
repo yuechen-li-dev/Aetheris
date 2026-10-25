@@ -6838,7 +6838,7 @@ Workspace = ''
 Hash = 'sha256:fd0edff32f0a7f6a440dba81c0f5db644b710adcea7e54a35eef6cf976cb8d7e'
 
 [[package]]
-ID = 'path:Aetheris.Web.Runtime/telos#eea2aa108921bb5353b14ee5e393a8986fac6595b64024c4e1f31215f0a1ceb7'
+ID = 'path:Aetheris.Web.Runtime/telos#a31c32a8fcdd04705cda724b335b0363b71e6251e9f98b83a6f8f457eb60623c'
 Name = '@aetheris/three-telos'
 Version = '0.1.0'
 Source = 'path'
@@ -6848,7 +6848,7 @@ Rev = ''
 TreeHash = ''
 Path = 'Aetheris.Web.Runtime/telos'
 Workspace = ''
-Hash = 'sha256:eea2aa108921bb5353b14ee5e393a8986fac6595b64024c4e1f31215f0a1ceb7'
+Hash = 'sha256:a31c32a8fcdd04705cda724b335b0363b71e6251e9f98b83a6f8f457eb60623c'
 
 [[module_instance]]
 ID = 'npm:@acemir/cssom@0.9.32#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
@@ -13390,8 +13390,8 @@ State = 'present'
 Optional = true
 
 [[module_instance]]
-ID = 'path:Aetheris.Web.Runtime/telos#eea2aa108921bb5353b14ee5e393a8986fac6595b64024c4e1f31215f0a1ceb7#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
-PackageID = 'path:Aetheris.Web.Runtime/telos#eea2aa108921bb5353b14ee5e393a8986fac6595b64024c4e1f31215f0a1ceb7'
+ID = 'path:Aetheris.Web.Runtime/telos#a31c32a8fcdd04705cda724b335b0363b71e6251e9f98b83a6f8f457eb60623c#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+PackageID = 'path:Aetheris.Web.Runtime/telos#a31c32a8fcdd04705cda724b335b0363b71e6251e9f98b83a6f8f457eb60623c'
 PeerContextID = 'peer-context:sha256:b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[module_instance.dependency]]
@@ -13413,7 +13413,7 @@ InstanceID = 'npm:three@0.183.2#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c
 From = 'aetheris.client:target:browser'
 Reference = '@aetheris/three-telos'
 Kind = 'runtime'
-InstanceID = 'path:Aetheris.Web.Runtime/telos#eea2aa108921bb5353b14ee5e393a8986fac6595b64024c4e1f31215f0a1ceb7#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
+InstanceID = 'path:Aetheris.Web.Runtime/telos#a31c32a8fcdd04705cda724b335b0363b71e6251e9f98b83a6f8f457eb60623c#peers=b47b56855796ee10dd4f3e88cf5a62ab27bfcf3a7c95d8e6ed07031ec1e1b88e'
 
 [[root_module_instance]]
 From = 'aetheris.client:target:browser'
@@ -13698,7 +13698,7 @@ Reference = 'zod'
 
 [[edge]]
 From = 'aetheris.client:target:browser'
-To = 'path:Aetheris.Web.Runtime/telos#eea2aa108921bb5353b14ee5e393a8986fac6595b64024c4e1f31215f0a1ceb7'
+To = 'path:Aetheris.Web.Runtime/telos#a31c32a8fcdd04705cda724b335b0363b71e6251e9f98b83a6f8f457eb60623c'
 Kind = 'runtime'
 Optional = false
 Reference = '@aetheris/three-telos'
@@ -18226,21 +18226,21 @@ Optional = false
 Reference = 'use-sync-external-store'
 
 [[edge]]
-From = 'path:Aetheris.Web.Runtime/telos#eea2aa108921bb5353b14ee5e393a8986fac6595b64024c4e1f31215f0a1ceb7'
+From = 'path:Aetheris.Web.Runtime/telos#a31c32a8fcdd04705cda724b335b0363b71e6251e9f98b83a6f8f457eb60623c'
 To = 'npm:@types/three@0.183.1'
 Kind = 'runtime'
 Optional = false
 Reference = '@types/three'
 
 [[edge]]
-From = 'path:Aetheris.Web.Runtime/telos#eea2aa108921bb5353b14ee5e393a8986fac6595b64024c4e1f31215f0a1ceb7'
+From = 'path:Aetheris.Web.Runtime/telos#a31c32a8fcdd04705cda724b335b0363b71e6251e9f98b83a6f8f457eb60623c'
 To = 'npm:@webgpu/types@0.1.69'
 Kind = 'runtime'
 Optional = false
 Reference = '@webgpu/types'
 
 [[edge]]
-From = 'path:Aetheris.Web.Runtime/telos#eea2aa108921bb5353b14ee5e393a8986fac6595b64024c4e1f31215f0a1ceb7'
+From = 'path:Aetheris.Web.Runtime/telos#a31c32a8fcdd04705cda724b335b0363b71e6251e9f98b83a6f8f457eb60623c'
 To = 'npm:three@0.183.2'
 Kind = 'runtime'
 Optional = false

@@ -172,6 +172,10 @@
 	justify-content: flex-end;
 }
 
+.stack-row {
+	align-items: center;
+}
+
 .tab-button {
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
@@ -221,6 +225,14 @@
 }
 
 .viewport-frame {
+	--telos-measurement-top: var(--viewport-actions-top);
+	--telos-control-height: var(--viewport-control-height);
+	--telos-measurement-font: 500 var(--ui-small)/1.4 var(--ui-font-sans);
+	--telos-measurement-color: #332d29;
+	--telos-measurement-border: #746a5f;
+	--telos-measurement-background: #eee8dc;
+	--telos-measurement-button-background: #cbc1b2;
+	--telos-measurement-radius: 0px;
 	position: relative;
 	height: 100%;
 	min-height: 480px;
@@ -232,10 +244,14 @@
 
 .viewport-controls {
 	position: absolute;
-	top: 10px;
-	right: 10px;
+	top: var(--viewport-options-top);
+	right: 12px;
 	z-index: 10;
 	display: inline-flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	align-items: stretch;
+	max-width: calc(100% - 24px);
 	border: 1px solid #746a5f;
 	background: #3a342f;
 }
@@ -251,7 +267,8 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 0.45rem;
-	padding-left: 0.25rem;
+	padding-left: 8px;
+	white-space: nowrap;
 	color: var(--shell-text-secondary);
 	font-size: 0.65rem;
 	font-weight: 700;
@@ -260,11 +277,14 @@
 
 .viewport-theme-select select {
 	min-width: 8.4rem;
-	border: 1px solid var(--shell-border);
-	border-radius: 3px;
-	background: color-mix(in srgb, var(--shell-elevated) 92%, transparent);
-	color: var(--shell-text-primary);
-	padding: 0.38rem 1.8rem 0.38rem 0.55rem;
+	height: var(--viewport-control-height);
+	min-height: 0;
+	border: 0;
+	border-left: 1px solid #746a5f;
+	border-radius: 0;
+	background: #cbc1b2;
+	color: #332d29;
+	padding: 0 8px;
 	font: inherit;
 	font-size: 0.72rem;
 	letter-spacing: 0.04em;
@@ -277,11 +297,13 @@
 }
 
 .viewport-segmented__button {
-	min-height: 26px;
+	height: var(--viewport-control-height);
+	min-height: var(--viewport-control-height);
+	flex-shrink: 0;
 	border: 0;
 	border-right: 1px solid #746a5f;
 	border-radius: 0;
-	padding: 0 10px;
+	padding: 0 8px;
 	background: transparent;
 	color: #cfc4b4;
 	font-size: 0.68rem;
@@ -307,6 +329,27 @@
 
 .viewport-segmented__button.is-active:hover {
 	background: #cbc1b2;
+}
+
+.viewport-standard-view {
+	position: absolute;
+	top: var(--viewport-actions-top);
+	left: 12px;
+	z-index: 3;
+	width: 150px;
+	height: var(--viewport-control-height);
+	background: #cbc1b2;
+	color: #332d29;
+	border: 1px solid #746a5f;
+	border-radius: 0;
+}
+
+.viewport-frame .telos-measurement button:hover:not(:disabled) {
+	--telos-measurement-button-background: #ddd3c2;
+}
+
+.viewport-frame .telos-measurement__toggle {
+	letter-spacing: 0.02em;
 }
 
 .tool-rail {
@@ -352,6 +395,18 @@
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: var(--layout-space-1);
+	align-items: end;
+}
+
+.form-grid label {
+	min-width: 0;
+}
+
+.form-grid input,
+.form-grid select {
+	width: 100%;
+	min-width: 0;
+	height: 34px;
 }
 
 .tool-rail ul {
@@ -446,7 +501,7 @@ strong {
 		overflow: visible;
 	}
 	.top-bar__header-row {
-		grid-template-columns: 1fr;
+		grid-template-columns: minmax(0, 1fr);
 	}
 
 	.top-bar__tabs,
@@ -456,10 +511,15 @@ strong {
 
 	.top-bar__actions-block {
 		align-items: flex-start;
+		width: auto;
+		max-width: 100%;
+		justify-self: stretch;
 	}
 
 	.status-row {
 		padding: 0;
+		max-width: 100%;
+		justify-content: flex-start;
 	}
 
 	.main-layout {
@@ -476,10 +536,6 @@ strong {
 		overflow-y: visible;
 	}
 
-	.viewport-controls {
-		max-width: calc(100% - 20px);
-		overflow-x: auto;
-	}
 }
 
 .tool-section p {

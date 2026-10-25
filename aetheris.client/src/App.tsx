@@ -9,7 +9,7 @@ import {
 	type ReactNode,
 } from "react";
 import { useDeusMachine } from "machinalayout/react";
-import { machinaRegion } from "./application/shellLayout";
+import { machinaRegion, viewportToolbarStyle } from "./application/shellLayout";
 import "./App.css";
 import {
 	ApiError,
@@ -227,6 +227,18 @@ function App() {
 	const [isPmiVisible, setIsPmiVisible] = useState(true);
 	const [pmiVisibility, setPmiVisibility] = useState<PmiVisibility>(DEFAULT_PMI_VISIBILITY);
 	const startupStepClaimed = useRef(false);
+	const viewportControls = useRef<HTMLDivElement>(null);
+	const [displayControlsHeight, setDisplayControlsHeight] = useState(34);
+	useEffect(() => {
+		const controls = viewportControls.current;
+		if (!controls || typeof ResizeObserver === "undefined") return;
+		const measure = () => setDisplayControlsHeight(Math.max(34, Math.ceil(controls.getBoundingClientRect().height)));
+		const observer = new ResizeObserver(measure);
+		observer.observe(controls);
+		measure();
+		return () => observer.disconnect();
+	}, []);
+	const viewportToolbarVariables = useMemo(() => viewportToolbarStyle(displayControlsHeight) as CSSProperties, [displayControlsHeight]);
 	const viewportTheme = useMemo(() => viewportThemeById(viewportThemeId), [viewportThemeId]);
 	useEffect(() => saveViewportThemePreference(viewportThemeId), [viewportThemeId]);
 	const shellThemeVariables = useMemo(() => shellThemeCssVariables() as CSSProperties, []);
@@ -919,8 +931,8 @@ function App() {
 
 			<main className="main-layout" {...machinaRegion("workspace")}>
 				<section className="viewport-column" {...machinaRegion("viewport")}>
-					<div className="viewport-frame">
-						<div className="viewport-controls" role="group" aria-label="Viewport display controls">
+					<div className="viewport-frame" style={viewportToolbarVariables}>
+						<div ref={viewportControls} className="viewport-controls" role="group" aria-label="Viewport display controls">
 							<button type="button" className={`viewport-segmented__button${showConcepts ? " is-active" : ""}`} aria-pressed={showConcepts}
 								disabled={!assemblyPacket?.display?.definitions.some(d => d.concepts?.length) && !assemblyPacket?.display?.occurrences.some(o => o.concepts?.length)}
 								title="Show Concept Structs as gold construction wireframes" onClick={() => setShowConcepts(value => !value)}>Concepts</button>
@@ -1339,9 +1351,7 @@ function App() {
 									</label>
 								))}
 								<label>Material
-									<select value="Standard.Materials.StainlessSteel.304_Annealed" disabled>
-										<option>Standard.Materials.StainlessSteel.304_Annealed</option>
-									</select>
+									<input value="304 SS" readOnly title="Stainless steel 304, annealed (Standard.Materials.StainlessSteel.304_Annealed)" />
 								</label>
 							</div>
 							<Button type="button" onClick={() => void handleMaximizePaperclips()} disabled={status === "loading"}>

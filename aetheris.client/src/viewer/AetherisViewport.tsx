@@ -250,7 +250,7 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
         aria-label="Engineering WebGPU viewport"
         style={{ display: "block", width: "100%", height: "100%" }}
       />
-      <select aria-label="Standard view" defaultValue="" style={{ position: "absolute", left: 12, top: 54, zIndex: 3, width: 150 }}
+      <select className="viewport-standard-view" aria-label="Standard view" defaultValue=""
         onChange={event => {
           const views: Record<string, [number[], number[]]> = {
             iso: [[1, -1, .8], [0, 0, 1]], top: [[0, 0, 1], [0, 1, 0]], bottom: [[0, 0, -1], [0, -1, 0]],

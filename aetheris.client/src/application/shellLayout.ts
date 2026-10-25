@@ -1,4 +1,5 @@
 import { M } from "machinalayout/machina";
+import { resolveLayoutRows } from "machinalayout";
 
 export type CadmataShellRegion =
 	| "cadmata-shell"
@@ -23,6 +24,23 @@ export const CADMATA_SHELL = M.root(
 );
 
 export const CADMATA_SHELL_ROWS = M.rows(CADMATA_SHELL);
+
+// Both viewport renderers and the shared measurement tool consume these rows.
+// Keep their offsets and control heights in one layout, rather than independent
+// inline positions that drift as a control's styling changes.
+export function viewportToolbarStyle(displayHeight: number) {
+	const toolbar = resolveLayoutRows(M.rows(M.root("viewport-toolbar", { arrange: M.stackArrange("vertical", { gap: 8 }) }, [
+		M.fixed("display-options", displayHeight),
+		M.fixed("view-actions", 34),
+	])), { x: 12, y: 12, width: 1, height: displayHeight + 42 });
+	const displayOptions = toolbar.nodes["display-options"]!.rect;
+	const viewActions = toolbar.nodes["view-actions"]!.rect;
+	return {
+		"--viewport-options-top": `${displayOptions.y}px`,
+		"--viewport-actions-top": `${viewActions.y}px`,
+		"--viewport-control-height": `${viewActions.height}px`,
+	};
+}
 
 const regionIds = new Set(CADMATA_SHELL_ROWS.map((row) => row.id));
 

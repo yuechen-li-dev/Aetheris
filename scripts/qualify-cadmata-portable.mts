@@ -147,6 +147,35 @@ try {
       assert.equal(await page.locator('[aria-label="Assembly product tree"]').count(), 0);
       report.blankStartup = true;
       await page.screenshot({ path: join(outputDirectory, "packaged-blank-startup.png") });
+      await page.getByRole("tab", { name: "MAXIMUM PAPERCLIPS", exact: true }).click();
+      const alignment = [];
+      for (const width of [1280, 768, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        await page.waitForFunction(() => {
+          const view = document.querySelector('[aria-label="Standard view"]')?.getBoundingClientRect();
+          const measure = document.querySelector('.telos-measurement__toggle')?.getBoundingClientRect();
+          const options = document.querySelector('.viewport-controls')?.getBoundingClientRect();
+          return view && measure && options && Math.abs(view.y - measure.y) < .5 && view.y >= options.bottom + 7;
+        });
+        const boxes = await page.locator('.paperclip-forge .form-grid input').evaluateAll(inputs => inputs.map(input => {
+          const box = input.getBoundingClientRect(); return { y: box.y, height: box.height };
+        }));
+        assert.equal(boxes.length, 6);
+        for (let index = 0; index < boxes.length; index++) {
+          assert.equal(boxes[index].height, 34);
+          assert(Math.abs(boxes[index].y - boxes[Math.floor(index / 3) * 3].y) < .5, "Form controls must align despite wrapped labels");
+        }
+        assert(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), "Page must not overflow horizontally");
+        alignment.push({ width, aligned: true, noHorizontalOverflow: true });
+        await page.screenshot({ path: join(outputDirectory, `packaged-paperclip-controls-${width}.png`) });
+      }
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.getByRole("button", { name: "MAXIMIZE PAPERCLIPS", exact: true }).click();
+      await page.getByRole("button", { name: "Measure · M", exact: true }).click();
+      await page.getByRole("combobox", { name: "Measurement mode", exact: true }).waitFor();
+      await page.screenshot({ path: join(outputDirectory, "packaged-measurement-panel.png") });
+      await page.getByRole("button", { name: "Close measurement (Esc)", exact: true }).click();
+      report.controlAlignment = alignment;
       await page.getByRole("tab", { name: "Product Gallery", exact: true }).click();
       await page.getByLabel("Export filename").fill("products/mounting-plate.step");
       const generatedResponse = page.waitForResponse(response => response.request().method() === "POST" && response.url().includes("/gallery/templates/"));

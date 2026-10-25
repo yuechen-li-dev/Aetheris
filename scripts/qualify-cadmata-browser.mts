@@ -15,8 +15,9 @@ let stdout = "", stderr = "";
 app.stdout.on("data", chunk => stdout += chunk);
 app.stderr.on("data", chunk => stderr += chunk);
 const exited = new Promise<void>(resolve => app.once("exit", () => resolve()));
-let browser;
+let browser, page;
 const errors: string[] = [];
+const consoleMessages: string[] = [];
 try {
   const deadline = Date.now() + 45000;
   let address = "";
@@ -25,15 +26,21 @@ try {
     address = stdout.match(/Cadmata ready: (http:\/\/127\.0\.0\.1:\d+)/)?.[1] ?? "";
     if (!address) await new Promise(resolve => setTimeout(resolve, 200));
   }
-  browser = await chromium.launch({ headless: true, args: ["--enable-unsafe-webgpu", "--use-angle=swiftshader"] });
+  // Linux headless has no display/GPU. Use Chromium's software Vulkan adapter
+  // explicitly; exposing navigator.gpu alone does not supply a usable adapter.
+  browser = await chromium.launch({ headless: true, ...(process.platform === "linux" ? { channel: "chromium" } : {}),
+    args: process.platform === "linux"
+      ? ["--enable-unsafe-webgpu", "--enable-features=Vulkan", "--use-angle=vulkan", "--use-vulkan=swiftshader", "--use-webgpu-adapter=swiftshader", "--disable-vulkan-surface"]
+      : ["--enable-unsafe-webgpu", "--use-angle=swiftshader"] });
   const context = await browser.newContext({ acceptDownloads: true });
   await context.route("**/*", route => {
     const url = route.request().url();
     return /^https?:/.test(url) && new URL(url).origin !== address ? route.abort() : route.continue();
   });
-  const page = await context.newPage();
+  page = await context.newPage();
   page.setDefaultTimeout(120000);
   page.on("pageerror", error => errors.push(String(error)));
+  page.on("console", message => consoleMessages.push(`${message.type()}: ${message.text()}`));
   await page.goto(address);
   await page.getByText("Ready. Select a file to import.", { exact: true }).waitFor();
   const before = await page.locator("canvas").screenshot();
@@ -64,6 +71,15 @@ try {
   await writeFile(join(output, "qualification.json"), JSON.stringify({ runtime: metadata.runtime,
     sourceRevision: metadata.sourceRevision, mode: "extracted self-contained server and headless Chromium",
     blankStartup: true, stepImport: true, display, canonicalReimport: true, errors }, null, 2));
+} catch (error) {
+  if (page) {
+    await page.screenshot({ path: join(output, "failure.png") }).catch(() => {});
+    await writeFile(join(output, "failure.json"), JSON.stringify({ error: String(error), errors, consoleMessages,
+      text: await page.locator("body").innerText().catch(() => ""),
+      display: await page.locator("canvas").getAttribute("data-telos-display").catch(() => null),
+    }, null, 2));
+  }
+  throw error;
 } finally {
   await browser?.close();
   app.kill("SIGTERM");

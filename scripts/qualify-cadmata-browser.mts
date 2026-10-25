@@ -36,6 +36,7 @@ try {
   page.on("pageerror", error => errors.push(String(error)));
   await page.goto(address);
   await page.getByText("Ready. Select a file to import.", { exact: true }).waitFor();
+  const before = await page.locator("canvas").screenshot();
   await page.screenshot({ path: join(output, "blank.png") });
   await page.locator('input[type="file"]').setInputFiles(step);
   await page.getByRole("button", { name: "Import STEP 242", exact: true }).click();
@@ -46,6 +47,7 @@ try {
       document.querySelector('[data-display-host="three-telos"]')?.getAttribute("aria-busy") === "false";
   });
   const display = JSON.parse(await page.locator("canvas").getAttribute("data-telos-display") ?? "{}");
+  assert(!before.equals(await page.locator("canvas").screenshot()), "STEP import must visibly change the rendered canvas");
   await page.screenshot({ path: join(output, "imported.png") });
   const downloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download Canonical 242", exact: true }).click();
@@ -54,7 +56,9 @@ try {
   await download.saveAs(exported);
   assert((await readFile(exported, "utf8")).startsWith("ISO-10303-21;"));
   await page.locator('input[type="file"]').setInputFiles(exported);
+  const reimport = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/import/step"));
   await page.getByRole("button", { name: "Import STEP 242", exact: true }).click();
+  assert((await (await reimport).json()).success, "Canonical exported STEP must reimport successfully");
   await page.getByText(/^(Qualified|Inspectable|Degraded): Import complete\./).waitFor();
   assert.deepEqual(errors, []);
   await writeFile(join(output, "qualification.json"), JSON.stringify({ runtime: metadata.runtime,

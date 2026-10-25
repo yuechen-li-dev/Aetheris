@@ -15,10 +15,6 @@ on:
         description: Existing release to extend without replacing its binaries
         type: string
         default: v2.0.0
-      publish:
-        description: Add the two qualified bundles and update release notes
-        type: boolean
-        default: false
   workflow_call:
     inputs:
       product_ref:
@@ -120,32 +116,3 @@ jobs:
             artifacts/local/native-smoke
             artifacts/local/browser-smoke
           if-no-files-found: ignore
-
-  publish-additional-bundles:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == true }}
-    needs: bundle
-    runs-on: ubuntu-latest
-    environment: production
-    permissions:
-      contents: write
-      actions: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: portable-bundle-*
-          merge-multiple: true
-          path: portable
-      - name: Preserve published binaries and add native bundles
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          gh release download $env:RELEASE_TAG --dir release
-          ./scripts/Add-PortableReleaseArtifacts.ps1 -ReleaseDirectory release -PortableDirectory portable
-          $archives = @(Get-ChildItem release/*.tar.gz | ForEach-Object FullName)
-          gh release upload $env:RELEASE_TAG @archives release/SHA256SUMS.txt release/RELEASE-INVENTORY.md --clobber
-          $version = $env:RELEASE_TAG.TrimStart('v')
-          gh release edit $env:RELEASE_TAG --notes-file "docs/release/$version-notes.md"

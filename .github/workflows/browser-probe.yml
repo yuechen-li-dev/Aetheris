@@ -26,7 +26,8 @@ jobs:
           dotnet publish Aetheris.Server -c Release -r linux-x64 --self-contained true -m:1 -nr:false -p:UseSharedCompilation=false -o artifacts/local/browser-server
           gh release download v2.0.0 --pattern Aetheris-2.0.0-win-x64.zip --dir artifacts/local/reference
           Expand-Archive artifacts/local/reference/Aetheris-2.0.0-win-x64.zip artifacts/local/reference/extracted
-          Copy-Item artifacts/local/reference/extracted/Aetheris-win-x64/wwwroot artifacts/local/browser-server/wwwroot -Recurse -Force
+          New-Item -ItemType Directory -Force artifacts/local/browser-server/wwwroot | Out-Null
+          Get-ChildItem artifacts/local/reference/extracted/Aetheris-win-x64/wwwroot | Copy-Item -Destination artifacts/local/browser-server/wwwroot -Recurse -Force
           npm ci --prefix test-support/CadmataDesktopSmoke --ignore-scripts
           node test-support/CadmataDesktopSmoke/node_modules/playwright-core/cli.js install --with-deps chromium
       - name: Diagnose three browser modes
@@ -44,6 +45,7 @@ jobs:
           try{
             let origin;for(let i=0;i<200;i++){origin=stdout.match(/Cadmata ready: (http:\/\/127\.0\.0\.1:\d+)/)?.[1];if(origin)break;await new Promise(r=>setTimeout(r,100));}
             if(!origin)throw Error(stdout);
+            const response=await fetch(origin);await writeFile('artifacts/local/diagnostic/http.json',JSON.stringify({status:response.status,text:await response.text(),stdout},null,2));
             const modes=[
               ['default',[]],
               ['vulkan',['--enable-unsafe-webgpu','--enable-features=Vulkan','--use-angle=vulkan','--use-vulkan=swiftshader','--use-webgpu-adapter=swiftshader','--disable-vulkan-surface']],

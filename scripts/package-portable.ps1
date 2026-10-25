@@ -29,9 +29,9 @@ $bundle = Join-Path $work $bundleName
 New-Item -ItemType Directory -Path $bundle, $output | Out-Null
 $publishArgs = @('-c', 'Release', '-r', $Runtime, '--self-contained', 'true', '-m:1', '-nr:false',
     '-p:UseSharedCompilation=false', '-t:Rebuild', "-p:Version=$Version", '-p:DebugType=None', '-p:DebugSymbols=false')
+dotnet clean (Join-Path $source 'Aetheris.slnx') -c Release -m:1 -nr:false
 dotnet publish (Join-Path $source 'Aetheris.CLI/Aetheris.CLI.csproj') @publishArgs -o $bundle
 & (Join-Path $PSScriptRoot 'Test-CoreCliPayload.ps1') -AssetsPath (Join-Path $source 'Aetheris.CLI/obj/project.assets.json') -PublishDirectory $bundle
-dotnet publish (Join-Path $source 'Aetheris.Forge.Host/Aetheris.Forge.Host.csproj') @publishArgs -p:PublishAot=true -o (Join-Path $bundle 'forge-host')
 $server = Join-Path $work 'server'
 dotnet publish (Join-Path $source 'Aetheris.Server/Aetheris.Server.csproj') @publishArgs -o $server
 foreach ($file in Get-ChildItem -LiteralPath $server -Recurse -File) {
@@ -47,6 +47,10 @@ foreach ($file in Get-ChildItem -LiteralPath $server -Recurse -File) {
         Copy-Item -LiteralPath $file.FullName -Destination $destination
     }
 }
+# AOT uses different compilation properties and shares the SDK intermediate
+# graph. Finish/check the two managed consumers before building the separate
+# native host, so AOT-generated assemblies cannot leak into shared files.
+dotnet publish (Join-Path $source 'Aetheris.Forge.Host/Aetheris.Forge.Host.csproj') @publishArgs -p:PublishAot=true -o (Join-Path $bundle 'forge-host')
 foreach ($directory in @('wwwroot', 'fixtures', 'testdata', 'samples')) {
     Copy-Item -LiteralPath (Join-Path $reference $directory) -Destination (Join-Path $bundle $directory) -Recurse
 }

@@ -120,15 +120,18 @@ public sealed class Step242NistAuditHarnessTests
         var byPath = entries.ToDictionary(e => e.Path, StringComparer.Ordinal);
         // Native libm changes the last digits of recovered pcurves. Exact serialized
         // geometry sharing then changes entity numbering too. Preserve strict byte
-        // snapshots for the qualified Linux output without changing import evidence.
-        if (OperatingSystem.IsLinux())
+        // snapshots for each qualified runtime without changing import evidence.
+        var platform = OperatingSystem.IsLinux() ? "linux"
+            : OperatingSystem.IsMacOS() && System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64
+                ? "osx-arm64" : null;
+        if (platform is not null)
         {
-            var linuxHashesPath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "manifests", "nist.v0.canonical-linux.json");
-            var linuxHashes = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(linuxHashesPath, Encoding.UTF8));
-            Assert.NotNull(linuxHashes);
-            foreach (var (path, hash) in linuxHashes)
+            var hashesPath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "manifests", $"nist.v0.canonical-{platform}.json");
+            var hashes = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(hashesPath, Encoding.UTF8));
+            Assert.NotNull(hashes);
+            foreach (var (path, hash) in hashes)
             {
-                Assert.True(byPath.TryGetValue(path, out var baseline), $"Linux hash references missing snapshot entry '{path}'.");
+                Assert.True(byPath.TryGetValue(path, out var baseline), $"{platform} hash references missing snapshot entry '{path}'.");
                 Assert.NotNull(baseline);
                 Assert.Equal("success", baseline.Status);
                 Assert.Matches("^[0-9a-f]{64}$", hash);

@@ -67,6 +67,15 @@ jobs:
           [xml]$props = Get-Content artifacts/local/product-source/Directory.Build.props
           $version = [string]$props.Project.PropertyGroup.Version
           "PRODUCT_VERSION=$version" >> $env:GITHUB_ENV
+          # Qualify with current platform tests, but package the immutable product
+          # ref. Permit test/tooling maintenance, never different production code.
+          $revision = (git -C artifacts/local/product-source rev-parse HEAD).Trim()
+          git fetch origin $revision --depth=1
+          $changes = @(git diff --name-only $revision HEAD)
+          $productionChanges = @($changes | Where-Object {
+            $_ -notmatch '^(docs/|scripts/|\.github/|Aetheris\.Kernel\.Core\.Tests/|testdata/step242/manifests/|README\.md$)'
+          })
+          if ($productionChanges.Count) { throw "Qualification and product code differ: $($productionChanges -join ', ')" }
           if ($env:FRONTEND_RUN) {
             gh run download $env:FRONTEND_RUN --name aetheris-release --dir artifacts/local/reference
           } else {
@@ -77,17 +86,6 @@ jobs:
           $expected = Get-Content artifacts/local/reference/SHA256SUMS.txt | Where-Object { $_.EndsWith("  $($archive.Name)") }
           if ($expected -ne "$( (Get-FileHash $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant() )  $($archive.Name)") { throw 'Reference ZIP checksum failed.' }
           Expand-Archive $archive.FullName artifacts/local/reference/extracted
-      - name: Build full native product
-        shell: pwsh
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          dotnet restore artifacts/local/product-source/Aetheris.slnx -m:1 -nr:false
-          dotnet build artifacts/local/product-source/Aetheris.slnx -c Release --no-restore -m:1 -nr:false -p:UseSharedCompilation=false
-      - name: Run complete native regressions
-        shell: pwsh
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          dotnet test artifacts/local/product-source/Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1 xUnit.ParallelizeTestCollections=false
       - name: Package and extract native distribution
         shell: pwsh
         run: |
@@ -103,6 +101,17 @@ jobs:
           npm ci --prefix test-support/CadmataDesktopSmoke --ignore-scripts
           node test-support/CadmataDesktopSmoke/node_modules/playwright-core/cli.js install --with-deps chromium
           node scripts/qualify-cadmata-browser.mts 'artifacts/local/extracted/Aetheris-${{ matrix.rid }}' artifacts/local/browser-smoke test-support/CadmataDesktopSmoke/node_modules/playwright-core/index.mjs artifacts/local/native-smoke/hole.step
+      - name: Build full native qualification source
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          dotnet restore Aetheris.slnx -m:1 -nr:false
+          dotnet build Aetheris.slnx -c Release --no-restore -m:1 -nr:false -p:UseSharedCompilation=false
+      - name: Run complete native regressions
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          dotnet test Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1 xUnit.ParallelizeTestCollections=false
       - uses: actions/upload-artifact@v4
         with:
           name: portable-bundle-${{ matrix.rid }}

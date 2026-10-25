@@ -1,0 +1,41 @@
+name: Native interchange probe
+on:
+  push:
+    branches: [codex/macos-release-probe]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v2.0.0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build tagged CLI
+        run: dotnet build Aetheris.CLI -c Release -m:1 -nr:false -p:UseSharedCompilation=false
+      - name: Export native witnesses
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          New-Item -ItemType Directory artifacts/local/native-probe | Out-Null
+          dotnet --info > artifacts/local/native-probe/runtime.txt
+          $cli = 'Aetheris.CLI/bin/Release/net10.0/aetheris.dll'
+          foreach ($case in @('FTC/nist_ftc_09_asme1_ap242-e1','STC/nist_stc_09_asme1_ap242-e3')) {
+            $name = [IO.Path]::GetFileName($case)
+            dotnet $cli canon "testdata/step242/nist/$case.stp" --out "artifacts/local/native-probe/$name.step" --json
+            $env:DOTNET_EnableHWIntrinsic = '0'
+            dotnet $cli canon "testdata/step242/nist/$case.stp" --out "artifacts/local/native-probe/$name-scalar.step" --json
+            Remove-Item Env:DOTNET_EnableHWIntrinsic
+          }
+          Get-ChildItem artifacts/local/native-probe/*.step | Get-FileHash -Algorithm SHA256 | ConvertTo-Json > artifacts/local/native-probe/hashes.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-interchange-probe
+          path: artifacts/local/native-probe

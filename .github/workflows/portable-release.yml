@@ -1,0 +1,151 @@
+name: Portable release bundles
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/portable-release.yml'
+      - 'scripts/package-portable.ps1'
+      - 'scripts/Test-PortableBundle.ps1'
+      - 'scripts/qualify-cadmata-browser.mts'
+      - 'scripts/collect-cadmata-licenses.mts'
+      - 'scripts/Add-PortableReleaseArtifacts.ps1'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release to extend without replacing its binaries
+        type: string
+        default: v2.0.0
+      publish:
+        description: Add the two qualified bundles and update release notes
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      product_ref:
+        required: true
+        type: string
+      frontend_run_id:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  MSBUILDDISABLENODEREUSE: '1'
+
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rid: linux-x64
+          - os: macos-15
+            rid: osx-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.product_ref || inputs.release_tag || 'v2.0.0' }}
+          path: artifacts/local/product-source
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Read product version and qualified frontend
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FRONTEND_RUN: ${{ inputs.frontend_run_id }}
+          RELEASE_TAG: ${{ inputs.release_tag || 'v2.0.0' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          [xml]$props = Get-Content artifacts/local/product-source/Directory.Build.props
+          $version = [string]$props.Project.PropertyGroup.Version
+          "PRODUCT_VERSION=$version" >> $env:GITHUB_ENV
+          if ($env:FRONTEND_RUN) {
+            gh run download $env:FRONTEND_RUN --name aetheris-release --dir artifacts/local/reference
+          } else {
+            if ($env:RELEASE_TAG -ne "v$version") { throw 'Source tag and product version disagree.' }
+            gh release download $env:RELEASE_TAG --pattern "Aetheris-$version-win-x64.zip" --pattern SHA256SUMS.txt --dir artifacts/local/reference
+          }
+          $archive = Get-Item "artifacts/local/reference/Aetheris-$version-win-x64.zip"
+          $expected = Get-Content artifacts/local/reference/SHA256SUMS.txt | Where-Object { $_.EndsWith("  $($archive.Name)") }
+          if ($expected -ne "$( (Get-FileHash $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant() )  $($archive.Name)") { throw 'Reference ZIP checksum failed.' }
+          Expand-Archive $archive.FullName artifacts/local/reference/extracted
+      - name: Build full native product
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          dotnet restore artifacts/local/product-source/Aetheris.slnx -m:1 -nr:false
+          dotnet build artifacts/local/product-source/Aetheris.slnx -c Release --no-restore -m:1 -nr:false -p:UseSharedCompilation=false
+      - name: Run complete native regressions
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          dotnet test artifacts/local/product-source/Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1 xUnit.ParallelizeTestCollections=false
+      - name: Package and extract native distribution
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          ./scripts/package-portable.ps1 -Runtime '${{ matrix.rid }}' -Version $env:PRODUCT_VERSION -SourceDirectory artifacts/local/product-source -ReferenceBundleDirectory artifacts/local/reference/extracted/Aetheris-win-x64 -OutputDirectory artifacts/local/portable
+          New-Item -ItemType Directory artifacts/local/extracted | Out-Null
+          tar -xzf "artifacts/local/portable/Aetheris-$env:PRODUCT_VERSION-${{ matrix.rid }}.tar.gz" -C artifacts/local/extracted
+          ./scripts/Test-PortableBundle.ps1 -BundleDirectory 'artifacts/local/extracted/Aetheris-${{ matrix.rid }}' -SourceDirectory artifacts/local/product-source -OutputDirectory artifacts/local/native-smoke
+      - name: Exercise packaged browser viewer
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm ci --prefix test-support/CadmataDesktopSmoke --ignore-scripts
+          node test-support/CadmataDesktopSmoke/node_modules/playwright-core/cli.js install --with-deps chromium
+          node scripts/qualify-cadmata-browser.mts 'artifacts/local/extracted/Aetheris-${{ matrix.rid }}' artifacts/local/browser-smoke test-support/CadmataDesktopSmoke/node_modules/playwright-core/index.mjs artifacts/local/native-smoke/hole.step
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable-bundle-${{ matrix.rid }}
+          path: artifacts/local/portable
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: portable-evidence-${{ matrix.rid }}
+          path: |
+            artifacts/local/native-smoke
+            artifacts/local/browser-smoke
+          if-no-files-found: ignore
+
+  publish-additional-bundles:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == true }}
+    needs: bundle
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: portable-bundle-*
+          merge-multiple: true
+          path: portable
+      - name: Preserve published binaries and add native bundles
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          gh release download $env:RELEASE_TAG --dir release
+          ./scripts/Add-PortableReleaseArtifacts.ps1 -ReleaseDirectory release -PortableDirectory portable
+          $archives = @(Get-ChildItem release/*.tar.gz | ForEach-Object FullName)
+          gh release upload $env:RELEASE_TAG @archives release/SHA256SUMS.txt release/RELEASE-INVENTORY.md --clobber
+          $version = $env:RELEASE_TAG.TrimStart('v')
+          gh release edit $env:RELEASE_TAG --notes-file "docs/release/$version-notes.md"

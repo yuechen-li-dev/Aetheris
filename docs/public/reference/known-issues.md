@@ -1,6 +1,6 @@
 # Aetheris 2.0.0 known issues and limitations
 
-- The managed CLI is qualified on Windows x64 and Linux x64. The self-contained desktop ZIP targets Windows x64; macOS is not qualified.
+- Bundles target Windows x64, Linux x64 (glibc) and macOS arm64 (Apple Silicon). The macOS bundle is not Developer ID signed or notarized. Intel Macs, Linux arm64 and Alpine/musl have no qualified bundle. See the [launch guide](../release-bundle.md) for requirements.
 - `inlineSTEP` FEA supports the documented single-body imported class and stable imported face identities. Arbitrary imported containment and multi-root assembly-like STEP are rejected explicitly; some OCCT B-spline containment cases remain outside the qualified class.
 - The generic tessellated mass verifier can report `Unavailable` for some valid combined analytic Boss/Pocket/hole models when a face cannot be triangulated. STEP reimport, manifold checks, analytic surface inventory, bounds, and route-specific analytic volume remain available; do not interpret an unavailable tessellation estimate as a topology failure.
 - Composed profiles admit bounded +Z through counterbore/countersink entries with complete disjoint footprints and positive shaft length. Oriented Compose hole adapters, entry breakouts and chamfer corridors crossing a cavity transition remain explicitly rejected. Sheet Metal Counterbore and Countersink are rejected because those formed-opening semantics are not implemented.

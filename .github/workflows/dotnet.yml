@@ -301,9 +301,20 @@ jobs:
           path: artifacts/local/desktop-no-argument-smoke
           if-no-files-found: ignore
 
+  release-portable:
+    needs: release-build
+    if: ${{ !inputs.diagnostic_run_id && !inputs.qualification_run_id && needs.release-build.result == 'success' }}
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/portable-release.yml
+    with:
+      product_ref: ${{ github.sha }}
+      frontend_run_id: "${{ github.run_id }}"
+
   publish:
     if: ${{ !inputs.diagnostic_run_id && !inputs.qualification_run_id && (startsWith(github.ref, 'refs/tags/v') || inputs.publish == true) }}
-    needs: [build-test, release-build, release-smoke]
+    needs: [build-test, release-build, release-smoke, release-portable]
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -315,6 +326,14 @@ jobs:
         with:
           name: aetheris-release
           path: release
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: portable-bundle-*
+          merge-multiple: true
+          path: portable
+      - name: Include qualified native distributions
+        shell: pwsh
+        run: ./scripts/Add-PortableReleaseArtifacts.ps1 -ReleaseDirectory release -PortableDirectory portable
       - name: Authenticate to NuGet with trusted publishing
         id: nuget-login
         uses: NuGet/login@v1
@@ -335,8 +354,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ needs.release-build.outputs.version }}
         run: |
-          gh release create "v${RELEASE_VERSION}" --target "$GITHUB_SHA" --repo "${GITHUB_REPOSITORY}" --title "Aetheris ${RELEASE_VERSION}" --latest --notes-file docs/release/${{ needs.release-build.outputs.version }}-notes.md release/Aetheris-*.zip release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/RELEASE-INVENTORY.md release/packages/*.nupkg release/packages/public-libraries/*.nupkg || \
-          gh release upload "v${RELEASE_VERSION}" --repo "${GITHUB_REPOSITORY}" --clobber release/Aetheris-*.zip release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/RELEASE-INVENTORY.md release/packages/*.nupkg release/packages/public-libraries/*.nupkg
+          gh release create "v${RELEASE_VERSION}" --target "$GITHUB_SHA" --repo "${GITHUB_REPOSITORY}" --title "Aetheris ${RELEASE_VERSION}" --latest --notes-file docs/release/${{ needs.release-build.outputs.version }}-notes.md release/Aetheris-*.zip release/Aetheris-*.tar.gz release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/RELEASE-INVENTORY.md release/packages/*.nupkg release/packages/public-libraries/*.nupkg || \
+          gh release upload "v${RELEASE_VERSION}" --repo "${GITHUB_REPOSITORY}" --clobber release/Aetheris-*.zip release/Aetheris-*.tar.gz release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/RELEASE-INVENTORY.md release/packages/*.nupkg release/packages/public-libraries/*.nupkg
           gh release edit "v${RELEASE_VERSION}" --repo "${GITHUB_REPOSITORY}" --latest --prerelease=false --notes-file docs/release/${{ needs.release-build.outputs.version }}-notes.md
 
   desktop-diagnostic:

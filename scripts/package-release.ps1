@@ -125,6 +125,8 @@ $bundleRoot = Join-Path $stage 'Aetheris-win-x64'
 New-Item -ItemType Directory -Force -Path (Join-Path $bundleRoot 'docs'), (Join-Path $bundleRoot 'samples') | Out-Null
 Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/public') -Destination (Join-Path $bundleRoot 'docs/public') -Recurse
 Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/public/release-bundle.md') -Destination (Join-Path $bundleRoot 'README.md')
+$bundleReadme = Join-Path $bundleRoot 'README.md'
+[IO.File]::WriteAllText($bundleReadme, [regex]::Replace([IO.File]::ReadAllText($bundleReadme), '\]\((?!https?://|#)([^)]+)\)', '](docs/public/$1)'))
 Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE') -Destination (Join-Path $bundleRoot 'LICENSE')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'THIRD_PARTY_NOTICES.md') -Destination (Join-Path $bundleRoot 'THIRD_PARTY_NOTICES.md')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'samples/forge-interop-x1') -Destination (Join-Path $bundleRoot 'samples/forge-interop-x1') -Recurse

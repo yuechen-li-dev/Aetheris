@@ -13,7 +13,7 @@ system got here.
 ## Start here
 
 1. [Getting started](getting-started.md): install the CLI and build a first part.
-   With the Windows release ZIP, start from the [bundle walkthrough](release-bundle.md).
+   With a release bundle, start from the [bundle walkthrough](release-bundle.md).
 2. [Learn Firmament](learn/README.md): six short lessons, from a plate with a
    hole to a two-part assembly. Every example builds in CI.
 3. [Language reference](reference/language/README.md): every construct, its

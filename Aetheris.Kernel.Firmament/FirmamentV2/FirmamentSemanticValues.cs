@@ -47,11 +47,12 @@ public static class FirmamentSemanticValues
     public static IReadOnlyList<SemanticValue> FromProfilesAndConceptPaths(string source, string sourceIdentity = "<memory>", ICollection<string>? reportedDiagnostics = null)
     {
         var expansionDiagnostics = new List<string>();
-        var expansion = FirmamentV2TemplateExpansion.Expand(source, expansionDiagnostics);
+        var compileTime = new FirmamentCompileTimeValues(source);
+        var expansion = FirmamentV2TemplateExpansion.Expand(source, expansionDiagnostics, compileTime);
         foreach (var diagnostic in expansionDiagnostics) reportedDiagnostics?.Add(diagnostic);
         var expanded = expansion?.Source ?? source;
         var bindDiagnostics = new List<string>();
-        var profiles = ProfileAuthoringParser.BindPathDerivedProfiles(expanded, bindDiagnostics);
+        var profiles = ProfileAuthoringParser.BindPathDerivedProfiles(expanded, bindDiagnostics, compileTime);
         foreach (var diagnostic in bindDiagnostics) reportedDiagnostics?.Add(diagnostic);
         var inspections = ProfileAuthoringParser.InspectConceptPaths(source);
         var values = new List<SemanticValue>();

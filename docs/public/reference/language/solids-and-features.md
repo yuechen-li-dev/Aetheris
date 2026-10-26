@@ -37,6 +37,9 @@ different construction.
 patterns. `Modify Base {}` with no features is a valid no-op, as long as `Base`
 exists.
 
+Angular mold `Draft` is not currently a V2 `Modify` feature. Its bounded legacy
+operation does not imply support on the modern authoring path.
+
 ## Compose
 
 `Compose name { ... }` builds a body from a Profile-based stack of operations. It

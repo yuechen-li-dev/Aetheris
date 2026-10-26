@@ -15,10 +15,10 @@ public static class EllipsoidSemanticDeclaration { }
 public static class PolyhedronSemanticDeclaration { }
 
 [FirmamentConstruct("Hole", "Hole", Context = "Modify body", Entry = "Modify Body { Hole<Shaft> H { On: +Z; Center: Point2(0mm, 0mm); Diameter: 6mm; End: ThroughAll } }", Description = "Semantic drilled hole.")]
-[FirmamentField("On", "On", FirmamentSchemaValueKind.FaceSelector, Required = true, Description = "Entry face of the hole.")]
+[FirmamentField("On", "On", FirmamentSchemaValueKind.FaceSelector, Required = true, Choices = ["+Z", "-Z"], Description = "Entry face. Top/+Z and bottom/-Z are admitted on profile-stack stock. Other selectors require their specific supported body lane. Center X/Y are coordinates in this face's local frame, not screen coordinates.")]
 [FirmamentField("Center", "Center", FirmamentSchemaValueKind.Point, Required = true, Description = "Center in the support face.")]
 [FirmamentField("Diameter", "Diameter", FirmamentSchemaValueKind.Length, Required = true, Description = "Shaft diameter.", SourceEditable = true, ProjectionMember = nameof(ProjectDiameter))]
-[FirmamentField("End", "End", FirmamentSchemaValueKind.String, Required = true, Description = "ThroughAll or a blind termination expression.")]
+[FirmamentField("End", "End", FirmamentSchemaValueKind.String, Required = true, Choices = ["ThroughAll", "Blind(5mm)"], Description = "ThroughAll cuts through the body. Blind(5mm) cuts to a finite depth; edit the expression for another depth.")]
 [FirmamentField("CounterboreDiameter", "CounterboreDiameter", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Variants = ["Counterbore"], Description = "Relief diameter for Hole<Counterbore>; larger than the shaft diameter.")]
 [FirmamentField("CounterboreDepth", "CounterboreDepth", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Variants = ["Counterbore"], Description = "Positive relief depth for Hole<Counterbore>.")]
 [FirmamentField("CountersinkDiameter", "CountersinkDiameter", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Variants = ["Countersink"], Description = "Entry diameter for Hole<Countersink>; larger than the shaft diameter.")]
@@ -29,6 +29,14 @@ public static class HoleSemanticDeclaration
 {
     public static double ProjectDiameter(FirmamentV2SemanticHoleDecl instance) => instance.ShaftDiameter;
 }
+
+[FirmamentConstruct("EdgeFinish", "EdgeFinish", Context = "Modify body", Entry = "EdgeFinish TopChamfer { Face: +Z; Target: Boundary; Kind: Chamfer; Distance: 1mm }", Description = "An exact fillet or chamfer on an admitted boundary. Preview checks host, selector and feature combinations.")]
+[FirmamentField("Face", "Face", FirmamentSchemaValueKind.FaceSelector, Choices = ["+Z", "-Z", "+X", "-X", "+Y", "-Y"], Description = "Support face whose boundary is finished. Supported faces depend on the body and existing features.")]
+[FirmamentField("Target", "Target", FirmamentSchemaValueKind.Choice, Required = true, Choices = ["Boundary", "AllEdges"], Description = "Boundary finishes the selected face perimeter. AllEdges is a uniform fillet on supported Box or Polyhedron stock only; omit Face for AllEdges.")]
+[FirmamentField("Kind", "Kind", FirmamentSchemaValueKind.Choice, Choices = ["Chamfer", "Fillet"], Description = "Chamfer makes a bevel; Fillet makes a circular round. May also be specified by EdgeFinish<Chamfer> or EdgeFinish<Fillet>.")]
+[FirmamentField("Distance", "Distance", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Description = "Chamfer distance. Supply Distance or Radius, not both.")]
+[FirmamentField("Radius", "Radius", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Description = "Fillet radius. Supply Radius or Distance, not both.")]
+public static class EdgeFinishSemanticDeclaration { }
 
 [FirmamentConstruct("Perforation", "Perforation", Context = "Modify body", Entry = "Modify Body { Perforation Vent { On: +Z; Diameter: 6mm; Layout: Hex; Pitch: 9mm; Margin: 8mm } }", Description = "One semantic field of circular through openings on a planar Box or cylindrical Hollow body.")]
 [FirmamentField("On", "On", FirmamentSchemaValueKind.FaceSelector, Required = true, Description = "Semantic support face: +Z on Box or OuterWall on Cylinder<Hollow>.")]

@@ -17,11 +17,15 @@ public sealed class GeometrySourceMap
         ArgumentNullException.ThrowIfNull(correspondence);
         foreach (var descendant in correspondence.Descendants)
         {
+            if (descendant.IsTopologyAlias) continue;
             if (descendant.Face is { } face && !_faces.TryAdd(face, descendant))
                 throw new InvalidOperationException($"Duplicate construction correspondence for BRep face {face.Value}.");
             if (descendant.Edge is { } edge && !_edges.TryAdd(edge, descendant))
                 throw new InvalidOperationException($"Duplicate construction correspondence for BRep edge {edge.Value}.");
         }
+        foreach (var alias in correspondence.Descendants.Where(d => d.IsTopologyAlias))
+            if (alias.Face is { } face && !_faces.ContainsKey(face) || alias.Edge is { } edge && !_edges.ContainsKey(edge))
+                throw new InvalidOperationException($"Construction alias '{alias.StableId}' has no primary topology owner.");
         var semanticGroups = correspondence.Descendants.GroupBy(item => item.StableId, StringComparer.Ordinal).ToArray();
         foreach (var group in semanticGroups)
             if (group.Select(item => (item.Role, item.SourceStableId, item.ParentStableId)).Distinct().Skip(1).Any())

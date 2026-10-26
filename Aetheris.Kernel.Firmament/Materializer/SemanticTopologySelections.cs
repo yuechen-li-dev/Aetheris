@@ -18,7 +18,10 @@ public sealed record SemanticTopologyDescendant(
     EdgeId? Edge = null, FaceId? Face = null, LoopId? Loop = null, VertexId? Vertex = null,
     string? ParentStableId = null, string? GeometryPreview = null,
     string? FirmamentSelector = null,
-    SemanticTopologyAddressability Addressability = SemanticTopologyAddressability.RuntimeOnly);
+    SemanticTopologyAddressability Addressability = SemanticTopologyAddressability.RuntimeOnly,
+    // Producers may retain a construction origin alongside a more specific feature
+    // owner of the same entity. Aliases remain queryable but do not own viewport picks.
+    bool IsTopologyAlias = false);
 
 public sealed record SemanticTopologyCorrespondence(
     string BodyStableId,

@@ -25,7 +25,7 @@ if (production) {
   // directory retains obsolete fingerprints and doubles the packaged runtime.
   await rm(published, { recursive: true, force: true });
   run(['publish', project, '-c', 'Release', '-p:RunAOTCompilation=true', '-p:WasmStripILAfterAOT=false',
-    '-o', published, '--nologo', '-m:1']);
+    '-o', published, '--nologo', '-m:1', '-nr:false', '-p:UseSharedCompilation=false']);
   await cp(join(published, 'wwwroot', '_framework'), join(dist, 'runtime-aot', '_framework'), { recursive: true });
 }
 await copyFile(join(sdk, 'src', 'index.js'), join(dist, 'index.js'));

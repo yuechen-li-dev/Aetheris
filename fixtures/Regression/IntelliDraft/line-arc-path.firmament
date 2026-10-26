@@ -1,0 +1,14 @@
+Model RoundedPlate {
+  units: mm
+  Path outline {
+    start: Point2(0mm, 0mm)
+    heading: 0deg
+    Line bottom { length: 40mm }
+    Line right { turn: 90deg; length: 20mm }
+    Arc corner { radius: 10mm; turn: 90deg }
+    Line top { length: 30mm }
+    Close left
+  }
+  Profile section from outline
+  Extrude body { profile: section; from: 0mm; to: 2mm }
+}

@@ -12,6 +12,35 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 /// </summary>
 public static class ProfileAuthoringParser
 {
+    // IntelliDraft projects the same bound guides consumed by Profile, including open Paths.
+    // This is a query over the existing owner, not another geometry evaluator.
+    internal static (Dictionary<string, (double X, double Y)> Points,
+        Dictionary<string, LineArcProfileCurve2D> Guides, IReadOnlyList<string> Diagnostics)
+        InspectConstruction(string source, FirmamentCompileTimeValues values)
+    {
+        var diagnostics = new List<string>();
+        source = FirmamentSourceSpelling.Normalize(source);
+        var boundaries = ClosedBoundary2Authoring.Expand(source, diagnostics, values);
+        source = boundaries?.Source ?? source;
+        var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
+        var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
+        AddOrdinaryGuides(source, points, guides, diagnostics, applySpans: false, bind: values.NominalExpression);
+        BindPaths(source, points, guides, diagnostics);
+        // Use the lowerer's own public member map; do not guess generated-name ownership.
+        if (boundaries is not null)
+        {
+            var generated = boundaries.GeneratedDeclarationNames.ToHashSet(StringComparer.Ordinal);
+            foreach (var (owner, members) in boundaries.AuthoringMembers)
+                foreach (var (member, lowered) in members)
+                {
+                    if (generated.Contains(lowered) && points.Remove(lowered, out var point)) points[owner + "." + member] = point;
+                    if (lowered != owner && guides.Remove(lowered, out var curve)) guides[owner + "." + member] = curve;
+                    if (lowered.LastIndexOf('.') is var dot && dot > 0 && lowered[..dot] != owner)
+                        foreach (var key in points.Keys.Where(k => k.StartsWith(lowered[..dot] + ".", StringComparison.Ordinal)).ToArray()) points.Remove(key);
+                }
+        }
+        return (points, guides, diagnostics);
+    }
     public const string SegmentEndpointMustReferenceNamedPoint = "ProfileSegmentEndpointMustReferenceNamedPoint";
     private const double Tolerance = 1e-9;
     private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*From\s*:\s*(?<from>[\w.]+)\s*;?\s*To\s*:\s*(?<to>[\w.]+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
@@ -49,7 +78,7 @@ public static class ProfileAuthoringParser
     }
 
     public static ResolvedProfile2D? ResolveNamedProfile(string source, string profileName, out IReadOnlyList<string> reportedDiagnostics)
-        => ResolveNamedProfileCore(source, profileName, new(StringComparer.Ordinal), out reportedDiagnostics);
+        => ResolveNamedProfileCore(source, profileName, new(StringComparer.Ordinal), out reportedDiagnostics, new FirmamentCompileTimeValues(source));
 
     internal static ResolvedProfile2D? ResolveNamedProfileCore(string source, string profileName, HashSet<string> visiting, out IReadOnlyList<string> reportedDiagnostics,
         FirmamentCompileTimeValues? scalars=null)
@@ -177,9 +206,15 @@ public static class ProfileAuthoringParser
     }
 
     public static (ResolvedProfile2D? Profile, double Height, IReadOnlyList<string> Diagnostics) Parse(string source)
+        => Parse(source, null);
+
+    internal static (ResolvedProfile2D? Profile, double Height, IReadOnlyList<string> Diagnostics) Parse(string source, FirmamentCompileTimeValues? values)
     {
         var diagnostics = new List<string>();
-        source = ExpandBuiltInPolygons(source, diagnostics);
+        values ??= new FirmamentCompileTimeValues(source);
+        var expanded = FirmamentV2TemplateExpansion.Expand(source, diagnostics, values);
+        if (expanded is not null) source = expanded.Source;
+        source = ExpandBuiltInPolygons(source, diagnostics, values);
         var authoredProfiles = FindProfiles(source).ToArray();
         var extrusion = FindBlocks(source, @"\bExtrude\s+\w+\s*\{").FirstOrDefault();
         var extrudeProfile = extrusion is null ? null : Property(extrusion.Body, "Profile");
@@ -187,21 +222,21 @@ public static class ProfileAuthoringParser
         if (profile is null)
             return (null, 0, ["profile-source-missing-profile"]);
 
-        if (ProfileBoundaryAuthoring.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out var conceptProfile)
-            || ConceptProfileDerivation.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out conceptProfile))
+        if (ProfileBoundaryAuthoring.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out var conceptProfile, values)
+            || ConceptProfileDerivation.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out conceptProfile, values))
         {
-            var depths = ResolveExtrude(source, profile.Name, diagnostics);
+            var depths = ResolveExtrude(source, profile.Name, diagnostics, values.NominalExpression);
             return (conceptProfile is null ? null : conceptProfile with { LocalStartDepth = depths.Start, LocalEndDepth = depths.End }, depths.Height, diagnostics);
         }
 
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
         var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
-        AddOrdinaryGuides(source, points, guides, diagnostics);
+        AddOrdinaryGuides(source, points, guides, diagnostics, bind: values.NominalExpression);
         var paths = BindPaths(source, points, guides, diagnostics);
 
         ConstructionPlane? plane = ResolveConstructionPlane(source, profile.Frame, diagnostics);
         var loops = BindProfileLoops(profile, paths, points, guides, diagnostics);
-        var (start, end, height) = ResolveExtrude(source, profile.Name, diagnostics);
+        var (start, end, height) = ResolveExtrude(source, profile.Name, diagnostics, values.NominalExpression);
         if (diagnostics.Count != 0)
             return (null, height, diagnostics);
         return (new ResolvedProfile2D(profile.Name, profile.Frame ?? "XY", loops, plane ?? ConstructionPlane.WorldXY, start, end), height, diagnostics);
@@ -213,27 +248,28 @@ public static class ProfileAuthoringParser
     /// Concept Path syntax is intentionally erased at this boundary; segment
     /// provenance retains the authored path and step identities.
     /// </summary>
-    internal static IReadOnlyDictionary<string, ResolvedProfile2D> BindPathDerivedProfiles(string source, List<string> diagnostics)
+    internal static IReadOnlyDictionary<string, ResolvedProfile2D> BindPathDerivedProfiles(string source, List<string> diagnostics, FirmamentCompileTimeValues? values = null)
     {
         // This is the canonical semantic-profile adapter used by Compose and SectionChain.
         // Its historical name remains source-compatible; pipeline syntax is erased here too.
         source = ProfileModificationTemplateLibrary.ResolveImports(source);
+        values ??= new FirmamentCompileTimeValues(source);
         foreach (var authored in SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Where(d => d.Type.Name.Text == "Profile"))
             ValidateProfileBody(authored, diagnostics);
-        source = ExpandBuiltInPolygons(source, diagnostics);
-        var templates = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
+        source = ExpandBuiltInPolygons(source, diagnostics, values);
+        var templates = FirmamentV2TemplateExpansion.Expand(source, diagnostics, values);
         if (templates is not null) source = templates.Source;
         var authoredProfiles = FindProfiles(source).Where(candidate => candidate.FromPath is not null || candidate.Body?.Contains("|>", StringComparison.Ordinal) == true || ProfileBoundaryAuthoring.IsDerived(candidate.Body)).ToArray();
         if (authoredProfiles.Length == 0) return new Dictionary<string, ResolvedProfile2D>();
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
         var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
-        AddOrdinaryGuides(source, points, guides, diagnostics);
+        AddOrdinaryGuides(source, points, guides, diagnostics, bind: values.NominalExpression);
         var paths = BindPaths(source, points, guides, diagnostics);
         var profiles = new Dictionary<string, ResolvedProfile2D>(StringComparer.Ordinal);
         foreach (var profile in authoredProfiles)
         {
-            if (ProfileBoundaryAuthoring.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out var derived)
-                || ConceptProfileDerivation.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out derived))
+            if (ProfileBoundaryAuthoring.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out var derived, values)
+                || ConceptProfileDerivation.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out derived, values))
             {
                 if (derived is not null && !profiles.TryAdd(profile.Name, derived)) diagnostics.Add($"profile-duplicate:{profile.Name}");
                 continue;
@@ -1081,6 +1117,34 @@ public static class ProfileAuthoringParser
         OnLine(point, line) && point.X >= Math.Min(line.Start.X, line.End.X) - Tolerance && point.X <= Math.Max(line.Start.X, line.End.X) + Tolerance
         && point.Y >= Math.Min(line.Start.Y, line.End.Y) - Tolerance && point.Y <= Math.Max(line.Start.Y, line.End.Y) + Tolerance;
 
+    /// <summary>Selectable spans between existing named landmarks. No points are invented and
+    /// no intersection solver is introduced. Material tracing still performs its full checks.</summary>
+    internal static IReadOnlyList<(string Guide, string From, string To, LineArcProfileCurve2D Geometry)> ConstructionSpans(
+        IReadOnlyDictionary<string, (double X, double Y)> points, IReadOnlyDictionary<string, LineArcProfileCurve2D> guides)
+    {
+        var result = new List<(string, string, string, LineArcProfileCurve2D)>();
+        foreach (var (name, geometry) in guides)
+        {
+            if (geometry is not LineArcLineSegment2D line || Distance(line.Start, line.End) <= Tolerance) continue;
+            var owner = name.Contains('.') ? name[..name.LastIndexOf('.')] : name;
+            var landmarks = new List<KeyValuePair<string, (double X, double Y)>>();
+            foreach (var point in points.Where(p => OnBoundedLine(p.Value, line))
+                .OrderBy(p => p.Key.StartsWith(owner + ".", StringComparison.Ordinal) ? 0 : 1).ThenBy(p => p.Key, StringComparer.Ordinal))
+                if (!landmarks.Any(p => Distance(p.Value, point.Value) <= Tolerance)) landmarks.Add(point);
+            var ordered = landmarks.OrderBy(p => (p.Value.X - line.Start.X) * (line.End.X - line.Start.X)
+                + (p.Value.Y - line.Start.Y) * (line.End.Y - line.Start.Y)).ToArray();
+            for (var i = 0; i + 1 < ordered.Length; i++)
+            {
+                var diagnostics = new List<string>();
+                var selected = SelectGuide(line, ordered[i].Value, ordered[i + 1].Value, "", name, name, diagnostics);
+                if (selected is not null && diagnostics.Count == 0) result.Add((name, ordered[i].Key, ordered[i + 1].Key, selected));
+            }
+        }
+        return result;
+    }
+
+    internal static bool SameConstructionPoint((double X, double Y) a, (double X, double Y) b) => Distance(a, b) <= Tolerance;
+
     private static string MaskRecognizedProfileDeclarations(string body)
     {
         var declarationPattern = @"\b(?:(?:Concept\s+)?(?:Point2|Line2|Rect2|Square2|Circle2|Ellipse2|Ellipse2Guide|Slot2|RoundedRect2|SmoothRoundedRect2|Path)|(?:Triangle2|Polygon2|RegularPolygon2)\s*<[^>]+>)\s+[A-Za-z_]\w*\s*\{";
@@ -1270,14 +1334,14 @@ public static class ProfileAuthoringParser
         return (profile, from, to);
     }
 
-    private static (double Start, double End, double Height) ResolveExtrude(string source, string profileName, List<string> diagnostics)
+    private static (double Start, double End, double Height) ResolveExtrude(string source, string profileName, List<string> diagnostics, Func<ExpressionSyntax, ExpressionSyntax>? bind = null)
     {
         foreach (var d in SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Where(d => d.Type.Name.Text == "Extrude"))
         {
             var fields = ReadExtrudeFields(d, diagnostics);
             if (FirmamentSyntaxValues.Reference(fields.Profile) != profileName) continue;
-            if (!FirmamentSyntaxValues.TryMeasure(fields.From, "mm", out var start)
-                || !FirmamentSyntaxValues.TryMeasure(fields.To, "mm", out var end))
+            if (!FirmamentSyntaxValues.TryMeasure(fields.From is { } from ? bind?.Invoke(from) ?? from : null, "mm", out var start)
+                || !FirmamentSyntaxValues.TryMeasure(fields.To is { } to ? bind?.Invoke(to) ?? to : null, "mm", out var end))
             {
                 diagnostics.Add($"profile-extrusion-length-required:{d.Name?.Text}: Extrude from/to must be lengths in mm, not angles or scalars.");
                 continue;

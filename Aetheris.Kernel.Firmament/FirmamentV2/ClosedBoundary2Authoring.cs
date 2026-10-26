@@ -17,6 +17,8 @@ internal static class ClosedBoundary2Authoring
     internal sealed record Result(string Source, IReadOnlyList<FirmamentV2ClosedBoundary2Decl> Boundaries)
     {
         internal IReadOnlyList<string> GeneratedDeclarationNames { get; init; } = [];
+        internal IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> AuthoringMembers { get; init; }
+            = new Dictionary<string, IReadOnlyDictionary<string, string>>();
         public IReadOnlyList<FirmamentV2Polygon2Decl> Polygons => Boundaries.Where(x => x.ShapeType == "Polygon2")
             .Select(x => new FirmamentV2Polygon2Decl(x.Name, x.Variant!, x.CenterX, x.CenterY,
                 x.Dimensions.GetValueOrDefault("DiagonalX"), x.Dimensions.GetValueOrDefault("DiagonalY"),
@@ -112,6 +114,7 @@ internal static class ClosedBoundary2Authoring
         foreach (var change in changes.OrderByDescending(x => x.Start)) source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
         return new(source, shapes.Select(x => x.Declaration).ToArray())
         {
+            AuthoringMembers = shapes.ToDictionary(s => s.Declaration.Name, s => s.MemberMap, StringComparer.Ordinal),
             GeneratedDeclarationNames = shapes.Where(s => s.LoweredSource is not null)
                 .SelectMany(s => s.MemberMap.Values).Distinct(StringComparer.Ordinal).ToArray()
         };

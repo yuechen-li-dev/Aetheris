@@ -1,0 +1,8 @@
+Model DrawnShape {
+  units: mm
+  Concept Struct layout on XY {
+    Slot2 outline { center: [5mm, 0mm]; length: 40mm; width: 20mm }
+  }
+  Profile section using layout { Loop Outer { outline |> TraceLoop } }
+  Extrude body { profile: section; from: 0mm; to: 6mm }
+}

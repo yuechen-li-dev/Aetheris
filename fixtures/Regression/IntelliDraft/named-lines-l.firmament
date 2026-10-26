@@ -1,0 +1,21 @@
+Model LPlate {
+  units: mm
+  Concept Struct layout on XY {
+    Point2 a { position: [0mm, 0mm] }
+    Point2 b { position: [60mm, 0mm] }
+    Point2 c { position: [60mm, 8mm] }
+    Point2 d { position: [8mm, 8mm] }
+    Point2 e { position: [8mm, 40mm] }
+    Point2 f { position: [0mm, 40mm] }
+    Line2 bottom { from: a; to: b }
+    Line2 right { from: b; to: c }
+    Line2 ledge { from: c; to: d }
+    Line2 upright { from: d; to: e }
+    Line2 top { from: e; to: f }
+    Line2 left { from: f; to: a }
+  }
+  Profile section using layout {
+    Loop Outer { bottom |> right |> ledge |> upright |> top |> left |> Close }
+  }
+  Extrude body { profile: section; from: 0mm; to: 6mm }
+}

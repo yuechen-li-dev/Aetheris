@@ -62,6 +62,8 @@ public sealed class FirmamentDomainBinding
     }
 
     public ExpressionSyntax Nominal(ExpressionSyntax expression) => values.NominalExpression(expression);
+    internal (Dictionary<string, (double X, double Y)> Points, Dictionary<string, Materializer.LineArcProfileCurve2D> Guides, IReadOnlyList<string> Diagnostics)
+        InspectConstruction() => ProfileAuthoringParser.InspectConstruction(Source, values);
     public Materializer.ResolvedProfile2D? ResolveProfile(string name,out IReadOnlyList<string> diagnostics) =>
         ProfileAuthoringParser.ResolveNamedProfileCore(Source,name,new(StringComparer.Ordinal),out diagnostics,values);
     public bool OwnsConstruction(DeclarationSyntax declaration) => ClosedBoundary2Authoring.IsBoundaryType(declaration.Type.Name.Text)

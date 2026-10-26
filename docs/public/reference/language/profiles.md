@@ -10,6 +10,10 @@ Most parts start as a closed 2D boundary. The pattern is always the same:
 There is no sketch solver. Positions and sizes are stated, so the boundary is
 exactly what the numbers say.
 
+Helios's [IntelliDraft workspace](../../firmament/sketcher.md) follows this same
+construction → trace → material workflow. It writes named points, guides and
+Path steps into ordinary Firmament source and uses the compiler to resolve them.
+
 ## One-line Profiles
 
 A single closed shape can be a Profile directly:
@@ -34,6 +38,20 @@ line and arc cuts).
 
 Use the loop form when a Profile has inner loops, combines several guides, or
 needs named edges:
+
+For a shape-driven example, [this independently placed L plate](../../../../fixtures/Regression/IntelliDraft/independent-rectangles-l.firmament)
+retains two `Rect2` declarations with their own centers and dimensions. Their
+placement makes named corners available for tracing; it does not impose a
+persistent relationship between the rectangles. A closed Profile still requires
+the selected spans to meet.
+
+For optional explicit dependencies, [this L plate](../../../../fixtures/Regression/IntelliDraft/rectangles-l.firmament)
+retains two `Rect2` declarations: an envelope and an inset rectangle whose top
+and right edges follow it through shared dimensions. The Profile traces selected
+edge spans between their named corners. Changing the envelope or shared wall
+input updates the construction and boundary together, without independently
+moving six vertices. [Its revision](../../../../fixtures/Regression/IntelliDraft/rectangles-l-revised.firmament)
+changes only driving dimensions.
 
 ```firmament
 Model ProfilePlate {

@@ -1300,7 +1300,7 @@ public static partial class FirmamentV2Parser
 
         if (declarations.Any(d => d.Type.Name.Text == "Extrude"))
         {
-            var profile = ProfileAuthoringParser.Parse(adapterSource);
+            var profile = ProfileAuthoringParser.Parse(adapterSource, compileTime);
             if (profile.Profile is null)
             {
                 diagnostics.AddRange(profile.Diagnostics);

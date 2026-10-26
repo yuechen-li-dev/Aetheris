@@ -53,7 +53,8 @@ public sealed class SemanticSchemaGenerator : IIncrementalGenerator
                     var variantConstant = Named(attribute, "Variants");
                     var variants = variantConstant.Kind == TypedConstantKind.Array ? variantConstant.Values.Select(v => v.Value?.ToString() ?? "").ToArray() : Array.Empty<string>();
                     if (!ValidId(fieldId) || !ValidId(fieldName) || !fieldIds.Add(fieldId) || !fieldNames.Add(fieldName) || !Kinds.Contains(kind)
-                        || kind == "Choice" && choices.Length == 0 || kind != "Choice" && choices.Length != 0
+                        || kind == "Choice" && choices.Length == 0 || kind is not ("Choice" or "FaceSelector" or "String") && choices.Length != 0
+                        || choices.Any(string.IsNullOrWhiteSpace) || choices.Distinct(StringComparer.Ordinal).Count() != choices.Length
                         || variants.Any(v => !ValidId(v)) || variants.Distinct(StringComparer.Ordinal).Count() != variants.Length
                         || unit is not ("None" or "Length" or "Angle")
                         || kind == "Length" && unit != "Length" || kind == "Angle" && unit != "Angle"

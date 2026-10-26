@@ -1,0 +1,19 @@
+Model IndependentRectanglePlate {
+  units: mm
+  Concept Struct layout on XY {
+    Rect2 outer { center: [0mm, 0mm]; size: [60mm, 40mm] }
+    Rect2 notch { center: [4mm, 4mm]; size: [52mm, 32mm] }
+  }
+  Profile section using layout {
+    Loop Outer {
+      outer.Bottom from outer.BottomLeft to outer.BottomRight as bottom
+      |> outer.Right from outer.BottomRight to notch.BottomRight as right
+      |> notch.Bottom from notch.BottomRight to notch.BottomLeft as ledge
+      |> notch.Left from notch.BottomLeft to notch.TopLeft as upright
+      |> outer.Top from notch.TopLeft to outer.TopLeft as top
+      |> outer.Left from outer.TopLeft to outer.BottomLeft as left
+      |> Close
+    }
+  }
+  Extrude body { profile: section; from: 0mm; to: 6mm }
+}

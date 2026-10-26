@@ -623,9 +623,15 @@ public static partial class Program
                 .Concat((build.Value.Features ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true, featureSources[feature.FeatureId], feature.Diameter))).ToArray();
             var projectedBodySource = projections.FirstOrDefault(item => item.SemanticId == entityId)?.ConstructSpan is { } bodySpan
                 ? SourceRefAt(_sourceName, effective, bodySpan.Start, bodySpan.Length) : null;
-            var body = new WebTreeNode(entityId, build.Value.ExportedBodyCategory, Name, Id, featureNodes.Select(item => item.Id).ToArray(), true,
+            // The tree shows the names the source declares (`Model Bracket`, `Extrude body`); the file
+            // stem is only a fallback, so a part has one name in the editor, the tree and the viewport.
+            var modelName = Regex.Match(effective, @"\bModel\s+([A-Za-z_]\w*)\s*\{") is { Success: true } model ? model.Groups[1].Value : Name;
+            var bodyName = projections.FirstOrDefault(item => item.SemanticId == entityId)?.ConstructSpan is { } named
+                && Regex.Match(effective.Substring(named.Start, Math.Min(named.Length, effective.Length - named.Start)), @"^\s*(?:[A-Z]\w*\s+)*?[A-Z]\w*(?:<[^>]*>)?\s+([A-Za-z_]\w*)\s*[{;]") is { Success: true } declared
+                ? declared.Groups[1].Value : modelName;
+            var body = new WebTreeNode(entityId, build.Value.ExportedBodyCategory, bodyName, Id, featureNodes.Select(item => item.Id).ToArray(), true,
                 boxSource ?? projectedBodySource ?? SourceRef(_sourceName, 0, effective.Length), SemanticConstruct: semanticConstruct);
-            var root = new WebTreeNode(Id, "Model", Name, null, [body.Id], true, SourceRef(_sourceName, 0, effective.Length));
+            var root = new WebTreeNode(Id, "Model", modelName, null, [body.Id], true, SourceRef(_sourceName, 0, effective.Length));
             var tree = new { rootId = root.Id, nodes = new[] { root, body }.Concat(featureNodes).ToArray() };
             var expectedPmi = Aetheris.Kernel.Firmament.Drawing.FirmamentDrawingCompiler.AuthoredPmiNames(build.Value);
             return WebBuildResult.Passed(step, tree, mesh, [Id, entityId, .. featureNodes.Select(item => item.Id)], compileMs, meshMs)

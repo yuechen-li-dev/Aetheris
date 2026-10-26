@@ -269,6 +269,7 @@ public static class FirmamentSourceSpelling
         Add("Curve3", "From On Parameter Domain Representation MaxDeviation Closed Periodic");
         Add("CubicBezier2", "From Control1 Control2 To");
         Add("Line2", "From To");
+        Add("Arc2", "Center From To");
         Add("Profile", "From");
         Add("Segment", "Trace From To Sweep");
         Add("Replace", "On Range Through Derivatives Join StartTangent EndTangent Interpolation SpanNames");

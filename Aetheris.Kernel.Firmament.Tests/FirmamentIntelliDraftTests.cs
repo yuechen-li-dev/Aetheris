@@ -114,7 +114,7 @@ public class FirmamentIntelliDraftTests
         Assert.Equal(left ? 2 * Math.Atan2(4, 3) : 2 * Math.PI - 2 * Math.Atan2(4, 3), arc.Curve.Sweep, 10);
         draft.Add(new("trace", draft.Id("layout"), "section", Trace: [new("chord", chord.From, chord.To, Connect: true), new("rim", arc.From, arc.To, Connect: true)]));
         // Picked clockwise on the left, so it is written counter-clockwise; the arc stays the same one.
-        Assert.Contains(left ? "rim from upper to lower as rim |> chord from lower to upper" : "chord from upper to lower as chord |> rim from lower to upper", draft.Source);
+        Assert.Contains(left ? "rim from upper to lower as rim |> chord from lower to upper" : "chord from upper to lower as chord |> rim from lower to upper", Flat(draft.Source));
         draft.Add(new("extrude", draft.Id("section"), "body", Length: 6));
         var built = FirmamentBuildAndExport.CompileSource(draft.Source);
         Assert.True(built.IsSuccess, string.Join(";", built.Diagnostics.Select(d => d.Message)));
@@ -140,6 +140,32 @@ public class FirmamentIntelliDraftTests
         Assert.Equal(200, new FirmamentMeasurements(built.Value).Volume().ValueMm3!.Value, 6);
     }
 
+    [Fact]
+    public void Arc2IsTheCounterClockwiseArcBetweenNamedPointsAndTracesLikeAnyEdge()
+    {
+        var draft = new Draft(); draft.Add(new("layout", Name: "layout"));
+        foreach (var (name, x, y) in new[] { ("c", 0d, 0d), ("east", 5d, 0d), ("west", -5d, 0d), ("north", 0d, 5d), ("off", 0d, 7d) })
+            draft.Add(new("point", draft.Id("layout"), name, X: x, Y: y));
+        draft.Add(new("arc", draft.Id("layout"), "dome", Reference: "c", From: "east", To: "west"));
+        Assert.Contains("Arc2 dome { center: c; from: east; to: west }", draft.Source);
+        var guide = Assert.Single(draft.View.Guides, g => g.Name == "dome");
+        Assert.Equal("Arc", guide.Kind); Assert.Equal(Math.PI, guide.Sweep, 12);
+        // A named point on the arc splits it into two clickable spans; the south half is not part of it.
+        var spans = draft.View.Spans.Where(s => s.Reference == "dome").Select(s => (s.From, s.To)).ToArray();
+        Assert.Equal([("east", "north"), ("north", "west")], spans);
+        Assert.Throws<FirmamentLanguageEditException>(() => draft.Add(new("arc", draft.Id("layout"), "bad", Reference: "c", From: "east", To: "off")));
+        draft.Add(new("line", draft.Id("layout"), "chord", From: "west", To: "east"));
+        var picks = new[] { ("chord", "west", "east"), ("dome", "north", "west"), ("dome", "east", "north") }
+            .Select(p => new FirmamentDraftTrace(p.Item1, p.Item2, p.Item3, Alias: p.Item1 + p.Item2, Connect: true)).ToArray();
+        draft.Add(new("trace", draft.Id("layout"), "section", Trace: picks));
+        draft.Add(new("extrude", draft.Id("section"), "body", Length: 2));
+        var built = FirmamentBuildAndExport.CompileSource(draft.Source);
+        Assert.True(built.IsSuccess, string.Join(";", built.Diagnostics.Select(d => d.Message)));
+        var arcs = FirmamentSketchService.Project(draft.Source, "draft.firmament", "1").Loops[0].Curves.Where(c => c.Kind == "Arc").ToArray();
+        Assert.Equal(Math.PI, arcs.Sum(a => Math.Abs(a.Sweep)), 10);
+    }
+
+    private static string Flat(string source) => System.Text.RegularExpressions.Regex.Replace(source, @"\s+", " ");
     private sealed class Draft
     {
         public string Source = "Model Part { units: mm }";
@@ -253,7 +279,7 @@ public class FirmamentIntelliDraftTests
         Assert.True(built.IsSuccess, string.Join(";", built.Diagnostics.Select(d => d.Message)));
         Assert.Equal(4416, new FirmamentMeasurements(built.Value).Volume().ValueMm3!.Value, 6);
         Assert.Contains("from: a", draft.Source);
-        Assert.Contains("bottom |> right |> ledge", draft.Source);
+        Assert.Contains("bottom |> right |> ledge", Flat(draft.Source));
         Assert.All(FirmamentSketchService.Project(draft.Source, "draft.firmament", "1").Loops[0].Curves, c => Assert.NotNull(c.Provenance));
         GeometryMatches(draft.Source, "named-lines-l.firmament");
         var side = FirmamentBuildAndExport.CompileSource(draft.Source.Replace("on XY", "on XZ"));

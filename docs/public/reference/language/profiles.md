@@ -117,6 +117,7 @@ low-level control.
 | --- | --- |
 | `Point2` | `position` |
 | `Line2` | named `from` and `to` points |
+| `Arc2` | named `center`, `from` and `to` points; the counter-clockwise arc from `from` to `to`. `to` must lie on the circle through `from`; it is rejected otherwise |
 | `CubicBezier2` | named endpoints plus `control1`, `control2` |
 | `Rect2` | `center`, `size` (two full lengths) |
 | `Square2` | `center`, `size` (one length) |
@@ -129,7 +130,8 @@ low-level control.
 | `Polygon2<Rhombus \| Parallelogram \| Trapezoid \| Explicit>` | variant-specific dimensions |
 | `RegularPolygon2<N>` | regular polygon with a bounded vertex count |
 
-`Point2`, `Line2` and `CubicBezier2` are open guides; the rest are closed.
+`Point2`, `Line2`, `Arc2` and `CubicBezier2` are open guides; the rest are closed.
+Named points on an `Arc2` split it into spans, as on a `Line2`.
 Parametric shapes accept `rotation` in degrees.
 
 `Polygon2<Explicit>` takes its corners inline,

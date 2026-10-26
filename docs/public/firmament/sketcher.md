@@ -1,6 +1,6 @@
 # IntelliDraft and Profile dimensions in Helios
 
-The sketch workspace edits ordinary Firmament source. There is no separate saved
+IntelliDraft edits ordinary Firmament source. There is no separate saved
 sketch model, browser constraint solver or mesh-to-profile conversion.
 
 ## Construction, trace, part
@@ -13,7 +13,7 @@ dimensions remain authoritative when Trace selects boundary spans from its named
 edges and corners.
 
 The toolbar draws lines, arcs, rectangles, circles, ellipses, slots and rounded
-rectangles. Keys: V select, L line, A arc, R rectangle, C circle, E ellipse,
+rectangles; the line, circle and rounded tools have a type menu. Keys: V select, L line, A arc, R rectangle, C circle, E ellipse,
 S slot, U rounded, T trace, F fit, Delete removes the selection, Ctrl+Z / Ctrl+Y
 undo and redo, Escape steps back. A tool stays active after drawing and proposes
 the next free name (`rect1`, `rect2`, …). Points snap to a grid that follows the
@@ -24,10 +24,10 @@ zoom; Alt snaps to 0.1 mm.
   written as `Point2 <line>Start` / `<line>End`. The line menu also declares an
   `Axis2 { origin; direction }`: an unbounded reference direction that is shown
   on the canvas but never traced.
-- **Arc** drags from the centre to the start, then clicks the end (15° steps;
-  Alt is free). It writes a `Circle2` guide centred on a named point plus the
-  named points on it. The arc itself is chosen when tracing: each pair of
-  neighbouring points on a circle is a counter-clockwise span.
+- **Arc** (in the circle menu, key A) drags from the centre to the start, then
+  clicks the end (15° steps; Alt is free). It writes
+  `Arc2 { center; from; to }`: the counter-clockwise arc between named points.
+  Named points on an arc split it into spans for tracing.
 - The rounded menu also draws `SmoothRoundedRect2` (continuous-curvature
   corners) with its `cornerExtent`.
 
@@ -86,47 +86,35 @@ are not replaced with coordinates. Canvas point placement rounds to a 0.1 mm
 grid; explicit typed values can use finer precision. Paths created by the UI use
 XY; the layout frame banner identifies local axes and the world-space normal.
 
-## Closed-shape dimension workspace
+## Editing an existing part's Profile
 
-Open **Command palette → New sketch part** to start a rectangular profile and a
-6 mm extrusion. Circle, slot and rounded-rectangle sketch starters are also in the
-command palette. For an existing part, use **Sketch** above the viewport, or
-double-click its Profile/shape node in the graph. Choose the Profile when a guide
-is shared by more than one Profile.
+**IntelliDraft** also opens on parts written in code. It projects the document's
+Profiles; when there is more than one, a **Profile** menu chooses which. Double-
+clicking a Profile or shape node in the graph opens IntelliDraft on it. Shapes the
+Profile consumes outside any layout are listed with the layout's shapes and are
+edited the same way, on the canvas or in the sidebar. A Profile on another plane
+shows that plane under the workflow steps. **Command palette → New IntelliDraft
+part** starts an empty draft.
 
-## Dimensions and navigation
-
-The workspace uses the Profile's local coordinates. Its header identifies the
-resolved plane, world origin and normal; the canvas shows local +X and +Y.
-Scroll to zoom, middle-drag or Alt-drag to pan, and use **Fit** to see the outline.
-Select a named shape in the inspector or click its center marker.
-
-Type a dimension in the inspector and press Enter or leave the field. Drag a
-gold dimension label for an approximate adjustment; type a number for the final
-size. Keyboard arrows on a dimension label change it by one displayed unit.
-Lengths display in millimetres and rotations in degrees. Slot **overall length**
-includes both semicircular ends.
+Dimensions follow the source:
 
 - A literal is a directly editable driving dimension.
-- A directly referenced literal `Static` is edited at its declaration. The UI
+- A directly referenced literal `Static` is edited at its declaration. The sidebar
   names that shared parameter, so other consumers changing is explicit.
-- An expression is read-only here. **Edit source** navigates to it; edit its
-  driving inputs in Parameters or Source. Dragging never replaces a formula or
-  typed tolerance with a literal.
+- An expression is read-only and dashed on the canvas. **Edit source** closes the
+  draft and shows it in the source editor; edit its driving inputs in Parameters
+  or Source. Dragging never replaces a formula or typed tolerance with a literal.
 
-Drag previews resolve the Profile without constructing the solid. Releasing a
-drag or entering a dimension prepares one source transaction and invokes the
-normal engineering build. An invalid profile edit is refused without changing
-source. A later solid-build failure retains the previous geometry and the
-existing revertible draft. Source edits retain Monaco undo history.
-
-`ProfileResolvedNotBuilt` describes the preview's validation level. It does not
-mean an extrusion, revolve, loft or downstream feature has passed its build.
+Every edit is one source transaction checked by the compiler. An invalid edit is
+refused without changing source; **Build and use part** runs the normal
+engineering build before the document is replaced. Lengths display in
+millimetres and rotations in degrees. Slot **overall length** includes both
+semicircular ends.
 
 ## Mounting openings that follow their dimensions
 
 For a Profile whose explicit outer loop traces an unrotated Model-level Rect2,
-**Circular profile opening** offers its center, corners and edge midpoints.
+**Add circular opening** (in the IntelliDraft sidebar) offers its center, corners and edge midpoints.
 Choose the rectangle, anchor, inward X/Y insets and opening diameter, then
 **Add opening**. Inapplicable insets are disabled. For a four-hole plate, add one
 opening at each corner with the same insets.
@@ -183,7 +171,7 @@ explicitly rejected while those support adapters still assume world XY.
 
 ## Current boundary
 
-The **Sketch** dimension workspace edits authored Rect2, Circle2, Ellipse2, Slot2, RoundedRect2 and SmoothRoundedRect2 fields
+IntelliDraft edits authored Rect2, Circle2, Ellipse2, Slot2, RoundedRect2 and SmoothRoundedRect2 fields
 and displays the resolved line/arc/ellipse/cubic curves of other Profiles.
 Generated Template/Feature bodies do not become writable source through their
 expanded geometry. Profiles must have an unambiguous authored name in the
@@ -192,7 +180,7 @@ document; edits do not reach into included files.
 IntelliDraft currently authors one unambiguous Model, retained closed shapes,
 named Point2/Line2/Circle2 guides, Axis2 references, line/arc Paths, one outer
 trace and a positive extrusion. Strokes snap to named points, not to arbitrary
-intersections; an arc's circle stays a full construction circle. The optional Advanced related-rectangle preset shares a top-right corner with
+intersections. The optional Advanced related-rectangle preset shares a top-right corner with
 an unrotated rectangle in the same Concept Struct. Its wall/inset values and the
 rectangle dimensions remain compile-time source expressions. Trace selection
 uses named landmarks on the compiler's bounded guides; it does not invent

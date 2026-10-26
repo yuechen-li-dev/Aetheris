@@ -45,7 +45,7 @@ public static class FirmamentIntelliDraft
             return new(f.Name.Text, source.Substring(f.Value.Span.Start, f.Value.Span.Length), unit is null ? null : value,
                 unit, unit is not null && FirmamentSketchService.Literal(f.Value));
         }
-        var elements = declarations.Where(d => FirmamentSketchService.EditableShapes.Contains(d.Syntax.Type.Name.Text) || d.Syntax.Type.Name.Text is "Model" or "Struct" or "Static" or "Point2" or "Line2" or "Axis2" or "Path" or "Line" or "Arc" or "Close" or "Profile" or "Extrude")
+        var elements = declarations.Where(d => FirmamentSketchService.EditableShapes.Contains(d.Syntax.Type.Name.Text) || d.Syntax.Type.Name.Text is "Model" or "Struct" or "Static" or "Point2" or "Line2" or "Arc2" or "Axis2" or "Path" or "Line" or "Arc" or "Close" or "Profile" or "Extrude")
             .Select(d => new FirmamentDraftElement(d.Id, d.Syntax.Name?.Text ?? d.Id, d.Syntax.Type.Name.Text, d.ParentId,
                 new(d.Syntax.Span.Start, d.Syntax.Span.Length), (d.Syntax.Body?.Statements.OfType<FieldSyntax>() ?? [])
                 .Select(Field).Concat(d.Syntax.Initializer is { } initial ? [new FirmamentDraftField("value", source.Substring(initial.Span.Start, initial.Span.Length),
@@ -57,7 +57,7 @@ public static class FirmamentIntelliDraft
             .Select(d => new FirmamentOutlineDiagnostic("error", d.Code, d.Message,
                 d.SourceSpan is { } s ? new(s.Start, s.Length) : null)));
         if (diagnostics.Count > 0) return new(elements, [], [], diagnostics, "Unresolved");
-        var duplicate = elements.Where(e => FirmamentSketchService.EditableShapes.Contains(e.Kind) || e.Kind is "Point2" or "Line2" or "Axis2" or "Path")
+        var duplicate = elements.Where(e => FirmamentSketchService.EditableShapes.Contains(e.Kind) || e.Kind is "Point2" or "Line2" or "Arc2" or "Axis2" or "Path")
             .GroupBy(e => e.Name).FirstOrDefault(g => g.Count() > 1);
         if (duplicate is not null)
             return new(elements, [], [], [new("error", "draft-guide-ambiguous", $"Construction preview requires an unambiguous guide name: '{duplicate.Key}'.", duplicate.First().Span)], "Unresolved");
@@ -84,7 +84,7 @@ public static class FirmamentIntelliDraft
         {
             // Rect2 sides, and named Line2 and Circle2 guides, are clickable spans between named points.
             var owner = elements.FirstOrDefault(e => s.Guide.StartsWith(e.Name + ".", StringComparison.Ordinal) && e.Kind == "Rect2"
-                || s.Guide == e.Name && e.Kind is "Line2" or "Circle2");
+                || s.Guide == e.Name && e.Kind is "Line2" or "Arc2" or "Circle2");
             var id = s.Guide + ":" + s.From + ":" + s.To;
             var parentCurve = curves.Single(c => c.Name == s.Guide);
             return new FirmamentDraftSpan(id, owner?.Id ?? "", s.Guide, s.From, s.To,
@@ -212,7 +212,8 @@ public static class FirmamentIntelliDraft
                 break;
             case "layout":
                 if (request.Plane is not ("XY" or "XZ" or "YZ")) throw Refuse("draft-plane-required", "Choose XY, XZ or YZ.");
-                Insert(model.Id, $"Concept Struct {Name()} on {request.Plane} {{ }}");
+                // An open, multi-line body: construction added later goes one declaration per line.
+                Insert(model.Id, $"Concept Struct {Name()} on {request.Plane} {{\n}}");
                 break;
             case "point":
                 Insert(Owner("Struct").Id, $"Point2 {Name()} {{ position: [{Mm(request.X)}, {Mm(request.Y)}] }}");
@@ -221,6 +222,9 @@ public static class FirmamentIntelliDraft
                 if (!double.IsFinite(request.DirectionX) || !double.IsFinite(request.DirectionY) || Math.Abs(request.DirectionX) + Math.Abs(request.DirectionY) < 1e-12)
                     throw Refuse("draft-axis-direction", "Draw the axis with two different points.");
                 Insert(Owner("Struct").Id, $"Axis2 {Name()} {{ origin: [{Mm(request.X)}, {Mm(request.Y)}]; direction: [{Number(request.DirectionX)}, {Number(request.DirectionY)}] }}");
+                break;
+            case "arc":
+                Insert(Owner("Struct").Id, $"Arc2 {Name()} {{ center: {Point(request.Reference)}; from: {Point(request.From)}; to: {Point(request.To)} }}");
                 break;
             case "line":
                 Insert(Owner("Struct").Id, $"Line2 {Name()} {{ from: {Point(request.From)}; to: {Point(request.To)} }}");
@@ -299,7 +303,10 @@ public static class FirmamentIntelliDraft
                         if (entry.Alias is not null) text += " as " + FirmamentLanguageEditService.RequireIdentifier(entry.Alias, "edge alias");
                         return (entry.Reverse ? "Reverse " : "") + text; // prefix form, as in Loop Inner { Reverse a.Bottom |> … }
                     }
-                    Profile($"Profile {name} using {owner.Name} {{ Loop Outer {{ {string.Join(" |> ", entries.Select(Entry))}{(entries.Count == 1 && entries[0].WholeLoop ? "" : " |> Close")} }} }}");
+                    var stages = entries.Select(Entry).ToList();
+                    if (entries is [{ WholeLoop: true }]) Profile($"Profile {name} using {owner.Name} {{ Loop Outer {{ {stages[0]} }} }}");
+                    // One traced span per line, so a reader can follow the outline.
+                    else Profile($"Profile {name} using {owner.Name} {{\n  Loop Outer {{\n    {string.Join("\n    |> ", stages.Append("Close"))}\n  }}\n}}");
                 }
                 break;
             case "extrude":

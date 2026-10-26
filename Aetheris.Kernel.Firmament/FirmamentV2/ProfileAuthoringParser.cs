@@ -297,7 +297,7 @@ public static class ProfileAuthoringParser
     internal static ConstructionPlane? ResolveNamedConstructionPlane(string source, string frame, List<string> diagnostics)
         => ResolveConstructionPlane(source, frame, diagnostics);
 
-    internal static bool OwnsConstructionGuide(string type) => type is "Point2" or "Rect2" or "Line2" or "CubicBezier2" or "Circle2" or "Ellipse2Guide";
+    internal static bool OwnsConstructionGuide(string type) => type is "Point2" or "Rect2" or "Line2" or "Arc2" or "CubicBezier2" or "Circle2" or "Ellipse2Guide";
     internal static bool OwnsDeclaration(DeclarationSyntax declaration) => OwnsConstructionGuide(declaration.Type.Name.Text)
         || ClosedBoundary2Authoring.IsBoundaryType(declaration.Type.Name.Text)
         || declaration.Type.Name.Text is "Profile" or "Path" or "Span" or "Curve2"
@@ -363,6 +363,23 @@ public static class ProfileAuthoringParser
                 else diagnostics.Add($"profile-layout-unresolved-ellipse:{name}");
             }
             fields.Complete();
+        }
+        // Arc2: the counter-clockwise arc around a named centre from one named point to another on the same circle.
+        foreach (var d in declarations.Where(d => d.Type.Name.Text == "Arc2"))
+        {
+            var fields = new FirmamentSyntaxFields(d, diagnostics,bind:bind); var name = d.Name!.Text;
+            var c = fields.Word("Center"); var a = fields.Word("From"); var b = fields.Word("To");
+            fields.Complete();
+            if (c is null || a is null || b is null || !points.TryGetValue(c, out var center) || !points.TryGetValue(a, out var from) || !points.TryGetValue(b, out var to))
+            { diagnostics.Add($"profile-layout-unresolved-arc:{name}"); continue; }
+            var radius = Distance(center, from);
+            if (radius <= Tolerance || Distance(from, to) <= Tolerance) { diagnostics.Add($"profile-layout-arc-degenerate:{name}"); continue; }
+            if (!OnCircle(to, center, radius)) { diagnostics.Add($"profile-layout-arc-radius-mismatch:{name}:{a}:{b}"); continue; }
+            var start = Math.Atan2(from.Y - center.Y, from.X - center.X);
+            var sweep = Math.Atan2(to.Y - center.Y, to.X - center.X) - start;
+            while (sweep <= 0) sweep += 2 * Math.PI;
+            while (sweep > 2 * Math.PI) sweep -= 2 * Math.PI;
+            guides[name] = new LineArcCircularArc2D(center, radius, start, sweep);
         }
         foreach (var guide in ClosedBoundary2Authoring.SmoothGuides(source, diagnostics)) guides[guide.Key] = guide.Value;
         if (applySpans) ApplyGeometricSpans(source, points, guides, diagnostics, addGuides: true);
@@ -1125,6 +1142,31 @@ public static class ProfileAuthoringParser
         var result = new List<(string, string, string, LineArcProfileCurve2D)>();
         foreach (var (name, geometry) in guides)
         {
+            if (geometry is LineArcCircularArc2D arc)
+            {
+                // Sub-arcs between the named points along an arc, in its own direction.
+                var direction = Math.Sign(arc.SweepAngleRadians); var extent = Math.Abs(arc.SweepAngleRadians);
+                double Progress((double X, double Y) p)
+                {
+                    var delta = direction * (Math.Atan2(p.Y - arc.Center.Y, p.X - arc.Center.X) - arc.StartAngleRadians);
+                    while (delta < -1e-9) delta += 2 * Math.PI;
+                    while (delta >= 2 * Math.PI - 1e-9) delta -= 2 * Math.PI;
+                    return Math.Abs(delta) < 1e-9 ? 0 : delta;
+                }
+                var stops = new List<(string Name, double At, (double X, double Y) P)>();
+                foreach (var point in points.Where(p => OnCircle(p.Value, arc.Center, arc.Radius)).OrderBy(p => p.Key, StringComparer.Ordinal))
+                {
+                    var at = Progress(point.Value);
+                    if (Distance(point.Value, End(arc)) <= 1e-7) at = extent;
+                    if (at <= extent + 1e-7 && !stops.Any(s => Distance(s.P, point.Value) <= Tolerance)) stops.Add((point.Key, at, point.Value));
+                }
+                var along = stops.OrderBy(s => s.At).ToArray();
+                for (var i = 0; i + 1 < along.Length; i++)
+                    if (along[i + 1].At - along[i].At > 1e-9)
+                        result.Add((name, along[i].Name, along[i + 1].Name, new LineArcCircularArc2D(arc.Center, arc.Radius,
+                            Math.Atan2(along[i].P.Y - arc.Center.Y, along[i].P.X - arc.Center.X), direction * (along[i + 1].At - along[i].At))));
+                continue;
+            }
             if (geometry is LineArcFullCircle2D circle)
             {
                 // Counter-clockwise arcs between consecutive named points on the circle.
@@ -1164,7 +1206,7 @@ public static class ProfileAuthoringParser
 
     private static string MaskRecognizedProfileDeclarations(string body)
     {
-        var declarationPattern = @"\b(?:(?:Concept\s+)?(?:Point2|Line2|Rect2|Square2|Circle2|Ellipse2|Ellipse2Guide|Slot2|RoundedRect2|SmoothRoundedRect2|Path)|(?:Triangle2|Polygon2|RegularPolygon2)\s*<[^>]+>)\s+[A-Za-z_]\w*\s*\{";
+        var declarationPattern = @"\b(?:(?:Concept\s+)?(?:Point2|Line2|Arc2|Rect2|Square2|Circle2|Ellipse2|Ellipse2Guide|Slot2|RoundedRect2|SmoothRoundedRect2|Path)|(?:Triangle2|Polygon2|RegularPolygon2)\s*<[^>]+>)\s+[A-Za-z_]\w*\s*\{";
         var blocks = FindBlocks(body, declarationPattern).OrderByDescending(block => block.Match.Index).ToArray();
         var characters = body.ToCharArray();
         foreach (var block in blocks)

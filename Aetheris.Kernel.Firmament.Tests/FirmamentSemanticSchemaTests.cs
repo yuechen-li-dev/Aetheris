@@ -11,7 +11,7 @@ public sealed class FirmamentSemanticSchemaTests
         string[] expectedNames =
         [
             "Appearance", "FrameTransform", "Placement", "Pmi", "Note", "Provenance",
-            "Box", "Concept", "Points", "Door", "Drape", "Ellipsoid", "Fabric", "FigureFit", "Fitting", "Garment",
+            "Box", "Concept", "Points", "Door", "Drape", "EdgeFinish", "Ellipsoid", "Fabric", "FigureFit", "Fitting", "Garment",
             "Helix", "Hole", "Interface<Fixed>", "Interface<Prismatic>", "Interface<Revolute>",
             "Interface<Stitch>", "Inventory", "Joint", "Loft", "Panel", "Perforation", "Material", "Linear", "Series", "Polyhedron", "Pose", "PoseTransition",
             "Room", "Scene", "Camera", "Section", "Thread", "Window", "Follow", "WireRoute",
@@ -42,6 +42,29 @@ public sealed class FirmamentSemanticSchemaTests
         Assert.Contains("Loft Body", loft.Entry);
         Assert.Equal(loft.Fields.Select(f => f.Name), LoftAuthoringParser.SolidFields.Select(f => f.Name));
         Assert.Equal(loft.Fields.Select(f => f.Name), LoftOrHelixCompletion("Model M { Loft Body {\n ", "Loft").Fields.Select(f => f.Name));
+    }
+
+    [Fact]
+    public void GraphAuthoringPresetsComeFromSchemaAndBuildOnTheirDocumentedHost()
+    {
+        var hole = FirmamentSemanticSchemas.Get("Hole")!;
+        foreach (var on in hole.Fields.Single(f => f.Name == "On").Choices)
+        foreach (var end in hole.Fields.Single(f => f.Name == "End").Choices)
+        {
+            var source = $"Model Preset {{ units: mm Box Body {{ size: [40mm, 30mm, 20mm] }} Modify Body {{ Hole<Shaft> H {{ on: {on} center: Point2(0mm, 0mm) diameter: 6mm end: {end} }} }} }}";
+            var build = FirmamentBuildAndExport.CompileSource(source);
+            Assert.True(build.IsSuccess, $"{on}/{end}: {string.Join(';', build.Diagnostics.Select(d => d.Message))}");
+        }
+        var finish = FirmamentSemanticSchemas.Get("EdgeFinish")!;
+        var completionSource = "Model M { Box B { size: [40mm,30mm,10mm] } Modify B { EdgeFinish F { ";
+        var completion = FirmamentLanguageService.Complete(completionSource, "graph.firmament", "1", completionSource.Length);
+        Assert.Equal("EdgeFinish", completion.Context);
+        Assert.Equal(finish.Fields.Select(f => f.Name), completion.Fields.Select(f => f.Name));
+        foreach (var kind in new[] { "Chamfer", "Fillet" })
+        {
+            var source = $"Model Preset {{ units: mm Box Body {{ size: [40mm, 30mm, 10mm] }} Modify Body {{ EdgeFinish F {{ face: +Z target: Boundary kind: {kind} {(kind == "Chamfer" ? "distance" : "radius")}: 1mm }} }} }}";
+            Assert.True(FirmamentBuildAndExport.CompileSource(source).IsSuccess);
+        }
     }
 
     [Fact]

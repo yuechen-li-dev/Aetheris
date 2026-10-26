@@ -25,6 +25,8 @@ public sealed class FirmamentFieldAttribute(string stableId, string name, Firmam
     public bool Required { get; init; }
     public string? Default { get; init; }
     public string? Description { get; init; }
+    /// <summary>Vocabulary choices, or authored presets for String/FaceSelector fields.
+    /// Presets do not restrict expression binding or guarantee host capability admission.</summary>
     public string[]? Choices { get; init; }
     public string[]? Variants { get; init; }
     public bool SourceEditable { get; init; }

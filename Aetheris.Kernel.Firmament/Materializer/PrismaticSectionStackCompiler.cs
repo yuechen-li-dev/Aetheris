@@ -327,6 +327,20 @@ public static class PrismaticSectionStackEmitter
             return new(null, d.Distinct().ToArray());
         }
         var descendants = new List<SemanticTopologyDescendant>();
+        void AddFeatureDescendant(SemanticTopologyDescendant descendant)
+        {
+            // Keep the exact profile/construction evidence as an alias. A pocket,
+            // hole or slot is the primary authored owner of its materialized wall.
+            // Distinct feature owners still conflict; never choose one by list order.
+            for (var index = 0; index < descendants.Count; index++)
+            {
+                var origin = descendants[index];
+                if (origin.StableId.StartsWith($"plan:{stack.Feature.Name}:", StringComparison.Ordinal)
+                    && (descendant.Face is { } face && origin.Face == face || descendant.Edge is { } edge && origin.Edge == edge))
+                    descendants[index] = origin with { IsTopologyAlias = true };
+            }
+            descendants.Add(descendant);
+        }
         var topLevels = stack.Feature.Operations.GroupBy(x => x.ProfileReference, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Max(y => y.To), StringComparer.Ordinal);
         var bottomLevels = stack.Feature.Operations.GroupBy(x => x.ProfileReference, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Min(y => y.From), StringComparer.Ordinal);
         for (var i = 0; i < sideFaces.Count; i++)
@@ -358,7 +372,7 @@ public static class PrismaticSectionStackEmitter
             var prefix = $"profile:{feature.ProfileReference}.Outer.";
             foreach (var item in sideFaces.Select((side, index) => (Side: side, Face: faces[capFaces.Count + index]))
                          .Where(item => item.Side.Source.StartsWith(prefix, StringComparison.Ordinal)))
-                descendants.Add(new($"material:{feature.StableId}:wall:{item.Face.Value}", "Face", SemanticTopologyRole.ExtrusionSideFace, feature.StableId, Face: item.Face, ParentStableId: feature.StableId, GeometryPreview: feature.Kind));
+                AddFeatureDescendant(new($"material:{feature.StableId}:wall:{item.Face.Value}", "Face", SemanticTopologyRole.ExtrusionSideFace, feature.StableId, Face: item.Face, ParentStableId: feature.StableId, GeometryPreview: feature.Kind));
         }
         foreach (var hole in (stack.Feature.ShaftHoles ?? []).Concat(countersinks.Select(h => new PrismaticShaftHoleFeature(
             h.Name, h.StableId, h.ShaftProfileReference, h.CenterX, h.CenterY, h.Diameter, h.From, h.To, h.SemanticRole, h.SourceSpan))))
@@ -380,12 +394,12 @@ public static class PrismaticSectionStackEmitter
             var exitZ = horizontalEdges.Min(x => x.Z);
             var entryEdges = horizontalEdges.Where(x => Math.Abs(x.Z - entryZ) <= Tol).Select(x => x.Edge).Distinct().OrderBy(x => x.Value).ToArray();
             var exitEdges = horizontalEdges.Where(x => Math.Abs(x.Z - exitZ) <= Tol).Select(x => x.Edge).Distinct().OrderBy(x => x.Value).ToArray();
-            foreach (var edge in entryEdges) descendants.Add(new($"material:{hole.StableId}:entry-edge:{edge.Value}", "Edge", SemanticTopologyRole.TopBoundary, hole.StableId, Edge: edge, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
-            foreach (var edge in exitEdges) descendants.Add(new($"material:{hole.StableId}:exit-edge:{edge.Value}", "Edge", SemanticTopologyRole.BottomBoundary, hole.StableId, Edge: edge, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
+            foreach (var edge in entryEdges) AddFeatureDescendant(new($"material:{hole.StableId}:entry-edge:{edge.Value}", "Edge", SemanticTopologyRole.TopBoundary, hole.StableId, Edge: edge, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
+            foreach (var edge in exitEdges) AddFeatureDescendant(new($"material:{hole.StableId}:exit-edge:{edge.Value}", "Edge", SemanticTopologyRole.BottomBoundary, hole.StableId, Edge: edge, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
             foreach (var side in holeSides)
             {
                 var cone = side.Side.Surface.Kind == SurfaceGeometryKind.Cone;
-                descendants.Add(new($"material:{hole.StableId}:wall:{side.Face.Value}", "Face", cone ? SemanticTopologyRole.HoleCountersinkWallFace : SemanticTopologyRole.HoleWallFace,
+                AddFeatureDescendant(new($"material:{hole.StableId}:wall:{side.Face.Value}", "Face", cone ? SemanticTopologyRole.HoleCountersinkWallFace : SemanticTopologyRole.HoleWallFace,
                     hole.StableId, Face: side.Face, ParentStableId: hole.StableId, GeometryPreview: cone ? "conical-entry" : $"diameter={hole.Diameter:R}"));
             }
             LoopId? LoopFor(IReadOnlyList<EdgeId> boundary)
@@ -394,8 +408,8 @@ public static class PrismaticSectionStackEmitter
                 return builder.Model.Loops.Select(loop => (loop.Id, Edges: loop.CoedgeIds.Select(id => builder.Model.Coedges.Single(x => x.Id == id).EdgeId).ToHashSet()))
                     .Where(x => x.Edges.SetEquals(expected)).Select(x => (LoopId?)x.Id).SingleOrDefault();
             }
-            if (entryEdges.Length > 0 && LoopFor(entryEdges) is { } entryLoop) descendants.Add(new($"material:{hole.StableId}:entry-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, hole.StableId, Loop: entryLoop, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
-            if (exitEdges.Length > 0 && LoopFor(exitEdges) is { } exitLoop) descendants.Add(new($"material:{hole.StableId}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, hole.StableId, Loop: exitLoop, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
+            if (entryEdges.Length > 0 && LoopFor(entryEdges) is { } entryLoop) AddFeatureDescendant(new($"material:{hole.StableId}:entry-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, hole.StableId, Loop: entryLoop, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
+            if (exitEdges.Length > 0 && LoopFor(exitEdges) is { } exitLoop) AddFeatureDescendant(new($"material:{hole.StableId}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, hole.StableId, Loop: exitLoop, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
         }
         foreach (var hole in stack.Feature.CounterboreHoles ?? [])
         {
@@ -423,11 +437,11 @@ public static class PrismaticSectionStackEmitter
             var exitEdges = shaftEdges.Where(item => Math.Abs(item.Z - exitZ) <= Tol).Select(item => item.Edge).Distinct().OrderBy(id => id.Value).ToArray();
             LoopId? LoopFor(IReadOnlyList<EdgeId> boundary) => builder.Model.Loops.Select(loop => (loop.Id, Edges: loop.CoedgeIds.Select(id => builder.Model.Coedges.Single(x => x.Id == id).EdgeId).ToHashSet()))
                 .Where(item => item.Edges.SetEquals(boundary.ToHashSet())).Select(item => (LoopId?)item.Id).SingleOrDefault();
-            foreach (var face in boreSides.Select(item => item.Face).Distinct().OrderBy(id => id.Value)) descendants.Add(new($"material:{hole.StableId}:counterbore-wall:{face.Value}", "Face", SemanticTopologyRole.HoleCounterboreWallFace, hole.StableId, Face: face, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.CounterboreDiameter:R}"));
-            foreach (var face in shaftSides.Select(item => item.Face).Distinct().OrderBy(id => id.Value)) descendants.Add(new($"material:{hole.StableId}:shaft-wall:{face.Value}", "Face", SemanticTopologyRole.HoleCounterboreShaftWallFace, hole.StableId, Face: face, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
-            if (mouthEdges.Length > 0 && LoopFor(mouthEdges) is { } mouthLoop) descendants.Add(new($"material:{hole.StableId}:mouth", "Loop", SemanticTopologyRole.HoleCounterboreMouthLoop, hole.StableId, Loop: mouthLoop, ParentStableId: hole.StableId));
-            if (shoulderEdges.Length > 0 && LoopFor(shoulderEdges) is { } shoulderLoop) descendants.Add(new($"material:{hole.StableId}:shoulder", "Loop", SemanticTopologyRole.HoleCounterboreShoulderLoop, hole.StableId, Loop: shoulderLoop, ParentStableId: hole.StableId));
-            if (exitEdges.Length > 0 && LoopFor(exitEdges) is { } exitLoop) descendants.Add(new($"material:{hole.StableId}:exit", "Loop", SemanticTopologyRole.HoleExitLoop, hole.StableId, Loop: exitLoop, ParentStableId: hole.StableId));
+            foreach (var face in boreSides.Select(item => item.Face).Distinct().OrderBy(id => id.Value)) AddFeatureDescendant(new($"material:{hole.StableId}:counterbore-wall:{face.Value}", "Face", SemanticTopologyRole.HoleCounterboreWallFace, hole.StableId, Face: face, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.CounterboreDiameter:R}"));
+            foreach (var face in shaftSides.Select(item => item.Face).Distinct().OrderBy(id => id.Value)) AddFeatureDescendant(new($"material:{hole.StableId}:shaft-wall:{face.Value}", "Face", SemanticTopologyRole.HoleCounterboreShaftWallFace, hole.StableId, Face: face, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
+            if (mouthEdges.Length > 0 && LoopFor(mouthEdges) is { } mouthLoop) AddFeatureDescendant(new($"material:{hole.StableId}:mouth", "Loop", SemanticTopologyRole.HoleCounterboreMouthLoop, hole.StableId, Loop: mouthLoop, ParentStableId: hole.StableId));
+            if (shoulderEdges.Length > 0 && LoopFor(shoulderEdges) is { } shoulderLoop) AddFeatureDescendant(new($"material:{hole.StableId}:shoulder", "Loop", SemanticTopologyRole.HoleCounterboreShoulderLoop, hole.StableId, Loop: shoulderLoop, ParentStableId: hole.StableId));
+            if (exitEdges.Length > 0 && LoopFor(exitEdges) is { } exitLoop) AddFeatureDescendant(new($"material:{hole.StableId}:exit", "Loop", SemanticTopologyRole.HoleExitLoop, hole.StableId, Loop: exitLoop, ParentStableId: hole.StableId));
         }
         foreach (var slot in stack.Feature.AllSlotProfiles)
         {
@@ -443,17 +457,17 @@ public static class PrismaticSectionStackEmitter
             var entryZ=horizontalEdges.Max(x=>x.Z); var exitZ=horizontalEdges.Min(x=>x.Z);
             var entryEdges=horizontalEdges.Where(x=>Math.Abs(x.Z-entryZ)<=Tol).Select(x=>x.Edge).Distinct().OrderBy(x=>x.Value).ToArray();
             var exitEdges=horizontalEdges.Where(x=>Math.Abs(x.Z-exitZ)<=Tol).Select(x=>x.Edge).Distinct().OrderBy(x=>x.Value).ToArray();
-            foreach(var edge in entryEdges) descendants.Add(new($"material:{slot.StableId}:entry-edge:{edge.Value}","Edge",SemanticTopologyRole.TopBoundary,slot.StableId,Edge:edge,ParentStableId:slot.StableId,GeometryPreview:"capsule-entry"));
-            foreach(var edge in exitEdges) descendants.Add(new($"material:{slot.StableId}:exit-edge:{edge.Value}","Edge",SemanticTopologyRole.BottomBoundary,slot.StableId,Edge:edge,ParentStableId:slot.StableId,GeometryPreview:"capsule-exit"));
+            foreach(var edge in entryEdges) AddFeatureDescendant(new($"material:{slot.StableId}:entry-edge:{edge.Value}","Edge",SemanticTopologyRole.TopBoundary,slot.StableId,Edge:edge,ParentStableId:slot.StableId,GeometryPreview:"capsule-entry"));
+            foreach(var edge in exitEdges) AddFeatureDescendant(new($"material:{slot.StableId}:exit-edge:{edge.Value}","Edge",SemanticTopologyRole.BottomBoundary,slot.StableId,Edge:edge,ParentStableId:slot.StableId,GeometryPreview:"capsule-exit"));
             foreach(var side in slotSides)
             {
                 var role = side.Side.Source.EndsWith(".PositiveSide",StringComparison.Ordinal) || side.Side.Source.EndsWith(".NegativeSide",StringComparison.Ordinal) || side.Side.Source.EndsWith(".StartSide",StringComparison.Ordinal) || side.Side.Source.EndsWith(".EndSide",StringComparison.Ordinal) ? SemanticTopologyRole.SlotStraightWallFace : SemanticTopologyRole.SlotEndWallFace;
-                descendants.Add(new($"material:{slot.StableId}:wall:{side.Face.Value}","Face",SemanticTopologyRole.SlotWallFace,slot.StableId,Face:side.Face,ParentStableId:slot.StableId));
-                descendants.Add(new($"material:{slot.StableId}:{role}:{side.Face.Value}","Face",role,slot.StableId,Face:side.Face,ParentStableId:slot.StableId));
+                AddFeatureDescendant(new($"material:{slot.StableId}:wall:{side.Face.Value}","Face",SemanticTopologyRole.SlotWallFace,slot.StableId,Face:side.Face,ParentStableId:slot.StableId,IsTopologyAlias:true));
+                AddFeatureDescendant(new($"material:{slot.StableId}:{role}:{side.Face.Value}","Face",role,slot.StableId,Face:side.Face,ParentStableId:slot.StableId));
             }
             LoopId? LoopFor(IReadOnlyList<EdgeId> boundary) => builder.Model.Loops.Select(loop => (loop.Id, Edges: loop.CoedgeIds.Select(id => builder.Model.Coedges.Single(x => x.Id == id).EdgeId).ToHashSet())).Where(x => x.Edges.SetEquals(boundary.ToHashSet())).Select(x => (LoopId?)x.Id).SingleOrDefault();
-            if (entryEdges.Length > 0 && LoopFor(entryEdges) is { } entryLoop) descendants.Add(new($"material:{slot.StableId}:entry-loop","Loop",SemanticTopologyRole.SlotEntryLoop,slot.StableId,Loop:entryLoop,ParentStableId:slot.StableId));
-            if (exitEdges.Length > 0 && LoopFor(exitEdges) is { } exitLoop) descendants.Add(new($"material:{slot.StableId}:exit-loop","Loop",SemanticTopologyRole.SlotExitLoop,slot.StableId,Loop:exitLoop,ParentStableId:slot.StableId));
+            if (entryEdges.Length > 0 && LoopFor(entryEdges) is { } entryLoop) AddFeatureDescendant(new($"material:{slot.StableId}:entry-loop","Loop",SemanticTopologyRole.SlotEntryLoop,slot.StableId,Loop:entryLoop,ParentStableId:slot.StableId));
+            if (exitEdges.Length > 0 && LoopFor(exitEdges) is { } exitLoop) AddFeatureDescendant(new($"material:{slot.StableId}:exit-loop","Loop",SemanticTopologyRole.SlotExitLoop,slot.StableId,Loop:exitLoop,ParentStableId:slot.StableId));
         }
         var provenance = new List<string> { "ProfileArrangement2D", "PrismaticSectionStackConstruction", "PrismaticSectionStackBrepPlan", "AuthoritativeBRepPlan" };
         if ((stack.Feature.ShaftHoles?.Count ?? 0) > 0) provenance.Insert(0, "SemanticHoleComposeLowering");

@@ -150,7 +150,7 @@ public static class FirmamentLanguageService
     {
         // Ignore comments/strings and balance nested blocks in incomplete drafts.
         var prefix = Regex.Replace(source[..offset], @"//[^\r\n]*|/\*[\s\S]*?\*/|""(?:\\.|[^""\\])*""", m => new string(' ', m.Length));
-        var names = "Scene|Room|Door|Window|Camera|WireRoute|Follow|Section|Points|Linear|Series|Appearance|Material|Placement|FrameTransform|Garment|Panel|Fabric|Drape|FigureFit|Fitting|PoseTransition|Pose|Joint|Interface|Hole";
+        var names = "Scene|Room|Door|Window|Camera|WireRoute|Follow|Section|Points|Linear|Series|Appearance|Material|Placement|FrameTransform|Garment|Panel|Fabric|Drape|FigureFit|Fitting|PoseTransition|Pose|Joint|Interface|Hole|EdgeFinish";
         var matches = Regex.Matches(prefix, $@"\b(?<kind>{names})(?:\s*<(?<family>[^>]+)>)?(?:\s+[A-Za-z_]\w*)?\s*\{{");
         var syntax = FirmamentSyntaxParser.Parse(source);
         var declarations = FirmamentSyntaxTraversal.Declarations(syntax.Document).ToArray();

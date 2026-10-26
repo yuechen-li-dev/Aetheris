@@ -107,6 +107,20 @@ public sealed class FirmamentGraphAuthoringTests
         Assert.Contains("size: [80mm, 60mm]", result.Text);
         Assert.Contains("to: 8mm", result.Text);
         Builds(result.Text);
+        var built = FirmamentBuildAndExport.CompileSource(result.Text).Value;
+        var correspondence = built.RuntimeCorrespondence!;
+        var map = new GeometrySourceMap(correspondence);
+        var walls = correspondence.Descendants.Where(d => d.Face.HasValue && !d.IsTopologyAlias && d.GeometryPreview == "Pocket").ToArray();
+        Assert.NotEmpty(walls);
+        foreach (var wall in walls)
+        {
+            Assert.True(map.TryGetByBrepFace(wall.Face!.Value, out var picked));
+            Assert.Equal(wall, picked);
+            var origin = Assert.Single(correspondence.Descendants, d => d.IsTopologyAlias && d.Face == wall.Face);
+            Assert.StartsWith("profile:", origin.SourceStableId);
+            Assert.Contains(origin, map.GetEntitiesForSemanticKey(origin.StableId));
+            Assert.Throws<InvalidOperationException>(() => new GeometrySourceMap(correspondence with { Descendants = correspondence.Descendants.Where(d => d != wall).ToArray() }));
+        }
     }
 
     [Fact]

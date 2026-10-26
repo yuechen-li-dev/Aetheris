@@ -165,6 +165,27 @@ public class FirmamentIntelliDraftTests
         Assert.Equal(Math.PI, arcs.Sum(a => Math.Abs(a.Sweep)), 10);
     }
 
+    [Fact]
+    public void ADimensionCanBeWrittenAsAnExplicitExpression()
+    {
+        var draft = new Draft(); draft.Add(new("layout", Name: "layout"));
+        draft.Add(new("rectangle", draft.Id("layout"), "outer", Width: 60, Height: 40));
+        draft.Add(new("rectangle", draft.Id("layout"), "inner", Width: 20, Height: 10));
+        string Width(string shape) => draft.View.Shapes.Single(s => s.Name == shape).Controls.Single(c => c.Label == "Width").Id;
+        void Edit(string control, string expression) => draft.Source = FirmamentSketchService.Edit(draft.Source, "draft.firmament", "0",
+            new("constructionDimensions", Changes: [new(control, 0, expression)])).Text;
+        Edit(Width("inner"), "outerWidth / 2");
+        Assert.Contains("Static innerWidth: Length = outerWidth / 2", draft.Source);
+        var inner = draft.View.Shapes.Single(s => s.Name == "inner").Controls.Single(c => c.Label == "Width");
+        Assert.Equal(30, inner.Value, 9); Assert.False(inner.Editable);
+        Edit(Width("outer"), "80");
+        Assert.Equal(40, draft.View.Shapes.Single(s => s.Name == "inner").Controls.Single(c => c.Label == "Width").Value, 9);
+        var before = draft.Source;
+        Assert.Throws<FirmamentLanguageEditException>(() => Edit(Width("outer"), "outerHeight + }"));
+        Assert.ThrowsAny<Exception>(() => Edit(Width("outer"), "nowhere * 2"));
+        Assert.Equal(before, draft.Source);
+    }
+
     private static string Flat(string source) => System.Text.RegularExpressions.Regex.Replace(source, @"\s+", " ");
     private sealed class Draft
     {

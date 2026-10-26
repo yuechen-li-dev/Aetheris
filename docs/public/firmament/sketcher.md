@@ -31,7 +31,16 @@ zoom; Alt snaps to 0.1 mm.
 - The rounded menu also draws `SmoothRoundedRect2` (continuous-curvature
   corners) with its `cornerExtent`.
 
+While drawing, a click snaps to a named point, a line's midpoint, a point on a
+curve, or the level of (or the line under) a named point, and a marker says which.
+Snaps only place points; nothing remembers them. Alt draws freely.
+
 Selected shapes show their dimensions on the canvas; click one to type a value.
+A value can also be an expression over parameters, such as `outerWidth / 2`
+(parameter names complete as you type); it is written to source, so the dimension
+becomes driven and shows in parentheses. **Align … to** moves the selected shape so
+its edges or centre line up with another shape, which stays put; this too is
+written as plain coordinates.
 Values driven by an expression are dashed and read-only. Resizing a shape whose
 edge is lined up with another shape's edge asks once whether to move that shape
 too; nothing is stored, and drags never ask. Rename and Delete act on the selected
@@ -44,10 +53,13 @@ picking and alignment, but their source and any traced Profile remain intact.
 Temporary alignment guides help placement while dragging; they do not link
 shapes. Hold Alt to bypass alignment.
 
-Choose **Trace** and click the edges of the outline on the canvas: rectangle
+Choose **Trace** and click inside an enclosed area to trace it in one step, or click
+the edges of the outline on the canvas: rectangle
 sides, lines and arcs between named points, across shapes. Click order and
 direction do not matter; the outline is written counter-clockwise. The sidebar
-shows whether the outline is closed. **Use this outline** writes the Profile;
+shows whether the outline is closed. The canvas marks open ends (nothing continues
+from them) and ends that meet only by position (two named points that happen to
+coincide, which an edit could pull apart). **Use this outline** writes the Profile;
 **Use whole shape outline** traces one closed shape. Picks are also available
 as a list under **Edges as a list**.
 

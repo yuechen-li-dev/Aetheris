@@ -22,7 +22,9 @@ public sealed record FirmamentSketch(string Version, string Document, string Rev
 {
     public FirmamentDraftConstruction? Construction { get; init; }
 }
-public sealed record FirmamentSketchChange(string Control, double Value);
+/// <summary>A dimension edit: a number in the control's unit, or an explicit source expression
+/// (`rect2Width * 2`) that makes the relationship part of the source.</summary>
+public sealed record FirmamentSketchChange(string Control, double Value, string? Expression = null);
 public sealed record FirmamentSketchEditRequest(string Kind, string? Node = null, string? Shape = null,
     IReadOnlyList<FirmamentSketchChange>? Changes = null, double X = 0, double Y = 0,
     string? Reference = null, string? Anchor = null, double Diameter = 4, double Width = 80, double Height = 50,
@@ -267,11 +269,24 @@ public static class FirmamentSketchService
             foreach (var change in changes)
             {
                 if (!targets.TryGetValue(change.Control, out var target)) throw Refuse("sketch-dimension-readonly", "The dimension is driven by an expression or is no longer available. Edit its inputs instead.");
-                if (!double.IsFinite(change.Value)) throw Refuse("sketch-number-invalid", "A dimension must be finite.");
                 var control = view.Shapes.SelectMany(s => s.Controls).Single(c => c.Id == change.Control);
                 var key = (target.Node, target.Field);
                 if (!replacements.TryGetValue(key, out var list)) replacements[key] = list = [];
-                var value = change.Value.ToString("R", CultureInfo.InvariantCulture) + control.Unit;
+                string value;
+                if (change.Expression is { } authored && authored.Trim().Length > 0)
+                {
+                    var expression = authored.Trim();
+                    if (double.TryParse(expression, NumberStyles.Float, CultureInfo.InvariantCulture, out var plain)) expression = plain.ToString("R", CultureInfo.InvariantCulture) + control.Unit;
+                    var probe = FirmamentSyntaxParser.Parse($"Static probe: Length = {expression}");
+                    if (probe.Diagnostics.Any(d => d.Severity is "error" or "fatal") || expression.IndexOfAny(['{', '}', ';', '\n']) >= 0)
+                        throw Refuse("sketch-expression-invalid", $"'{authored.Trim()}' is not one expression.");
+                    value = expression;
+                }
+                else
+                {
+                    if (!double.IsFinite(change.Value)) throw Refuse("sketch-number-invalid", "A dimension must be finite.");
+                    value = change.Value.ToString("R", CultureInfo.InvariantCulture) + control.Unit;
+                }
                 if (list.Any(p => p.Expression.Span == target.Expression.Span && p.Value != value))
                     throw Refuse("sketch-shared-parameter-conflict", "These dimensions share a parameter and requested different values. Edit the parameter once.");
                 list.Add((target.Expression, value));

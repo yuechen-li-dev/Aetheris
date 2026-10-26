@@ -103,7 +103,7 @@ export interface SketchProjection {
   shapes: readonly SketchShape[]; diagnostics: readonly { severity: string; code: string; message: string; span: { start: number; length: number } | null }[];
   validationLevel: 'ProfileResolvedNotBuilt' | 'Unresolved';
 }
-export interface SketchEditRequest { kind: 'dimensions' | 'create' | 'opening' | 'construction' | 'constructionDimensions'; construction?: DraftOperation; node?: string | null; shape?: string; changes?: readonly { control: string; value: number }[]; x?: number; y?: number; reference?: string; anchor?: string; diameter?: number; width?: number; height?: number }
+export interface SketchEditRequest { kind: 'dimensions' | 'create' | 'opening' | 'construction' | 'constructionDimensions'; construction?: DraftOperation; node?: string | null; shape?: string; changes?: readonly { control: string; value: number; /** An explicit source expression instead of a number, e.g. `rect1Width / 2`. */ expression?: string }[]; x?: number; y?: number; reference?: string; anchor?: string; diameter?: number; width?: number; height?: number }
 
 export interface LanguageHover { readonly document: string; readonly revision: string; readonly start: number; readonly length: number; readonly title: string; readonly description: string }
 export interface LanguageFormat { readonly document: string; readonly revision: string; readonly text: string; readonly changed: boolean }

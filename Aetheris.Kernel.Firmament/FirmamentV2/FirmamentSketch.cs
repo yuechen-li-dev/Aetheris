@@ -18,11 +18,15 @@ public sealed record FirmamentSketch(string Version, string Document, string Rev
     IReadOnlyList<FirmamentSketchChoice> Profiles, IReadOnlyList<FirmamentSketchChoice> EmptyModels,
     IReadOnlyList<FirmamentSketchChoice> OpeningReferences,
     FirmamentSketchFrame? Frame, IReadOnlyList<FirmamentSketchLoop> Loops, IReadOnlyList<FirmamentSketchShape> Shapes,
-    IReadOnlyList<FirmamentOutlineDiagnostic> Diagnostics, string ValidationLevel);
+    IReadOnlyList<FirmamentOutlineDiagnostic> Diagnostics, string ValidationLevel)
+{
+    public FirmamentDraftConstruction? Construction { get; init; }
+}
 public sealed record FirmamentSketchChange(string Control, double Value);
 public sealed record FirmamentSketchEditRequest(string Kind, string? Node = null, string? Shape = null,
     IReadOnlyList<FirmamentSketchChange>? Changes = null, double X = 0, double Y = 0,
-    string? Reference = null, string? Anchor = null, double Diameter = 4, double Width = 80, double Height = 50);
+    string? Reference = null, string? Anchor = null, double Diameter = 4, double Width = 80, double Height = 50,
+    FirmamentDraftOperation? Construction = null);
 
 /// <summary>Source-owned 2D projection and edits. It reuses domain binding, closed-boundary admission,
 /// Profile resolution and structural transactions. A resolved sketch is deliberately not a built solid.</summary>
@@ -35,7 +39,10 @@ public static class FirmamentSketchService
     public static FirmamentSketch Project(string source, string document, string revision, string? node = null)
         => Read(source, document, revision, node).View;
 
-    private static (FirmamentSketch View, Dictionary<string, Target> Targets) Read(string source, string document, string revision, string? node)
+    internal static IReadOnlyList<FirmamentSketchShape> ConstructionShapes(string source, string document, string revision)
+        => Read(source, document, revision, null, true).View.Shapes;
+
+    private static (FirmamentSketch View, Dictionary<string, Target> Targets) Read(string source, string document, string revision, string? node, bool constructionOnly = false)
     {
         var parsed = FirmamentSyntaxParser.Parse(source, document);
         var declarations = FirmamentLanguageOutlineService.Declarations(parsed);
@@ -55,18 +62,19 @@ public static class FirmamentSketchService
         }
         var errors = parsed.Diagnostics.Select(d => Diagnostic(d.Code, d.Message, d.SourceSpan)).ToList();
         var targets = new Dictionary<string, Target>(StringComparer.Ordinal);
+        var construction = constructionOnly ? null : FirmamentIntelliDraft.Project(source, document);
         FirmamentSketch Result(FirmamentSketchFrame? frame = null, IReadOnlyList<FirmamentSketchLoop>? loops = null,
             IReadOnlyList<FirmamentSketchShape>? shapes = null) => new("firmament-sketch/1", document, revision, node,
                 profiles, empty, declarations.Where(d => reachableOpening(d.Id, shapes)).Select(d => new FirmamentSketchChoice(d.Id, d.Syntax.Name!.Text)).ToArray(), frame, loops ?? [], shapes ?? [], errors,
-                errors.Count == 0 && frame is not null ? "ProfileResolvedNotBuilt" : "Unresolved");
-        if (node is null) return (Result(), targets);
+                errors.Count == 0 && frame is not null ? "ProfileResolvedNotBuilt" : "Unresolved") { Construction = construction };
+        if (node is null && !constructionOnly) return (Result(), targets);
         var selected = declarations.FirstOrDefault(d => d.Id == node);
-        if (selected.Syntax?.Type.Name.Text != "Profile")
+        if (!constructionOnly && selected.Syntax?.Type.Name.Text != "Profile")
         {
             errors.Add(Diagnostic("sketch-profile-required", "Choose the Profile to edit. A shape may be shared by several Profiles.", selected.Syntax?.Span));
             return (Result(), targets);
         }
-        if (profiles.Count(p => p.Name == selected.Syntax.Name!.Text) != 1)
+        if (!constructionOnly && profiles.Count(p => p.Name == selected.Syntax.Name!.Text) != 1)
         {
             errors.Add(Diagnostic("sketch-profile-ambiguous", "This projection requires a uniquely named Profile; choose a document with one unambiguous authored owner.", selected.Syntax.Span));
             return (Result(), targets);
@@ -75,10 +83,14 @@ public static class FirmamentSketchService
         var binding = new FirmamentDomainBinding(source, document, "Model", DomainResults);
         errors.AddRange(binding.Diagnostics.Where(d => d.Severity is "error" or "fatal").Select(d => Diagnostic(d.Code, d.Message, d.SourceSpan)));
         if (errors.Count > 0) return (Result(), targets);
-        var profile = binding.ResolveProfile(selected.Syntax.Name!.Text, out var codes);
-        errors.AddRange(codes.Select(c => Diagnostic(c.Split(':')[0], c, selected.Syntax.Span)));
-        if (profile is null || errors.Count > 0) return (Result(), targets);
-        var reachable = Reachable(node);
+        ResolvedProfile2D? profile = null;
+        if (!constructionOnly)
+        {
+            profile = binding.ResolveProfile(selected.Syntax.Name!.Text, out var codes);
+            errors.AddRange(codes.Select(c => Diagnostic(c.Split(':')[0], c, selected.Syntax.Span)));
+            if (profile is null || errors.Count > 0) return (Result(), targets);
+        }
+        var reachable = constructionOnly ? declarations.Select(d => d.Id).ToHashSet() : Reachable(node!);
         var shapes = new List<FirmamentSketchShape>();
         foreach (var item in declarations.Where(d => reachable.Contains(d.Id) && EditableShapes.Contains(d.Syntax.Type.Name.Text) && !InRecipe(d.Id)))
         {
@@ -125,7 +137,8 @@ public static class FirmamentSketchService
             }
             shapes.Add(new(item.Id, item.Syntax.Name!.Text, item.Syntax.Type.Name.Text, center, controls));
         }
-        var plane = profile.EffectiveConstructionPlane;
+        if (constructionOnly) return (Result(shapes: shapes), targets);
+        var plane = profile!.EffectiveConstructionPlane;
         return (Result(new(profile.PlaneFrame, [plane.Origin.X, plane.Origin.Y, plane.Origin.Z],
             [plane.AxisX.X, plane.AxisX.Y, plane.AxisX.Z], [plane.AxisY.X, plane.AxisY.Y, plane.AxisY.Z],
             [plane.AxisZ.X, plane.AxisZ.Y, plane.AxisZ.Z]),
@@ -160,6 +173,8 @@ public static class FirmamentSketchService
 
     public static FirmamentLanguageEdit Edit(string source, string document, string revision, FirmamentSketchEditRequest request)
     {
+        if (request.Kind == "construction") return FirmamentIntelliDraft.Edit(source, document, revision,
+            request.Construction ?? throw Refuse("draft-operation-required", "Choose a construction operation."));
         var operations = new List<FirmamentLanguageEditOperation>();
         if (request.Kind == "create")
         {
@@ -240,10 +255,10 @@ public static class FirmamentSketchService
             operations.Add(new("insertDeclaration") { Parent = rectangle.ParentId, Source = $"Circle2 {name} {{ center: [{Position(cx, width, signs.Item1, request.X)}, {Position(cy, height, signs.Item2, request.Y)}] diameter: {Length(request.Diameter)} }}" });
             operations.Add(new("insertDeclaration") { Parent = view.Node, Source = $"Loop {name} {{ {name} |> TraceLoop }}" });
         }
-        else if (request.Kind == "dimensions")
+        else if (request.Kind is "dimensions" or "constructionDimensions")
         {
-            var (view, targets) = Read(source, document, revision, request.Node);
-            if (view.ValidationLevel != "ProfileResolvedNotBuilt") throw Refuse("sketch-unresolved", "Resolve the selected profile before editing its dimensions.");
+            var (view, targets) = Read(source, document, revision, request.Node, request.Kind == "constructionDimensions");
+            if (request.Kind != "constructionDimensions" && view.ValidationLevel != "ProfileResolvedNotBuilt") throw Refuse("sketch-unresolved", "Resolve the selected profile before editing its dimensions.");
             var changes = request.Changes ?? [];
             if (changes.Count == 0 || changes.Select(c => c.Control).Distinct().Count() != changes.Count) throw Refuse("sketch-edit-empty", "Supply unique dimension changes.");
             var replacements = new Dictionary<(string Node, string? Field), List<(ExpressionSyntax Expression, string Value)>>();
@@ -276,6 +291,12 @@ public static class FirmamentSketchService
         // No silently clamped radii, changed winding or implicit geometry repair. Reuse admission
         // before returning a source transaction; the caller still performs the full engineering build.
         var after = Project(result.Text, document, revision, request.Kind == "create" ? result.Nodes[^2] : request.Node);
+        if (request.Kind == "constructionDimensions" && after.Profiles.Count == 0)
+        {
+            var error = after.Construction?.Diagnostics.FirstOrDefault(d => d.Severity is "error" or "fatal");
+            if (error is not null) throw Refuse(error.Code, error.Message);
+            return result;
+        }
         if (after.ValidationLevel != "ProfileResolvedNotBuilt")
             throw Refuse("sketch-profile-invalid", string.Join("\n", after.Diagnostics.Select(d => d.Message)));
         return result;
@@ -292,7 +313,7 @@ public static class FirmamentSketchService
         CallSyntax { Target: ReferenceSyntax { Name.Text: "Point2" } } call => call.Arguments.Select(a => a.Value).ToArray(),
         _ => []
     };
-    private static bool Literal(ExpressionSyntax expression) => expression switch
+    internal static bool Literal(ExpressionSyntax expression) => expression switch
     {
         LiteralSyntax { Kind: LiteralKind.Number } => true,
         QuantitySyntax { Value: LiteralSyntax { Kind: LiteralKind.Number } } => true,
@@ -304,7 +325,7 @@ public static class FirmamentSketchService
         span is null ? null : new(span.Start, span.Length));
     private static FirmamentLanguageEditException Refuse(string code, string message) => new(code, message);
     private static string Length(double value) => value.ToString("R", CultureInfo.InvariantCulture) + "mm";
-    private static FirmamentSketchCurve Curve(ResolvedProfileSegment2D segment)
+    internal static FirmamentSketchCurve Curve(ResolvedProfileSegment2D segment)
     {
         static double[] P((double X, double Y) p) => [p.X, p.Y];
         return segment.Geometry switch

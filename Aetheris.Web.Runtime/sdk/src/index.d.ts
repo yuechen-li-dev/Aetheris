@@ -95,7 +95,7 @@ export interface SketchCurve {
   provenance?: { stableId: string; conceptStableId: string; sourceSpan: string; derivation: string; sourceFrame: string; tracedFrom?: string | null; reversed: boolean; pipelineIndex?: number | null; invocationSourceRange?: string | null };
 }
 export interface SketchProjection {
-  version: 'firmament-sketch/1'; document: string; revision: string; node: string | null;
+  construction?: DraftConstruction; version: 'firmament-sketch/1'; document: string; revision: string; node: string | null;
   profiles: readonly { id: string; name: string }[]; emptyModels: readonly { id: string; name: string }[];
   openingReferences: readonly { id: string; name: string }[];
   frame: { name: string; origin: readonly number[]; x: readonly number[]; y: readonly number[]; normal: readonly number[] } | null;
@@ -103,7 +103,7 @@ export interface SketchProjection {
   shapes: readonly SketchShape[]; diagnostics: readonly { severity: string; code: string; message: string; span: { start: number; length: number } | null }[];
   validationLevel: 'ProfileResolvedNotBuilt' | 'Unresolved';
 }
-export interface SketchEditRequest { kind: 'dimensions' | 'create' | 'opening'; node?: string | null; shape?: string; changes?: readonly { control: string; value: number }[]; x?: number; y?: number; reference?: string; anchor?: string; diameter?: number; width?: number; height?: number }
+export interface SketchEditRequest { kind: 'dimensions' | 'create' | 'opening' | 'construction' | 'constructionDimensions'; construction?: DraftOperation; node?: string | null; shape?: string; changes?: readonly { control: string; value: number }[]; x?: number; y?: number; reference?: string; anchor?: string; diameter?: number; width?: number; height?: number }
 
 export interface LanguageHover { readonly document: string; readonly revision: string; readonly start: number; readonly length: number; readonly title: string; readonly description: string }
 export interface LanguageFormat { readonly document: string; readonly revision: string; readonly text: string; readonly changed: boolean }
@@ -175,3 +175,9 @@ export interface MeasurementResult {
   distanceMm: number | null; deltaMm: number[] | null; witnessA: number[] | null; witnessB: number[] | null;
   angleDegrees: number | null; quality: string; explanation: string;
 }
+
+export interface DraftElement { id: string; name: string; kind: string; parent: string | null; span: { start: number; length: number }; fields: readonly { name: string; value: string; number: number | null; unit: string | null; editable: boolean }[] }
+export interface DraftTrace { reference: string; from?: string; to?: string; alias?: string; reverse?: boolean; connect?: boolean; wholeLoop?: boolean }
+export interface DraftOperation { action: 'layout' | 'point' | 'line' | 'circle' | 'path' | 'step' | 'trace' | 'extrude' | 'movePoint' | 'dimension' | 'rectangle' | 'parameter'; width?: number; height?: number; reference?: string; insetX?: number; insetY?: number; sharedInset?: boolean; targetProfile?: string; field?: string; value?: number; parent?: string; name?: string; kind?: string; plane?: string; x?: number; y?: number; length?: number; radius?: number; turn?: number; from?: string; to?: string; trace?: readonly DraftTrace[] }
+export interface DraftSpan { id: string; owner: string; reference: string; from: string; to: string; curve: SketchCurve }
+export interface DraftConstruction { shapes?: readonly SketchShape[]; spans?: readonly DraftSpan[]; frames: readonly { owner: string; frame: NonNullable<SketchProjection['frame']> }[]; elements: readonly DraftElement[]; points: readonly { name: string; x: number; y: number }[]; guides: readonly SketchCurve[]; diagnostics: readonly SketchProjection['diagnostics'][number][]; validationLevel: 'ConstructionResolvedNotTraced' | 'Unresolved' }

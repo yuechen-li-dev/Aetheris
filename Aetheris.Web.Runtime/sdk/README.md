@@ -212,6 +212,27 @@ error code and explanation, with no source mutation.
 This first contract addresses authored Profiles in one document. It does not
 rewrite included/generated declarations. See [the authoring guide](../../docs/public/firmament/sketcher.md).
 
+The additive `construction` projection exposes named points, bound guides, source
+elements, literal dimension controls and layout frames even before a Profile
+exists. Its `ConstructionResolvedNotTraced` level is not solid admission.
+`sketchEdit` also accepts `{ kind: 'construction', construction: operation }`.
+Typed operations create a layout, point, line, circle, Path, Path step, trace or
+extrusion; `movePoint` and `dimension` edit literal authoring inputs. They reuse
+the structural writer and existing Profile resolver. Keep intermediate source
+in a host-owned draft transaction and compile the complete candidate before
+committing. Preserve the preceding source and built model on refusal.
+
+`construction.shapes` retains typed closed shapes and reuses the existing driving
+dimension controls even before a Profile exists. `construction.spans` provides
+selectable rectangle-edge intervals between existing named landmarks. It does
+not invent intersections or flatten the source into editable segments.
+`rectangle` creates an independent Rect2 or a top-right inset driven by a reference
+rectangle; `parameter` changes a literal shared Length input. The existing edit
+transport also accepts `constructionDimensions` with the projected control ids.
+Connected span entries use `connect: true`; `wholeLoop: true` selects a complete
+rectangle outline. `targetProfile` explicitly replaces an authored Profile after
+the replacement resolves. All these edits remain staged until normal compilation.
+
 ### Pending graph authoring
 
 `language.edit` also prepares `replaceDeclaration`, `patternFeature`,

@@ -1,0 +1,14 @@
+Model DPlate {
+  units: mm
+  Concept Struct layout on XY {
+    Point2 center { position: [0mm, 0mm] }
+    Point2 lower { position: [0mm, -15mm] }
+    Point2 upper { position: [0mm, 15mm] }
+    Circle2 rim { center: center; radius: 15mm }
+    Line2 chord { from: upper; to: lower }
+  }
+  Profile section using layout {
+    Loop Outer { rim from lower to upper as arc |> chord |> Close }
+  }
+  Extrude body { profile: section; from: 0mm; to: 6mm }
+}

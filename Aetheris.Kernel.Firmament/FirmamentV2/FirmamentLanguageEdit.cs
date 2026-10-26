@@ -691,7 +691,7 @@ public static partial class FirmamentLanguageEditService
         return trimmed;
     }
 
-    private static string RequireIdentifier(string? value, string what)
+    internal static string RequireIdentifier(string? value, string what)
     {
         if (value is null || !Identifier.IsMatch(value))
             throw new FirmamentLanguageEditException("edit-invalid-name", $"'{value}' is not a valid {what}: use letters, digits and _, starting with a letter.");

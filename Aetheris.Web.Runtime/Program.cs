@@ -620,17 +620,20 @@ public static partial class Program
             var featureNodes = (build.Value.EngineeringFeatures ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true,
                     projections.FirstOrDefault(item => item.SemanticId == feature.FeatureId)?.ConstructSpan is { } span
                         ? SourceRefAt(_sourceName, effective, span.Start, span.Length) : null))
-                .Concat((build.Value.Features ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true, featureSources[feature.FeatureId], feature.Diameter))).ToArray();
+                .Concat((build.Value.Features ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true, featureSources[feature.FeatureId], feature.Diameter,
+                    HolePlacement: new(feature.PlacementFace, feature.LocalU, feature.LocalV, feature.ResolvedPoint3)))).ToArray();
             var projectedBodySource = projections.FirstOrDefault(item => item.SemanticId == entityId)?.ConstructSpan is { } bodySpan
                 ? SourceRefAt(_sourceName, effective, bodySpan.Start, bodySpan.Length) : null;
             // The tree shows the names the source declares (`Model Bracket`, `Extrude body`); the file
             // stem is only a fallback, so a part has one name in the editor, the tree and the viewport.
             var modelName = Regex.Match(effective, @"\bModel\s+([A-Za-z_]\w*)\s*\{") is { Success: true } model ? model.Groups[1].Value : Name;
+            var owner = MaterialOwner(effective, entityId);
             var bodyName = projections.FirstOrDefault(item => item.SemanticId == entityId)?.ConstructSpan is { } named
                 && Regex.Match(effective.Substring(named.Start, Math.Min(named.Length, effective.Length - named.Start)), @"^\s*(?:[A-Z]\w*\s+)*?[A-Z]\w*(?:<[^>]*>)?\s+([A-Za-z_]\w*)\s*[{;]") is { Success: true } declared
-                ? declared.Groups[1].Value : modelName;
+                ? declared.Groups[1].Value : owner?.Name?.Text ?? modelName;
             var body = new WebTreeNode(entityId, build.Value.ExportedBodyCategory, bodyName, Id, featureNodes.Select(item => item.Id).ToArray(), true,
-                boxSource ?? projectedBodySource ?? SourceRef(_sourceName, 0, effective.Length), SemanticConstruct: semanticConstruct);
+                boxSource ?? projectedBodySource ?? (owner is null ? null : SourceRefAt(_sourceName, effective, owner.Span.Start, owner.Span.Length))
+                    ?? SourceRef(_sourceName, 0, effective.Length), SemanticConstruct: semanticConstruct);
             var root = new WebTreeNode(Id, "Model", modelName, null, [body.Id], true, SourceRef(_sourceName, 0, effective.Length));
             var tree = new { rootId = root.Id, nodes = new[] { root, body }.Concat(featureNodes).ToArray() };
             var expectedPmi = Aetheris.Kernel.Firmament.Drawing.FirmamentDrawingCompiler.AuthoredPmiNames(build.Value);
@@ -749,6 +752,19 @@ public static partial class Program
         }).ToArray();
 
     private static WebSourceRef SourceRef(string source, int start, int length) => new(source, 1, 1, start, length);
+
+    /// <summary>
+    /// The declaration that owns a part's material: the one named like the built entity, else the single
+    /// Compose or Extrude. Profile-built bodies carry compiler ids (a Profile name, the Model) rather than this name.
+    /// </summary>
+    private static Aetheris.Kernel.Firmament.FirmamentV2.Syntax.DeclarationSyntax? MaterialOwner(string source, string entityId)
+    {
+        var declarations = Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FirmamentSyntaxTraversal.Declarations(
+            Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FirmamentSyntaxParser.Parse(source).Document)
+            .Where(d => d.Name is not null && d.Type.Name.Text is not ("Model" or "Modify" or "Profile" or "Static" or "Concept")).ToArray();
+        var owners = declarations.Where(d => d.Type.Name.Text is "Compose" or "Extrude").ToArray();
+        return declarations.FirstOrDefault(d => d.Name!.Text == entityId) ?? (owners.Length == 1 ? owners[0] : null);
+    }
     private static WebSourceRef SourceRefAt(string name, string text, int start, int length)
     {
         var prefix = text[..start];
@@ -904,7 +920,10 @@ internal static class WebMeshBuilder
 internal sealed record WebPropertyValue(double Value, string Unit);
 internal sealed record WebSourceRef(string Source, int Line, int Column, int Start, int Length);
 internal sealed record WebProperty(string Id, string OwnerEntityId, string Name, string Type, string Unit, double Value, bool Writable, int Start, int Length, WebSourceRef Source);
-internal sealed record WebTreeNode(string Id, string Kind, string Name, string? ParentId, IReadOnlyList<string> Children, bool Visible, WebSourceRef? Source, double? HoleDiameterMm = null, string? SemanticConstruct = null);
+internal sealed record WebTreeNode(string Id, string Kind, string Name, string? ParentId, IReadOnlyList<string> Children, bool Visible, WebSourceRef? Source, double? HoleDiameterMm = null, string? SemanticConstruct = null,
+    WebHolePlacement? HolePlacement = null);
+/// <summary>Where a built hole sits: its support face, the center in that face's local frame, and the world point when resolved.</summary>
+internal sealed record WebHolePlacement(string Face, double U, double V, IReadOnlyList<double>? PointMm);
 internal sealed record WebDiagnostic(string Severity, string Code, string Message, WebSourceRef? Source = null, string? Details = null);
 internal sealed record WebBuildResult(bool Success, int Revision, object? Model, IReadOnlyList<WebDiagnostic> Diagnostics, bool RetainedPreviousGeometry,
     object? Tree = null, object? Mesh = null, IReadOnlyList<string>? EntityIds = null, object? Timings = null, object? Changes = null, string? StepText = null,

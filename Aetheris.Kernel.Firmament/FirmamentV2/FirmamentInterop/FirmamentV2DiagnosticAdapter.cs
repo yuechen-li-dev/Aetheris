@@ -84,6 +84,9 @@ public static class FirmamentV2DiagnosticAdapter
             => $"Unknown field '{diagnosticCode.Split(':')[^1]}' in {diagnosticCode.Split(':')[1]}. Check this construct's documented fields.",
         _ when diagnosticCode.StartsWith(FirmamentV2Parser.CanonicalDeclarationUnknown + ":", StringComparison.Ordinal)
             => $"Unknown statement '{diagnosticCode.Split(':')[^1]}'{(diagnosticCode.Split(':').Length > 2 ? " in " + diagnosticCode.Split(':')[1] : "")}. Use an admitted construct in this context.",
+        // Producers write "code[:parameters]: explanation"; the explanation is the message.
+        _ when diagnosticCode.IndexOf(": ", StringComparison.Ordinal) is > 0 and var split && !diagnosticCode[..split].Any(char.IsWhiteSpace)
+            => diagnosticCode[(split + 2)..],
         _ => diagnosticCode
     };
 }

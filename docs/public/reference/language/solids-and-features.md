@@ -37,10 +37,11 @@ different construction.
 patterns. `Modify Base {}` with no features is a valid no-op, as long as `Base`
 exists.
 
-A plain `Extrude` takes only edge finishes in its Modify. Holes, perforations and
-patterns need a Profile-based `Compose` body (`Compose Plate { Base Stock { profile:
-Outline; from: 0mm; to: 8mm } }`); on an `Extrude` they reject rather than build
-without the feature.
+On a single `Extrude`, Modify takes the same features as on a `Compose` body:
+holes, slots, patterns and edge finishes. The Extrude builds as
+`Compose name { Base name { ... } }`. `Perforation` is for Box and hollow
+Cylinder stock; on Extrude and Compose bodies it rejects at its declaration
+(use a `Pattern` of holes for a grid of openings).
 
 Angular mold `Draft` is not currently a V2 `Modify` feature. Its bounded legacy
 operation does not imply support on the modern authoring path.
@@ -119,6 +120,21 @@ In a Compose body, all three variants are supported on the `+Z` support with
 `kind: Chamfer` and `kind: Fillet` are older spellings; if both a variant and
 `kind` are given, they must agree. A bare `Fillet name { ... }` is not an edge
 finish.
+
+An edge finish works on the edges around one face. To round the vertical edges
+of a plate or block, round the corners of its outline instead; the result is
+exact and holes still apply:
+
+```firmament
+Model Plate {
+  units: mm
+  Profile Outline = RoundedRect2 { center: [0mm, 0mm]; size: [50mm, 40mm]; radius: 3mm }
+  Extrude Plate { profile: Outline; from: 0mm; to: 8mm }
+  Modify Plate {
+    Hole<Shaft> Corner { on: +Z; center: Point2(19mm, 14mm); diameter: 5.5mm; end: ThroughAll }
+  }
+}
+```
 
 What you can select depends on the body:
 

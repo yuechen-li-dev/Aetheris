@@ -73,6 +73,33 @@ public static class FirmamentBuildAdmissionValidation
         }, source, sourceFile) with { Code = code, Message = FirmamentInterop.FirmamentV2DiagnosticAdapter.MessageFor(diagnostic.Message) };
     }
 
+    /// <summary>
+    /// Producer codes name what they reject as <c>code:Kind:Name</c> or <c>key=Name</c> parameters. When those
+    /// parameters name exactly one declaration in the source, that declaration is the diagnostic's location.
+    /// </summary>
+    internal static FirmamentV2SourceSpan? NamedDeclaration(string code, string source)
+    {
+        var parameters = code.Split(": ", 2)[0].Split(':').Skip(1)
+            .Select(part => part.Contains('=') ? part[(part.IndexOf('=') + 1)..] : part).ToArray();
+        if (parameters.Length == 0) return null;
+        var declarations = Syntax.FirmamentSyntaxTraversal.Declarations(Syntax.FirmamentSyntaxParser.Parse(source).Document)
+            .Where(d => d.Name is not null).ToArray();
+        // A Kind:Name pair is the most specific; otherwise the first parameter that names one declaration.
+        for (var i = 0; i + 1 < parameters.Length; i++)
+        {
+            var pair = declarations.Where(d => d.Type.Name.Text == parameters[i] && d.Name!.Text == parameters[i + 1]).ToArray();
+            if (pair.Length == 1) return pair[0].Name!.Span;
+        }
+        foreach (var parameter in parameters)
+        {
+            // "Modify Plate" repeats its target's name; the target is the declaration meant.
+            var named = declarations.Where(d => d.Name!.Text == parameter).ToArray();
+            if (named.Length > 1) named = named.Where(d => d.Type.Name.Text != "Modify").ToArray();
+            if (named.Length == 1) return named[0].Name!.Span;
+        }
+        return null;
+    }
+
     public static FirmamentV2ValidationDiagnostic Locate(
         FirmamentV2ValidationDiagnostic diagnostic, string? source, string sourceFile)
     {
@@ -96,6 +123,8 @@ public static class FirmamentBuildAdmissionValidation
                 ? Syntax.FirmamentSyntaxFields.SameField(token.Text, subject) && index + 1 < tokens.Length && tokens[index + 1].Text == ":"
                 : token.Text == subject)).ToArray();
         var exact = matches.Length == 1;
+        if (!exact && NamedDeclaration(diagnostic.Code, source) is { } named)
+            return Locate(diagnostic with { SourceSpan = named, LocationNote = null }, source, sourceFile);
         var token = exact ? matches[0] : tokens.FirstOrDefault(token => token.Shape == "identifier"
             && token.Text is "Model" or "model" or "Struct" or "Concept" or "Profile" or "Template" or "Assembly" or "Scene");
         if (token is null) return diagnostic with { SourceFile = sourceFile, LocationNote = "The producer supplied no original-source location." };

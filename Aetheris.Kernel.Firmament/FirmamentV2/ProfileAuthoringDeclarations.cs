@@ -9,14 +9,14 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 public static class ProfileSemanticDeclaration { }
 
 [FirmamentConstruct("Extrude", "Extrude", Context = "Model", Entry = "Extrude Plate { profile: Outline; from: 0mm; to: 8mm }",
-    Description = "A plain prism from a Profile along its layout normal. Holes and other Modify features are not admitted on an Extrude; use Compose with a Base for those.")]
+    Description = "A prism from a Profile along its layout normal. A Modify on it takes Hole, Slot, Pattern and EdgeFinish, as on Compose; use Compose for Boss and Pocket.")]
 [FirmamentField("Profile", "Profile", FirmamentSchemaValueKind.Profile, Required = true, Description = "Name of the Profile to extrude.")]
 [FirmamentField("From", "From", FirmamentSchemaValueKind.Length, Required = true, Description = "Start height along the layout normal.")]
 [FirmamentField("To", "To", FirmamentSchemaValueKind.Length, Required = true, Description = "End height; greater than From.")]
 public static class ExtrudeSemanticDeclaration { }
 
 [FirmamentConstruct("Compose", "Compose", Context = "Model", Entry = "Compose Plate {\n    Base Stock { Profile: Outline; From: 0mm; To: 8mm; Role: Stock }\n}",
-    Description = "A Profile-based body built from a Base and optional Boss, Pocket and Hole operations. A later Modify on the Compose name admits holes and top-rim chamfers; Fillet finishes are rejected on Compose bodies, so round corners in the Profile instead.")]
+    Description = "A Profile-based body built from a Base and optional Boss, Pocket and Hole operations. A later Modify on the Compose name takes Hole, Slot, Pattern and top-rim chamfers on four-sided boundaries; round vertical corners in the Profile (RoundedRect2).")]
 public static class ComposeSemanticDeclaration { }
 
 [FirmamentConstruct("ComposeBase", "Base", Context = "Compose", Entry = "Base Stock { Profile: Outline; From: 0mm; To: 8mm; Role: Stock }",

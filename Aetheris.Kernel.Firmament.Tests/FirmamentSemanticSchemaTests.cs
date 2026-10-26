@@ -86,14 +86,30 @@ public sealed class FirmamentSemanticSchemaTests
     }
 
     [Fact]
-    public void ModifyFeaturesOnAPlainExtrude_RejectInsteadOfVanishing()
+    public void ModifyFeaturesOnAPlainExtrude_AreCutLikeCompose()
     {
-        var source = "Model M { units: mm Profile P = Rect2 { center: [0mm, 0mm]; size: [50mm, 40mm] } Extrude Plate { profile: P; from: 0mm; to: 8mm } "
-            + "Modify Plate { Hole<Shaft> H { on: +Z center: Point2(0mm, 0mm) diameter: 6mm end: ThroughAll } } }";
+        var source = "Model M { units: mm Profile P = RoundedRect2 { center: [0mm, 0mm]; size: [50mm, 40mm]; radius: 3mm } Extrude Plate { profile: P; from: 0mm; to: 8mm } "
+            + "Modify Plate { Hole<Shaft> A { on: +Z center: Point2(19mm, 14mm) diameter: 5.5mm end: ThroughAll } Hole<Shaft> B { on: +Z center: Point2(-19mm, -14mm) diameter: 5.5mm end: ThroughAll } } }";
+        var build = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(build.IsSuccess, string.Join(';', build.Diagnostics.Select(d => d.Message)));
+        var compose = FirmamentBuildAndExport.CompileSource(source.Replace("Extrude Plate { profile: P; from: 0mm; to: 8mm }", "Compose Plate { Base Plate { profile: P; from: 0mm; to: 8mm } }"));
+        Assert.True(compose.IsSuccess);
+        // Same prism, same cuts: both spellings report the same drilled features.
+        static string Holes(FirmamentStepExportResult r) => string.Join(';', r.Features!.Select(f => $"{f.Name}:{f.Diameter}:{f.LocalU}:{f.LocalV}"));
+        Assert.Equal("A:5.5:19:14;B:5.5:-19:-14", Holes(build.Value));
+        Assert.Equal(Holes(compose.Value), Holes(build.Value));
+    }
+
+    [Fact]
+    public void UnsupportedModifyFeaturesOnProfileBodies_RejectAtTheirDeclaration()
+    {
+        var source = "Model M {\n units: mm\n Profile P = Rect2 { center: [0mm, 0mm]; size: [60mm, 40mm] }\n Extrude Plate { profile: P; from: 0mm; to: 4mm }\n"
+            + " Modify Plate {\n  Perforation Vent { on: +Z; diameter: 4mm; layout: Grid; pitch: 8mm; margin: 6mm }\n }\n}";
         var build = FirmamentBuildAndExport.CompileSource(source);
         Assert.False(build.IsSuccess);
-        var diagnostic = Assert.Single(build.Diagnostics, d => d.Message.Contains("Compose Plate", StringComparison.Ordinal));
-        Assert.Contains("Hole H would not be cut", diagnostic.Message, StringComparison.Ordinal);
+        var diagnostic = Assert.Single(build.Diagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(d, "plate.firmament", source)), d => d.Code == Aetheris.Kernel.Firmament.Materializer.PrismaticProfileCompositionParser.ComposeModifyFeatureUnsupported);
+        Assert.Equal(6, diagnostic.Line);
+        Assert.StartsWith("Perforation is not supported on a Profile-based body", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

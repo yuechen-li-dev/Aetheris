@@ -1134,6 +1134,8 @@ public static class PrismaticProfileCompositionParser
     // The canonical Modify form is body-level syntax. Bind feature declarations
     // targeting this Compose body into the existing section-stack feature path so
     // they cannot be admitted and then silently omitted from exported geometry.
+    public const string ComposeModifyFeatureUnsupported = "compose-modify-feature-unsupported";
+
     private static string BindExternalModifyFeatures(string source, string composeName, string composeBody, List<string> diagnostics)
     {
         var boundFeatures = new List<string>();
@@ -1143,7 +1145,10 @@ public static class PrismaticProfileCompositionParser
                      .Where(d => d.Type.Name.Text == "Modify" && d.Name?.Text == composeName))
             foreach (var statement in modifySyntax.Body?.Statements ?? [])
                 if (statement is FirmamentV2.Syntax.FieldSyntax field) diagnostics.Add($"{FirmamentV2Parser.CanonicalFieldUnknown}:Modify:{field.Name.Text}");
-                else if (statement is not FirmamentV2.Syntax.DeclarationSyntax) diagnostics.Add(FirmamentV2Parser.CanonicalModifyMalformed);
+                else if (statement is not FirmamentV2.Syntax.DeclarationSyntax feature) diagnostics.Add(FirmamentV2Parser.CanonicalModifyMalformed);
+                // Only these lower into the section stack. Anything else would be admitted and never cut.
+                else if (feature.Type.Name.Text is not ("Hole" or "Slot" or "Pattern" or "EdgeFinish"))
+                    diagnostics.Add($"{ComposeModifyFeatureUnsupported}:{feature.Type.Name.Text}:{feature.Name?.Text}: {feature.Type.Name.Text} is not supported on a Profile-based body; Modify on Compose or Extrude takes Hole, Slot, Pattern and EdgeFinish. Use a Pattern of Hole for a grid of openings.");
         foreach (Match modify in ModifyHead.Matches(source))
         {
             var body = Block(source, source.IndexOf('{', modify.Index));

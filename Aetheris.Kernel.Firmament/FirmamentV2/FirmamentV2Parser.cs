@@ -77,7 +77,6 @@ public static partial class FirmamentV2Parser
     public const string AssertVolumeToleranceNegative = "firmament-v2-assert-volume-tolerance-negative";
     public const string CanonicalConstructNotYetSupported = "firmament-v2-canonical-construct-not-yet-supported";
     public const string EdgeFinishProfileComposeBoundaryUnsupported = "EdgeFinishProfileComposeBoundaryUnsupported";
-    public const string ExtrudeModifyFeatureUnsupported = "firmament-v2-extrude-modify-feature-unsupported";
     public const string CanonicalFieldUnknown = "firmament-v2-canonical-field-unknown";
     public const string SelectionMalformed = "firmament-v2-selection-malformed";
     public const string SelectionDuplicateName = "firmament-v2-selection-duplicate-name";
@@ -1226,6 +1225,23 @@ public static partial class FirmamentV2Parser
     /// production profile and section-stack readers remain semantic adapters; this
     /// method owns the root, units, disposition, and normalized declaration list.
     /// </summary>
+    /// <summary>
+    /// Rewrites <c>Extrude X { profile: P; from: a; to: b }</c> as <c>Compose X { Base X { ... } }</c> in the
+    /// adapter source. Field text is carried verbatim, so expressions and unknown fields report as they would on Base.
+    /// </summary>
+    private static string ExtrudeAsCompose(string adapterSource, DeclarationSyntax extrude, int shift, string source)
+    {
+        var start = extrude.Span.Start + shift;
+        var fields = string.Join("; ", (extrude.Body?.Statements.OfType<FieldSyntax>() ?? [])
+            .Select(f => $"{f.Name.Text}: {source.Substring(f.Value.Span.Start, f.Value.Span.Length)}"));
+        var name = extrude.Name?.Text ?? "Body";
+        var text = $"Compose {name} {{ Base {name} {{ {fields} }} }}";
+        if (start < 0 || start + extrude.Span.Length > adapterSource.Length
+            || adapterSource.Substring(start, extrude.Span.Length) != source.Substring(extrude.Span.Start, extrude.Span.Length))
+            throw new InvalidOperationException("Extrude declaration does not map into the adapter source.");
+        return adapterSource[..start] + text + adapterSource[(start + extrude.Span.Length)..];
+    }
+
     private static FirmamentV2ParseResult BindMechanicalConstruction(string source, DeclarationSyntax model, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations, FirmamentCompileTimeValues? compileTime = null)
     {
         source = MechanicalConstructionSource(source, model, diagnostics);
@@ -1246,6 +1262,18 @@ public static partial class FirmamentV2Parser
         var declarations = MechanicalDeclarations(model.Body.Statements).ToArray();
         if (TryParseExactCoaxialTemplateDocument(adapterSource, model.Name!.Text, templateInstantiations, diagnostics, out var exactDocument))
             return FirmamentV2ParseResult.Success(exactDocument!, diagnostics.Append("firmament-v2-exact-coaxial-template-parsed").Append("firmament-v2-parse-succeeded").Distinct(StringComparer.Ordinal).Order().ToArray());
+
+        // A single Extrude with holes, perforations or patterns is the same prism as
+        // Compose { Base }; give it that construction so its Modify features are cut.
+        // Edge finishes alone keep the plain profile route, which owns them.
+        if (declarations.Count(d => d.Type.Name.Text == "Extrude") == 1 && declarations.All(d => d.Type.Name.Text != "Compose")
+            && declarations.Where(d => d.Type.Name.Text == "Modify").SelectMany(d => d.Body?.Statements.OfType<DeclarationSyntax>() ?? [])
+                .Any(d => d.Type.Name.Text != "EdgeFinish"))
+        {
+            var extrude = declarations.Single(d => d.Type.Name.Text == "Extrude");
+            adapterSource = ExtrudeAsCompose(adapterSource, extrude, model.Span.Start - bodySpan.Start, source);
+            declarations = MechanicalDeclarations(FirmamentSyntaxParser.Parse(adapterSource).Document.Statements).ToArray();
+        }
 
         if (declarations.Any(d => d.Type.Name.Text == "Compose"))
         {
@@ -1274,7 +1302,7 @@ public static partial class FirmamentV2Parser
                 && !ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(body)
                 && composition.Profiles.Values.Any(profile => profile.Loops.Single().Segments.Count != 4))
             {
-                diagnostics.Add($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={feature.Name}:construction=Compose:face=+Z:target=Boundary:supported=primitive-box-or-explicit-semantic-chain:Profile/Compose polygon-boundary materialization is not implemented.");
+                diagnostics.Add($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={feature.Name}:construction=Compose:face=+Z:target=Boundary: EdgeFinish on a Profile-based body is supported on four-sided boundaries; this boundary has curved or extra segments. Use Box stock for a rounded or chamfered rim, or shape the corners in the Profile itself.");
                 return CanonicalFailure(diagnostics, EdgeFinishProfileComposeBoundaryUnsupported);
             }
             if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
@@ -1308,19 +1336,6 @@ public static partial class FirmamentV2Parser
                 return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
             }
             var resolved = profile.Profile;
-            // A plain Extrude lowers its Profile alone. Holes, perforations and
-            // patterns in a Modify block would otherwise be admitted and then
-            // never cut; reject them and name the construction that cuts them.
-            if (declarations.Where(d => d.Type.Name.Text == "Modify").SelectMany(d => d.Body?.Statements.OfType<DeclarationSyntax>() ?? [])
-                    .FirstOrDefault(d => d.Type.Name.Text != "EdgeFinish") is { } dropped)
-            {
-                var extrude = declarations.First(d => d.Type.Name.Text == "Extrude");
-                var message = $"Extrude {extrude.Name?.Text} lowers only its Profile, so {dropped.Type.Name.Text} {dropped.Name?.Text} would not be cut. "
-                    + $"Build the body with Compose for holes and other Modify features: Compose {extrude.Name?.Text} {{ Base Stock {{ Profile: {resolved.Name}; From: ...; To: ...; Role: Stock }} }}.";
-                diagnostics.Add($"{ExtrudeModifyFeatureUnsupported}: {message}");
-                return CanonicalFailure(diagnostics, CanonicalDocumentMalformed) with
-                { SyntaxDiagnostics = [new(ExtrudeModifyFeatureUnsupported, "fatal", message) { SourceSpan = dropped.Span, Stage = "Capability" }] };
-            }
             var profileSelectionDiagnostics = new List<string>();
             var profileSelections = ParseCanonicalSelections(body, bodySpan.Start, profileSelectionDiagnostics);
             ValidateCanonicalSelectionSources(body, profileSelections, [resolved.Name], profileSelectionDiagnostics);
@@ -1338,7 +1353,7 @@ public static partial class FirmamentV2Parser
                 && !ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(body)
                 && resolved.Loops.Single().Segments.Count != 4)
             {
-                diagnostics.Add($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={resolved.Name}:construction=Profile:face=+Z:target=Boundary:supported=primitive-box-or-explicit-semantic-chain:Profile/Compose polygon-boundary materialization is not implemented.");
+                diagnostics.Add($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={resolved.Name}:construction=Profile:face=+Z:target=Boundary: EdgeFinish on a Profile-based body is supported on four-sided boundaries; this boundary has curved or extra segments. Use Box stock for a rounded or chamfered rim, or shape the corners in the Profile itself.");
                 return CanonicalFailure(diagnostics, EdgeFinishProfileComposeBoundaryUnsupported);
             }
             if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);

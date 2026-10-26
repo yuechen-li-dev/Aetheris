@@ -769,6 +769,8 @@ public static partial class FirmamentBuildAndExport
         // parse-failed is a result status, used only when the producer supplied no explanation.
         var errors = parse.Diagnostics.Where(FirmamentV2Parser.IsFatalDiagnosticCode).Where(code => code != "firmament-v2-parse-failed" && !syntaxCodes.Contains(code))
             .Concat(parse.SyntaxDiagnostics.Select(d => d.Code + ": " + d.Message)).Distinct(StringComparer.Ordinal).ToArray();
+        // A bare code is redundant beside the same code with its parameters and explanation.
+        errors = errors.Where(code => code.Contains(':') || !errors.Any(other => other.StartsWith(code + ":", StringComparison.Ordinal))).ToArray();
         if (errors.Length == 0) errors = ["firmament-v2-parse-failed"];
         return KernelResult<FirmamentStepExportResult>.Failure(errors.Select(code => new KernelDiagnostic(
             KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, code, "FirmamentV2.Parse")).ToArray());
@@ -1177,7 +1179,7 @@ public static partial class FirmamentBuildAndExport
         if (emitted.Body is null || emitted.Correspondence is null) return Fail("MissingCorrespondenceEvidence");
         var composedCurves = stack.Slabs.MaxBy(s => s.To)!.Region.Outer.Loops.Single().Segments.Select(segment => segment.Geometry).ToArray();
         if (!IsAdmittedPrimitiveBoundary(composedCurves))
-            return Fail($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={stack.Feature.Name}:construction=Compose:face=+Z:target=Boundary:supported=primitive-box-or-explicit-semantic-chain:Profile/Compose polygon-boundary materialization is not implemented.");
+            return Fail($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={stack.Feature.Name}:construction=Compose:face=+Z:target=Boundary: EdgeFinish on a Profile-based body is supported on four-sided boundaries; this boundary has curved or extra segments. Use Box stock for a rounded or chamfered rim, or shape the corners in the Profile itself.");
         var selections = SemanticSelectionSourceParser.Parse(source, parsed.Profiles.Values.First(), stack.Feature.Name, out var diagnostics);
         if (diagnostics.Count != 0 || selections.Count != 1) return Fail(diagnostics.FirstOrDefault() ?? "SemanticSourceNotFound");
         var selection = SemanticTopologySelectionResolver.Resolve(emitted.Body, emitted.Correspondence, selections[0]);
@@ -1291,7 +1293,7 @@ public static partial class FirmamentBuildAndExport
         }
         if (emitted.Body is null || emitted.Correspondence is null) return Fail("NoMaterializedDescendants");
         if (!IsAdmittedPrimitiveBoundary(profile.Loops.Single().Segments.Select(segment => segment.Geometry).ToArray()))
-            return Fail($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={profile.Name}:construction=Profile:face=+Z:target=Boundary:supported=primitive-box-or-explicit-semantic-chain:Profile/Compose polygon-boundary materialization is not implemented.");
+            return Fail($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={profile.Name}:construction=Profile:face=+Z:target=Boundary: EdgeFinish on a Profile-based body is supported on four-sided boundaries; this boundary has curved or extra segments. Use Box stock for a rounded or chamfered rim, or shape the corners in the Profile itself.");
         var selections = SemanticSelectionSourceParser.Parse(source, profile, profile.Name, out var selectionDiagnostics);
         if (selectionDiagnostics.Count > 0 || selections.Count != 1) return Fail(selectionDiagnostics.FirstOrDefault() ?? "SemanticSourceNotFound");
         var selection = SemanticTopologySelectionResolver.Resolve(emitted.Body, emitted.Correspondence, selections[0]);

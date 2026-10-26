@@ -42,7 +42,7 @@ public static class FirmamentIntelliDraft
             return new(f.Name.Text, source.Substring(f.Value.Span.Start, f.Value.Span.Length), unit is null ? null : value,
                 unit, unit is not null && FirmamentSketchService.Literal(f.Value));
         }
-        var elements = declarations.Where(d => d.Syntax.Type.Name.Text is "Model" or "Struct" or "Static" or "Rect2" or "Point2" or "Line2" or "Circle2" or "Path" or "Line" or "Arc" or "Close" or "Profile" or "Extrude")
+        var elements = declarations.Where(d => FirmamentSketchService.EditableShapes.Contains(d.Syntax.Type.Name.Text) || d.Syntax.Type.Name.Text is "Model" or "Struct" or "Static" or "Point2" or "Line2" or "Path" or "Line" or "Arc" or "Close" or "Profile" or "Extrude")
             .Select(d => new FirmamentDraftElement(d.Id, d.Syntax.Name?.Text ?? d.Id, d.Syntax.Type.Name.Text, d.ParentId,
                 new(d.Syntax.Span.Start, d.Syntax.Span.Length), (d.Syntax.Body?.Statements.OfType<FieldSyntax>() ?? [])
                 .Select(Field).Concat(d.Syntax.Initializer is { } initial ? [new FirmamentDraftField("value", source.Substring(initial.Span.Start, initial.Span.Length),
@@ -54,7 +54,7 @@ public static class FirmamentIntelliDraft
             .Select(d => new FirmamentOutlineDiagnostic("error", d.Code, d.Message,
                 d.SourceSpan is { } s ? new(s.Start, s.Length) : null)));
         if (diagnostics.Count > 0) return new(elements, [], [], diagnostics, "Unresolved");
-        var duplicate = elements.Where(e => e.Kind is "Rect2" or "Point2" or "Line2" or "Circle2" or "Path")
+        var duplicate = elements.Where(e => FirmamentSketchService.EditableShapes.Contains(e.Kind) || e.Kind is "Point2" or "Line2" or "Path")
             .GroupBy(e => e.Name).FirstOrDefault(g => g.Count() > 1);
         if (duplicate is not null)
             return new(elements, [], [], [new("error", "draft-guide-ambiguous", $"Construction preview requires an unambiguous guide name: '{duplicate.Key}'.", duplicate.First().Span)], "Unresolved");
@@ -63,7 +63,7 @@ public static class FirmamentIntelliDraft
             diagnostics.Add(new("error", code.Split(':')[0], $"Construction could not resolve: {code}. Check the named guide or Path step. Location is the enclosing Model; the resolver did not supply a more precise source span.", elements.FirstOrDefault(e => e.Kind == "Model")?.Span));
         var curves = bound.Guides.Select(g =>
         {
-            var owner = elements.FirstOrDefault(e => e.Name == g.Key || g.Key.StartsWith(e.Name + ".", StringComparison.Ordinal) && e.Kind is "Path" or "Rect2");
+            var owner = elements.FirstOrDefault(e => e.Name == g.Key || g.Key.StartsWith(e.Name + ".", StringComparison.Ordinal) && (e.Kind == "Path" || FirmamentSketchService.EditableShapes.Contains(e.Kind)));
             var span = owner is null ? "unavailable: expanded construction" : $"{document}:{owner.Span.Start}:{owner.Span.Length}";
             return FirmamentSketchService.Curve(new(g.Key, g.Value,
                 new("construction:" + g.Key, "construction:" + g.Key, span, "ConstructionGuide", "Local2D")));
@@ -108,6 +108,23 @@ public static class FirmamentIntelliDraft
             ?? throw Refuse("draft-model-required", "IntelliDraft requires one authored Model.");
         switch (request.Action)
         {
+            case "shape":
+                var shapeOwner = Owner("Struct");
+                var shapeName = Name();
+                if (request.Kind is null || !FirmamentSketchService.EditableShapes.Contains(request.Kind))
+                    throw Refuse("draft-shape-unsupported", "Choose Rect2, Circle2, Ellipse2, Slot2 or RoundedRect2.");
+                var centerFields = $"center: [{Mm(request.X)}, {Mm(request.Y)}]";
+                var shapeFields = request.Kind switch
+                {
+                    "Rect2" => $"size: [{Positive(request.Width)}mm, {Positive(request.Height)}mm]",
+                    "Circle2" => $"radius: {Positive(request.Radius)}mm",
+                    "Ellipse2" => $"axisLengths: [{Positive(request.Width)}mm, {Positive(request.Height)}mm]",
+                    "Slot2" => $"length: {Positive(request.Width)}mm; width: {Positive(request.Height)}mm; rotation: {Number(request.Turn)}deg",
+                    "RoundedRect2" => $"size: [{Positive(request.Width)}mm, {Positive(request.Height)}mm]; radius: {Positive(request.Radius)}mm",
+                    _ => throw Refuse("draft-shape-unsupported", "Choose a supported construction shape.")
+                };
+                Insert(shapeOwner.Id, $"{request.Kind} {shapeName} {{ {centerFields}; {shapeFields} }}");
+                break;
             case "rectangle":
                 var rectangleOwner = Owner("Struct");
                 var rectangleName = Name();
@@ -226,8 +243,8 @@ public static class FirmamentIntelliDraft
                     {
                         if (entry.WholeLoop)
                         {
-                            if (entries.Count != 1 || !view.Shapes.Any(s => s.Name == entry.Reference && s.Kind == "Rect2"))
-                                throw Refuse("draft-whole-loop-required", "A complete rectangle outline must be the only entry in this outer trace.");
+                            if (entries.Count != 1 || !view.Shapes.Any(s => s.Name == entry.Reference))
+                                throw Refuse("draft-whole-loop-required", "A complete shape outline must be the only entry in this outer trace.");
                             return entry.Reference + " |> TraceLoop";
                         }
                         if (!view.Guides.Any(g => g.Name == entry.Reference)) throw Refuse("draft-guide-required", $"Unresolved guide '{entry.Reference}'.");

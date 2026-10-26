@@ -252,3 +252,12 @@ Origin-to-Parent translation and one-axis rotation, or a disclosed read-only
 reason. General matrices, expressions and named-frame relationships must not be
 flattened into editable numbers. Support picking similarly requires an actual
 compiler-owned selector; display face identity alone is insufficient.
+
+
+The `construction` edit action `shape` authors a retained `Rect2`, `Circle2`,
+`Ellipse2`, `Slot2` or `RoundedRect2` in a Concept Struct. The normal closed-boundary
+owner validates fields and dimensions. Construction inspection projects public
+member names from that lowerer's own member map and retains authored source
+provenance. A single `wholeLoop` trace entry can consume any projected closed
+shape. Workspace visibility is a client presentation choice; it never rewrites
+source or changes engineering admission.

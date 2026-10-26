@@ -5,6 +5,49 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public class FirmamentIntelliDraftTests
 {
+    [Theory]
+    [InlineData("Rect2", 4800)]
+    [InlineData("Circle2", 1884.955592153876)]
+    [InlineData("Ellipse2", 3769.911184307752)]
+    [InlineData("Slot2", 4284.955592153876)]
+    [InlineData("RoundedRect2", 4779.398223686156)]
+    public void DrawnClosedShapeRetainsItsOwnerControlsAndBuildsItsAnalyticProfile(string kind, double volume)
+    {
+        var draft = new Draft(); draft.Add(new("layout", Name: "layout"));
+        draft.Add(new("shape", draft.Id("layout"), "outline", Kind: kind, Width: 40, Height: 20, Radius: kind == "RoundedRect2" ? 2 : 10));
+        var shape = Assert.Single(draft.View.Shapes);
+        Assert.Equal(kind, shape.Kind); Assert.Equal([0d, 0], shape.Center);
+        Assert.Contains(draft.View.Guides, g => g.Name.StartsWith("outline.", StringComparison.Ordinal));
+        Assert.All(draft.View.Guides, g => Assert.StartsWith("draft.firmament:", g.Provenance!.SourceSpan));
+        var center = shape.Controls.Single(c => c.Label == "Center X");
+        draft.Source = FirmamentSketchService.Edit(draft.Source, "draft.firmament", "0", new("constructionDimensions", Changes: [new(center.Id, 5)])).Text;
+        Assert.Equal(5, Assert.Single(draft.View.Shapes).Center[0]);
+        draft.Add(new("trace", draft.Id("layout"), "section", Trace: [new("outline", WholeLoop: true)]));
+        draft.Add(new("extrude", draft.Id("section"), "body", Length: 6));
+        var built = FirmamentBuildAndExport.CompileSource(draft.Source);
+        Assert.True(built.IsSuccess, string.Join(";", built.Diagnostics.Select(d => d.Message)));
+        GeometryMatches(draft.Source, "draw-" + kind.ToLowerInvariant() + ".firmament");
+        if (kind is not ("Circle2" or "Ellipse2")) Assert.Equal(volume, new FirmamentMeasurements(built.Value).Volume().ValueMm3!.Value, 6);
+        // The generic closed conic extrusion lane does not expose an analytic volume
+        // measurement yet. Exact geometry records are compared with the reference above.
+        Assert.Contains(kind + " outline", draft.Source);
+        var body = new FirmamentMeasurements(built.Value).Body;
+        var display = Aetheris.Kernel.Core.Brep.Tessellation.BrepDisplayTessellator.Tessellate(body);
+        Assert.True(display.IsSuccess, string.Join(";", display.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(body.Topology.Faces.Count(), display.Value.FacePatches.Count);
+        Assert.All(display.Value.FacePatches, face => Assert.NotEmpty(face.TriangleIndices));
+    }
+
+    [Fact]
+    public void InvalidDrawnShapesDoNotChangeTheDraft()
+    {
+        var draft = new Draft(); draft.Add(new("layout", Name: "layout")); var before = draft.Source;
+        Assert.Throws<FirmamentLanguageEditException>(() => draft.Add(new("shape", draft.Id("layout"), "invalid", Kind: "Slot2", Width: 10, Height: 20)));
+        Assert.Throws<FirmamentLanguageEditException>(() => draft.Add(new("shape", draft.Id("layout"), "invalid", Kind: "RoundedRect2", Width: 40, Height: 20, Radius: 15)));
+        Assert.Throws<FirmamentLanguageEditException>(() => draft.Add(new("shape", draft.Id("layout"), "invalid", Kind: "Unknown2")));
+        Assert.Equal(before, draft.Source);
+    }
+
     [Fact]
     public void RetainedRectanglesResolveTheirSharedDimensionsThroughNormalCompilation()
     {

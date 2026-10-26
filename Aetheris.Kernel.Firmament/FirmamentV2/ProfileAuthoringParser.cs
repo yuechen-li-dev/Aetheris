@@ -19,11 +19,26 @@ public static class ProfileAuthoringParser
         InspectConstruction(string source, FirmamentCompileTimeValues values)
     {
         var diagnostics = new List<string>();
-        source = ExpandBuiltInPolygons(FirmamentSourceSpelling.Normalize(source), diagnostics, values);
+        source = FirmamentSourceSpelling.Normalize(source);
+        var boundaries = ClosedBoundary2Authoring.Expand(source, diagnostics, values);
+        source = boundaries?.Source ?? source;
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
         var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
         AddOrdinaryGuides(source, points, guides, diagnostics, applySpans: false, bind: values.NominalExpression);
         BindPaths(source, points, guides, diagnostics);
+        // Use the lowerer's own public member map; do not guess generated-name ownership.
+        if (boundaries is not null)
+        {
+            var generated = boundaries.GeneratedDeclarationNames.ToHashSet(StringComparer.Ordinal);
+            foreach (var (owner, members) in boundaries.AuthoringMembers)
+                foreach (var (member, lowered) in members)
+                {
+                    if (generated.Contains(lowered) && points.Remove(lowered, out var point)) points[owner + "." + member] = point;
+                    if (lowered != owner && guides.Remove(lowered, out var curve)) guides[owner + "." + member] = curve;
+                    if (lowered.LastIndexOf('.') is var dot && dot > 0 && lowered[..dot] != owner)
+                        foreach (var key in points.Keys.Where(k => k.StartsWith(lowered[..dot] + ".", StringComparison.Ordinal)).ToArray()) points.Remove(key);
+                }
+        }
         return (points, guides, diagnostics);
     }
     public const string SegmentEndpointMustReferenceNamedPoint = "ProfileSegmentEndpointMustReferenceNamedPoint";

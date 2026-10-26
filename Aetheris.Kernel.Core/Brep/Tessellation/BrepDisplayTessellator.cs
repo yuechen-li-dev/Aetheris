@@ -272,6 +272,8 @@ public static class BrepDisplayTessellator
             SurfaceGeometryKind.Ellipsoid => TessellateEllipsoidFace(body, faceId, surface.Ellipsoid!, options, executionBudget),
             SurfaceGeometryKind.Torus => TessellateTorusFace(body, faceId, surface.Torus!.Value, options, executionBudget),
             SurfaceGeometryKind.BSplineSurfaceWithKnots => TessellateBSplineSurfaceFace(body, faceId, surface.BSplineSurfaceWithKnots!, options, executionBudget),
+            SurfaceGeometryKind.LinearExtrusion when surface.LinearExtrusion!.Value.Directrix.Ellipse3.HasValue
+                => TessellateEllipticExtrusionFace(body, faceId, surface.LinearExtrusion.Value, options, executionBudget),
             SurfaceGeometryKind.LinearExtrusion when surface.LinearExtrusion!.Value.Directrix.BSpline3 is { } curve
                 => TessellateBSplineSurfaceFace(body, faceId, new BSplineSurfaceWithKnots(
                     curve.Degree, 1,
@@ -280,6 +282,39 @@ public static class BrepDisplayTessellator
                     curve.KnotMultiplicities, [2, 2], curve.KnotValues, [0d, 1d], curve.KnotSpec), options, executionBudget),
             _ => KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} has unsupported surface kind '{surface.Kind}'.")]),
         };
+    }
+
+    private static KernelResult<DisplayFaceMeshPatch> TessellateEllipticExtrusionFace(BrepBody body, FaceId faceId,
+        LinearExtrusionSurface surface, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? budget)
+    {
+        var ellipse = surface.Directrix.Ellipse3!.Value;
+        var vector = surface.ExtrusionVector;
+        var height = vector.Dot(ellipse.Normal.ToVector());
+        if (double.Abs(height) <= 1e-12 * vector.Length)
+            return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} has a degenerate in-plane elliptic extrusion.")]);
+        var loops = body.GetLoopIds(faceId).Where(id => body.Topology.GetLoop(id).Kind == LoopKind.Edge).ToArray();
+        if (loops.Length == 0)
+            return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} elliptic extrusion requires explicit trim loops.")]);
+        (double U, double V)? Project(Point3D point)
+        {
+            var v = (point - ellipse.Center).Dot(ellipse.Normal.ToVector()) / height;
+            var radial = point - (ellipse.Center + vector * v);
+            var u = double.Atan2(radial.Dot(ellipse.YAxis.ToVector()) / ellipse.MinorRadius,
+                radial.Dot(ellipse.XAxis.ToVector()) / ellipse.MajorRadius);
+            var residual = point - (ellipse.Evaluate(u) + vector * v);
+            return residual.Length <= 1e-6 ? (u, v) : null;
+        }
+        var trim = TryBuildPeriodicTrimmedSurfaceUvLoops(body, faceId, loops, Project, options, budget, SurfaceGeometryKind.LinearExtrusion);
+        if (!trim.IsSuccess) return KernelResult<DisplayFaceMeshPatch>.Failure(trim.Diagnostics);
+        var patch = TrimmedSurfaceTessellator.Tessellate(faceId, trim.Value,
+            (u, v) => ellipse.Evaluate(u) + vector * v,
+            (u, _) => Direction3D.Create((ellipse.XAxis.ToVector() * (-ellipse.MajorRadius * double.Sin(u))
+                + ellipse.YAxis.ToVector() * (ellipse.MinorRadius * double.Cos(u))).Cross(vector)).ToVector(),
+            options, double.NegativeInfinity, double.PositiveInfinity, double.NegativeInfinity, double.PositiveInfinity,
+            CreateValidationWarning, budget, SurfaceGeometryKind.LinearExtrusion);
+        return patch.IsSuccess && patch.Value.TriangleIndices.Count == 0
+            ? KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} elliptic extrusion trim produced no display triangles.")])
+            : patch;
     }
 
     private static KernelResult<DisplayFaceMeshPatch> TessellatePlanarFaceWithSamplingRetry(BrepBody body, FaceId faceId,

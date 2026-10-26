@@ -11,6 +11,19 @@ then dimensioned construction shapes. `Rect2` supplies right angles and equal,
 parallel opposite sides. Its type and dimensions remain authoritative when
 Trace selects material boundary spans from its named edges and corners.
 
+The sidebar's scrollable, searchable shape list selects retained construction.
+Its checkboxes show or hide construction in the workspace. Hidden shapes are
+excluded from picking and alignment, but their source and any existing traced
+Profile remain intact. **Show all** restores visibility; the visibility choice is
+local to the open workspace and does not suppress engineering geometry.
+
+Draw a circle, ellipse, slot or rounded rectangle with its palette tool, size it
+through the inspector, and drag it into place. **Use whole shape outline** traces
+its closed boundary through the existing compiler owner. Slots use overall
+length including both round ends; a vertically drawn slot retains a 90 degree
+rotation. Rounded rectangles expose their corner radius. Invalid dimensions are
+rejected instead of silently clamped.
+
 For an L, draw a rectangle, then enter its exact 60 × 40 mm size and center
 (0,0) mm. Draw a second independent rectangle and size it to 52 × 32 mm. Drag it
 to align its top and right edges with the first: its center is then (4,4) mm.
@@ -27,7 +40,7 @@ rectangle outline** traces a single full rectangle.
 **Shapes** edits exact dimensions. Apply or discard pending fields before
 switching tools or building. Draw/drag previews commit on release; Escape
 cancels an active gesture. Fit, zoom buttons and middle-drag navigate the canvas.
-The direct drawing tool currently creates rectangles. Alignment uses projected
+The drawing palette creates rectangles, circles, ellipses, slots and rounded rectangles. Alignment uses projected
 bounds of shapes in the same Concept Struct. It writes independent placement
 values, without persistent constraint metadata.
 
@@ -165,7 +178,7 @@ explicitly rejected while those support adapters still assume world XY.
 
 ## Current boundary
 
-The **Sketch** dimension workspace edits authored Rect2, Circle2, Slot2 and RoundedRect2 fields
+The **Sketch** dimension workspace edits authored Rect2, Circle2, Ellipse2, Slot2 and RoundedRect2 fields
 and displays the resolved line/arc/ellipse/cubic curves of other Profiles.
 Generated Template/Feature bodies do not become writable source through their
 expanded geometry. Profiles must have an unambiguous authored name in the

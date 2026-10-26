@@ -11,6 +11,24 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242LinearExtrusionSurfaceProductionTests
 {
     [Fact]
+    public void EllipticStripTessellatesItsActualTrimAndRetainsExactSupport()
+    {
+        var body = CreateEllipticStripSurfaceBody();
+        var exactBefore = Step242Exporter.ExportBody(body).Value;
+        var display = Aetheris.Kernel.Core.Brep.Tessellation.BrepDisplayTessellator.Tessellate(body);
+        Assert.True(display.IsSuccess, string.Join(";", display.Diagnostics.Select(d => d.Message)));
+        var patch = Assert.Single(display.Value.FacePatches); Assert.NotEmpty(patch.TriangleIndices);
+        Assert.All(patch.Positions, point => {
+            Assert.Equal(1, point.X * point.X / 16 + point.Y * point.Y / 4, 8);
+            Assert.InRange(point.Z, -1e-8, 5 + 1e-8);
+            Assert.True(point.Y >= -1e-8, "The half-ellipse trim must not become a full tube.");
+        });
+        Assert.All(patch.Normals, normal => Assert.Equal(1, normal.Length, 8));
+        Assert.All(body.Geometry.Surfaces, surface => Assert.Equal(SurfaceGeometryKind.LinearExtrusion, surface.Value.Kind));
+        Assert.Equal(exactBefore, Step242Exporter.ExportBody(body).Value);
+    }
+
+    [Fact]
     public void EllipseDirectrixLinearExtrusion_ExportsReimportsAsExactSweptSurface()
     {
         var body = CreateEllipticStripSurfaceBody();

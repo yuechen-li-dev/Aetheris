@@ -11,20 +11,31 @@ then dimensioned construction shapes. `Rect2` supplies right angles and equal,
 parallel opposite sides. Its type and dimensions remain authoritative when
 Trace selects material boundary spans from its named edges and corners.
 
-For an L, add a 60 × 40 mm rectangle at the origin, then **Add related rectangle**.
-Keep the top-right inset relationship and one shared 8 mm wall input. The second
-rectangle is driven by the first: 52 × 32 mm at center (4,4) mm. Choose **Trace**
-and select the envelope's bottom and lower-right spans, the inset's bottom and
-left edges, and the envelope's upper-left top span and left edge. **Trace Profile**
-checks the resulting closed boundary; neither rectangle is replaced by a point
-list or a mesh. **Use whole rectangle outline** traces a single full rectangle.
+For an L, draw a rectangle, then enter its exact 60 × 40 mm size and center
+(0,0) mm. Draw a second independent rectangle and size it to 52 × 32 mm. Drag it
+to align its top and right edges with the first: its center is then (4,4) mm.
+Temporary alignment guides help placement; they do not link the shapes. Other
+edges and centers can align in the same way. Hold Alt to bypass alignment.
+Moving or resizing one rectangle later does not move the other.
 
-**Shapes** edits independent dimensions. Derived values show their driving
-expressions and remain read-only; **Relationship dimensions** edits shared inputs.
-Apply or discard pending fields before leaving their editor or building. Resizing
-the envelope or changing the wall input updates both the construction and its
-trace. The source contains normal Rect2 declarations, Static inputs and explicit
-expressions, with no separate saved constraint model.
+Choose **Trace** and select the envelope's bottom and lower-right spans, the
+second rectangle's bottom and left edges, and the envelope's upper-left top
+span and left edge. **Trace Profile** checks the resulting boundary. Rectangles
+remain typed constructions, not authored point lists or meshes. **Use whole
+rectangle outline** traces a single full rectangle.
+
+**Shapes** edits exact dimensions. Apply or discard pending fields before
+switching tools or building. Draw/drag previews commit on release; Escape
+cancels an active gesture. Fit, zoom buttons and middle-drag navigate the canvas.
+The direct drawing tool currently creates rectangles. Alignment uses projected
+bounds of shapes in the same Concept Struct. It writes independent placement
+values, without persistent constraint metadata.
+
+Explicit dimension-driven relationships remain optional under **Advanced**.
+The top-right inset preset intentionally creates expressions and shared inputs;
+it is not the default placement behavior. Existing expressions remain read-only
+at their derived controls and are edited through their inputs, never flattened
+by a drag.
 
 Named **Point**, **Line**, **Circle** guides and Paths remain under **Advanced**.
 They support outlines that closed shapes do not express well. Circle spans select
@@ -37,7 +48,8 @@ closing line. **Trace this Path** resolves that boundary to a Profile. Trace's
 
 Complete examples:
 
-- [L plate from retained rectangles](../../../fixtures/Regression/IntelliDraft/rectangles-l.firmament)
+- [L plate from independently placed rectangles](../../../fixtures/Regression/IntelliDraft/independent-rectangles-l.firmament).
+- [L plate from explicitly related rectangles](../../../fixtures/Regression/IntelliDraft/rectangles-l.firmament)
   and [its dimension-driven revision](../../../fixtures/Regression/IntelliDraft/rectangles-l-revised.firmament).
 - [Low-level L plate from named points and lines](../../../fixtures/Regression/IntelliDraft/named-lines-l.firmament).
 - [D plate from a circle span and chord](../../../fixtures/Regression/IntelliDraft/arc-chord-d.firmament).
@@ -45,7 +57,7 @@ Complete examples:
 
 Choose an extrusion depth, **Extrude Profile**, then **Build and use part**.
 Incomplete construction is staged source, not a valid engineering part. Compiler
-rejection retains the preceding candidate and the current built model. Undo and
+rejection, including a move that breaks an existing Profile, retains the preceding candidate and the current built model. Undo and
 Redo navigate staged edits; Cancel discards them. A complete candidate must pass
 the normal build before replacing the current document. Updating construction
 in an existing part is one normal undoable source transaction.
@@ -161,11 +173,11 @@ document; edits do not reach into included files.
 
 IntelliDraft currently authors one unambiguous Model, retained Rect2 construction,
 named Point2/Line2/Circle2 guides, line/arc Paths, one outer trace and a positive
-extrusion. The related-rectangle preset shares a top-right corner with an
-unrotated rectangle in the same Concept Struct. Its wall/inset values and the
+extrusion. The optional Advanced related-rectangle preset shares a top-right corner with
+an unrotated rectangle in the same Concept Struct. Its wall/inset values and the
 rectangle dimensions remain compile-time source expressions. Trace selection
 uses named landmarks on the compiler's bounded guides; it does not invent
-arbitrary intersection points. General cursor
-snaps, arbitrary one-way geometric references, boundary-edit tools, arbitrary
+arbitrary intersection points. Soft alignment currently uses shape bounds in
+the same layout. General intersection/point snaps, arbitrary one-way geometric references, boundary-edit tools, arbitrary
 trim/extend and simultaneous constraint solving are not implemented. Existing code-authored geometry
 continues to use its normal compiler owners.

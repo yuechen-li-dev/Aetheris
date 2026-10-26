@@ -68,6 +68,40 @@ public class FirmamentIntelliDraftTests
     }
 
     [Fact]
+    public void IndependentRectanglePlacementDoesNotCreateRelationshipsAndCanTraceTheSameL()
+    {
+        var draft = new Draft(); draft.Add(new("layout", Name: "layout"));
+        draft.Add(new("rectangle", draft.Id("layout"), "outer", Width: 60, Height: 40));
+        draft.Add(new("rectangle", draft.Id("layout"), "notch", X: -12, Y: -7, Width: 52, Height: 32));
+        void Change(string name, string label, double value)
+        {
+            var control = draft.View.Shapes.Single(s => s.Name == name).Controls.Single(c => c.Label == label);
+            draft.Source = FirmamentSketchService.Edit(draft.Source, "draft.firmament", "0", new("constructionDimensions", Changes: [new(control.Id, value)])).Text;
+        }
+        Change("notch", "Center X", 4); Change("notch", "Center Y", 4);
+        Change("outer", "Center X", 10);
+        Assert.Equal([4d, 4], draft.View.Shapes.Single(s => s.Name == "notch").Center);
+        Change("outer", "Center X", 0);
+        Change("outer", "Width", 80);
+        Assert.Equal(52, draft.View.Shapes.Single(s => s.Name == "notch").Controls.Single(c => c.Label == "Width").Value);
+        Change("outer", "Width", 60);
+        Assert.DoesNotContain("Wall", draft.Source);
+        Assert.Contains("Static notchCenterX: Length = 4mm", draft.Source);
+        draft.Add(new("trace", draft.Id("layout"), "section", Trace: [
+            new("outer.Bottom", "outer.BottomLeft", "outer.BottomRight", Connect: true),
+            new("outer.Right", "outer.BottomRight", "notch.BottomRight", Connect: true),
+            new("notch.Bottom", "notch.BottomLeft", "notch.BottomRight", Connect: true),
+            new("notch.Left", "notch.TopLeft", "notch.BottomLeft", Connect: true),
+            new("outer.Top", "notch.TopLeft", "outer.TopLeft", Connect: true),
+            new("outer.Left", "outer.TopLeft", "outer.BottomLeft", Connect: true)]));
+        draft.Add(new("extrude", draft.Id("section"), "body", Length: 6));
+        GeometryMatches(draft.Source, "independent-rectangles-l.firmament");
+        var before = draft.Source;
+        Assert.Throws<FirmamentLanguageEditException>(() => Change("notch", "Center X", 14));
+        Assert.Equal(before, draft.Source); // A broken Profile is refused, never repaired by moving its neighbors.
+    }
+
+    [Fact]
     public void WholeRectangleTracingRetainsTheShapeAndDoesNotInventPoints()
     {
         var draft = new Draft(); draft.Add(new("layout", Name: "layout", Plane: "XZ"));

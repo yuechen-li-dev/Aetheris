@@ -39,7 +39,13 @@ line and arc cuts).
 Use the loop form when a Profile has inner loops, combines several guides, or
 needs named edges:
 
-For a shape-driven example, [this L plate](../../../../fixtures/Regression/IntelliDraft/rectangles-l.firmament)
+For a shape-driven example, [this independently placed L plate](../../../../fixtures/Regression/IntelliDraft/independent-rectangles-l.firmament)
+retains two `Rect2` declarations with their own centers and dimensions. Their
+placement makes named corners available for tracing; it does not impose a
+persistent relationship between the rectangles. A closed Profile still requires
+the selected spans to meet.
+
+For optional explicit dependencies, [this L plate](../../../../fixtures/Regression/IntelliDraft/rectangles-l.firmament)
 retains two `Rect2` declarations: an envelope and an inset rectangle whose top
 and right edges follow it through shared dimensions. The Profile traces selected
 edge spans between their named corners. Changing the envelope or shared wall

@@ -32,7 +32,7 @@ public sealed record FirmamentSketchEditRequest(string Kind, string? Node = null
 /// Profile resolution and structural transactions. A resolved sketch is deliberately not a built solid.</summary>
 public static class FirmamentSketchService
 {
-    internal static readonly IReadOnlySet<string> EditableShapes = new HashSet<string>(StringComparer.Ordinal) { "Rect2", "Circle2", "Ellipse2", "Slot2", "RoundedRect2" };
+    internal static readonly IReadOnlySet<string> EditableShapes = new HashSet<string>(StringComparer.Ordinal) { "Rect2", "Circle2", "Ellipse2", "Slot2", "RoundedRect2", "SmoothRoundedRect2" };
     private static readonly IReadOnlySet<string> DomainResults = new HashSet<string>(StringComparer.Ordinal);
     private sealed record Target(string Node, string? Field, ExpressionSyntax Expression, string? Parameter);
 
@@ -191,6 +191,7 @@ public static class FirmamentSketchService
                 "Circle2" => $"diameter: {Length(request.Width)}", "Slot2" => $"length: {Length(request.Width)} width: {Length(request.Height)}",
                 "Ellipse2" => $"axisLengths: [{Length(request.Width)}, {Length(request.Height)}]",
                 "RoundedRect2" => $"size: [{Length(request.Width)}, {Length(request.Height)}] radius: {Length(Math.Min(request.Width, request.Height) / 8)}",
+                "SmoothRoundedRect2" => $"size: [{Length(request.Width)}, {Length(request.Height)}] cornerExtent: {Length(Math.Min(request.Width, request.Height) / 4)}",
                 _ => $"size: [{Length(request.Width)}, {Length(request.Height)}]"
             };
             operations.Add(new("insertDeclaration") { Parent = request.Node, Source = $"{request.Shape} {shape} {{ center: [{Length(request.X)}, {Length(request.Y)}] {fields} }}" });
@@ -308,7 +309,7 @@ public static class FirmamentSketchService
         ("size", 0) => "Width", ("size", 1) => "Height", ("center", 0) => "Center X", ("center", 1) => "Center Y",
         ("axislengths" or "axes", 0) => "Width", ("axislengths" or "axes", 1) => "Height",
         ("radius", _) => "Radius", ("diameter", _) => "Diameter", ("width", _) => "Width", ("rotation", _) => "Rotation",
-        ("length", _) => "Overall length", _ => name + (axis is null ? "" : " " + axis)
+        ("length", _) => "Overall length", ("cornerextent", _) => "Corner extent", _ => name + (axis is null ? "" : " " + axis)
     };
     private static ExpressionSyntax[] Components(ExpressionSyntax expression) => expression switch
     {

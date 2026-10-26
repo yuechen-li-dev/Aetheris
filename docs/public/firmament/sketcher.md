@@ -6,43 +6,50 @@ sketch model, browser constraint solver or mesh-to-profile conversion.
 ## Construction, trace, part
 
 **IntelliDraft** in the viewport toolbar authors the same retained construction
-used in Firmament code. Begin with **Layout** (a Concept Struct on XY, XZ or YZ),
-then dimensioned construction shapes. `Rect2` supplies right angles and equal,
-parallel opposite sides. Its type and dimensions remain authoritative when
-Trace selects material boundary spans from its named edges and corners.
+used in Firmament code. A new draft opens ready to draw: the first shape creates
+its layout (a Concept Struct on the plane chosen in the toolbar, XY by default).
+`Rect2` supplies right angles and equal, parallel opposite sides. Its type and
+dimensions remain authoritative when Trace selects boundary spans from its named
+edges and corners.
 
-The sidebar's scrollable, searchable shape list selects retained construction.
-Its checkboxes show or hide construction in the workspace. Hidden shapes are
-excluded from picking and alignment, but their source and any existing traced
-Profile remain intact. **Show all** restores visibility; the visibility choice is
-local to the open workspace and does not suppress engineering geometry.
+The toolbar draws lines, arcs, rectangles, circles, ellipses, slots and rounded
+rectangles. Keys: V select, L line, A arc, R rectangle, C circle, E ellipse,
+S slot, U rounded, T trace, F fit, Delete removes the selection, Ctrl+Z / Ctrl+Y
+undo and redo, Escape steps back. A tool stays active after drawing and proposes
+the next free name (`rect1`, `rect2`, …). Points snap to a grid that follows the
+zoom; Alt snaps to 0.1 mm.
 
-Draw a circle, ellipse, slot or rounded rectangle with its palette tool, size it
-through the inspector, and drag it into place. **Use whole shape outline** traces
-its closed boundary through the existing compiler owner. Slots use overall
-length including both round ends; a vertically drawn slot retains a 90 degree
-rotation. Rounded rectangles expose their corner radius. Invalid dimensions are
-rejected instead of silently clamped.
+- **Line** writes a `Line2` between named points. Ends that land on an existing
+  named point (a rectangle corner, another line's end) reuse it; new ends are
+  written as `Point2 <line>Start` / `<line>End`. The line menu also declares an
+  `Axis2 { origin; direction }`: an unbounded reference direction that is shown
+  on the canvas but never traced.
+- **Arc** drags from the centre to the start, then clicks the end (15° steps;
+  Alt is free). It writes a `Circle2` guide centred on a named point plus the
+  named points on it. The arc itself is chosen when tracing: each pair of
+  neighbouring points on a circle is a counter-clockwise span.
+- The rounded menu also draws `SmoothRoundedRect2` (continuous-curvature
+  corners) with its `cornerExtent`.
 
-For an L, draw a rectangle, then enter its exact 60 × 40 mm size and center
-(0,0) mm. Draw a second independent rectangle and size it to 52 × 32 mm. Drag it
-to align its top and right edges with the first: its center is then (4,4) mm.
-Temporary alignment guides help placement; they do not link the shapes. Other
-edges and centers can align in the same way. Hold Alt to bypass alignment.
-Moving or resizing one rectangle later does not move the other.
+Selected shapes show their dimensions on the canvas; click one to type a value.
+Values driven by an expression are dashed and read-only. Resizing a shape whose
+edge is lined up with another shape's edge asks once whether to move that shape
+too; nothing is stored, and drags never ask. Rename and Delete act on the selected
+shape, line, arc or axis. A shape that is part of the traced outline is not
+deleted until the outline is retraced without it.
 
-Choose **Trace** and select the envelope's bottom and lower-right spans, the
-second rectangle's bottom and left edges, and the envelope's upper-left top
-span and left edge. **Trace Profile** checks the resulting boundary. Rectangles
-remain typed constructions, not authored point lists or meshes. **Use whole
-rectangle outline** traces a single full rectangle.
+The sidebar's searchable shape list selects retained construction. Its checkboxes
+show or hide construction in the workspace; hidden shapes are excluded from
+picking and alignment, but their source and any traced Profile remain intact.
+Temporary alignment guides help placement while dragging; they do not link
+shapes. Hold Alt to bypass alignment.
 
-**Shapes** edits exact dimensions. Apply or discard pending fields before
-switching tools or building. Draw/drag previews commit on release; Escape
-cancels an active gesture. Fit, zoom buttons and middle-drag navigate the canvas.
-The drawing palette creates rectangles, circles, ellipses, slots and rounded rectangles. Alignment uses projected
-bounds of shapes in the same Concept Struct. It writes independent placement
-values, without persistent constraint metadata.
+Choose **Trace** and click the edges of the outline on the canvas: rectangle
+sides, lines and arcs between named points, across shapes. Click order and
+direction do not matter; the outline is written counter-clockwise. The sidebar
+shows whether the outline is closed. **Use this outline** writes the Profile;
+**Use whole shape outline** traces one closed shape. Picks are also available
+as a list under **Edges as a list**.
 
 Explicit dimension-driven relationships remain optional under **Advanced**.
 The top-right inset preset intentionally creates expressions and shared inputs;
@@ -50,14 +57,12 @@ it is not the default placement behavior. Existing expressions remain read-only
 at their derived controls and are edited through their inputs, never flattened
 by a drag.
 
-Named **Point**, **Line**, **Circle** guides and Paths remain under **Advanced**.
-They support outlines that closed shapes do not express well. Circle spans select
-named start and end points; reversing a trace entry preserves its named source.
-
-Alternatively, create a **Path**, then append named Line or Arc steps with
-lengths, radii and signed turns. **Close Path with line** explicitly adds a
-closing line. **Trace this Path** resolves that boundary to a Profile. Trace's
-**Close** checks an already closed boundary and never supplies a missing edge.
+Named **Point**, **Line**, **Circle** guides and Paths remain under **Advanced**,
+with a manual guide trace. Alternatively, create a **Path**, then append named
+Line or Arc steps with lengths, radii and signed turns. **Close Path with line**
+explicitly adds a closing line. **Trace this Path** resolves that boundary to a
+Profile. Trace's **Close** checks an already closed boundary and never supplies a
+missing edge.
 
 Complete examples:
 
@@ -178,15 +183,16 @@ explicitly rejected while those support adapters still assume world XY.
 
 ## Current boundary
 
-The **Sketch** dimension workspace edits authored Rect2, Circle2, Ellipse2, Slot2 and RoundedRect2 fields
+The **Sketch** dimension workspace edits authored Rect2, Circle2, Ellipse2, Slot2, RoundedRect2 and SmoothRoundedRect2 fields
 and displays the resolved line/arc/ellipse/cubic curves of other Profiles.
 Generated Template/Feature bodies do not become writable source through their
 expanded geometry. Profiles must have an unambiguous authored name in the
 document; edits do not reach into included files.
 
-IntelliDraft currently authors one unambiguous Model, retained Rect2 construction,
-named Point2/Line2/Circle2 guides, line/arc Paths, one outer trace and a positive
-extrusion. The optional Advanced related-rectangle preset shares a top-right corner with
+IntelliDraft currently authors one unambiguous Model, retained closed shapes,
+named Point2/Line2/Circle2 guides, Axis2 references, line/arc Paths, one outer
+trace and a positive extrusion. Strokes snap to named points, not to arbitrary
+intersections; an arc's circle stays a full construction circle. The optional Advanced related-rectangle preset shares a top-right corner with
 an unrotated rectangle in the same Concept Struct. Its wall/inset values and the
 rectangle dimensions remain compile-time source expressions. Trace selection
 uses named landmarks on the compiler's bounded guides; it does not invent

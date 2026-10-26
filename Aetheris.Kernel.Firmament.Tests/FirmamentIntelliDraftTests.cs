@@ -63,6 +63,83 @@ public class FirmamentIntelliDraftTests
         Assert.True(result.IsSuccess, string.Join(";", result.Diagnostics.Select(d => d.Message)));
         Assert.Equal(4416, new FirmamentMeasurements(result.Value).Volume().ValueMm3!.Value, 6);
     }
+    [Fact]
+    public void SmoothRoundedRectangleIsADrawableShapeWithItsCornerExtent()
+    {
+        var draft = new Draft(); draft.Add(new("layout", Name: "layout"));
+        draft.Add(new("shape", draft.Id("layout"), "outline", Kind: "SmoothRoundedRect2", Width: 40, Height: 20, Radius: 5));
+        Assert.Contains("SmoothRoundedRect2 outline { center: [0mm, 0mm]; size: [40mm, 20mm]; cornerExtent: 5mm }", draft.Source);
+        var shape = Assert.Single(draft.View.Shapes);
+        Assert.Equal(["Center X", "Center Y", "Width", "Height", "Corner extent"], shape.Controls.Select(c => c.Label));
+        draft.Add(new("trace", draft.Id("layout"), "section", Trace: [new("outline", WholeLoop: true)]));
+        draft.Add(new("extrude", draft.Id("section"), "body", Length: 6));
+        var built = FirmamentBuildAndExport.CompileSource(draft.Source);
+        Assert.True(built.IsSuccess, string.Join(";", built.Diagnostics.Select(d => d.Message)));
+    }
+
+    [Fact]
+    public void Axis2IsDeclaredFromTwoDrawnPointsAndProjectedAsAReference()
+    {
+        var draft = new Draft(); draft.Add(new("layout", Name: "layout"));
+        draft.Add(new("axis", draft.Id("layout"), "spine", X: 5, Y: -2, DirectionX: 30, DirectionY: 40));
+        Assert.Contains("Axis2 spine { origin: [5mm, -2mm]; direction: [30, 40] }", draft.Source);
+        var axis = Assert.Single(draft.View.Axes);
+        Assert.Equal("spine", axis.Name); Assert.Equal(draft.Id("layout"), axis.Owner);
+        Assert.Equal([5d, -2], axis.Origin); Assert.Equal(0.6, axis.Direction[0], 12); Assert.Equal(0.8, axis.Direction[1], 12);
+        Assert.Empty(draft.View.Diagnostics);
+        Assert.Throws<FirmamentLanguageEditException>(() => draft.Add(new("axis", draft.Id("layout"), "none", DirectionX: 0, DirectionY: 0)));
+        draft.Add(new("shape", draft.Id("layout"), "outline", Kind: "Rect2", Width: 40, Height: 20));
+        draft.Add(new("trace", draft.Id("layout"), "section", Trace: [new("outline", WholeLoop: true)]));
+        draft.Add(new("extrude", draft.Id("section"), "body", Length: 6));
+        var built = FirmamentBuildAndExport.CompileSource(draft.Source);
+        Assert.True(built.IsSuccess, string.Join(";", built.Diagnostics.Select(d => d.Message)));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void LineAndCircleSpansAreClickableAndKeepTheirArcWhenJoinedEitherWay(bool left)
+    {
+        var draft = new Draft(); draft.Add(new("layout", Name: "layout"));
+        foreach (var (name, x, y) in new[] { ("center", 0d, 0d), ("lower", -3d, -4d), ("upper", -3d, 4d) })
+            draft.Add(new("point", draft.Id("layout"), name, X: x, Y: y));
+        draft.Add(new("circle", draft.Id("layout"), "rim", Radius: 5, From: "center"));
+        draft.Add(new("line", draft.Id("layout"), "chord", From: "upper", To: "lower"));
+        var spans = draft.View.Spans;
+        var chord = Assert.Single(spans, s => s.Reference == "chord");
+        Assert.Equal(("upper", "lower"), (chord.From, chord.To));
+        // Counter-clockwise arcs: lower→upper passes the right side, upper→lower the left.
+        Assert.Equal(2, spans.Count(s => s.Reference == "rim"));
+        var arc = Assert.Single(spans, s => s.Reference == "rim" && s.From == (left ? "upper" : "lower"));
+        Assert.Equal(left ? 2 * Math.Atan2(4, 3) : 2 * Math.PI - 2 * Math.Atan2(4, 3), arc.Curve.Sweep, 10);
+        draft.Add(new("trace", draft.Id("layout"), "section", Trace: [new("chord", chord.From, chord.To, Connect: true), new("rim", arc.From, arc.To, Connect: true)]));
+        // Picked clockwise on the left, so it is written counter-clockwise; the arc stays the same one.
+        Assert.Contains(left ? "rim from upper to lower as rim |> chord from lower to upper" : "chord from upper to lower as chord |> rim from lower to upper", draft.Source);
+        draft.Add(new("extrude", draft.Id("section"), "body", Length: 6));
+        var built = FirmamentBuildAndExport.CompileSource(draft.Source);
+        Assert.True(built.IsSuccess, string.Join(";", built.Diagnostics.Select(d => d.Message)));
+        var traced = Assert.Single(FirmamentSketchService.Project(draft.Source, "draft.firmament", "1").Loops[0].Curves, c => c.Kind == "Arc");
+        Assert.Equal(arc.Curve.Sweep, traced.Sweep, 10);
+    }
+
+    [Fact]
+    public void PickedSpansNeedNoParticularStartOrDirection()
+    {
+        var draft = new Draft(); draft.Add(new("layout", Name: "layout"));
+        foreach (var (name, x, y) in new[] { ("a", 0d, 0d), ("b", 10d, 0d), ("c", 10d, 10d), ("d", 0d, 10d) })
+            draft.Add(new("point", draft.Id("layout"), name, X: x, Y: y));
+        foreach (var (name, from, to) in new[] { ("bottom", "a", "b"), ("right", "b", "c"), ("top", "c", "d"), ("left", "d", "a") })
+            draft.Add(new("line", draft.Id("layout"), name, From: from, To: to));
+        // Bottom is listed a→b, but the next pick (left) meets it at a; the picks also run clockwise.
+        var picks = new[] { "bottom", "left", "top", "right" }.Select(n => draft.View.Spans.Single(s => s.Reference == n))
+            .Select(s => new FirmamentDraftTrace(s.Reference, s.From, s.To, Connect: true)).ToArray();
+        draft.Add(new("trace", draft.Id("layout"), "section", Trace: picks));
+        draft.Add(new("extrude", draft.Id("section"), "body", Length: 2));
+        var built = FirmamentBuildAndExport.CompileSource(draft.Source);
+        Assert.True(built.IsSuccess, string.Join(";", built.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(200, new FirmamentMeasurements(built.Value).Volume().ValueMm3!.Value, 6);
+    }
+
     private sealed class Draft
     {
         public string Source = "Model Part { units: mm }";

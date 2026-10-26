@@ -15,7 +15,10 @@ public sealed record FirmamentDraftConstruction(IReadOnlyList<FirmamentDraftElem
     public IReadOnlyList<FirmamentDraftFrame> Frames { get; init; } = [];
     public IReadOnlyList<FirmamentSketchShape> Shapes { get; init; } = [];
     public IReadOnlyList<FirmamentDraftSpan> Spans { get; init; } = [];
+    /// <summary>Axis2 declarations in a layout: unbounded reference directions, never traced.</summary>
+    public IReadOnlyList<FirmamentDraftAxis> Axes { get; init; } = [];
 }
+public sealed record FirmamentDraftAxis(string Id, string Name, string Owner, double[] Origin, double[] Direction);
 public sealed record FirmamentDraftSpan(string Id, string Owner, string Reference, string From, string To, FirmamentSketchCurve Curve);
 public sealed record FirmamentDraftFrame(string Owner, FirmamentSketchFrame Frame);
 public sealed record FirmamentDraftTrace(string Reference, string? From = null, string? To = null,
@@ -25,7 +28,7 @@ public sealed record FirmamentDraftOperation(string Action, string? Parent = nul
     double Radius = 10, double Turn = 0, string? From = null, string? To = null,
     IReadOnlyList<FirmamentDraftTrace>? Trace = null, string? Field = null, double Value = 0,
     double Width = 60, double Height = 40, string? Reference = null, double InsetX = 8, double InsetY = 8,
-    bool SharedInset = true, string? TargetProfile = null);
+    bool SharedInset = true, string? TargetProfile = null, double DirectionX = 1, double DirectionY = 0);
 
 /// <summary>Bounded source transactions for construction, trace and extrusion. Open construction is
 /// explicitly not an admitted part. All geometry comes from the existing Profile binding owner.</summary>
@@ -42,7 +45,7 @@ public static class FirmamentIntelliDraft
             return new(f.Name.Text, source.Substring(f.Value.Span.Start, f.Value.Span.Length), unit is null ? null : value,
                 unit, unit is not null && FirmamentSketchService.Literal(f.Value));
         }
-        var elements = declarations.Where(d => FirmamentSketchService.EditableShapes.Contains(d.Syntax.Type.Name.Text) || d.Syntax.Type.Name.Text is "Model" or "Struct" or "Static" or "Point2" or "Line2" or "Path" or "Line" or "Arc" or "Close" or "Profile" or "Extrude")
+        var elements = declarations.Where(d => FirmamentSketchService.EditableShapes.Contains(d.Syntax.Type.Name.Text) || d.Syntax.Type.Name.Text is "Model" or "Struct" or "Static" or "Point2" or "Line2" or "Axis2" or "Path" or "Line" or "Arc" or "Close" or "Profile" or "Extrude")
             .Select(d => new FirmamentDraftElement(d.Id, d.Syntax.Name?.Text ?? d.Id, d.Syntax.Type.Name.Text, d.ParentId,
                 new(d.Syntax.Span.Start, d.Syntax.Span.Length), (d.Syntax.Body?.Statements.OfType<FieldSyntax>() ?? [])
                 .Select(Field).Concat(d.Syntax.Initializer is { } initial ? [new FirmamentDraftField("value", source.Substring(initial.Span.Start, initial.Span.Length),
@@ -54,7 +57,7 @@ public static class FirmamentIntelliDraft
             .Select(d => new FirmamentOutlineDiagnostic("error", d.Code, d.Message,
                 d.SourceSpan is { } s ? new(s.Start, s.Length) : null)));
         if (diagnostics.Count > 0) return new(elements, [], [], diagnostics, "Unresolved");
-        var duplicate = elements.Where(e => FirmamentSketchService.EditableShapes.Contains(e.Kind) || e.Kind is "Point2" or "Line2" or "Path")
+        var duplicate = elements.Where(e => FirmamentSketchService.EditableShapes.Contains(e.Kind) || e.Kind is "Point2" or "Line2" or "Axis2" or "Path")
             .GroupBy(e => e.Name).FirstOrDefault(g => g.Count() > 1);
         if (duplicate is not null)
             return new(elements, [], [], [new("error", "draft-guide-ambiguous", $"Construction preview requires an unambiguous guide name: '{duplicate.Key}'.", duplicate.First().Span)], "Unresolved");
@@ -79,7 +82,9 @@ public static class FirmamentIntelliDraft
         }
         var spans = ProfileAuthoringParser.ConstructionSpans(bound.Points, bound.Guides).Select(s =>
         {
-            var owner = elements.FirstOrDefault(e => s.Guide.StartsWith(e.Name + ".", StringComparison.Ordinal) && e.Kind == "Rect2");
+            // Rect2 sides, and named Line2 and Circle2 guides, are clickable spans between named points.
+            var owner = elements.FirstOrDefault(e => s.Guide.StartsWith(e.Name + ".", StringComparison.Ordinal) && e.Kind == "Rect2"
+                || s.Guide == e.Name && e.Kind is "Line2" or "Circle2");
             var id = s.Guide + ":" + s.From + ":" + s.To;
             var parentCurve = curves.Single(c => c.Name == s.Guide);
             return new FirmamentDraftSpan(id, owner?.Id ?? "", s.Guide, s.From, s.To,
@@ -87,10 +92,22 @@ public static class FirmamentIntelliDraft
         }).Where(s => s.Owner.Length > 0).ToArray();
         return new(elements, bound.Points.Select(p => new FirmamentDraftPoint(p.Key, p.Value.X, p.Value.Y)).ToArray(),
             curves, diagnostics, diagnostics.Count == 0 ? "ConstructionResolvedNotTraced" : "Unresolved")
-            { Frames = frames, Shapes = FirmamentSketchService.ConstructionShapes(source, document, "construction"), Spans = spans };
+            { Frames = frames, Shapes = FirmamentSketchService.ConstructionShapes(source, document, "construction"), Spans = spans, Axes = Axes(elements) };
     }
 
     public static FirmamentLanguageEdit Edit(string source, string document, string revision, FirmamentDraftOperation request)
+    {
+        try { return EditOnce(source, document, revision, request); }
+        catch (FirmamentLanguageEditException error) when (request is { Action: "trace", Trace: { Count: > 1 } picks }
+            && picks.All(t => t.Connect) && error.Message.Contains("outer winding must be CounterClockwise", StringComparison.Ordinal))
+        {
+            // Edges picked on the canvas carry no intended direction. A clockwise pick order is
+            // written in the counter-clockwise order an outer loop requires; the geometry is the same.
+            return EditOnce(source, document, revision, request with { Trace = picks.Reverse().ToArray() });
+        }
+    }
+
+    private static FirmamentLanguageEdit EditOnce(string source, string document, string revision, FirmamentDraftOperation request)
     {
         var view = Project(source, document);
         var operations = new List<FirmamentLanguageEditOperation>();
@@ -112,7 +129,7 @@ public static class FirmamentIntelliDraft
                 var shapeOwner = Owner("Struct");
                 var shapeName = Name();
                 if (request.Kind is null || !FirmamentSketchService.EditableShapes.Contains(request.Kind))
-                    throw Refuse("draft-shape-unsupported", "Choose Rect2, Circle2, Ellipse2, Slot2 or RoundedRect2.");
+                    throw Refuse("draft-shape-unsupported", "Choose Rect2, Circle2, Ellipse2, Slot2, RoundedRect2 or SmoothRoundedRect2.");
                 var centerFields = $"center: [{Mm(request.X)}, {Mm(request.Y)}]";
                 var shapeFields = request.Kind switch
                 {
@@ -121,6 +138,7 @@ public static class FirmamentIntelliDraft
                     "Ellipse2" => $"axisLengths: [{Positive(request.Width)}mm, {Positive(request.Height)}mm]",
                     "Slot2" => $"length: {Positive(request.Width)}mm; width: {Positive(request.Height)}mm; rotation: {Number(request.Turn)}deg",
                     "RoundedRect2" => $"size: [{Positive(request.Width)}mm, {Positive(request.Height)}mm]; radius: {Positive(request.Radius)}mm",
+                    "SmoothRoundedRect2" => $"size: [{Positive(request.Width)}mm, {Positive(request.Height)}mm]; cornerExtent: {Positive(request.Radius)}mm",
                     _ => throw Refuse("draft-shape-unsupported", "Choose a supported construction shape.")
                 };
                 Insert(shapeOwner.Id, $"{request.Kind} {shapeName} {{ {centerFields}; {shapeFields} }}");
@@ -199,6 +217,11 @@ public static class FirmamentIntelliDraft
             case "point":
                 Insert(Owner("Struct").Id, $"Point2 {Name()} {{ position: [{Mm(request.X)}, {Mm(request.Y)}] }}");
                 break;
+            case "axis":
+                if (!double.IsFinite(request.DirectionX) || !double.IsFinite(request.DirectionY) || Math.Abs(request.DirectionX) + Math.Abs(request.DirectionY) < 1e-12)
+                    throw Refuse("draft-axis-direction", "Draw the axis with two different points.");
+                Insert(Owner("Struct").Id, $"Axis2 {Name()} {{ origin: [{Mm(request.X)}, {Mm(request.Y)}]; direction: [{Number(request.DirectionX)}, {Number(request.DirectionY)}] }}");
+                break;
             case "line":
                 Insert(Owner("Struct").Id, $"Line2 {Name()} {{ from: {Point(request.From)}; to: {Point(request.To)} }}");
                 break;
@@ -239,6 +262,13 @@ public static class FirmamentIntelliDraft
                     var entries = request.Trace ?? [];
                     if (entries.Count == 0) throw Refuse("draft-trace-empty", "Add guides in boundary order before tracing.");
                     (double X, double Y)? previous = null;
+                    (double X, double Y)? At(string? name) => view.Points.Where(p => p.Name == name).Select(p => ((double X, double Y)?)(p.X, p.Y)).FirstOrDefault();
+                    // The first picked span has no predecessor: run it toward the span picked after it.
+                    if (entries is [{ Connect: true } first, { Connect: true } second, ..] && At(first.From) is { } a && At(first.To) is { } b
+                        && At(second.From) is { } c && At(second.To) is { } d
+                        && (ProfileAuthoringParser.SameConstructionPoint(a, c) || ProfileAuthoringParser.SameConstructionPoint(a, d))
+                        && !ProfileAuthoringParser.SameConstructionPoint(b, c) && !ProfileAuthoringParser.SameConstructionPoint(b, d))
+                        previous = b;
                     string Entry(FirmamentDraftTrace entry)
                     {
                         if (entry.WholeLoop)
@@ -252,7 +282,11 @@ public static class FirmamentIntelliDraft
                         {
                             var start = view.Points.SingleOrDefault(p => p.Name == entry.From); var end = view.Points.SingleOrDefault(p => p.Name == entry.To);
                             if (start is null || end is null) throw Refuse("draft-point-required", "Select a span with named construction endpoints.");
-                            if (previous is { } p && ProfileAuthoringParser.SameConstructionPoint(p, (end.X, end.Y))) (start, end) = (end, start);
+                            // A circle span is the counter-clockwise arc from its first to its second point.
+                            // Joining it backwards keeps that arc and traces it clockwise.
+                            var circle = view.Guides.Any(g => g.Name == entry.Reference && g.Kind == "Circle");
+                            if (previous is { } p && ProfileAuthoringParser.SameConstructionPoint(p, (end.X, end.Y)))
+                            { (start, end) = (end, start); if (circle) entry = entry with { Reverse = !entry.Reverse }; }
                             if (previous is { } current && !ProfileAuthoringParser.SameConstructionPoint(current, (start.X, start.Y)))
                                 throw Refuse("draft-trace-disconnected", $"'{entry.Reference}' does not join the preceding span. Select a connected span or reorder the trace.");
                             if (entry.Alias is null && entries.Count(e => e.Reference == entry.Reference) > 1)
@@ -263,7 +297,7 @@ public static class FirmamentIntelliDraft
                         var text = entry.Reference;
                         if (entry.From is not null || entry.To is not null) text += $" from {Point(entry.From)} to {Point(entry.To)}";
                         if (entry.Alias is not null) text += " as " + FirmamentLanguageEditService.RequireIdentifier(entry.Alias, "edge alias");
-                        return text + (entry.Reverse ? " |> Reverse" : "");
+                        return (entry.Reverse ? "Reverse " : "") + text; // prefix form, as in Loop Inner { Reverse a.Bottom |> … }
                     }
                     Profile($"Profile {name} using {owner.Name} {{ Loop Outer {{ {string.Join(" |> ", entries.Select(Entry))}{(entries.Count == 1 && entries[0].WholeLoop ? "" : " |> Close")} }} }}");
                 }
@@ -285,6 +319,26 @@ public static class FirmamentIntelliDraft
             if (projected.ValidationLevel != "ProfileResolvedNotBuilt") throw Refuse("draft-trace-unresolved", "The trace did not resolve to a closed Profile.");
         }
         return result;
+    }
+    private static IReadOnlyList<FirmamentDraftAxis> Axes(IReadOnlyList<FirmamentDraftElement> elements)
+    {
+        static double[]? Pair(FirmamentDraftField? field, string unit)
+        {
+            var parts = field?.Value.Trim().TrimStart('[').TrimEnd(']').Split(',');
+            if (parts is not { Length: 2 }) return null;
+            var result = new double[2];
+            for (var i = 0; i < 2; i++)
+                if (!FirmamentNumericEvaluation.TryEvaluateScalar(parts[i].Trim(), out result[i], out var u) || u != unit) return null;
+            return result;
+        }
+        return elements.Where(e => e.Kind == "Axis2").Select(e =>
+        {
+            var origin = Pair(e.Fields.FirstOrDefault(f => FirmamentSyntaxFields.SameField(f.Name, "Origin")), "mm");
+            var direction = Pair(e.Fields.FirstOrDefault(f => FirmamentSyntaxFields.SameField(f.Name, "Direction")), "");
+            if (origin is null || direction is null || Math.Abs(direction[0]) + Math.Abs(direction[1]) < 1e-12) return null;
+            var length = Math.Sqrt(direction[0] * direction[0] + direction[1] * direction[1]);
+            return new FirmamentDraftAxis(e.Id, e.Name, e.Parent ?? "", origin, [direction[0] / length, direction[1] / length]);
+        }).OfType<FirmamentDraftAxis>().ToArray();
     }
     private static string Number(double value) => double.IsFinite(value) ? value.ToString("R", CultureInfo.InvariantCulture)
         : throw Refuse("draft-number-invalid", "Use a finite dimension or angle.");

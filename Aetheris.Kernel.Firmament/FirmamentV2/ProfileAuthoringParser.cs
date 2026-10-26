@@ -1125,6 +1125,23 @@ public static class ProfileAuthoringParser
         var result = new List<(string, string, string, LineArcProfileCurve2D)>();
         foreach (var (name, geometry) in guides)
         {
+            if (geometry is LineArcFullCircle2D circle)
+            {
+                // Counter-clockwise arcs between consecutive named points on the circle.
+                var stops = new List<KeyValuePair<string, (double X, double Y)>>();
+                foreach (var point in points.Where(p => OnCircle(p.Value, circle.Center, circle.Radius)).OrderBy(p => p.Key, StringComparer.Ordinal))
+                    if (!stops.Any(p => Distance(p.Value, point.Value) <= Tolerance)) stops.Add(point);
+                if (stops.Count < 2) continue;
+                var around = stops.OrderBy(p => Math.Atan2(p.Value.Y - circle.Center.Y, p.Value.X - circle.Center.X)).ToArray();
+                for (var i = 0; i < around.Length; i++)
+                {
+                    var diagnostics = new List<string>();
+                    var next = around[(i + 1) % around.Length];
+                    var selected = SelectGuide(circle, around[i].Value, next.Value, "CounterClockwise", name, name, diagnostics);
+                    if (selected is not null && diagnostics.Count == 0) result.Add((name, around[i].Key, next.Key, selected));
+                }
+                continue;
+            }
             if (geometry is not LineArcLineSegment2D line || Distance(line.Start, line.End) <= Tolerance) continue;
             var owner = name.Contains('.') ? name[..name.LastIndexOf('.')] : name;
             var landmarks = new List<KeyValuePair<string, (double X, double Y)>>();

@@ -37,6 +37,11 @@ different construction.
 patterns. `Modify Base {}` with no features is a valid no-op, as long as `Base`
 exists.
 
+A plain `Extrude` takes only edge finishes in its Modify. Holes, perforations and
+patterns need a Profile-based `Compose` body (`Compose Plate { Base Stock { profile:
+Outline; from: 0mm; to: 8mm } }`); on an `Extrude` they reject rather than build
+without the feature.
+
 Angular mold `Draft` is not currently a V2 `Modify` feature. Its bounded legacy
 operation does not imply support on the modern authoring path.
 

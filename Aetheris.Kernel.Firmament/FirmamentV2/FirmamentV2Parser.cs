@@ -77,6 +77,7 @@ public static partial class FirmamentV2Parser
     public const string AssertVolumeToleranceNegative = "firmament-v2-assert-volume-tolerance-negative";
     public const string CanonicalConstructNotYetSupported = "firmament-v2-canonical-construct-not-yet-supported";
     public const string EdgeFinishProfileComposeBoundaryUnsupported = "EdgeFinishProfileComposeBoundaryUnsupported";
+    public const string ExtrudeModifyFeatureUnsupported = "firmament-v2-extrude-modify-feature-unsupported";
     public const string CanonicalFieldUnknown = "firmament-v2-canonical-field-unknown";
     public const string SelectionMalformed = "firmament-v2-selection-malformed";
     public const string SelectionDuplicateName = "firmament-v2-selection-duplicate-name";
@@ -1307,6 +1308,19 @@ public static partial class FirmamentV2Parser
                 return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
             }
             var resolved = profile.Profile;
+            // A plain Extrude lowers its Profile alone. Holes, perforations and
+            // patterns in a Modify block would otherwise be admitted and then
+            // never cut; reject them and name the construction that cuts them.
+            if (declarations.Where(d => d.Type.Name.Text == "Modify").SelectMany(d => d.Body?.Statements.OfType<DeclarationSyntax>() ?? [])
+                    .FirstOrDefault(d => d.Type.Name.Text != "EdgeFinish") is { } dropped)
+            {
+                var extrude = declarations.First(d => d.Type.Name.Text == "Extrude");
+                var message = $"Extrude {extrude.Name?.Text} lowers only its Profile, so {dropped.Type.Name.Text} {dropped.Name?.Text} would not be cut. "
+                    + $"Build the body with Compose for holes and other Modify features: Compose {extrude.Name?.Text} {{ Base Stock {{ Profile: {resolved.Name}; From: ...; To: ...; Role: Stock }} }}.";
+                diagnostics.Add($"{ExtrudeModifyFeatureUnsupported}: {message}");
+                return CanonicalFailure(diagnostics, CanonicalDocumentMalformed) with
+                { SyntaxDiagnostics = [new(ExtrudeModifyFeatureUnsupported, "fatal", message) { SourceSpan = dropped.Span, Stage = "Capability" }] };
+            }
             var profileSelectionDiagnostics = new List<string>();
             var profileSelections = ParseCanonicalSelections(body, bodySpan.Start, profileSelectionDiagnostics);
             ValidateCanonicalSelectionSources(body, profileSelections, [resolved.Name], profileSelectionDiagnostics);

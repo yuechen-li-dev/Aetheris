@@ -11,10 +11,10 @@ public sealed class FirmamentSemanticSchemaTests
         string[] expectedNames =
         [
             "Appearance", "FrameTransform", "Placement", "Pmi", "Note", "Provenance",
-            "Box", "Concept", "Points", "Door", "Drape", "EdgeFinish", "Ellipsoid", "Fabric", "FigureFit", "Fitting", "Garment",
+            "Box", "Circle2", "Compose", "Base", "Concept", "Points", "Door", "Drape", "EdgeFinish", "Ellipsoid", "Extrude", "Fabric", "FigureFit", "Fitting", "Garment",
             "Helix", "Hole", "Interface<Fixed>", "Interface<Prismatic>", "Interface<Revolute>",
             "Interface<Stitch>", "Inventory", "Joint", "Loft", "Panel", "Perforation", "Material", "Linear", "Series", "Polyhedron", "Pose", "PoseTransition",
-            "Room", "Scene", "Camera", "Section", "Thread", "Window", "Follow", "WireRoute",
+            "Profile", "Rect2", "Room", "RoundedRect2", "Scene", "Camera", "Section", "Slot2", "Thread", "Window", "Follow", "WireRoute",
         ];
         Assert.Equal(expectedNames, FirmamentSemanticSchemas.All.Select(schema => schema.Name));
         var hole = Assert.IsType<FirmamentConstructSchema>(FirmamentSemanticSchemas.Get("Hole"));
@@ -65,6 +65,35 @@ public sealed class FirmamentSemanticSchemaTests
             var source = $"Model Preset {{ units: mm Box Body {{ size: [40mm, 30mm, 10mm] }} Modify Body {{ EdgeFinish F {{ face: +Z target: Boundary kind: {kind} {(kind == "Chamfer" ? "distance" : "radius")}: 1mm }} }} }}";
             Assert.True(FirmamentBuildAndExport.CompileSource(source).IsSuccess);
         }
+    }
+
+    [Fact]
+    public void ProfileWorkflowEntries_BuildAsWritten()
+    {
+        // Agents and completion copy these entries verbatim; each must compile in its documented host.
+        string Entry(string name) => FirmamentSemanticSchemas.Get(name)!.Entry!;
+        foreach (var shape in new[] { "Rect2", "RoundedRect2", "Circle2", "Slot2" })
+        {
+            var guide = Entry(shape);
+            var profile = guide[(guide.IndexOf(' ') + 1)..guide.IndexOf('{')].Trim();
+            var source = $"Model M {{ units: mm {guide} Profile P {{ Loop Outer {{ {profile} |> TraceLoop }} }} Extrude Body {{ profile: P; from: 0mm; to: 5mm }} }}";
+            Assert.True(FirmamentBuildAndExport.CompileSource(source).IsSuccess, shape);
+        }
+        var plate = $"Model M {{ units: mm {Entry("Profile")} {Entry("Extrude")} }}";
+        Assert.True(FirmamentBuildAndExport.CompileSource(plate).IsSuccess, plate);
+        var composed = $"Model M {{ units: mm {Entry("Profile")} {Entry("Compose")} Modify Plate {{ Hole<Shaft> H {{ on: +Z center: Point2(19mm, 14mm) diameter: 5.5mm end: ThroughAll }} }} }}";
+        Assert.True(FirmamentBuildAndExport.CompileSource(composed).IsSuccess, composed);
+    }
+
+    [Fact]
+    public void ModifyFeaturesOnAPlainExtrude_RejectInsteadOfVanishing()
+    {
+        var source = "Model M { units: mm Profile P = Rect2 { center: [0mm, 0mm]; size: [50mm, 40mm] } Extrude Plate { profile: P; from: 0mm; to: 8mm } "
+            + "Modify Plate { Hole<Shaft> H { on: +Z center: Point2(0mm, 0mm) diameter: 6mm end: ThroughAll } } }";
+        var build = FirmamentBuildAndExport.CompileSource(source);
+        Assert.False(build.IsSuccess);
+        var diagnostic = Assert.Single(build.Diagnostics, d => d.Message.Contains("Compose Plate", StringComparison.Ordinal));
+        Assert.Contains("Hole H would not be cut", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

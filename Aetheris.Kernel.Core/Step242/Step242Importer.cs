@@ -136,6 +136,8 @@ public static class Step242Importer
         }
         var orchestrator = ImportOrchestrator.CreateDefault();
         var result = orchestrator.Import(new ImportRequest(stepText, policy)).BodyResult;
+        if (result.IsSuccess && result.Value is not null)
+            result.Value.SourceStepTextHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(stepText)));
         if (memoizable && result.IsSuccess && result.Value is not null)
         {
             var retained = result.Value.Clone();
@@ -958,7 +960,7 @@ public static class Step242Importer
         }
 
         geometry.AddCurve(curveGeometryId, bindCurveResult.Value.CurveGeometry);
-        bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeId, curveGeometryId, bindCurveResult.Value.TrimInterval, edgeSameSense));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeId, curveGeometryId, bindCurveResult.Value.TrimInterval, edgeSameSense) { SourceStepEntityId = edgeCurveEntity.Id });
 
         return KernelResult<EdgeId>.Success(edgeId);
     }

@@ -9,7 +9,7 @@ Assembly with its existing hierarchy and transforms. `InlineStep` is the local
 annotation/surgery binding for one body; it can use `from: Components.housing`
 or a direct path. An optional generated dependency lock supplies its source pin,
 so authors do not need to write SHA-256 strings. See the Inventory guide for lock
-commands, metadata and the explicit exclusion of imported PMI.
+commands, metadata and assembly imports' explicit source-PMI exclusion policy.
 
 Helios also provides **Import STEP** for the bounded canonical `InlineStep` part
 workflow described below. It retains the input as an immutable text asset and
@@ -27,9 +27,12 @@ imported geometry.
 **Save workspace** downloads a `.helios.zip` containing the original STEP text
 and Firmament source; **Open file** reopens it. Local checkpoints retain both too.
 Cloud single-document saves cannot store these workspaces and refuse rather than
-omit the asset. Reopening an already annotated STEP as a new `InlineStep` is
-currently rejected explicitly: import of its existing semantic annotation layer
-is not qualified. Reopen the saved workspace to continue editing annotations.
+omit the asset. An unchanged `InlineStep` can retain an existing semantic PMI
+layer, normalize its length measures to millimetres, and add explicit controls.
+Foreign graphical glyphs are excluded with a warning; advanced semantic forms
+can be retained in STEP without promising their 3D label projection. See
+[PMI transfer and explicit GD&T](pmi.md#imported-semantic-pmi-and-units) for
+admission limits. Reopen a saved workspace to preserve its editable source layer.
 
 The browser SDK accepts `.step`/`.stp` text assets in `projectDocuments`:
 

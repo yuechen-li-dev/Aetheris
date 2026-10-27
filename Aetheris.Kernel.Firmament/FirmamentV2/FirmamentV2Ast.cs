@@ -293,7 +293,8 @@ public sealed record FirmamentV2SemanticHoleDecl(
     FirmamentV2BoundHolePlacement? Placement = null,
     FirmamentV2SemanticHoleTermination? Termination = null,
     IReadOnlyList<FirmamentV2AuthoredField>? AuthoredFields = null);
-public enum FirmamentV2PmiKind { HoleDiameter, DatumPlane, Distance, Flatness, Parallel, Perpendicular, Coplanar }
+public enum FirmamentV2PmiKind { HoleDiameter, DatumPlane, Distance, Flatness, Parallel, Perpendicular, Coplanar,
+    Straightness, Roundness, Cylindricity, Parallelism, Perpendicularity, Angularity, Position, LineProfile, SurfaceProfile, CircularRunout, TotalRunout }
 public sealed record FirmamentV2PmiDecl(string Name, FirmamentV2PmiKind Kind, string Target, double? Value = null);
 public sealed record FirmamentV2PmiBlock(IReadOnlyList<FirmamentV2PmiRecord> Records, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2PmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyDictionary<string, FirmamentV2PmiField> Fields, FirmamentV2SourceSpan SourceSpan, FirmamentV2BoundPmiRecord? Bound = null, FirmamentV2PmiProjection? Projection = null);
@@ -302,6 +303,8 @@ public sealed record FirmamentV2BoundPmiBlock(IReadOnlyList<FirmamentV2BoundPmiR
 public sealed record FirmamentV2BoundPmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyList<string> Targets, FirmamentV2LiteralValue? DimensionValue, FirmamentV2Tolerance? DimensionTolerance, FirmamentV2LiteralValue? ControlTolerance, IReadOnlyList<string> DatumRefs, FirmamentV2SourceSpan SourceSpan, string? ProjectionSource = null, FirmamentV2HoleWallSelector? HoleWallTarget = null)
 {
     public IReadOnlyList<FirmamentV2ValueOrigin> DimensionOrigins { get; init; } = [];
+    public IReadOnlyList<string> Modifiers { get; init; } = [];
+    public string? ZoneForm { get; init; }
 }
 /// <summary>Reusable, validated dimensional intent. Only equality of a semantic feature property
 /// to a length expectation is admitted in Preview 1.</summary>

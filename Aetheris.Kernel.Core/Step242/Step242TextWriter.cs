@@ -6,6 +6,7 @@ namespace Aetheris.Kernel.Core.Step242;
 internal sealed class Step242TextWriter
 {
     private readonly List<string> _entities = [];
+    internal int EntityCount => _entities.Count;
     // Export-local, exact serialized equality: no tolerance matching or topology coalescing.
     // Names and references participate in the key; child geometry is interned first.
     private readonly Dictionary<string, string> _immutableGeometry = new(StringComparer.Ordinal);
@@ -70,6 +71,7 @@ internal sealed class Step242TextWriter
     // Thirteen fractional digits keep exported geometry well below kernel tolerances while
     // suppressing the final-bit libm variation that can otherwise change STEP bytes by OS.
     public static string Number(double value) => value.ToString("0.#############", CultureInfo.InvariantCulture);
+    internal static string PmiNumber(double value) => value.ToString("R", CultureInfo.InvariantCulture);
 
     public static string BooleanLogical(bool value) => value ? ".T." : ".F.";
 

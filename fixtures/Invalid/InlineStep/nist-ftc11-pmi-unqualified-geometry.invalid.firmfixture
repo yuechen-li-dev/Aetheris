@@ -1,0 +1,21 @@
+// fixture-id: nist-ftc11-pmi-unqualified-geometry
+// validity: invalid
+// expected: invalid
+// expected-diagnostic: firmament-inline-step-import-unqualified
+// The semantic graph transfers at the kernel API, but normal builds retain the existing trim-admission gate.
+Model AnnotatedNistPart {
+    units: mm
+    InlineStep Source {
+        path: "../../../testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp"
+        textSha256: "c1caa07cef540b600fb9b5aefd0fcd3e67595deb6a8a14191808f133b1ab654b"
+        importTolerance: 0.1mm
+    }
+    Pmi {
+        SurfaceProfile RevisionProfile {
+            target: Source.face("#1192")
+            tolerance: 1.2mm
+            datumRefs: [A, B]
+            modifiers: [FreeState]
+        }
+    }
+}

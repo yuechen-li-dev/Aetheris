@@ -1,5 +1,10 @@
 namespace Aetheris.Kernel.Core.Step242;
 
+public sealed record Step242PmiDatumFrame(int Precedence, IReadOnlyList<string> Labels, IReadOnlyList<string> Modifiers)
+{
+    public bool PresentationSupported { get; init; } = true;
+}
+
 public sealed record Step242SemanticPmiInspectionItem(
     int EntityId,
     string Kind,
@@ -13,9 +18,17 @@ public sealed record Step242SemanticPmiInspectionItem(
     string? Text)
 {
     public IReadOnlyList<int> GeometricFaceEntityIds { get; init; } = [];
+    /// <summary>Direct AP242 usage items, including edges, solid bodies and auxiliary datum geometry.
+    /// Face adjacency is a separate presentation projection, not the source association identity.</summary>
+    public IReadOnlyList<int> GeometricItemEntityIds { get; init; } = [];
     public string? DimensionKind { get; init; }
     public string? AuthoredName { get; init; }
     public double? Depth { get; init; }
+    public IReadOnlyList<string> Modifiers { get; init; } = [];
+    public IReadOnlyList<Step242PmiDatumFrame> DatumReferenceFrames { get; init; } = [];
+    public IReadOnlyList<string> ZoneForms { get; init; } = [];
+    public string ValueUnit { get; init; } = "mm";
+    public bool PresentationSupported { get; init; } = true;
 }
 
 public sealed record Step242SemanticPmiInspectionResult(
@@ -25,7 +38,7 @@ public sealed record Step242SemanticPmiInspectionResult(
 {
     public int DatumCount => Items.Count(item => item.Kind == "Datum");
     public int DimensionCount => Items.Count(item => item.Kind is "Diameter" or "Dimension");
-    public int GeometricToleranceCount => Items.Count(item => item.Kind == "Position");
+    public int GeometricToleranceCount => Items.Count(item => Step242GeometricToleranceKinds.Find(item.Kind) is not null || item.Kind == "GeometricTolerance");
     public int AnnotationCount => Items.Count(item => item.Kind == "Annotation");
 }
 
@@ -43,7 +56,8 @@ public static class Step242SemanticPmiInspector
 
         var document = parsed.Value;
         var entities = document.Entities.ToDictionary(entity => entity.Id);
-        var representations = BuildRepresentations(document, entities);
+        var schemaReader = new Step242ForeignPmiReader(document);
+        var representations = BuildRepresentations(document, entities, schemaReader);
         var aspectTargets = BuildAspectTargets(document);
         var geometricAssociations = BuildGeometricAssociations(document, aspectTargets);
         var quantities = BuildQuantities(document);
@@ -111,15 +125,26 @@ public static class Step242SemanticPmiInspector
             items.Add(new(entity.Id, "Position", name, target, magnitude, null, null, Quantity(quantities, target), datumReferences, null));
         }
 
-        return new(true, items.OrderBy(item => item.EntityId).Select(item => item with
+        var native = items.Select(item => item with
         {
-            GeometricFaceEntityIds = geometricAssociations.GetValueOrDefault(item.Target) ?? []
-        }).ToArray(), []);
+            GeometricFaceEntityIds = geometricAssociations.GetValueOrDefault(item.Target) ?? [],
+            GeometricItemEntityIds = geometricAssociations.GetValueOrDefault(item.Target) ?? []
+        }).ToArray();
+        var foreign = schemaReader.Read(native.Where(i => i.Kind != "Position").ToArray());
+        var positions = foreign.Where(i => i.Kind == "Position").ToDictionary(i => i.EntityId);
+        var combined = native.Select(item => positions.TryGetValue(item.EntityId, out var detailed) ? item with
+        { Modifiers = detailed.Modifiers, DatumReferenceFrames = detailed.DatumReferenceFrames, DatumReferences = detailed.DatumReferences, ZoneForms = detailed.ZoneForms,
+            Target = item.Target.Length > 0 ? item.Target : detailed.Target,
+            Value = detailed.Value,
+            PresentationSupported = detailed.PresentationSupported,
+            GeometricItemEntityIds = detailed.GeometricItemEntityIds,
+            GeometricFaceEntityIds = detailed.GeometricFaceEntityIds.Count > 0 ? detailed.GeometricFaceEntityIds : item.GeometricFaceEntityIds } : item);
+        return new(true, combined.Concat(foreign.Where(item => native.All(n => n.EntityId != item.EntityId))).OrderBy(item => item.EntityId).ToArray(), []);
     }
 
     private static Dictionary<string, IReadOnlyList<double>> BuildRepresentations(
         Step242ParsedDocument document,
-        IReadOnlyDictionary<int, Step242ParsedEntity> entities)
+        IReadOnlyDictionary<int, Step242ParsedEntity> entities, Step242ForeignPmiReader measures)
     {
         var result = new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal);
         foreach (var entity in document.Entities)
@@ -130,7 +155,7 @@ public static class Step242SemanticPmiInspector
                 continue;
             result[name] = list.Items.OfType<Step242EntityReference>()
                 .Where(reference => entities.ContainsKey(reference.TargetId))
-                .Select(reference => FirstNumber(entities[reference.TargetId].Instance))
+                .Select(reference => measures.Measure(reference.TargetId))
                 .Where(value => value.HasValue)
                 .Select(value => value!.Value)
                 .ToArray();
@@ -146,7 +171,7 @@ public static class Step242SemanticPmiInspector
             var constructor = Step242SubsetDecoder.TryGetConstructor(entity.Instance, "SHAPE_ASPECT")
                 ?? Step242SubsetDecoder.TryGetConstructor(entity.Instance, "COMPOSITE_SHAPE_ASPECT")
                 ?? Step242SubsetDecoder.TryGetConstructor(entity.Instance, "DATUM_FEATURE");
-            if (constructor is not null) result[entity.Id] = Target(String(constructor, 1));
+            if (constructor is not null && Target(String(constructor, 1)) is { Length: > 0 } target) result[entity.Id] = target;
         }
         return result;
     }

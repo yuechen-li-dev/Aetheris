@@ -44,4 +44,8 @@ public sealed record Step242SemanticPmiGeometricTolerance(
     string ToleranceKind,
     double Value,
     IReadOnlyList<string> DatumReferences,
-    int? Quantity = null) : Step242SemanticPmi(FeatureId);
+    int? Quantity = null) : Step242SemanticPmi(FeatureId)
+{
+    public IReadOnlyList<string> Modifiers { get; init; } = [];
+    public string? ZoneForm { get; init; }
+}

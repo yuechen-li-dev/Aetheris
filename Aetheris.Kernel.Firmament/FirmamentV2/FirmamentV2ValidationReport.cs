@@ -44,6 +44,8 @@ public sealed record FirmamentV2ValidationConceptField(string Name, string Type,
 public sealed record FirmamentV2ValidationPmiRecord(string Kind, string Name, string Status, string ExportSupport, string? Target, IReadOnlyList<string> Targets, IReadOnlyList<string> DatumRefs, FirmamentV2ValidationDimension? Dimension, string? Reason, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics, string? ProjectionSource = null, string? SourceConstraintKind = null, string? SourceSubject = null, string? ValidationStatus = null, string? Provenance = null)
 {
     public IReadOnlyList<FirmamentV2ValueOrigin> DimensionOrigins { get; init; } = [];
+    public IReadOnlyList<string> Modifiers { get; init; } = [];
+    public string? Zone { get; init; }
 }
 public sealed record FirmamentV2ValidationDimension(string Nominal, FirmamentV2ValidationTolerance? Tolerance);
 public sealed record FirmamentV2ValidationConceptPmiObligation(string Kind, string SourceConcept, string? SourceName, string? Target, string? ExpectedDimensionField, string Status, string Severity, string? MatchedPmi = null, string? DiagnosticCode = null);
@@ -254,7 +256,7 @@ public static class FirmamentV2ValidationReportBuilder
                 constraint is null ? null : "dimensional-equality",
                 constraint is null ? null : constraint.Subject + "." + constraint.Property,
                 constraint is null ? null : constraint.ValidationSucceeded ? "succeeded" : "failed",
-                constraint?.ExpectedProvenance) { DimensionOrigins = boundRecord?.DimensionOrigins ?? [] };
+                constraint?.ExpectedProvenance) { DimensionOrigins = boundRecord?.DimensionOrigins ?? [], Modifiers = boundRecord?.Modifiers ?? [], Zone = boundRecord?.ZoneForm };
         }).ToArray();
     }
 
@@ -371,7 +373,7 @@ public static class FirmamentV2ValidationReportBuilder
             ? Convert.ToString(value.Value, CultureInfo.InvariantCulture) ?? string.Empty
             : FormatNumber(value.NumericValue ?? 0) + value.Unit;
 
-    private static string FormatNumber(double value) => value.ToString("0.############", CultureInfo.InvariantCulture);
+    private static string FormatNumber(double value) => value.ToString("R", CultureInfo.InvariantCulture);
 
     private static string TypeName(FirmamentV2PrimitiveType type) => type.ToString().ToLowerInvariant();
 
@@ -389,16 +391,8 @@ public static class FirmamentV2ValidationReportBuilder
         FirmamentBuildAndExport.V2PmiExportRejection(kind, boundRecord?.Name ?? "unbound", boundRecord) is not null
             ? "deferred" : boundRecord is null ? "supported-when-target-resolves" : "supported";
 
-    private static readonly IReadOnlyDictionary<string, string> ExportMatrix = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["datum"] = "supported-when-target-resolves",
-        ["diameter"] = "supported-when-target-resolves",
-        ["distance"] = "deferred",
-        ["flatness"] = "deferred",
-        ["parallel"] = "deferred",
-        ["perpendicular"] = "deferred",
-        ["coplanar"] = "deferred"
-    };
+    private static readonly IReadOnlyDictionary<string, string> ExportMatrix = Enum.GetValues<FirmamentV2PmiKind>()
+        .ToDictionary(KindName, kind => ExportSupport(kind, null), StringComparer.Ordinal);
 
     private sealed record FirmamentV2ConceptPmiObligationEvaluation(
         IReadOnlyList<FirmamentV2ValidationConceptPmiObligation> Obligations,

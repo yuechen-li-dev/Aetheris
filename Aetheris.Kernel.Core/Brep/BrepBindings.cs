@@ -8,7 +8,10 @@ public readonly record struct EdgeGeometryBinding(
     EdgeId EdgeId,
     CurveGeometryId CurveGeometryId,
     ParameterInterval? TrimInterval = null,
-    bool OrientedEdgeSense = true);
+    bool OrientedEdgeSense = true)
+{
+    public int? SourceStepEntityId { get; init; }
+}
 
 /// <summary>
 /// Canonical face orientation after topology/material-side resolution.  This is

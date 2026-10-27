@@ -56,6 +56,8 @@ public sealed class BrepBody
 
     /// <summary>Source BRep evidence; display completeness is assessed separately.</summary>
     public Aetheris.Kernel.Core.Import.BrepImportQualificationReport? ImportQualification { get; internal set; }
+    /// <summary>Exact source receipt for rebinding imported annotations. Not a geometry identity.</summary>
+    public string? SourceStepTextHash { get; internal set; }
 
     /// <summary>
     /// An independent body: its topology, geometry and binding stores are copies, so adding to them
@@ -67,6 +69,7 @@ public sealed class BrepBody
     {
         PcurveRecoveryReport = PcurveRecoveryReport,
         ImportQualification = ImportQualification,
+        SourceStepTextHash = SourceStepTextHash,
     };
 
     public bool TryGetVertexPoint(VertexId vertexId, out Point3D point) => _vertexPoints.TryGetValue(vertexId, out point);

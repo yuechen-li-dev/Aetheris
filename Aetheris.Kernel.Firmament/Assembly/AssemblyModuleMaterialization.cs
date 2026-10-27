@@ -35,6 +35,11 @@ internal static partial class AssemblyDefinitionMaterializer
             if (reference.Module is null)
             {
                 var text = graph.Asset(reference.Path);
+                if (!reference.GeometryOnly && ImportedStepSemantics.HasAnnotations(text))
+                {
+                    diagnostics.Add(new("firmament-step-source-pmi-unsupported", "Imported part PMI is not promoted into an assembly. Use geometryOnly: true explicitly, or re-export the annotated part separately.") { SourceSpan = reference.Origin });
+                    return null;
+                }
                 var imported = reference.ImportedBody is { } retained
                     ? Aetheris.Kernel.Core.Results.KernelResult<Aetheris.Kernel.Core.Brep.BrepBody>.Success(retained.Clone()) : Step242Importer.ImportBody(text);
                 if (!imported.IsSuccess)

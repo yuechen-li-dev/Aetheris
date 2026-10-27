@@ -359,7 +359,7 @@ internal static class Step242SubsetParser
         private Step242Value ReadDerivedOmitted()
         {
             Expect('*');
-            return Step242OmittedValue.Instance;
+            return Step242OmittedValue.Derived;
         }
 
         private Step242Value ReadList()
@@ -661,7 +661,7 @@ internal sealed class Step242ParsedDocument
         return 1d;
     }
 
-    private bool TryResolvePlaneAngleUnitScale(int unitEntityId, HashSet<int> visited, out double scale)
+    internal bool TryResolvePlaneAngleUnitScale(int unitEntityId, HashSet<int> visited, out double scale)
     {
         scale = default;
         if (!visited.Add(unitEntityId) || !_entitiesById.TryGetValue(unitEntityId, out var unitEntity))
@@ -753,5 +753,7 @@ internal sealed record Step242TypedValue(string Name, IReadOnlyList<Step242Value
 
 internal sealed record Step242OmittedValue : Step242Value
 {
+    public bool IsDerived { get; init; }
     public static Step242OmittedValue Instance { get; } = new();
+    public static Step242OmittedValue Derived { get; } = new() { IsDerived = true };
 }

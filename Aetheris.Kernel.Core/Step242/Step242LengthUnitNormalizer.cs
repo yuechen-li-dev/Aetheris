@@ -11,6 +11,42 @@ namespace Aetheris.Kernel.Core.Step242;
 internal static class Step242LengthUnitNormalizer
 {
     private const double MillimetresPerMetre = 1000d;
+    // Decimal unit arithmetic preserves authored decimal intent without imposing a precision grid.
+    // Very small/large values outside decimal's range retain the floating-point path, never zero by snapping.
+    internal static double ScalePmiMeasure(double value, double scale)
+    {
+        if (scale == 1d || value == 0d) return value;
+        if (decimal.TryParse(value.ToString("R", CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture, out var number)
+            && decimal.TryParse(scale.ToString("R", CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture, out var factor))
+        {
+            try { var product = number * factor; if (product != 0m) return (double)product; }
+            catch (OverflowException) { }
+        }
+        return value * scale;
+    }
+    /// <summary>Length normalization for semantic quantities, including area/volume derived units.
+    /// Non-length components retain their original definitions and contribute no scale change.</summary>
+    internal static bool TryResolvePmiScale(Dictionary<int, Step242ParsedEntity> entities, int unit, HashSet<int> stack, out double scale)
+    {
+        scale = 1d;
+        if (!stack.Add(unit) || !entities.TryGetValue(unit, out var entity)) return false;
+        if (Step242SubsetDecoder.TryGetConstructor(entity.Instance, "LENGTH_UNIT") is not null)
+        {
+            if (!TryResolveMetresPerUnit(entities, unit, [], out var metres)) return false;
+            scale = metres * 1000d; return double.IsFinite(scale) && scale > 0;
+        }
+        if (entity.Name != "DERIVED_UNIT") return true;
+        if (entity.Arguments.FirstOrDefault() is not Step242ListValue parts) return false;
+        foreach (var part in parts.Items)
+        {
+            if (part is not Step242EntityReference component || !entities.TryGetValue(component.TargetId, out var element)
+                || element.Name != "DERIVED_UNIT_ELEMENT" || element.Arguments.ElementAtOrDefault(0) is not Step242EntityReference child
+                || element.Arguments.ElementAtOrDefault(1) is not Step242NumberValue power || !double.IsFinite(power.Value)
+                || !TryResolvePmiScale(entities, child.TargetId, new(stack), out var factor)) return false;
+            scale *= double.Pow(factor, power.Value);
+        }
+        return double.IsFinite(scale) && scale > 0;
+    }
 
     // Entity name -> zero-based argument indices holding a length (radii, semi-axes, vector magnitudes).
     private static readonly Dictionary<string, int[]> ScalarLengthArguments = new(StringComparer.OrdinalIgnoreCase)
@@ -167,7 +203,7 @@ internal static class Step242LengthUnitNormalizer
         return updated;
     }
 
-    private static bool TryResolveMetresPerUnit(Dictionary<int, Step242ParsedEntity> byId, int unitEntityId, HashSet<int> visited, out double metres)
+    internal static bool TryResolveMetresPerUnit(Dictionary<int, Step242ParsedEntity> byId, int unitEntityId, HashSet<int> visited, out double metres)
     {
         metres = default;
         if (!visited.Add(unitEntityId) || !byId.TryGetValue(unitEntityId, out var unitEntity))

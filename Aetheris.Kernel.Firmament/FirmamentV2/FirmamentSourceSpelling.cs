@@ -282,6 +282,9 @@ public static class FirmamentSourceSpelling
         Add("RotateLocal", "Axis Angle");
         Add("Mate", "Interface Member At Gap Clocking Orientation Support");
         Add("Note", "Target Text");
+        Add("Datum", "Target");
+        Add("HoleDiameter", "Target Value Dimension Tolerance Datum DatumRefs");
+        Add(string.Join(" ", Aetheris.Kernel.Core.Step242.Step242GeometricToleranceKinds.All.Select(k => k.Name)) + " Parallel Perpendicular", "Target Tolerance Datum DatumRefs Modifiers Zone");
         Add("Appearance", "Color Metallic Roughness Opacity Emissive");
         Add("Material", "Identity Appearance");
         Add("Start End Corner RouteSite", "At On Radius");

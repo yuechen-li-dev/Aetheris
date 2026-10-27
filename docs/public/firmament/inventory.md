@@ -44,10 +44,13 @@ fallback that normalizes ambiguous multiplicity to a flat assembly. Missing or
 ambiguous exports and kind mismatches reject. A Part still requires one body;
 there is no implicit first-body selection.
 
-Imported annotation passthrough is not qualified. A STEP resource containing PMI
-rejects unless the binding explicitly says `Step("vendor/gearbox", geometryOnly:
-true)`. That exclusion is retained in the binding receipt; the original file is
-untouched. This permission does not relax geometry admission.
+An unchanged STEP Part consumed by `InlineStep` can retain
+[semantic PMI](pmi.md#imported-semantic-pmi-and-units). Raw STEP components
+materialized in an Assembly still require explicit
+`Step("vendor/gearbox", geometryOnly: true)` when the source contains PMI;
+part annotations are not promoted into assembly requirements. That exclusion
+is retained in the binding receipt; the original file is untouched. It does not
+relax geometry admission.
 
 The normal spelling omits the extension. `Firmament("parts/bracket")` resolves
 `.firmament` or `.firmasm`; `Step("vendor/bearing")` resolves `.step` or `.stp`.

@@ -63,6 +63,11 @@ public static class FirmamentV2DiagnosticAdapter
         FirmamentV2Parser.PmiDimensionMissingTolerance => "PMI dimension resolves to a value without tolerance evidence.",
         FirmamentV2Parser.ConceptMissingRequiredField => "Forge concept application is missing a required descriptor field.",
         FirmamentV2Parser.PmiUnknownDatum => "PMI relation references an unknown datum.",
+        "firmament-v2-pmi-name-list-invalid" => "Use a datum or modifier name, or an ordered list of names such as [A, B, C].",
+        "firmament-v2-pmi-datum-precedence-invalid" => "datumRefs requires up to three distinct datum names in primary, secondary and tertiary order.",
+        "firmament-v2-pmi-datum-not-applicable" => "Form controls omit datums; orientation and runout controls require declared datum references.",
+        "firmament-v2-pmi-modifier-invalid" => "Use admitted, distinct modifiers. MaximumMaterial and LeastMaterial cannot be combined.",
+        "firmament-v2-pmi-zone-form-invalid" => "zone requires Cylindrical, Spherical or BetweenSurfaces.",
         FirmamentV2Parser.ToleranceDroppedThroughArithmetic => "A toleranced value was used in arithmetic and only the nominal value was preserved.",
         _ when diagnosticCode.StartsWith(FirmamentV2Parser.AssertVolumeKindUnsupported + ":", StringComparison.Ordinal)
             => "This part admits Assert Volume, Assert Bounds and Assert Topology. Assert ToleranceStackup belongs on an Assembly with dimensional relations.",

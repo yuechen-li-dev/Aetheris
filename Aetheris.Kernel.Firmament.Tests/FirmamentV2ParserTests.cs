@@ -947,20 +947,20 @@ model:
     }
 
     [Fact]
-    public void FirmamentV2P2_ExportDeferredFlatness_IsReportedAndBuildRejectedDeterministically()
+    public void FirmamentV2_ImportedFlatness_IsAdmittedAndEmitted()
     {
-        var fixture = FixturePath("Compatibility/LegacyAliases/Invalid/InlineStep/inline-step-v2-record-pmi-export-deferred-flatness.invalid.firmfixture");
-        var parse = FirmamentV2Parser.Parse(Source("Compatibility/LegacyAliases/Invalid/InlineStep/inline-step-v2-record-pmi-export-deferred-flatness.invalid.firmfixture"), Path.GetDirectoryName(fixture));
+        var fixture = FixturePath("Compatibility/LegacyAliases/Valid/InlineStep/inline-step-v2-record-pmi-flatness.valid.firmfixture");
+        var parse = FirmamentV2Parser.Parse(Source("Compatibility/LegacyAliases/Valid/InlineStep/inline-step-v2-record-pmi-flatness.valid.firmfixture"), Path.GetDirectoryName(fixture));
         var report = FirmamentV2ValidationReportBuilder.Build(parse, fixture);
 
         var pmi = Assert.Single(report.Pmi);
         Assert.Equal("flatness", pmi.Kind);
-        Assert.Equal("deferred", pmi.ExportSupport);
-        Assert.Equal("export-deferred", pmi.Status);
+        Assert.Equal("supported", pmi.ExportSupport);
+        Assert.Equal("valid", pmi.Status);
 
-        var build = FirmamentBuildAndExport.Run(fixture, Path.Combine(Path.GetTempPath(), "aetheris-flatness-deferred.step"));
-        Assert.False(build.IsSuccess);
-        Assert.Contains(build.Diagnostics, d => d.Message.Contains("firmament-v2-pmi-export-deferred", StringComparison.Ordinal));
+        var build = FirmamentBuildAndExport.CompileSource(Source("Compatibility/LegacyAliases/Valid/InlineStep/inline-step-v2-record-pmi-flatness.valid.firmfixture"), Path.GetDirectoryName(fixture));
+        Assert.True(build.IsSuccess, string.Join(";", build.Diagnostics.Select(d => d.Message)));
+        Assert.Contains(Aetheris.Kernel.Core.Step242.Step242SemanticPmiInspector.Inspect(build.Value.StepText).Items, item => item.Kind == "Flatness");
     }
 
     [Fact]

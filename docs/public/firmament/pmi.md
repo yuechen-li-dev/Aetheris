@@ -1,8 +1,108 @@
 # Semantic PMI and AP242
 
-Firmament concepts and explicit PMI lower into the semantic engineering model, STEP AP242 product-definition entities, and Cadmata's semantic presentation. PMI records are measurable requirements; annotations are engineer-authored notes. Camera or label orientation is presentation state, not the requirement.
+PMI records manufacturing and inspection intent in STEP AP242. Explicit GD&T is
+annotation data: it attaches a typed control to geometry without changing the
+geometry, solving constraints, or proving that a manufacturing process can meet
+the tolerance. Camera and label placement are presentation state. Checked
+compile-time requirements can separately be projected into dimensional PMI.
 
-Native Model export supports `Datum` plane records and `HoleDiameter` records, including typed dimensional tolerances. The diameter record targets a named shaft hole; on a counterbore it means the shaft `diameter`, not `counterboreDiameter`. Other parsed PMI kinds may be reported as deferred and cannot be silently omitted by a successful build.
+Native Model export supports planar `Datum`, `HoleDiameter`, and the explicit
+geometric controls below. The diameter record targets a named shaft hole; on a
+counterbore it means the shaft `diameter`, not `counterboreDiameter`. Parsed kinds
+outside the admitted set, including `Distance` and `Coplanar`, remain rejected by
+normal export rather than silently omitted.
+
+## Explicit GD&T
+
+The complete buildable example is
+[`explicit-gdt.firmament`](../../../fixtures/Canonical/PMI/explicit-gdt.firmament).
+Its Box and Hole are ordinary construction. The following records annotate them
+independently of Concept requirements or dimensional projections:
+
+```firmament
+Pmi {
+    Datum A { target: face(-Z) }
+    Datum B { target: face(-X) }
+    Datum C { target: face(-Y) }
+    Flatness Seat { target: face(+Z) tolerance: 0.03mm }
+    Position MountLocation {
+        target: face(Mount.Wall)
+        tolerance: 0.0254mm
+        zone: Cylindrical
+        datumRefs: [A, B, C]
+        modifiers: [MaximumMaterial]
+    }
+}
+```
+
+| Controls | Datum references |
+|---|---|
+| `Straightness`, `Flatness`, `Roundness`, `Cylindricity` | Omitted |
+| `Parallelism`, `Perpendicularity`, `Angularity`, `CircularRunout`, `TotalRunout` | Required |
+| `Position`, `LineProfile`, `SurfaceProfile` | Optional |
+
+`target` must resolve to geometry. `tolerance` is a finite nonnegative Length in
+millimeters, including for `Angularity`; it describes a length-valued tolerance
+zone. `datumRefs` lists up to three distinct, previously declared datums in
+primary/secondary/tertiary order. Legacy `datum: A`, `Parallel` and `Perpendicular`
+spellings remain admitted. Form controls reject datum references.
+
+Optional `modifiers` admits `MaximumMaterial`, `LeastMaterial`, `FreeState`,
+`CommonZone` and `Statistical`. Unknown, duplicate or contradictory modifiers
+reject. Optional `zone` admits `Cylindrical`, `Spherical` and `BetweenSurfaces`.
+Omitting it does not invent an explicit zone form. The compiler validates the
+record and its references; the author remains responsible for selecting an
+appropriate control, feature, zone and modifier combination.
+
+Common-datum groups, datum-reference modifiers, composite frames, projected
+zone parameters and other advanced forms are not yet authoring syntax. Imported
+semantic forms can be retained as described below. Unknown fields reject.
+
+## Imported semantic PMI and units
+
+An unchanged `InlineStep` part retains source semantic PMI by default, together
+with its datum systems, modifiers, tolerance-zone definitions, dimensional
+allowances and proved geometry associations. Aetheris resolves source face and
+edge identities through importer provenance rather than entity ordering.
+Authored annotations may be added; their names must not collide with retained
+source annotation names.
+CLI `analyze --json` reports `geometricItemEntityIds` for the direct source usage
+items (faces, edges, solids or auxiliary datum geometry). Its
+`geometricFaceEntityIds` is the face projection used for presentation; an edge's
+adjacent faces do not replace its source association identity.
+Unique retained datum labels are available directly in an authored control's
+`datumRefs`; they bind to the imported AP242 datum entities rather than creating
+duplicate datums. See the complete
+[`nist-ctc01-passthrough.firmament`](../../../fixtures/Canonical/PMI/nist-ctc01-passthrough.firmament)
+witness. Existing source-integrity receipts (`sha256`, `textSha256`, or a project
+lock) still apply to foreign STEP inputs.
+
+Length-valued measures are normalized using their own declared units. An inch
+tolerance of `0.001` exports as `0.0254` mm. This conversion does **not** use the
+0.1 mm authoring placement grid or round away small tolerances. Angular units
+are separate. Firmament authoring itself continues to require metric lengths.
+
+Source graphical PMI is distinct from semantic PMI. Foreign glyphs are excluded
+with an explicit diagnostic because they may contain inch text; metric labels
+are regenerated from semantic records where the presentation path supports the
+target and all of its parameters. Advanced controls whose labels cannot be
+projected completely reject annotated 3D export rather than omit parameters.
+This does not preserve a vendor's camera, font or label arrangement.
+Graphical-only annotations reject default passthrough. Missing dependencies,
+unresolved units, unsupported compound measures, unmapped body topology and changed bodies reject. Derived
+units retain their dimensional exponents while their length components and values normalize to mm. Non-metric
+auxiliary PMI pcurves also reject when their parameter domains cannot be proved
+safe to normalize. Geometry-only editing of annotated imports still requires
+explicit `geometryOnly: true`; source-PMI migration through topology edits is
+not admitted.
+PMI transfer does not relax geometry admission: a file with unqualified imported
+trims still rejects normal compilation, even if its annotation graph can be
+transferred by the lower-level interchange API.
+
+`geometryOnly: true` explicitly excludes source PMI and reports that exclusion;
+it never modifies the original STEP file. Imported assembly-wide PMI and
+automatic promotion of part annotations into assembly requirements remain
+outside this single-part transfer path.
 
 ## Project a compile-time tolerance
 
@@ -49,8 +149,8 @@ A Datum may be exported separately. A `datum:`/`DatumRefs:` relationship on a
 size record rejects normal compilation for every spelling, including legacy
 literal records: native size export cannot preserve that association.
 Parse-only analysis can bind it, but identifies the record as export-deferred
-at `ParsedNotBuilt`. Datum-referenced geometric controls need a separately
-qualified PMI capability. The shipped examples request independent datums and
+at `ParsedNotBuilt`. Use an explicit geometric control for a datum-referenced
+geometric requirement. The shipped size examples request independent datums and
 size dimensions; they no longer request a relationship that was never emitted.
 
 This is semantic product-definition PMI, recovered by `aetheris analyze`;
@@ -66,8 +166,8 @@ toleranced Length values from Static/Record data. It preserves nominal geometry,
 allowances and binding origins. Its `Dimension` kinds are Thickness, Linear and
 Diameter; targets are bound sheet regions, bends, parts and cuts, including
 Pattern members. `DatumFeature` and `Position` retain the sheet exporter's datum
-relationships and geometric associations. Native Model's smaller GD&T capability
-set remains unchanged. See [sheet-metal layout and release syntax](sheet-metal.md#layout-requirements-and-release-data)
+relationships and geometric associations. Native Model explicit GD&T uses the
+controls described above. See [sheet-metal layout and release syntax](sheet-metal.md#layout-requirements-and-release-data)
 and the [complete typed example](../../../fixtures/Regression/SheetMetalSemantics/modern-layout-release.firmament).
 
 Use one owning Pmi block. Unknown kinds/fields, missing targets, duplicate blocks,

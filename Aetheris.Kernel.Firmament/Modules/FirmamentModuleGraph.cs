@@ -37,6 +37,7 @@ internal sealed partial class FirmamentModuleGraph
         DeclarationSyntax? Export, string Definition, SemanticSourceSpan Origin)
     {
         internal BrepBody? ImportedBody { get; init; }
+        internal bool GeometryOnly { get; init; }
         internal SemanticSourceSpan DeclarationOrigin { get; init; } = Export is null ? Origin : new(Path,Export.Span.Start,Export.Span.Length);
     }
     internal sealed record Edit(FirmamentV2SourceSpan Span, string Text);
@@ -215,8 +216,8 @@ internal sealed partial class FirmamentModuleGraph
                 if (locator is null) continue;
                 var path = Resolve(module, locator, adapter.Name.Text, origin);
                 if (path is null) continue;
-                if (adapter.Name.Text == "Step" && !geometryOnly && ImportedStepSemantics.HasAnnotations(Asset(path)))
-                { Error("firmament-step-source-pmi-unsupported", "Imported annotation passthrough is not qualified. Explicitly request geometryOnly: true to exclude source PMI while retaining the original file.", origin); continue; }
+                if (adapter.Name.Text == "Step" && kind.Name.Text == "Assembly" && !geometryOnly && ImportedStepSemantics.HasAnnotations(Asset(path)))
+                { Error("firmament-step-source-pmi-unsupported", "Single-part PMI transfer is supported; imported assembly-wide PMI transfer requires explicit geometryOnly: true until product/occurrence associations are qualified.", origin); continue; }
                 Module? child = null; DeclarationSyntax? declaration = null;
                 if (adapter.Name.Text == "Firmament")
                 {
@@ -239,9 +240,9 @@ internal sealed partial class FirmamentModuleGraph
                     declaration = child.Syntax.Statements.OfType<DeclarationSyntax>().Single(d => d.Type.Name.Text == "Assembly");
                     export = declaration.Name!.Text;
                 }
-                var identity = "__Module_" + Hash(IdentityPath(path) + "\0" + kind.Name.Text + "\0" + export)[..20];
+                var identity = "__Module_" + Hash(IdentityPath(path) + "\0" + kind.Name.Text + "\0" + export + (geometryOnly ? "\0geometryOnly" : ""))[..20];
                 var reference = new Reference(identity, kind.Name.Text, path, child, declaration, export ?? "", origin)
-                    { DeclarationOrigin = declaration is null ? origin : DeclarationOrigin(declaration) };
+                    { DeclarationOrigin = declaration is null ? origin : DeclarationOrigin(declaration), GeometryOnly = geometryOnly };
                 references.TryAdd(identity, reference);
                 InventoryBindings.Add(new(inventory.Name.Text+"."+field.Name.Text,kind.Name.Text,path,export ?? "",identity,origin)
                     { MetadataType = metadata?.Type, Metadata = metadata?.Fields ?? new Dictionary<string,string>(), GeometryOnly = geometryOnly });

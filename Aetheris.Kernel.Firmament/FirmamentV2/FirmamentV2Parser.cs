@@ -2386,6 +2386,10 @@ public static partial class FirmamentV2Parser
         var recordNames = new HashSet<string>(StringComparer.Ordinal);
         var datumLabels = new HashSet<string>(StringComparer.Ordinal);
         var knownDatums = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var imported in solids.Values.Select(s => s.InlineStep).OfType<FirmamentV2InlineStepRecord>().Where(s => !s.GeometryOnly && s.SourceText is not null))
+            knownDatums.UnionWith(Aetheris.Kernel.Core.Step242.Step242SemanticPmiInspector.Inspect(imported.SourceText!).Items
+                .Where(item => item.Kind == "Datum").GroupBy(item => item.Name, StringComparer.Ordinal).Where(group => group.Count() == 1).Select(group => group.Key));
+        var importedDatums = knownDatums.ToHashSet(StringComparer.Ordinal);
         var letMap = boundLets.ToDictionary(l => l.Name, StringComparer.Ordinal);
         var recordMap = boundLetRecords.ToDictionary(r => r.Name, StringComparer.Ordinal);
         var holeNames = modifyBlocks.SelectMany(m => m.SemanticHoles).Select(h => h.Name).Concat(additionalHoleNames ?? []).ToHashSet(StringComparer.Ordinal);
@@ -2398,6 +2402,7 @@ public static partial class FirmamentV2Parser
             var name = em.Groups["name"].Value;
             if (!TryPmiKind(kindRaw, out var kind)) { diagnostics.Add(PmiUnknownRecordKind); diagnostics.Add(PmiKindUnknown); continue; }
             if (kind == FirmamentV2PmiKind.DatumPlane && !datumLabels.Add(name)) { diagnostics.Add(PmiDuplicateDatum); }
+            if (kind == FirmamentV2PmiKind.DatumPlane && importedDatums.Contains(name)) diagnostics.Add("firmament-v2-pmi-source-name-conflict");
             if (!recordNames.Add(name)) { diagnostics.Add(PmiDuplicateRecord); diagnostics.Add(PmiDuplicateName); continue; }
             var entryOpen = body.IndexOf('{', em.Index);
             var entryClose = FindMatchingBrace(body, entryOpen);
@@ -2410,12 +2415,12 @@ public static partial class FirmamentV2Parser
             if (!TryBindPmiRecord(record, solids, modifyBlocks, regionByTarget, aliases, holeNames, letMap, recordMap, knownDatums, diagnostics, out var b)) continue;
             bound.Add(b);
             if (kind == FirmamentV2PmiKind.DatumPlane) knownDatums.Add(name);
-            if (kind is FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter)
-                legacy.Add(new FirmamentV2PmiDecl(name, kind, b.Targets[0], b.DimensionValue?.NumericValue));
+            if (b.Targets.Count > 0)
+                legacy.Add(new FirmamentV2PmiDecl(name, kind, b.Targets[0], b.DimensionValue?.NumericValue ?? b.ControlTolerance?.NumericValue));
         }
 
         var block = new FirmamentV2PmiBlock(records, new FirmamentV2SourceSpan(match.Index, close - match.Index + 1));
-        var boundBlock = new FirmamentV2BoundPmiBlock(bound.Where(r => r.Kind == FirmamentV2PmiKind.DatumPlane).ToArray(), bound.Where(r => r.Kind is FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Distance).ToArray(), bound.Where(r => r.Kind is FirmamentV2PmiKind.Flatness or FirmamentV2PmiKind.Parallel or FirmamentV2PmiKind.Perpendicular or FirmamentV2PmiKind.Coplanar).ToArray(), diagnostics.Where(d => d.StartsWith("firmament-v2-pmi-", StringComparison.Ordinal)).ToArray());
+        var boundBlock = new FirmamentV2BoundPmiBlock(bound.Where(r => r.Kind == FirmamentV2PmiKind.DatumPlane).ToArray(), bound.Where(r => r.Kind is FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Distance).ToArray(), bound.Where(r => r.Kind is not (FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Distance)).ToArray(), diagnostics.Where(d => d.StartsWith("firmament-v2-pmi-", StringComparison.Ordinal)).ToArray());
         return (legacy, block, boundBlock);
     }
 
@@ -2431,8 +2436,6 @@ public static partial class FirmamentV2Parser
             if (statement is not FieldSyntax field) { diagnostics.Add(PmiUnsupported); continue; }
             var n = NormalizePmiField(field.Name.Text);
             var v = body.Substring(field.Value.Span.Start, field.Value.Span.Length).Trim();
-            if (n == "datum" && field.Value is SequenceSyntax && v.StartsWith("[", StringComparison.Ordinal) && v.EndsWith("]", StringComparison.Ordinal))
-                v = v[1..^1].Trim();
             if (fields.ContainsKey(n)) { diagnostics.Add(PmiDuplicateField); continue; }
             fields[n] = new(n, v, new FirmamentV2SourceSpan(baseOffset + field.Span.Start, field.Span.Length), null);
         }
@@ -2462,15 +2465,23 @@ public static partial class FirmamentV2Parser
         "Tolerance" => "tolerance",
         "Datum" => "datum",
         "DatumRefs" => "datum",
+        "datumRefs" => "datum",
+        "Modifiers" => "modifiers",
+        "Zone" => "zone",
         _ => raw
     };
 
-    private static bool TryPmiKind(string raw, out FirmamentV2PmiKind kind) { kind = raw switch { "diameter"=>FirmamentV2PmiKind.HoleDiameter, "datum"=>FirmamentV2PmiKind.DatumPlane, "distance"=>FirmamentV2PmiKind.Distance, "flatness"=>FirmamentV2PmiKind.Flatness, "parallel"=>FirmamentV2PmiKind.Parallel, "perpendicular"=>FirmamentV2PmiKind.Perpendicular, "coplanar"=>FirmamentV2PmiKind.Coplanar, _=>default }; return raw is "diameter" or "datum" or "distance" or "flatness" or "parallel" or "perpendicular" or "coplanar"; }
+    private static bool TryPmiKind(string raw, out FirmamentV2PmiKind kind)
+        => Enum.TryParse(raw switch { "diameter" => "HoleDiameter", "datum" => "DatumPlane", "distance" => "Distance", "flatness" => "Flatness",
+            "parallel" => "Parallel", "perpendicular" => "Perpendicular", "coplanar" => "Coplanar", _ => raw }, false, out kind) && Enum.IsDefined(kind);
 
     private static void ValidatePmiFieldSet(string kind, string name, IReadOnlyDictionary<string,FirmamentV2PmiField> fields, List<string> diagnostics)
     {
         string[] required = kind switch { "datum"=>["target"], "diameter"=> fields.ContainsKey("dimension") ? ["target","dimension"] : fields.ContainsKey("diameter") ? ["target","diameter"] : ["target","value"], "distance"=>["targetA","targetB","dimension"], "flatness"=>["target","tolerance"], "parallel" or "perpendicular" or "coplanar"=>["target","datum","tolerance"], _=>[] };
-        var allowed = required.Concat(kind=="diameter"?["tolerance","diameter","value","dimension","datum"]:[]).ToHashSet(StringComparer.Ordinal);
+        if (TryPmiKind(kind, out var parsedKind) && Aetheris.Kernel.Core.Step242.Step242GeometricToleranceKinds.Find(parsedKind.ToString()) is { } control)
+            required = control.RequiresDatum ? ["target", "datum", "tolerance"] : ["target", "tolerance"];
+        var allowed = required.Concat(kind=="diameter"?["tolerance","diameter","value","dimension","datum"]:[])
+            .Concat(Aetheris.Kernel.Core.Step242.Step242GeometricToleranceKinds.Find(parsedKind.ToString()) is not null ? ["datum", "modifiers", "zone"] : []).ToHashSet(StringComparer.Ordinal);
         foreach (var r in required) if (!fields.ContainsKey(r)) diagnostics.Add(PmiMissingRequiredField);
         foreach (var f in fields.Keys) if (!allowed.Contains(f)) diagnostics.Add(PmiUnknownField);
     }
@@ -2488,7 +2499,7 @@ public static partial class FirmamentV2Parser
                 ValidateTarget(t, r.Kind, solids, regions, aliases, holeNames, diagnostics);
                 continue;
             }
-            if (r.Kind != FirmamentV2PmiKind.HoleDiameter) { diagnostics.Add($"{HoleWallConsumerInvalid}:{r.Name}"); continue; }
+            if (r.Kind != FirmamentV2PmiKind.HoleDiameter && Aetheris.Kernel.Core.Step242.Step242GeometricToleranceKinds.Find(r.Kind.ToString()) is null) { diagnostics.Add($"{HoleWallConsumerInvalid}:{r.Name}"); continue; }
             var owners = modifyBlocks.Where(block => block.SemanticHoles.Any(hole => hole.Name == holeName)).Select(block => block.TargetSolid).Distinct(StringComparer.Ordinal).ToArray();
             if (owners.Length > 1) diagnostics.Add($"{HoleWallAmbiguous}:{holeName}");
             else if (owners.Length == 0) diagnostics.Add($"{(solids.ContainsKey(holeName) ? HoleWallNotHole : HoleWallUnknownHole)}:{holeName}");
@@ -2505,22 +2516,41 @@ public static partial class FirmamentV2Parser
             if (r.Kind == FirmamentV2PmiKind.HoleDiameter && dim.NumericValue is <= 0) { diagnostics.Add(PmiDiameterInvalid); return false; }
             if (dimTol is null && Field(r,"diameter") is null && Field(r,"value") is null) { diagnostics.Add(PmiDimensionMissingTolerance); return false; }
         }
-        if (r.Kind is FirmamentV2PmiKind.Flatness or FirmamentV2PmiKind.Parallel or FirmamentV2PmiKind.Perpendicular or FirmamentV2PmiKind.Coplanar)
+        var geometricControl = Aetheris.Kernel.Core.Step242.Step242GeometricToleranceKinds.Find(r.Kind.ToString());
+        if (geometricControl is not null || r.Kind == FirmamentV2PmiKind.Coplanar)
         { if (Field(r,"tolerance") is string t && TryParsePmiLength(NormalizePmiLengthLiteral(t), diagnostics, out var lit)) ctlTol=lit; else diagnostics.Add(PmiToleranceTypeMismatch); }
-        if (r.Kind is FirmamentV2PmiKind.Parallel or FirmamentV2PmiKind.Perpendicular or FirmamentV2PmiKind.Coplanar)
-        { var d=Field(r,"datum"); if (d is null || !datums.Contains(d)) diagnostics.Add(PmiUnknownDatum); else datumRefs.Add(d); }
+        if (geometricControl is not null || r.Kind == FirmamentV2PmiKind.Coplanar)
+        {
+            datumRefs.AddRange(PmiNames(Field(r, "datum"), diagnostics));
+            if (datumRefs.Any(d => !datums.Contains(d))) diagnostics.Add(PmiUnknownDatum);
+            if (datumRefs.Count > 3 || datumRefs.Distinct().Count() != datumRefs.Count) diagnostics.Add("firmament-v2-pmi-datum-precedence-invalid");
+            if (geometricControl is { RequiresDatum: true } && datumRefs.Count == 0 || geometricControl is { AllowsDatum: false } && datumRefs.Count > 0) diagnostics.Add("firmament-v2-pmi-datum-not-applicable");
+        }
         if (r.Kind == FirmamentV2PmiKind.HoleDiameter && Field(r,"datum") is string datum)
-        { if (!datums.Contains(datum)) diagnostics.Add(PmiUnknownDatum); else datumRefs.Add(datum); }
+        { foreach (var name in PmiNames(datum, diagnostics)) if (!datums.Contains(name)) diagnostics.Add(PmiUnknownDatum); else datumRefs.Add(name); }
         var dimensionSource = Field(r, "dimension");
         var dimensionBinding = dimensionSource is null ? null : ResolveBoundLet(dimensionSource, lets, records);
         bound=new(r.Kind,r.Name,targets,dim,dimTol,ctlTol,datumRefs,r.SourceSpan,
             ProjectionSource: dimensionBinding?.Origins.Any(o => o.Binding == dimensionSource) == true ? dimensionSource
                 : dimensionBinding?.Origins.FirstOrDefault()?.Binding ?? dimensionSource, HoleWallTarget: wallTarget)
-            { DimensionOrigins = dimensionBinding?.Origins ?? [] };
+            { DimensionOrigins = dimensionBinding?.Origins ?? [], Modifiers = PmiNames(Field(r, "modifiers"), diagnostics), ZoneForm = Field(r, "zone") };
+        if (bound.ZoneForm is { } zone && !Aetheris.Kernel.Core.Step242.Step242GeometricToleranceKinds.ZoneForms.ContainsKey(zone)) diagnostics.Add("firmament-v2-pmi-zone-form-invalid");
+        if (bound.Modifiers.Any(m => !Aetheris.Kernel.Core.Step242.Step242GeometricToleranceKinds.Modifiers.ContainsKey(m))
+            || bound.Modifiers.Distinct().Count() != bound.Modifiers.Count
+            || bound.Modifiers.Contains("MaximumMaterial") && bound.Modifiers.Contains("LeastMaterial")) diagnostics.Add("firmament-v2-pmi-modifier-invalid");
         return !diagnostics.Any(x => (x.StartsWith("firmament-v2-pmi-", StringComparison.Ordinal) && x is not PmiUnsupported)
             || x.StartsWith("firmament-v2-hole-wall-", StringComparison.Ordinal));
     }
     private static string? Field(FirmamentV2PmiRecord r,string name)=>r.Fields.TryGetValue(name,out var f)?f.Source:null;
+    private static IReadOnlyList<string> PmiNames(string? source, List<string> diagnostics)
+    {
+        if (source is null) return [];
+        var parsed = FirmamentSyntaxParser.ParseExpression(source);
+        var values = parsed.Expression is SequenceSyntax sequence ? sequence.Items.Select(a => a.Value).ToArray() : [parsed.Expression];
+        if (parsed.Diagnostics.Count > 0 || values.Any(value => value is not ReferenceSyntax))
+        { diagnostics.Add("firmament-v2-pmi-name-list-invalid"); return []; }
+        return values.Cast<ReferenceSyntax>().Select(value => value.Name.Text).ToArray();
+    }
     private static FirmamentV2BoundLet? ResolveBoundLet(string s,IReadOnlyDictionary<string,FirmamentV2BoundLet> lets,IReadOnlyDictionary<string,FirmamentV2BoundLetRecord> records){var m=DottedReferenceRegex.Match(s); if(m.Success&&records.TryGetValue(m.Groups["record"].Value,out var rec)&&rec.Fields.TryGetValue(m.Groups["field"].Value,out var f))return f; return lets.TryGetValue(s,out var l)?l:null;}
     private static string NormalizePmiLengthLiteral(string s) => Regex.Replace(s.Trim(), @"(?<=\d)\s+(?=mm$)", "", RegexOptions.CultureInvariant);
     private static bool TryParsePmiLength(string s,List<string> d,out FirmamentV2LiteralValue lit){lit=null!; var v=ParseLetLiteral(FirmamentV2PrimitiveType.Length,s,d); if(v is null){d.Add(PmiToleranceTypeMismatch); return false;} if(v.NumericValue is < 0){ d.Add(PmiDiameterInvalid); return false; } lit=v; return true;}
@@ -2564,12 +2594,6 @@ public static partial class FirmamentV2Parser
         }
 
         if (solid.InlineStep is null)
-        {
-            diagnostics.Add(PmiImportedTargetRequiresCanonicalStep);
-            return false;
-        }
-
-        if (!solid.InlineStep.CanonicalInput)
         {
             diagnostics.Add(PmiImportedTargetRequiresCanonicalStep);
             return false;

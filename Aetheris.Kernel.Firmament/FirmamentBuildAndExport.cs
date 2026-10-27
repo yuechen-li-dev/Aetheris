@@ -233,18 +233,32 @@ public static partial class FirmamentBuildAndExport
     private static KernelResult<bool> VerifyV2PmiExportParity(string source, string? sourceDirectory, FirmamentStepExportResult export,
         IReadOnlyDictionary<string, string>? resources = null)
     {
-        var parsed = FirmamentV2Parser.Parse(source, sourceDirectory, null, null, resources);
-        if (!parsed.IsSuccess || parsed.Document is null) return KernelResult<bool>.Success(true);
-        var pmi = parsed.Document.Pmi ?? [];
-        if (pmi.Count == 0 && export.GeneratedSemanticPmi.Count == 0) return KernelResult<bool>.Success(true);
+        var document = export.RuntimeAdmissionDocument;
+        if (document is null)
+        {
+            var parsed = FirmamentV2Parser.Parse(source, sourceDirectory, null, null, resources);
+            if (!parsed.IsSuccess || parsed.Document is null) return KernelResult<bool>.Success(true);
+            document = parsed.Document;
+        }
+        var pmi = document.Pmi ?? [];
+        if (pmi.Count == 0 && export.GeneratedSemanticPmi.Count == 0 && !document.Solids.Any(s => s.InlineStep is { GeometryOnly: false })) return KernelResult<bool>.Success(true);
 
-        var support = ValidateV2PmiExportSupport(parsed.Document);
+        var support = ValidateV2PmiExportSupport(document);
         if (!support.IsSuccess) return support;
 
         var expectedDatums = pmi.Count(record => record.Kind == FirmamentV2PmiKind.DatumPlane) + export.GeneratedSemanticPmi.OfType<Step242SemanticPmiDatum>().Count();
         var expectedDiameters = pmi.Count(record => record.Kind == FirmamentV2PmiKind.HoleDiameter) + export.GeneratedSemanticPmi.OfType<Step242SemanticPmiHole>().Count();
+        var expectedControls = pmi.Count(record => Step242GeometricToleranceKinds.Find(record.Kind.ToString()) is not null)
+            + export.GeneratedSemanticPmi.OfType<Step242SemanticPmiGeometricTolerance>().Count();
+        foreach (var imported in document.Solids.Select(s => s.InlineStep).OfType<FirmamentV2InlineStepRecord>().Where(s => !s.GeometryOnly))
+        {
+            var original = Step242SemanticPmiInspector.Inspect(imported.SourceText ?? File.ReadAllText(imported.NormalizedPath, Encoding.UTF8));
+            if (!original.Success) return KernelResult<bool>.Failure([new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
+                "firmament-v2-pmi-source-inspection-failed: Cannot verify imported PMI parity.", "FirmamentV2.PmiExportParity")]);
+            expectedDatums += original.DatumCount; expectedDiameters += original.DimensionCount; expectedControls += original.GeometricToleranceCount;
+        }
         var inspection = Step242SemanticPmiInspector.Inspect(export.StepText);
-        if (inspection.Success && inspection.DatumCount == expectedDatums && inspection.DimensionCount == expectedDiameters)
+        if (inspection.Success && inspection.DatumCount == expectedDatums && inspection.DimensionCount == expectedDiameters && inspection.GeometricToleranceCount == expectedControls)
             return KernelResult<bool>.Success(true);
 
         var actualDatums = inspection.Success ? inspection.DatumCount : 0;
@@ -253,7 +267,7 @@ public static partial class FirmamentBuildAndExport
         return KernelResult<bool>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
             Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
             Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
-            $"firmament-v2-pmi-export-evidence-mismatch: validation admitted {expectedDatums} datum and {expectedDiameters} diameter PMI records, but AP242 reinspection found {actualDatums} datum and {actualDiameters} diameter records.{detail}",
+            $"firmament-v2-pmi-export-evidence-mismatch: validation admitted {expectedDatums} datum, {expectedDiameters} dimension and {expectedControls} geometric-control records; AP242 reinspection found {actualDatums} datum, {actualDiameters} dimension and {inspection.GeometricToleranceCount} geometric-control records.{detail}",
             "FirmamentV2.PmiExportParity")]);
     }
 
@@ -2342,9 +2356,6 @@ public static partial class FirmamentBuildAndExport
         }
 
         var stepText = inlineStep.SourceText ?? File.ReadAllText(inlineStep.NormalizedPath, Encoding.UTF8);
-        if (!inlineStep.GeometryOnly && (!inlineStep.CanonicalInput || ImportedStepSemantics.HasAnnotations(stepText)))
-            return KernelResult<FirmamentStepExportResult>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed,
-                KernelDiagnosticSeverity.Error, "firmament-v2-inline-step-existing-pmi-unsupported: Source annotation passthrough is not qualified for this STEP. Use the original Firmament/Helios workspace, or explicitly request geometryOnly: true to exclude imported annotations without changing the original file.", "FirmamentV2.InlineStep")]);
         var import = inlineStep.RuntimeBody is { } admitted ? KernelResult<BrepBody>.Success(admitted.Clone()) : Step242Importer.ImportBody(stepText);
         if (!import.IsSuccess)
         {
@@ -2361,12 +2372,25 @@ public static partial class FirmamentBuildAndExport
         }
 
         var semanticPmi = BuildV2SemanticPmi(document, [], solid.Name, body: import.Value);
+        Step242PmiTransfer? importedPmi = null;
+        if (!inlineStep.GeometryOnly && ImportedStepSemantics.HasAnnotations(stepText))
+        {
+            var original = Step242SemanticPmiInspector.Inspect(stepText);
+            var declared = (document.Pmi ?? []).Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
+            if (original.Items.Any(item => declared.Contains(item.AuthoredName ?? item.Name)))
+                return KernelResult<FirmamentStepExportResult>.Failure([new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
+                    "firmament-v2-pmi-source-name-conflict: Authored PMI names must be distinct from retained source annotation names.", "FirmamentV2.Pmi")]);
+            var transfer = Step242PmiTransfer.Read(stepText, import.Value);
+            if (!transfer.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(transfer.Diagnostics);
+            importedPmi = transfer.Value;
+        }
         var targetValidation = ValidateImportedPmiTargets(semanticPmi, import.Value);
         if (!targetValidation.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(targetValidation.Diagnostics);
         var export = Step242Exporter.ExportBody(import.Value, semanticPmi, new Step242ExportOptions
         {
             ProductName = solid.Name,
             ApplicationName = "Aetheris.Firmament.InlineStep",
+            ImportedPmi = importedPmi,
             BrepExportPreflightMode = inlineStep.SourceHashPin is null ? BrepExportPreflightMode.Audit : BrepExportPreflightMode.Enforce,
             ImportedRecoveryToleranceMillimetres = inlineStep.ImportToleranceMillimetres ?? .001
         });
@@ -2388,7 +2412,7 @@ public static partial class FirmamentBuildAndExport
                 InlineStepReplacementAssist: InlineStepReplacementAssistReportBuilder.Build(document))
                 { RuntimeBody = import.Value, RuntimeBodySourceName = solid.Name, RuntimeAdmissionDocument = document },
             inlineStep.GeometryOnly ? [new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
-                "firmament-inline-step-source-semantics-excluded: geometryOnly explicitly excludes source annotations; geometry remains unchanged.", "FirmamentV2.InlineStep")] : []);
+                "firmament-inline-step-source-semantics-excluded: geometryOnly explicitly excludes source annotations; geometry remains unchanged.", "FirmamentV2.InlineStep")] : export.Diagnostics);
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2ControlledSideHoleBody(FirmamentV2Document document)
@@ -2833,8 +2857,8 @@ public static partial class FirmamentBuildAndExport
     // owner. A supported record kind does not imply every requested field exports.
     internal static KernelDiagnostic? V2PmiExportRejection(FirmamentV2PmiKind kind, string name, FirmamentV2BoundPmiRecord? bound)
     {
-        var message = kind is not (FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter)
-            ? $"firmament-v2-pmi-export-deferred: AP242 export for PMI record '{name}' ({kind.ToString().ToLowerInvariant()}) is deferred; supported export records are datum and diameter."
+        var message = kind is not (FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter) && Step242GeometricToleranceKinds.Find(kind.ToString()) is null
+            ? $"firmament-v2-pmi-export-deferred: AP242 export for PMI record '{name}' ({kind.ToString().ToLowerInvariant()}) is deferred; use Datum, HoleDiameter or an admitted geometric control."
             : kind == FirmamentV2PmiKind.HoleDiameter && bound?.DatumRefs.Count > 0
                 ? $"firmament-v2-pmi-datum-reference-export-unsupported: HoleDiameter '{name}' requests datum references that native size export cannot preserve. Export Datum separately; datum-referenced geometric controls require a qualified PMI capability."
                 : null;
@@ -2900,6 +2924,16 @@ public static partial class FirmamentBuildAndExport
                 var selector = TryResolveV2RecognizedRegionTarget(document, targetBinding, pmi.Target, out var recognizedDatumTarget) ? recognizedDatumTarget : ResolveV2DatumTarget(targetBinding, pmi.Target);
                 result.Add(new Step242SemanticPmiDatum(targetSolid, "plane", pmi.Name, selector));
             }
+            else if (Step242GeometricToleranceKinds.Find(pmi.Kind.ToString()) is { } control && boundPmiByName.TryGetValue(pmi.Name, out var boundControl))
+            {
+                var feature = holeByName.TryGetValue(pmi.Target, out var hole) ? hole.FeatureId
+                    : boundControl.HoleWallTarget is { } wall && holeByName.TryGetValue(wall.HoleName, out var wallFeature) ? wallFeature.FeatureId
+                    : explicitFeatureIds?.GetValueOrDefault(pmi.Target) ?? $"{targetSolid}.{pmi.Name}";
+                var faces = body is not null && FirmamentSelectorResolver.ResolveUniquePlanarFace(body, ResolveV2DatumTarget(targetBinding, pmi.Target)) is { Count: > 0 } planarFaces
+                    ? planarFaces.Select(id => id.Value).ToArray() : Array.Empty<int>();
+                result.Add(new Step242SemanticPmiGeometricTolerance(feature, pmi.Name, control.Name, boundControl.ControlTolerance!.NumericValue!.Value, boundControl.DatumRefs)
+                    { Modifiers = boundControl.Modifiers, ZoneForm = boundControl.ZoneForm, GeometricFaceIds = faces });
+            }
         }
 
         return result.Select(item => item with
@@ -2908,8 +2942,8 @@ public static partial class FirmamentBuildAndExport
             // The importer owns the source-entity -> BRep mapping; the exporter owns the inverse
             // BRep -> emitted-entity mapping. Preserve both boundaries.
             GeometricFaceIds = importedFaces.TryGetValue(item switch
-                { Step242SemanticPmiDatum d => d.Label, Step242SemanticPmiHole h => h.Name ?? "", _ => "" }, out var faces)
-                ? faces : item is Step242SemanticPmiDatum datum && body is not null
+                { Step242SemanticPmiDatum d => d.Label, Step242SemanticPmiHole h => h.Name ?? "", Step242SemanticPmiGeometricTolerance g => g.Name, _ => "" }, out var faces)
+                ? faces : item.GeometricFaceIds.Count > 0 ? item.GeometricFaceIds : item is Step242SemanticPmiDatum datum && body is not null
                 ? FirmamentSelectorResolver.ResolveUniquePlanarFace(body, datum.Target).Select(id => id.Value).ToArray()
                 : (correspondence?.Descendants ?? [])
                 .Where(descendant => descendant.Face.HasValue
@@ -2931,6 +2965,12 @@ public static partial class FirmamentBuildAndExport
     {
         foreach (var item in items)
         {
+            if (item is Step242SemanticPmiGeometricTolerance)
+            {
+                if (item.GeometricFaceIds.Count > 0 && item.GeometricFaceIds.All(id => body.Topology.Faces.Any(face => face.Id.Value == id))) continue;
+                return KernelResult<bool>.Failure([new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
+                    $"firmament-v2-imported-pmi-target-unresolved: '{item.FeatureId}' requires a proved imported face association.", "FirmamentV2.Pmi")]);
+            }
             var required = item is Step242SemanticPmiDatum ? SurfaceGeometryKind.Plane : SurfaceGeometryKind.Cylinder;
             if (item.GeometricFaceIds.Count == 0 || item.GeometricFaceIds.Any(id =>
                 !body.TryGetFaceSurface(new FaceId(id), out var surface) || surface?.Kind != required))

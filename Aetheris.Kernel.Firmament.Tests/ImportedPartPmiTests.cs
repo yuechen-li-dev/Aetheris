@@ -48,15 +48,18 @@ public sealed class ImportedPartPmiTests
         Assert.Contains(built.Diagnostics, d => d.Message.Contains("imported-pmi-target-kind"));
     }
     [Fact]
-    public void ExistingImportedAnnotations_AreRejectedInsteadOfSilentlyStripped()
+    public void ExistingImportedAnnotations_ArePreservedWithTheirTargets()
     {
         var built = FirmamentBuildAndExport.CompileSource(Source(), Path.Combine(Repo(), "fixtures/Regression/ImportedPartPmi"));
         Assert.True(built.IsSuccess);
         var source = Source().Replace("../../../testdata/firmament/inline-step/canonical-through-hole.step", "annotated.step");
         source = source[..source.IndexOf("    Pmi {", StringComparison.Ordinal)] + "}";
         var imported = FirmamentBuildAndExport.CompileSource(source, resources: new Dictionary<string, string> { ["annotated.step"] = built.Value.StepText });
-        Assert.False(imported.IsSuccess);
-        Assert.Contains(imported.Diagnostics, d => d.Message.Contains("existing-pmi-unsupported"));
+        Assert.True(imported.IsSuccess, string.Join(";", imported.Diagnostics.Select(d => d.Message)));
+        var before = Step242SemanticPmiInspector.Inspect(built.Value.StepText);
+        var after = Step242SemanticPmiInspector.Inspect(imported.Value.StepText);
+        Assert.Equal(before.DatumCount, after.DatumCount); Assert.Equal(before.DimensionCount, after.DimensionCount);
+        Assert.All(after.Items, annotation => Assert.NotEmpty(annotation.GeometricFaceEntityIds));
     }
     [Fact]
     public void ImportedTopology_UsesProvenanceRatherThanEntityLineOrder()

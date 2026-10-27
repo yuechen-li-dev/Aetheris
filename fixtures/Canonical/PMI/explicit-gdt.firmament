@@ -1,0 +1,21 @@
+Model AnnotatedPlate {
+    units: mm
+    Box Body { size: [60mm, 40mm, 8mm] }
+    Modify Body {
+        Hole<Shaft> Mount { on: +Z center: Point2(0mm, 0mm) diameter: 8mm end: ThroughAll }
+    }
+    Pmi {
+        Datum A { target: face(-Z) }
+        Datum B { target: face(-X) }
+        Datum C { target: face(-Y) }
+        Flatness Seat { target: face(+Z) tolerance: 0.03mm }
+        Perpendicularity Side { target: face(+X) tolerance: 0.02mm datumRefs: [A] }
+        Position MountLocation {
+            target: face(Mount.Wall)
+            tolerance: 0.0254mm
+            zone: Cylindrical
+            datumRefs: [A, B, C]
+            modifiers: [MaximumMaterial]
+        }
+    }
+}

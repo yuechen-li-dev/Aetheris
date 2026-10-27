@@ -39,4 +39,5 @@ Model Plate {
 | `schema`, `BodyState`, `MeshState`, `Inventory` | [Domains and modules](../reference/language/domains-and-modules.md) |
 | Interfaces, mates, datums, motion | [Assemblies and motion](../reference/language/assemblies-and-motion.md) |
 | `Assert`, `measure`, stack-ups | [Checks and measurement](../reference/language/checks.md) |
+| Explicit GD&T, datum precedence, metric PMI passthrough | [Semantic PMI](pmi.md) |
 | Older V1 forms | [Reading older source](../reference/language/compatibility.md) |

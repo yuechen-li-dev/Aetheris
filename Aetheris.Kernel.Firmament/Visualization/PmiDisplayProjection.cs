@@ -52,7 +52,9 @@ public static class PmiDisplayProjection
         var result = new List<PmiDisplayAnnotation>();
         foreach (var item in inspection.Items)
         {
-            if (item.Kind is not ("Datum" or "Diameter"))
+            if (!item.PresentationSupported)
+                throw new InvalidOperationException($"pmi-display-parameters-unsupported: '{item.Name}' retains advanced semantic parameters that this 3D label path cannot yet display completely.");
+            if (item.Kind is not ("Datum" or "Diameter" or "Dimension") && Step242GeometricToleranceKinds.Find(item.Kind) is null)
                 throw new InvalidOperationException($"pmi-display-kind-unsupported: {item.Kind} '{item.Name}' has no qualified 3D callout yet.");
             var targets = item.GeometricFaceEntityIds.Where(id => sourceFaces.TryGetValue(id, out var face)
                     && patches.TryGetValue(face, out var patch) && patch.Positions.Count > 0 && patch.TriangleIndices.Count >= 3)
@@ -63,7 +65,7 @@ public static class PmiDisplayProjection
             // A section planner can partition one physical cylindrical wall.
             // Admit only a connected set on the same analytic cylinder, and
             // retain every associated patch in the highlight and leaders.
-            if (targets.Length != 1 && (item.Kind != "Diameter" || !OneCylindricalWall(body, targets)))
+            if (targets.Length != 1 && (item.Kind is "Datum" or "Diameter") && (item.Kind != "Diameter" || !OneCylindricalWall(body, targets)))
                 throw new InvalidOperationException($"pmi-display-target-multiple-unsupported: '{item.Name}' requires a multi-face presentation.");
             var internalEdges = targets.SelectMany(p => body.Topology.GetFace(p.FaceId).LoopIds
                     .SelectMany(id => body.Topology.GetLoop(id).CoedgeIds).Select(id => body.Topology.GetCoedge(id).EdgeId).Distinct())
@@ -84,8 +86,20 @@ public static class PmiDisplayProjection
             double[] anchor = P(anchorPoint);
             var stem = anchorPoint + normal * target.StemLength;
             string N(double value) => value.ToString("G9", CultureInfo.InvariantCulture);
-            var text = item.Kind == "Datum" ? $"[{item.Name}]" : $"Ø{N(item.Value!.Value)}"
-                + (item.TolerancePlus.HasValue && item.ToleranceMinus.HasValue ? $" +{N(item.TolerancePlus.Value)}/-{N(item.ToleranceMinus.Value)}" : "") + " mm";
+            string Modifier(string value) => value switch { "MAXIMUM_MATERIAL_REQUIREMENT" => "(M)", "LEAST_MATERIAL_REQUIREMENT" => "(L)", "FREE_STATE" => "(F)", "COMMON_ZONE" => "CZ", "STATISTICAL_TOLERANCE" => "ST", _ => value };
+            var datumLabels = item.DatumReferenceFrames.Count > 0 ? item.DatumReferenceFrames.Select(frame => string.Join("-", frame.Labels) + string.Concat(frame.Modifiers.Select(Modifier))) : item.DatumReferences;
+            var zoneLabels = string.Join(" ", item.ZoneForms.Select(form => form switch
+            {
+                "cylindrical or circular" => "Ø", "spherical" => "SØ",
+                "between two equidistant surfaces" => "BetweenSurfaces ",
+                _ => throw new InvalidOperationException($"pmi-display-zone-unsupported: '{item.Name}' has unsupported zone form '{form}'.")
+            }));
+            if (item.Kind != "Datum" && item.Value is null) throw new InvalidOperationException($"pmi-display-value-unresolved: '{item.Name}' has no semantic magnitude.");
+            var text = item.Kind == "Datum" ? $"[{item.Name}]" : Step242GeometricToleranceKinds.Find(item.Kind) is not null
+                ? $"{item.Kind} | " + zoneLabels + $"{N(item.Value!.Value)} mm" + string.Concat(item.Modifiers.Select(Modifier))
+                    + (item.DatumReferences.Count > 0 ? " | " + string.Join(" | ", datumLabels) : "")
+                : (item.Kind == "Diameter" || item.DimensionKind?.Equals("diameter", StringComparison.OrdinalIgnoreCase) == true ? "Ø" : (item.DimensionKind ?? "Length") + " ") + N(item.Value!.Value)
+                    + (item.TolerancePlus.HasValue && item.ToleranceMinus.HasValue ? $" +{N(item.TolerancePlus.Value)}/-{N(item.ToleranceMinus.Value)}" : "") + " " + item.ValueUnit;
             var outlines = PlanarTextProfiles.PresentationContours(text, height);
             var lines = new List<double[][]> { new[] { anchor, P(stem), new[] { label[0] - height, label[1], label[2] }, label } };
             foreach (var witness in witnesses.Skip(1))
@@ -122,7 +136,7 @@ public static class PmiDisplayProjection
         BrepBody body, DisplayTessellationResult tessellation, DisplayFaceMeshPatch patch, string kind, double height, double[] label, IReadOnlySet<Aetheris.Kernel.Core.Topology.EdgeId> internalEdges)
     {
         body.TryGetFaceSurfaceGeometry(patch.FaceId, out var surface);
-        if (kind == "Datum" && surface?.Plane is PlaneSurface plane)
+        if (surface?.Plane is PlaneSurface plane)
         {
             // The largest triangle incircle is a bounded, deterministic interior witness.
             // A vertex average of the whole face can land in a hole or outside a concavity.
@@ -141,7 +155,7 @@ public static class PmiDisplayProjection
                 corners.SelectMany(_ => V(normal)).ToArray(), [0,1,2,0,2,3], [corners.Append(corners[0]).Select(P).ToArray(),
                     [P(lifted - u * size), P(lifted + u * size)], [P(lifted - v * size), P(lifted + v * size)]]) { SurfaceOffset = offset });
         }
-        if (kind == "Diameter" && surface?.Cylinder is CylinderSurface cylinder)
+        if (surface?.Cylinder is CylinderSurface cylinder)
         {
             // Unwrap each admitted display triangle locally, including the periodic seam.
             // Select a substantial triangle away from the end rims; use the label-facing

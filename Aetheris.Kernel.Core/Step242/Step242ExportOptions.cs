@@ -19,6 +19,8 @@ public enum BrepExportPreflightPolicy
 
 public sealed class Step242ExportOptions
 {
+    /// <summary>Source semantic PMI rebound to an unchanged imported body. Graphical glyphs are regenerated separately.</summary>
+    public Step242PmiTransfer? ImportedPmi { get; init; }
     /// <summary>Declared distance accuracy of retained imported geometry, in mm.
     /// Null preserves the historical export. This is not a machining tolerance.</summary>
     public double? DistanceAccuracyMillimetres { get; init; }

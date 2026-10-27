@@ -15,14 +15,14 @@ public sealed class FirmamentV2ValidationReportTests
         Assert.Equal(2, report.Summary.ConceptCount);
         Assert.Equal(2, report.Summary.ValidConceptCount);
         Assert.Equal(5, report.Summary.PmiRecordCount);
-        Assert.Equal(2, report.Summary.ExportSupportedPmiCount);
-        Assert.Equal(3, report.Summary.ExportDeferredPmiCount);
+        Assert.Equal(4, report.Summary.ExportSupportedPmiCount);
+        Assert.Equal(1, report.Summary.ExportDeferredPmiCount);
         Assert.Equal(0, report.Summary.FatalDiagnosticCount);
         Assert.Contains(report.Lets, l => l.Name == "MountingPattern.holeDiameter" && l.Tolerance is { Kind: "bilateral" });
         Assert.Contains(report.Concepts, c => c.Kind == "feature" && c.Name == "mountHole" && c.Status == "valid" && c.Fields.Any(f => f.Name == "diameter" && f.HasTolerance));
         Assert.Contains(report.Pmi, p => p.Name == "mountHoleDiameter" && p.ExportSupport == "supported" && p.Dimension?.Tolerance is not null);
-        Assert.Contains(report.Pmi, p => p.Name == "baseFlatness" && p.ExportSupport == "deferred");
-        Assert.Contains(report.Pmi, p => p.Name == "topParallel" && p.ExportSupport == "deferred" && p.DatumRefs.Contains("A"));
+        Assert.Contains(report.Pmi, p => p.Name == "baseFlatness" && p.ExportSupport == "supported");
+        Assert.Contains(report.Pmi, p => p.Name == "topParallel" && p.ExportSupport == "supported" && p.DatumRefs.Contains("A"));
         Assert.Contains(report.Diagnostics, d => d.Code == FirmamentV2Parser.ToleranceDroppedThroughArithmetic && d.Severity == "warning");
     }
 
@@ -101,14 +101,14 @@ public sealed class FirmamentV2ValidationReportTests
     }
 
     [Fact]
-    public void ForgeCsA4_ConceptPmiObligation_MissingWarningDoesNotOverrideDeferredExportStatus()
+    public void ForgeCsA4_ConceptPmiObligation_MissingWarningDoesNotInvalidateSupportedGdt()
     {
         var report = Report("Regression/Language/valid/concept-pmi-obligation-with-deferred-export.valid.firmfixture");
 
-        Assert.Equal("valid-with-deferred-export", report.Status);
+        Assert.Equal("valid", report.Status);
         Assert.Single(report.ConceptPmiObligations, obligation => obligation.Status == "missing");
         Assert.Contains(report.Diagnostics, d => d.Code == "forge.pmi.obligation.missing" && d.Severity == "warning");
-        Assert.Contains(report.Pmi, p => p.ExportSupport == "deferred");
+        Assert.All(report.Pmi, p => Assert.Equal("supported", p.ExportSupport));
     }
 
     [Fact]

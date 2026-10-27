@@ -195,7 +195,8 @@ public readonly record struct CoedgePcurveBinding(
 /// straight line of its parameter rectangle (BUILD-PERF-M4: no inverse projection or dense lift).</summary>
 public enum PcurveBindingOrigin { SourceValidated, RecoveredAnalytic, RecoveredSpline, DerivedAnalytic, ConstructedBoundary }
 
-/// <summary>Measured edge-to-surface-lift evidence for one face-local trim.</summary>
+/// <summary>Edge-to-surface-lift evidence for one face-local trim. BezierBoundaryControlHull
+/// reports a whole-span upper bound with zero samples. RecoveryMethod identifies the evidence.</summary>
 public sealed record PcurveQualification(
     PcurveBindingOrigin Origin,
     double MaximumLiftDeviationMillimetres,

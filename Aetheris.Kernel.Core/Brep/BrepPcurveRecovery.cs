@@ -52,8 +52,10 @@ public static class BrepPcurveRecovery
                     diagnostics.Add(new("surf-pcurve-invalid", built.Diagnostic ?? "Pcurve construction failed.", coedge.Id.Value.ToString()));
                     continue;
                 }
-                var liftSamples = surface.BSplineSurfaceWithKnots is null ? 1025 : 8193;
-                var liftResidual = MaximumResidual(surface, curve, built.Pcurve, interval, liftSamples);
+                var boundaryBounded = BrepPcurveLiftBounds.TryBoundaryBound(surface, curve, built.Pcurve, interval, out var bound)
+                    && bound <= qualificationTolerance;
+                var liftSamples = boundaryBounded ? 0 : surface.BSplineSurfaceWithKnots is null ? 1025 : 8193;
+                var liftResidual = boundaryBounded ? bound : MaximumResidual(surface, curve, built.Pcurve, interval, liftSamples);
                 if (!double.IsFinite(liftResidual) || liftResidual > qualificationTolerance)
                 {
                     diagnostics.Add(new("surf-pcurve-invalid",
@@ -67,7 +69,7 @@ public static class BrepPcurveRecovery
                     : surface.BSplineSurfaceWithKnots is null ? PcurveBindingOrigin.RecoveredAnalytic : PcurveBindingOrigin.RecoveredSpline;
                 bindings.AddPcurveBinding(new(coedge.Id, face.Id, faceBinding.SurfaceGeometryId, built.Pcurve,
                     Qualification: new(origin, liftResidual, qualificationTolerance, liftSamples,
-                        built.Pcurve.Kind.ToString(), surface.Kind.ToString())));
+                        boundaryBounded ? "BezierBoundaryControlHull" : built.Pcurve.Kind.ToString(), surface.Kind.ToString())));
                 maximum = double.Max(maximum, liftResidual);
                 count++;
             }

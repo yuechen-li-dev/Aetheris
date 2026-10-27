@@ -1,0 +1,7 @@
+Model SameName { units: mm
+ Box Body { size: [40mm,30mm,8mm] }
+ Modify Body {
+ Hole<Shaft> Mount { on: +Z; center: Point2(0mm,0mm); diameter: 6mm; end: ThroughAll }
+ EdgeFinish Mount { face: +Z; target: Boundary; kind: Chamfer; distance: 1mm }
+ }
+}

@@ -44,7 +44,7 @@ export function reviveBinary(value, bytes) {
 export async function createRuntime(runtimeBase = new URL('./runtime/', import.meta.url)) {
   const dotnetUrl = new URL('_framework/dotnet.js', runtimeBase);
   const importStart = performance.now();
-  const { dotnet } = await import(dotnetUrl.href);
+  const { dotnet } = await import(/* @vite-ignore */ dotnetUrl.href);
   const moduleImportMilliseconds = performance.now() - importStart;
   const createStart = performance.now();
   const runtime = await dotnet.withApplicationArguments().create();

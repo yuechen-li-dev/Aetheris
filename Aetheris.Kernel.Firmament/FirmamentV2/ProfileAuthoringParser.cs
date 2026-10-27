@@ -1389,6 +1389,8 @@ public static class ProfileAuthoringParser
         var profile = fields.Take("Profile");
         var from = fields.Take("From");
         var to = fields.Take("To");
+        fields.CheckUnit("From", from, "mm");
+        fields.CheckUnit("To", to, "mm");
         fields.Complete();
         return (profile, from, to);
     }

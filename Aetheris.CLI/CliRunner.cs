@@ -190,6 +190,14 @@ public static class CliRunner
     public static int Run(string[] args, TextWriter stdout, TextWriter stderr)
         => Run(args, stdout, stderr, new SystemCadmataProcessLauncher(), AppContext.BaseDirectory);
 
+    private static int WriteThreeDmHelp(string operation, TextWriter stdout)
+    {
+        CommandHelp.Write(stdout, $"aetheris-3dm {operation} <model.3dm> [--json]",
+            "3DM interoperability is an optional tool. Install it with: dotnet tool install --global Aetheris.ThreeDm.CLI --prerelease",
+            $"aetheris-3dm {operation} model.3dm --json");
+        return 0;
+    }
+
     private static int MissingThreeDmTool(TextWriter stderr)
     {
         stderr.WriteLine("aetheris-3dm-required: 3DM interoperability is an optional tool. Install with 'dotnet tool install --global Aetheris.ThreeDm.CLI --prerelease', then use 'aetheris-3dm inspect' or 'aetheris-3dm recover'.");
@@ -230,8 +238,8 @@ public static class CliRunner
                 "lock" => DependencyLockCommand.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 "inspect" => RunInspect(args.Skip(1).ToArray(), stdout, stderr),
                 "measure" => FirmamentMeasureCommand.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
-                "inspect-3dm" => MissingThreeDmTool(stderr),
-                "recover-3dm" => MissingThreeDmTool(stderr),
+                "inspect-3dm" => args.Length == 2 && IsHelpFlag(args[1]) ? WriteThreeDmHelp("inspect", stdout) : MissingThreeDmTool(stderr),
+                "recover-3dm" => args.Length == 2 && IsHelpFlag(args[1]) ? WriteThreeDmHelp("recover", stdout) : MissingThreeDmTool(stderr),
                 "inspect-profile" => RunInspectProfile(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-spans" => RunInspectSpans(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-compose" => RunInspectCompose(args.Skip(1).ToArray(), stdout, stderr),
@@ -280,7 +288,7 @@ public static class CliRunner
     private static int RunFormat(string[] args, TextWriter stdout, TextWriter stderr)
     {
         const string usage = "Usage: aetheris format <file.firmament|file.firmasm>... [--write] [--json] (convention spellings; preserves layout and authored identities)";
-        if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(usage); return args.Length == 0 ? 1 : 0; }
+        if (args.Length == 0 || IsHelpFlag(args[0])) { CommandHelp.Write(stdout, usage, "Format canonical Firmament spellings while preserving layout and authored names. Add --write to update the source.", "aetheris format bracket.firmament --write"); return args.Length == 0 ? 1 : 0; }
         var write = args.Contains("--write", StringComparer.Ordinal);
         var json = args.Contains("--json", StringComparer.Ordinal);
         var paths = args.Where(a => a is not ("--write" or "--json")).ToArray();
@@ -601,6 +609,7 @@ public static class CliRunner
                 geometryAssertions = build.Value.Export.GeometryAssertions,
                 features = build.Value.Export.Features,
                 engineeringFeatures = build.Value.Export.EngineeringFeatures,
+                materializedFeatures = build.Value.Export.MaterializedFeatures,
                 edgeFinishPlanning = build.Value.Export.EdgeFinishPlanning,
                 patterns = build.Value.Export.Patterns,
                 perforation = build.Value.Export.Perforation,
@@ -673,8 +682,12 @@ public static class CliRunner
             var authored = SectionChainAuthoringParser.CompileFile(witness);
             if (!authored.IsSuccess || authored.Chain is null || authored.Materialization is null)
             {
-                var failure = new { command = $"section-chain {operation}", success = false, input = Path.GetFullPath(witness), diagnostics = authored.Diagnostics };
-                if (json) stdout.WriteLine(JsonSerializer.Serialize(failure, JsonOptions)); else foreach (var diagnostic in authored.Diagnostics) stderr.WriteLine("error: " + diagnostic);
+                var source = File.ReadAllText(witness);
+                var diagnostics = authored.Diagnostics.Select(message => FirmamentBuildAdmissionValidation.Present(
+                    new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, "Firmament.SectionChain"), witness, source)).ToArray();
+                var failure = new { command = $"section-chain {operation}", success = false, input = Path.GetFullPath(witness), diagnostics };
+                if (json) stdout.WriteLine(JsonSerializer.Serialize(failure, JsonOptions));
+                else WriteFrontendDiagnostics(diagnostics, stderr);
                 return 1;
             }
             chain = authored.Chain; materialized = authored.Materialization;
@@ -1197,7 +1210,7 @@ Model CanonicalPanel {
         if (args.Length > 0 && args[0] is not ("compile" or "generate") && !IsHelpFlag(args[0])) return DrawingNotesCli.Run(args, stdout, stderr);
         if (args.Length == 0 || IsHelpFlag(args[0]))
         {
-            (args.Length == 0 ? stderr : stdout).WriteLine(DrawingUsage);
+            CommandHelp.Write(args.Length == 0 ? stderr : stdout, DrawingUsage, "Compile an authored drawing or generate dimensioned drawing artifacts from a model. Rendering existing PDFs requires the optional drawing-notes renderer.", "aetheris drawing generate bracket.firmament --out-dir artifacts/local/drawing");
             return args.Length == 0 ? 1 : 0;
         }
         if (args[0] is not ("compile" or "generate") || args.Length < 2)
@@ -1254,7 +1267,7 @@ Model CanonicalPanel {
 
     private static int RunFea(string[] args, TextWriter stdout, TextWriter stderr)
     {
-        if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(FeaUsage); return args.Length == 0 ? 1 : 0; }
+        if (args.Length == 0 || IsHelpFlag(args[0])) { CommandHelp.Write(stdout, FeaUsage, "Run the bounded engineering analysis declared by a Firmament source and save its reports.", "aetheris fea checked-part.firmament --out-dir artifacts/local/analysis --json"); return args.Length == 0 ? 1 : 0; }
         var input = Path.GetFullPath(args[0]); string? outDir = null; var json = false;Vector3D? rotationDegrees=null;(int X,int Y,int Z)? latticeOverride=null;ExperimentalPreconditionerKind? experimentalPreconditioner=null;bool? experimentalEquilibration=null;
         for (var index = 1; index < args.Length; index++)
         {
@@ -1364,7 +1377,7 @@ Model CanonicalPanel {
 
     private static int RunMesh(string[] args, TextWriter stdout, TextWriter stderr)
     {
-        if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(MeshUsage); return args.Length == 0 ? 1 : 0; }
+        if (args.Length == 0 || IsHelpFlag(args[0])) { CommandHelp.Write(stdout, MeshUsage, "Build or import a part and export a display mesh. The target format must be admitted by the compiled product.", "aetheris mesh bracket.firmament --format stl --output bracket.stl"); return args.Length == 0 ? 1 : 0; }
         var input = args[0]; var format = "stl"; string? output = null; string? debugIr = null; var json = false;
         for (var i = 1; i < args.Length; i++)
         {
@@ -5506,7 +5519,7 @@ Model CanonicalPanel {
 
     private static void WriteViewHelp(TextWriter stdout)
     {
-        stdout.WriteLine("Open a STEP model in Cadmata.");
+        stdout.WriteLine("Build and open Firmament, or open an existing STEP model, in Cadmata.");
         stdout.WriteLine("Firmament input is built to its adjacent .step artifact before launch; STEP input opens directly.");
         stdout.WriteLine();
         stdout.WriteLine(ViewUsage);

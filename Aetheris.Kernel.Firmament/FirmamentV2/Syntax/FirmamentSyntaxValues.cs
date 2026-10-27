@@ -65,13 +65,24 @@ public sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<st
         if (fields.Length > 1) diagnostics.Add($"firmament-v2-field-duplicate:{declaration.Type.Name.Text}:{name}");
         return fields.Length == 1 ? bind?.Invoke(fields[0].Value) ?? fields[0].Value : null;
     }
-    public bool Measure(string name, string unit, out double value) => FirmamentSyntaxValues.TryMeasure(Take(name), unit, out value, implicitUnit);
+    public bool Measure(string name, string unit, out double value)
+    {
+        var expression = Take(name);
+        if (FirmamentSyntaxValues.TryMeasure(expression, unit, out value, implicitUnit)) return true;
+        CheckUnit(name, expression, unit); return false;
+    }
+    internal void CheckUnit(string name, ExpressionSyntax? expression, string expected)
+    {
+        if (expression is null || !FirmamentNumericEvaluation.TryEvaluate(expression, out var value)
+            || value.Unit.Length == 0 || value.Unit == expected) return;
+        diagnostics.Add($"firmament-v2-field-unit-mismatch:{declaration.Type.Name.Text}:{declaration.Name?.Text}:{name}:expected={expected}:actual={value.Unit}: Field '{FirmamentSourceSpelling.PreferredField(name)}' in {declaration.Type.Name.Text} '{declaration.Name?.Text}' requires {expected}; received {value.Unit}.");
+    }
     public double Number(string name, string unit, double fallback = double.NaN)
     {
         var expression = Take(name);
         if (expression is null) return fallback;
         if (FirmamentSyntaxValues.TryMeasure(expression, unit, out var value, implicitUnit)) return value;
-        Invalid(name); return double.NaN;
+        CheckUnit(name, expression, unit); Invalid(name); return double.NaN;
     }
     public IReadOnlyList<FieldSyntax> TakeAll(string name)
     {
@@ -91,7 +102,19 @@ public sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<st
         if (value is null) Invalid(name);
         return value;
     }
-    public bool Vector(string name, string unit, out double[] values) => FirmamentSyntaxValues.Vector(Take(name), unit, out values, implicitUnit);
+    public bool Vector(string name, string unit, out double[] values)
+    {
+        var expression = Take(name);
+        if (FirmamentSyntaxValues.Vector(expression, unit, out values, implicitUnit)) return true;
+        IEnumerable<ExpressionSyntax> elements = expression switch
+        {
+            SequenceSyntax list => list.Items.Select(i => i.Value),
+            CallSyntax call => call.Arguments.Select(i => i.Value),
+            _ => expression is null ? [] : [expression]
+        };
+        foreach (var element in elements) CheckUnit(name, element, unit);
+        return false;
+    }
     public void Complete(IReadOnlySet<StatementSyntax>? consumedStatements = null, bool admitAnnotation = false, bool admitInitializer = false, bool admitPlacement = false)
     {
         if (declaration.Occurrence || declaration.Parameters.Count > 0 || (!admitAnnotation && declaration.Annotation is not null) || declaration.ResultType is not null || (!admitInitializer && declaration.Initializer is not null))

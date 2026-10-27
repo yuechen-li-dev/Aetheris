@@ -1,0 +1,8 @@
+Model Coaxial {
+  units: mm
+  Compose Body {
+    Cylinder shaft { radius: 3mm; height: 12mm }
+    Frustum head { on: shaft.Top; bottomRadius: 3mm; topRadius: 6mm; height: 3mm }
+  }
+  Modify Body { EdgeFinish<Chamfer> tip { on: shaft.Bottom; target: Boundary; distance: 0.5mm } }
+}

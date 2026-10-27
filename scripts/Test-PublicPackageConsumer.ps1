@@ -14,7 +14,7 @@ foreach ($name in @('PublicPackageSmoke.csproj', 'Program.cs')) {
     Copy-Item -LiteralPath (Join-Path $root "test-support/PublicPackageSmoke/$name") -Destination $output
 }
 $escaped = [Security.SecurityElement]::Escape($feed)
-[IO.File]::WriteAllText((Join-Path $output 'NuGet.Config'), "<configuration><packageSources><clear/><add key='candidate' value='$escaped'/><add key='nuget.org' value='https://api.nuget.org/v3/index.json'/></packageSources></configuration>")
+[IO.File]::WriteAllText((Join-Path $output 'NuGet.Config'), "<configuration><packageSources><clear/><add key='candidate' value='$escaped'/><add key='nuget.org' value='https://api.nuget.org/v3/index.json'/></packageSources><packageSourceMapping><packageSource key='candidate'><package pattern='Aetheris.*'/></packageSource><packageSource key='nuget.org'><package pattern='*'/></packageSource></packageSourceMapping></configuration>")
 $cache = Join-Path $output 'packages'
 $project = Join-Path $output 'PublicPackageSmoke.csproj'
 dotnet restore $project --configfile (Join-Path $output 'NuGet.Config') --packages $cache --no-cache -m:1 -nr:false -p:ImportDirectoryBuildProps=false -p:ImportDirectoryBuildTargets=false -p:AetherisReleaseVersion=$Version

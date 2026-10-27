@@ -10,7 +10,7 @@ internal static class SceneCommand
     internal const string Usage="aetheris scene <inspect|export-usd|export-glb> <scene.firmament> [out.usda|out.glb] [--repeat 1..16] [--hide-boundary room.boundary] [--json]";
     internal static int Run(string[] args,TextWriter stdout,TextWriter stderr)
     {
-        if (args.Length == 0 || args[0] is "--help" or "-h") { stdout.WriteLine(Usage); return args.Length == 0 ? 1 : 0; }
+        if (args.Length == 0 || args[0] is "--help" or "-h") { CommandHelp.Write(stdout, Usage, "Inspect a Scene or export its placed display products to GLB or USDA.", "aetheris scene export-glb room.firmament room.glb"); return args.Length == 0 ? 1 : 0; }
         try
         {
             if (args.Length < 2 || args[0] is not ("inspect" or "export-usd" or "export-glb")) throw new ArgumentException(Usage);

@@ -461,7 +461,7 @@ public static class PrismaticProfileCompositionParser
                 var selectedSupport = candidates[0];
                 if (through)
                 {
-                    operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, stock.From, selectedSupport.To, "ThroughCut", $"offset:{declaration.Span.Start}"));
+                    operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, stock.From, selectedSupport.To, "ThroughCut", $"offset:{declaration.Span.Start}", SemanticFeatureKind: "Pocket"));
                     continue;
                 }
                 var hostThickness = selectedSupport.To - selectedSupport.From; var remaining = hostThickness - depth;

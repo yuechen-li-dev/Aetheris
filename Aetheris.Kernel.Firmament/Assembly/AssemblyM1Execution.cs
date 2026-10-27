@@ -298,7 +298,16 @@ internal static partial class AssemblyDefinitionMaterializer
         if (!build.IsSuccess || build.Value is null)
         {
             foreach (var diagnostic in build.Diagnostics)
-                diagnostics.Add(new("assembly-definition-materialization-failed", $"Definition '{definitionIdentity}' failed ordinary Firmament materialization: {diagnostic.Message}"));
+            {
+                var presented = FirmamentBuildAdmissionValidation.Present(diagnostic, sourceIdentity, module);
+                var message = diagnostic.Message == presented.Message || diagnostic.Message.Contains(": ", StringComparison.Ordinal)
+                    ? diagnostic.Message : diagnostic.Message + ": " + presented.Message;
+                diagnostics.Add(new("assembly-definition-materialization-failed", $"Definition '{definitionIdentity}' failed ordinary Firmament materialization: {message}")
+                {
+                    SourceSpan = presented.SourceSpan is { } span ? new(sourceIdentity + "#definition:" + definitionIdentity, span.Start, span.Length) : null,
+                    LocationNote = "Offsets identify the specialized definition source; exact original-file expansion mapping is unavailable."
+                });
+            }
             return null;
         }
         var import = importBody(build.Value.StepText);

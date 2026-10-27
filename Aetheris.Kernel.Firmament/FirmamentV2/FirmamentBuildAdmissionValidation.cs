@@ -82,6 +82,17 @@ public static class FirmamentBuildAdmissionValidation
         var parameters = code.Split(": ", 2)[0].Split(':').Skip(1)
             .Select(part => part.Contains('=') ? part[(part.IndexOf('=') + 1)..] : part).ToArray();
         if (parameters.Length == 0) return null;
+        if (code.StartsWith("firmament-v2-field-unit-mismatch:", StringComparison.Ordinal) && parameters.Length >= 3)
+        {
+            var fields = Syntax.FirmamentSyntaxTraversal.Declarations(Syntax.FirmamentSyntaxParser.Parse(source).Document)
+                .Where(d => d.Type.Name.Text == parameters[0] && d.Name?.Text == parameters[1])
+                .SelectMany(d => d.Body?.Statements.OfType<Syntax.FieldSyntax>() ?? [])
+                .Where(f => Syntax.FirmamentSyntaxFields.SameField(f.Name.Text, parameters[2])).ToArray();
+            if (fields.Length > 1 && parameters.Length >= 5)
+                fields = fields.Where(f => Syntax.FirmamentSyntaxTraversal.Expressions(f.Value)
+                    .OfType<Syntax.QuantitySyntax>().Any(q => q.Unit.Text == parameters[4])).ToArray();
+            if (fields.Length == 1) return fields[0].Span;
+        }
         var declarations = Syntax.FirmamentSyntaxTraversal.Declarations(Syntax.FirmamentSyntaxParser.Parse(source).Document)
             .Where(d => d.Name is not null).ToArray();
         // A Kind:Name pair is the most specific; otherwise the first parameter that names one declaration.

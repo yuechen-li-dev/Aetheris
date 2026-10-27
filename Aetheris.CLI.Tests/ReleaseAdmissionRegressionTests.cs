@@ -110,6 +110,52 @@ public sealed class ReleaseAdmissionRegressionTests
         Assert.Equal(JsonValueKind.Null, diagnostic.GetProperty("sourceSpan").ValueKind);
     }
 
+    [Theory]
+    [InlineData("build")]
+    [InlineData("measure")]
+    [InlineData("verify")]
+    [InlineData("format")]
+    [InlineData("lock")]
+    [InlineData("mesh")]
+    public void MissingInputTextIsShortAndActionable(string verb)
+    {
+        var missing = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".firmament");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        Assert.Equal(1, CliRunner.Run([verb, missing], stdout, stderr));
+        Assert.Empty(stdout.ToString());
+        Assert.Contains("source-file-not-found", stderr.ToString());
+        Assert.Contains(missing, stderr.ToString());
+        Assert.DoesNotContain("Exception", stderr.ToString());
+        Assert.InRange(stderr.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries).Length, 1, 2);
+    }
+
+    [Theory]
+    [InlineData("Regression/FeatureAccounting/extrude-hole.firmament", "to: 8mm", "to: 8deg", "to")]
+    [InlineData("Canonical/SectionChain/explicit-sketch-ruled.firmament", "position: [2mm, -2mm]", "position: [2mm, -2deg]", "position")]
+    public void WrongUnitsAreReportedAtTheField(string fixture, string before, string after, string field)
+    {
+        var source = File.ReadAllText(Path.Combine(Root(), "fixtures", fixture)).Replace(before, after);
+        var directory = Directory.CreateTempSubdirectory("aetheris-wrong-unit-").FullName;
+        try
+        {
+            var path = Path.Combine(directory, "wrong-unit.firmament"); File.WriteAllText(path, source);
+            foreach (var verb in new[] { "validate", "build" })
+            {
+                var result = Run(verb, path);
+                Assert.Equal(1, result.Exit);
+                using var json = JsonDocument.Parse(result.Output);
+                var payload = json.RootElement.TryGetProperty("firmamentV2Validation", out var validation) ? validation : json.RootElement;
+                var diagnostic = Assert.Single(payload.GetProperty("diagnostics").EnumerateArray(),
+                    d => d.GetProperty("code").GetString()!.StartsWith("firmament-v2-field-unit-mismatch"));
+                Assert.Contains("requires mm; received deg", diagnostic.GetProperty("message").GetString());
+                var span = diagnostic.GetProperty("sourceSpan");
+                var text = source.Substring(span.GetProperty("start").GetInt32(), span.GetProperty("length").GetInt32());
+                Assert.Contains(field + ":", text, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
     private static (int Exit, string Output) Run(string verb, string path, string? output = null)
     {
         var stdout = new StringWriter();

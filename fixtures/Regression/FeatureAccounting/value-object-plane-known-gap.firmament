@@ -1,0 +1,4 @@
+Model PlaneValue { units: mm
+ Concept Struct layout { support: Plane { origin: [0mm,0mm,0mm]; normal: [0,0,1]; up: [0,1,0]; zzUnknownField: 3mm } }
+ Box Body { size: [20mm,20mm,5mm] }
+}

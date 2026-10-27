@@ -13,7 +13,7 @@ internal static class FirmamentMeasureCommand
     internal static int Run(string[] args, TextWriter stdout, TextWriter stderr, JsonSerializerOptions jsonOptions)
     {
         if (args.Length == 0 || args[0] is "--help" or "-h")
-        { (args.Length == 0 ? stderr : stdout).WriteLine(Usage); return args.Length == 0 ? 1 : 0; }
+        { CommandHelp.Write(args.Length == 0 ? stderr : stdout, Usage, "Compile a part and report authoritative geometry measurements for inspection or assertions.", "aetheris measure bracket.firmament --json"); return args.Length == 0 ? 1 : 0; }
         var json = args.Contains("--json"); var sdf = false; var mesh = false; double? error = null;
         for (var i = 1; i < args.Length; i++)
             switch (args[i])

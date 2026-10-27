@@ -38,6 +38,7 @@ public sealed record FirmamentStepExportResult(
     FirmamentThreadReport? Thread = null)
 {
     public string? DocumentName { get; init; }
+    public IReadOnlyList<FirmamentFeatureReceipt> MaterializedFeatures { get; init; } = [];
     public FirmamentImportedHoleRevisionReport? ImportedHoleRevision { get; init; }
     public FirmamentImportedHoleRemovalReport? ImportedHoleRemoval { get; init; }
     // Lowerer-owned receipts distinguish generated feature PMI from authored projections.

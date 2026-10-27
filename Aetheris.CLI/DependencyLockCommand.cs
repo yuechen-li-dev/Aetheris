@@ -12,7 +12,7 @@ internal static class DependencyLockCommand
     {
         const string usage = "Usage: aetheris lock <root.firmament|root.firmasm> [--update] [--json]";
         if (args.Length == 0 || args[0] is "--help" or "-h")
-        { (args.Length == 0 ? stderr : stdout).WriteLine(usage); return args.Length == 0 ? 1 : 0; }
+        { CommandHelp.Write(args.Length == 0 ? stderr : stdout, usage, "Inspect local module dependencies; --update writes the optional lockfile with current content hashes.", "aetheris lock assembly.firmasm --update --json"); return args.Length == 0 ? 1 : 0; }
         var json = args.Contains("--json");
         if (args.Skip(1).Any(a => a is not ("--update" or "--json"))) { stderr.WriteLine(usage); return 1; }
         var inspected = FirmamentDependencies.InspectFile(args[0], args.Contains("--update"));

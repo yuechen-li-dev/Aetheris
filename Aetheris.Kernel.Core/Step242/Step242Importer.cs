@@ -690,7 +690,9 @@ public static class Step242Importer
         }
 
         var body = new BrepBody(builder.Model, geometry, bindings, vertexMap.Values.ToDictionary(entry => entry.VertexId, entry => entry.Point), shellRepresentation: shellRepresentation);
-        var orientation = StepFaceOrientationResolver.Resolve(body, importedFacePatches, supportAlignedBoundary, supportAlignedLoopBoundary);
+        KernelResult<BrepBody> orientation;
+        using (BuildPerfTrace.Phase("step.orientation-qualification"))
+            orientation = StepFaceOrientationResolver.Resolve(body, importedFacePatches, supportAlignedBoundary, supportAlignedLoopBoundary);
         if (!orientation.IsSuccess)
         {
             return KernelResult<BrepBody>.Failure(shellRoleDiagnostics
@@ -719,6 +721,7 @@ public static class Step242Importer
         if (orientation.Value.Topology.Coedges.Any(coedge =>
             !orientation.Value.Bindings.TryGetPcurveBinding(coedge.Id, out _)))
         {
+            using var recoveryPhase = BuildPerfTrace.Phase("step.pcurve-recovery-and-qualification");
             var recovery = BrepPcurveRecovery.Populate(
                 orientation.Value.Topology, orientation.Value.Geometry, orientation.Value.Bindings,
                 tolerance: document.PcurveQualificationToleranceMillimetres);

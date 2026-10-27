@@ -46,6 +46,7 @@ public static partial class FirmamentBuildAndExport
         if (lockDiagnostics.Count > 0) return KernelResult<FirmamentBuildAndExportResult>.Failure(
             lockDiagnostics.Select(d => SchemaDiagnostic(d.Code + ": " + d.Message)).ToArray());
         var sourceText = File.ReadAllText(fullSourcePath, Encoding.UTF8);
+        var authoredSource = sourceText;
         // The lexer accepts authored line endings. Keep their offsets intact for
         // admission diagnostics and runtime assertion spans on Windows as well.
         var frontend = FirmamentFrontendSchemas.Select(sourceText);
@@ -86,7 +87,7 @@ public static partial class FirmamentBuildAndExport
         if (library is null)
             return KernelResult<FirmamentBuildAndExportResult>.Failure(LibraryDiagnostics(libraryDiagnostics));
         sourceText = library.Source;
-        var exportResult = ExportSource(sourceText, Path.GetDirectoryName(fullSourcePath), allowV1Compatibility: true, frontend.Schema);
+        var exportResult = ExportSource(sourceText, Path.GetDirectoryName(fullSourcePath), allowV1Compatibility: true, frontend.Schema, authoredSource: authoredSource);
         if (!exportResult.IsSuccess)
         {
             return KernelResult<FirmamentBuildAndExportResult>.Failure(exportResult.Diagnostics);
@@ -163,7 +164,7 @@ public static partial class FirmamentBuildAndExport
         // In-memory compilation is the canonical V2 boundary used by Forge,
         // assemblies, and drawings. Historical V1 execution is intentionally
         // available only to the explicitly versioned file compatibility route.
-        var export = ExportSource(normalized, sourceDirectory, allowV1Compatibility: false, frontend.Schema, resources);
+        var export = ExportSource(normalized, sourceDirectory, allowV1Compatibility: false, frontend.Schema, resources, sourceText);
         if (!export.IsSuccess) return export;
         var enrichedExport = AttachAuthoredFeatureReports(normalized, sourceDirectory, export.Value, resources);
         var pmiParity = VerifyV2PmiExportParity(normalized, sourceDirectory, enrichedExport, resources);
@@ -261,8 +262,10 @@ public static partial class FirmamentBuildAndExport
         string sourceText,
         string? sourceDirectory = null,
         bool allowV1Compatibility = false,
-        FirmamentFrontendSchema? explicitSchema = null, IReadOnlyDictionary<string, string>? resources = null)
+        FirmamentFrontendSchema? explicitSchema = null, IReadOnlyDictionary<string, string>? resources = null,
+        string? authoredSource = null)
     {
+        authoredSource ??= sourceText;
         // Production mechanical execution consumes the result of AST admission.
         // Its expansion pipeline runs once in the frontend. Unmigrated domain owners
         // retain their existing expansion boundary until their own cutover.
@@ -270,6 +273,16 @@ public static partial class FirmamentBuildAndExport
         var canonicalParseWatch = System.Diagnostics.Stopwatch.StartNew();
         var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory, null, explicitSchema, resources);
         canonicalParseWatch.Stop();
+        var built = ExportAdmittedSource(sourceText, sourceDirectory, allowV1Compatibility, explicitSchema, resources, v2Parse, canonicalParseWatch);
+        if (!built.IsSuccess) return built;
+        var accounting = FirmamentFeatureAccounting.Verify(v2Parse, authoredSource, built.Value);
+        return accounting.IsSuccess ? KernelResult<FirmamentStepExportResult>.Success(accounting.Value, built.Diagnostics) : accounting;
+    }
+
+    private static KernelResult<FirmamentStepExportResult> ExportAdmittedSource(
+        string sourceText, string? sourceDirectory, bool allowV1Compatibility, FirmamentFrontendSchema? explicitSchema,
+        IReadOnlyDictionary<string, string>? resources, FirmamentV2ParseResult v2Parse, Stopwatch canonicalParseWatch)
+    {
         var templateBindWatch = new System.Diagnostics.Stopwatch();
         string materializerSource;
         if (v2Parse.OwnsUnifiedAdmission)
@@ -358,7 +371,7 @@ public static partial class FirmamentBuildAndExport
                     .Concat(coaxial.Chamfers.Select(chamfer => new FirmamentEngineeringFeatureReport(chamfer.Name, "Chamfer",
                         "compose:" + coaxial.Name + "." + chamfer.Name, coaxial.Name, chamfer.On, null, chamfer.Distance, "Distance", "Remove",
                         MaterializationRoute: "RevolvedProfileStack"))).ToArray())
-                { RuntimeBody = built.Body, RuntimeBodySourceName = coaxial.Name });
+                { RuntimeBody = built.Body, RuntimeBodySourceName = coaxial.Name, MaterializedFeatures = coaxial.Spans.Select(s => new FirmamentFeatureReceipt(coaxial.Name, s.Kind, s.Name)).Concat(coaxial.Chamfers.Select(c => new FirmamentFeatureReceipt(coaxial.Name, "EdgeFinish", c.Name))).ToArray() });
         }
         if (v2Parse.BoundRevolve is { } boundRevolve)
         {
@@ -508,7 +521,7 @@ public static partial class FirmamentBuildAndExport
                 DimensionInspection: v2Parse.Document?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? [],
                 Features: CompositionHoleReports(stack.Feature, completedBody, emitted.Correspondence),
                 EngineeringFeatures: EngineeringFeatureReports(stack.Feature))
-            { RuntimeBody = completedBody, RuntimeCorrespondence = emitted.Correspondence, RuntimeBodySourceName = stack.Feature.Name });
+            { RuntimeBody = completedBody, RuntimeCorrespondence = emitted.Correspondence, RuntimeBodySourceName = stack.Feature.Name, MaterializedFeatures = FirmamentFeatureAccounting.Composition(stack, emitted.Correspondence) });
         }
         if (v2Parse.BoundProfile is not null || (!v2Parse.OwnsUnifiedAdmission && ProfileAuthoringParser.IsProfileSource(materializerSource)))
         {
@@ -640,6 +653,7 @@ public static partial class FirmamentBuildAndExport
                     DimensionInspection: [])
             {
                 RuntimeBody = executedPrimitive.Body,
+                MaterializedFeatures = (v2Parse.Document.ModifyBlocks ?? []).SelectMany(m => (m.EdgeFinishes ?? []).Where(f => f.Target == "AllEdges").Select(f => new FirmamentFeatureReceipt(m.TargetSolid, "EdgeFinish", f.Name))).ToArray(),
                 Cir = FirmamentCirRetention.FromRoot(execution.Value.NativeGeometryState.CirMirror.RuntimeRoot, step.Value,
                     exportedPrimitive: execution.Value.ExecutedPrimitives.Count == 1 && execution.Value.ExecutedBooleans.Count == 0)
             };
@@ -1174,9 +1188,14 @@ public static partial class FirmamentBuildAndExport
                     "Distance",
                     "Remove",
                     PolicySource: "Chamfer",
-                    MaterializationRoute: "ComposedProfileBoundaryChamfer")).ToArray()));
+                    MaterializationRoute: "ComposedProfileBoundaryChamfer")).ToArray()) { MaterializedFeatures = FirmamentFeatureAccounting.Composition(stack, plannedEmission.Correspondence).Concat(FirmamentFeatureAccounting.ProfileFinish(source, target.StableId["edgefinish:".Length..], target.HostBodyId)).ToArray() });
         }
         if (emitted.Body is null || emitted.Correspondence is null) return Fail("MissingCorrespondenceEvidence");
+        // The legacy rectangular-face compiler below rebuilds a single stock prism.
+        // Additional operations must use the section-stack boundary planner above;
+        // its box bridge cannot retain cavities or changes at other height levels.
+        if (stack.Feature.Operations.Count != 1 || (stack.Feature.ConstructionPlaneBlindDrills?.Count ?? 0) > 0)
+            return Fail("ComposedBoundaryRebuildUnsupported: This boundary selector uses a single-stock prism rebuild. Use an EdgeFinish on Top/Bottom through the section-stack planner to retain Compose operations and holes.");
         var composedCurves = stack.Slabs.MaxBy(s => s.To)!.Region.Outer.Loops.Single().Segments.Select(segment => segment.Geometry).ToArray();
         if (!IsAdmittedPrimitiveBoundary(composedCurves))
             return Fail($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={stack.Feature.Name}:construction=Compose:face=+Z:target=Boundary: EdgeFinish on a Profile-based body is supported on four-sided boundaries; this boundary has curved or extra segments. Use Box stock for a rounded or chamfered rim, or shape the corners in the Profile itself.");
@@ -1199,7 +1218,7 @@ public static partial class FirmamentBuildAndExport
         if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
         var reimport = Step242Importer.ImportBody(step.Value);
         if (!reimport.IsSuccess || reimport.Value is null || !FirmamentManifoldChecker.IsManifold(reimport.Value)) return Fail("semantic-compose-finish-step-reimport-failed");
-        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "semantic-compose-edge-finish", "source-grounded-composed-top-boundary-chamfer"));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "semantic-compose-edge-finish", "source-grounded-composed-top-boundary-chamfer") { MaterializedFeatures = FirmamentFeatureAccounting.Composition(stack, emitted.Correspondence).Concat(FirmamentFeatureAccounting.Receipts(stack.Feature.Name, "EdgeFinish", finish.Groups["name"].Value)).ToArray() });
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportProfileSemanticTopBoundaryChamfer(
@@ -1261,6 +1280,7 @@ public static partial class FirmamentBuildAndExport
                 {
                     RuntimeBody = fillet.Body, RuntimeCorrespondence = fillet.Correspondence,
                     EdgeFinishPlanning = fillet.PlanningEvidence,
+                    MaterializedFeatures = FirmamentFeatureAccounting.ProfileFinish(source, filletTarget.StableId["edgefinish:".Length..], filletTarget.HostBodyId),
                     EngineeringFeatures = [new(filletTarget.StableId["edgefinish:".Length..], "EdgeFinish", filletTarget.StableId,
                         filletTarget.HostBodyId, filletTarget.Side.ToString(), $"{profile.Name}.{filletTarget.LoopId}", radius,
                         "Radius", "Remove", PolicySource: "Fillet", MaterializationRoute: fillet.PlanningEvidence?.Decision.Strategy ?? route)]
@@ -1286,6 +1306,7 @@ public static partial class FirmamentBuildAndExport
             {
                 RuntimeBody = planned.Body, RuntimeCorrespondence = planned.Correspondence,
                 EdgeFinishPlanning = planned.PlanningEvidence,
+                MaterializedFeatures = FirmamentFeatureAccounting.ProfileFinish(source, target.StableId["edgefinish:".Length..], target.HostBodyId),
                 EngineeringFeatures = [new(target.StableId["edgefinish:".Length..], "EdgeFinish", target.StableId,
                     target.HostBodyId, target.Side.ToString(), $"{profile.Name}.{target.LoopId}", distance,
                     "Distance", "Remove", PolicySource: "Chamfer", MaterializationRoute: planned.PlanningEvidence?.Decision.Strategy ?? "ProfileBoundaryChamfer")]
@@ -1317,7 +1338,7 @@ public static partial class FirmamentBuildAndExport
         if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
         var reimport = Step242Importer.ImportBody(step.Value);
         if (!reimport.IsSuccess || reimport.Value is null || !FirmamentManifoldChecker.IsManifold(reimport.Value)) return Fail("semantic-selection-finish-step-reimport-failed");
-        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "semantic-profile-edge-finish", "source-grounded-top-boundary-chamfer"));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "semantic-profile-edge-finish", "source-grounded-top-boundary-chamfer") { MaterializedFeatures = FirmamentFeatureAccounting.ProfileFinish(source, finish.Groups["name"].Value, profile.Name) });
     }
 
     private static bool IsAdmittedPrimitiveBoundary(IReadOnlyList<LineArcProfileCurve2D> curves) =>
@@ -1574,7 +1595,7 @@ public static partial class FirmamentBuildAndExport
             DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-semantic-pmi", p.Name)).ToArray() ?? [],
             ConceptIr: document.ConceptIr,
             Features: featureReports,
-            Combined: report) { RuntimeBody = body, RuntimeCorrespondence = correspondence });
+            Combined: report) { RuntimeBody = body, RuntimeCorrespondence = correspondence, MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "Hole", holes.Select(h => h.Name).ToArray()).Append(new FirmamentFeatureReceipt(solid.Name, "EdgeFinish", finish.Name)).ToArray() });
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportV2TopBoundaryFillet(
@@ -1602,7 +1623,7 @@ public static partial class FirmamentBuildAndExport
         if (!imported.IsSuccess || imported.Value is null || !FirmamentManifoldChecker.IsManifold(imported.Value))
             return CombinedFailure("CombinedFeatureMaterializerDiverged: top-boundary fillet STEP round trip failed.", imported.Diagnostics.Select(d => d.Message), finish.SourceSpan);
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
-            step.Value, document.ModelName, 0, "top-boundary-fillet", "TopBoundaryFillet") { RuntimeBody = built.Value });
+            step.Value, document.ModelName, 0, "top-boundary-fillet", "TopBoundaryFillet") { RuntimeBody = built.Value, MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "EdgeFinish", finish.Name) });
     }
 
     private static KernelResult<FirmamentStepExportResult> CombinedFailure(string message, IEnumerable<string>? details = null, FirmamentV2SourceSpan? sourceSpan = null) =>
@@ -1723,7 +1744,7 @@ public static partial class FirmamentBuildAndExport
                 reimported.Topology.Vertices.Count(), reimported.Topology.Edges.Count(), reimported.Topology.Faces.Count(), reimportedBounds, reimportedManifold));
 
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
-            step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "top-face-boundary-chamfer", Air: report, ConceptIr: document.ConceptIr));
+            step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "top-face-boundary-chamfer", Air: report, ConceptIr: document.ConceptIr) { MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "EdgeFinish", finish.Name) });
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportV2LocalizedPlanarSingleEdgeChamfer(
@@ -1770,7 +1791,7 @@ public static partial class FirmamentBuildAndExport
             new("AP242", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true, reimport.Value.Topology.Vertices.Count(), reimport.Value.Topology.Edges.Count(), reimport.Value.Topology.Faces.Count(), Bounds(reimport.Value), true),
             new("SharedEdge(+X,+Z)", "LocalizedPlanarReplacement", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false),
             LocalizedEdgeFinish: new("Chamfer", "SharedEdge(+X,+Z)", "EqualDistance", finish.Distance, "LocalizedEdgeReplacement", "PlanarChamfer", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false));
-        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "localized-planar-single-edge-chamfer", Air: report, ConceptIr: document.ConceptIr));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "localized-planar-single-edge-chamfer", Air: report, ConceptIr: document.ConceptIr) { MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "EdgeFinish", finish.Name) });
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportV2LocalizedEdgeJunctionChamfer(
@@ -1817,7 +1838,7 @@ public static partial class FirmamentBuildAndExport
             new("AP242", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true, reimport.Value.Topology.Vertices.Count(), reimport.Value.Topology.Edges.Count(), reimport.Value.Topology.Faces.Count(), Bounds(reimport.Value), true),
             LocalizedEdgeJunction: new(["SharedEdge(+X,+Z)", "SharedEdge(+Y,+Z)"], "Chamfer", "EqualDistance", first.Distance, "Direct", "LocalizedEdgeJunction", compiled.Construction.CornerPatch.Kind, 2, 0,
                 new(true, topology.DeterministicSignature), "valid", false, 1, 1));
-        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, $"{solid.Name}.{first.Name}.{second.Name}", 0, "air-chamfer", "localized-edge-junction-chamfer", Air: report, ConceptIr: document.ConceptIr));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, $"{solid.Name}.{first.Name}.{second.Name}", 0, "air-chamfer", "localized-edge-junction-chamfer", Air: report, ConceptIr: document.ConceptIr) { MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "EdgeFinish", first.Name, second.Name) });
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportV2LocalizedEdgeJunctionFillet(
@@ -1866,7 +1887,7 @@ public static partial class FirmamentBuildAndExport
             LocalizedEdgeJunction: new(["SharedEdge(+X,+Z)", "SharedEdge(+Y,+Z)"], "Fillet", "ConstantRadius", first.Distance, "Direct", "LocalizedEdgeJunction", "None(DirectIntersection)", 2, 0,
                 new(true, topology.DeterministicSignature), "valid", false, 1, 1,
                 new("DirectIntersection", "Cylinder", "Cylinder", "Ellipse", true, 1, compiled.Construction.Closure.Branch)));
-        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, $"{solid.Name}.{first.Name}.{second.Name}", 0, "air-fillet", "localized-edge-junction-fillet", Air: report, ConceptIr: document.ConceptIr));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, $"{solid.Name}.{first.Name}.{second.Name}", 0, "air-fillet", "localized-edge-junction-fillet", Air: report, ConceptIr: document.ConceptIr) { MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "EdgeFinish", first.Name, second.Name) });
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2HollowBody(FirmamentV2Document document)
@@ -2026,7 +2047,7 @@ public static partial class FirmamentBuildAndExport
             new(plan.IsAuthoritative, plan.DeterministicSignature, plan.ExpectedVertexCount, plan.ExpectedEdgeCount, plan.ExpectedFaceCount, plan.ExpectedLoopCount, plan.ExpectedCoedgeCount, plan.FaceRoles),
             new(Bounds(body), true, surfaces.Count(x => x == SurfaceGeometryKind.Plane), surfaces.Count(x => x == SurfaceGeometryKind.Cylinder), surfaces.Count(x => x == SurfaceGeometryKind.Torus), RoundedBoxAnalyticVolume(rounded.Size[0], rounded.Size[1], rounded.Size[2], rounded.CornerRadius, fillet), preflight.IsValid ? "valid" : "invalid"),
             new(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true, true, imported.Value.Topology.Faces.Count(), Bounds(imported.Value)));
-        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, solid.Name, 0, "air-rounded-box", fillet is null ? "rounded-box-primitive" : "rounded-box-top-boundary-fillet", RoundedBox: report));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, solid.Name, 0, "air-rounded-box", fillet is null ? "rounded-box-primitive" : "rounded-box-top-boundary-fillet", RoundedBox: report) { MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "EdgeFinish", finishes.Select(f => f.Name).ToArray()) });
     }
 
     private static KernelResult<FirmamentStepExportResult> RoundedBoxFailure(string message) =>
@@ -2098,7 +2119,7 @@ public static partial class FirmamentBuildAndExport
             LocalizedEdgeJunction: new(["SharedEdge(+X,+Z)", "SharedEdge(+Y,+Z)", "SharedEdge(+X,+Y)"], "Fillet", "EqualConstantRadius", xz.Distance, "Direct", "LocalizedTrihedralFillet", "SphericalOctant", 3, 1,
                 new(true, topology.DeterministicSignature), "valid", false, 1, 1,
                 new("SphericalOctant", "Sphere", "Cylinder", "Circle", true, 3, "+X,+Y,+Z octant")));
-        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, $"{solid.Name}.{xz.Name}.{yz.Name}.{xy.Name}", 0, "air-fillet", "localized-trihedral-fillet", Air: report, ConceptIr: document.ConceptIr));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, $"{solid.Name}.{xz.Name}.{yz.Name}.{xy.Name}", 0, "air-fillet", "localized-trihedral-fillet", Air: report, ConceptIr: document.ConceptIr) { MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "EdgeFinish", finishes.Select(f => f.Name).ToArray()) });
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportV2LocalizedTangentBlendSingleEdgeFillet(
@@ -2146,7 +2167,7 @@ public static partial class FirmamentBuildAndExport
             new("AP242", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true, reimport.Value.Topology.Vertices.Count(), reimport.Value.Topology.Edges.Count(), reimport.Value.Topology.Faces.Count(), Bounds(reimport.Value), true),
             LocalizedFillet: new("SharedEdge(+X,+Z)", "ConstantRadius", finish.Distance, "LocalizedTangentBlend", "QuarterCircle", "Linear", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false),
             LocalizedEdgeFinish: new("Fillet", "SharedEdge(+X,+Z)", "ConstantRadius", finish.Distance, "LocalizedEdgeReplacement", "CylindricalFillet", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false));
-        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "air-fillet", "localized-tangent-blend-single-edge-fillet", Air: report, ConceptIr: document.ConceptIr));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "air-fillet", "localized-tangent-blend-single-edge-fillet", Air: report, ConceptIr: document.ConceptIr) { MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "EdgeFinish", finish.Name) });
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportV2CircularRimChamfer(
@@ -2205,7 +2226,7 @@ public static partial class FirmamentBuildAndExport
             new("AP242", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true,
                 reimport.Value.Topology.Vertices.Count(), reimport.Value.Topology.Edges.Count(), reimport.Value.Topology.Faces.Count(), CircularBounds(cylinder.Radius, cylinder.Height), reimportedManifold));
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
-            step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "circular-top-rim-chamfer", Air: report, ConceptIr: document.ConceptIr));
+            step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "circular-top-rim-chamfer", Air: report, ConceptIr: document.ConceptIr) { MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "EdgeFinish", finish.Name) });
     }
 
     private static string CircularBounds(double radius, double height) =>
@@ -2424,7 +2445,7 @@ public static partial class FirmamentBuildAndExport
                 "boolean",
                 "side-hole-controlled-x",
                 DatumInspection: [],
-                DimensionInspection: []));
+                DimensionInspection: []) { MaterializedFeatures = FirmamentFeatureAccounting.Receipts(intent.TargetSolid, "Region", intent.RegionName) });
     }
 
     private static BrepBody ReorientCanonicalSideHoleBodyFromZToX(BrepBody body)
@@ -2574,7 +2595,7 @@ public static partial class FirmamentBuildAndExport
             };
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(cylindricalStep.Value,
                 cylindricalFeatureId, 0, "perforation-cylindrical", "local-radial-through-wall", Perforation: cylindricalReport)
-            { RuntimeBody = cylindricalBody, RuntimeCorrespondence = cylindricalCorrespondence });
+            { RuntimeBody = cylindricalBody, RuntimeCorrespondence = cylindricalCorrespondence, MaterializedFeatures = FirmamentFeatureAccounting.Receipts(target, "Perforation", feature.Name) });
         }
         if (document.Solid.Name != target || document.Solid.Box is not { Size.Count: 3 } box)
             return Failure("perforation-cylindrical-topology-unavailable: the piping authority constructs constant-thickness annular stock, but the current BRep Boolean route does not materialize radial cylinder-to-cylinder intersections on its wall");
@@ -2622,7 +2643,7 @@ public static partial class FirmamentBuildAndExport
             feature.Margin, feature.MinimumLigament, plan.Instances.Count, holes.Select(hole => hole.FeatureId!).ToArray(),
             body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(), true, true, hash);
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, featureId, 0,
-            "perforation", "circular-through", Perforation: report) { RuntimeBody = body, RuntimeCorrespondence = correspondence });
+            "perforation", "circular-through", Perforation: report) { RuntimeBody = body, RuntimeCorrespondence = correspondence, MaterializedFeatures = FirmamentFeatureAccounting.Receipts(target, "Perforation", feature.Name) });
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2SemanticHoleBody(FirmamentV2Document document)
@@ -2776,7 +2797,8 @@ public static partial class FirmamentBuildAndExport
                 Features: featureReports)
             {
                 RuntimeBody = runtimeCorrespondence is null ? null : body,
-                RuntimeCorrespondence = runtimeCorrespondence
+                RuntimeCorrespondence = runtimeCorrespondence,
+                MaterializedFeatures = FirmamentFeatureAccounting.Receipts(modifyTargets[0], "Hole", semanticHoles.Select(h => h.Name).ToArray())
             });
     }
 

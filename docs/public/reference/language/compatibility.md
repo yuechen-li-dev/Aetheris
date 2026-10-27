@@ -90,3 +90,24 @@ A WireForm part admits one wire product. Its named operations require field
 bodies; unsupported placement or parameter headers reject. Use StartFrame for
 the authored frame and an Assembly for separate Parts. Comments never contribute
 wire operations or operation provenance.
+
+## Admission limits
+
+Normal validation of a mechanical part runs its engineering build. The build
+also checks its materialized feature receipts against the admitted operations:
+missing Modify or Compose features reject the build. Pattern instances retain
+individual identities; one built instance cannot stand in for another.
+`build --json` exposes those receipts as `materializedFeatures` separately from
+source-derived display reports.
+
+Field closure does not yet cover every value-object body nested in a published
+Concept Struct. For example, an extra field inside an inline `Plane { ... }`
+value can currently be accepted without affecting that plane. Use only the
+listed fields of these value objects; validation does not yet prove that their
+entire bodies were consumed. This differs from adding a legitimate new named
+member to an open Concept Struct, which is supported authoring data.
+
+Diagnostics for specialized definitions and expanded Pattern instances use the
+original field or declaration when it can be mapped. Otherwise they identify
+the enclosing material operation or the specialized definition and disclose
+that the offsets describe expanded source.

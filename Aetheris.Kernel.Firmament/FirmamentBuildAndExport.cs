@@ -1131,27 +1131,39 @@ public static partial class FirmamentBuildAndExport
         string source, PrismaticProfileCompositionParseResult parsed, PrismaticSectionStackConstruction stack, PrismaticSectionStackEmissionResult emitted,
         FirmamentV2Document? canonicalDocument)
     {
+        var finishSpan = ProfileBoundaryChamferSourceBinder.FinishDeclarations(source).FirstOrDefault()?.Span;
         KernelResult<FirmamentStepExportResult> Fail(string code) => KernelResult<FirmamentStepExportResult>.Failure([
-            new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.ComposeSemanticSelection")]);
+            new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.ComposeSemanticSelection")
+            { SourceSpan = finishSpan is { } span ? new(span.Start, span.Length) : null }]);
         if (ProfileBoundaryChamferSourceBinder.SequenceDiagnostic(source) is { } sequenceDiagnostic) return Fail(sequenceDiagnostic);
-        if (ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(source))
+        if (ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(source)
+            || (ProfileBoundaryChamferSourceBinder.HasHostBoundaryFinish(source)
+                && (ProfileBoundaryChamferSourceBinder.HasProfileBoundaryFillet(source)
+                    || RimSupportProfiles(source, parsed.Profiles, stack).Any(p =>
+                        !IsAdmittedPrimitiveBoundary(p.Loops.Single(l => l.IsOuter).Segments.Select(s => s.Geometry).ToArray())))))
         {
             if (ProfileBoundaryChamferSourceBinder.HasProfileBoundaryFillet(source))
             {
                 ProfileBoundaryChamferTarget? filletTarget = null; ResolvedProfile2D? filletProfile = null; double radius = 0d; double clearance = 0d; string? filletDiagnostic = null;
-                foreach (var candidate in parsed.Profiles.Values.OrderBy(x => x.Name, StringComparer.Ordinal))
+                foreach (var candidate in RimSupportProfiles(source, parsed.Profiles, stack))
                     if (ProfileBoundaryChamferSourceBinder.TryBindFillet(source, candidate, stack.Feature.Name, out filletTarget, out radius, out clearance, out filletDiagnostic)) { filletProfile = candidate; break; }
                 if (filletProfile is null || filletTarget is null) return Fail(filletDiagnostic ?? "ProfileBoundaryFilletProfileUnknown");
-                var filletAdmission = ProfileStraightEdgeFilletAdmissionChecker.Check(stack, filletProfile, filletTarget, radius, clearance);
-                if (!filletAdmission.Disjoint) return Fail(filletAdmission.Diagnostics.FirstOrDefault() ?? "ProfileBoundaryFilletCavityInteractionUnsupported");
-                return Fail("ProfileBoundaryFilletComposeUnsupported: A composed-body fillet requires an adapter that retains its existing material intervals and cavities. The current profile fillet planner constructs a fresh extrusion; it cannot replace this body without losing authored features. No geometry was emitted.");
+                if (filletTarget.ChainKind != ProfileBoundaryChamferChainKind.ClosedLoop)
+                {
+                    var filletAdmission = ProfileStraightEdgeFilletAdmissionChecker.Check(stack, filletProfile, filletTarget, radius, clearance);
+                    if (!filletAdmission.Disjoint) return Fail(filletAdmission.Diagnostics.FirstOrDefault() ?? "ProfileBoundaryFilletCavityInteractionUnsupported");
+                    return Fail("ProfileBoundaryFilletComposeUnsupported: An open-chain composed fillet requires an adapter that retains its existing material intervals and cavities and qualifies endpoint termination. No geometry was emitted.");
+                }
+                return ExportComposedProfileRim(source, stack, filletProfile, filletTarget, radius, true, clearance, emitted, canonicalDocument);
             }
             ProfileBoundaryChamferTarget? target = null; double distance = 0d; string? bindingDiagnostic = null; ResolvedProfile2D? profile = null;
-            foreach (var candidate in parsed.Profiles.Values.OrderBy(x => x.Name, StringComparer.Ordinal))
+            foreach (var candidate in RimSupportProfiles(source, parsed.Profiles, stack))
             {
                 if (ProfileBoundaryChamferSourceBinder.TryBind(source, candidate, stack.Feature.Name, out target, out distance, out bindingDiagnostic)) { profile = candidate; break; }
             }
             if (profile is null || target is null) return Fail(bindingDiagnostic ?? "ProfileBoundaryChamferProfileUnknown");
+            if (target.Side == ProfileBoundaryChamferSide.Bottom || profile.Loops.Any(l => l.Segments.Any(s => s.Geometry is LineArcCircularArc2D)))
+                return ExportComposedProfileRim(source, stack, profile, target, distance, false, distance, emitted, canonicalDocument);
             var admission = ComposedProfileBoundaryChamferAdmissionChecker.Check(stack, profile, target, distance);
             if (!admission.Admitted) return Fail(admission.Diagnostics.FirstOrDefault() ?? "ProfileBoundaryChamferCavityInteractionUnsupported");
             var adjusted = ComposedProfileBoundaryChamferStackPlanner.TryApply(stack, profile, target, distance, out var planDiagnostics);
@@ -1243,7 +1255,10 @@ public static partial class FirmamentBuildAndExport
             new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.SemanticSelection")
             { SourceSpan = finishSpan is { } span ? new(span.Start, span.Length) { LocationNote = "EdgeFinish declaration; the planner reports the enclosing operation." } : null }]);
         if (ProfileBoundaryChamferSourceBinder.SequenceDiagnostic(source) is { } sequenceDiagnostic) return Fail(sequenceDiagnostic);
-        if (ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(source))
+        if (ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(source)
+            || (ProfileBoundaryChamferSourceBinder.HasHostBoundaryFinish(source)
+                && (ProfileBoundaryChamferSourceBinder.HasProfileBoundaryFillet(source)
+                    || !IsAdmittedPrimitiveBoundary(profile.Loops.First(l => l.IsOuter).Segments.Select(s => s.Geometry).ToArray()))))
         {
             if (ProfileBoundaryChamferSourceBinder.HasProfileBoundaryFillet(source))
             {
@@ -1684,6 +1699,9 @@ public static partial class FirmamentBuildAndExport
             return ExportV2CircularRimChamfer(document, solid, finish, cylinder);
         if (solid?.Primitive is not FirmamentV2BoxRecord box || box.Size.Count != 3)
             return AirChamferFailure("chamfer-unsupported-history:expected-history-known-box-or-right-circular-cylinder");
+
+        if (finish.Target == "Boundary" && finish.FaceAxis != "+Z" && finish.Kind is "Chamfer" or "Fillet")
+            return ExportV2BoxFaceBoundaryFinish(document, solid, finish, box);
 
         // AIR-FILLET-LOCALIZED-M1: semantic support-face selection only; emitted BRep IDs never enter Firmament.
         if (string.Equals(finish.Kind, "Fillet", StringComparison.Ordinal))

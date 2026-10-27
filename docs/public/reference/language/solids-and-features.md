@@ -140,9 +140,9 @@ What you can select depends on the body:
 
 | Body | Selection |
 | --- | --- |
-| A Box | `face: +Z` with `target: Boundary`: the top rim |
-| An extruded Profile | `target: section.Outer` with `on: Top` or `on: Bottom`: the whole rim |
-| A Compose body | `target: profile.Outer` with `on: Top`: that Profile's rim, on its own support |
+| An unmodified Box | `face: +X`, `-X`, `+Y`, `-Y`, `+Z` or `-Z` with `target: Boundary`: that face's rim |
+| An extruded Profile | `target: section.Outer` or `Boundary` with `on: Top` or `on: Bottom`: the whole rim |
+| A Compose body | `target: profile.Outer` with `on: Top` or `on: Bottom`, within the qualified material history below |
 | An untouched Box or `Polyhedron<N>` | `target: AllEdges`, fillet only: every edge |
 
 The details that trip people up:
@@ -156,7 +156,11 @@ The details that trip people up:
   The fillet keeps sharp vertical corners; it is not whole-box rounding.
 - **Compose with holes.** A top-rim chamfer can coexist with pockets and holes as
   long as its corridor does not cross a counterbore shoulder or countersink
-  transition. Fillets on Compose bodies are rejected.
+  transition. One constant-stock Base with disjoint through round holes also
+  supports either cap's fillet or chamfer, including rounded Profile corners.
+  This cavity-retaining path currently requires native XY stock, a single outer
+  loop and positive clearance between each entry footprint and the rim corridor.
+  Blind holes, slots and additional material operations reject in that path.
 - **Whole-stock rounding.** `target: AllEdges` needs one fillet, a radius smaller
   than the stock's inradius, and no other edits. It rejects on every other body,
   including Ellipsoid, RoundedBox, imported, hollow and already-edited stock, and

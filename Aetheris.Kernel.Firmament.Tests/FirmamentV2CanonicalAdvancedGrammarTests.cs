@@ -397,19 +397,22 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
     }
 
     [Fact]
-    public void ProfileComposePolygonEdgeFinish_ReportsHostAdmissionInsteadOfMissingSemanticSource()
+    public void ProfileComposePolygonEdgeFinish_BindsTheHostBoundaryToTheQualifiedProfilePlanner()
     {
-        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Invalid/Geometry/profile-compose-l-bracket-edgefinish-unsupported.firmament"));
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Regression/EdgeFinishRobustness/l-bracket-host-boundary-chamfer.firmament");
         var output = Path.Combine(Path.GetTempPath(), "aetheris-l-profile-finish-" + Guid.NewGuid().ToString("N") + ".step");
         try
         {
             var parse = FirmamentV2Parser.Parse(File.ReadAllText(path));
-            Assert.False(parse.IsSuccess);
-            Assert.Contains(FirmamentV2Parser.EdgeFinishProfileComposeBoundaryUnsupported, parse.Diagnostics);
+            // Non-four-sided stock is not malformed syntax. The materializer
+            // proves that the requested boundary finish is actually admitted.
+            Assert.True(parse.IsSuccess, string.Join(';', parse.Diagnostics));
             var build = FirmamentBuildAndExport.Run(path, output);
-            Assert.False(build.IsSuccess);
-            var diagnostic = Assert.Single(build.Diagnostics.Where(d => d.Message.StartsWith(FirmamentBuildAndExport.EdgeFinishProfileComposeBoundaryUnsupported + ":", StringComparison.Ordinal)));
-            Assert.DoesNotContain("SemanticSourceNotFound", diagnostic.Message, StringComparison.Ordinal);
+            Assert.True(build.IsSuccess, string.Join(';', build.Diagnostics.Select(d => d.Message)));
+            var body = Step242Importer.ImportBody(build.Value.Export.StepText).Value;
+            var mass = Aetheris.Kernel.Core.Brep.Verification.BrepMassProperties.Evaluate(body);
+            Assert.True(mass.IsEnclosed);
+            Assert.InRange(Math.Abs(mass.AbsoluteVolume - (28800 - 140 + 4d / 3)), 0, 1e-7);
         }
         finally
         {

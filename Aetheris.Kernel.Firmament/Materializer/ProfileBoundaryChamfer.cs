@@ -54,7 +54,6 @@ public sealed record ProfileStraightEdgeFilletPlanResult(
 public static class ProfileBoundaryChamferSourceBinder
 {
     private static readonly Regex Target = new(@"\bTarget\s*:\s*(?<value>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*){0,2})", RegexOptions.CultureInvariant);
-    private static readonly Regex On = new(@"\bOn\s*:\s*(?<value>Top|Bottom)\b", RegexOptions.CultureInvariant);
     private static readonly Regex Kind = new(@"\bKind\s*:\s*(?<value>\w+)\b", RegexOptions.CultureInvariant);
     private static readonly Regex Distance = new(@"\bDistance\s*:\s*(?<value>[-+.\deE]+)mm\b", RegexOptions.CultureInvariant);
     private static readonly Regex Radius = new(@"\bRadius\s*:\s*(?<value>[-+.\deE]+)mm\b", RegexOptions.CultureInvariant);
@@ -62,15 +61,20 @@ public static class ProfileBoundaryChamferSourceBinder
     private static readonly Regex ReflexJunction = new(@"\bReflexJunction\s*:\s*(?<value>\w+)\b", RegexOptions.CultureInvariant);
 
     public static bool HasSemanticProfileBoundaryFinish(string source) =>
-        FinishDeclarations(source).Any(d => d.Body?.Statements.OfType<FieldSyntax>()
-            .Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "On") &&
-                FirmamentSyntaxValues.Reference(f.Value) is "Top" or "Bottom") == true);
+        FinishDeclarations(source).Any(d => SupportWord(d) is "Top" or "Bottom");
 
-    public static bool HasProfileBoundaryFillet(string source) => FinishDeclarations(source).Any(d =>
-        d.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "On") &&
-            FirmamentSyntaxValues.Reference(f.Value) is "Top" or "Bottom") == true &&
-        d.Body.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Kind") &&
-            FirmamentSyntaxValues.Reference(f.Value) == "Fillet"));
+    public static bool HasProfileBoundaryFillet(string source) => FinishDeclarations(source)
+        .Any(d => IsCapWord(SupportWord(d)) && FinishKind(d) == "Fillet");
+
+    internal static bool HasHostBoundaryFinish(string source) => FinishDeclarations(source)
+        .Any(d => Word(d, "Target") == "Boundary" && IsCapWord(SupportWord(d)))
+        && !FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
+            .Any(d => d.Type.Name.Text == "Selection" && d.Name?.Text == "Boundary");
+
+    private static string SupportWord(DeclarationSyntax d) => Word(d, "On") is { Length: > 0 } on ? on : Word(d, "Face");
+    private static string FinishKind(DeclarationSyntax d) => Word(d, "Kind") is { Length: > 0 } kind ? kind
+        : d.Type.Arguments.Count == 1 ? FirmamentSyntaxValues.Reference(d.Type.Arguments[0].Value) ?? "" : "";
+    private static bool IsCapWord(string value) => value is "Top" or "Bottom" or "+X" or "-X" or "+Y" or "-Y" or "+Z" or "-Z";
 
     internal static IEnumerable<DeclarationSyntax> FinishDeclarations(string source)
     {
@@ -104,7 +108,7 @@ public static class ProfileBoundaryChamferSourceBinder
         target = null; radius = 0d; endClearance = 0d; diagnostic = null;
         var finishes = FinishDeclarations(source).ToArray();
         if (SequenceDiagnostic(finishes) is { } sequenceDiagnostic) { diagnostic = sequenceDiagnostic; return false; }
-        var finish = finishes.FirstOrDefault(d => Word(d, "On") is "Top" or "Bottom" && Word(d, "Kind") == "Fillet");
+        var finish = finishes.FirstOrDefault(d => IsCapWord(SupportWord(d)) && FinishKind(d) == "Fillet");
         if (finish?.Body is null) { diagnostic = "ProfileBoundaryFilletBoundaryRequired"; return false; }
         var fields = new FinishFields(finish);
         fields.Read("Kind", Kind);
@@ -116,13 +120,21 @@ public static class ProfileBoundaryChamferSourceBinder
         }
         var radiusMatch = fields.Read("Radius", Radius); var clearanceMatch = fields.Read("EndClearance", EndClearance);
         if (!radiusMatch.Success || !double.TryParse(radiusMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out radius) || !double.IsFinite(radius) || radius <= 0d) { diagnostic = "ProfileBoundaryFilletRadiusMustBePositive"; return false; }
-        var targetMatch = fields.Read("Target", Target); var on = fields.Read("On", On);
-        if (!targetMatch.Success || !on.Success) { diagnostic = "ProfileBoundaryFilletDeclarationInvalid"; return false; }
+        var targetMatch = fields.Read("Target", Target);
+        if (!fields.ReadSide(profile, out var side, out diagnostic)) return false;
+        if (!targetMatch.Success) { diagnostic = "ProfileBoundaryFilletDeclarationInvalid"; return false; }
         var rawTarget = targetMatch.Groups["value"].Value;
         string requestedProfile; string requestedLoop; IReadOnlyList<string> requestedSegments;
         ProfileBoundaryChamferChainKind chainKind; string provenance;
         var parts = rawTarget.Split('.');
-        if (parts.Length is 2 or 3)
+        if (rawTarget == "Boundary" && HasHostBoundaryFinish(source))
+        {
+            var outer = profile.Loops.Where(l => l.IsOuter).ToArray();
+            if (outer.Length != 1) { diagnostic = "ProfileBoundaryEdgeFinishOuterLoopAmbiguous"; return false; }
+            requestedProfile = profile.Name; requestedLoop = outer[0].Name; requestedSegments = [];
+            chainKind = ProfileBoundaryChamferChainKind.ClosedLoop; provenance = "HostCapBoundaryTarget";
+        }
+        else if (parts.Length is 2 or 3)
         {
             requestedProfile = parts[0]; requestedLoop = parts[1];
             requestedSegments = parts.Length == 3 ? [parts[2]] : [];
@@ -166,7 +178,7 @@ public static class ProfileBoundaryChamferSourceBinder
         }
         if (!fields.Complete(out diagnostic)) return false;
         target = new($"edgefinish:{finish.Name?.Text}", hostBodyId, profile.Name, loop.Name,
-            orderedSegments.Select(segment => segment.Name).ToArray(), Enum.Parse<ProfileBoundaryChamferSide>(on.Groups["value"].Value),
+            orderedSegments.Select(segment => segment.Name).ToArray(), side,
             chainKind, $"offset:{finish.Span.Start}", provenance, reflexJunctionStyle);
         return true;
     }
@@ -176,12 +188,15 @@ public static class ProfileBoundaryChamferSourceBinder
         target = null; distance = 0d; diagnostic = null;
         var finishes = FinishDeclarations(source).ToArray();
         if (SequenceDiagnostic(finishes) is { } sequenceDiagnostic) { diagnostic = sequenceDiagnostic; return false; }
-        var finish = finishes.FirstOrDefault(d => Word(d, "On") is "Top" or "Bottom");
+        var finish = finishes.FirstOrDefault(d => IsCapWord(SupportWord(d)));
         if (finish?.Body is null) { diagnostic = "ProfileBoundaryChamferBoundaryRequired"; return false; }
         var name = finish.Name?.Text;
         var fields = new FinishFields(finish);
-        var targetMatch = fields.Read("Target", Target); var on = fields.Read("On", On); var kind = fields.Read("Kind", Kind); var amount = fields.Read("Distance", Distance);
-        if (!targetMatch.Success || !on.Success || !kind.Success) { diagnostic = "ProfileBoundaryChamferDeclarationInvalid"; return false; }
+        var targetMatch = fields.Read("Target", Target);
+        if (!fields.ReadSide(profile, out var side, out diagnostic)) return false;
+        var kind = fields.Read("Kind", Kind);
+        var amount = fields.Read("Distance", Distance);
+        if (!targetMatch.Success || !kind.Success) { diagnostic = "ProfileBoundaryChamferDeclarationInvalid"; return false; }
         if (string.Equals(kind.Groups["value"].Value, "Fillet", StringComparison.Ordinal))
         {
             diagnostic = fields.Read("Radius", Radius).Success ? "ProfileBoundaryFilletNotMaterialized" : "ProfileBoundaryFilletRadiusRequired";
@@ -194,7 +209,14 @@ public static class ProfileBoundaryChamferSourceBinder
         var rawTarget = targetMatch.Groups["value"].Value;
         string requestedProfile; string loop; IReadOnlyList<string> segments; ProfileBoundaryChamferChainKind chainKind; string provenance;
         var parts = rawTarget.Split('.');
-        if (parts.Length >= 2)
+        if (rawTarget == "Boundary" && HasHostBoundaryFinish(source))
+        {
+            var outer = profile.Loops.Where(l => l.IsOuter).ToArray();
+            if (outer.Length != 1) { diagnostic = "ProfileBoundaryEdgeFinishOuterLoopAmbiguous"; return false; }
+            requestedProfile = profile.Name; loop = outer[0].Name; segments = [];
+            chainKind = ProfileBoundaryChamferChainKind.ClosedLoop; provenance = "HostCapBoundaryTarget";
+        }
+        else if (parts.Length >= 2)
         {
             requestedProfile = parts[0]; loop = parts[1];
             if (parts.Length == 3) { segments = [parts[2]]; chainKind = ProfileBoundaryChamferChainKind.SingleSegment; }
@@ -224,7 +246,7 @@ public static class ProfileBoundaryChamferSourceBinder
         else if (ordered.Count == 1) chainKind = ProfileBoundaryChamferChainKind.SingleSegment;
         if (!fields.Complete(out diagnostic)) return false;
         target = new($"edgefinish:{name}", hostBodyId, profile.Name, loop, ordered.Select(index => resolvedLoop.Segments[index].Name).ToArray(),
-            Enum.Parse<ProfileBoundaryChamferSide>(on.Groups["value"].Value), chainKind, $"offset:{finish.Span.Start}", provenance);
+            side, chainKind, $"offset:{finish.Span.Start}", provenance);
         return true;
     }
 
@@ -232,14 +254,23 @@ public static class ProfileBoundaryChamferSourceBinder
     {
         private readonly List<string> diagnostics = [];
         private readonly FirmamentSyntaxFields fields;
+        private readonly DeclarationSyntax declaration;
         internal FinishFields(DeclarationSyntax declaration)
         {
+            this.declaration = declaration;
             fields = new(declaration, diagnostics);
             fields.Take("PatternIdentity"); // Compiler-owned finite expansion receipt.
         }
         internal Match Read(string name, Regex reader)
         {
             var value = fields.Take(name);
+            if (name == "Kind" && declaration.Type.Arguments.Count == 1)
+            {
+                var variant = declaration.Type.Arguments[0].Value;
+                if (value is not null && FirmamentSyntaxValues.Reference(value) != FirmamentSyntaxValues.Reference(variant))
+                { diagnostics.Add("ProfileBoundaryEdgeFinishKindMismatch"); return Match.Empty; }
+                value ??= variant;
+            }
             if (value is null) return Match.Empty;
             var text = name + ": " + FirmamentSyntaxWriter.Expression(value);
             var match = reader.Match(text);
@@ -247,6 +278,21 @@ public static class ProfileBoundaryChamferSourceBinder
             fields.Invalid(name); // Optional malformed fields must not disappear into defaults.
             return Match.Empty;
         }
+        internal bool ReadSide(ResolvedProfile2D profile, out ProfileBoundaryChamferSide side, out string? diagnostic)
+        {
+            side = default; diagnostic = null;
+            var on = fields.Take("On"); var face = fields.Take("Face");
+            if (on is not null && face is not null) { diagnostic = "ProfileBoundaryEdgeFinishSupportAmbiguous: Use either on or face, not both."; return false; }
+            var value = FirmamentSyntaxValues.Reference(on ?? face);
+            if (value is "Top" or "Bottom") { side = Enum.Parse<ProfileBoundaryChamferSide>(value); return true; }
+            var axis = value switch { "+X" => new Vector3D(1,0,0), "-X" => new Vector3D(-1,0,0),
+                "+Y" => new Vector3D(0,1,0), "-Y" => new Vector3D(0,-1,0), "+Z" => new Vector3D(0,0,1), "-Z" => new Vector3D(0,0,-1), _ => default };
+            var dot = profile.EffectiveConstructionPlane.AxisZ.ToVector().Dot(axis);
+            if (Math.Abs(dot) < 1d - 1e-8) { diagnostic = $"ProfileBoundaryEdgeFinishFaceNotCap:{value}: Select on: Top or on: Bottom for an extrusion cap; the requested axis is not its normal."; return false; }
+            side = dot > 0 ? ProfileBoundaryChamferSide.Top : ProfileBoundaryChamferSide.Bottom;
+            return true;
+        }
+
         internal bool Complete(out string? diagnostic)
         {
             fields.Complete();

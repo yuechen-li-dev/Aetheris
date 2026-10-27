@@ -37,9 +37,9 @@ public static class FirmamentLanguagePaletteService
         new("perforation", "Perforation", "Holes", "A field of round vents across the top face.", "feature", "Vents",
             "Perforation Vents { On: +Z Diameter: 6mm Layout: Hex Pitch: 9mm Margin: 8mm }"),
 
-        new("chamfer", "Chamfer top edges", "Edges", "Breaks the edges around the top face with a 45° chamfer.", "feature", "TopChamfer",
+        new("chamfer", "Chamfer face rim", "Edges", "Breaks the selected face's boundary with a 45° chamfer. Choose Face; the default is +Z.", "feature", "TopChamfer",
             "EdgeFinish TopChamfer { Face: +Z Target: Boundary Kind: Chamfer Distance: 1mm }"),
-        new("fillet", "Round top edges", "Edges", "Rounds the edges around the top face.", "feature", "TopRound",
+        new("fillet", "Fillet face rim", "Edges", "Rounds the selected face's boundary. Choose Face; the default is +Z.", "feature", "TopRound",
             "EdgeFinish TopRound { Face: +Z Target: Boundary Kind: Fillet Radius: 1mm }"),
     ];
 

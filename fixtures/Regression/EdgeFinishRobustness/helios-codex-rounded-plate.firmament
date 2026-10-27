@@ -1,0 +1,28 @@
+Model Untitled {
+    Units: mm
+
+    Profile Outline = RoundedRect2 {
+        Center: [0mm, 0mm]
+        Size: [40mm, 30mm]
+        Radius: 3mm
+    }
+    Extrude Body { Profile: Outline; From: 0mm; To: 8mm }
+
+    Modify Body {
+        Hole<Shaft> MountLeftFront {
+            On: +Z; Center: Point2(-14mm, -9mm); Diameter: 4mm; End: ThroughAll
+        }
+        Hole<Shaft> MountRightFront {
+            On: +Z; Center: Point2(14mm, -9mm); Diameter: 4mm; End: ThroughAll
+        }
+        Hole<Shaft> MountLeftRear {
+            On: +Z; Center: Point2(-14mm, 9mm); Diameter: 4mm; End: ThroughAll
+        }
+        Hole<Shaft> MountRightRear {
+            On: +Z; Center: Point2(14mm, 9mm); Diameter: 4mm; End: ThroughAll
+        }
+        EdgeFinish TopRim {
+            Face: +Z; Target: Boundary; Kind: Fillet; Radius: 1mm
+        }
+    }
+}

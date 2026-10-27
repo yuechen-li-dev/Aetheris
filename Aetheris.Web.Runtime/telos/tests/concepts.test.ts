@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Matrix4, Vector3 } from "three";
-import { conceptWireframe, conceptWireframeGroup, disposeConceptWireframe } from "../dist/concepts.js";
+import { conceptWireframe, conceptWireframeGroup, disposeConceptWireframe, operationPreviewWireframe, operationPreviewWireframeGroup } from "../dist/concepts.js";
 import { TelosPick } from "../dist/pick.js";
 import { TelosCamera } from "../dist/camera.js";
 import type { DisplayPacket } from "../dist/contracts.js";
@@ -29,4 +29,25 @@ test("gold guides follow occurrences, remain separate from material and never st
   disposeConceptWireframe(group);
   assert.equal(group.children.length, 0);
   assert.equal(packet.definitions[0].indices.length, 0);
+});
+
+test("operation preview uses retained edge polylines and does not replace material or concepts", () => {
+  const packet: DisplayPacket = {
+    definitions: [{ id: "stock", positions: [0,0,0, 1,0,0, 0,1,0], normals: [], indices: [0,1,2],
+      edges: [{ edgeId: "rim", points: [[0,0,0], [1,0,0], [1,1,0]], closed: true }] }],
+    occurrences: [{ id: "placed", definitionId: "stock", semanticEntityId: "stock", transform: new Matrix4().makeTranslation(10,0,0).elements }],
+  };
+  const before = JSON.stringify(packet);
+  const wires = operationPreviewWireframe(packet);
+  assert.equal(wires.length, 2);
+  assert.deepEqual(wires[1].points, [0,0,0, 1,0,0, 1,1,0, 0,0,0]);
+  assert.ok(wires.every(w => w.overlay && w.pickable === false && w.depthMode === "always-on-top"));
+  assert.equal(wires[1].transform![12], 10);
+  assert.equal(conceptWireframe(packet).length, 0);
+  const group = operationPreviewWireframeGroup(packet);
+  assert.equal(group.children.length, 1);
+  assert.equal(group.children[0].matrix.elements[12], 10);
+  disposeConceptWireframe(group);
+  assert.equal(group.children.length, 0);
+  assert.equal(JSON.stringify(packet), before);
 });

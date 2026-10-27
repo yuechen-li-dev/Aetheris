@@ -732,11 +732,16 @@ public static class BrepDisplayTessellator
             .Select(p => double.Min(options.ChordTolerance,
                 double.Min(p!.RecoveryToleranceMillimetres, p.MeasuredMaxDeviationMillimetres)))
             .DefaultIfEmpty(0d).Max();
+        // Intersecting cylindrical fillet rolls terminate on elliptical miter
+        // curves. Their axial extent varies with angle; a rectangular UV
+        // bounding patch protrudes past the retained face at the corners.
+        var ellipticalBoundary = loopIds.Length == 1 && body.GetCoedgeIds(loopIds[0])
+            .Any(id => body.GetEdgeCurve(body.Topology.GetCoedge(id).EdgeId).Kind == CurveGeometryKind.Ellipse3);
         // A bounded one-loop face can be a helical strip, a toothed skirt, or a
         // narrow rectangular sector. Its bounding cylinder is not the trim.
         // Prefer the complete bound parameter trace, retaining legacy dispatch
         // for closed-circle/seam families without a polygonal pcurve boundary.
-        if (loopIds.Length == 1 && (body.GetCoedgeIds(loopIds[0]).Count >= 3
+        if (loopIds.Length == 1 && (ellipticalBoundary || body.GetCoedgeIds(loopIds[0]).Count >= 3
             && body.GetCoedgeIds(loopIds[0]).Select(id => body.Topology.GetCoedge(id).EdgeId).Distinct().Count() == body.GetCoedgeIds(loopIds[0]).Count
             && body.GetCoedgeIds(loopIds[0]).All(id => body.Bindings.TryGetPcurveBinding(id, out var pc) && pc.FaceId == faceId)
             || body.GetCoedgeIds(loopIds[0]).Any(id =>
@@ -749,9 +754,11 @@ public static class BrepDisplayTessellator
             return double.Abs(end.U - start.U) > 1e-8d && double.Abs(end.V - start.V) > 1e-8d;
         })))
         {
-            var uvLoops = TryBuildTrimmedSurfaceUvLoops(body, faceId, loopIds,
-                point => TryProjectPointToCylinderUv(cylinder, point, recoveryAllowance), options, executionBudget,
-                SurfaceGeometryKind.Cylinder);
+            var uvLoops = ellipticalBoundary
+                ? TryBuildPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds,
+                    point => TryProjectPointToCylinderUv(cylinder, point, recoveryAllowance), options, executionBudget, SurfaceGeometryKind.Cylinder)
+                : TryBuildTrimmedSurfaceUvLoops(body, faceId, loopIds,
+                    point => TryProjectPointToCylinderUv(cylinder, point, recoveryAllowance), options, executionBudget, SurfaceGeometryKind.Cylinder);
             if (!uvLoops.IsSuccess)
                 return KernelResult<DisplayFaceMeshPatch>.Failure(uvLoops.Diagnostics);
             return TrimmedSurfaceTessellator.Tessellate(faceId, uvLoops.Value,
@@ -3618,7 +3625,7 @@ public static class BrepDisplayTessellator
 
                     break;
                 case CurveGeometryKind.Ellipse3:
-                    var ellipsePointsResult = SamplePlanarEllipse(body, coedge, isTraversalSwapped, curve.Ellipse3!.Value, segmentStart, segmentEnd, plane, faceId);
+                    var ellipsePointsResult = SamplePlanarEllipse(body, coedge, isTraversalSwapped, curve.Ellipse3!.Value, segmentStart, segmentEnd, plane, faceId, options);
                     if (!ellipsePointsResult.IsSuccess)
                     {
                         return KernelResult<IReadOnlyList<Point3D>>.Failure(ellipsePointsResult.Diagnostics);
@@ -3858,7 +3865,8 @@ public static class BrepDisplayTessellator
         Point3D start,
         Point3D end,
         PlaneSurface plane,
-        FaceId faceId)
+        FaceId faceId,
+        DisplayTessellationOptions options)
     {
         const double planeContainmentTolerance = 1e-7d;
         var normalAlignment = double.Abs(ellipse.Normal.ToVector().Dot(plane.Normal.ToVector()));
@@ -3877,7 +3885,7 @@ public static class BrepDisplayTessellator
         }
 
         var trim = trimResult.Value;
-        var segmentCount = ComputeEllipseSegmentCount(trim.Start, trim.End);
+        var segmentCount = ComputeEllipseSegmentCount(ellipse, trim.Start, trim.End, options);
         var sampled = SampleEllipseCurve(ellipse, trim, segmentCount).ToArray();
         sampled[0] = start;
         sampled[^1] = end;
@@ -4153,7 +4161,7 @@ public static class BrepDisplayTessellator
 
             case CurveGeometryKind.Ellipse3:
                 var ellipse = curve.Ellipse3!.Value;
-                var segments = ComputeEllipseSegmentCount(interval.Start, interval.End);
+                var segments = ComputeEllipseSegmentCount(ellipse, interval.Start, interval.End, options);
                 return KernelResult<DisplayEdgePolyline>.Success(new DisplayEdgePolyline(
                     edgeId,
                     SampleEllipseCurve(ellipse, interval, segments),
@@ -4320,12 +4328,14 @@ public static class BrepDisplayTessellator
         return points;
     }
 
-    private static int ComputeEllipseSegmentCount(double start, double end)
+    private static int ComputeEllipseSegmentCount(Ellipse3Curve ellipse, double start, double end, DisplayTessellationOptions options)
     {
-        const double maxSegmentAngle = double.Pi / 4d;
-        var span = double.Abs(end - start);
-        var segmentCount = (int)double.Ceiling(span / maxSegmentAngle);
-        return System.Math.Max(2, segmentCount);
+        // An ellipse is an affine image of the unit circle. Its major radius
+        // bounds chord sag; a/b bounds tangent turning per parameter radian.
+        // The old fixed 45-degree step ignored both caller budgets and left
+        // only two chords on a quarter-ellipse fillet miter.
+        return CalculateSegmentCount(double.Abs(end - start), ellipse.MajorRadius,
+            options with { AngularToleranceRadians = options.AngularToleranceRadians * ellipse.MinorRadius / ellipse.MajorRadius });
     }
 
     private static KernelResult<IReadOnlyList<Point3D>> SamplePlanarHyperbola(

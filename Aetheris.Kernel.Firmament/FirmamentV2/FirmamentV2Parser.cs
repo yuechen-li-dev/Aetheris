@@ -1298,13 +1298,8 @@ public static partial class FirmamentV2Parser
             };
             var (compositionPmi, compositionPmiBlock, compositionBoundPmi) = ParsePmi(
                 source, compositionSolids, [], [], [], [], diagnostics, (feature.ShaftHoles ?? []).Select(hole => hole.Name).Concat((feature.CounterboreHoles ?? []).Select(hole => hole.Name)).Concat((feature.CountersinkHoles ?? []).Select(hole => hole.Name)));
-            if (Regex.IsMatch(body, @"\bEdgeFinish\b", RegexOptions.CultureInvariant)
-                && !ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(body)
-                && composition.Profiles.Values.Any(profile => profile.Loops.Single().Segments.Count != 4))
-            {
-                diagnostics.Add($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={feature.Name}:construction=Compose:face=+Z:target=Boundary: EdgeFinish on a Profile-based body is supported on four-sided boundaries; this boundary has curved or extra segments. Use Box stock for a rounded or chamfered rim, or shape the corners in the Profile itself.");
-                return CanonicalFailure(diagnostics, EdgeFinishProfileComposeBoundaryUnsupported);
-            }
+            // Geometry capability belongs to the source-bound edge-finish planner;
+            // a curved Profile is not a syntax error. Normal validation builds it.
             if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
             var document = new FirmamentV2Document(
                 model.Name!.Text,
@@ -1349,13 +1344,8 @@ public static partial class FirmamentV2Parser
                 [resolved.Name] = new FirmamentV2SolidBinding(resolved.Name, "Profile", new FirmamentV2AdvancedMaterialRecord("Profile"))
             };
             var (profilePmi, profilePmiBlock, profileBoundPmi) = ParsePmi(source, profileSolids, [], [], [], [], diagnostics);
-            if (Regex.IsMatch(body, @"\bEdgeFinish\b", RegexOptions.CultureInvariant)
-                && !ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(body)
-                && resolved.Loops.Single().Segments.Count != 4)
-            {
-                diagnostics.Add($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={resolved.Name}:construction=Profile:face=+Z:target=Boundary: EdgeFinish on a Profile-based body is supported on four-sided boundaries; this boundary has curved or extra segments. Use Box stock for a rounded or chamfered rim, or shape the corners in the Profile itself.");
-                return CanonicalFailure(diagnostics, EdgeFinishProfileComposeBoundaryUnsupported);
-            }
+            // Geometry capability belongs to the source-bound edge-finish planner;
+            // a curved Profile is not a syntax error. Normal validation builds it.
             if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
             var document = new FirmamentV2Document(
                 model.Name!.Text,

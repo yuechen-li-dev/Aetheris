@@ -15,6 +15,27 @@ are complete executable examples. [The angled plate](../../../fixtures/Regressio
 shows convex corners that are not right angles. These rim finishes preserve
 the sharp vertical stock corners; they do not round every edge of the body.
 
+On an unmodified `Box`, `face: +X`, `-X`, `+Y`, `-Y`, `+Z` or `-Z` with
+`target: Boundary` selects that face's entire rim. Both Chamfer and Fillet use
+the selected face's dimensions and the depth perpendicular to it when checking
+the finish size. The same size may fit one face but collapse another.
+
+For a Profile extrusion, `target: Boundary` means the stock Profile's single
+outer loop. `on: Top` and `on: Bottom` are relative to its construction plane;
+a signed world axis is also accepted when it is parallel to the extrusion
+axis. A side axis rejects rather than selecting a different cap.
+
+A constant-stock Profile body may retain disjoint through shaft, counterbore
+and countersink holes while finishing either cap. See the complete
+[rounded mounting plate](../../../fixtures/Regression/EdgeFinishRobustness/rounded-plate-through-cavities.firmament).
+This adapter currently requires the native XY stock frame and one outer loop.
+Each hole's largest entry footprint must clear the entire rim corridor by a
+positive margin, including when finishing the bottom. Overlapping cavities,
+blind holes, slots and additional material operations reject in this adapter;
+they are not discarded or rebuilt as plain stock. Other existing materializer
+routes retain their own qualified combinations, including rectangular top
+chamfers over supported Compose histories.
+
 The Profile/Compose materializer currently admits one `EdgeFinish` operation
 per compiled construction. Requesting multiple finishes, including separate top
 and bottom finishes, rejects with `ProfileBoundaryEdgeFinishSequenceUnsupported`.

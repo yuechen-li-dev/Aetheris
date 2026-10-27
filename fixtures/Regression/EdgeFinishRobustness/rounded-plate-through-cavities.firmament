@@ -1,0 +1,20 @@
+Model RoundedMountingPlate {
+    units: mm
+    Concept Struct Layout on XY {
+        RoundedRect2 Stock { center: [0mm, 0mm]; size: [60mm, 40mm]; radius: 6mm }
+    }
+    Profile Outline using Layout { Loop Outer { Stock |> TraceLoop } }
+    Struct Part { Extrude Body { profile: Outline; from: 0mm; to: 8mm } }
+    Modify Body {
+        Hole<Shaft> Plain { on: +Z; center: Point2(-15mm, 0mm); diameter: 4mm; end: ThroughAll }
+        Hole<Counterbore> Bore { on: +Z; center: Point2(0mm, 0mm); diameter: 3mm; counterboreDiameter: 8mm; counterboreDepth: 2mm; end: ThroughAll }
+        Hole<Countersink> Sink { on: +Z; center: Point2(15mm, 0mm); diameter: 4mm; countersinkDiameter: 8mm; countersinkAngle: 90deg; end: ThroughAll }
+        EdgeFinish<Fillet> Rim { target: Boundary; on: +Z; radius: 1mm }
+    }
+    Pmi {
+        Datum A { target: face(+Z) }
+        HoleDiameter PlainDiameter { target: Plain; value: 4mm; tolerance: PlusMinus(0.1mm, 0mm) }
+        HoleDiameter BoreDiameter { target: Bore; value: 3mm; tolerance: PlusMinus(0.1mm, 0mm) }
+        HoleDiameter SinkDiameter { target: Sink; value: 4mm; tolerance: PlusMinus(0.1mm, 0mm) }
+    }
+}

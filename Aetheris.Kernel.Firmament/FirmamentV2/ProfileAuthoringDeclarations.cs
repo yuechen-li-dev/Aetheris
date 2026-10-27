@@ -16,7 +16,7 @@ public static class ProfileSemanticDeclaration { }
 public static class ExtrudeSemanticDeclaration { }
 
 [FirmamentConstruct("Compose", "Compose", Context = "Model", Entry = "Compose Plate {\n    Base Stock { Profile: Outline; From: 0mm; To: 8mm; Role: Stock }\n}",
-    Description = "A Profile-based body built from a Base and optional Boss, Pocket and Hole operations. A later Modify on the Compose name takes Hole, Slot, Pattern and top-rim chamfers on four-sided boundaries; round vertical corners in the Profile (RoundedRect2).")]
+    Description = "A Profile-based body built from a Base and optional Boss, Pocket and Hole operations. A later Modify takes Hole, Slot, Pattern and qualified Profile rim finishes. A constant native-XY Base with disjoint through round holes supports top or bottom fillets/chamfers, including RoundedRect2 corners; other material histories have narrower admission. Round vertical corners in the Profile (RoundedRect2).")]
 public static class ComposeSemanticDeclaration { }
 
 [FirmamentConstruct("ComposeBase", "Base", Context = "Compose", Entry = "Base Stock { Profile: Outline; From: 0mm; To: 8mm; Role: Stock }",

@@ -73,6 +73,7 @@ public static class PrismaticSectionStackBrepMaterializer
         var clone = new BrepBindingModel();
         foreach (var binding in source.EdgeBindings.OrderBy(x => x.EdgeId.Value)) clone.AddEdgeBinding(binding);
         foreach (var binding in source.FaceBindings.OrderBy(x => x.FaceId.Value)) clone.AddFaceBinding(binding);
+        foreach (var binding in source.FaceBoundaryRoleBindings.OrderBy(x => x.LoopId.Value)) clone.AddFaceBoundaryRoleBinding(binding);
         return clone;
     }
 }
@@ -194,6 +195,7 @@ public static class PrismaticSectionStackEmitter
         var builder = new TopologyBuilder(); var points = new Dictionary<VertexId, Point3D>(); var curves = new Dictionary<EdgeId, CurveGeometry>(); var profileCurves = new Dictionary<EdgeId, LineArcProfileCurve2D>();
         var vertices = new Dictionary<(long X, long Y, long Z), VertexId>(); var edges = new Dictionary<string, EdgeId>();
         var sideFaces = new List<(LoopId Loop, SurfaceGeometry Surface, bool SameSense, string Source, string Construction, double From, double To)>(); var capFaces = new List<(FaceId Face, double Z, bool Up)>();
+        var capLoopRoles = new List<FaceBoundaryRoleBinding>();
         var countersinks = stack.Feature.CountersinkHoles ?? [];
         PrismaticCountersinkHoleFeature? CountersinkFor(string source) => countersinks.SingleOrDefault(h =>
             SourceId(source).StartsWith($"profile:{h.ShaftProfileReference}.Outer.", StringComparison.Ordinal));
@@ -275,8 +277,8 @@ public static class PrismaticSectionStackEmitter
         }
         foreach (var transition in stack.Transitions)
         {
-            foreach (var region in transition.UpwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, splitPoints, AtStation), transition.Level, true));
-            foreach (var region in transition.DownwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, splitPoints, AtStation), transition.Level, false));
+            foreach (var region in transition.UpwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, splitPoints, AtStation, capLoopRoles), transition.Level, true));
+            foreach (var region in transition.DownwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, splitPoints, AtStation, capLoopRoles), transition.Level, false));
         }
         var faces = new List<FaceId>();
         foreach (var cap in capFaces) faces.Add(cap.Face);
@@ -292,6 +294,7 @@ public static class PrismaticSectionStackEmitter
             curveId++;
         }
         var surfaceId = 1;
+        foreach (var role in capLoopRoles) bindings.AddFaceBoundaryRoleBinding(role);
         foreach (var cap in capFaces) { geometry.AddSurface(new SurfaceGeometryId(surfaceId), SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((0d, 0d), cap.Z), cap.Up ? frame.AxisZ : Direction3D.Create(-frame.AxisZ.ToVector()), frame.AxisX))); bindings.AddFaceBinding(new FaceGeometryBinding(cap.Face, new SurfaceGeometryId(surfaceId++))); }
         foreach (var side in sideFaces) { var face = faces[capFaces.Count + sideFaces.IndexOf(side)]; geometry.AddSurface(new SurfaceGeometryId(surfaceId), Transform(side.Surface, frame)); bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(surfaceId++), side.SameSense)); }
         foreach (var incidence in builder.Model.Coedges.GroupBy(x => x.EdgeId).Where(x => x.Count() != 2))
@@ -493,16 +496,20 @@ public static class PrismaticSectionStackEmitter
         return new(plan, d.Distinct().ToArray(), correspondence);
     }
     private static FaceId AddCap(TopologyBuilder builder, PrismaticSectionRegion region, double z, Func<LineArcProfileCurve2D, double, (EdgeId Edge, bool Reverse)> edge, IReadOnlyList<(double X, double Y)> splitPoints,
-        Func<LineArcProfileCurve2D, double, string, LineArcProfileCurve2D> atStation)
+        Func<LineArcProfileCurve2D, double, string, LineArcProfileCurve2D> atStation, List<FaceBoundaryRoleBinding> roles)
     {
         var loops = new List<LoopId>();
+        var kinds = new List<FaceBoundaryRole>();
         foreach (var item in Loops(region))
         {
             var segments = item.IsHole ? item.Profile.Loops[0].Segments.Reverse() : item.Profile.Loops[0].Segments;
             var curves = segments.SelectMany(s => Split(s.Geometry, splitPoints).Select(curve => atStation(curve, z, s.Provenance.StableId))).ToArray();
             loops.Add(AddLoop(builder, curves.Select(curve => { var e = edge(curve, z); return new Use(e.Edge, item.IsHole ? !e.Reverse : e.Reverse); }).ToArray()));
+            kinds.Add(item.IsHole ? FaceBoundaryRole.Inner : FaceBoundaryRole.Outer);
         }
-        return builder.AddFace(loops);
+        var face = builder.AddFace(loops);
+        for (var i = 0; i < loops.Count; i++) roles.Add(new(face, loops[i], kinds[i]));
+        return face;
     }
     private static IEnumerable<(ResolvedProfile2D Profile, bool IsHole)> Loops(PrismaticSectionRegion region) { yield return (region.Outer, false); foreach (var h in region.Holes) yield return (h, true); }
     private static (double X, double Y)[] Ends(LineArcProfileCurve2D curve) => curve switch { LineArcLineSegment2D l => [l.Start, l.End], LineArcCircularArc2D a => [(a.Center.X + a.Radius * Math.Cos(a.StartAngleRadians), a.Center.Y + a.Radius * Math.Sin(a.StartAngleRadians)), (a.Center.X + a.Radius * Math.Cos(a.StartAngleRadians + a.SweepAngleRadians), a.Center.Y + a.Radius * Math.Sin(a.StartAngleRadians + a.SweepAngleRadians))], LineArcCubicBezier2D c => [c.Start, c.End], _ => throw new NotSupportedException($"Unsupported section boundary: {curve.GetType().Name}") };

@@ -34,7 +34,7 @@ public sealed class FirmamentV2AirChamferStepPipelineTests
     [Theory]
     [InlineData(0, "+Z", "Boundary", "air-chamfer-distance-must-be-positive")]
     [InlineData(4, "+Z", "Boundary", "air-chamfer-distance-too-large-rejected")]
-    [InlineData(1, "-Z", "Boundary", "air-chamfer-unsupported-face-rejected")]
+    [InlineData(4, "-Z", "Boundary", "EdgeFinishFaceBoundaryRejected")]
     [InlineData(1, "+Z", "SingleEdge", "air-chamfer-unsupported-selection-rejected")]
     public void FirmamentV2_AirChamfer_Rejections_DoNotFallBack(double distance, string face, string target, string expected)
     {

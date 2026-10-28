@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="..\Aetheris.Kernel.Core.Tests\Step242\Step242Corpus.cs" Link="Support\Step242Corpus.cs" />
   </ItemGroup>
 
   <ItemGroup>

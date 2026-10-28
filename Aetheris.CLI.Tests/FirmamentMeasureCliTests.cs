@@ -96,6 +96,21 @@ public sealed class FirmamentMeasureCliTests
     }
 
     [Fact]
+    public void SdfMeasuresTheExportedHolesAndExplainsItsCompleteBoundaryQualification()
+    {
+        var output = new StringWriter(); var error = new StringWriter();
+        Assert.Equal(0, CliRunner.Run(["measure", Fixture("through-hole-plate"), "--sdf", "--error", "20", "--json"], output, error));
+        using var json = JsonDocument.Parse(output.ToString());
+        var volume = json.RootElement.GetProperty("volume");
+        Assert.InRange(80 * 50 * 8 - Math.PI * 16 * 8,
+            volume.GetProperty("lowerBoundMm3").GetDouble(), volume.GetProperty("upperBoundMm3").GetDouble());
+        Assert.False(volume.GetProperty("budgetExhausted").GetBoolean());
+        Assert.Equal("CompleteFinalBrepRectangularStockThroughHoles", volume.GetProperty("fieldQualification").GetString());
+        Assert.Equal(7, volume.GetProperty("fieldCoveredFaceCount").GetInt32());
+        Assert.Equal(64, volume.GetProperty("fieldSourceStepSha256").GetString()!.Length);
+    }
+
+    [Fact]
     public void SdfMeasurementCarriesUncertaintyAndKeepsMeshComparisonDiagnosticOnly()
     {
         var output = new StringWriter(); var error = new StringWriter();

@@ -137,21 +137,7 @@ internal static class Step242CorpusManifestRunner
 
     public static string NormalizeLf(string value) => value.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);
 
-    public static string RepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "Aetheris.slnx")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Unable to locate repository root.");
-    }
+    public static string RepoRoot() => Step242Corpus.RepoRoot();
 
     private static string ComputeSha256LowerHex(string text)
     {

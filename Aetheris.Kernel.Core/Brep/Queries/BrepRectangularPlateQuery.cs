@@ -35,17 +35,21 @@ public static class BrepRectangularPlateQuery
             {
                 var n = plane.Normal.ToVector();
                 var axis = Axis(n);
-                if (axis < 0) return false;
+                if (axis < 0)
+                { reason = $"Face {face.Id.Value} has a non-axis-aligned plane; complete rectangular-stock recognition requires axis-aligned stock planes."; return false; }
                 planes.Add((face, plane, axis));
             }
             else if (surface?.Cylinder is { } cylinder && Axis(cylinder.Axis.ToVector()) == 2)
             {
-                if (!body.Bindings.TryGetFaceBinding(face.Id, out var binding) || binding.Orientation.IsAlignedWithSurface) return false;
+                if (!body.Bindings.TryGetFaceBinding(face.Id, out var binding) || binding.Orientation.IsAlignedWithSurface)
+                { reason = $"Face {face.Id.Value} has cylindrical support without inward hole-wall orientation; stock cylinders and bosses are not rectangular-stock through holes."; return false; }
                 walls.Add((face, cylinder));
             }
-            else return false;
+            else
+            { reason = $"Face {face.Id.Value} has unsupported stock/hole support {surface?.Kind}; complete recognition admits stock planes and circular Z-through-hole walls."; return false; }
         }
-        if (planes.Count != 6 || Enumerable.Range(0, 3).Any(a => planes.Count(p => p.Axis == a) != 2)) return false;
+        if (planes.Count != 6 || Enumerable.Range(0, 3).Any(a => planes.Count(p => p.Axis == a) != 2))
+        { reason = $"Complete rectangular-stock recognition requires six stock planes (two per axis); found {planes.Count}."; return false; }
         double Coordinate(Point3D p, int axis) => axis == 0 ? p.X : axis == 1 ? p.Y : p.Z;
         var min = Enumerable.Range(0, 3).Select(a => planes.Where(p => p.Axis == a).Min(p => Coordinate(p.Plane.Origin, a))).ToArray();
         var max = Enumerable.Range(0, 3).Select(a => planes.Where(p => p.Axis == a).Max(p => Coordinate(p.Plane.Origin, a))).ToArray();

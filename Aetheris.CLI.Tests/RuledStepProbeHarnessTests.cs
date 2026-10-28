@@ -8,7 +8,7 @@ public sealed class RuledStepProbeHarnessTests
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Fact]
-    public void Harness_Workflow_Generates_Deterministic_Wrapper_And_Reimports_Ruled_Probe()
+    public void OpenRuledProbeRemainsInspectableButCannotBeExportedAsAProductionSolid()
     {
         var sourceProbe = Path.Combine(RepoRoot, "testdata", "step242", "generated", "ruled-a2", "ellipse-linear-extrusion-production.step");
         Assert.True(File.Exists(sourceProbe), $"Expected ruled production probe at '{sourceProbe}'.");
@@ -32,23 +32,27 @@ public sealed class RuledStepProbeHarnessTests
 
         try
         {
-            var canon = RunCli("canon", rawProbeCopy, "--out", canonicalInput, "--mode", "production", "--json");
-            Assert.Equal(0, canon.ExitCode);
-            Assert.True(File.Exists(canonicalInput));
-
-            var wrapper = BuildWrapperSource(probeName, Path.GetFileName(canonicalInput));
+            foreach (var mode in new[] { "production", "deterministic" })
+            {
+                var canon = RunCli("canon", rawProbeCopy, "--out", canonicalInput, "--mode", mode, "--json");
+                Assert.NotEqual(0, canon.ExitCode);
+                Assert.Contains("brep-preflight-imported-shell-not-enclosed", canon.StdOut);
+                Assert.False(File.Exists(canonicalInput));
+            }
+            var wrapper = BuildWrapperSource(probeName, originalProbeName);
             File.WriteAllText(wrapperPath, wrapper);
 
             Assert.Equal(Path.Combine(wrapperDir, "ellipseLinearExtrusionProduction.firm"), wrapperPath);
             Assert.Equal(Path.Combine(outputDir, "ellipseLinearExtrusionProduction.canonical.step"), outputStepPath);
             Assert.Contains("InlineStep", wrapper, StringComparison.Ordinal);
-            Assert.Contains("../input/ellipseLinearExtrusionProduction.canonical-input.step", wrapper, StringComparison.Ordinal);
+            Assert.Contains("../input/" + originalProbeName, wrapper, StringComparison.Ordinal);
 
             var build = RunCli("build", wrapperPath, "--out", outputStepPath, "--json");
-            Assert.Equal(0, build.ExitCode);
-            Assert.True(File.Exists(outputStepPath));
+            Assert.NotEqual(0, build.ExitCode);
+            Assert.Contains("brep-preflight-imported-shell-not-enclosed", build.StdOut);
+            Assert.False(File.Exists(outputStepPath));
 
-            var stepText = File.ReadAllText(outputStepPath);
+            var stepText = File.ReadAllText(rawProbeCopy);
             Assert.Contains("SURFACE_OF_LINEAR_EXTRUSION", stepText, StringComparison.Ordinal);
             Assert.Contains("ELLIPSE", stepText, StringComparison.Ordinal);
             Assert.DoesNotContain("B_SPLINE_SURFACE_WITH_KNOTS", stepText, StringComparison.Ordinal);
@@ -57,12 +61,9 @@ public sealed class RuledStepProbeHarnessTests
             Assert.True(import.IsSuccess, string.Join(Environment.NewLine, import.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
             Assert.Contains(import.Value.Geometry.Surfaces, entry => entry.Value.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.LinearExtrusion);
 
-            var reimportSmokePath = Path.Combine(outputDir, probeName + ".reimport-smoke.step");
-            var reimport = RunCli("canon", outputStepPath, "--out", reimportSmokePath, "--json");
-            Assert.Equal(0, reimport.ExitCode);
-            Assert.True(File.Exists(reimportSmokePath));
-
-            var analyze = RunCli("analyze", outputStepPath, "--json");
+            Assert.False(import.Value.ImportQualification!.Shells.Single().Enclosed);
+            Assert.Equal(4, import.Value.ImportQualification.Shells.Single().BoundaryEdges);
+            var analyze = RunCli("analyze", rawProbeCopy, "--json");
             using var doc = JsonDocument.Parse(analyze.StdOut);
             if (analyze.ExitCode == 0)
             {
@@ -83,6 +84,43 @@ public sealed class RuledStepProbeHarnessTests
                 Directory.Delete(root, recursive: true);
             }
         }
+    }
+
+    [Theory]
+    [InlineData("production")]
+    [InlineData("deterministic")]
+    public void ClosedEllipsePartPassesTheSameStrictCanonBoundary(string mode)
+    {
+        var root = Path.Combine(RepoRoot, "artifacts", "local", "test", "closed-ruled", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var input = Path.Combine(root, "closed.step"); var output = Path.Combine(root, "canonical.step");
+        var build = RunCli("build", Path.Combine(RepoRoot, "fixtures/Canonical/Boundary2/closed-ellipse-extrusion.firmament"), "--out", input, "--json");
+        Assert.True(build.ExitCode == 0, build.StdOut + build.StdErr);
+        var canon = RunCli("canon", input, "--out", output, "--mode", mode, "--json");
+        Assert.True(canon.ExitCode == 0, canon.StdOut + canon.StdErr);
+        var text = File.ReadAllText(output);
+        Assert.Contains("SURFACE_OF_LINEAR_EXTRUSION", text); Assert.Contains("ELLIPSE", text);
+        var imported = Step242Importer.ImportBody(text); Assert.True(imported.IsSuccess);
+        Assert.True(imported.Value.ImportQualification!.Shells.Single().Enclosed);
+    }
+
+    [Theory]
+    [InlineData("production")]
+    [InlineData("deterministic")]
+    public void CanonMetadataModeDoesNotDiscardSemanticPmi(string mode)
+    {
+        var root = Path.Combine(RepoRoot, "artifacts", "local", "test", "canon-pmi", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var input = Path.Combine(root, "part.step"); var output = Path.Combine(root, "canonical.step");
+        var built = RunCli("build", Path.Combine(RepoRoot, "fixtures/Canonical/PMI/explicit-gdt.firmament"), "--out", input, "--json");
+        Assert.True(built.ExitCode == 0, built.StdOut + built.StdErr);
+        var result = RunCli("canon", input, "--out", output, "--mode", mode, "--json");
+        Assert.True(result.ExitCode == 0, result.StdOut + result.StdErr);
+        var pmi = Step242SemanticPmiInspector.Inspect(File.ReadAllText(output));
+        Assert.Equal(3, pmi.DatumCount); Assert.Equal(3, pmi.GeometricToleranceCount);
+        Assert.All(pmi.Items, item => Assert.NotEmpty(item.GeometricFaceEntityIds));
+        using var report = JsonDocument.Parse(result.StdOut);
+        Assert.Equal(JsonValueKind.Array, report.RootElement.GetProperty("diagnostics").ValueKind);
     }
 
     [Fact]

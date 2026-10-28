@@ -192,6 +192,7 @@ public static class Step242Importer
             && !string.Equals(brepEntity.Name, "BREP_WITH_VOIDS", StringComparison.OrdinalIgnoreCase))
             return Step242ImportSharedUtilities.NotImplementedFailure<BrepBody>($"Entity #{rigidRootEntityId} is not an exact rigid BRep root.", "Importer.Assembly.ProductDefinitionGeometry");
         var shellRoleDiagnostics = new List<KernelDiagnostic>();
+        var importRepairs = new List<Aetheris.Kernel.Core.Import.ImportQualificationReason>();
         // Surface binding reports what it did with each spline face (recovered as a primitive, or retained); those
         // findings are the record of how faithfully the file was read, so they travel with the imported body.
         var surfaceBindingDiagnostics = new List<KernelDiagnostic>();
@@ -525,6 +526,25 @@ public static class Step242Importer
                     }
                 }
 
+                if (hasDisconnectedCoedgeGap && TryOrderUniqueDirectedCycle(loopCoedges, builder.Model, out var ordered))
+                {
+                    loopCoedges = ordered;
+                    loopSamples.Clear(); hasDisconnectedCoedgeGap = false;
+                    for (var i = 0; i < loopCoedges.Count; i++)
+                    {
+                        var coedge = loopCoedges[i];
+                        var sample = SampleCoedgePoints(bindings.GetEdgeBinding(coedge.EdgeId), geometry, coedge.IsReversed,
+                            faceEntity.Id, loopId.Value, coedge.Id.Value, coedge.EdgeId.Value);
+                        if (!sample.IsSuccess) return KernelResult<BrepBody>.Failure(sample.Diagnostics);
+                        hasDisconnectedCoedgeGap |= AppendLoopSamples(loopSamples, sample.Value, bindSurfaceResult.Value.SurfaceGeometry,
+                            faceEntity.Id, loopId.Value, coedge.Id.Value, i > 0 ? loopCoedges[i - 1].Id.Value : null) == LoopCoedgeGapClassification.Disconnected;
+                    }
+                    var message = $"EDGE_LOOP #{loopEntityResult.Value.Id} reordered by its unique directed vertex cycle; no vertices, edges or edge senses changed.";
+                    importRepairs.Add(new("step-import-loop-order-recovered", message, StepEntityId: faceEntity.Id));
+                    shellRoleDiagnostics.Add(new(KernelDiagnosticCode.Unknown, KernelDiagnosticSeverity.Info,
+                        "step-import-loop-order-recovered: " + message, $"Entity:{faceEntity.Id}"));
+                }
+
                 var closingGap = ClassifyCoedgeGap(loopSamples[^1], loopSamples[0], bindSurfaceResult.Value.SurfaceGeometry);
                 ReportCoedgeGapDiagnostic(new LoopRoleCoedgeGapDiagnostic(
                     FaceEntityId: faceEntity.Id,
@@ -748,7 +768,7 @@ public static class Step242Importer
         }
 
         orientation.Value.ImportQualification = BrepImportQualification.Evaluate(orientation.Value, faceEntityIds.Count,
-            document.SourceDistanceAccuracyMillimetres, document.PcurveQualificationToleranceMillimetres, qualificationEvidence);
+            document.SourceDistanceAccuracyMillimetres, document.PcurveQualificationToleranceMillimetres, qualificationEvidence) with { Repairs = importRepairs };
         return KernelResult<BrepBody>.Success(orientation.Value, validation.Diagnostics
             .Concat(shellRoleDiagnostics)
             .Concat(surfaceBindingDiagnostics)
@@ -1156,7 +1176,7 @@ public static class Step242Importer
                 {
                     return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
                         CurveGeometry.FromBSpline(splineResult.Value),
-                        explicitTrim ?? new ParameterInterval(splineResult.Value.DomainStart, splineResult.Value.DomainEnd)));
+                        explicitTrim ?? InferSplineEdgeTrim(splineResult.Value, startPoint, endPoint, edgeSameSense)));
                 }
 
                 var recoveryDecision = Step242BsplineCurveRecoveryLane.Decide(curveEntity, splineResult.Value, weights);
@@ -1193,7 +1213,7 @@ public static class Step242Importer
 
             return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
                 CurveGeometry.FromBSpline(splineResult.Value),
-                explicitTrim ?? new ParameterInterval(splineResult.Value.DomainStart, splineResult.Value.DomainEnd)));
+                explicitTrim ?? InferSplineEdgeTrim(splineResult.Value, startPoint, endPoint, edgeSameSense)));
         }
 
         if (string.Equals(curveEntity.Name, "AETHERIS_PLANAR_UNSUPPORTED_CURVE", StringComparison.OrdinalIgnoreCase))
@@ -1204,6 +1224,64 @@ public static class Step242Importer
         }
 
         return FailureCurveBinding($"EDGE_CURVE geometry '{curveEntity.Name}' is unsupported.", SourceFor(curveEntity.Id, "Importer.EntityFamily"));
+    }
+
+    private static bool TryOrderUniqueDirectedCycle(IReadOnlyList<Coedge> source, TopologyModel topology, out List<Coedge> ordered)
+    {
+        ordered = [];
+        var outgoing = source.GroupBy(c => DirectedEdgeUse.Resolve(topology.GetEdge(c.EdgeId), c).StartVertexId).ToArray();
+        if (outgoing.Any(group => group.Count() != 1)) return false;
+        var byStart = outgoing.ToDictionary(group => group.Key, group => group.Single());
+        var used = new HashSet<CoedgeId>(); var next = source[0];
+        while (used.Add(next.Id))
+        {
+            ordered.Add(next);
+            if (!byStart.TryGetValue(DirectedEdgeUse.Resolve(topology.GetEdge(next.EdgeId), next).EndVertexId, out next!)) return false;
+        }
+        if (next.Id != source[0].Id || ordered.Count != source.Count || ordered.Select(c => c.Id).SequenceEqual(source.Select(c => c.Id))) return false;
+        for (var i = 0; i < ordered.Count; i++) ordered[i] = ordered[i] with {
+            NextCoedgeId = ordered[(i + 1) % ordered.Count].Id, PrevCoedgeId = ordered[(i + ordered.Count - 1) % ordered.Count].Id };
+        return true;
+    }
+
+    // EDGE_CURVE vertices trim a basis spline even without a TRIMMED_CURVE wrapper.
+    // Accept only unique, measured endpoint inverses; unresolved cases stay importable
+    // with their original interval and are rejected by enforced export preflight.
+    private static ParameterInterval InferSplineEdgeTrim(BSpline3Curve curve, Point3D start, Point3D end, bool sameSense)
+    {
+        var domain = new ParameterInterval(curve.DomainStart, curve.DomainEnd);
+        const double tolerance = 1e-6;
+        if (!Find(sameSense ? start : end, domain.Start, out var a)
+            || !Find(sameSense ? end : start, domain.End, out var b) || b <= a) return domain;
+        return new(a, b);
+
+        bool Find(Point3D point, double preferred, out double parameter)
+        {
+            parameter = preferred;
+            if ((curve.Evaluate(preferred) - point).Length <= tolerance) return true;
+            var candidates = new List<double>();
+            double Error(double t) => (curve.Evaluate(t) - point).Length;
+            foreach (var span in curve.GetNonZeroKnotSpans(domain))
+            {
+                const int divisions = 16;
+                var samples = Enumerable.Range(0, divisions + 1).Select(i => span.Start + (span.End - span.Start) * i / divisions).ToArray();
+                var errors = samples.Select(Error).ToArray();
+                for (var i = 0; i <= divisions; i++)
+                {
+                    if (i > 0 && errors[i] > errors[i - 1] || i < divisions && errors[i] > errors[i + 1]) continue;
+                    var lo = samples[System.Math.Max(0, i - 1)]; var hi = samples[System.Math.Min(divisions, i + 1)];
+                    const double ratio = .6180339887498949;
+                    var l = hi - (hi - lo) * ratio; var r = lo + (hi - lo) * ratio;
+                    for (var iteration = 0; iteration < 64; iteration++)
+                        if (Error(l) <= Error(r)) { hi = r; r = l; l = hi - (hi - lo) * ratio; }
+                        else { lo = l; l = r; r = lo + (hi - lo) * ratio; }
+                    var t = (lo + hi) / 2;
+                    if (Error(t) <= tolerance && !candidates.Any(c => double.Abs(c - t) <= (domain.End - domain.Start) * 1e-7)) candidates.Add(t);
+                }
+            }
+            if (candidates.Count != 1) return false;
+            parameter = candidates[0]; return true;
+        }
     }
 
     private static KernelResult<ParameterInterval> ReadParameterTrim(

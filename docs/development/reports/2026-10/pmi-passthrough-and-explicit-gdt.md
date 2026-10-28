@@ -2,6 +2,10 @@
 
 Date: 2026-10-27
 
+The import-admission results and integration gap below describe the state before
+the subsequent guard repair. See [import-tolerant, export-strict admission](pmi-import-export-admission.md)
+for the implementation, endpoint corrections and current qualification.
+
 ## Behavior and ownership
 
 An unchanged single-solid `InlineStep` now carries its semantic AP242 annotation
@@ -77,12 +81,45 @@ admitted source, and compares rejected files against explicit geometry-only
 admission. Existing geometry refusals are classified separately from PMI transfer
 failures. Tessellated-only source is not silently treated as an exact solid.
 
-### NIST results through the real CLI
+### Pinned InlineStep results through the real CLI
+
+**Correction: this is a different gate from the established NIST import/export
+corpus, which remains 16 exact successes out of 17, with FTC-08 e1-tg explicitly
+unsupported. These numbers must not be presented as a fall from 16/17 to 5/17.**
+
+The existing corpus checks import success, BRep binding validation and STEP
+export against its frozen reports/hashes. Pinned `InlineStep` additionally
+requires `ImportQualification.GeometryStatus == Qualified`. That guard predates
+the PMI change: commit `8a747eee3`, October 21. A source-integrity pin therefore
+also selects a stricter geometry admission policy. The PMI runner pinned every
+file and requested a 0.1 mm pcurve qualification budget.
 
 The run covers all 17 stored specimens. Five pass validation, build and analysis;
 the remaining twelve reproduce the existing geometry admission refusal with
 `geometryOnly: true` as well. There are no PMI-specific admission failures or
 validate/build disagreements in this run.
+Of those twelve refusals, eleven are exact parts that still pass the original
+import/export gate; the remaining file is the known tessellated-only specimen.
+The eleven exact parts have missing or invalid recovered face-local pcurves,
+and two also have ambiguous orientation qualification. These are concrete trim
+certification gaps, not evidence that the PMI change damaged their 3D geometry.
+
+The follow-up audit reran `Step242NistAuditHarnessTests`: **21 passed**, including
+the original per-file snapshot comparisons. At the same 0.1 mm policy used by the
+PMI runner, a direct import/binding/export comparison confirmed all sixteen exact
+files still succeed. For example, CTC-02 has nine missing pcurves and a reported
+0.52959 mm UV-loop closure gap; FTC-11 has zero missing pcurves but fails recovered
+UV-loop closure checks (one reported gap is 0.61073 mm). Increasing the tolerance
+or suppressing the diagnostics would not establish correctness.
+
+The integration issue is operation admission: unchanged geometry plus PMI is
+currently held to the same complete-trim certification guard as pinned editing.
+The next repair should qualify unchanged annotation/re-export against the existing
+import/export evidence and source/body/association witnesses, while retaining the
+stronger trim/orientation requirements for operations that actually depend on
+them. No recovery guard or production admission rule was changed by this audit.
+Evidence: `artifacts/local/pmi-admission-audit/comparison.json` and
+`artifacts/local/pmi-nist-existing-gate.log`.
 
 | Specimen | Normal compilation | Datums / dimensions / controls |
 |---|---|---|
@@ -155,11 +192,13 @@ No new Firmament parser route, source rewrite system, geometric constraint solve
 or native dependency was introduced. Source semantic readback, authoring admission
 and emission share the existing AP242/PMI owners and the common control registry.
 
-**Success for the bounded capability.** Semantic transfer and explicit GD&T work
-through normal compilation for admitted geometry, with precision and association
-evidence. Remaining NIST geometry admission refusals, advanced presentation,
-topology-edit rebinding and assembly-wide transfer are explicit limits rather
-than successful-looking omissions.
+**Core transfer and explicit authoring are qualified; pinned-import integration
+is incomplete for eleven otherwise importable exact NIST parts.** The original
+16/17 corpus remains intact. The five pinned InlineStep successes do not establish
+end-to-end coverage of all sixteen exact specimens. This operation-policy gap
+must be resolved explicitly rather than dismissed as unrelated geometry failure.
+Advanced presentation, topology-edit rebinding and assembly-wide transfer remain
+separate declared limits.
 
 ## References
 

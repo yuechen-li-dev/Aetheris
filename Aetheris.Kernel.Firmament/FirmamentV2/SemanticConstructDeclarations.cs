@@ -6,6 +6,25 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 [FirmamentField("Bounds", "Bounds", FirmamentSchemaValueKind.Box3, Description = "A semantic Box3 bound instead of Size.")]
 public static class BoxSemanticDeclaration { }
 
+[FirmamentConstruct("Rib", "Rib", Context = "Modify Box top", Entry = "Rib<Rectangular> Stiffener { on: +Z; path: Layout.Guide; thickness: 3mm; height: 8mm; draft: 2deg }", Description = "Manual analytic reinforcement following a named line, arc or circle; integrated into the host.")]
+[FirmamentField("On", "On", FirmamentSchemaValueKind.FaceSelector, Required = true, Description = "Qualified support face; currently +Z on direct Box stock.")]
+[FirmamentField("Path", "Path", FirmamentSchemaValueKind.ConstructReference, Required = true, Description = "Named Concept line, arc, circle, or single-segment Path.")]
+[FirmamentField("Thickness", "Thickness", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true, Description = "Full thickness at the attachment plane; centered on the guide.")]
+[FirmamentField("Height", "Height", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true, Description = "Positive height above the support.")]
+[FirmamentField("Draft", "Draft", FirmamentSchemaValueKind.Angle, Unit = FirmamentUnitKind.Angle, Default = "0deg", Description = "Nonnegative side draft; positive angles narrow the top.")]
+[FirmamentField("Ends", "Ends", FirmamentSchemaValueKind.Choice, Choices = ["Flat", "Round"], Default = "Flat", Description = "Open-guide end treatment. Round is admitted on straight guides; omit for closed guides.")]
+public static class RibSemanticDeclaration { }
+
+[FirmamentConstruct("Groove", "Groove", Context = "Modify Box top or cylindrical wall", Entry = "Groove<Semicircular> Channel { on: +Z; path: Layout.Guide; radius: 2mm }", Description = "Analytic rectangular or semicircular local channel; leaves positive material beneath the cut.")]
+[FirmamentField("On", "On", FirmamentSchemaValueKind.FaceSelector, Required = true, Description = "Qualified support face.")]
+[FirmamentField("Path", "Path", FirmamentSchemaValueKind.ConstructReference, Required = true, Description = "Named Concept line, arc, circle, or single-segment Path.")]
+[FirmamentField("Width", "Width", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Variants = ["Rectangular"], Description = "Rectangular opening width, centered on the guide.")]
+[FirmamentField("Depth", "Depth", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Variants = ["Rectangular"], Description = "Positive rectangular removal depth into the host.")]
+[FirmamentField("Radius", "Radius", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Variants = ["Semicircular"], Description = "Semicircle radius; opening width is twice radius and depth equals radius.")]
+[FirmamentField("Ends", "Ends", FirmamentSchemaValueKind.Choice, Choices = ["Flat", "Round"], Default = "Flat", Description = "Open-guide end treatment; omit for closed guides.")]
+[FirmamentField("Station", "Station", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Description = "Axial station for a qualified circumferential cylindrical groove.")]
+public static class GrooveSemanticDeclaration { }
+
 [FirmamentConstruct("Ellipsoid", "Ellipsoid", Context = "Model or Struct", Entry = "Ellipsoid Body { radii: [18mm, 12mm, 25mm] }", Description = "Exact centered ellipsoid; radii are local X/Y/Z semiaxes.")]
 [FirmamentField("Radii", "Radii", FirmamentSchemaValueKind.Vector, Unit = FirmamentUnitKind.Length, Required = true, Description = "Three positive X/Y/Z semiaxes, not diameters.")]
 public static class EllipsoidSemanticDeclaration { }

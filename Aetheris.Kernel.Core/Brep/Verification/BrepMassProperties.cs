@@ -526,6 +526,9 @@ public static class BrepMassProperties
         }
 
         var cylinder = cylinders[0];
+        var cylinderFace = faces.Single(face => body.TryGetFaceSurfaceGeometry(face.Id, out var support) && support?.Cylinder is not null);
+        if (!body.Bindings.GetFaceBinding(cylinderFace.Id).Orientation.IsAlignedWithSurface)
+            return false; // Concave channels are not convex stock-corner fillets.
         var axis = cylinder.Axis.ToVector();
         var axisIsX = System.Math.Abs(System.Math.Abs(axis.X) - 1d) <= 1e-8 && System.Math.Abs(axis.Y) <= 1e-8 && System.Math.Abs(axis.Z) <= 1e-8;
         var axisIsY = System.Math.Abs(System.Math.Abs(axis.Y) - 1d) <= 1e-8 && System.Math.Abs(axis.X) <= 1e-8 && System.Math.Abs(axis.Z) <= 1e-8;
@@ -533,6 +536,19 @@ public static class BrepMassProperties
         {
             return false;
         }
+
+        var crossCoordinate = axisIsX ? cylinder.Origin.Y : cylinder.Origin.X;
+        var crossMinimum = axisIsX ? minY : minX; var crossMaximum = axisIsX ? maxY : maxX;
+        if (!(Near(crossCoordinate, crossMinimum + cylinder.Radius) || Near(crossCoordinate, crossMaximum - cylinder.Radius))
+            || !(Near(cylinder.Origin.Z, minZ + cylinder.Radius) || Near(cylinder.Origin.Z, maxZ - cylinder.Radius)))
+            return false;
+        bool Near(double a, double b) => System.Math.Abs(a - b) <= tolerance;
+
+        var circularTrims = body.Bindings.EdgeBindings.Where(binding =>
+            body.Geometry.GetCurve(binding.CurveGeometryId).Kind == CurveGeometryKind.Circle3).ToArray();
+        if (circularTrims.Length != 2 || circularTrims.Any(binding => binding.TrimInterval is not { } trim
+            || System.Math.Abs(trim.End - trim.Start - System.Math.PI / 2) > 1e-8))
+            return false;
 
         var endpointCircles = body.Bindings.EdgeBindings
             .Select(binding => body.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve) ? curve : null)

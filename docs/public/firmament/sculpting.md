@@ -304,7 +304,7 @@ The housing lane verifies:
 
 **Aetheris does not use NURBS as its universal surface abstraction.**
 
-Internal algorithms may temporarily use rational spline mathematics, but exported product geometry must normalize to analytic or non-rational forms. The export order is exact analytic surface, exact or explicitly bounded non-rational B-spline, then a blocking diagnostic. Arbitrary rational NURBS fallback is prohibited. The diagnostic is `surf-surface-export-normalization-failed`.
+Internal algorithms may temporarily use rational spline mathematics, but exported product geometry must normalize to analytic or non-rational forms. The export order is exact analytic surface, exact or explicitly bounded non-rational B-spline, then a blocking diagnostic. Arbitrary rational NURBS fallback is prohibited. The diagnostic is `surf-surface-export-normalization-failed`. The [native ellipsoid primitive](geometry.md) has a separate exact rational STEP projection; this is not a freeform sculpting fallback.
 
 The base housing emits only `PLANE` and `CYLINDRICAL_SURFACE`. The patch-replacement example adds one `B_SPLINE_SURFACE_WITH_KNOTS` with no rational complex entity. A final STEP scan must report `RationalNURBS = 0`; otherwise export fails.
 

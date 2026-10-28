@@ -566,6 +566,8 @@ public static partial class FirmamentBuildAndExport
             {
                 return KernelResult<FirmamentStepExportResult>.Failure(dfm.Diagnostics);
             }
+            if (v2Parse.Document.PathFeatures.Count > 0)
+                return ExportPathFeatures(v2Parse.Document);
 
             if (v2Parse.Document.Solids.Any(s => s.InlineStep?.SourceHashPin is not null)
                 && (v2Parse.Document.Solids.Count != 1 || v2Parse.Document.Replacements is { Count: > 0 } || v2Parse.Document.Removals.Count > 0
@@ -2356,15 +2358,16 @@ public static partial class FirmamentBuildAndExport
         }
 
         var stepText = inlineStep.SourceText ?? File.ReadAllText(inlineStep.NormalizedPath, Encoding.UTF8);
-        var import = inlineStep.RuntimeBody is { } admitted ? KernelResult<BrepBody>.Success(admitted.Clone()) : Step242Importer.ImportBody(stepText);
+        var import = inlineStep.RuntimeBody is { } admitted ? KernelResult<BrepBody>.Success(admitted.Clone())
+            : Step242Importer.ImportBody(stepText, new Aetheris.Kernel.Core.Import.ImportPolicy(PreferredLane: Aetheris.Kernel.Core.Import.ImportLaneKind.ExactBRep));
         if (!import.IsSuccess)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(import.Diagnostics);
         }
 
-        if (inlineStep.SourceHashPin is not null && import.Value.ImportQualification?.GeometryStatus != Aetheris.Kernel.Core.Import.ImportQualificationStatus.Qualified)
-            return KernelResult<FirmamentStepExportResult>.Failure([new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
-                "firmament-inline-step-import-unqualified: Pinned re-export requires qualified imported trims.", "FirmamentV2.InlineStep")]);
+        // A source pin proves identity, not complete UV reconstruction. Unchanged
+        // annotation/re-export is admitted by strict output preflight below.
+        // Topology edits retain their operation-specific qualified-trim guards.
         var semanticPmiValidation = ValidateV2PmiExportSupport(document);
         if (!semanticPmiValidation.IsSuccess)
         {
@@ -2391,8 +2394,9 @@ public static partial class FirmamentBuildAndExport
             ProductName = solid.Name,
             ApplicationName = "Aetheris.Firmament.InlineStep",
             ImportedPmi = importedPmi,
-            BrepExportPreflightMode = inlineStep.SourceHashPin is null ? BrepExportPreflightMode.Audit : BrepExportPreflightMode.Enforce,
-            ImportedRecoveryToleranceMillimetres = inlineStep.ImportToleranceMillimetres ?? .001
+            BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+            BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+            ImportedRecoveryToleranceMillimetres = double.Min(.1, inlineStep.ImportToleranceMillimetres ?? .001)
         });
         if (!export.IsSuccess)
         {
@@ -2408,11 +2412,11 @@ public static partial class FirmamentBuildAndExport
                 inlineStep.CanonicalInput ? "aetheris-canonical-ap242" : "qualified-import-ap242",
                 DatumInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
                 DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? [],
-                InlineStepMigration: InlineStepMigrationReportBuilder.Build(document, solid, emissionStrategy: inlineStep.CanonicalInput ? "canonical-reexport" : "qualified-import-reexport", residualSurgery: false),
+                InlineStepMigration: InlineStepMigrationReportBuilder.Build(document, solid, emissionStrategy: inlineStep.CanonicalInput ? "canonical-reexport" : "strict-import-reexport", residualSurgery: false),
                 InlineStepReplacementAssist: InlineStepReplacementAssistReportBuilder.Build(document))
                 { RuntimeBody = import.Value, RuntimeBodySourceName = solid.Name, RuntimeAdmissionDocument = document },
-            inlineStep.GeometryOnly ? [new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
-                "firmament-inline-step-source-semantics-excluded: geometryOnly explicitly excludes source annotations; geometry remains unchanged.", "FirmamentV2.InlineStep")] : export.Diagnostics);
+            export.Diagnostics.Concat(inlineStep.GeometryOnly ? [new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
+                "firmament-inline-step-source-semantics-excluded: geometryOnly explicitly excludes source annotations; geometry remains unchanged.", "FirmamentV2.InlineStep")] : []).ToArray());
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2ControlledSideHoleBody(FirmamentV2Document document)

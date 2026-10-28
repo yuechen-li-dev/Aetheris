@@ -1,0 +1,6 @@
+Model ClosedEllipseExtrusion {
+    units: mm
+    Ellipse2 Outline { center: [0mm, 0mm] axisLengths: [8mm, 4mm] }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Struct Part { Extrude Solid { profile: Section from: 0mm to: 5mm } }
+}

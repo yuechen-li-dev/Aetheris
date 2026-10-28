@@ -51,7 +51,7 @@ Copy-Item -LiteralPath $probePath -Destination $probeCopy -Force
 
 & dotnet run --project (Join-Path $repoRoot 'Aetheris.CLI') -- canon $probeCopy --out $canonicalInput --mode production --json
 if ($LASTEXITCODE -ne 0) {
-    throw "Canonicalization failed for ruled STEP probe '$probePath'."
+    throw "Canonicalization failed for ruled STEP probe '$probePath'. See the CLI diagnostics. Open surface probes remain inspection inputs and cannot be promoted into production solids."
 }
 
 $relativeInput = "../input/$([System.IO.Path]::GetFileName($canonicalInput))"

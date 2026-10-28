@@ -1,0 +1,16 @@
+Model GroovedShaft {
+    units: mm
+    Concept Struct Layout on XY {
+        Circle2 Seal { center: [0mm, 0mm]; radius: 15mm }
+    }
+    Cylinder Shaft { radius: 15mm; height: 40mm }
+    Modify Shaft {
+        Groove<Rectangular> SealSeat {
+            on: face(Shaft.OuterWall)
+            path: Layout.Seal
+            station: 20mm
+            width: 4mm
+            depth: 2mm
+        }
+    }
+}

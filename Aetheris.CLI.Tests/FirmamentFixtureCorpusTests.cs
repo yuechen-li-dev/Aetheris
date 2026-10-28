@@ -480,7 +480,7 @@ public sealed class FirmamentFixtureCorpusTests
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var args = new[] { "trace", "--fixture", fixturePath, "--json" }.Concat(extraArgs).ToArray();
         var exit = Aetheris.CLI.CliRunner.Run(args, stdout, stderr);
-        Assert.True(exit == 0, stderr.ToString());
+        Assert.True(exit == 0, fixturePath + Environment.NewLine + stderr);
         return JsonDocument.Parse(stdout.ToString());
     }
 

@@ -3070,7 +3070,8 @@ Model CanonicalPanel {
             return WriteCanonFailure(json, stdout, stderr, inputFullPath, outputFullPath, "io-read-failure", ex.Message);
         }
 
-        var importResult = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(stepText);
+        var importResult = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(stepText,
+            new Aetheris.Kernel.Core.Import.ImportPolicy(PreferredLane: Aetheris.Kernel.Core.Import.ImportLaneKind.ExactBRep));
         if (!importResult.IsSuccess)
         {
             return WriteCanonFailure(
@@ -3083,10 +3084,17 @@ Model CanonicalPanel {
                 FormatKernelDiagnostics(importResult.Diagnostics));
         }
 
+        var sourcePmi = Aetheris.Kernel.Core.Step242.Step242PmiTransfer.Read(stepText, importResult.Value);
+        if (!sourcePmi.IsSuccess)
+            return WriteCanonFailure(json, stdout, stderr, inputFullPath, outputFullPath, "pmi-transfer-failure", FormatKernelDiagnostics(sourcePmi.Diagnostics));
+        var importedPmi = sourcePmi.Value.SemanticRecordCount > 0 ? sourcePmi.Value : null;
         var exportOptions = canonMode == Aetheris.Kernel.Core.Step242.Step242CanonMode.ProductionPreserveMetadata
             ? Aetheris.Kernel.Core.Step242.Step242ExportOptions.FromSourceMetadata(Aetheris.Kernel.Core.Step242.Step242SourceMetadataReader.Read(stepText),
-                Aetheris.Kernel.Core.Step242.BrepExportPreflightPolicy.TrustedProductionRoute)
-            : new Aetheris.Kernel.Core.Step242.Step242ExportOptions();
+                Aetheris.Kernel.Core.Step242.BrepExportPreflightPolicy.TrustedProductionRoute, importedPmi)
+            : new Aetheris.Kernel.Core.Step242.Step242ExportOptions {
+                ImportedPmi = importedPmi,
+                BrepExportPreflightPolicy = Aetheris.Kernel.Core.Step242.BrepExportPreflightPolicy.TrustedProductionRoute,
+                ImportedRecoveryToleranceMillimetres = .1 };
 
         var exportResult = Aetheris.Kernel.Core.Step242.Step242Exporter.ExportBody(importResult.Value, exportOptions);
         if (!exportResult.IsSuccess)
@@ -3120,6 +3128,8 @@ Model CanonicalPanel {
                 outputPath = outputFullPath,
                 bodyCount = topology.Bodies.Count(),
                 shellCount = topology.Shells.Count(),
+                diagnostics = exportResult.Diagnostics.Select(d => new {
+                    code = d.Code.ToString(), severity = d.Severity.ToString(), message = d.Message, source = d.Source }),
                 mode = canonMode == Aetheris.Kernel.Core.Step242.Step242CanonMode.ProductionPreserveMetadata ? "production" : "deterministic"
             }, JsonOptions));
         }
@@ -3127,6 +3137,8 @@ Model CanonicalPanel {
         {
             stdout.WriteLine($"Canonical STEP written: {outputFullPath}");
             stdout.WriteLine($"Canon mode: {(canonMode == Aetheris.Kernel.Core.Step242.Step242CanonMode.ProductionPreserveMetadata ? "production" : "deterministic")}");
+            foreach (var diagnostic in exportResult.Diagnostics.Where(d => d.Severity == Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Warning)
+                .DistinctBy(d => d.Message)) stderr.WriteLine($"warning {diagnostic.Source}: {diagnostic.Message}");
         }
 
         return 0;

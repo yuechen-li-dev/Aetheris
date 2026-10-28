@@ -1,0 +1,19 @@
+Model ManuallyRibbedPlate {
+    units: mm
+    Concept Struct Layout on XY {
+        Point2 Start { position: [-18mm, 0mm] }
+        Point2 End { position: [18mm, 0mm] }
+        Line2 Spine { from: Start; to: End }
+    }
+    Box Plate { size: [60mm, 40mm, 6mm] }
+    Modify Plate {
+        Rib<Rectangular> Stiffener {
+            on: face(Plate.Top)
+            path: Layout.Spine
+            thickness: 3mm
+            height: 10mm
+            draft: 2deg
+            ends: Round
+        }
+    }
+}

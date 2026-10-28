@@ -36,11 +36,18 @@ public sealed class Step242ExportOptions
 
     public Step242HeaderMetadata HeaderMetadata { get; init; } = Step242HeaderMetadata.Deterministic;
 
+    private BrepExportPreflightMode? preflightMode;
+
     /// <summary>
-    /// Audit is the compatibility default while legacy producers are being remediated.
-    /// Enforce is the fail-fast production policy once their audit corpus is clean.
+    /// Production policy defaults to Enforce. Legacy interchange defaults to Audit;
+    /// an explicit override is available for diagnostic callers.
     /// </summary>
-    public BrepExportPreflightMode BrepExportPreflightMode { get; init; } = BrepExportPreflightMode.Audit;
+    public BrepExportPreflightMode BrepExportPreflightMode
+    {
+        get => preflightMode ?? (BrepExportPreflightPolicy == BrepExportPreflightPolicy.TrustedProductionRoute
+            ? BrepExportPreflightMode.Enforce : BrepExportPreflightMode.Audit);
+        init => preflightMode = value;
+    }
 
     /// <summary>
     /// TrustedProductionRoute rejects rational B-spline supports and pcurves in
@@ -67,11 +74,16 @@ public sealed class Step242ExportOptions
 
     public static Step242ExportOptions FromSourceMetadata(Step242SourceMetadata metadata,
         BrepExportPreflightPolicy preflightPolicy = BrepExportPreflightPolicy.LegacyRoute)
+        => FromSourceMetadata(metadata, preflightPolicy, null);
+
+    public static Step242ExportOptions FromSourceMetadata(Step242SourceMetadata metadata,
+        BrepExportPreflightPolicy preflightPolicy, Step242PmiTransfer? importedPmi)
     {
         static string Coalesce(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value!;
 
         return new Step242ExportOptions
         {
+            ImportedPmi = importedPmi,
             BrepExportPreflightPolicy = preflightPolicy,
             ImportedRecoveryToleranceMillimetres = preflightPolicy == BrepExportPreflightPolicy.TrustedProductionRoute ? .1d : null,
             ProductName = Coalesce(metadata.ProductName, "AetherisBody"),

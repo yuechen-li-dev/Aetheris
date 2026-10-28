@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Visualization;
 
@@ -13,6 +14,29 @@ public sealed class ExplicitGdtTests
         return Path.Combine(directory!.FullName, relative);
     }
     private static string Source() => File.ReadAllText(Fixture("fixtures/Canonical/PMI/explicit-gdt.firmament"));
+    public static IEnumerable<object[]> NistSources() => Directory.GetFiles(Fixture("testdata/step242/nist"), "*.stp", SearchOption.AllDirectories)
+        .Order().Select(path => new object[] { Path.GetRelativePath(Fixture("."), path).Replace('\\', '/') });
+    [Theory, MemberData(nameof(NistSources)), Trait("Category", "SlowCorpus")]
+    public void PinnedNistSourceUsesRealCompilerAdmissionAndPreservesItsPmi(string relativePath)
+    {
+        // A fresh import here is intentional: this qualifies compiler resource loading,
+        // source-pin verification and its exact-lane policy, beyond the core body cache.
+        var sourceText = File.ReadAllText(Fixture(relativePath));
+        var normalized = sourceText.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+        var pin = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(normalized))).ToLowerInvariant();
+        var program = $"Model CorpusPart {{ units: mm InlineStep Source {{ path: \"{relativePath}\" textSha256: \"{pin}\" importTolerance: 0.1mm }} }}";
+        var result = FirmamentBuildAndExport.CompileSource(program, Fixture("."));
+        if (relativePath.EndsWith("-tg.stp", StringComparison.Ordinal))
+        {
+            Assert.False(result.IsSuccess); Assert.Contains(result.Diagnostics, d => d.Message.Contains("firmament-inline-step-import-failed", StringComparison.Ordinal));
+            return;
+        }
+        Assert.True(result.IsSuccess, relativePath + ": " + string.Join(";", result.Diagnostics.Select(d => d.Message)));
+        var before = Step242SemanticPmiInspector.Inspect(sourceText); var after = Step242SemanticPmiInspector.Inspect(result.Value.StepText);
+        Assert.Equal(before.DatumCount, after.DatumCount); Assert.Equal(before.DimensionCount, after.DimensionCount);
+        Assert.Equal(before.GeometricToleranceCount, after.GeometricToleranceCount);
+        Assert.True(BrepExportPreflight.Validate(result.Value.RuntimeBody!, .1).IsValid);
+    }
     [Fact]
     public void ImportedNistPmiSurvivesAndAuthoredControlReusesItsExistingDatums()
     {
@@ -27,14 +51,19 @@ public sealed class ExplicitGdtTests
         Assert.NotEmpty(added.GeometricFaceEntityIds); Assert.Contains("FREE_STATE", added.Modifiers);
     }
     [Fact]
-    public void UnqualifiedImportedGeometryRemainsRejectedIndependentlyOfAuthoredPmi()
+    public void UnchangedPmiExportUsesStrictPhysicalBoundaryChecksInsteadOfAggregateUvStatus()
     {
-        var path = Fixture("fixtures/Invalid/InlineStep/nist-ftc11-pmi-unqualified-geometry.invalid.firmfixture");
+        var path = Fixture("fixtures/Canonical/PMI/nist-ftc11-passthrough.firmament");
         var source = File.ReadAllText(path);
         foreach (var specimen in new[] { source, source[..source.IndexOf("    Pmi {", StringComparison.Ordinal)] + "}" })
         {
             var build = FirmamentBuildAndExport.CompileSource(specimen, Path.GetDirectoryName(path));
-            Assert.False(build.IsSuccess); Assert.Contains(build.Diagnostics, d => d.Message.Contains("firmament-inline-step-import-unqualified"));
+            Assert.True(build.IsSuccess, string.Join(";", build.Diagnostics.Select(d => d.Message)));
+            Assert.NotEqual(Aetheris.Kernel.Core.Import.ImportQualificationStatus.Qualified, build.Value.RuntimeBody!.ImportQualification!.GeometryStatus);
+            Assert.Contains(build.Diagnostics, d => d.Message.StartsWith("step-export-recovered-pcurves-omitted:", StringComparison.Ordinal));
+            var inspection = Step242SemanticPmiInspector.Inspect(build.Value.StepText);
+            Assert.Equal(2, inspection.DatumCount); Assert.Equal(6, inspection.DimensionCount);
+            Assert.Equal(specimen == source ? 5 : 4, inspection.GeometricToleranceCount);
         }
     }
     [Fact]

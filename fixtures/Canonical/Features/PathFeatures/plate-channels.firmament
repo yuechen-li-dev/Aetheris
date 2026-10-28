@@ -1,0 +1,21 @@
+Model PlateChannels {
+    units: mm
+    Box Plate { size: [60mm, 40mm, 8mm] }
+    Path Upper { start: Point2(-18mm, 8mm); heading: 0deg; Line RunA { length: 36mm } }
+    Path Lower { start: Point2(-18mm, -8mm); heading: 0deg; Line RunB { length: 36mm } }
+    Modify Plate {
+        Groove<Rectangular> FlatBottom {
+            on: +Z
+            path: Upper
+            width: 4mm
+            depth: 2mm
+            ends: Round
+        }
+        Groove<Semicircular> RoundBottom {
+            on: +Z
+            path: Lower
+            radius: 2mm
+            ends: Round
+        }
+    }
+}

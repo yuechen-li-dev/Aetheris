@@ -15,8 +15,8 @@ public static class Step242ProductionNormalization
         ArgumentNullException.ThrowIfNull(source);
         if (!double.IsFinite(maximumDeviationMillimetres) || maximumDeviationMillimetres is <= 0d or > .1d)
             throw new ArgumentOutOfRangeException(nameof(maximumDeviationMillimetres));
-        if (source.ImportQualification is { GeometryStatus: not ImportQualificationStatus.Qualified })
-            return Failure("Source engineering geometry is not qualified for production normalization.");
+        var sourceBindings = BrepBindingValidator.Validate(source);
+        if (!sourceBindings.IsSuccess) return KernelResult<BrepBody>.Failure(sourceBindings.Diagnostics);
         var geometry = new BrepGeometryStore();
         var changed = new HashSet<SurfaceGeometryId>();
         var diagnostics = new List<KernelDiagnostic>();
@@ -50,15 +50,18 @@ public static class Step242ProductionNormalization
         var tolerance = source.ImportQualification?.PcurveToleranceMillimetres ?? 1e-3d;
         body.PcurveRecoveryReport = BrepPcurveRecovery.Populate(body.Topology, geometry, bindings, tolerance);
         var evidence = BrepPcurveValidator.Validate(body, tolerance, requireEveryCoedge: true);
-        if (!body.PcurveRecoveryReport.IsSuccess || !evidence.IsValid)
-            return Failure("Normalized engineering pcurves failed: " + string.Join("; ",
-                body.PcurveRecoveryReport.Diagnostics.Select(d => d.Message).Concat(evidence.Diagnostics).Take(8)));
+        // Qualification of optional reconstructed UV data does not establish or
+        // invalidate the normalized 3D boundary. Strict export omits a failed set.
+        var preflight = BrepExportPreflight.Validate(body, maximumDeviationMillimetres);
+        if (!preflight.IsValid)
+            return Failure("Normalized engineering boundary failed: " + string.Join("; ",
+                preflight.Diagnostics.Where(d => d.Severity == BrepExportPreflightSeverity.Error).Select(d => d.Code + ": " + d.Message).Take(8)));
         if (source.ImportQualification is { } report)
         {
             body.ImportQualification = BrepImportQualification.Evaluate(body, report.ExpectedFaces,
-                report.SourceDistanceAccuracyMillimetres, tolerance, evidence);
-            if (body.ImportQualification.GeometryStatus != ImportQualificationStatus.Qualified)
-                return Failure("Normalized engineering topology did not remain qualified.");
+                report.SourceDistanceAccuracyMillimetres, tolerance, evidence) with { Repairs = report.Repairs };
+            if (body.ImportQualification.Shells.Any(shell => !shell.Enclosed))
+                return Failure("Normalized engineering topology is not an enclosed manifold.");
         }
         return KernelResult<BrepBody>.Success(body, diagnostics);
     }

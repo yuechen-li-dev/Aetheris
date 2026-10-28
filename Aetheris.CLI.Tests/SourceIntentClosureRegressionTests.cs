@@ -40,9 +40,11 @@ public sealed class SourceIntentClosureRegressionTests
 
     private static (int ExitCode, string Output) Validate(string source, string fixture)
     {
-        // Keep the file beside the original so relative imports still resolve.
-        var directory = Path.GetDirectoryName(Path.Combine(RepoRoot(), "fixtures", "Canonical", fixture))!;
-        var path = Path.Combine(directory, $".closure-{Guid.NewGuid():N}.firmament");
+        // These specimens are self-contained. Keep generated mutations out of the
+        // canonical tree, which other parallel tests enumerate as durable source.
+        var directory = Path.Combine(RepoRoot(), "artifacts", "local", "source-intent-closure");
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(fixture)}-{Guid.NewGuid():N}.firmament");
         File.WriteAllText(path, source);
         try
         {

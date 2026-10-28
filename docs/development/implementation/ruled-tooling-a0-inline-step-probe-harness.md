@@ -4,6 +4,14 @@
 
 `tools/Run-RuledStepProbe.ps1` is a tooling only harness for ruled and swept STEP experiments. It does not add Firmament syntax, geometry support, AIR nodes, or production routing.
 
+Current admission requires a closed solid for this production round trip. The
+historical `ellipse-linear-extrusion-production.step` is actually an open surface
+with four boundary edges; it remains inspectable and now correctly rejects
+canonical solid export. For a closed witness, first build
+`fixtures/Canonical/Boundary2/closed-ellipse-extrusion.firmament` into an ignored
+local STEP file, then pass that STEP to the harness. The open probe is retained
+as regression evidence rather than edited to disguise its missing closure.
+
 The harness lets a small STEP probe travel through a real Aetheris round trip:
 
 ```text

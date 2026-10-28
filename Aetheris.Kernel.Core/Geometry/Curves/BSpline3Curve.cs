@@ -94,11 +94,10 @@ public readonly record struct BSpline3Curve
         var p = Degree;
         var u = ClampToDomain(parameter);
 
-        if (double.Abs(u - DomainEnd) <= 1e-12d)
-        {
+        // At a non-clamped/periodic domain end the limit is a basis-weighted
+        // point, not the last control point. FindSpan already handles that end.
+        if (KnotMultiplicities[^1] >= Degree + 1 && double.Abs(u - DomainEnd) <= 1e-12d)
             return ControlPoints[^1];
-        }
-
         var span = FindSpan(u);
         var d = new Point3D[p + 1];
         for (var j = 0; j <= p; j++)
@@ -177,7 +176,7 @@ public readonly record struct BSpline3Curve
             var span = FindSpan(derivativePoints.Length, derivativeDegree, knots, u);
             return derivativePoints[span];
         }
-        if (double.Abs(u - DomainEnd) <= 1e-12d) return derivativePoints[^1];
+        if (KnotMultiplicities[^1] >= Degree + 1 && double.Abs(u - DomainEnd) <= 1e-12d) return derivativePoints[^1];
         var derivativeSpan = FindSpan(derivativePoints.Length, derivativeDegree, knots, u);
         var d = new Vector3D[derivativeDegree + 1];
         for (var j = 0; j <= derivativeDegree; j++) d[j] = derivativePoints[derivativeSpan - derivativeDegree + j];
@@ -218,7 +217,7 @@ public readonly record struct BSpline3Curve
     private Vector3D EvaluateVectorSpline(IReadOnlyList<Vector3D> controls,int degree,IReadOnlyList<double> knots,double u)
     {
         if(degree==0)return controls[FindSpan(controls.Count,degree,knots,u)];
-        if(double.Abs(u-DomainEnd)<=1e-12)return controls[^1];
+        if(KnotMultiplicities[^1]>=Degree+1 && double.Abs(u-DomainEnd)<=1e-12)return controls[^1];
         var span=FindSpan(controls.Count,degree,knots,u);var d=new Vector3D[degree+1];
         for(var j=0;j<=degree;j++)d[j]=controls[span-degree+j];
         for(var r=1;r<=degree;r++)for(var j=degree;j>=r;j--){var left=knots[span-degree+j];var right=knots[span+1+j-r];var denominator=right-left;var alpha=double.Abs(denominator)<=1e-15?0d:(u-left)/denominator;d[j]=d[j-1]+(d[j]-d[j-1])*alpha;}

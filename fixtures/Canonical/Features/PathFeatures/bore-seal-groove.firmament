@@ -1,0 +1,20 @@
+Model GroovedBore {
+    units: mm
+    Concept Struct Layout on XY {
+        Circle2 Seal { center: [0mm, 0mm]; radius: 10mm }
+    }
+    Cylinder<Hollow> Cup {
+        radius: 15mm
+        height: 40mm
+        wallThickness: 5mm
+        openings: [Top]
+    }
+    Modify Cup {
+        Groove<Semicircular> SealSeat {
+            on: face(Cup.InnerWall)
+            path: Layout.Seal
+            station: 20mm
+            radius: 2mm
+        }
+    }
+}

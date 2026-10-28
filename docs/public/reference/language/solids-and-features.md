@@ -34,7 +34,8 @@ different construction.
 ## Modify
 
 `Modify name { ... }` applies features to an existing body: holes, edge finishes,
-patterns. `Modify Base {}` with no features is a valid no-op, as long as `Base`
+patterns, [grooves and manual ribs](../../firmament/grooves-and-ribs.md).
+`Modify Base {}` with no features is a valid no-op, as long as `Base`
 exists.
 
 On a single `Extrude`, Modify takes the same features as on a `Compose` body:
@@ -44,7 +45,9 @@ Cylinder stock; on Extrude and Compose bodies it rejects at its declaration
 (use a `Pattern` of holes for a grid of openings).
 
 Angular mold `Draft` is not currently a V2 `Modify` feature. Its bounded legacy
-operation does not imply support on the modern authoring path.
+operation does not imply support on the modern authoring path. Manual
+`Rib<Rectangular>` accepts its own explicit side `draft` while constructing the
+rib; that is separate from drafting existing body faces.
 
 ## Compose
 

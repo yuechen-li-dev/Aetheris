@@ -73,6 +73,9 @@ public static class BrepExportPreflight
         var checkedEdges = new HashSet<EdgeId>();
         var checkedFaces = 0;
         var checkedLoops = 0;
+        foreach (var shell in body.ImportQualification?.Shells ?? [])
+            if (!shell.Enclosed)
+                AddError("brep-preflight-imported-shell-not-enclosed", "shell", $"Imported shell {shell.ShellId} has not proved a connected closed manifold: components={shell.ConnectedComponents}, boundaryEdges={shell.BoundaryEdges}, nonManifoldEdges={shell.NonManifoldEdges}.");
 
         foreach (var face in model.Faces.OrderBy(face => face.Id.Value))
         {
@@ -199,6 +202,9 @@ public static class BrepExportPreflight
             var isClosedSpline = curve.BSpline3 is { } closedSpline && closedSpline.ClosedCurve &&
                 (closedSpline.Evaluate(binding.TrimInterval.Value.Start) -
                  closedSpline.Evaluate(binding.TrimInterval.Value.End)).Length <= Tolerances.Linear;
+            if (curve.BSpline3 is { } bounded && (binding.TrimInterval.Value.Start < bounded.DomainStart - 1e-12
+                || binding.TrimInterval.Value.End > bounded.DomainEnd + 1e-12))
+                AddError("brep-preflight-edge-trim-outside-domain", "edge", "Spline edge trim lies outside its basis domain.", edgeId: edge.Id.Value);
             if (edge.StartVertexId == edge.EndVertexId &&
                 curve.Kind is not CurveGeometryKind.Circle3 and not CurveGeometryKind.Ellipse3 && !isClosedSpline)
                 AddError("brep-preflight-edge-degenerate", "edge", "Non-periodic edge uses the same topology vertex at both endpoints.", edgeId: edge.Id.Value);

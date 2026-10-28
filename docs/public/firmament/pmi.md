@@ -95,9 +95,15 @@ auxiliary PMI pcurves also reject when their parameter domains cannot be proved
 safe to normalize. Geometry-only editing of annotated imports still requires
 explicit `geometryOnly: true`; source-PMI migration through topology edits is
 not admitted.
-PMI transfer does not relax geometry admission: a file with unqualified imported
-trims still rejects normal compilation, even if its annotation graph can be
-transferred by the lower-level interchange API.
+Unchanged annotation/re-export uses strict output admission: valid topology and
+bindings, closed imported shells, canonical geometry and 3D boundary consistency.
+A source hash proves identity; it does not require complete UV reconstruction.
+Unqualified optional UV traces are omitted with a diagnostic, while the emitted
+STEP retains its 3D edge curves, vertices and face associations. Source recovery
+status remains inspectable and is not promoted to fully qualified.
+Geometry edits which depend on reconstructed trims still require those trims to
+be qualified. A physical boundary contradiction or unsupported normalization
+rejects export, including when `geometryOnly: true` is requested.
 
 `geometryOnly: true` explicitly excludes source PMI and reports that exclusion;
 it never modifies the original STEP file. Imported assembly-wide PMI and

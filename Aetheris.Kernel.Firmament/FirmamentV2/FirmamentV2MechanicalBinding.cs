@@ -38,7 +38,8 @@ public static partial class FirmamentV2Parser
     private static FirmamentV2ParseResult BindMechanicalModel(DocumentSyntax syntax, DeclarationSyntax model,
         string source, List<string> diagnostics, string? sourceDirectory,
         IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations, FirmamentCompileTimeValues? compileTime = null,
-        IReadOnlyDictionary<string, string>? resources = null)
+        IReadOnlyDictionary<string, string>? resources = null, IReadOnlyList<FirmamentV2ClosedBoundary2Decl>? boundaries = null,
+        DocumentSyntax? authoredSyntax = null)
     {
         if (model.Body is null || model.Name is null) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
         if (model.Clauses.Count > 0 || model.Type.Arguments.Count > 0)
@@ -161,6 +162,7 @@ public static partial class FirmamentV2Parser
         }
         if (solids.Count == 0) diagnostics.Add(MissingSolid);
         var modifies = new List<FirmamentV2ModifyBlock>();
+        var pathFeatures = new List<FirmamentV2PathFeature>();
         foreach (var modify in declarations.Where(d => d.Type.Name.Text == "Modify"))
         {
             if (modify.Clauses.Count > 0 || modify.Type.Arguments.Count > 0) diagnostics.Add(CanonicalModifyMalformed);
@@ -185,17 +187,36 @@ public static partial class FirmamentV2Parser
                     case "Perforation":
                         if (BindMechanicalPerforation(fields, diagnostics) is { } perforation) perforations.Add(perforation);
                         break;
+                    case "Rib" or "Groove":
+                        if (BindPathFeature(fields, solid.Name, source, diagnostics, compileTime, boundaries ?? [], authoredSyntax ?? syntax) is { } pathFeature) pathFeatures.Add(pathFeature);
+                        break;
                     default: diagnostics.Add($"{CanonicalDeclarationUnknown}:Modify:{feature.Type.Name.Text}"); break;
                 }
                 fields.Complete();
                 CaptureFieldDiagnostics(feature, diagnosticStart);
             }
             if (holes.Count > 0 && solid.Box is null) diagnostics.Add(ModifyTargetNotSolid);
-            if (solid.ConstructionPolicy == FirmamentV2ConstructionPolicy.Hollow &&
+            if (solid.ConstructionPolicy == FirmamentV2ConstructionPolicy.Hollow && !pathFeatures.Any(f => f.Host == solid.Name) &&
                 (solid.Cylinder is null || holes.Count > 0 || finishes.Count > 0 || perforations.Count != 1 ||
                  perforations.Any(p => p.SupportFace != "OuterWall" || p.Layout is not ("CylindricalGrid" or "CylindricalStaggered"))))
                 diagnostics.Add("firmament-v2-hollow-modify-unsupported");
             modifies.Add(new(solid.Name, [], holes, finishes, perforations));
+        }
+        if (pathFeatures.Count > 0)
+        {
+            var stock = solids.Values.SingleOrDefault();
+            if (stock is null || stock.Box is null && stock.Cylinder is null
+                || modifies.Any(m => m.SemanticHoles.Count > 0 || m.EdgeFinishes?.Count > 0 || m.Perforations?.Count > 0)
+                || declarations.Any(d => d.Type.Name.Text == "Thread"))
+                diagnostics.Add("firmament-path-feature-host: Use direct Box or Cylinder stock without Hole, EdgeFinish, Perforation or Thread operations.");
+            else if (stock.Box is not null && pathFeatures.Any(f => f.Support != "+Z") || stock.Cylinder is not null
+                && pathFeatures.Any(f => f.Feature.Add || f.Support is not ("OuterWall" or "InnerWall")
+                    || f.Feature.Guide.Kind != Aetheris.Kernel.Core.Brep.Features.PlanarGuideKind.Circle
+                    || double.Abs(f.Feature.Guide.Center.X) + double.Abs(f.Feature.Guide.Center.Y) > 1e-9
+                    || double.Abs(f.Feature.Guide.Radius - (stock.Cylinder.Radius - (f.Support == "InnerWall" ? stock.Hollow?.WallThickness ?? 0 : 0))) > 1e-8))
+                diagnostics.Add("firmament-path-feature-support: Box supports +Z; cylindrical grooves require a coaxial Circle2 on OuterWall or InnerWall with the support radius and an explicit station.");
+            if (stock?.Hollow is { } shell && (shell.BottomBlendRadius != 0 || shell.Openings.Count != 1 || shell.Openings[0] != "Top"))
+                diagnostics.Add("firmament-path-feature-hollow: Cylindrical grooves currently support only top-open hollow stock without a bottom blend.");
         }
         if (UniformStockFilletAdmission.Error(solids.Values.ToArray(), modifies,
             declarations.Any(d => d.Type.Name.Text is "Thread" or "Replace")) is { } stockError)
@@ -219,7 +240,7 @@ public static partial class FirmamentV2Parser
         return FirmamentV2ParseResult.Success(new(model.Name!.Text, "mm", solids.Values.ToArray(), modifies,
             Pmi: pmi, RecognizedRegions: recognized, Replacements: replacements, PmiBlock: pmiBlock, BoundPmi: boundPmi, Selections: selections,
             Lets: staticValues.Declarations, BoundLets: staticValues.Values,
-            TemplateInstantiations: templateInstantiations is { Count: > 0 } ? templateInstantiations : null) { Removals = removals },
+            TemplateInstantiations: templateInstantiations is { Count: > 0 } ? templateInstantiations : null) { Removals = removals, PathFeatures = pathFeatures },
             diagnostics.Append("firmament-v2-unified-canonical-parsed").Append("firmament-v2-parse-succeeded").Distinct(StringComparer.Ordinal).Order().ToArray())
             with { SyntaxDiagnostics = locatedDiagnostics };
     }

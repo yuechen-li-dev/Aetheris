@@ -121,7 +121,7 @@ public sealed class Step242PmiTransfer
 
     internal KernelResult<bool> Emit(Step242TextWriter writer, BrepBody body, string shape, string representation,
         string context, string millimetreUnit, string brep, IReadOnlyDictionary<FaceId, string> faces, IReadOnlyDictionary<EdgeId, string> edges,
-        out IReadOnlyDictionary<string, string> emittedDatums)
+        bool requireNonRationalAuxiliaryGeometry, out IReadOnlyDictionary<string, string> emittedDatums)
     {
         emittedDatums = new Dictionary<string, string>();
         if (!Unchanged(body)) return Failure<bool>("pmi-source-body-changed", "Imported semantic PMI requires unchanged geometry and topology. Rebind annotations explicitly after editing, or request geometryOnly before editing.");
@@ -146,6 +146,9 @@ public sealed class Step242PmiTransfer
                     throw new PmiTransferException($"Source geometry #{id} ({entity.Name}) has no proved topology correspondence.");
             }
             var copied = selected.Where(id => !mapping.ContainsKey(id)).Order().ToArray();
+            if (requireNonRationalAuxiliaryGeometry && copied.FirstOrDefault(id => Has(entities[id], "RATIONAL_B_SPLINE_SURFACE")
+                || Has(entities[id], "RATIONAL_B_SPLINE_CURVE")) is var rational && rational != 0)
+                throw new PmiTransferException($"pmi-source-rational-geometry-not-canonical: Auxiliary annotation geometry #{rational} requires analytic or non-rational recovery before production export.");
             if (document.SourceMillimetresPerUnit != 1d && copied.Any(id => entities[id].Name == "PCURVE"))
                 throw new PmiTransferException("pmi-source-auxiliary-pcurve-units-unsupported: Auxiliary PMI surfaces carry non-metric pcurves whose length domains cannot yet be normalized safely.");
             for (var i = 0; i < copied.Length; i++) mapping[copied[i]] = $"#{writer.EntityCount + i + 1}";
@@ -167,7 +170,9 @@ public sealed class Step242PmiTransfer
         && witness.Topology.Bodies.SequenceEqual(body.Topology.Bodies)
         && witness.Geometry.Curves.SequenceEqual(body.Geometry.Curves) && witness.Geometry.Surfaces.SequenceEqual(body.Geometry.Surfaces)
         && witness.Bindings.FaceBindings.SequenceEqual(body.Bindings.FaceBindings) && witness.Bindings.EdgeBindings.SequenceEqual(body.Bindings.EdgeBindings)
-        && witness.Bindings.PcurveBindings.SequenceEqual(body.Bindings.PcurveBindings)
+        // Optional UV acceleration may be omitted/reconstructed by strict export.
+        // The topology, 3D curves/supports, edge trims and face associations above
+        // remain the identity witness for semantic PMI.
         && witness.Topology.Vertices.All(v => witness.TryGetVertexPoint(v.Id, out var before) == body.TryGetVertexPoint(v.Id, out var after) && before == after);
 
     internal static Step242EntityConstructor? GeometricTolerance(Step242ParsedEntity entity) =>

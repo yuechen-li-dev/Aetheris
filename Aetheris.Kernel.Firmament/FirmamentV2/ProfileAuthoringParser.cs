@@ -554,8 +554,8 @@ public static class ProfileAuthoringParser
             var content = declaration.Body.ContentSpan;
             var pathBody = source.Substring(content.Start, content.Length);
             var pathFields = new FirmamentSyntaxFields(declaration with { Modifiers = [] }, diagnostics);
-            pathFields.Take("Start");
-            pathFields.Take("Heading");
+            var startExpression = pathFields.Take("Start");
+            var headingExpression = pathFields.Take("Heading");
             var recognizedSteps = FindPathSteps(pathBody).Select(s => content.Start + s.Index).ToHashSet();
             var steps = declaration.Body.Statements.Where(s => s is DeclarationSyntax d && recognizedSteps.Contains(d.Span.Start)
                 || s is ExpressionStatementSyntax).ToHashSet();
@@ -576,12 +576,11 @@ public static class ProfileAuthoringParser
                 }
                 continue;
             }
-            var startMatch = Regex.Match(pathBody, @"\bStart\s*:\s*Point2\s*\(\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*\)", RegexOptions.CultureInvariant);
-            if (!startMatch.Success || !TryNumber(startMatch.Groups["x"].Value, out var sx) || !TryNumber(startMatch.Groups["y"].Value, out var sy)) { diagnostics.Add($"concept-path-start-invalid:{name}"); continue; }
+            if (!FirmamentSyntaxValues.Vector(startExpression, "mm", out var startCoordinates) || startCoordinates.Length != 2
+                || startCoordinates.Any(n => !double.IsFinite(n))) { diagnostics.Add($"concept-path-start-invalid:{name}"); continue; }
             var heading = 0d;
-            var headingMatch = Regex.Match(pathBody, @"\bHeading\s*:\s*(?<value>[-+.\deE]+)deg", RegexOptions.CultureInvariant);
-            if (headingMatch.Success && (!TryNumber(headingMatch.Groups["value"].Value, out heading) || !double.IsFinite(heading))) { diagnostics.Add($"concept-path-heading-invalid:{name}"); continue; }
-            var path = new BoundPath(name, (sx, sy), heading, []);
+            if (headingExpression is not null && (!FirmamentSyntaxValues.TryMeasure(headingExpression, "deg", out heading) || !double.IsFinite(heading))) { diagnostics.Add($"concept-path-heading-invalid:{name}"); continue; }
+            var path = new BoundPath(name, (startCoordinates[0], startCoordinates[1]), heading, []);
             if (points.ContainsKey($"{name}.Start") || guides.ContainsKey(name)) { diagnostics.Add($"concept-path-name-collision:{name}"); continue; }
             points[$"{name}.Start"] = path.Start;
             var current = path.Start;
@@ -749,15 +748,26 @@ public static class ProfileAuthoringParser
             curves = [new LineArcLineSegment2D(current, endpoint)]; headingDegrees = Heading(current, endpoint); return true;
         }
         var body = step.Body;
+        Dictionary<string, string?>? boundFields = null;
         if (step.Kind is "Line" or "Span" or "Arc")
         {
-            // Segment bodies are read by name; reject anything the binder would silently ignore.
+            // Read the same AST fields after compile-time serialization as before it.
+            // Casing and whitespace must not change path geometry or drop a value.
             string[] allowed = step.Kind == "Arc" ? ["Radius", "Turn"] : ["Turn", "Heading", "Length", "To"];
-            var unknown = Regex.Matches(body ?? string.Empty, @"(?<![\w.])(?<n>[A-Za-z_]\w*)\s*:", RegexOptions.CultureInvariant)
-                .Select(m => m.Groups["n"].Value).FirstOrDefault(n => !allowed.Contains(n, StringComparer.Ordinal));
+            var syntax = FirmamentSyntaxParser.Parse("Step PathStep {" + body + "}");
+            var declaration = syntax.Document.Statements.OfType<DeclarationSyntax>().SingleOrDefault();
+            if (!syntax.IsSuccess || declaration?.Body is null || declaration.Body.Statements.Any(s => s is not FieldSyntax))
+            { diagnostic = prefix + ":expected-field-body"; return false; }
+            var unknown = declaration.Body.Statements.OfType<FieldSyntax>().Select(f => f.Name.Text)
+                .FirstOrDefault(n => !allowed.Any(a => FirmamentSyntaxFields.SameField(n, a)));
             if (unknown is not null) { diagnostic = $"concept-path-field-unknown:{path}:{step.Name}:{unknown}:allowed={string.Join(",", allowed)}"; return false; }
+            var fieldDiagnostics = new List<string>(); var fields = new FirmamentSyntaxFields(declaration, fieldDiagnostics);
+            boundFields = allowed.ToDictionary(n => n, n => fields.Take(n) is { } value ? FirmamentSyntaxWriter.Expression(value) : null);
+            fields.Complete();
+            if (fieldDiagnostics.Count > 0) { diagnostic = prefix + ":" + string.Join("; ", fieldDiagnostics); return false; }
         }
-        var turn = Property(body, "Turn"); var absolute = Property(body, "Heading"); var length = Property(body, "Length"); var to = Property(body, "To");
+        string? Read(string name) => boundFields is null ? Property(body, name) : boundFields.GetValueOrDefault(name);
+        var turn = Read("Turn"); var absolute = Read("Heading"); var length = Read("Length"); var to = Read("To");
         if (step.Kind is "Line" or "Span")
         {
             if (turn is not null && absolute is not null) { diagnostic = $"concept-path-turn-and-heading:{path}:{step.Name}"; return false; }
@@ -779,7 +789,7 @@ public static class ProfileAuthoringParser
             if (!TrySemanticFeature(path, step, current, headingDegrees, out curves, out endpoint, out diagnostic)) return false;
             return true;
         }
-        var radiusText = Property(body, "Radius");
+        var radiusText = Read("Radius");
         if (step.Kind != "Arc" || radiusText is null || turn is null || absolute is not null || length is not null || to is not null || !TryMeasure(radiusText, "mm", out var radius) || radius <= 0 || !TryMeasure(turn, "deg", out var sweepDegrees) || !double.IsFinite(sweepDegrees) || Math.Abs(sweepDegrees) <= Tolerance || Math.Abs(sweepDegrees) >= 360d - Tolerance)
         { diagnostic = $"concept-path-arc-invalid:{path}:{step.Name}"; return false; }
         var headingRadians = DegreesToRadians(headingDegrees); var sweepRadians = DegreesToRadians(sweepDegrees); var sign = Math.Sign(sweepRadians);

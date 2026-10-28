@@ -1,8 +1,5 @@
-// fixture-id: nist-ftc11-pmi-unqualified-geometry
-// validity: invalid
-// expected: invalid
-// expected-diagnostic: firmament-inline-step-import-unqualified
-// The semantic graph transfers at the kernel API, but normal builds retain the existing trim-admission gate.
+// Unchanged source PMI plus an explicit control; incomplete UV recovery is not
+// complete-trim certification. Strict export must still prove the 3D boundary.
 Model AnnotatedNistPart {
     units: mm
     InlineStep Source {

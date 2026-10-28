@@ -612,7 +612,7 @@ public static partial class FirmamentV2Parser
             if (!syntax.IsSuccess)
                 return FirmamentV2ParseResult.Failure(diagnostics.Concat(syntax.Diagnostics.Select(d => d.Code)).ToArray(), FirmamentV2ParseDisposition.RecognizedInvalid)
                     with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true, SyntaxDiagnostics = syntax.Diagnostics };
-            var parsed = Recognized(BindMechanicalModel(syntax.Document, modelSyntax, source, diagnostics, sourceDirectory, templateExpansion.Instantiations, compileTime, resources))
+            var parsed = Recognized(BindMechanicalModel(syntax.Document, modelSyntax, source, diagnostics, sourceDirectory, templateExpansion.Instantiations, compileTime, resources, polygonExpansion.Boundaries, authoredSyntax.Document))
                 with { DiagnosticSource = source };
             if (parsed.Document is null) return parsed with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true };
             if (domainDeclarations.Any(d => d.Type.Name.Text == "Plateau"))
@@ -1161,7 +1161,8 @@ public static partial class FirmamentV2Parser
         if (sourceHashPin is not null)
         {
             var imported = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(stepText,
-                new Aetheris.Kernel.Core.Import.ImportPolicy(PcurveQualificationToleranceMillimetres: importTolerance ?? 1e-3));
+                new Aetheris.Kernel.Core.Import.ImportPolicy(PreferredLane: Aetheris.Kernel.Core.Import.ImportLaneKind.ExactBRep,
+                    PcurveQualificationToleranceMillimetres: importTolerance ?? 1e-3));
             if (!imported.IsSuccess) { diagnostics.AddRange(imported.Diagnostics.Select(d => "firmament-inline-step-import-failed: " + d.Message)); return null; }
             runtimeBody = imported.Value;
         }

@@ -72,6 +72,7 @@ public sealed class FirmamentV2InlineStepTests
             var result = FirmamentBuildAndExport.Run(Path.Combine(repo, FixturePath), outputPath);
 
             Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
+            Assert.Contains(result.Diagnostics, d => d.Message.StartsWith("step-import-loop-order-recovered:", StringComparison.Ordinal));
             Assert.True(File.Exists(outputPath));
             Assert.Equal("inline-step", result.Value.Export.ExportedBodyCategory);
             Assert.Equal("aetheris-canonical-ap242", result.Value.Export.ExportedFeatureKind);

@@ -32,6 +32,11 @@ public static class Step242Exporter
                 return Failure($"pmi-geometric-target-unresolved: '{control.Name}' requires proved face associations.", "Step242.Pmi");
         }
         IReadOnlyList<KernelDiagnostic> normalizationDiagnostics = [];
+        if (options.BrepExportPreflightPolicy == BrepExportPreflightPolicy.TrustedProductionRoute)
+        {
+            var bindings = BrepBindingValidator.Validate(body);
+            if (!bindings.IsSuccess) return KernelResult<string>.Failure(bindings.Diagnostics);
+        }
         if (options.BrepExportPreflightPolicy == BrepExportPreflightPolicy.TrustedProductionRoute
             && options.ImportedRecoveryToleranceMillimetres is { } normalizationBudget
             && (body.Geometry.Surfaces.Any(s => s.Value.BSplineSurfaceWithKnots?.IsRational == true)
@@ -116,7 +121,14 @@ public static class Step242Exporter
         // Pure exact planar projections are deterministically derivable from the
         // emitted geometry. Preserve the compact canonical legacy normal form when
         // no source/recovered parameter trace needs serialization.
-        var pcurveContextId = options.EmitQualifiedPcurves && body.Bindings.PcurveBindings.Any(binding =>
+        // UV traces are optional STEP acceleration data. Never serialize a failed
+        // recovered set as authority over a valid 3D boundary. Edits which require
+        // those traces are admitted separately by their operation owners.
+        var omitUnqualifiedPcurves = options.BrepExportPreflightPolicy == BrepExportPreflightPolicy.TrustedProductionRoute
+            && (body.PcurveRecoveryReport is { IsSuccess: false }
+                || body.Bindings.PcurveBindings.Any() && !BrepPcurveValidator.Validate(body,
+                    options.ImportedRecoveryToleranceMillimetres ?? 1e-6).IsValid);
+        var pcurveContextId = options.EmitQualifiedPcurves && !omitUnqualifiedPcurves && body.Bindings.PcurveBindings.Any(binding =>
             binding.Qualification?.Origin != PcurveBindingOrigin.DerivedAnalytic
             && (body.PcurveRecoveryReport is not { IsSuccess: false }
             || binding.SourceStepPcurveEntityId is not null))
@@ -189,15 +201,23 @@ public static class Step242Exporter
         IReadOnlyDictionary<string, string>? importedDatumEntities = null;
         if (options.ImportedPmi is { } importedPmi)
         {
-            var transferred = importedPmi.Emit(writer, body, shapeId, shapeRepresentationId, repContextId, lengthUnitId, brepId, advancedFaceIds, edgeCurveIds, out importedDatumEntities);
+            var transferred = importedPmi.Emit(writer, body, shapeId, shapeRepresentationId, repContextId, lengthUnitId, brepId, advancedFaceIds, edgeCurveIds,
+                options.BrepExportPreflightPolicy == BrepExportPreflightPolicy.TrustedProductionRoute, out importedDatumEntities);
             if (!transferred.IsSuccess) return KernelResult<string>.Failure(transferred.Diagnostics);
             importedPmiDiagnostics = transferred.Diagnostics;
         }
         EmitSemanticPmi(writer, shapeId, shapeRepresentationId, repContextId, lengthUnitId, advancedFaceIds, semanticPmi, importedDatumEntities);
 
+        var repairDiagnostics = options.BrepExportPreflightPolicy == BrepExportPreflightPolicy.TrustedProductionRoute
+            ? (body.ImportQualification?.Repairs ?? []).Select(repair => new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed,
+                KernelDiagnosticSeverity.Warning, repair.Code + ": " + repair.Message, $"Step242.Import.Entity:{repair.StepEntityId}")) : [];
+        IReadOnlyList<KernelDiagnostic> trimDiagnostics = omitUnqualifiedPcurves
+            ? [new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
+                "step-export-recovered-pcurves-omitted: Unqualified UV traces were not emitted; STEP boundaries use their 3D curves and vertices. Source trim qualification has not been promoted.", "Step242.Export")]
+            : [];
         return KernelResult<string>.Success(
             writer.Build(options.HeaderMetadata),
-            normalizationDiagnostics.Concat(importedPmiDiagnostics).Concat(preflight is null ? [] : ToKernelDiagnostics(preflight, errorsAsWarnings: true)).ToArray());
+            normalizationDiagnostics.Concat(importedPmiDiagnostics).Concat(repairDiagnostics).Concat(trimDiagnostics).Concat(preflight is null ? [] : ToKernelDiagnostics(preflight, errorsAsWarnings: true)).ToArray());
     }
 
     private static void EmitAuxiliaryVertexPointForVertexlessAnalyticBody(Step242TextWriter writer, BrepBody body, TopologyModel model)

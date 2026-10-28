@@ -77,6 +77,26 @@ For bound geometry, `pcurveQualification` reports the face-edge use count, sourc
 
 `summary.importQualification` distinguishes `Qualified`, `Inspectable`, `Degraded`, and `Failed` from authoritative BRep evidence. Parser/API success means geometry was retained; it is not a qualification verdict. `status` and `geometryStatus` report engineering qualification independently of the viewport. `displayStatus` separately reports `NotAssessed`, `Complete`, `RefinementLimited`, or `Partial`, with display reasons and missing face identities. Missing trim bindings remain `Inspectable`; detected invalid trims or incomplete intended solid shells are `Degraded` even when a useful preview is complete. Exact faces can receive derived face-local pcurves without being classified as recovered geometry.
 
+An unchanged `InlineStep` can be annotated and re-exported when strict production
+output checks pass, even when optional UV recovery is incomplete. Source pins
+prove the identity of the imported data; they do not select a stricter operation.
+Export checks topology/bindings, imported shell enclosure, canonical representation
+and 3D boundary consistency within the declared budget, capped at 0.1 mm. This is
+a recovery allowance, not a machining tolerance. Invalid UV traces are omitted
+with `step-export-recovered-pcurves-omitted`; STEP uses its 3D edge curves and
+vertices to define those boundaries. The source qualification report is retained.
+`Remove`/`Replace` operations that depend on face-local trims keep their own
+qualified-trim requirements. Tessellated-only source cannot enter this exact
+part path through an automatic approximation fallback.
+
+`aetheris canon` applies the same strict geometry boundary in both metadata modes:
+`deterministic` selects deterministic headers; `production` preserves source
+metadata. Both retain supported semantic PMI and report exclusions or omitted UV
+traces in JSON `diagnostics` and text warnings. Neither mode promotes an open
+surface into a solid. Open inputs remain available to `analyze` and inspection.
+The [closed ellipse extrusion](../../../fixtures/Canonical/Boundary2/closed-ellipse-extrusion.firmament)
+is a complete source witness with analytic elliptical boundaries and planar caps.
+
 Legacy AP203/AP214 import uses the same topology and geometry path. Viewport quality is chosen automatically from model scale and bounded adaptive sampling. Viewport triangles are disposable approximations: STEP export, topology selection, and engineering qualification consume BRep directly. A convincing preview cannot qualify invalid engineering geometry. The frozen 26-file McMaster corpus and the original closeout evidence are recorded in [STEP-LEGACY-CLOSEOUT-X2](../../development/reports/2026-10/STEP-LEGACY-CLOSEOUT-X2.md); the subsequent visual investigation and ball roundtrip repair are in [STEP-LEGACY-FINAL-X3](../../development/reports/2026-10/STEP-LEGACY-FINAL-X3.md). Vendor files and generated meshes stay local; the tracked manifest retains the X0 baseline metadata and outcomes.
 
 In Cadmata, expand **Surface / trim inspection** in the viewport. Compare **Surfaces only**, **BRep wire only**, **Translucent + BRep wire**, and **Face colors + BRep wire** without changing the camera. Red lines carry kernel edge identities; the wire and translucent views show them through surfaces. Select a patch from the list, or click a surface in an inspection view, to isolate its occurrence and face with the source STEP entity, support family, and boundary edges. STEP imports currently display BRep meshes, with no SDF field. These diagnostic controls change presentation only.
@@ -85,7 +105,16 @@ Dense rectangular spline trims retain native parameter grid cells as the existin
 
 Dense nonrectangular spline trims reuse that knot-aware grid to decompose the actual outer-minus-holes region into local polygons. Existing constrained ear clipping triangulates each region before bounded chord/normal refinement. Only convex intersections of already validated seed triangles may use an anchor fan; general polygons never use an averaged centre. Periodic charts are normalized upstream, and display subdivision retains the original face and occurrence identity for picking. Quality limits remain explicit in display diagnostics. See [STEP-TRIM-TRIANGULATION-X4](../../development/reports/2026-10/STEP-TRIM-TRIANGULATION-X4.md) for the corpus and product evidence.
 
-Rational source supports may be evaluated and displayed. Production AP242 uses analytic or non-rational geometry, with bounded recovery on a copy of the imported BRep and independent trim validation. Ordinary imported parts can use an explicit recovery allowance of at most 0.1 mm; tighter source and application requirements still matter for small features. Recovery reports sampled deviation rather than claiming an exact mathematical error bound. Unsupported normalization fails explicitly. Display mesh quality never supplies export evidence.
+Rational source supports may be evaluated and displayed. Production AP242 uses
+analytic or non-rational geometry after bounded recovery and independent boundary
+validation. Native ellipsoid octants are the explicit exception: their exact STEP
+projection uses rational quadratic patches. Arbitrary rational NURBS fallback is
+not admitted, including through auxiliary PMI geometry. Intentional polynomial
+B-spline curves and surfaces remain supported. Ordinary imported parts can use an
+explicit recovery allowance of at most 0.1 mm; tighter source and application
+requirements still matter for small features. Recovery reports sampled deviation
+rather than claiming an exact mathematical error bound. Unsupported normalization
+fails explicitly. Display mesh quality never supplies export evidence.
 
 Firmament `inlineSTEP` consumes Aetheris-canonical AP242 on the bounded production path. Imported faces are selected by source entity identity, for example `body.face(#170)`, and recognized regions may supply stable semantic aliases. [`inline-step-cantilever.firmament`](../../../fixtures/Canonical/FEA/inline-step-cantilever.firmament) demonstrates FEA on a checked-in canonical STEP resource.
 

@@ -28,6 +28,8 @@ public sealed record BrepImportQualificationReport(
 {
     public ImportDisplayStatus DisplayStatus { get; init; } = ImportDisplayStatus.NotAssessed;
     public IReadOnlyList<ImportQualificationReason> DisplayReasons { get; init; } = [];
+    /// <summary>Disclosed deterministic source repairs, separate from qualification failures.</summary>
+    public IReadOnlyList<ImportQualificationReason> Repairs { get; init; } = [];
 }
 
 /// <summary>Import evidence is separate from parser success and from display preparation.</summary>

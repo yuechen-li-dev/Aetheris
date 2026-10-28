@@ -1,0 +1,14 @@
+Model FaceSealPlate {
+    units: mm
+    Concept Struct Layout on XY {
+        Circle2 Seal { center: [0mm, 0mm]; radius: 12mm }
+    }
+    Box Plate { size: [50mm, 40mm, 8mm] }
+    Modify Plate {
+        Groove<Semicircular> SealSeat {
+            on: +Z
+            path: Layout.Seal
+            radius: 1.5mm
+        }
+    }
+}

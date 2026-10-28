@@ -1,0 +1,20 @@
+Model CurvedStiffener {
+    units: mm
+    Concept Struct Layout on XY {
+        Point2 Center { position: [0mm, 0mm] }
+        Point2 Start { position: [12mm, 0mm] }
+        Point2 End { position: [0mm, 12mm] }
+        Arc2 Spine { center: Center; from: Start; to: End }
+    }
+    Box Plate { size: [50mm, 40mm, 6mm] }
+    Modify Plate {
+        Rib<Rectangular> Stiffener {
+            on: +Z
+            path: Layout.Spine
+            thickness: 3mm
+            height: 8mm
+            draft: 2deg
+            ends: Flat
+        }
+    }
+}

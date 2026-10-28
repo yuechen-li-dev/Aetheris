@@ -11,6 +11,11 @@ Unknown network names reject instead of having no effect.
 
 `PlasticShell` is Aetheris's manufacturing-first domain for injection-molded product definitions. Wall thickness, tooling direction, parting, and reinforcement intent live in the domain model rather than as a sequence of cleanup features.
 
+For explicitly placed reinforcement on mechanical Box stock, use
+[manual ribs](grooves-and-ribs.md). That feature consumes an authored guide,
+thickness, height and optional draft. It is separate from this domain's AutoRib
+network selection and does not expand AutoRib's qualified geometry.
+
 ```firmament
 PlasticShell EnclosureHalf {
   Exterior: Frustum

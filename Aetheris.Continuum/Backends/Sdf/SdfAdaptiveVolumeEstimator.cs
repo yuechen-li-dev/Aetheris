@@ -37,14 +37,17 @@ public sealed record SdfAdaptiveVolumeResult(
 
 public sealed record SdfBoundedVolumeResult(double LowerBound, double UpperBound, int RegionsVisited, bool BudgetExhausted)
 {
+    public int AffineCutRegions { get; init; }
+    public int IntervalFallbackRegions { get; init; }
     public double EstimatedVolume => (LowerBound + UpperBound) * .5;
     public double ErrorBound => (UpperBound - LowerBound) * .5;
 }
 
 public static class SdfAdaptiveVolumeEstimator
 {
-    /// <summary>Occupied-volume enclosure. Mixed cells contribute [0, cell volume],
-    /// never a sampling-based error claim. Refine the largest uncertainty first.
+    /// <summary>Occupied-volume enclosure. Analytic affine field envelopes bound
+    /// partial cells; unresolved cells retain [0, cell volume]. Refine the largest
+    /// remaining uncertainty first; no sampling-based error claim is made.
     /// Bounds assume the tape's supported analytic interval contract and finite
     /// enclosing input bounds; roundoff guards are included, not formal interval arithmetic.</summary>
     public static SdfBoundedVolumeResult EstimateBounded(SdfTape tape, SdfBounds bounds, double absoluteError,
@@ -56,35 +59,60 @@ public static class SdfAdaptiveVolumeEstimator
             || !double.IsFinite(enclosingVolume) || enclosingVolume <= 0
             || bounds.SizeX <= 0 || bounds.SizeY <= 0 || bounds.SizeZ <= 0)
             throw new ArgumentException("Bounded volume requires finite positive bounds, a nonnegative error and a positive region budget.");
-        var queue = new PriorityQueue<(SdfBounds Region, int Depth), (double Volume, int Order)>();
-        double inside = 0, uncertain = 0;
-        var visited = 0;
+        // The existing scalar cone evaluator clamps its generator projection
+        // below this threshold. Its sign can then jump at the wall, so the
+        // distance/Lipschitz interval contract is not valid at that local scale.
+        if (tape.ConePayloads.Any(cone => cone.Height * cone.Height
+            + (cone.TopRadius - cone.BottomRadius) * (cone.TopRadius - cone.BottomRadius) <= 1e-18))
+            throw new InvalidOperationException("sdf-volume-cone-scale-unsupported: The cone's local generator is below the scalar distance evaluator's supported scale. Rescale the analytic definition before requesting bounded SDF volume.");
+        var queue = new PriorityQueue<(SdfBounds Region, int Depth, double Lower, double Upper), (double Uncertainty, int Order)>();
+        double lower = 0, upper = 0;
+        double lowerCorrection = 0, upperCorrection = 0;
+        void Accumulate(double lo, double hi)
+        {
+            var adjusted = lo - lowerCorrection; var next = lower + adjusted;
+            lowerCorrection = (next - lower) - adjusted; lower = next;
+            adjusted = hi - upperCorrection; next = upper + adjusted;
+            upperCorrection = (next - upper) - adjusted; upper = next;
+        }
+        var visited = 0; var affineRegions = 0; var fallbackRegions = 0;
         var padding = 1e-12 * Math.Max(1, new[] { bounds.Min.X, bounds.Min.Y, bounds.Min.Z, bounds.Max.X, bounds.Max.Y, bounds.Max.Z }.Max(Math.Abs));
         void Admit(SdfBounds region, int depth)
         {
-            var interval = tape.EvaluateInterval(region);
+            var enclosure = tape.EvaluateRegionEnclosure(region);
+            var interval = enclosure.Interval;
             var volume = RegionVolume(region);
             visited++;
             if (!double.IsFinite(interval.MinValue) || !double.IsFinite(interval.MaxValue) || interval.MinValue > interval.MaxValue)
                 throw new InvalidOperationException("sdf-volume-interval-invalid: The field returned no finite conservative interval.");
-            if (interval.MaxValue < -padding) inside += volume;
-            else if (interval.MinValue <= padding)
+            double lo = 0, hi = volume;
+            if (interval.MaxValue < -padding) lo = volume;
+            else if (interval.MinValue > padding) hi = 0;
+            else if (enclosure.Affine is { } affine)
             {
-                uncertain += volume;
-                if (depth < maximumDepth) queue.Enqueue((region, depth), (-volume, visited));
+                if (!double.IsFinite(affine.Value + affine.Gradient.X + affine.Gradient.Y + affine.Gradient.Z + affine.LowerError + affine.UpperError)
+                    || affine.LowerError < 0 || affine.UpperError < 0)
+                    throw new InvalidOperationException("sdf-volume-affine-invalid: The field returned no finite conservative affine enclosure.");
+                var fraction = SdfAffineCellVolume.Enclose(affine, region, padding);
+                lo = fraction.Lower * volume; hi = fraction.Upper * volume; affineRegions++;
             }
+            else fallbackRegions++;
+            Accumulate(lo, hi);
+            if (hi > lo && depth < maximumDepth) queue.Enqueue((region, depth, lo, hi), (lo - hi, visited));
         }
         Admit(bounds, 0);
-        while (uncertain > 2 * absoluteError && queue.Count > 0 && visited + 2 <= maximumRegions)
+        var roundoff = enclosingVolume * 1e-12;
+        var targetWidth = Math.Max(0, 2 * absoluteError - 2 * roundoff);
+        while (upper - lower > targetWidth && queue.Count > 0 && visited + 2 <= maximumRegions)
         {
             var item = queue.Dequeue();
-            uncertain -= RegionVolume(item.Region);
+            Accumulate(-item.Lower, -item.Upper);
             foreach (var child in SplitLongestAxis(item.Region)) Admit(child, item.Depth + 1);
         }
-        var roundoff = enclosingVolume * 1e-12;
-        var lower = Math.Max(0, inside - roundoff);
-        var upper = Math.Min(enclosingVolume, inside + Math.Max(0, uncertain) + roundoff);
-        return new(lower, upper, visited, upper - lower > 2 * absoluteError);
+        lower = Math.Max(0, lower - roundoff);
+        upper = Math.Min(enclosingVolume, upper + roundoff);
+        return new(lower, upper, visited, upper - lower > 2 * absoluteError)
+        { AffineCutRegions = affineRegions, IntervalFallbackRegions = fallbackRegions };
     }
 
     public static SdfAdaptiveVolumeResult EstimateVolume(SdfTape tape, SdfBounds bounds, SdfAdaptiveVolumeOptions? options = null, ToleranceContext? tolerance = null)

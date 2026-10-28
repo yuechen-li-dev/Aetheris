@@ -12,6 +12,8 @@ namespace Aetheris.Kernel.Firmament.Analysis;
 public sealed record FirmamentVolumeMeasurement(double? ValueMm3, double? LowerBoundMm3, double? UpperBoundMm3,
     string Method, bool Authoritative, int? RegionsVisited = null, bool BudgetExhausted = false, string? Diagnostic = null)
 {
+    public int? AffineCutRegions { get; init; }
+    public int? IntervalFallbackRegions { get; init; }
     public double? ErrorBoundMm3 => LowerBoundMm3 is { } lo && UpperBoundMm3 is { } hi ? (hi - lo) * .5 : null;
 }
 public sealed record FirmamentBoundsMeasurement(double[] MinimumMm, double[] MaximumMm, string Method);
@@ -91,6 +93,7 @@ public sealed class FirmamentMeasurements
         var bounds = root!.Bounds;
         var error = absoluteErrorMm3 ?? bounds.SizeX * bounds.SizeY * bounds.SizeZ * .005;
         var result = SdfAdaptiveVolumeEstimator.EstimateBounded(SdfTapeLowerer.Lower(root), bounds, error, maximumRegions);
-        return new(result.EstimatedVolume, result.LowerBound, result.UpperBound, "SdfAdaptiveOccupiedVolumeInterval", true, result.RegionsVisited, result.BudgetExhausted);
+        return new(result.EstimatedVolume, result.LowerBound, result.UpperBound, "SdfAdaptiveOccupiedVolumeInterval", true, result.RegionsVisited, result.BudgetExhausted)
+        { AffineCutRegions = result.AffineCutRegions, IntervalFallbackRegions = result.IntervalFallbackRegions };
     }
 }

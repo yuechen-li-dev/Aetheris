@@ -48,7 +48,7 @@ public enum SdfRegionClassification
 /// Linear MIR/runtime representation for CIR point evaluation.
 /// During transition, this is the intended execution form while <see cref="SdfNode"/> remains the semantic builder/oracle.
 /// </summary>
-public sealed class SdfTape
+public sealed partial class SdfTape
 {
     public SdfTape(
         IReadOnlyList<SdfTapeInstruction> instructions,
@@ -137,7 +137,12 @@ public sealed class SdfTape
     public FieldInterval EvaluateInterval(SdfBounds region)
     {
         var slots = new FieldInterval[SlotCount];
+        EvaluateIntervalSlots(region, slots);
+        return slots[OutputSlot];
+    }
 
+    private void EvaluateIntervalSlots(SdfBounds region, FieldInterval[] slots)
+    {
         foreach (var instruction in Instructions)
         {
             switch (instruction.OpCode)
@@ -182,7 +187,6 @@ public sealed class SdfTape
             }
         }
 
-        return slots[OutputSlot];
     }
 
     public SdfRegionClassification ClassifyRegion(SdfBounds region, ToleranceContext tolerance)

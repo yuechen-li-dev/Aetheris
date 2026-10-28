@@ -76,6 +76,7 @@
     <Deploy />
   </Project>
   <Project Path="Aetheris.CLI/Aetheris.CLI.csproj" />
+  <Project Path="tools/Aetheris.SdfVolumeQualification/Aetheris.SdfVolumeQualification.csproj" />
   <Folder Name="/demos/">
     <Project Path="demos/Aetheris.CodeNativeBracket/Aetheris.CodeNativeBracket.csproj" />
     <Project Path="demos/Aetheris.DifferenceEngine.Showcase/Aetheris.DifferenceEngine.Showcase.csproj" />

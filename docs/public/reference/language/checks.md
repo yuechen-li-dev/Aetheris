@@ -129,6 +129,21 @@ for stock before holes or edits is insufficient. STEP imports without such a
 field report volume unavailable; display meshes and sampled point-cloud fields
 do not silently become volume authority.
 
+The integrator bounds partially occupied cells using analytic local field envelopes
+and plane/box volume integrals. Curvature contributes to the uncertainty; it is not
+estimated from a few sample points. Cells crossing unresolved CSG branches, primitive
+singularities or unsupported envelope branches retain conservative whole-cell bounds
+and subdivide. Thin features cannot disappear merely because their cell corners are
+outside. JSON `affineCutRegions` and `intervalFallbackRegions` count visited cells
+using each approach, including parents subsequently refined.
+
+These numerical bounds depend on the supported field interval/envelope contract and
+finite enclosing bounds. They include floating-point guards, rather than formally
+outward-rounded interval arithmetic. They bound occupied volume, not surface-distance
+error or manufacturing tolerance.
+Cones below the scalar evaluator's supported local generator scale reject bounded
+measurement with `sdf-volume-cone-scale-unsupported`; rescale the analytic definition.
+
 SDF integration may be substantially more expensive and less precise than an
 available exact formula. Use the returned interval and `budgetExhausted`, rather
 than treating the midpoint as an exact value. Mesh export integrity remains a

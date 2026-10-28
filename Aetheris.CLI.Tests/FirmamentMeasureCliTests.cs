@@ -106,6 +106,10 @@ public sealed class FirmamentMeasureCliTests
         Assert.InRange(expected, volume.GetProperty("lowerBoundMm3").GetDouble(), volume.GetProperty("upperBoundMm3").GetDouble());
         Assert.True(volume.GetProperty("authoritative").GetBoolean());
         Assert.Equal("SdfAdaptiveOccupiedVolumeInterval", volume.GetProperty("method").GetString());
+        Assert.False(volume.GetProperty("budgetExhausted").GetBoolean());
+        Assert.InRange(volume.GetProperty("errorBoundMm3").GetDouble(), 0, 50);
+        Assert.True(volume.GetProperty("regionsVisited").GetInt32() < 100_001);
+        Assert.True(volume.GetProperty("affineCutRegions").GetInt32() > 0);
         Assert.True(root.TryGetProperty("meshComparison", out _));
     }
 }

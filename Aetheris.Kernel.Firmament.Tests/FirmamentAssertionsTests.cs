@@ -98,10 +98,27 @@ public sealed class FirmamentAssertionsTests
     {
         var built = FirmamentBuildAndExport.CompileSource(Source("sphere"));
         Assert.True(built.IsSuccess, string.Join("; ", built.Diagnostics.Select(d => d.Message)));
-        var field = new FirmamentMeasurements(built.Value).Volume(50, forceSdf: true);
+        var field = new FirmamentMeasurements(built.Value).Volume(4, forceSdf: true);
         Assert.Equal("SdfAdaptiveOccupiedVolumeInterval", field.Method);
         Assert.InRange(4 * Math.PI * 1000 / 3, field.LowerBoundMm3!.Value, field.UpperBoundMm3!.Value);
         Assert.True(field.RegionsVisited > 1);
+        Assert.True(field.RegionsVisited < 100_001);
+        Assert.False(field.BudgetExhausted);
+        Assert.InRange(field.ErrorBoundMm3!.Value, 0, 4);
+        Assert.True(field.AffineCutRegions > 0);
+    }
+
+    [Fact]
+    public void TightSdfAssertionGatesCompilationAndLeavesStepGeometryUnchanged()
+    {
+        var source = Source("sphere-tight");
+        var built = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(built.IsSuccess, string.Join("; ", built.Diagnostics.Select(d => d.Message)));
+        var assertion = Assert.Single(built.Value.Assertions!);
+        Assert.True(assertion.Passed);
+        Assert.Equal("SdfAdaptiveOccupiedVolumeInterval", assertion.MeasurementMethod);
+        Assert.InRange(assertion.MeasurementErrorBoundMm3!.Value, 0, 1);
+        Assert.Equal(FirmamentBuildAndExport.CompileForMeasurement(source).Value.StepText, built.Value.StepText);
     }
 
     [Fact]

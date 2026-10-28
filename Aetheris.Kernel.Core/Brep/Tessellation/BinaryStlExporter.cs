@@ -6,8 +6,25 @@ namespace Aetheris.Kernel.Core.Brep.Tessellation;
 public static class BinaryStlExporter
 {
     public static void Export(string path, TriangleMesh mesh)
+        => Export(path, mesh, out _);
+
+    public static void Export(string path, TriangleMesh mesh, out TriangleMeshTopologyReport topology)
     {
         if (!TriangleMeshValidator.TryValidateClosed(mesh, out _, out var failure)) throw new InvalidOperationException(failure);
+        // STL stores float32 coordinates and no vertex identities. Qualify the
+        // actual representation, including vertices which collapse on conversion,
+        // before creating or replacing the destination file.
+        var positions = new List<Point3D>(); var index = new Dictionary<Point3D, int>();
+        var remap = new int[mesh.Positions.Count];
+        for (var i = 0; i < mesh.Positions.Count; i++)
+        {
+            var p = mesh.Positions[i]; var stored = new Point3D((float)p.X, (float)p.Y, (float)p.Z);
+            if (!index.TryGetValue(stored, out var id)) { id = positions.Count; index.Add(stored, id); positions.Add(stored); }
+            remap[i] = id;
+        }
+        mesh = mesh with { Positions = positions, TriangleIndices = mesh.TriangleIndices.Select(i => remap[i]).ToArray() };
+        if (!TriangleMeshValidator.TryValidateClosed(mesh, out topology, out failure))
+            throw new InvalidOperationException("Binary STL float32 coordinates do not preserve a closed oriented mesh: " + failure);
         using var stream = File.Create(path);
         using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: false);
         var header = new byte[80]; Encoding.ASCII.GetBytes("Aetheris SurfaceMeshIR validated binary STL").CopyTo(header, 0); writer.Write(header);

@@ -18,6 +18,7 @@ public sealed class SurfaceMeshIrM4HexBoltTests
         var roots = document.Patches.Where(patch => patch.Support.Kind == SurfaceMeshSupportKind.Torus).ToArray();
         Assert.Equal(8, cones.Length); // six head sectors and two tip sectors
         Assert.Equal(2, roots.Length);
+        Assert.All(roots, patch => Assert.False(patch.IsAlignedWithSupport));
         Assert.All(cones.Concat(roots), patch => Assert.All(patch.Cells, cell => Assert.IsType<QuadCell>(cell)));
 
         var hyperbolas = document.SharedBoundaries.Where(boundary => boundary.CurveKind == CurveGeometryKind.Hyperbola3).ToArray();
@@ -29,7 +30,7 @@ public sealed class SurfaceMeshIrM4HexBoltTests
             Assert.Equal(2, consumers.Length);
         });
 
-        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out var topology));
+        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out var topology), topology.ToString());
         Assert.True(topology.IsWatertight);
         Assert.True(topology.IsOutwardOriented);
         Assert.Equal(0, topology.NonManifoldEdgeCount);
@@ -84,7 +85,7 @@ public sealed class SurfaceMeshIrM4HexBoltTests
         Assert.True(SurfaceMeshIrTessellator.TryBuild(fixture.Value.Body, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document));
         Assert.Equal(8, document.SharedBoundaries.Count(boundary => boundary.CurveKind == CurveGeometryKind.Hyperbola3));
         Assert.Equal(2, document.Patches.Count(patch => patch.Support.Kind == SurfaceMeshSupportKind.Torus));
-        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out _, out var topology));
+        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out _, out var topology), topology.ToString());
         Assert.True(topology.IsWatertight);
     }
 }

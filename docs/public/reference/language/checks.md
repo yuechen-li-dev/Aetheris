@@ -122,6 +122,19 @@ reported interval remains usable at its actual uncertainty. Suggested tolerances
 design's acceptance range independently. `--compare-mesh` exposes the older mass
 estimate for diagnosis, never as a substitute assertion authority.
 
+The default engineering volume path prefers admitted exact BRep formulas, then
+bounded SDF integration when the compiler retains a field qualified to represent
+the **final exported body**. `--sdf` requests that field path explicitly. A field
+for stock before holes or edits is insufficient. STEP imports without such a
+field report volume unavailable; display meshes and sampled point-cloud fields
+do not silently become volume authority.
+
+SDF integration may be substantially more expensive and less precise than an
+available exact formula. Use the returned interval and `budgetExhausted`, rather
+than treating the midpoint as an exact value. Mesh export integrity remains a
+separate check: a correct field volume does not prove that an STL is closed or
+consistently wound.
+
 For assembly values use `aetheris asm inspect assembly.firmament --json`; its
 `assemblyIr.toleranceStackups` contains nominal/minimum/maximum, requirement,
 pass/fail, and the signed contributor chain. Unlike `measure`, assembly inspection

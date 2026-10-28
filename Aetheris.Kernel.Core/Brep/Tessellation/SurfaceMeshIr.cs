@@ -325,14 +325,6 @@ public static class SurfaceMeshIrTessellator
         var hard = BuildHardEdges(document, indexById);
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("|", positions.Select(p => $"{p.X:R},{p.Y:R},{p.Z:R}") ) + ";" + string.Join(',', indices)))).ToLowerInvariant();
         mesh = new TriangleMesh(positions, normals, indices, hard, hash);
-        // A B-rep's shell orientation is authoritative.  The global sign is a
-        // final deterministic correction, never a repair/weld operation.
-        if (!TriangleMeshValidator.TryValidateClosed(mesh, out report, out _)
-            && report.SignedVolume < 0d)
-        {
-            for (var i = 0; i < indices.Count; i += 3) (indices[i + 1], indices[i + 2]) = (indices[i + 2], indices[i + 1]);
-            mesh = mesh with { TriangleIndices = indices };
-        }
         return TriangleMeshValidator.TryValidateClosed(mesh, out report, out _);
     }
 
@@ -470,6 +462,49 @@ public static class SurfaceMeshIrTessellator
         var preMetrics = ComputeMetrics(vertices, patches, sharedPlans, triangleCount: 0);
         var foreignTrimResolutions = BuildForeignTrimResolutions(body, sharedPlans, policy);
         var builtDocument = new SurfaceMeshDocument(vertices, patches, sharedPlans, preMetrics, foreignTrimResolutions);
+        // Chart traversal is not material orientation. Strip/bridge planners may
+        // walk their local chart either way; publish every cell in the resolved
+        // BRep support orientation once, before OBJ, display or STL consumes it.
+        var vertexById = vertices.ToDictionary(v => v.Id);
+        patches = patches.Select(patch =>
+        {
+            var normal = ResolvePatchNormal(builtDocument, patch, vertexById);
+            return patch with { Cells = patch.Cells.Select(cell =>
+            {
+                if (cell.VertexIds.Count < 3) return cell;
+                var ids = cell.VertexIds;
+                // Use the analytic chart's Jacobian orientation, not a chord's
+                // approximate 3D normal. Thin trimmed ears may span appreciable
+                // curvature; independently flipping those chords folds a patch.
+                var chart = ids.Select(id => patch.Support.Kind switch
+                {
+                    SurfaceMeshSupportKind.Cylinder when patch.Support.Cylinder is { } c => TryProjectPointToCylinderUv(c, vertexById[id].Position),
+                    SurfaceMeshSupportKind.Cone when patch.Support.Cone is { } c => TryProjectPointToConeUv(c, vertexById[id].Position),
+                    SurfaceMeshSupportKind.Torus when patch.Support.Torus is { } t => TryProjectPointToTorusUv(t, vertexById[id].Position),
+                    _ => null
+                }).ToArray();
+                if (chart.All(p => p is not null))
+                {
+                    var uv = UnwrapPeriodicU(chart.Select(p => p!.Value).ToArray());
+                    if (patch.Support.Kind == SurfaceMeshSupportKind.Torus)
+                        uv = UnwrapPeriodicU(uv.Select(p => (p.V, p.U)).ToArray()).Select(p => (U: p.V, V: p.U)).ToArray();
+                    var positive = SignedArea(uv) > 0;
+                    return positive != patch.IsAlignedWithSupport
+                        ? cell with { VertexIds = ids.Take(1).Concat(ids.Skip(1).Reverse()).ToArray() } : cell;
+                }
+                var origin = vertexById[ids[0]].Position;
+                var area = new Vector3D(0, 0, 0); var outward = new Vector3D(0, 0, 0);
+                for (var i = 0; i < ids.Count; i++)
+                {
+                    var point = vertexById[ids[i]].Position;
+                    area += (point - origin).Cross(vertexById[ids[(i + 1) % ids.Count]].Position - origin);
+                    outward += normal(point);
+                }
+                return area.Dot(outward) < 0
+                    ? cell with { VertexIds = ids.Take(1).Concat(ids.Skip(1).Reverse()).ToArray() } : cell;
+            }).ToArray() };
+        }).ToList();
+        builtDocument = builtDocument with { Patches = patches };
         var triangleCount = builtDocument.Patches.Sum(p => CountLoweredTriangles(builtDocument, p));
         document = builtDocument with { Metrics = ComputeMetrics(vertices, patches, sharedPlans, triangleCount) };
         return true;

@@ -20,7 +20,12 @@ public sealed record TriangleMeshTopologyReport(
     int ZeroAreaTriangleCount,
     int TriangleCount,
     int VertexCount,
-    double SignedVolume);
+    double SignedVolume)
+{
+    public int OrientationConflictEdgeCount { get; init; }
+    public bool IsConsistentlyOriented { get; init; }
+    public bool HasValidSignedVolume { get; init; }
+}
 
 public static class TriangleMeshValidator
 {
@@ -28,9 +33,11 @@ public static class TriangleMeshValidator
 
     public static bool TryValidateClosed(TriangleMesh mesh, out TriangleMeshTopologyReport report, out string? failure)
     {
-        var edges = new Dictionary<(int A, int B), int>();
+        var edges = new Dictionary<(int A, int B), (int Count, int Balance)>();
         var triangles = new HashSet<(int A, int B, int C)>();
         var zero = 0; var duplicate = 0;
+        if (mesh.Positions.Any(p => !double.IsFinite(p.X) || !double.IsFinite(p.Y) || !double.IsFinite(p.Z)))
+        { failure = "Triangle mesh contains a nonfinite position."; report = Empty(mesh); return false; }
         for (var i = 0; i < mesh.TriangleIndices.Count; i += 3)
         {
             if (i + 2 >= mesh.TriangleIndices.Count) { failure = "Triangle index buffer is not a multiple of three."; report = Empty(mesh); return false; }
@@ -41,19 +48,25 @@ public static class TriangleMeshValidator
             if (((mesh.Positions[b] - mesh.Positions[a]).Cross(mesh.Positions[c] - mesh.Positions[a])).Length <= AreaEpsilon) zero++;
             AddEdge(a, b); AddEdge(b, c); AddEdge(c, a);
         }
-        var cracks = edges.Count(pair => pair.Value == 1);
-        var nonmanifold = edges.Count(pair => pair.Value != 2);
+        var cracks = edges.Count(pair => pair.Value.Count == 1);
+        var nonmanifold = edges.Count(pair => pair.Value.Count != 2);
+        var conflicts = edges.Count(pair => pair.Value.Count == 2 && pair.Value.Balance != 0);
         var connected = IsConnected(mesh);
         var volume = SignedVolume(mesh);
-        report = new TriangleMeshTopologyReport(cracks == 0 && nonmanifold == 0 && duplicate == 0 && zero == 0 && connected && volume > 0d,
-            connected, volume > 0d, cracks, nonmanifold, duplicate, zero, mesh.TriangleIndices.Count / 3, mesh.Positions.Count, volume);
-        failure = report.IsWatertight ? null : $"Triangle mesh topology failed: cracks={cracks}, nonmanifold={nonmanifold}, duplicates={duplicate}, zeroArea={zero}, connected={connected}, signedVolume={volume:R}.";
+        var consistent = cracks == 0 && nonmanifold == 0 && conflicts == 0;
+        var validVolume = consistent && connected && duplicate == 0 && zero == 0 && double.IsFinite(volume);
+        var outward = validVolume && volume > 0d;
+        report = new TriangleMeshTopologyReport(outward, connected, outward, cracks, nonmanifold, duplicate, zero,
+            mesh.TriangleIndices.Count / 3, mesh.Positions.Count, volume)
+        { OrientationConflictEdgeCount = conflicts, IsConsistentlyOriented = consistent, HasValidSignedVolume = validVolume };
+        failure = report.IsWatertight ? null : $"Triangle mesh topology failed: cracks={cracks}, nonmanifold={nonmanifold}, orientationConflicts={conflicts}, duplicates={duplicate}, zeroArea={zero}, connected={connected}, signedVolumeValid={validVolume}, signedVolume={volume:R}.";
         return report.IsWatertight;
 
         void AddEdge(int x, int y)
         {
             var edge = x < y ? (x, y) : (y, x);
-            edges[edge] = edges.GetValueOrDefault(edge) + 1;
+            var old = edges.GetValueOrDefault(edge);
+            edges[edge] = (old.Count + 1, old.Balance + (x < y ? 1 : -1));
         }
     }
 
@@ -81,11 +94,19 @@ public static class TriangleMeshValidator
 
     private static double SignedVolume(TriangleMesh mesh)
     {
-        var volume = 0d;
+        if (mesh.Positions.Count == 0) return 0;
+        // A nearby anchor avoids cancellation for closed parts far from world
+        // zero. This is numerical conditioning, not a closure/orientation proof.
+        var origin = mesh.Positions[0];
+        var volume = 0d; var compensation = 0d;
         for (var i = 0; i < mesh.TriangleIndices.Count; i += 3)
         {
             var a = mesh.Positions[mesh.TriangleIndices[i]]; var b = mesh.Positions[mesh.TriangleIndices[i + 1]]; var c = mesh.Positions[mesh.TriangleIndices[i + 2]];
-            volume += new Vector3D(a.X, a.Y, a.Z).Dot(new Vector3D(b.X, b.Y, b.Z).Cross(new Vector3D(c.X, c.Y, c.Z))) / 6d;
+            var term = (a - origin).Dot((b - origin).Cross(c - origin)) / 6d;
+            var corrected = term - compensation;
+            var next = volume + corrected;
+            compensation = (next - volume) - corrected;
+            volume = next;
         }
         return volume;
     }

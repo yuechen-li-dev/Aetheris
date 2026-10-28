@@ -48,6 +48,27 @@ Run `aetheris <command> --help` for exact options. JSON is a public automation s
 
 Generic STEP analysis reports analytic placement and size information where it is present: planes include origin and normal; bounded cylinders and cones include axis, axial extent, and circular-boundary angular extent; spheres include center and radius; and circles include center, axis, radius, sweep, orientation, and their actual trimmed endpoints. Circular-edge bounds and section output are computed from those trims rather than from the supporting full circle. `analyze section` returns normalized closed loops with deterministic orientation and nesting metadata; `--out` is intended as compact geometry evidence, not a substitute for the JSON record.
 
+## Part mesh exports
+
+```sh
+aetheris mesh part.step --format stl --output artifacts/local/part.stl --json
+```
+
+STL export checks paired opposite-direction edge uses, connectedness, nondegenerate
+triangles and positive signed volume. It repeats those checks after converting to
+STL's float32 coordinates and merging equal stored positions. Precision collapse
+rejects before replacing the destination file. Build nearer the coordinate origin
+or use a representation retaining greater coordinate precision if float32 cannot
+preserve the part's detail.
+
+JSON includes `orientationConflictEdgeCount`, `consistentlyOriented`,
+`outwardOriented` and `meshSignedVolumeMm3`. The volume describes the stored
+triangle approximation, not the exact engineering part. `maxChordalDeviation`
+describes shared boundary sampling; it is not a bound on volume error. `watertight` reports the
+mesh checks above; it does not prove freedom from self-intersection or fidelity
+to a nominal design. OBJ reports the same directed-edge diagnostics while
+retaining the structured polygon representation.
+
 ## Assembly display meshes
 
 `aetheris mesh <assembly.firmament|assembly.firmasm> --format assembly-json --output <file.mesh.json> --json` exports shared local definition meshes and stable world-space occurrences. Failed geometry is not omitted. The default destination is `artifacts/local/mesh/<name>.mesh.json`. See [editable mechanisms](../firmament/editable-mechanisms.md) for the schema and a working consumer.

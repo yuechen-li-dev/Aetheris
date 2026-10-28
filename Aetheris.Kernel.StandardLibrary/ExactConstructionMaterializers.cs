@@ -235,8 +235,10 @@ internal static class PeriodicTorusBlendMaterializer
         var support = SurfaceGeometry.FromTorus(new TorusSurface(new Point3D(blend.End, 0d, 0d), plusX, blend.ShoulderRadius, blend.Radius, plusY));
         var supportId = context.SharedSurface(support);
         return new([
-            context.Face([[new(shoulder.Arc0, false), new(minus, false), new(cylinder.Arc0, true), new(plus, true)]], support, sharedSurfaceId: supportId),
-            context.Face([[new(shoulder.Arc1, false), new(plus, false), new(cylinder.Arc1, true), new(minus, true)]], support, sharedSurfaceId: supportId)]);
+            // This is the inner quadrant of the torus tube: material-outward
+            // normals oppose the support normal at both shoulder and shaft.
+            context.Face([[new(shoulder.Arc0, false), new(minus, false), new(cylinder.Arc0, true), new(plus, true)]], support, sameSense: false, sharedSurfaceId: supportId),
+            context.Face([[new(shoulder.Arc1, false), new(plus, false), new(cylinder.Arc1, true), new(minus, true)]], support, sameSense: false, sharedSurfaceId: supportId)]);
     }
 }
 

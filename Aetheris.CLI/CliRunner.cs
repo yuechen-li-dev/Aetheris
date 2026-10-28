@@ -1483,6 +1483,8 @@ Model CanonicalPanel {
                 vertexCount = obj.VertexCount, normalCount = obj.NormalCount, textureCoordinateCount = obj.TextureCoordinateCount,
                 finalTriangleCount = objTopology.TriangleCount, watertight,
                 crackCount = objTopology.CrackCount, nonManifoldEdgeCount = objTopology.NonManifoldEdgeCount,
+                orientationConflictEdgeCount = objTopology.OrientationConflictEdgeCount,
+                consistentlyOriented = objTopology.IsConsistentlyOriented,
                 duplicateTriangleCount = objTopology.DuplicateTriangleCount, zeroAreaTriangleCount = objTopology.ZeroAreaTriangleCount,
                 connected = objTopology.IsConnected, outwardOriented = objTopology.IsOutwardOriented,
                 foreignTrimResolutionCount = document.ForeignTrimResolutions?.Count ?? 0,
@@ -1512,11 +1514,12 @@ Model CanonicalPanel {
         }
         var loweringWatch = System.Diagnostics.Stopwatch.StartNew();
         if (!SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out var topology))
-            return WriteMeshFailure([$"SurfaceMeshIR could not lower the validated document to a watertight TriangleMesh for STL: cracks={topology.CrackCount}, nonmanifold={topology.NonManifoldEdgeCount}, duplicates={topology.DuplicateTriangleCount}, zeroArea={topology.ZeroAreaTriangleCount}, connected={topology.IsConnected}, outward={topology.IsOutwardOriented}."], json, fullInput, stdout, stderr);
-        BinaryStlExporter.Export(outputPath, mesh);
+            return WriteMeshFailure([$"SurfaceMeshIR could not lower the validated document to a watertight TriangleMesh for STL: cracks={topology.CrackCount}, nonmanifold={topology.NonManifoldEdgeCount}, orientationConflicts={topology.OrientationConflictEdgeCount}, duplicates={topology.DuplicateTriangleCount}, zeroArea={topology.ZeroAreaTriangleCount}, connected={topology.IsConnected}, outward={topology.IsOutwardOriented}."], json, fullInput, stdout, stderr);
+        try { BinaryStlExporter.Export(outputPath, mesh, out topology); }
+        catch (InvalidOperationException error) { return WriteMeshFailure([error.Message], json, fullInput, stdout, stderr); }
         loweringWatch.Stop();
         var stlBytes = new FileInfo(outputPath).Length;
-        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "mesh", success = true, pipeline = "SurfaceMeshIR", input = fullInput, outputPath, format = "binary-stl", patchCount = document.Metrics.PatchCount, cellCount = document.Metrics.CellCount, quadCount = document.Metrics.QuadCount, triangleCount = topology.TriangleCount, vertexCount = topology.VertexCount, watertight = topology.IsWatertight, maxChordalDeviation = document.Metrics.MaxChordalDeviation, normalDeviation = document.Metrics.MaxNormalDeviation, timingsMilliseconds = new { brepImport = importWatch.Elapsed.TotalMilliseconds, surfaceMeshIr = meshIrWatch.Elapsed.TotalMilliseconds, triangleLoweringAndStlSerialization = loweringWatch.Elapsed.TotalMilliseconds }, deterministicHash = mesh.DeterministicHash, bytes = stlBytes }, JsonOptions));
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "mesh", success = true, pipeline = "SurfaceMeshIR", input = fullInput, outputPath, format = "binary-stl", patchCount = document.Metrics.PatchCount, cellCount = document.Metrics.CellCount, quadCount = document.Metrics.QuadCount, triangleCount = topology.TriangleCount, vertexCount = topology.VertexCount, watertight = topology.IsWatertight, orientationConflictEdgeCount = topology.OrientationConflictEdgeCount, consistentlyOriented = topology.IsConsistentlyOriented, outwardOriented = topology.IsOutwardOriented, meshSignedVolumeMm3 = topology.HasValidSignedVolume ? (double?)topology.SignedVolume : null, maxChordalDeviation = document.Metrics.MaxChordalDeviation, normalDeviation = document.Metrics.MaxNormalDeviation, timingsMilliseconds = new { brepImport = importWatch.Elapsed.TotalMilliseconds, surfaceMeshIr = meshIrWatch.Elapsed.TotalMilliseconds, triangleLoweringAndStlSerialization = loweringWatch.Elapsed.TotalMilliseconds }, deterministicHash = mesh.DeterministicHash, bytes = stlBytes }, JsonOptions));
         else stdout.WriteLine($"SurfaceMeshIR STL: {outputPath}\nTriangles: {topology.TriangleCount}; watertight: {topology.IsWatertight}; max chordal error: {document.Metrics.MaxChordalDeviation:R}");
         return 0;
     }

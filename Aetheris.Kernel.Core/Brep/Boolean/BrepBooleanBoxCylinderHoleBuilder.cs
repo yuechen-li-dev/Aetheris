@@ -939,7 +939,9 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             bindings.AddEdgeBinding(new EdgeGeometryBinding(topology.TopCircle, topCurveId, new ParameterInterval(0d, 2d * double.Pi)));
             bindings.AddEdgeBinding(new EdgeGeometryBinding(topology.BottomCircle, bottomCurveId, new ParameterInterval(0d, 2d * double.Pi)));
             bindings.AddEdgeBinding(new EdgeGeometryBinding(topology.Seam, seamCurveId, new ParameterInterval(0d, geometryData.SeamLength)));
-            bindings.AddFaceBinding(new FaceGeometryBinding(holeFaces[i], surfaceId));
+            // Subtraction walls face into the cavity, opposite the cylinder's
+            // radial support normal. Do not rely on chart traversal to hide it.
+            bindings.AddFaceBinding(new FaceGeometryBinding(holeFaces[i], surfaceId, IsAlignedWithSurface: false));
 
             if (topology.Hole.IsBlind)
             {

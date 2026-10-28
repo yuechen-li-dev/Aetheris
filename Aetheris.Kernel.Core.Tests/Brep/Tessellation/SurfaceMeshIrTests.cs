@@ -121,7 +121,7 @@ public sealed class SurfaceMeshIrTests
         Assert.Equal(6, charts.Length);
         Assert.All(charts, chart => Assert.All(chart.Cells, cell => Assert.IsType<QuadCell>(cell)));
         Assert.Contains(charts.SelectMany(chart => chart.Cells).SelectMany(cell => cell.VertexIds).GroupBy(id => id), group => group.Count() >= 4);
-        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out var topology));
+        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out var topology), topology.ToString());
         Assert.True(topology.IsWatertight);
         Assert.All(mesh.Normals, normal => Assert.True(double.Abs(normal.Length - 1d) < 1e-9d));
     }
@@ -205,8 +205,10 @@ public sealed class SurfaceMeshIrTests
         Assert.Equal(2, rings.Length);
         Assert.All(rings, ring => Assert.Equal(ring.Samples[0].Id, ring.Samples[^1].Id));
         Assert.True(SurfaceMeshIrValidator.TryValidate(document, out var irFailure), irFailure);
-        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out var topology));
+        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out var topology), topology.ToString());
         Assert.True(topology.IsWatertight);
+        Assert.InRange(topology.SignedVolume, 40d * 30d * 4d - 36d * double.Pi - 2,
+            40d * 30d * 4d - 36d * double.Pi + 2);
         Assert.True(topology.IsOutwardOriented);
         Assert.NotEmpty(mesh.HardEdges);
         var legacy = BrepDisplayTessellator.TessellateLegacyForComparison(body.Value);
@@ -324,7 +326,7 @@ public sealed class SurfaceMeshIrTests
     {
         var body = BrepBoolean.Subtract(BrepPrimitives.CreateBox(20d, 20d, 2d).Value, BrepPrimitives.CreateCylinder(2d, 6d).Value).Value;
         Assert.True(SurfaceMeshIrTessellator.TryBuild(body, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document));
-        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out _));
+        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out var topology), topology.ToString());
         var path = Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.stl");
         try
         {

@@ -3,6 +3,7 @@ using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
@@ -42,7 +43,9 @@ public sealed class FirmamentPathFeatureTests
         Assert.Equal(name, Assert.Single(built.Value.MaterializedFeatures).Name);
         Assert.NotEmpty(built.Value.RuntimeCorrespondence!.Descendants);
         Assert.Equal(declared.GuideReference, Assert.Single(built.Value.EngineeringFeatures!).Profile);
-        Assert.All(built.Value.RuntimeCorrespondence.Descendants, d => Assert.Contains(name, d.StableId));
+        var featureFaces = built.Value.RuntimeCorrespondence.Descendants.Where(d => d.Role == SemanticTopologyRole.PathFeatureFace).ToArray();
+        Assert.NotEmpty(featureFaces);
+        Assert.All(featureFaces, d => Assert.Contains(name, d.StableId));
         var body = built.Value.RuntimeBody!;
         var points = body.Topology.Vertices.Select(v => { Assert.True(body.TryGetVertexPoint(v.Id, out var p)); return p; }).ToArray();
         Assert.Equal(0, points.Min(p => p.Z), 8); Assert.Equal(maximumZ, points.Max(p => p.Z), 8);
@@ -139,7 +142,7 @@ public sealed class FirmamentPathFeatureTests
             BrepMassProperties.Evaluate(second.Value.RuntimeBody!).SignedVolume, 6);
         var crossing = prefix.Replace("Point2(-15mm,8mm)", "Point2(-15mm,-8mm)", StringComparison.Ordinal) + a + b + "}}";
         var rejected = FirmamentBuildAndExport.CompileSource(crossing);
-        Assert.False(rejected.IsSuccess); Assert.Contains("junction-unqualified", Messages(rejected));
+        Assert.False(rejected.IsSuccess); Assert.Contains("redundant or completely buried", Messages(rejected));
     }
 
     [Fact]

@@ -206,9 +206,11 @@ public static partial class FirmamentV2Parser
         {
             var stock = solids.Values.SingleOrDefault();
             if (stock is null || stock.Box is null && stock.Cylinder is null
-                || modifies.Any(m => m.SemanticHoles.Count > 0 || m.EdgeFinishes?.Count > 0 || m.Perforations?.Count > 0)
+                || modifies.Any(m => m.Perforations?.Count > 0)
                 || declarations.Any(d => d.Type.Name.Text == "Thread"))
-                diagnostics.Add("firmament-path-feature-host: Use direct Box or Cylinder stock without Hole, EdgeFinish, Perforation or Thread operations.");
+                diagnostics.Add("firmament-path-feature-host: Use direct Box or Cylinder stock without Perforation or Thread operations.");
+            else if(stock.Cylinder is not null && modifies.Any(m=>m.SemanticHoles.Count>0||m.EdgeFinishes?.Count>0))
+                diagnostics.Add("firmament-path-feature-host: Mixed holes/finishes currently require Box stock.");
             else if (stock.Box is not null && pathFeatures.Any(f => f.Support != "+Z") || stock.Cylinder is not null
                 && pathFeatures.Any(f => f.Feature.Add || f.Support is not ("OuterWall" or "InnerWall")
                     || f.Feature.Guide.Kind != Aetheris.Kernel.Core.Brep.Features.PlanarGuideKind.Circle

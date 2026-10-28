@@ -56,6 +56,7 @@ public sealed record FirmamentStepExportResult(
     public FirmamentCirRetention? Cir { get; init; }
     public FirmamentMakerMarkReport? MakerMark { get; init; }
     public ProfileEdgeFinishEvidence? EdgeFinishPlanning { get; init; }
+    public RibPlanningReport? RibPlanning { get; init; }
 }
 
 public sealed record FirmamentMakerMarkReport(string Content, double HeightMm, double DepthMm, int CounterCount);

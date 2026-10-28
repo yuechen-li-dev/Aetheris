@@ -1460,11 +1460,14 @@ public static partial class FirmamentBuildAndExport
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2CombinedHoleEdgeFinishBody(FirmamentV2Document document)
+        => ExportV2BoxThroughHoleStock(document, allowUnfinished: false);
+
+    private static KernelResult<FirmamentStepExportResult>? ExportV2BoxThroughHoleStock(FirmamentV2Document document, bool allowUnfinished)
     {
         var modifies = document.ModifyBlocks ?? [];
         var holesDeclared = modifies.SelectMany(m => m.SemanticHoles).ToArray();
         var finishes = modifies.SelectMany(m => (m.EdgeFinishes ?? [])).ToArray();
-        if (holesDeclared.Length == 0 || finishes.Length == 0)
+        if (holesDeclared.Length == 0 || finishes.Length == 0 && !allowUnfinished)
         {
             return null;
         }
@@ -1481,16 +1484,18 @@ public static partial class FirmamentBuildAndExport
             return CombinedFailure($"CombinedFeatureHostUnsupported: Modify target '{modify.TargetSolid}' must resolve to an admitted Box for combined holes and a boundary finish.", sourceSpan: solid?.SourceSpan ?? holesDeclared[0].SourceSpan);
         }
 
-        if (finishes.Length != 1)
+        if (finishes.Length > 1 || finishes.Length == 0 && !allowUnfinished)
         {
             return CombinedFailure($"CombinedFeatureThirdFamilyUnsupported: This Box plan admits one top-boundary EdgeFinish (actual={finishes.Length}).", sourceSpan: finishes[1].SourceSpan);
         }
 
-        var finish = finishes[0];
-        if (!string.Equals(finish.FaceAxis, "+Z", StringComparison.Ordinal) || !string.Equals(finish.Target, "Boundary", StringComparison.Ordinal)
-            || finish.Kind is not ("Chamfer" or "Fillet"))
+        var finish = finishes.SingleOrDefault();
+        var finishSpan = finish?.SourceSpan ?? holesDeclared[0].SourceSpan;
+        var finishName = finish?.Name ?? "UnfinishedStock";
+        if (finish is not null && (!string.Equals(finish.FaceAxis, "+Z", StringComparison.Ordinal) || !string.Equals(finish.Target, "Boundary", StringComparison.Ordinal)
+            || finish.Kind is not ("Chamfer" or "Fillet")))
         {
-            return CombinedFailure($"CombinedFeatureSelectionLost: EdgeFinish '{finish.Name}' must select the +Z outer Boundary with Kind Chamfer or Fillet. Other combined selectors are not admitted.", sourceSpan: finish.SourceSpan);
+            return CombinedFailure($"CombinedFeatureSelectionLost: EdgeFinish '{finishName}' must select the +Z outer Boundary with Kind Chamfer or Fillet. Other combined selectors are not admitted.", sourceSpan: finishSpan);
         }
 
         var holes = FirmamentV2SemanticHoleLowering.LowerSemanticHoles(document);
@@ -1528,35 +1533,35 @@ public static partial class FirmamentBuildAndExport
 
         // Preserve the existing chamfer admission and realization unchanged. Fillet
         // admission is owned by the same bounded final plan that realizes its cylinders.
-        if (finish.Kind == "Chamfer")
+        if (finish?.Kind == "Chamfer")
         {
             var compiledFinish = AirTopFaceBoundaryChamferCompiler.Compile(new(
-                solid.Name, $"{solid.Name}.{finish.Name}", finish.Name,
+                solid.Name, $"{solid.Name}.{finishName}", finish.Name,
                 box.Size[0], box.Size[1], box.Size[2], finish.FaceAxis, finish.Target, finish.Kind, finish.Distance,
-                new AirSourceSpan(finish.SourceSpan.Start, finish.SourceSpan.Length, document.ModelName)));
+                new AirSourceSpan(finishSpan.Start, finishSpan.Length, document.ModelName)));
             if (!compiledFinish.Succeeded || compiledFinish.BRepPlan?.RealizationPlan is null)
-                return CombinedFailure("CombinedFeatureSelectionLost: post-Hole outer boundary selection did not admit the exact chamfer planner.", compiledFinish.Diagnostics, finish.SourceSpan);
+                return CombinedFailure("CombinedFeatureSelectionLost: post-Hole outer boundary selection did not admit the exact chamfer planner.", compiledFinish.Diagnostics, finishSpan);
         }
 
         var parentHolePlan = string.Join(",", holeStages.Select(s => s.Plan!.HoleBRepPlan?.StableId ?? s.Plan!.SemanticFeatureId));
         var finalPlan = new CombinedTopBoundaryEdgeFinishThroughHolePlan(
-            $"brep-plan:combined-hole-edgefinish:{solid.Name}:{finish.Name}",
+            $"brep-plan:combined-hole-edgefinish:{solid.Name}:{finishName}",
             $"brep-plan:host:{solid.Name}->[{parentHolePlan}]",
-            ["HostBRepPlan", "HoleChangedBRepPlan", "EdgeFinishChangedBRepPlan"],
-            box.Size[0], box.Size[1], host.ZMin, host.ZMax, finish.Distance, combinedHoles,
-            finish.Kind == "Fillet" ? TopBoundaryEdgeFinishKind.Fillet : TopBoundaryEdgeFinishKind.Chamfer);
+            finish is null ? ["HostBRepPlan", "HoleChangedBRepPlan"] : ["HostBRepPlan", "HoleChangedBRepPlan", "EdgeFinishChangedBRepPlan"],
+            box.Size[0], box.Size[1], host.ZMin, host.ZMax, finish?.Distance ?? 0, combinedHoles,
+            finish is null ? TopBoundaryEdgeFinishKind.None : finish.Kind == "Fillet" ? TopBoundaryEdgeFinishKind.Fillet : TopBoundaryEdgeFinishKind.Chamfer);
         var materialized = CombinedTopBoundaryEdgeFinishThroughHoleBuilder.Build(finalPlan);
         if (!materialized.IsSuccess || materialized.Value is null)
         {
-            return CombinedFailure("CombinedFeatureInteractionUnsupported: the combined Hole and EdgeFinish plan was rejected.", materialized.Diagnostics.Select(d => d.Message), finish.SourceSpan);
+            return CombinedFailure("CombinedFeatureInteractionUnsupported: the combined Hole and EdgeFinish plan was rejected.", materialized.Diagnostics.Select(d => d.Message), finishSpan);
         }
 
         var body = materialized.Value;
-        if (finish.Kind == "Fillet")
+        if (finish?.Kind == "Fillet")
         {
             var preflight = BrepExportPreflight.Validate(body);
             if (!preflight.IsValid)
-                return CombinedFailure("CombinedFeatureMaterializerDiverged: fillet boundary failed analytic export preflight.", preflight.Diagnostics.Select(d => d.Message), finish.SourceSpan);
+                return CombinedFailure("CombinedFeatureMaterializerDiverged: fillet boundary failed analytic export preflight.", preflight.Diagnostics.Select(d => d.Message), finishSpan);
         }
         if (!FirmamentManifoldChecker.IsManifold(body))
         {
@@ -1583,7 +1588,7 @@ public static partial class FirmamentBuildAndExport
         var finalTop = body.Topology.Faces.Single(f => f.Id.Value == 2);
         var finalBottom = body.Topology.Faces.Single(f => f.Id.Value == 1);
         // The builder emits the counterbore wall and shoulder before the shaft.
-        var wallFaceId=11;
+        var wallFaceId = finish is null ? 7 : 11;
         for (var i = 0; i < holes.Count; i++)
         {
             var source = $"hole:{holes[i].FeatureId}";
@@ -1598,9 +1603,9 @@ public static partial class FirmamentBuildAndExport
                 descendants.Add(new($"combined:{source}:countersink-wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: new FaceId(wallFaceId++), ParentStableId: holes[i].FeatureId));
             descendants.Add(new($"combined:{source}:shaft-wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: new FaceId(wallFaceId++), ParentStableId: holes[i].FeatureId));
         }
-        for (var side = 0; side < 4; side++)
-            descendants.Add(new($"combined:edgefinish:{finish.Name}:replacement:{side}", "Face", SemanticTopologyRole.EdgeFinishReplacementFace,
-                $"edgefinish:{finish.Name}", Face: new FaceId(4 + 2 * side), ParentStableId: finish.Name));
+        for (var side = 0; finish is not null && side < 4; side++)
+            descendants.Add(new($"combined:edgefinish:{finishName}:replacement:{side}", "Face", SemanticTopologyRole.EdgeFinishReplacementFace,
+                $"edgefinish:{finishName}", Face: new FaceId(4 + 2 * side), ParentStableId: finishName));
         var correspondence = new SemanticTopologyCorrespondence(solid.Name, descendants, ["HostBRepPlan", "HoleChangedBRepPlan", "EdgeFinishChangedBRepPlan", "AuthoritativeBRepPlan"]);
         if (correspondence.Descendants.Count(d => d.Role == SemanticTopologyRole.HoleEntryLoop) != holes.Count || correspondence.Descendants.Count(d => d.Role == SemanticTopologyRole.HoleExitLoop) != holes.Count)
         {
@@ -1626,7 +1631,7 @@ public static partial class FirmamentBuildAndExport
             DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-semantic-pmi", p.Name)).ToArray() ?? [],
             ConceptIr: document.ConceptIr,
             Features: featureReports,
-            Combined: report) { RuntimeBody = body, RuntimeCorrespondence = correspondence, MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "Hole", holes.Select(h => h.Name).ToArray()).Append(new FirmamentFeatureReceipt(solid.Name, "EdgeFinish", finish.Name)).ToArray() });
+            Combined: report) { RuntimeBody = body, RuntimeCorrespondence = correspondence, MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "Hole", holes.Select(h => h.Name).ToArray()).Concat(finish is null ? [] : new[] { new FirmamentFeatureReceipt(solid.Name, "EdgeFinish", finish.Name) }).ToArray() });
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportV2TopBoundaryFillet(

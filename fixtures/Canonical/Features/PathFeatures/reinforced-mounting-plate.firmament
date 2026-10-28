@@ -1,0 +1,19 @@
+Model ReinforcedMountingPlate {
+    units: mm
+    Box Plate { size: [80mm, 60mm, 6mm] }
+    Path Across { start: Point2(-25mm, 0mm); heading: 0deg; Line RunX { length: 50mm } }
+    Path Along { start: Point2(0mm, -18mm); heading: 90deg; Line RunY { length: 36mm } }
+    Modify Plate {
+        Rib<Rectangular> CrossWeb { on: +Z; path: Across; thickness: 4mm; height: 12mm; draft: 2deg }
+        Rib<Rectangular> LongWeb { on: +Z; path: Along; thickness: 4mm; height: 12mm; draft: 2deg }
+        Hole<Counterbore> MountA {
+            on: +Z; center: [-30mm, -20mm]; diameter: 5mm; end: ThroughAll
+            counterboreDiameter: 8mm; counterboreDepth: 2mm
+        }
+        Hole<Countersink> MountB {
+            on: +Z; center: [30mm, 20mm]; diameter: 5mm; end: ThroughAll
+            countersinkDiameter: 9mm; countersinkAngle: 90deg
+        }
+        EdgeFinish Rim { face: +Z; target: Boundary; kind: Fillet; radius: 1.2mm }
+    }
+}

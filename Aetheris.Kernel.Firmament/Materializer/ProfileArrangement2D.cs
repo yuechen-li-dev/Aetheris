@@ -414,7 +414,7 @@ public static class ProfileArrangementBuilder
                 .Select(x => x.Source.StableId).Distinct().OrderBy(x => x, StringComparer.Ordinal).ToArray()));
         }
         if (inner.Any(loop => !result.Any(region => PointInProfile(region.Outer, Ends(loop.Fragments[0].Geometry).Start) == ArrangementPointLocation.Inside)))
-            diagnostics.Add($"arrangement-rejected:inner-loop-not-nested:context={context}");
+            diagnostics.Add($"arrangement-rejected:inner-loop-not-nested:context={context}:points={string.Join(";", inner.Select(loop => Ends(loop.Fragments[0].Geometry).Start))}");
         return result;
     }
 
@@ -628,6 +628,12 @@ public static class ProfileArrangementBuilder
                 : radialDistance < 0 ? ArrangementPointLocation.Inside : ArrangementPointLocation.Outside;
         }
         if (curves.Any(curve => OnCurve(curve, point, out _))) return ArrangementPointLocation.OnBoundary;
+        // Shared arc/line endpoints can differ by roundoff. Choose a nearby ray
+        // away from endpoint Y values only for mixed analytic loops, after the
+        // boundary test. The shift stays below the classification tolerance.
+        if (curves.Any(c => c is LineArcCircularArc2D)
+            && curves.SelectMany(c => new[] { Ends(c).Start.Y, Ends(c).End.Y }).Any(y => Math.Abs(y - point.Y) <= Tol))
+            point = (point.X, point.Y + Tol / 4);
         // A horizontal ray to +X; half-open endpoint ownership avoids ray-through-vertex double counting.
         var crossings = 0;
         foreach (var curve in curves)
@@ -639,11 +645,23 @@ public static class ProfileArrangementBuilder
         return crossings % 2 == 1 ? ArrangementPointLocation.Inside : ArrangementPointLocation.Outside;
     }
     private static int RayLine((double X, double Y) p, LineArcLineSegment2D line)
-    { var a = line.Start; var b = line.End; if ((a.Y > p.Y) == (b.Y > p.Y)) return 0; var x = a.X + (p.Y - a.Y) * (b.X - a.X) / (b.Y - a.Y); return x > p.X + Tol ? 1 : 0; }
+    {
+        var a = line.Start; var b = line.End;
+        if ((a.Y > p.Y) == (b.Y > p.Y)) return 0;
+        var x = a.X + (p.Y - a.Y) * (b.X - a.X) / (b.Y - a.Y);
+        return x > p.X + Tol ? 1 : 0;
+    }
     private static int RayArc((double X, double Y) p, LineArcCircularArc2D arc)
     {
         var dy = p.Y - arc.Center.Y; if (Math.Abs(dy) >= arc.Radius - Tol) return 0; var dx = Math.Sqrt(Math.Max(0d, arc.Radius * arc.Radius - dy * dy)); var count = 0;
-        foreach (var x in new[] { arc.Center.X - dx, arc.Center.X + dx }) if (x > p.X + Tol && OnCurve(arc, (x, p.Y), out var t) && t > Tol && t <= 1d + Tol) count++;
+        foreach (var x in new[] { arc.Center.X - dx, arc.Center.X + dx })
+        {
+            if (x <= p.X + Tol || !OnCurve(arc, (x, p.Y), out var t)) continue;
+            // Match RayLine's half-open Y ownership. Always excluding the start
+            // and including the end miscounts a ray through an arc/line junction.
+            var rising = arc.SweepAngleRadians * (x - arc.Center.X);
+            if (t <= 1e-12 ? rising > 0 : t >= 1d - 1e-12 ? rising < 0 : true) count++;
+        }
         return count;
     }
     private static string GeometryKey(LineArcProfileCurve2D curve)

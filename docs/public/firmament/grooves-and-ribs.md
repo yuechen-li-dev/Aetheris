@@ -52,6 +52,29 @@ ends. Overall length is guide length plus thickness at the relevant height.
 An [arc rib](../../../fixtures/Canonical/Features/PathFeatures/arc-rib.firmament)
 uses exact conical sides when drafted.
 
+## Rib junctions and mixed features
+
+Separate named ribs may meet as T, L or X junctions. Their footprints are
+united into one material boundary; internal overlapping walls are removed.
+Zero-draft line, arc and circular ribs may have different heights. Drafted
+junctions currently require straight Flat-ended ribs of one common height.
+The compiler proves the boundary stays affine through every possible section
+event; topology-changing taper rejects rather than emitting an approximate loft.
+
+The complete [reinforced mounting plate](../../../fixtures/Canonical/Features/PathFeatures/reinforced-mounting-plate.firmament)
+combines two crossing drafted ribs, counterbored and countersunk through holes,
+and a top perimeter fillet. Top-entry `ThroughAll` holes and one `+Z` perimeter
+Fillet or Chamfer reuse the ordinary stock feature builders. Rib and groove
+footprints must clear the holes' largest entry diameter and the perimeter finish.
+The holes do not require a perimeter finish. Noninteracting grooves may share the same stock. A hole crossing a rib, or a
+groove crossing another path feature, is explicitly rejected.
+
+Build JSON exposes `ribPlanning`: the selected construction, candidate admission
+and utility, and checked section intervals. Existing isolated constructions are
+preferred to preserve their geometry. A completely buried/redundant named rib
+is rejected because no independent feature boundary survives. Feature order does
+not change a junction network's generated geometry or semantic names.
+
 ## Plate channels and circular face grooves
 
 [plate-channels.firmament](../../../fixtures/Canonical/Features/PathFeatures/plate-channels.firmament)
@@ -117,13 +140,14 @@ requirements; a groove is not an automatic seal-design approval.
   top-open `Cylinder<Hollow>`, with no bottom blend. Cylindrical ribs,
   axial/helical cylinder channels and arbitrary surface paths reject.
 - Open arcs require Flat ends and a positive sweep of at most 180 degrees.
-  Compound Paths, corners, branch networks and arbitrary sections reject.
-- Planar footprints must remain strictly inside the support. Multiple features
-  require disjoint XY bounding boxes, a conservative admission rule: some
-  nonintersecting nested or diagonal arrangements are therefore rejected too.
+  Compound Paths and arbitrary sections reject; junctions use separate named ribs.
+- Planar footprints must remain strictly inside the support. Rib networks use
+  exact line/arc arrangements. Grooves remain separate; their interactions reject.
+  Groove-only sets retain conservative disjoint XY envelope admission.
   Cylindrical groove axial envelopes must be disjoint.
-- Combining these features with Hole, EdgeFinish, Perforation or Thread in the
-  same body is not yet admitted. No requested operation is silently dropped.
+- Box ribs/channels may combine with the bounded holes and perimeter finish
+  described above. Perforation, Thread and mixed cylindrical-groove operations
+  remain unsupported. No requested operation is silently dropped.
 - A rib top may not collapse under draft; a groove must leave positive material.
   No base fillet, molding-release certification or automatic rib placement is
   implied. Existing PlasticShell AutoRib retains its separate qualified limits.

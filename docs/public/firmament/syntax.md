@@ -40,5 +40,5 @@ Model Plate {
 | Interfaces, mates, datums, motion | [Assemblies and motion](../reference/language/assemblies-and-motion.md) |
 | `Assert`, `measure`, stack-ups | [Checks and measurement](../reference/language/checks.md) |
 | Explicit GD&T, datum precedence, metric PMI passthrough | [Semantic PMI](pmi.md) |
-| Named channels, seal grooves and drafted manual ribs | [Grooves and ribs](grooves-and-ribs.md) |
+| Named channels, seal grooves, rib junctions and mixed stock features | [Grooves and ribs](grooves-and-ribs.md) |
 | Older V1 forms | [Reading older source](../reference/language/compatibility.md) |

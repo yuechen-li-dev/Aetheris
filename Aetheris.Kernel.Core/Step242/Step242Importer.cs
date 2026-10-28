@@ -2250,7 +2250,7 @@ public static class Step242Importer
             {
                 if (LoopsOverlap(innerLoops[i], innerLoops[j], containmentTolerance))
                 {
-                    return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Inner loops overlap or are nested.", "Importer.LoopRole.InnerOverlap");
+                    return LoopRoleFailure<IReadOnlyList<LoopBuildData>>($"Inner loops {innerLoops[i].Loop.LoopId.Value} and {innerLoops[j].Loop.LoopId.Value} overlap or are nested.", "Importer.LoopRole.InnerOverlap");
                 }
             }
         }

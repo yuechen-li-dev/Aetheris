@@ -214,3 +214,6 @@ looks plausible is never evidence that everything you asked for was built.
   is never promoted to a complete hole. `importTolerance` controls how imported
   geometry is qualified and has nothing to do with a manufacturing `tol`. See
   [imported through-hole revisions](../../firmament/imported-feature-recognition.md).
+
+Manual rib junctions and their admitted combinations with holes and perimeter
+finishes are described in [Grooves and ribs](../../firmament/grooves-and-ribs.md#rib-junctions-and-mixed-features).

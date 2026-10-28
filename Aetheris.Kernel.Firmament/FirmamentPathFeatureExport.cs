@@ -13,18 +13,11 @@ public static partial class FirmamentBuildAndExport
     private static KernelResult<FirmamentStepExportResult> ExportPathFeatures(FirmamentV2Document document)
     {
         var stock = document.Solid;
-        KernelResult<PathFeatureBody> built; double height;
-        if (stock.Box is { } box)
-        {
-            height = box.Size[2];
-            built = BrepPlanarPathFeature.BuildBox(box.Size[0], box.Size[1], height, document.PathFeatures.Select(f => f.Feature).ToArray());
-        }
-        else
-        {
-            var cylinder = stock.Cylinder!; height = cylinder.Height;
-            built = BrepCircumferentialGroove.BuildCylinder(cylinder.Radius, height, document.PathFeatures.Select(f =>
-                new CircumferentialGroove(f.Feature.Name, f.Feature.Section, f.Feature.Width, f.Feature.Extent, f.Station - height / 2, f.Support == "InnerWall")).ToArray(), stock.Hollow?.WallThickness);
-        }
+        if(stock.Box is not null)return ExportBoxPathNetwork(document);
+        var cylinder = stock.Cylinder!;
+        var height = cylinder.Height;
+        var built = BrepCircumferentialGroove.BuildCylinder(cylinder.Radius, height, document.PathFeatures.Select(f =>
+            new CircumferentialGroove(f.Feature.Name, f.Feature.Section, f.Feature.Width, f.Feature.Extent, f.Station - height / 2, f.Support == "InnerWall")).ToArray(), stock.Hollow?.WallThickness);
         if (!built.IsSuccess)
             return KernelResult<FirmamentStepExportResult>.Failure(built.Diagnostics.Select(d =>
             {

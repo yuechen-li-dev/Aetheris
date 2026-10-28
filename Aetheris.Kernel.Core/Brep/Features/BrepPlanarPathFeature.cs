@@ -16,43 +16,76 @@ public sealed record PlanarPathFeature(string Name, bool Add, PathSectionKind Se
     double Width, double Extent, double DraftDegrees = 0, bool RoundEnds = false);
 public sealed record PathFeatureBody(BrepBody Body, IReadOnlyDictionary<string, IReadOnlyList<FaceId>> Faces,
     double MaterialVolumeDelta);
+public sealed record PlanarBandSpan(ProfilePoint2D Start, ProfilePoint2D End, ProfilePoint2D Center,
+    double Radius, double StartAngle, double Sweep);
 
 /// <summary>Analytic local bands on a Box top. Footprints are integrated into the
 /// support face, not emitted as intersecting tool solids. Disjoint bounds are a
 /// conservative admission proof; crossing or adjoining features require a junction plan.</summary>
 public static class BrepPlanarPathFeature
 {
+    /// <summary>The same exact section used by isolated materialization, exposed
+    /// to the section-arrangement owner without duplicating offset semantics.</summary>
+    public static IReadOnlyList<IReadOnlyList<PlanarBandSpan>> Footprint(PlanarPathFeature feature, double height = 0)
+    {
+        var half = feature.Width / 2 - height * double.Tan(feature.DraftDegrees * double.Pi / 180);
+        if (!double.IsFinite(half) || half <= 0) throw new ArgumentOutOfRangeException(nameof(height));
+        return (Outline(feature.Guide, half, feature.RoundEnds) ?? throw new ArgumentException("Invalid guide."))
+            .Select(loop => (IReadOnlyList<PlanarBandSpan>)loop.Select(e =>
+                new PlanarBandSpan(e.Start, e.End, new(e.Cx,e.Cy), e.Radius, e.Angle, e.Sweep)).ToArray()).ToArray();
+    }
+
+    public static KernelResult<bool> ValidateFeature(PlanarPathFeature f, double z)
+    {
+            if (!double.IsFinite(f.Width + f.Extent + f.DraftDegrees) || f.Width <= 0 || f.Extent <= 0 || f.DraftDegrees < 0 || f.DraftDegrees >= 89)
+                return Invalid("dimensions", $"{f.Name}: width/height/depth must be positive; draft must be in [0deg,89deg).");
+            if (!Enum.IsDefined(f.Guide.Kind) || !Enum.IsDefined(f.Section)
+                || !double.IsFinite(f.Guide.Start.X + f.Guide.Start.Y + f.Guide.End.X + f.Guide.End.Y + f.Guide.Center.X + f.Guide.Center.Y))
+                return Invalid("guide", $"{f.Name}: guide kind and coordinates must be finite and admitted.");
+            if (f.Section == PathSectionKind.Semicircular && (f.Add || double.Abs(f.Extent - f.Width / 2) > 1e-9 || f.DraftDegrees != 0))
+                return Invalid("section", $"{f.Name}: semicircular removal requires depth = radius = width/2 and no draft.");
+            if (!f.Add && (f.Extent >= z - 1e-8 || f.DraftDegrees != 0)) return Invalid("floor", $"{f.Name}: groove must leave a positive floor; groove draft is unsupported.");
+            if (f.Guide.Kind != PlanarGuideKind.Line && (f.Guide.Radius <= f.Width / 2 + 1e-8
+                || !double.IsFinite(f.Guide.Radius + f.Guide.StartAngle + f.Guide.Sweep)))
+                return Invalid("offset-collapse", $"{f.Name}: guide radius must exceed half the section width.");
+            if (f.Guide.Kind == PlanarGuideKind.Arc && (f.RoundEnds || f.Guide.Sweep <= 0 || f.Guide.Sweep > double.Pi))
+                return Invalid("arc", $"{f.Name}: open arcs currently require Flat ends and a positive sweep no greater than 180deg.");
+            if (f.Guide.Kind == PlanarGuideKind.Circle && f.RoundEnds) return Invalid("ends", $"{f.Name}: closed guides have no end caps.");
+            var widthTop = f.Width - 2 * f.Extent * double.Tan(f.DraftDegrees * double.Pi / 180);
+            if (widthTop <= 1e-8) return Invalid("draft-collapse", $"{f.Name}: draft collapses the rib top; reduce draft/height or increase thickness.");
+        return KernelResult<bool>.Success(true);
+
+        static KernelResult<bool> Invalid(string code, string message) =>
+            KernelResult<bool>.Failure(Failure(code, message).Diagnostics);
+    }
+
     public static KernelResult<PathFeatureBody> BuildBox(double x, double y, double z, IReadOnlyList<PlanarPathFeature> features)
     {
         if (!double.IsFinite(x + y + z) || x <= 0 || y <= 0 || z <= 0) return Failure("dimensions", "Box dimensions must be finite and positive.");
         var source = BrepPrimitives.CreateBox(x, y, z);
         if (!source.IsSuccess) return KernelResult<PathFeatureBody>.Failure(source.Diagnostics);
-        var p = new AnalyticPatchBuilder(source.Value);
-        var support = source.Value.Topology.Faces.Single(f => source.Value.Geometry.GetSurface(source.Value.Bindings.GetFaceBinding(f.Id).SurfaceGeometryId).Plane is { } plane
-            && plane.Normal.Z > .9);
+        return BuildOnBox(source.Value, x, y, z, features);
+    }
+
+    /// <summary>Host is in the centered Box frame. The caller proves that the
+    /// footprints clear existing cavities and the retained outer support boundary.</summary>
+    public static KernelResult<PathFeatureBody> BuildOnBox(BrepBody source, double x, double y, double z, IReadOnlyList<PlanarPathFeature> features)
+    {
+        var p = new AnalyticPatchBuilder(source);
+        var support = source.Topology.Faces.Where(f => source.Geometry.GetSurface(source.Bindings.GetFaceBinding(f.Id).SurfaceGeometryId).Plane is { } plane
+            && plane.Normal.Z > .9 && double.Abs(plane.Origin.Z - z / 2) < 1e-8)
+            .OrderByDescending(f => f.LoopIds.SelectMany(l => source.Topology.GetLoop(l).CoedgeIds).Count()).FirstOrDefault();
+        if (support is null) return Failure("support", "No retained planar Box top is available.");
         var supportLoops = support.LoopIds.ToList();
         var footprints = new List<(double MinX, double MinY, double MaxX, double MaxY)>();
         var faces = new Dictionary<string, IReadOnlyList<FaceId>>(StringComparer.Ordinal);
         double volume = 0;
         foreach (var f in features)
         {
-            if (!double.IsFinite(f.Width + f.Extent + f.DraftDegrees) || f.Width <= 0 || f.Extent <= 0 || f.DraftDegrees < 0 || f.DraftDegrees >= 89)
-                return Failure("dimensions", $"{f.Name}: width/height/depth must be positive; draft must be in [0deg,89deg).");
-            if (!Enum.IsDefined(f.Guide.Kind) || !Enum.IsDefined(f.Section)
-                || !double.IsFinite(f.Guide.Start.X + f.Guide.Start.Y + f.Guide.End.X + f.Guide.End.Y + f.Guide.Center.X + f.Guide.Center.Y))
-                return Failure("guide", $"{f.Name}: guide kind and coordinates must be finite and admitted.");
+            var admitted = ValidateFeature(f, z);
+            if (!admitted.IsSuccess) return KernelResult<PathFeatureBody>.Failure(admitted.Diagnostics);
             if (faces.ContainsKey(f.Name)) return Failure("duplicate", $"Duplicate path feature '{f.Name}'.");
-            if (f.Section == PathSectionKind.Semicircular && (f.Add || double.Abs(f.Extent - f.Width / 2) > 1e-9 || f.DraftDegrees != 0))
-                return Failure("section", $"{f.Name}: semicircular removal requires depth = radius = width/2 and no draft.");
-            if (!f.Add && (f.Extent >= z - 1e-8 || f.DraftDegrees != 0)) return Failure("floor", $"{f.Name}: groove must leave a positive floor; groove draft is unsupported.");
-            if (f.Guide.Kind != PlanarGuideKind.Line && (f.Guide.Radius <= f.Width / 2 + 1e-8
-                || !double.IsFinite(f.Guide.Radius + f.Guide.StartAngle + f.Guide.Sweep)))
-                return Failure("offset-collapse", $"{f.Name}: guide radius must exceed half the section width.");
-            if (f.Guide.Kind == PlanarGuideKind.Arc && (f.RoundEnds || f.Guide.Sweep <= 0 || f.Guide.Sweep > double.Pi))
-                return Failure("arc", $"{f.Name}: open arcs currently require Flat ends and a positive sweep no greater than 180deg.");
-            if (f.Guide.Kind == PlanarGuideKind.Circle && f.RoundEnds) return Failure("ends", $"{f.Name}: closed guides have no end caps.");
             var widthTop = f.Width - 2 * f.Extent * double.Tan(f.DraftDegrees * double.Pi / 180);
-            if (widthTop <= 1e-8) return Failure("draft-collapse", $"{f.Name}: draft collapses the rib top; reduce draft/height or increase thickness.");
             var baseOutline = Outline(f.Guide, f.Width / 2, f.RoundEnds);
             if (baseOutline is null) return Failure("guide", $"{f.Name}: line guide must have nonzero finite length.");
             var bounds = Bounds(baseOutline);

@@ -33,7 +33,7 @@ public sealed record CombinedTopBoundaryEdgeFinishThroughHole(
         + (IsCountersink ? System.Math.PI / 3d * (EntryRadius - Radius) * (EntryRadius + 2d * Radius) * ReliefDepth!.Value : 0d);
 }
 
-public enum TopBoundaryEdgeFinishKind { Chamfer, Fillet }
+public enum TopBoundaryEdgeFinishKind { Chamfer, Fillet, None }
 
 public sealed record CombinedTopBoundaryEdgeFinishThroughHolePlan(
     string PlanId,
@@ -107,12 +107,13 @@ public static class CombinedTopBoundaryEdgeFinishThroughHoleBuilder
         Point3D[] top)
     {
         var b = new TopologyBuilder();
-        var vertices = Enumerable.Range(0, 12).Select(_ => b.AddVertex()).ToArray();
+        var unfinished = plan.FinishKind == TopBoundaryEdgeFinishKind.None;
+        var vertices = Enumerable.Range(0, unfinished ? 8 : 12).Select(_ => b.AddVertex()).ToArray();
         var bottomEdges = Ring(b, vertices, 0);
         var shoulderEdges = Ring(b, vertices, 4);
-        var topEdges = Ring(b, vertices, 8);
+        var topEdges = unfinished ? shoulderEdges : Ring(b, vertices, 8);
         var lowerEdges = Enumerable.Range(0, 4).Select(i => b.AddEdge(vertices[i], vertices[4 + i])).ToArray();
-        var finishEdges = Enumerable.Range(0, 4).Select(i => b.AddEdge(vertices[4 + i], vertices[8 + i])).ToArray();
+        var finishEdges = Enumerable.Range(0, unfinished ? 0 : 4).Select(i => b.AddEdge(vertices[4 + i], vertices[8 + i])).ToArray();
         var holes = plan.Holes.Select(h =>
         {
             // The periodic circle and its longitudinal seam share endpoint identities.
@@ -147,12 +148,12 @@ public static class CombinedTopBoundaryEdgeFinishThroughHoleBuilder
         var bottomFace = b.AddFace(bottomLoops);
         var topFace = b.AddFace(topLoops);
         var lowerFaces = new FaceId[4];
-        var finishFaces = new FaceId[4];
+        var finishFaces = new FaceId[unfinished ? 0 : 4];
         for (var i = 0; i < 4; i++)
         {
             var next = (i + 1) % 4;
             lowerFaces[i] = b.AddFace([AddLoop(b, [Forward(bottomEdges[i]), Forward(lowerEdges[next]), Reversed(shoulderEdges[i]), Reversed(lowerEdges[i])])]);
-            finishFaces[i] = b.AddFace([AddLoop(b, [Forward(shoulderEdges[i]), Forward(finishEdges[next]), Reversed(topEdges[i]), Reversed(finishEdges[i])])]);
+            if (!unfinished) finishFaces[i] = b.AddFace([AddLoop(b, [Forward(shoulderEdges[i]), Forward(finishEdges[next]), Reversed(topEdges[i]), Reversed(finishEdges[i])])]);
         }
         var holeFaces = new List<(HoleTopology Hole, FaceId Face, double Radius, double ZMin, double ZMax, bool Cone)>();
         var shoulderFaces = new List<(HoleTopology Hole, FaceId Face)>();
@@ -186,10 +187,10 @@ public static class CombinedTopBoundaryEdgeFinishThroughHoleBuilder
 
         var geometry = new BrepGeometryStore();
         var bindings = new BrepBindingModel();
-        var points = bottom.Concat(shoulder).Concat(top).ToArray();
+        var points = (unfinished ? bottom.Concat(shoulder) : bottom.Concat(shoulder).Concat(top)).ToArray();
         var vertexPoints = vertices.Select((id, index) => new KeyValuePair<VertexId, Point3D>(id, points[index])).ToDictionary(x => x.Key, x => x.Value);
         var edgeCurve = 1;
-        foreach (var edge in bottomEdges.Concat(shoulderEdges).Concat(topEdges).Concat(lowerEdges).Concat(finishEdges))
+        foreach (var edge in bottomEdges.Concat(shoulderEdges).Concat(topEdges).Concat(lowerEdges).Concat(finishEdges).Distinct())
         {
             var start = vertexPoints[b.Model.Edges.Single(e => e.Id == edge).StartVertexId];
             var end = vertexPoints[b.Model.Edges.Single(e => e.Id == edge).EndVertexId];
@@ -224,6 +225,7 @@ public static class CombinedTopBoundaryEdgeFinishThroughHoleBuilder
         {
             var next = (i + 1) % 4;
             BindPlane(lowerFaces[i], bottom[i], bottom[next] - bottom[i], shoulder[i] - bottom[i]);
+            if (unfinished) continue;
             if (plan.FinishKind == TopBoundaryEdgeFinishKind.Chamfer)
                 BindPlane(finishFaces[i], shoulder[i], shoulder[next] - shoulder[i], top[i] - shoulder[i]);
             else
@@ -304,7 +306,7 @@ public static class CombinedTopBoundaryEdgeFinishThroughHoleBuilder
     {
         if (!Enum.IsDefined(plan.FinishKind)) return Failure("CombinedFeaturePlanChainInvalid: unknown top-boundary finish kind.");
         if (!double.IsFinite(plan.Width) || !double.IsFinite(plan.Depth) || !double.IsFinite(plan.ZMin) || !double.IsFinite(plan.ZMax) || !double.IsFinite(plan.FinishSize)
-            || plan.Width <= Tol || plan.Depth <= Tol || plan.ZMax - plan.ZMin <= Tol || plan.FinishSize <= Tol
+            || plan.Width <= Tol || plan.Depth <= Tol || plan.ZMax - plan.ZMin <= Tol || (plan.FinishKind == TopBoundaryEdgeFinishKind.None ? plan.FinishSize != 0 : plan.FinishSize <= Tol)
             || 2d * plan.FinishSize >= plan.Width - Tol || 2d * plan.FinishSize >= plan.Depth - Tol || plan.FinishSize >= plan.ZMax - plan.ZMin - Tol)
             return Failure("CombinedFeaturePlanChainInvalid: bounded top-boundary finish size must be positive, smaller than the stock height and smaller than half its width and depth.");
         foreach (var hole in plan.Holes)

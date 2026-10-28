@@ -611,6 +611,7 @@ public static class CliRunner
                 engineeringFeatures = build.Value.Export.EngineeringFeatures,
                 materializedFeatures = build.Value.Export.MaterializedFeatures,
                 edgeFinishPlanning = build.Value.Export.EdgeFinishPlanning,
+                ribPlanning = build.Value.Export.RibPlanning,
                 patterns = build.Value.Export.Patterns,
                 perforation = build.Value.Export.Perforation,
                 structural = build.Value.Export.Structural,

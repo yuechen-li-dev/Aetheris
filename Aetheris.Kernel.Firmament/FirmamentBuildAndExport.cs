@@ -526,7 +526,8 @@ public static partial class FirmamentBuildAndExport
                 var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
                 foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
                 foreach (var hole in stack.Feature.CountersinkHoles ?? []) features[hole.Name] = hole.StableId;
-                semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], stack.Feature.Name, features, emitted.Correspondence, completedBody).ToArray();
+                semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], stack.Feature.Name, features, emitted.Correspondence, completedBody,
+                    ComposeOperationCapFaces(stack.Feature, completedBody, emitted.Correspondence)).ToArray();
             }
             var step = Step242Exporter.ExportBody(completedBody, semanticPmi);
             if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
@@ -1195,7 +1196,8 @@ public static partial class FirmamentBuildAndExport
                 var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
                 foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
                 foreach (var hole in stack.Feature.CountersinkHoles ?? []) features[hole.Name] = hole.StableId;
-                semanticPmi = BuildV2SemanticPmi(canonicalDocument, [], stack.Feature.Name, features, plannedEmission.Correspondence, plannedEmission.Body).ToArray();
+                semanticPmi = BuildV2SemanticPmi(canonicalDocument, [], stack.Feature.Name, features, plannedEmission.Correspondence, plannedEmission.Body,
+                    ComposeOperationCapFaces(stack.Feature, plannedEmission.Body, plannedEmission.Correspondence)).ToArray();
             }
             var plannedStep = Step242Exporter.ExportBody(plannedEmission.Body, semanticPmi, new Step242ExportOptions { ProductName = target.StableId, ApplicationName = "Aetheris.Firmament.ComposedProfileBoundaryChamfer.M3", BrepExportPreflightMode = BrepExportPreflightMode.Enforce, BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute });
             if (!plannedStep.IsSuccess || plannedStep.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(plannedStep.Diagnostics);
@@ -2866,7 +2868,7 @@ public static partial class FirmamentBuildAndExport
     // owner. A supported record kind does not imply every requested field exports.
     internal static KernelDiagnostic? V2PmiExportRejection(FirmamentV2PmiKind kind, string name, FirmamentV2BoundPmiRecord? bound)
     {
-        var message = kind is not (FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter) && Step242GeometricToleranceKinds.Find(kind.ToString()) is null
+        var message = kind is not (FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Note) && Step242GeometricToleranceKinds.Find(kind.ToString()) is null
             ? $"firmament-v2-pmi-export-deferred: AP242 export for PMI record '{name}' ({kind.ToString().ToLowerInvariant()}) is deferred; use Datum, HoleDiameter or an admitted geometric control."
             : kind == FirmamentV2PmiKind.HoleDiameter && bound?.DatumRefs.Count > 0
                 ? $"firmament-v2-pmi-datum-reference-export-unsupported: HoleDiameter '{name}' requests datum references that native size export cannot preserve. Export Datum separately; datum-referenced geometric controls require a qualified PMI capability."
@@ -2880,7 +2882,8 @@ public static partial class FirmamentBuildAndExport
         string targetSolid,
         IReadOnlyDictionary<string, string>? explicitFeatureIds = null,
         SemanticTopologyCorrespondence? correspondence = null,
-        BrepBody? body = null)
+        BrepBody? body = null,
+        IReadOnlyDictionary<string, int[]>? namedFaces = null)
     {
         if (document.Pmi is null || document.Pmi.Count == 0)
         {
@@ -2928,24 +2931,47 @@ public static partial class FirmamentBuildAndExport
                     result.Add(new Step242SemanticPmiHole($"{targetSolid}.{pmi.Name}", pmi.Value.Value, null, $"imported_canonical_face:{importedTarget}", tolerancePlus, toleranceMinus) { Name = pmi.Name });
                 }
             }
+            else if (pmi.Kind == FirmamentV2PmiKind.Note && boundPmiByName.TryGetValue(pmi.Name, out var note) && note.Text is { } text)
+            {
+                result.Add(new Step242SemanticPmiNote(pmi.Name, targetSolid, text));
+            }
             else if (pmi.Kind == FirmamentV2PmiKind.DatumPlane)
             {
                 var selector = TryResolveV2RecognizedRegionTarget(document, targetBinding, pmi.Target, out var recognizedDatumTarget) ? recognizedDatumTarget : ResolveV2DatumTarget(targetBinding, pmi.Target);
-                result.Add(new Step242SemanticPmiDatum(targetSolid, "plane", pmi.Name, selector));
+                result.Add(new Step242SemanticPmiDatum(targetSolid, "plane", pmi.Name, selector)
+                    { GeometricFaceIds = namedFaces?.GetValueOrDefault(pmi.Target) ?? [], RequiresFaceAssociation = true });
             }
             else if (Step242GeometricToleranceKinds.Find(pmi.Kind.ToString()) is { } control && boundPmiByName.TryGetValue(pmi.Name, out var boundControl))
             {
                 var feature = holeByName.TryGetValue(pmi.Target, out var hole) ? hole.FeatureId
                     : boundControl.HoleWallTarget is { } wall && holeByName.TryGetValue(wall.HoleName, out var wallFeature) ? wallFeature.FeatureId
                     : explicitFeatureIds?.GetValueOrDefault(pmi.Target) ?? $"{targetSolid}.{pmi.Name}";
-                var faces = body is not null && FirmamentSelectorResolver.ResolveUniquePlanarFace(body, ResolveV2DatumTarget(targetBinding, pmi.Target)) is { Count: > 0 } planarFaces
+                var faces = namedFaces?.GetValueOrDefault(pmi.Target) is { } named ? named
+                    : body is not null && FirmamentSelectorResolver.ResolveSupportPlaneFaces(body, ResolveV2DatumTarget(targetBinding, pmi.Target)) is { Count: > 0 } planarFaces
                     ? planarFaces.Select(id => id.Value).ToArray() : Array.Empty<int>();
                 result.Add(new Step242SemanticPmiGeometricTolerance(feature, pmi.Name, control.Name, boundControl.ControlTolerance!.NumericValue!.Value, boundControl.DatumRefs)
                     { Modifiers = boundControl.Modifiers, ZoneForm = boundControl.ZoneForm, GeometricFaceIds = faces });
             }
         }
 
-        return result.Select(item => item with
+        // A hole-list target associates one requirement with the shaft walls of every listed hole.
+        int[] ShaftFaces(string featureId) => (correspondence?.Descendants ?? [])
+            .Where(d => d.Face.HasValue && (d.SourceStableId == featureId || d.ParentStableId == featureId)
+                && d.Role is not (SemanticTopologyRole.HoleCounterboreWallFace or SemanticTopologyRole.HoleCountersinkWallFace))
+            .Select(d => d.Face!.Value.Value).ToArray();
+        var holeSets = boundPmiByName.Values.Where(b => b.Targets.Count > 1 && b.Kind != FirmamentV2PmiKind.Distance)
+            .ToDictionary(b => b.Name, b =>
+            {
+                var ids = b.Targets.Select(t => holeByName.TryGetValue(t, out var h) ? h.FeatureId : explicitFeatureIds?.GetValueOrDefault(t)).ToArray();
+                return ids.Any(id => id is null) ? [-1] : ids.SelectMany(id => ShaftFaces(id!)).Distinct().Order().ToArray();
+            }, StringComparer.Ordinal);
+        return result.Select(item => holeSets.TryGetValue(item switch { Step242SemanticPmiHole h => h.Name ?? "", Step242SemanticPmiGeometricTolerance g => g.Name, _ => "" }, out var setFaces)
+            ? item switch
+            {
+                Step242SemanticPmiHole h => h with { GeometricFaceIds = setFaces, Quantity = boundPmiByName[h.Name!].Targets.Count },
+                Step242SemanticPmiGeometricTolerance g => g with { GeometricFaceIds = setFaces, Quantity = boundPmiByName[g.Name].Targets.Count },
+                _ => item
+            } : item).Select(item => item with
         {
             // Imported entity numbers are provenance, not emitted entity numbers or face ordinals.
             // The importer owns the source-entity -> BRep mapping; the exporter owns the inverse
@@ -2953,7 +2979,7 @@ public static partial class FirmamentBuildAndExport
             GeometricFaceIds = importedFaces.TryGetValue(item switch
                 { Step242SemanticPmiDatum d => d.Label, Step242SemanticPmiHole h => h.Name ?? "", Step242SemanticPmiGeometricTolerance g => g.Name, _ => "" }, out var faces)
                 ? faces : item.GeometricFaceIds.Count > 0 ? item.GeometricFaceIds : item is Step242SemanticPmiDatum datum && body is not null
-                ? FirmamentSelectorResolver.ResolveUniquePlanarFace(body, datum.Target).Select(id => id.Value).ToArray()
+                ? FirmamentSelectorResolver.ResolveSupportPlaneFaces(body, datum.Target).Select(id => id.Value).ToArray()
                 : (correspondence?.Descendants ?? [])
                 .Where(descendant => descendant.Face.HasValue
                     && (string.Equals(descendant.SourceStableId, item.FeatureId, StringComparison.Ordinal)
@@ -2961,8 +2987,9 @@ public static partial class FirmamentBuildAndExport
                 // Shaft dimensions follow semantic wall ownership, not the
                 // asserted PMI number: contradictory PMI must keep its target
                 // so downstream geometry/requirement checks can diagnose it.
-                .Where(descendant => item is not Step242SemanticPmiHole
-                    || descendant.Role is not (SemanticTopologyRole.HoleCounterboreWallFace or SemanticTopologyRole.HoleCountersinkWallFace))
+                // A hole's size and geometric controls apply to its shaft; counterbore
+                // and countersink walls are separate features with their own sizes.
+                .Where(descendant => descendant.Role is not (SemanticTopologyRole.HoleCounterboreWallFace or SemanticTopologyRole.HoleCountersinkWallFace))
                 .Select(descendant => descendant.Face!.Value.Value)
                 .Distinct()
                 .Order()

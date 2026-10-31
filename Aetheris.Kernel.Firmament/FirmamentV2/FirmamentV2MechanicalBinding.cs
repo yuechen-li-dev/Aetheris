@@ -89,7 +89,7 @@ public static partial class FirmamentV2Parser
                 { SourceSpan = wholeStockFinish.Span, Stage = "Capability" }] };
         }
         if (constructions.Length > 1 && constructions.All(d => d.Type.Name.Text == "Extrude") && primitives.Length == 0)
-            return BindMechanicalExtrusionStack(model, constructions, source, diagnostics);
+            return BindMechanicalExtrusionStack(model, constructions, source, diagnostics, staticValues.Values);
         if (constructions.Length > 1 || materialConstruction && primitives.Length > 0)
             return CanonicalFailure(diagnostics, "firmament-v2-mechanical-material-owners-unsupported: Use one material body per mechanical document; use Assembly for separate parts.");
         if (constructionConsumer)
@@ -98,7 +98,7 @@ public static partial class FirmamentV2Parser
             // unused Static is data, never a reason to reject a material owner.
             var construction = constructions.Length == 1 && IsCoaxialComposition(constructions[0])
                 ? BindCoaxialComposition(model, constructions[0], source, diagnostics, staticValues.Values)
-                : BindMechanicalConstruction(source, model, diagnostics, templateInstantiations, compileTime);
+                : BindMechanicalConstruction(source, model, diagnostics, templateInstantiations, compileTime, staticValues.Values);
             return construction.Document is null ? construction : construction with
             {
                 Document = construction.Document with { Lets = staticValues.Declarations, BoundLets = staticValues.Values },
@@ -250,7 +250,7 @@ public static partial class FirmamentV2Parser
     // Multiple explicit extrusions are material requests, not alternative parser
     // hints. Bind every one into the existing section-stack engineering IR.
     private static FirmamentV2ParseResult BindMechanicalExtrusionStack(DeclarationSyntax model, IReadOnlyList<DeclarationSyntax> extrusions,
-        string source, List<string> diagnostics)
+        string source, List<string> diagnostics, IReadOnlyList<FirmamentV2BoundLet> statics)
     {
         var units = model.Body!.Statements.OfType<FieldSyntax>().Where(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Units")).ToArray();
         if (units.Length == 0 && model.Type.Name.Text != "Struct" || units.Any(f => FirmamentSyntaxValues.Reference(f.Value) != "mm")) return CanonicalFailure(diagnostics, CanonicalUnitsInvalid);
@@ -289,7 +289,7 @@ public static partial class FirmamentV2Parser
             { [name] = new(name, "Compose", new FirmamentV2AdvancedMaterialRecord("Compose")) };
         var selections = ParseCanonicalSelections(source, 0, diagnostics);
         ValidateCanonicalSelectionSources(source, selections, profiles.Keys, diagnostics);
-        var (pmi, pmiBlock, boundPmi) = ParsePmi(source, solids, [], [], [], [], diagnostics);
+        var (pmi, pmiBlock, boundPmi) = ParsePmi(source, solids, [], [], statics, [], diagnostics);
         if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
         var document = new FirmamentV2Document(name, "mm", solids.Values.ToArray(),
             Pmi: pmi, PmiBlock: pmiBlock, BoundPmi: boundPmi, Selections: selections,

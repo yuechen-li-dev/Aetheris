@@ -10,6 +10,32 @@ namespace Aetheris.Kernel.Firmament.Execution;
 
 internal static class FirmamentSelectorResolver
 {
+    /// <summary>
+    /// PMI meaning of an axis face such as <c>face(-X)</c>: every planar face lying in the body's
+    /// extreme support plane in that direction, the surface a datum simulator would contact.
+    /// Construction may split one physical face into several coplanar patches; they are returned
+    /// together. Empty when the extreme in that direction is not planar.
+    /// </summary>
+    internal static IReadOnlyList<FaceId> ResolveSupportPlaneFaces(BrepBody body, string selector)
+    {
+        var port = selector[(selector.LastIndexOf('.') + 1)..];
+        Vector3D? axis = port switch { "top_face" => new(0, 0, 1), "bottom_face" => new(0, 0, -1),
+            "plus_x_face" => new(1, 0, 0), "minus_x_face" => new(-1, 0, 0), "plus_y_face" => new(0, 1, 0), "minus_y_face" => new(0, -1, 0), _ => null };
+        if (axis is not { } a) return [];
+        var planes = body.Topology.Faces.Select(face => (face.Id, Plane: body.TryGetFaceSurfaceGeometry(face.Id, out var surface) ? surface?.Plane : null))
+            .Where(f => f.Plane is { } plane && plane.Normal.ToVector().Dot(a) > 1 - 1e-8)
+            .Select(f => (f.Id, Offset: (f.Plane!.Value.Origin - Point3D.Origin).Dot(a))).ToArray();
+        if (planes.Length == 0) return [];
+        var extreme = body.Topology.Vertices.Select(v => body.TryGetVertexPoint(v.Id, out var p) ? (p - Point3D.Origin).Dot(a) : double.NegativeInfinity)
+            .Concat(body.Topology.Edges.Select(e => body.TryGetEdgeCurveGeometry(e.Id, out var curve) && curve?.Circle3 is { } circle
+                ? (circle.Center - Point3D.Origin).Dot(a) + circle.Radius * Math.Sqrt(Math.Max(0, 1 - Math.Pow(circle.Normal.ToVector().Dot(a), 2)))
+                : double.NegativeInfinity))
+            .DefaultIfEmpty(double.NegativeInfinity).Max();
+        var support = planes.Max(p => p.Offset);
+        if (support < extreme - 1e-7) return [];
+        return planes.Where(p => Math.Abs(p.Offset - support) < 1e-7).Select(p => p.Id).ToArray();
+    }
+
     /// <summary>Resolve an existing axis-face port only when it denotes exactly one planar face.
     /// A stepped body with multiple same-facing planes remains ambiguous.</summary>
     internal static IReadOnlyList<FaceId> ResolveUniquePlanarFace(BrepBody body, string selector)

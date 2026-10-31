@@ -1243,8 +1243,11 @@ public static partial class FirmamentV2Parser
         return adapterSource[..start] + text + adapterSource[(start + extrude.Span.Length)..];
     }
 
-    private static FirmamentV2ParseResult BindMechanicalConstruction(string source, DeclarationSyntax model, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations, FirmamentCompileTimeValues? compileTime = null)
+    private static FirmamentV2ParseResult BindMechanicalConstruction(string source, DeclarationSyntax model, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations, FirmamentCompileTimeValues? compileTime = null, IReadOnlyList<FirmamentV2BoundLet>? statics = null)
     {
+        // Typed Static values are bound once by the mechanical model binder. PMI `dimension:`
+        // references them here exactly as it does on primitive stock.
+        statics ??= [];
         source = MechanicalConstructionSource(source, model, diagnostics);
         if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
         // Re-index the existing AST after local source transport; semantic binding
@@ -1298,7 +1301,8 @@ public static partial class FirmamentV2Parser
                 [feature.Name] = new FirmamentV2SolidBinding(feature.Name, "Compose", new FirmamentV2AdvancedMaterialRecord("Compose"))
             };
             var (compositionPmi, compositionPmiBlock, compositionBoundPmi) = ParsePmi(
-                source, compositionSolids, [], [], [], [], diagnostics, (feature.ShaftHoles ?? []).Select(hole => hole.Name).Concat((feature.CounterboreHoles ?? []).Select(hole => hole.Name)).Concat((feature.CountersinkHoles ?? []).Select(hole => hole.Name)));
+                source, compositionSolids, [], [], statics, [], diagnostics, (feature.ShaftHoles ?? []).Select(hole => hole.Name).Concat((feature.CounterboreHoles ?? []).Select(hole => hole.Name)).Concat((feature.CountersinkHoles ?? []).Select(hole => hole.Name)),
+                FirmamentBuildAndExport.ComposeOperationCapTargets(feature));
             // Geometry capability belongs to the source-bound edge-finish planner;
             // a curved Profile is not a syntax error. Normal validation builds it.
             if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
@@ -1344,7 +1348,7 @@ public static partial class FirmamentV2Parser
             {
                 [resolved.Name] = new FirmamentV2SolidBinding(resolved.Name, "Profile", new FirmamentV2AdvancedMaterialRecord("Profile"))
             };
-            var (profilePmi, profilePmiBlock, profileBoundPmi) = ParsePmi(source, profileSolids, [], [], [], [], diagnostics);
+            var (profilePmi, profilePmiBlock, profileBoundPmi) = ParsePmi(source, profileSolids, [], [], statics, [], diagnostics);
             // Geometry capability belongs to the source-bound edge-finish planner;
             // a curved Profile is not a syntax error. Normal validation builds it.
             if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
@@ -2365,7 +2369,8 @@ public static partial class FirmamentV2Parser
         IReadOnlyList<FirmamentV2BoundLet> boundLets,
         IReadOnlyList<FirmamentV2BoundLetRecord> boundLetRecords,
         List<string> diagnostics,
-        IEnumerable<string>? additionalHoleNames = null)
+        IEnumerable<string>? additionalHoleNames = null,
+        IEnumerable<string>? namedFaceTargets = null)
     {
         var matches = PmiHeaderRegex.Matches(source);
         if (matches.Count == 0) return ([], null, null);
@@ -2395,7 +2400,7 @@ public static partial class FirmamentV2Parser
         var recordMap = boundLetRecords.ToDictionary(r => r.Name, StringComparer.Ordinal);
         var holeNames = modifyBlocks.SelectMany(m => m.SemanticHoles).Select(h => h.Name).Concat(additionalHoleNames ?? []).ToHashSet(StringComparer.Ordinal);
         var regionByTarget = recognizedRegions.ToDictionary(r => r.TargetSource, r => r, StringComparer.Ordinal);
-        var aliases = solids.Values.SelectMany(s => s.Box?.Exposures ?? []).Select(e => e.Alias).ToHashSet(StringComparer.Ordinal);
+        var aliases = solids.Values.SelectMany(s => s.Box?.Exposures ?? []).Select(e => e.Alias).Concat(namedFaceTargets ?? []).ToHashSet(StringComparer.Ordinal);
 
         foreach (Match em in PmiEntryHeaderRegex.Matches(body))
         {
@@ -2457,6 +2462,7 @@ public static partial class FirmamentV2Parser
 
     private static string NormalizePmiField(string raw) => raw switch
     {
+        "Text" => "text",
         "Target" => "target",
         "TargetA" => "targetA",
         "TargetB" => "targetB",
@@ -2478,6 +2484,12 @@ public static partial class FirmamentV2Parser
 
     private static void ValidatePmiFieldSet(string kind, string name, IReadOnlyDictionary<string,FirmamentV2PmiField> fields, List<string> diagnostics)
     {
+        if (kind == "Note")
+        {
+            if (!fields.ContainsKey("text")) diagnostics.Add($"{PmiMissingRequiredField}:{name}: Note requires text");
+            foreach (var f in fields.Keys.Where(f => f != "text")) diagnostics.Add($"{PmiUnknownField}:{name}.{f}");
+            return;
+        }
         string[] required = kind switch { "datum"=>["target"], "diameter"=> fields.ContainsKey("dimension") ? ["target","dimension"] : fields.ContainsKey("diameter") ? ["target","diameter"] : ["target","value"], "distance"=>["targetA","targetB","dimension"], "flatness"=>["target","tolerance"], "parallel" or "perpendicular" or "coplanar"=>["target","datum","tolerance"], _=>[] };
         if (TryPmiKind(kind, out var parsedKind) && Aetheris.Kernel.Core.Step242.Step242GeometricToleranceKinds.Find(parsedKind.ToString()) is { } control)
             required = control.RequiresDatum ? ["target", "datum", "tolerance"] : ["target", "tolerance"];
@@ -2490,10 +2502,34 @@ public static partial class FirmamentV2Parser
     private static bool TryBindPmiRecord(FirmamentV2PmiRecord r, Dictionary<string,FirmamentV2SolidBinding> solids, IReadOnlyList<FirmamentV2ModifyBlock> modifyBlocks, IReadOnlyDictionary<string,FirmamentV2RecognizedRegion> regions, HashSet<string> aliases, HashSet<string> holeNames, IReadOnlyDictionary<string,FirmamentV2BoundLet> lets, IReadOnlyDictionary<string,FirmamentV2BoundLetRecord> records, HashSet<string> datums, List<string> diagnostics, out FirmamentV2BoundPmiRecord bound)
     {
         bound=null!;
+        if (r.Kind == FirmamentV2PmiKind.Note)
+        {
+            // A part-level note: JSON string escapes, no control characters, never empty.
+            string? text = null;
+            try { text = Field(r, "text") is { } raw && raw.StartsWith('"') ? System.Text.Json.JsonSerializer.Deserialize<string>(raw) : null; }
+            catch (System.Text.Json.JsonException) { }
+            if (string.IsNullOrWhiteSpace(text) || text.Any(char.IsControl))
+            { diagnostics.Add($"firmament-v2-pmi-note-text-invalid:{r.Name}: Note text is a non-empty quoted string without control characters"); return false; }
+            bound = new(r.Kind, r.Name, ["part"], null, null, null, [], r.SourceSpan) { Text = text };
+            return true;
+        }
         string? target = Field(r,"target"); string? targetA=Field(r,"targetA"); string? targetB=Field(r,"targetB");
         var targets = new[]{target,targetA,targetB}.Where(t=>t is not null).Cast<string>().ToArray();
         FirmamentV2HoleWallSelector? wallTarget = null;
-        foreach (var t in targets)
+        // A list of holes is one requirement on every listed hole (a "4X" callout).
+        var holeSet = target is not null && target.TrimStart().StartsWith('[');
+        if (holeSet)
+        {
+            var listed = PmiNames(target, diagnostics);
+            if (r.Kind != FirmamentV2PmiKind.HoleDiameter && Aetheris.Kernel.Core.Step242.Step242GeometricToleranceKinds.Find(r.Kind.ToString()) is null)
+                diagnostics.Add($"{PmiInvalidTarget}:{r.Name}: only HoleDiameter and geometric controls accept a list of holes");
+            else if (listed.Count < 2 || listed.Distinct(StringComparer.Ordinal).Count() != listed.Count)
+                diagnostics.Add($"{PmiInvalidTarget}:{r.Name}: a hole list names two or more distinct holes");
+            foreach (var name in listed.Where(name => !holeNames.Contains(name)))
+                diagnostics.Add($"{PmiTargetUnresolved}:{r.Name}: '{name}' is not a hole of this part");
+            targets = listed.ToArray();
+        }
+        foreach (var t in holeSet ? [] : targets)
         {
             if (!FirmamentV2HoleWallSelector.TryParse(t, out var holeName))
             {

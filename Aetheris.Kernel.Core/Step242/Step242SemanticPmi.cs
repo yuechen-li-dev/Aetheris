@@ -31,7 +31,11 @@ public sealed record Step242SemanticPmiDatum(
     string FeatureId,
     string DatumKind,
     string Label,
-    string Target) : Step242SemanticPmi(FeatureId);
+    string Target) : Step242SemanticPmi(FeatureId)
+{
+    /// <summary>An authored datum feature must resolve to its face; export rejects it unattached.</summary>
+    public bool RequiresFaceAssociation { get; init; }
+}
 
 public sealed record Step242SemanticPmiNote(
     string FeatureId,

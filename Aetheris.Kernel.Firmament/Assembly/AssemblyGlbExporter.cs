@@ -88,6 +88,11 @@ public static class AssemblyGlbExporter
             }
             accessors.Add(accessor); return accessors.Count - 1;
         }
+        int Indices(int[] values)
+        {
+            var view = AddView(() => { foreach (var v in values) writer.Write((uint)v); }, 34963);
+            accessors.Add(new { bufferView = view, componentType = 5125, count = values.Length, type = "SCALAR" }); return accessors.Count - 1;
+        }
         foreach (var d in definitions)
         {
             var count = d.Positions.Length / 3;
@@ -101,7 +106,7 @@ public static class AssemblyGlbExporter
             var appearance = appearances?.GetValueOrDefault(d.Identity) ?? new();
             var m = appearance.Material ?? new();
             // PMI inspection look only; engineering geometry and authored looks are retained.
-            if (display.Annotations.Count > 0 && appearance.Material is null) m = m with { Opacity = .78 };
+            if (display.Annotations.Count > 0 && appearance.Material is null) m = m with { Red = .74, Green = .79, Blue = .86, Metallic = .1, Roughness = .55, Opacity = .55 };
             if (new[] { m.Red, m.Green, m.Blue, m.Metallic, m.Roughness, m.Opacity, m.EmissiveRed, m.EmissiveGreen, m.EmissiveBlue }.Any(v => !double.IsFinite(v) || v < 0 || v > 1))
                 throw new InvalidOperationException("assembly-glb-invalid-material");
             var pbr = new Dictionary<string, object> { ["baseColorFactor"] = new[] { m.Red, m.Green, m.Blue, m.Opacity }, ["metallicFactor"] = m.Metallic, ["roughnessFactor"] = m.Roughness };
@@ -173,21 +178,50 @@ public static class AssemblyGlbExporter
             if (positions.Length == 0) throw new InvalidOperationException("glb-pmi-presentation-empty:" + annotation.Name);
             materials.Add(new { name = "PMI " + annotation.Name, pbrMetallicRoughness = new { baseColorFactor = new[] { .05, .1, .18, 1 }, metallicFactor = 0, roughnessFactor = 1 }, emissiveFactor = new[] { .05, .1, .18 } });
             var primitives = new List<object> { new { attributes = new Dictionary<string, object> { ["POSITION"] = Floats(positions, 3, true) }, mode = 1, material = materials.Count - 1 } };
+            if (annotation.TextFill is { Indices.Length: > 0 } fill)
+            {
+                materials.Add(new { name = "PMI text " + annotation.Name, doubleSided = true,
+                    pbrMetallicRoughness = new { baseColorFactor = new[] { .04, .07, .13, 1 }, metallicFactor = 0, roughnessFactor = 1 },
+                    emissiveFactor = new[] { .04, .07, .13 } });
+                primitives.Add(new { attributes = new Dictionary<string, object> { ["POSITION"] = Floats(fill.Positions, 3, true) },
+                    indices = Indices(fill.Indices), mode = 4, material = materials.Count - 1 });
+            }
+            if (annotation.Panel is { Indices.Length: > 0 } panel)
+            {
+                // Backing panels stay readable over a translucent part; emissive keeps them white under any lighting.
+                materials.Add(new { name = "PMI panel " + annotation.Name, doubleSided = true,
+                    pbrMetallicRoughness = new { baseColorFactor = new[] { 1d, 1d, 1d, .92 }, metallicFactor = 0, roughnessFactor = 1 },
+                    emissiveFactor = new[] { .85, .87, .9 }, alphaMode = "BLEND" });
+                primitives.Add(new { attributes = new Dictionary<string, object> { ["POSITION"] = Floats(panel.Positions, 3, true) },
+                    indices = Indices(panel.Indices), mode = 4, material = materials.Count - 1 });
+            }
             if (annotation.Target is { } target)
             {
-                materials.Add(new { name = "PMI target " + target.Kind, doubleSided = true,
-                    pbrMetallicRoughness = new { baseColorFactor = new[] { 1d, .68, .12, 1 }, metallicFactor = 0, roughnessFactor = 1 },
-                    emissiveFactor = new[] { .3, .18, .02 } });
+                materials.Add(new { name = "PMI target " + target.Kind, doubleSided = true, alphaMode = "BLEND",
+                    pbrMetallicRoughness = new { baseColorFactor = new[] { 1d, .7, .2, .38 }, metallicFactor = 0, roughnessFactor = 1 },
+                    emissiveFactor = new[] { .25, .15, .02 } });
                 primitives.Add(new { attributes = new Dictionary<string, object> {
-                    ["POSITION"] = Floats(target.Indices.SelectMany(i => target.Positions.Skip(i*3).Take(3)).ToArray(), 3, true),
-                    ["NORMAL"] = Floats(target.Indices.SelectMany(i => target.Normals.Skip(i*3).Take(3)).ToArray(), 3) }, mode = 4, material = materials.Count - 1 });
+                    ["POSITION"] = Floats(target.Indices.SelectMany(i => new[] { target.Positions[i*3], target.Positions[i*3+1], target.Positions[i*3+2] }).ToArray(), 3, true),
+                    ["NORMAL"] = Floats(target.Indices.SelectMany(i => new[] { target.Normals[i*3], target.Normals[i*3+1], target.Normals[i*3+2] }).ToArray(), 3) }, mode = 4, material = materials.Count - 1 });
                 var outline = target.Lines.SelectMany(line => line.Zip(line.Skip(1), (a,b) => a.Concat(b)).SelectMany(p => p)).ToArray();
-                primitives.Add(new { attributes = new Dictionary<string, object> { ["POSITION"] = Floats(outline, 3, true) }, mode = 1, material = materials.Count - 1 });
+                if (outline.Length > 0)
+                    primitives.Add(new { attributes = new Dictionary<string, object> { ["POSITION"] = Floats(outline, 3, true) }, mode = 1, material = materials.Count - 1 });
             }
             meshes.Add(new { name = annotation.Id, primitives,
                 extras = new { role = "PMI presentation", annotationId = annotation.Id } });
             roots.Add(nodes.Count);
-            nodes.Add(new { name = annotation.Text, mesh = meshes.Count - 1, extras = new { pmi = JsonSerializer.SerializeToElement(annotation, pmiJsonOptions) } });
+            nodes.Add(new { name = annotation.Text, mesh = meshes.Count - 1, extras = new { pmi = JsonSerializer.SerializeToElement(Metadata(annotation), pmiJsonOptions) } });
+        }
+        if (display.EdgeLines.Count > 0)
+        {
+            // Model edges keep a translucent part readable: every B-rep edge as a dark line.
+            var edgePositions = display.EdgeLines.SelectMany(line => line.Zip(line.Skip(1), (a, b) => a.Concat(b)).SelectMany(p => p)).ToArray();
+            materials.Add(new { name = "Model edges", pbrMetallicRoughness = new { baseColorFactor = new[] { .16, .2, .26, 1 }, metallicFactor = 0, roughnessFactor = 1 },
+                emissiveFactor = new[] { .16, .2, .26 } });
+            meshes.Add(new { name = "edges", primitives = new[] { new { attributes = new Dictionary<string, object> { ["POSITION"] = Floats(edgePositions, 3, true) }, mode = 1, material = materials.Count - 1 } },
+                extras = new { role = "B-rep edges" } });
+            roots.Add(nodes.Count);
+            nodes.Add(new { name = "Edges", mesh = meshes.Count - 1 });
         }
         foreach (var (camera,index) in (cameras ?? []).Select((c,i) => (c,i)))
         {
@@ -200,7 +234,7 @@ public static class AssemblyGlbExporter
         nodes.Add(new { name = "Aetheris mm Z-up to glTF m Y-up", matrix = new double[] {.001,0,0,0, 0,0,-.001,0, 0,.001,0,0, 0,0,0,1}, children = roots });
         var document = new Dictionary<string, object>
         {
-            ["asset"] = new { version = "2.0", generator = "Aetheris PRESENTATION-3D-X0", extras = new { modelName = display.Name, authority = "BRep/STEP; GLB is a presentation asset", sourceProject = "Aetheris", pmiSchema = "aetheris/pmi-display/1", pmiUnits = "mm", pmi = JsonSerializer.SerializeToElement(display.Annotations, pmiJsonOptions) } },
+            ["asset"] = new { version = "2.0", generator = "Aetheris PRESENTATION-3D-X0", extras = new { modelName = display.Name, authority = "BRep/STEP; GLB is a presentation asset", sourceProject = "Aetheris", pmiSchema = "aetheris/pmi-display/1", pmiUnits = "mm", pmi = JsonSerializer.SerializeToElement(display.Annotations.Select(Metadata), pmiJsonOptions) } },
             ["scene"] = 0, ["scenes"] = new[] { new { name = display.Name, nodes = new[] { nodes.Count - 1 } } },
             ["nodes"] = nodes, ["meshes"] = meshes, ["materials"] = materials,
             ["accessors"] = accessors, ["bufferViews"] = views, ["buffers"] = new[] { new { byteLength = checked((int)binary.Length) } }
@@ -217,6 +251,10 @@ public static class AssemblyGlbExporter
         for (var i = binary.Length; i < binaryLength; i++) output.Write((byte)0);
         return result.ToArray();
     }
+
+    /// <summary>GLB metadata carries the semantic record and its anchors; geometry stays in the buffers.</summary>
+    private static Visualization.PmiDisplayAnnotation Metadata(Visualization.PmiDisplayAnnotation annotation) =>
+        annotation with { Lines = [], Target = annotation.Target is { } target ? target with { Positions = [], Normals = [], Indices = [], Lines = [] } : null };
 
     private static void ValidateTransform(double[] m)
     {

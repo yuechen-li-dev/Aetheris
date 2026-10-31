@@ -31,6 +31,10 @@ public static class Step242Exporter
             if (control.GeometricFaceIds.Count == 0 || control.GeometricFaceIds.Any(id => !body.Topology.Faces.Any(face => face.Id.Value == id)))
                 return Failure($"pmi-geometric-target-unresolved: '{control.Name}' requires proved face associations.", "Step242.Pmi");
         }
+        // A datum feature without its face is a label with nothing to contact; never export one unattached.
+        foreach (var datum in (semanticPmi ?? []).OfType<Step242SemanticPmiDatum>().Where(d => d.RequiresFaceAssociation))
+            if (datum.GeometricFaceIds.Count == 0 || datum.GeometricFaceIds.Any(id => !body.Topology.Faces.Any(face => face.Id.Value == id)))
+                return Failure($"pmi-datum-target-unresolved: Datum '{datum.Label}' does not resolve to a face of the exported body. Use a face that bounds the part in that direction, or name the face of a Compose operation such as face(stock.Top).", "Step242.Pmi");
         IReadOnlyList<KernelDiagnostic> normalizationDiagnostics = [];
         if (options.BrepExportPreflightPolicy == BrepExportPreflightPolicy.TrustedProductionRoute)
         {

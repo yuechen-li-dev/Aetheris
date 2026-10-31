@@ -1,0 +1,44 @@
+// A bearing mount block specified for manufacture by its model alone.
+Model BearingMount {
+  units: mm
+
+  Static boreDiameter: Length = 22mm tol +0.021mm -0mm
+  Static mountDiameter: Length = 6.6mm tol 0.1mm
+
+  Profile stockOutline = Rect2 { center: [0mm, 0mm]; size: [130mm, 90mm] }
+  Profile hubOutline = Circle2 { center: [0mm, 0mm]; radius: 22mm }
+  Profile leftRecess = RoundedRect2 { center: [-35mm, 0mm]; size: [16mm, 40mm]; radius: 4mm }
+  Profile rightRecess = RoundedRect2 { center: [35mm, 0mm]; size: [16mm, 40mm]; radius: 4mm }
+
+  Compose body {
+    Base stock { profile: stockOutline; from: 0mm; to: 14mm; role: Stock }
+    Boss hub { on: Top; profile: hubOutline; height: 14mm }
+    Pocket left { on: stock.Top; profile: leftRecess; depth: 6mm; minimumFloorThickness: 6mm }
+    Pocket right { on: stock.Top; profile: rightRecess; depth: 6mm; minimumFloorThickness: 6mm }
+    Hole<Shaft> bore { on: +Z; center: [0mm, 0mm]; diameter: boreDiameter; end: ThroughAll }
+    Hole<Counterbore> mountA { on: +Z; center: [-53mm, -33mm]; diameter: mountDiameter; counterboreDiameter: 11mm; counterboreDepth: 6.5mm; end: ThroughAll }
+    Hole<Counterbore> mountB { on: +Z; center: [53mm, -33mm]; diameter: mountDiameter; counterboreDiameter: 11mm; counterboreDepth: 6.5mm; end: ThroughAll }
+    Hole<Counterbore> mountC { on: +Z; center: [53mm, 33mm]; diameter: mountDiameter; counterboreDiameter: 11mm; counterboreDepth: 6.5mm; end: ThroughAll }
+    Hole<Counterbore> mountD { on: +Z; center: [-53mm, 33mm]; diameter: mountDiameter; counterboreDiameter: 11mm; counterboreDepth: 6.5mm; end: ThroughAll }
+  }
+
+  Modify body {
+    EdgeFinish<Chamfer> perimeterBreak { target: stockOutline.Outer; on: Top; distance: 1mm }
+  }
+
+  Pmi {
+    Datum A { target: face(-Z) }
+    Datum B { target: face(-X) }
+    Datum C { target: face(-Y) }
+    Flatness MountingFace { target: face(-Z) tolerance: 0.02mm }
+    HoleDiameter BoreSize { target: bore dimension: boreDiameter }
+    Perpendicularity BoreSquare { target: bore tolerance: 0.01mm zone: Cylindrical datumRefs: [A] }
+    Position BoreLocation { target: bore tolerance: 0.02mm zone: Cylindrical datumRefs: [A, B, C] }
+    HoleDiameter MountSize { target: [mountA, mountB, mountC, mountD] dimension: mountDiameter }
+    Position MountLocation { target: [mountA, mountB, mountC, mountD] tolerance: 0.25mm zone: Cylindrical datumRefs: [A, B, C] modifiers: [MaximumMaterial] }
+    Parallelism HubFace { target: face(hub.Top) tolerance: 0.03mm datumRefs: [A] }
+    Note Material { text: "MATERIAL: 6061-T6 ALUMINUM" }
+    Note GeneralTolerance { text: "UNTOLERANCED DIMENSIONS PER ISO 2768-mK. NOMINAL GEOMETRY FROM MODEL." }
+    Note Finish { text: "BREAK SHARP EDGES 0.2-0.5. BORE Ra 0.8, OTHER MACHINED SURFACES Ra 3.2." }
+  }
+}

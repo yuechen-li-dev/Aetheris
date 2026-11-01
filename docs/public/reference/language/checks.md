@@ -65,9 +65,14 @@ as **unverified**, including when the deterministic subdivision budget runs out.
 The midpoint is an estimate, not an exact volume. Display-mesh mass estimates do
 not gate an assertion. A part without an admitted exact recognizer or complete
 SDF reports that limitation instead of silently accepting its volume assertion.
-The SDF assertion route currently covers single Box, Cylinder, Cone, Sphere and
-Torus primitives. A display-only or legacy Boolean mirror is insufficient evidence
-that the field matches exported material, and is not promoted to volume authority.
+The SDF assertion route covers qualified single Box, Cylinder, Cone, Sphere and
+Torus primitives, plus complete final-boundary recognition of axis-aligned
+rectangular stock with separated circular Z-through holes. This latter path works
+for native parts and imported STEP with the same admitted boundary. It requires
+one qualified closed material shell and accounts for every face, loop and edge;
+an additional unrecognized feature rejects the entire field lowering. A display-only
+or legacy Boolean mirror is insufficient evidence that the field matches exported
+material, and is not promoted to volume authority.
 
 `Assert Bounds` compares exact world-space minima/maxima, using the optional
 nonnegative length `tolerance` (default 0mm). Exact bounds currently cover qualified
@@ -125,9 +130,18 @@ estimate for diagnosis, never as a substitute assertion authority.
 The default engineering volume path prefers admitted exact BRep formulas, then
 bounded SDF integration when the compiler retains a field qualified to represent
 the **final exported body**. `--sdf` requests that field path explicitly. A field
-for stock before holes or edits is insufficient. STEP imports without such a
-field report volume unavailable; display meshes and sampled point-cloud fields
-do not silently become volume authority.
+for stock before holes or edits is insufficient. Complete rectangular-stock/through-hole
+recognition derives its field from the final exported BRep, independently of feature
+history. Other STEP imports without a qualified complete field report volume
+unavailable; display meshes and sampled point-cloud fields do not silently become
+volume authority. This bounded recognizer does not admit slots, blind holes,
+counterbores, countersinks, side holes, ribs, blends or arbitrary rotated stock.
+
+For SDF measurements, `fieldQualification` names the evidence family,
+`fieldCoveredFaceCount` reports covered final faces, and `fieldSourceStepSha256`
+identifies the exact UTF-8 final STEP artifact used by the query. This is an artifact
+receipt, including its metadata, rather than a geometry-only identity. Qualification
+never comes from merely having a retained display field.
 
 The integrator bounds partially occupied cells using analytic local field envelopes
 and plane/box volume integrals. Curvature contributes to the uncertainty; it is not

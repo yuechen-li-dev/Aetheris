@@ -3,6 +3,8 @@ using System.Text.Json;
 using Aetheris.Continuum.Backends.Sdf;
 using Aetheris.Kernel.Core.Math;
 
+if (args.Length == 2 && args[0] == "--imported-occupancy-probe") return ImportedOccupancyProbe.Run(args[1]);
+
 var budget = args.Length > 0 ? int.Parse(args[0]) : 100001;
 var relativeError = args.Length > 1 ? double.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture) : .001;
 var repetitions = args.Length > 2 ? int.Parse(args[2]) : 3;

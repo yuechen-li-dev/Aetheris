@@ -26,3 +26,9 @@ enclosure is not silently counted as meeting the requested uncertainty.
 `IntervalOnlyControl.cs` freezes the former production estimator from `e1310ce2`
 for a controlled comparison with identical tape intervals, bounds, error and budget.
 It is executable qualification evidence, not another selectable production strategy.
+
+`--imported-occupancy-probe path.step` exercises the existing analytic ray-consensus
+query at 125 deterministic points, reusing one query context. It reports unknown
+classifications, runtime and complete-field admission separately. Vertex extents
+only choose a sampling domain; they are not certified bounds. This experiment
+never estimates a volume or grants authority from point samples.

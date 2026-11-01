@@ -25,7 +25,16 @@ public sealed record Step242SemanticPmiDimension(
     double Value,
     double? TolerancePlus,
     double? ToleranceMinus,
-    int? Quantity = null) : Step242SemanticPmi(FeatureId);
+    int? Quantity = null) : Step242SemanticPmi(FeatureId)
+{
+    /// <summary>AP242 size or location name ("diameter", "length", "radius", "depth", "linear distance");
+    /// when set, the standard DIMENSIONAL_SIZE/LOCATION form is written alongside the native record.</summary>
+    public string? StandardKind { get; init; }
+    /// <summary>For a location, the two shape-aspect references it runs between (exporter-owned).</summary>
+    public (string From, string To)? Location { get; init; }
+    /// <summary>For a location, the faces at each end; <see cref="Step242SemanticPmi.GeometricFaceIds"/> holds both.</summary>
+    public (IReadOnlyList<int> From, IReadOnlyList<int> To)? LocationFaces { get; init; }
+}
 
 public sealed record Step242SemanticPmiDatum(
     string FeatureId,

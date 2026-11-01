@@ -23,8 +23,8 @@ try
     var step = compilation.Value.StepText;
     var imported = Step242Importer.ImportBody(step);
     if (!imported.IsSuccess) throw new InvalidOperationException("STEP reimport failed.");
-    // Presentation density: coarse enough for a phone or tablet, fine enough for true silhouettes.
-    var options = DisplayTessellationOptions.Default with { AngularToleranceRadians = Math.PI / 24, MinimumSegments = 4, MaximumSegments = 12 };
+    // Presentation density: smooth silhouettes, still light enough for a phone or tablet.
+    var options = DisplayTessellationOptions.Default with { AngularToleranceRadians = Math.PI / 24 };
     var tessellation = BrepDisplayTessellator.Tessellate(imported.Value, options);
     if (!tessellation.IsSuccess) throw new InvalidOperationException("Display tessellation failed.");
     var positions = new List<double>(); var normals = new List<double>(); var indices = new List<int>();

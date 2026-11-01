@@ -173,10 +173,15 @@ public static class AssemblyGlbExporter
         var pmiJsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         foreach (var annotation in display.Annotations)
         {
-            var positions = annotation.Lines.SelectMany(line => line.Zip(line.Skip(1), (a, b) => new[] { a, b })
+            // Filled text needs no glyph outline in a GLB; line-only consumers keep them in Lines.
+            var drawn = annotation.TextFill is not null && annotation.DraftingLines is { } drafting ? drafting : annotation.Lines;
+            var positions = drawn.SelectMany(line => line.Zip(line.Skip(1), (a, b) => new[] { a, b })
+                .SelectMany(pair => pair).SelectMany(point => point)).ToArray();
+            if (positions.Length == 0) positions = annotation.Lines.SelectMany(line => line.Zip(line.Skip(1), (a, b) => new[] { a, b })
                 .SelectMany(pair => pair).SelectMany(point => point)).ToArray();
             if (positions.Length == 0) throw new InvalidOperationException("glb-pmi-presentation-empty:" + annotation.Name);
-            materials.Add(new { name = "PMI " + annotation.Name, pbrMetallicRoughness = new { baseColorFactor = new[] { .05, .1, .18, 1 }, metallicFactor = 0, roughnessFactor = 1 }, emissiveFactor = new[] { .05, .1, .18 } });
+            var ink = annotation.LeaderColor ?? [.05, .1, .18];
+            materials.Add(new { name = "PMI " + annotation.Name, pbrMetallicRoughness = new { baseColorFactor = new[] { ink[0], ink[1], ink[2], 1 }, metallicFactor = 0, roughnessFactor = 1 }, emissiveFactor = ink });
             var primitives = new List<object> { new { attributes = new Dictionary<string, object> { ["POSITION"] = Floats(positions, 3, true) }, mode = 1, material = materials.Count - 1 } };
             if (annotation.TextFill is { Indices.Length: > 0 } fill)
             {

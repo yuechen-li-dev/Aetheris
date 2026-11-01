@@ -40,6 +40,8 @@ public sealed record Step242SemanticPmiInspectionResult(
     public int DimensionCount => Items.Count(item => item.Kind is "Diameter" or "Dimension");
     public int GeometricToleranceCount => Items.Count(item => Step242GeometricToleranceKinds.Find(item.Kind) is not null || item.Kind == "GeometricTolerance");
     public int AnnotationCount => Items.Count(item => item.Kind == "Annotation");
+    /// <summary>Standard AP242 size/location entities that restate a native record already in <see cref="Items"/>.</summary>
+    public IReadOnlyList<int> StandardMirrors { get; init; } = [];
 }
 
 /// <summary>
@@ -139,7 +141,8 @@ public static class Step242SemanticPmiInspector
             PresentationSupported = detailed.PresentationSupported,
             GeometricItemEntityIds = detailed.GeometricItemEntityIds,
             GeometricFaceEntityIds = detailed.GeometricFaceEntityIds.Count > 0 ? detailed.GeometricFaceEntityIds : item.GeometricFaceEntityIds } : item);
-        return new(true, combined.Concat(foreign.Where(item => native.All(n => n.EntityId != item.EntityId))).OrderBy(item => item.EntityId).ToArray(), []);
+        return new(true, combined.Concat(foreign.Where(item => native.All(n => n.EntityId != item.EntityId))).OrderBy(item => item.EntityId).ToArray(), [])
+            { StandardMirrors = schemaReader.Mirrors.Order().ToArray() };
     }
 
     private static Dictionary<string, IReadOnlyList<double>> BuildRepresentations(

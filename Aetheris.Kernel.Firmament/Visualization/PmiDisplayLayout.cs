@@ -12,6 +12,8 @@ namespace Aetheris.Kernel.Firmament.Visualization;
 internal sealed class PmiCanvas
 {
     public List<(double X, double Y)[]> Lines { get; } = [];
+    /// <summary>Glyph outlines, kept apart from drafting lines: filled text needs no outline in a GLB.</summary>
+    public List<(double X, double Y)[]> GlyphLines { get; } = [];
     public List<(double X, double Y)> Fill { get; } = [];
     public List<int> FillIndices { get; } = [];
     public List<(double X, double Y)> Panel { get; } = [];
@@ -45,7 +47,7 @@ internal sealed class PmiCanvas
             FillNonZero(glyph.Select(c => c.Points.Select(p => (x + p.X, y + p.Y)).ToArray()).ToArray());
         // Outlines too: line-only consumers (and very small zoom levels) still read the text.
         foreach (var contour in contours)
-            Lines.Add(contour.Points.Append(contour.Points[0]).Select(p => (x + p.X, y + p.Y)).ToArray());
+            GlyphLines.Add(contour.Points.Append(contour.Points[0]).Select(p => (x + p.X, y + p.Y)).ToArray());
         return width;
     }
 
@@ -96,6 +98,7 @@ internal sealed class PmiCanvas
     public void Append(PmiCanvas other, double dx, double dy)
     {
         Lines.AddRange(other.Lines.Select(l => l.Select(p => (p.X + dx, p.Y + dy)).ToArray()));
+        GlyphLines.AddRange(other.GlyphLines.Select(l => l.Select(p => (p.X + dx, p.Y + dy)).ToArray()));
         var o = Fill.Count; Fill.AddRange(other.Fill.Select(p => (p.X + dx, p.Y + dy))); FillIndices.AddRange(other.FillIndices.Select(i => i + o));
         o = Panel.Count; Panel.AddRange(other.Panel.Select(p => (p.X + dx, p.Y + dy))); PanelIndices.AddRange(other.PanelIndices.Select(i => i + o));
     }
@@ -140,6 +143,38 @@ internal static class PmiDrafting
         c.PanelRect(0, 0, width, height);
         c.Text(text, pad, .45 * h, h);
         if (boxed) c.Rect(0, 0, width, height);
+        return new(c, width, height);
+    }
+
+    /// <summary>
+    /// A callout line mixing text with drafting symbols drawn as vectors: <c>{CB}</c> counterbore,
+    /// <c>{DEPTH}</c> depth. For example <c>"{CB}Ø11 {DEPTH}6.5"</c>.
+    /// </summary>
+    public static PmiBlock CalloutLine(string text, double h)
+    {
+        var c = new PmiCanvas();
+        var pad = .35 * h; var height = 1.7 * h; var baseline = .45 * h;
+        var x = pad;
+        foreach (var part in System.Text.RegularExpressions.Regex.Split(text, "({CB}|{DEPTH})"))
+        {
+            if (part.Length == 0) continue;
+            if (part == "{CB}")
+            {
+                // Counterbore: an open-topped square bracket.
+                var w = .8 * h; c.Line((x, baseline + .85 * h), (x, baseline), (x + w, baseline), (x + w, baseline + .85 * h)); x += w + .3 * h;
+            }
+            else if (part == "{DEPTH}")
+            {
+                // Depth: a downward arrow standing on a bar.
+                var w = .7 * h; var mid = x + w / 2;
+                c.Line((mid, baseline + .9 * h), (mid, baseline + .05 * h)); c.Line((x, baseline), (x + w, baseline));
+                c.Triangle((mid, baseline + .05 * h), (mid - .22 * h, baseline + .45 * h), (mid + .22 * h, baseline + .45 * h));
+                x += w + .3 * h;
+            }
+            else x += c.Text(part, x, baseline, h);
+        }
+        var width = x + pad;
+        c.PanelRect(0, 0, width, height);
         return new(c, width, height);
     }
 

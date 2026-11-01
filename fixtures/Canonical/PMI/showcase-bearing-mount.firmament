@@ -34,9 +34,25 @@ Model BearingMount {
     HoleDiameter BoreSize { target: bore dimension: boreDiameter }
     Perpendicularity BoreSquare { target: bore tolerance: 0.01mm zone: Cylindrical datumRefs: [A] }
     Position BoreLocation { target: bore tolerance: 0.02mm zone: Cylindrical datumRefs: [A, B, C] }
-    HoleDiameter MountSize { target: [mountA, mountB, mountC, mountD] dimension: mountDiameter }
+    HoleCallout MountSize { target: [mountA, mountB, mountC, mountD] dimension: mountDiameter }
     Position MountLocation { target: [mountA, mountB, mountC, mountD] tolerance: 0.25mm zone: Cylindrical datumRefs: [A, B, C] modifiers: [MaximumMaterial] }
     Parallelism HubFace { target: face(hub.Top) tolerance: 0.03mm datumRefs: [A] }
+
+    // Sizes and locations, projected from the construction above: the compiler supplies every value.
+    Dimension BlockLength { target: stock.Length }
+    Dimension BlockWidth { target: stock.Width }
+    Dimension BlockThickness { target: stock.Height }
+    Dimension HubDiameter { target: hub.Diameter }
+    Dimension HubHeight { target: hub.Height }
+    Dimension PocketLength { target: [left.Length, right.Length] }
+    Dimension PocketWidth { target: [left.Width, right.Width] }
+    Dimension PocketCorner { target: [left.Radius, right.Radius] }
+    Dimension PocketDepth { target: [left.Depth, right.Depth] }
+    Location LeftPocketFromB { origin: face(-X) to: left }
+    Location RightPocketFromB { origin: face(-X) to: right }
+    Location PocketsFromC { origin: face(-Y) to: left }
+    Dimension EdgeBreak { target: perimeterBreak.Distance }
+
     Note Material { text: "MATERIAL: 6061-T6 ALUMINUM" }
     Note GeneralTolerance { text: "UNTOLERANCED DIMENSIONS PER ISO 2768-mK. NOMINAL GEOMETRY FROM MODEL." }
     Note Finish { text: "BREAK SHARP EDGES 0.2-0.5. BORE Ra 0.8, OTHER MACHINED SURFACES Ra 3.2." }

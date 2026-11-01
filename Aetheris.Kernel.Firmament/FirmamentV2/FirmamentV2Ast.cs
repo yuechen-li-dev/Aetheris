@@ -295,7 +295,7 @@ public sealed record FirmamentV2SemanticHoleDecl(
     FirmamentV2SemanticHoleTermination? Termination = null,
     IReadOnlyList<FirmamentV2AuthoredField>? AuthoredFields = null);
 public enum FirmamentV2PmiKind { HoleDiameter, DatumPlane, Distance, Flatness, Parallel, Perpendicular, Coplanar,
-    Straightness, Roundness, Cylindricity, Parallelism, Perpendicularity, Angularity, Position, LineProfile, SurfaceProfile, CircularRunout, TotalRunout, Note }
+    Straightness, Roundness, Cylindricity, Parallelism, Perpendicularity, Angularity, Position, LineProfile, SurfaceProfile, CircularRunout, TotalRunout, Note, Dimension, Location }
 public sealed record FirmamentV2PmiDecl(string Name, FirmamentV2PmiKind Kind, string Target, double? Value = null);
 public sealed record FirmamentV2PmiBlock(IReadOnlyList<FirmamentV2PmiRecord> Records, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2PmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyDictionary<string, FirmamentV2PmiField> Fields, FirmamentV2SourceSpan SourceSpan, FirmamentV2BoundPmiRecord? Bound = null, FirmamentV2PmiProjection? Projection = null);
@@ -308,6 +308,11 @@ public sealed record FirmamentV2BoundPmiRecord(FirmamentV2PmiKind Kind, string N
     public string? ZoneForm { get; init; }
     /// <summary>Text of a part-level <c>Note</c>, such as material or general tolerances.</summary>
     public string? Text { get; init; }
+    /// <summary>A <c>HoleCallout</c>: the hole size plus its counterbore or countersink, projected from construction.</summary>
+    public bool Callout { get; init; }
+    /// <summary>A <c>Location</c> written <c>origin: face(..) to: feature</c>; <c>basic: true</c> makes it theoretically exact.</summary>
+    public string? From { get; init; }
+    public bool Basic { get; init; }
 }
 /// <summary>Reusable, validated dimensional intent. Only equality of a semantic feature property
 /// to a length expectation is admitted in Preview 1.</summary>

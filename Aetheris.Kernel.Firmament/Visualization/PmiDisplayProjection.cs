@@ -20,6 +20,10 @@ public sealed record PmiDisplayAnnotation(string Id, string Kind, string Name, s
     [System.Text.Json.Serialization.JsonIgnore] public PmiDisplayMesh? TextFill { get; init; }
     /// <summary>Opaque backing panels behind text so callouts stay legible over a translucent part.</summary>
     [System.Text.Json.Serialization.JsonIgnore] public PmiDisplayMesh? Panel { get; init; }
+    /// <summary>Drafting lines without glyph outlines (leaders, frames, dimension lines) for renderers that fill text.</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public IReadOnlyList<double[][]>? DraftingLines { get; init; }
+    /// <summary>Leader colour (linear RGB) tying a callout to its feature; null draws the default ink.</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public double[]? LeaderColor { get; init; }
 }
 
 /// <summary>Triangles in Z-up millimetres; three coordinates per position.</summary>
@@ -62,10 +66,13 @@ public static class PmiDisplayProjection
         // 1. Resolve every semantic record to its exact supports.
         var specs = new List<Spec>();
         var notes = new List<Step242SemanticPmiInspectionItem>();
+        var projected = new List<Step242SemanticPmiInspectionItem>();
         foreach (var item in inspection.Items)
         {
             // Part notes read back as AP242 annotations (material, general tolerances, finish).
             if (item.Kind == "Annotation") { notes.Add(item); continue; }
+            // Sizes and locations projected from construction are drawn on their features below.
+            if (item.Kind == "Dimension" && item.Target.StartsWith("compose:", StringComparison.Ordinal)) { projected.Add(item); continue; }
             if (!item.PresentationSupported)
                 throw new InvalidOperationException($"pmi-display-parameters-unsupported: '{item.Name}' retains advanced semantic parameters that this 3D label path cannot yet display completely.");
             if (item.Kind is not ("Datum" or "Diameter" or "Dimension") && Step242GeometricToleranceKinds.Find(item.Kind) is null)
@@ -113,27 +120,67 @@ public static class PmiDisplayProjection
         // model). They share one horizontal plane at the top of the vertical datum faces.
         layout.DimensionLevel = datumFaces.Values.Where(d => d.Feature is PlanarFeature { } f && Math.Abs(f.Normal.Z) < 1e-7)
             .SelectMany(d => d.Targets.SelectMany(t => t.Positions)).Select(p => p.Z).DefaultIfEmpty(maxZ).Max();
-        var basics = BasicDimensions(specs, datumFaces, layout);
+        DisplayFaceMeshPatch[] Patches(Step242SemanticPmiInspectionItem item)
+        {
+            var found = item.GeometricFaceEntityIds.Where(id => sourceFaces.TryGetValue(id, out var face) && patches.ContainsKey(face))
+                .Select(id => patches[sourceFaces[id]]).ToArray();
+            if (found.Length == 0 || found.Length != item.GeometricFaceEntityIds.Count)
+                throw new InvalidOperationException($"pmi-display-target-unresolved: '{item.Name}' has no complete geometric face association.");
+            return found;
+        }
+        static string FeatureKey(Step242SemanticPmiInspectionItem item) { var t = item.Target["compose:".Length..]; var hash = t.IndexOf('#'); return hash < 0 ? t : t[..hash]; }
+        var locations = new List<(int Owner, Vector3D Normal, double DatumOffset, Point3D Point, bool Boxed)>();
+        foreach (var item in projected.Where(i => i.DimensionKind?.StartsWith("location ", StringComparison.Ordinal) == true))
+        {
+            var words = item.DimensionKind!.Split(' ');
+            var n = words[1] switch { "-X" => new Vector3D(-1, 0, 0), "+X" => new Vector3D(1, 0, 0), "-Y" => new Vector3D(0, -1, 0), "+Y" => new Vector3D(0, 1, 0),
+                _ => throw new InvalidOperationException($"pmi-display-location-unsupported: '{item.Name}' runs from {words[1]}.") };
+            var faces = Patches(item);
+            var offsets = faces.Select(f => (Face: f, Plane: body.GetFaceSurface(f.FaceId).Plane)).ToArray();
+            // The origin is the extreme plane in that direction; the rest is the located feature.
+            var datumOffset = offsets.Where(f => f.Plane is { } p && p.Normal.ToVector().Dot(n) > 1 - 1e-8).Max(f => (f.Plane!.Value.Origin - Point3D.Origin).Dot(n));
+            var feature = offsets.Where(f => !(f.Plane is { } p && p.Normal.ToVector().Dot(n) > 1 - 1e-8 && Math.Abs((p.Origin - Point3D.Origin).Dot(n) - datumOffset) < 1e-7))
+                .SelectMany(f => f.Face.Positions).ToArray();
+            var point = new Point3D((feature.Min(p => p.X) + feature.Max(p => p.X)) / 2, (feature.Min(p => p.Y) + feature.Max(p => p.Y)) / 2, feature.Max(p => p.Z));
+            locations.Add((item.EntityId, n, datumOffset, point, words.Contains("basic")));
+        }
+        var basics = BasicDimensions(specs, datumFaces, locations, layout);
         var dimensionPlane = new PmiPlane(new Point3D(0, 0, layout.DimensionLevel), new Vector3D(1, 0, 0), new Vector3D(0, 1, 0));
 
-        // Notes occupy the lower right of the front plane; reserve it before placing datum callouts there.
         var notesBlock = notes.Count > 0 ? PmiDrafting.Notes(notes.Select(n => n.Text ?? "").ToArray(), .8 * height) : null;
-        if (notesBlock is not null)
-            layout.Reserve(new PmiPlane(new Point3D(0, minY, 0), new Vector3D(1, 0, 0), new Vector3D(0, 0, 1)),
-                (maxX - notesBlock.Width, minZ - 3 * height - layout.DimensionDepth - notesBlock.Height, maxX, minZ - 3 * height - layout.DimensionDepth));
+
+        var attachedTo = new Dictionary<int, int>(); // records drawn as part of another record's line
+        // Each feature's leaders and dimensions share a colour, so a callout reads with its feature in 3D.
+        double[][] palette = [[.1, .36, .78], [.86, .5, .04], [.12, .56, .3], [.55, .24, .7], [.05, .55, .6], [.75, .2, .3]];
+        var nextColor = 0;
+        var featureColors = new Dictionary<string, double[]>(StringComparer.Ordinal);
 
         // Holes first, so planar datum symbols find free space outside dimensions and hole callouts.
         foreach (var group in groups.OrderBy(g => g[0].Feature is HoleFeature ? 0 : 1).ThenByDescending(g => g[0].Feature is HoleFeature hole ? hole.Cylinders.Length : 0))
         {
             var ordered = group.OrderBy(s => s.Item.Kind switch { "Diameter" or "Dimension" => 0, "Datum" => 3, "Position" => 2, _ => 1 }).ToArray();
-            var blocks = ordered.Select(s => (Spec: s, Block: s.Item.Kind switch
+            var blockList = ordered.Select(s => (Spec: s, Block: s.Item.Kind switch
             {
                 "Diameter" or "Dimension" => PmiDrafting.TextBlock(PmiDrafting.Size(s.Item), height),
                 "Datum" => PmiDrafting.DatumBox(s.Item.Name, height),
                 _ => PmiDrafting.ControlFrame(s.Item.Kind, PmiDrafting.ZonePrefix(s.Item.ZoneForms), s.Item.Value!.Value,
                     s.Item.Modifiers, s.Item.DatumReferenceFrames.Count > 0
                         ? s.Item.DatumReferenceFrames.Select(f => string.Join("-", f.Labels)).ToArray() : s.Item.DatumReferences, height)
-            })).ToArray();
+            })).ToList();
+            // A hole callout's counterbore line sits under its size: ⌴Ø11 ↧6.5.
+            var sizeName = ordered.FirstOrDefault(s => s.Item.Kind == "Diameter")?.Item.AuthoredName;
+            var extras = sizeName is null ? [] : projected.Where(p => p.Name.StartsWith(sizeName + ".Counterbore", StringComparison.Ordinal)).ToArray();
+            if (extras.Length > 0)
+            {
+                var cbDiameter = extras.FirstOrDefault(e => e.Name.EndsWith(".CounterboreDiameter", StringComparison.Ordinal));
+                var cbDepth = extras.FirstOrDefault(e => e.Name.EndsWith(".CounterboreDepth", StringComparison.Ordinal));
+                var text = (cbDiameter is null ? "" : "{CB}Ø" + PmiDrafting.Number(cbDiameter.Value!.Value)) + (cbDepth is null ? "" : " {DEPTH}" + PmiDrafting.Number(cbDepth.Value!.Value));
+                var owner = cbDiameter ?? cbDepth!;
+                blockList.Insert(1, (new Spec(owner, ordered[0].Targets, ordered[0].Feature), PmiDrafting.CalloutLine(text.Trim(), height)));
+                foreach (var other in extras.Where(e => e != owner)) attachedTo[other.EntityId] = owner.EntityId;
+                foreach (var e in extras) projected.Remove(e);
+            }
+            var blocks = blockList.ToArray();
             var gap = .35 * height;
             var stackHeight = blocks.Sum(b => b.Block.Height) + gap * (blocks.Length - 1);
             var stackWidth = blocks.Max(b => b.Block.Width);
@@ -143,6 +190,7 @@ public static class PmiDisplayProjection
                 PlanarFeature planar => layout.PlacePlanarCallout(planar, ordered[0], stackWidth, stackHeight, ordered.Any(s => s.Item.Kind == "Datum")),
                 _ => throw new InvalidOperationException()
             };
+            var groupColor = group[0].Feature is HoleFeature ? palette[nextColor++ % palette.Length] : null;
             var y = placed.Y + stackHeight;
             for (var i = 0; i < blocks.Length; i++)
             {
@@ -153,19 +201,105 @@ public static class PmiDisplayProjection
                 if (i == 0) canvas.Append(placed.Leader, 0, 0);
                 y -= gap;
                 var emitted = Emit(spec, canvas, placed.Plane, placed.Anchor, height, layout.Lift,
-                    basics.GetValueOrDefault(spec.Item.EntityId), dimensionPlane);
+                    basics.GetValueOrDefault(spec.Item.EntityId), dimensionPlane, groupColor);
                 if (i == 0 && placed.Drop > 1e-6)
-                    emitted = emitted with { Lines = [[P(placed.Anchor), P(placed.Anchor + new Vector3D(0, 0, placed.Drop))], .. emitted.Lines] };
+                {
+                    double[][] drop = [P(placed.Anchor), P(placed.Anchor + new Vector3D(0, 0, placed.Drop))];
+                    emitted = emitted with { Lines = [drop, .. emitted.Lines], DraftingLines = [drop, .. emitted.DraftingLines!] };
+                }
                 output[spec.Item.EntityId] = i > 0 ? emitted with { Target = null } : emitted;
             }
         }
 
-        // 3. General notes: one block in the front plane below the part, clear of the datum callouts.
+        // 3. Sizes projected from construction, drawn on their features.
+        foreach (var feature in projected.Where(p => p.DimensionKind?.StartsWith("location ", StringComparison.Ordinal) != true)
+                     .GroupBy(FeatureKey).OrderBy(g => g.Key, StringComparer.Ordinal))
+        {
+            var items = feature.ToArray();
+            var faces = items.SelectMany(Patches).ToArray();
+            if (items.All(i => i.DimensionKind is "thickness" or "length" or "width"))
+            {
+                foreach (var item in items) output[item.EntityId] = OverallDimension(item, Patches(item), layout, height);
+                continue;
+            }
+            // A callout on the feature: one line per characteristic, size first.
+            string Prefix(Step242SemanticPmiInspectionItem i) => i.Quantity is > 1 ? $"{i.Quantity}X " : "";
+            var length = items.FirstOrDefault(i => i.DimensionKind == "length"); var width = items.FirstOrDefault(i => i.DimensionKind == "width");
+            var lines = new List<(Step242SemanticPmiInspectionItem Item, string Text)>();
+            if (length is not null && width is not null)
+            { lines.Add((length, $"{Prefix(length)}{PmiDrafting.Number(length.Value!.Value)} × {PmiDrafting.Number(width.Value!.Value)}")); attachedTo[width.EntityId] = length.EntityId; }
+            foreach (var item in items.Where(i => i != length && i != width || length is null || width is null).OrderBy(i => i.DimensionKind switch
+                { "diameter" => 0, "length" or "width" => 1, "depth" => 2, "height" => 3, "radius" => 4, _ => 5 }))
+            {
+                if (attachedTo.ContainsKey(item.EntityId) || lines.Any(l => l.Item == item)) continue;
+                var value = PmiDrafting.Number(item.Value!.Value);
+                lines.Add((item, item.DimensionKind switch
+                {
+                    "diameter" => $"{Prefix(item)}Ø{value}",
+                    "radius" => $"{Prefix(item)}R{value}",
+                    "depth" => $"{{DEPTH}}{value}",
+                    "height" => $"{value} HIGH",
+                    "chamfer" => $"{Prefix(item)}{value} × 45°",
+                    "length" => $"{Prefix(item)}{value} LONG",
+                    "width" => $"{Prefix(item)}{value} WIDE",
+                    var other => throw new InvalidOperationException($"pmi-display-kind-unsupported: projected {other} '{item.Name}' has no callout yet.")
+                }));
+            }
+            var blocks = lines.Select(l => (l.Item, Block: PmiDrafting.CalloutLine(l.Text, height))).ToArray();
+            var gap = .2 * height;
+            var stackHeight = blocks.Sum(b => b.Block.Height) + gap * (blocks.Length - 1);
+            var stackWidth = blocks.Max(b => b.Block.Width);
+            var diameterFaces = items.Where(i => i.DimensionKind == "diameter").SelectMany(Patches).ToArray();
+            var round = diameterFaces.Select(f => body.GetFaceSurface(f.FaceId).Cylinder).FirstOrDefault(c => c is not null);
+            var placed = layout.PlaceFeatureCallout(faces, items, center, stackWidth, stackHeight, points, round);
+            var featureColor = featureColors[feature.Key] = palette[nextColor++ % palette.Length];
+            var y = placed.Y + stackHeight;
+            for (var k = 0; k < blocks.Length; k++)
+            {
+                y -= blocks[k].Block.Height;
+                var canvas = new PmiCanvas();
+                canvas.Append(blocks[k].Block.Canvas, placed.X, y);
+                if (k == 0) canvas.Append(placed.Leader, 0, 0);
+                y -= gap;
+                var item = blocks[k].Item;
+                var lines3 = Lines3D(canvas, placed.Plane, 0).ToList();
+                var drafting = Draft3D(canvas, placed.Plane).ToList();
+                if (k == 0 && placed.Drop > 1e-6)
+                {
+                    double[][] drop = [P(placed.Anchor), P(placed.Anchor + new Vector3D(0, 0, placed.Drop))];
+                    lines3.Insert(0, drop); drafting.Insert(0, drop);
+                }
+                output[item.EntityId] = new PmiDisplayAnnotation("pmi:" + item.EntityId, "Dimension", item.Name, blocks[k].Block is var _ ? lines[k].Text.Replace("{DEPTH}", "↧").Replace("{CB}", "⌴") : "",
+                    item.Value, item.TolerancePlus, item.ToleranceMinus, item.GeometricFaceEntityIds, P(placed.Anchor), P(placed.Plane.At(placed.X, y)), height, lines3)
+                { TextFill = Fill3D(canvas.Fill, canvas.FillIndices, placed.Plane, layout.Lift * 2), Panel = Fill3D(canvas.Panel, canvas.PanelIndices, placed.Plane, -layout.Lift),
+                  DraftingLines = drafting, LeaderColor = featureColor };
+            }
+        }
+        foreach (var item in projected.Where(p => p.DimensionKind?.StartsWith("location ", StringComparison.Ordinal) == true))
+        {
+            var canvas = basics.GetValueOrDefault(item.EntityId) ?? throw new InvalidOperationException($"pmi-display-location-unsupported: '{item.Name}'.");
+            output[item.EntityId] = new PmiDisplayAnnotation("pmi:" + item.EntityId, "Dimension", item.Name, PmiDrafting.Number(item.Value!.Value),
+                item.Value, item.TolerancePlus, item.ToleranceMinus, item.GeometricFaceEntityIds, P(dimensionPlane.At(0, 0)), P(dimensionPlane.At(0, 0)), height,
+                Lines3D(canvas, dimensionPlane, 0))
+            { TextFill = Fill3D(canvas.Fill, canvas.FillIndices, dimensionPlane, layout.Lift * 2), Panel = Fill3D(canvas.Panel, canvas.PanelIndices, dimensionPlane, -layout.Lift),
+              DraftingLines = Draft3D(canvas, dimensionPlane),
+              LeaderColor = featureColors.FirstOrDefault(c => c.Key.Split('+').Contains(FeatureKey(item))).Value };
+        }
+        // Records drawn on another record's line keep their own entry, pointing at the same place.
+        foreach (var (attached, owner) in attachedTo)
+        {
+            var host = output[owner]; var item = inspection.Items.Single(i => i.EntityId == attached);
+            output[attached] = host with { Id = "pmi:" + attached, Kind = "Dimension", Name = item.Name, Value = item.Value, TolerancePlus = item.TolerancePlus,
+                ToleranceMinus = item.ToleranceMinus, StepFaceEntities = item.GeometricFaceEntityIds, Lines = [[host.Anchor, host.LabelPosition]], DraftingLines = [], TextFill = null, Panel = null, Target = null };
+        }
+
+        // 4. General notes: one block in the front plane below the part, clear of the datum callouts.
         if (notes.Count > 0)
         {
             var plane = new PmiPlane(new Point3D(0, minY, 0), new Vector3D(1, 0, 0), new Vector3D(0, 0, 1));
             var block = notesBlock!;
-            var x = maxX - block.Width; var top = minZ - 3 * height - layout.DimensionDepth;
+            // Notes go last, below the part on the right, clear of every callout in the default view.
+            var (x, top) = layout.PlaceNotes(plane, block.Width, block.Height);
             var canvas = new PmiCanvas();
             canvas.Append(block.Canvas, x, top - block.Height);
             var at = P(plane.At(x, top));
@@ -173,6 +307,7 @@ public static class PmiDisplayProjection
                 output[note.EntityId] = new PmiDisplayAnnotation("pmi:" + note.EntityId, "Note", note.Name, note.Text ?? "",
                     null, null, null, [], at, at, height, index == 0 ? Lines3D(canvas, plane, 0) : [[at, at]])
                 {
+                    DraftingLines = index == 0 ? Draft3D(canvas, plane) : null,
                     TextFill = index == 0 ? Fill3D(canvas.Fill, canvas.FillIndices, plane, layout.Lift * 2) : null,
                     Panel = index == 0 ? Fill3D(canvas.Panel, canvas.PanelIndices, plane, -layout.Lift) : null
                 };
@@ -207,6 +342,18 @@ public static class PmiDisplayProjection
             .Select(e => (e.IsClosed ? e.Points.Append(e.Points[0]) : e.Points).Select(P).ToArray()).ToArray();
     }
 
+    private static PmiDisplayAnnotation OverallDimension(Step242SemanticPmiInspectionItem item, DisplayFaceMeshPatch[] faces, Layout layout, double height)
+    {
+        var text = (item.Quantity is > 1 ? $"{item.Quantity}X " : "") + PmiDrafting.Number(item.Value!.Value)
+            + (item.TolerancePlus is { } plus && item.ToleranceMinus is { } minus ? (Math.Abs(plus - minus) < 1e-12 ? $" ±{PmiDrafting.Number(plus)}" : $" +{PmiDrafting.Number(plus)}/-{PmiDrafting.Number(minus)}") : "");
+        var (canvas, plane) = layout.Overall(item.DimensionKind!, faces.SelectMany(f => f.Positions).ToArray(), text);
+        var anchor = canvas.Lines[0][0];
+        return new PmiDisplayAnnotation("pmi:" + item.EntityId, "Dimension", item.Name, text, item.Value, item.TolerancePlus, item.ToleranceMinus,
+            item.GeometricFaceEntityIds, P(plane.At(anchor.X, anchor.Y)), P(plane.At(anchor.X, anchor.Y)), height, Lines3D(canvas, plane, 0))
+        { TextFill = Fill3D(canvas.Fill, canvas.FillIndices, plane, layout.Lift * 2), Panel = Fill3D(canvas.Panel, canvas.PanelIndices, plane, -layout.Lift),
+          DraftingLines = Draft3D(canvas, plane) };
+    }
+
     private abstract record Feature;
     private sealed record PlanarFeature(Vector3D Normal, DisplayFaceMeshPatch[] Patches) : Feature;
     private sealed record HoleFeature(CylinderSurface[] Cylinders, DisplayFaceMeshPatch[][] Walls) : Feature;
@@ -225,7 +372,7 @@ public static class PmiDisplayProjection
     }
 
     private static PmiDisplayAnnotation Emit(Spec spec, PmiCanvas canvas, PmiPlane plane, Point3D anchor, double height, double lift,
-        PmiCanvas? dimensions, PmiPlane dimensionPlane)
+        PmiCanvas? dimensions, PmiPlane dimensionPlane, double[]? color = null)
     {
         var item = spec.Item;
         var text = item.Kind switch
@@ -246,16 +393,20 @@ public static class PmiDisplayProjection
             fill = Merge(fill, Fill3D(dimensions.Fill, dimensions.FillIndices, dimensionPlane, lift * 2));
             panel = Merge(panel, Fill3D(dimensions.Panel, dimensions.PanelIndices, dimensionPlane, -lift));
         }
+        var drafting = Draft3D(canvas, plane).Concat(dimensions is null ? [] : Draft3D(dimensions, dimensionPlane)).ToArray();
         return new("pmi:" + item.EntityId, item.Kind, item.AuthoredName ?? item.Name, text, item.Value, item.TolerancePlus, item.ToleranceMinus,
             item.GeometricFaceEntityIds, P(anchor), P(plane.At(label.X, label.Y)), height, lines)
-        { Target = Highlight(spec, height), TextFill = fill, Panel = panel };
+        { Target = Highlight(spec, height), TextFill = fill, Panel = panel, DraftingLines = drafting, LeaderColor = color };
     }
 
     private static PmiDisplayMesh? Merge(PmiDisplayMesh? a, PmiDisplayMesh? b) => a is null ? b : b is null ? a
         : new(a.Positions.Concat(b.Positions).ToArray(), a.Indices.Concat(b.Indices.Select(i => i + a.Positions.Length / 3)).ToArray());
 
     private static IReadOnlyList<double[][]> Lines3D(PmiCanvas canvas, PmiPlane plane, double lift) =>
-        canvas.Lines.Select(line => line.Select(p => P(plane.At(p.X, p.Y, lift))).ToArray()).ToArray();
+        canvas.Lines.Concat(canvas.GlyphLines).Select(line => line.Select(p => P(plane.At(p.X, p.Y, lift))).ToArray()).ToArray();
+
+    private static IReadOnlyList<double[][]> Draft3D(PmiCanvas canvas, PmiPlane plane) =>
+        canvas.Lines.Select(line => line.Select(p => P(plane.At(p.X, p.Y))).ToArray()).ToArray();
 
     private static PmiDisplayMesh? Fill3D(List<(double X, double Y)> points, List<int> indices, PmiPlane plane, double lift) =>
         indices.Count == 0 ? null : new(points.SelectMany(p => P(plane.At(p.X, p.Y, lift))).ToArray(), indices.ToArray());
@@ -278,13 +429,15 @@ public static class PmiDisplayProjection
     }
 
     /// <summary>
-    /// Boxed basic dimensions from each planar datum referenced by a Position control to every
-    /// controlled hole axis, drawn in the datum face's top plane as baseline dimensions.
+    /// Baseline dimensions in one horizontal plane: boxed basic dimensions from each planar datum a
+    /// Position control references to every controlled hole axis, and authored locations from an
+    /// axis face to a feature's centre. Equal values share a tier only when both are basic or both not.
     /// </summary>
-    private static Dictionary<int, PmiCanvas> BasicDimensions(IReadOnlyList<Spec> specs, IReadOnlyDictionary<string, Spec> datums, Layout layout)
+    private static Dictionary<int, PmiCanvas> BasicDimensions(IReadOnlyList<Spec> specs, IReadOnlyDictionary<string, Spec> datums,
+        IReadOnlyList<(int Owner, Vector3D Normal, double DatumOffset, Point3D Point, bool Boxed)> locations, Layout layout)
     {
         var result = new Dictionary<int, PmiCanvas>();
-        var requests = new List<(Spec Owner, Vector3D Normal, double DatumOffset, Point3D Axis, string Datum)>();
+        var requests = new List<(int Owner, Vector3D Normal, double DatumOffset, Point3D Point, bool Boxed)>(locations);
         foreach (var position in specs.Where(s => s.Item.Kind == "Position" && s.Feature is HoleFeature))
             foreach (var label in position.Item.DatumReferences)
                 if (datums.TryGetValue(label, out var datum) && datum.Feature is PlanarFeature { } face && Math.Abs(face.Normal.Z) < 1e-7)
@@ -292,20 +445,21 @@ public static class PmiDisplayProjection
                     var origin = datum.Targets[0].Positions[0];
                     foreach (var cylinder in ((HoleFeature)position.Feature).Cylinders)
                         if (Math.Abs(cylinder.Axis.ToVector().Z) > 1 - 1e-7)
-                            requests.Add((position, face.Normal, (origin - Point3D.Origin).Dot(face.Normal), cylinder.Origin, label));
+                            requests.Add((position.Item.EntityId, face.Normal, (origin - Point3D.Origin).Dot(face.Normal), cylinder.Origin, true));
                 }
         int tiersX = 0, tiersY = 0;
         foreach (var direction in requests.GroupBy(r => (Math.Round(r.Normal.X), Math.Round(r.Normal.Y))))
         {
-            var values = direction.Select(r => (r, Value: Math.Abs((r.Axis - Point3D.Origin).Dot(r.Normal) - r.DatumOffset)))
-                .GroupBy(v => Math.Round(v.Value, 6)).Select(g => g.First()).OrderBy(v => v.Value).ToArray();
-            for (var tier = 0; tier < values.Length; tier++)
+            var values = direction.Select(r => (r, Value: Math.Abs((r.Point - Point3D.Origin).Dot(r.Normal) - r.DatumOffset)))
+                .GroupBy(v => (Math.Round(v.Value, 6), v.r.Boxed, v.r.Owner)).Select(g => g.First()).OrderBy(v => v.Value).ToArray();
+            var tiers = values.Select(v => (Math.Round(v.Value, 6), v.r.Boxed)).Distinct().ToList();
+            foreach (var (request, value) in values)
             {
-                var (request, value) = values[tier];
-                var canvas = result.TryGetValue(request.Owner.Item.EntityId, out var existing) ? existing : result[request.Owner.Item.EntityId] = new PmiCanvas();
-                layout.BasicDimension(canvas, request.Normal, request.DatumOffset, request.Axis, value, tier);
+                var tier = tiers.IndexOf((Math.Round(value, 6), request.Boxed));
+                var canvas = result.TryGetValue(request.Owner, out var existing) ? existing : result[request.Owner] = new PmiCanvas();
+                layout.BasicDimension(canvas, request.Normal, request.DatumOffset, request.Point, value, tier, request.Boxed);
             }
-            if (Math.Abs(direction.Key.Item1) > .5) tiersX = Math.Max(tiersX, values.Length); else tiersY = Math.Max(tiersY, values.Length);
+            if (Math.Abs(direction.Key.Item1) > .5) tiersX = Math.Max(tiersX, tiers.Count); else tiersY = Math.Max(tiersY, tiers.Count);
         }
         layout.ReserveDimensionBands(tiersX, tiersY);
         return result;
@@ -325,8 +479,25 @@ public static class PmiDisplayProjection
         private static string Key(PmiPlane plane) => string.Create(CultureInfo.InvariantCulture,
             $"{plane.N.X:0.###},{plane.N.Y:0.###},{plane.N.Z:0.###}");
 
-        private bool Free(PmiPlane plane, (double X0, double Y0, double X1, double Y1) r, bool outsideBody)
+        // Labels in different planes can still overlap on screen. The default view looks from the front
+        // left, above; label rectangles are also kept apart in that view's projection.
+        private static readonly Vector3D ViewRight = Direction3D.Create(new Vector3D(0, 0, 1).Cross(new Vector3D(-1, -1.27, 1.1))).ToVector();
+        private static readonly Vector3D ViewUp = Direction3D.Create(new Vector3D(-1, -1.27, 1.1).Cross(ViewRight)).ToVector();
+        private readonly List<(double X0, double Y0, double X1, double Y1)> screen = [];
+        private static (double X0, double Y0, double X1, double Y1) Screen(PmiPlane plane, (double X0, double Y0, double X1, double Y1) r)
         {
+            var corners = new[] { plane.At(r.X0, r.Y0), plane.At(r.X1, r.Y0), plane.At(r.X1, r.Y1), plane.At(r.X0, r.Y1) }
+                .Select(p => (X: (p - Point3D.Origin).Dot(ViewRight), Y: (p - Point3D.Origin).Dot(ViewUp))).ToArray();
+            return (corners.Min(c => c.X), corners.Min(c => c.Y), corners.Max(c => c.X), corners.Max(c => c.Y));
+        }
+
+        private bool Free(PmiPlane plane, (double X0, double Y0, double X1, double Y1) r, bool outsideBody, bool label = true)
+        {
+            if (label)
+            {
+                var v = Screen(plane, r); var gap = .6 * h;
+                if (screen.Any(o => !(v.X1 + gap <= o.X0 || v.X0 - gap >= o.X1 || v.Y1 + gap <= o.Y0 || v.Y0 - gap >= o.Y1))) return false;
+            }
             if (outsideBody)
             {
                 var (bx0, by0) = plane.Local(new Point3D(minX, minY, minZ)); var (bx1, by1) = plane.Local(new Point3D(maxX, maxY, maxZ));
@@ -338,8 +509,9 @@ public static class PmiDisplayProjection
             return list.All(o => r.X1 + m <= o.X0 || r.X0 - m >= o.X1 || r.Y1 + m <= o.Y0 || r.Y0 - m >= o.Y1);
         }
 
-        private void Occupy(PmiPlane plane, (double X0, double Y0, double X1, double Y1) r)
+        private void Occupy(PmiPlane plane, (double X0, double Y0, double X1, double Y1) r, bool label = true)
         {
+            if (label) screen.Add(Screen(plane, r));
             if (!occupied.TryGetValue(Key(plane), out var list)) occupied[Key(plane)] = list = [];
             list.Add(r);
         }
@@ -347,13 +519,53 @@ public static class PmiDisplayProjection
         /// <summary>Leader from the hole's visible rim, out and away from the part, with a horizontal shoulder.</summary>
         public Placement PlaceHoleCallout(HoleFeature hole, Point3D center, double width, double height, Point3D[] bodyPoints)
         {
-            // The callout points at the hole nearest the default front-left view, and leaves the part
-            // along whichever diagonal reaches free space soonest (outward from the part first).
+            // The callout points at the hole nearest the default front-left view.
             var cylinder = hole.Cylinders.OrderBy(c => c.Origin.X + c.Origin.Y).First();
             var r = cylinder.Radius;
             var level = bodyPoints.Where(p => Math.Pow(p.X - cylinder.Origin.X, 2) + Math.Pow(p.Y - cylinder.Origin.Y, 2) <= Math.Pow(2.2 * r + h, 2)).Max(p => p.Z);
+            // The callout belongs to the controlled wall: when it starts below the entry
+            // (inside a counterbore), the leader drops to the wall's rim.
+            var wallTop = hole.Walls.SelectMany(w => w).SelectMany(p => p.Positions).Max(p => p.Z);
+            return PlaceRadial((cylinder.Origin.X, cylinder.Origin.Y), r, level, Math.Min(level, wallTop), center, width, height);
+        }
+
+        /// <summary>A callout on a composed feature: a pocket at its floor, a boss at its top rim, a chamfer on its face.</summary>
+        public Placement PlaceFeatureCallout(DisplayFaceMeshPatch[] faces, IReadOnlyList<Step242SemanticPmiInspectionItem> items, Point3D center,
+            double width, double height, Point3D[] bodyPoints, CylinderSurface? cylinder)
+        {
+            var points = faces.SelectMany(f => f.Positions).ToArray();
+            var top = points.Max(p => p.Z);
+            if (items.Any(i => i.DimensionKind == "depth"))
+            {
+                // Point at the floor centre of the pocket nearest the default view, from the rim level.
+                var floorZ = points.Min(p => p.Z);
+                var floor = faces.Where(f => f.Positions.All(p => Math.Abs(p.Z - floorZ) < 1e-6))
+                    .OrderBy(f => f.Positions.Average(p => p.X + p.Y)).First().Positions;
+                return PlaceRadial(((floor.Min(p => p.X) + floor.Max(p => p.X)) / 2, (floor.Min(p => p.Y) + floor.Max(p => p.Y)) / 2), 0, top, floorZ, center, width, height);
+            }
+            if (cylinder is { } round)
+            {
+                // A boss: point at its top rim.
+                var rim = faces.Where(f => f.Positions.Any()).SelectMany(f => f.Positions)
+                    .Where(p => Math.Abs(Math.Sqrt(Math.Pow(p.X - round.Origin.X, 2) + Math.Pow(p.Y - round.Origin.Y, 2)) - round.Radius) < 1e-6).ToArray();
+                var rimTop = rim.Length > 0 ? rim.Max(p => p.Z) : top;
+                return PlaceRadial((round.Origin.X, round.Origin.Y), round.Radius, rimTop, rimTop, center, width, height);
+            }
+            if (items.Any(i => i.DimensionKind == "chamfer"))
+            {
+                // The chamfer nearest the default view, at its middle.
+                var front = faces.OrderBy(f => f.Positions.Average(p => p.Y)).First().Positions;
+                var mid = (X: (front.Min(p => p.X) + front.Max(p => p.X)) / 2, Y: (front.Min(p => p.Y) + front.Max(p => p.Y)) / 2);
+                return PlaceRadial(mid, 0, front.Max(p => p.Z), (front.Min(p => p.Z) + front.Max(p => p.Z)) / 2, center, width, height);
+            }
+            var axis = ((points.Min(p => p.X) + points.Max(p => p.X)) / 2, (points.Min(p => p.Y) + points.Max(p => p.Y)) / 2);
+            var radius = Math.Min(points.Max(p => p.X) - points.Min(p => p.X), points.Max(p => p.Y) - points.Min(p => p.Y)) / 2;
+            return PlaceRadial(axis, radius, top, top, center, width, height);
+        }
+
+        private Placement PlaceRadial((double X, double Y) axis, double r, double level, double anchorZ, Point3D center, double width, double height)
+        {
             var plane = new PmiPlane(new Point3D(0, 0, level), new Vector3D(1, 0, 0), new Vector3D(0, 1, 0));
-            var axis = (X: cylinder.Origin.X, Y: cylinder.Origin.Y);
             var sx = Math.Sign(axis.X - center.X); var sy = Math.Sign(axis.Y - center.Y);
             var preferred = (X: sx == 0 ? -1 : sx, Y: sy == 0 ? -1 : sy);
             var directions = new[] { preferred, (X: -1, Y: -1), (X: 1, Y: -1), (X: -1, Y: 1), (X: 1, Y: 1) }.Distinct().ToArray();
@@ -374,13 +586,50 @@ public static class PmiDisplayProjection
                     var leader = new PmiCanvas();
                     leader.Line(tip, elbow, (outward.X >= 0 ? x : x + width, elbow.Y));
                     Arrow(leader, tip, (-outward.X, -outward.Y));
-                    // The callout belongs to the controlled wall: when it starts below the entry
-                    // (inside a counterbore), the leader drops to the wall's rim.
-                    var wallTop = hole.Walls.SelectMany(w => w).SelectMany(p => p.Positions).Max(p => p.Z);
-                    var anchor = new Point3D(tip.X, tip.Y, Math.Min(level, wallTop));
-                    return new(plane, x, elbow.Y - height / 2, leader, anchor) { Drop = level - anchor.Z };
+                    var anchor = new Point3D(tip.X, tip.Y, anchorZ);
+                    return new(plane, x, elbow.Y - height / 2, leader, anchor) { Drop = level - anchorZ };
                 }
-            throw new InvalidOperationException("pmi-display-layout-no-space: a hole callout has no free position.");
+            throw new InvalidOperationException("pmi-display-layout-no-space: a callout has no free position.");
+        }
+
+        /// <summary>
+        /// An overall size outside the part: length behind it, width to its right (both in the plane of
+        /// the walls' top edges), thickness up its front right corner.
+        /// </summary>
+        public (PmiCanvas Canvas, PmiPlane Plane) Overall(string kind, Point3D[] points, string text)
+        {
+            var canvas = new PmiCanvas();
+            PmiPlane plane; (double X, double Y) a, b, offset;
+            if (kind == "thickness")
+            {
+                plane = new PmiPlane(new Point3D(0, minY, 0), new Vector3D(1, 0, 0), new Vector3D(0, 0, 1));
+                a = (maxX, points.Min(p => p.Z)); b = (maxX, points.Max(p => p.Z)); offset = (1, 0);
+            }
+            else
+            {
+                plane = new PmiPlane(new Point3D(0, 0, points.Max(p => p.Z)), new Vector3D(1, 0, 0), new Vector3D(0, 1, 0));
+                (a, b, offset) = kind == "length"
+                    ? ((points.Min(p => p.X), maxY), (points.Max(p => p.X), maxY), (0d, 1d))
+                    : ((maxX, points.Min(p => p.Y)), (maxX, points.Max(p => p.Y)), (1d, 0d));
+            }
+            var label = PmiDrafting.TextBlock(text, h);
+            for (var distance = 3 * h; distance < 60 * h; distance += h)
+            {
+                var la = (X: a.X + offset.X * distance, Y: a.Y + offset.Y * distance); var lb = (X: b.X + offset.X * distance, Y: b.Y + offset.Y * distance);
+                var mid = ((la.X + lb.X) / 2, (la.Y + lb.Y) / 2);
+                var rect = (mid.Item1 - label.Width / 2, mid.Item2 - label.Height / 2, mid.Item1 + label.Width / 2, mid.Item2 + label.Height / 2);
+                if (!Free(plane, rect, false)) continue;
+                Occupy(plane, (Math.Min(la.X, lb.X) - .5 * h, Math.Min(la.Y, lb.Y) - .5 * h, Math.Max(la.X, lb.X) + .5 * h, Math.Max(la.Y, lb.Y) + .5 * h), label: false);
+                Occupy(plane, rect);
+                canvas.Line((a.X + offset.X * .4 * h, a.Y + offset.Y * .4 * h), (la.X + offset.X * .6 * h, la.Y + offset.Y * .6 * h));
+                canvas.Line((b.X + offset.X * .4 * h, b.Y + offset.Y * .4 * h), (lb.X + offset.X * .6 * h, lb.Y + offset.Y * .6 * h));
+                canvas.Line(la, lb);
+                var along = (X: lb.X - la.X, Y: lb.Y - la.Y);
+                Arrow(canvas, la, (-along.X, -along.Y)); Arrow(canvas, lb, along);
+                canvas.Append(label.Canvas, rect.Item1, rect.Item2);
+                return (canvas, plane);
+            }
+            throw new InvalidOperationException("pmi-display-layout-no-space: an overall dimension has no free position.");
         }
 
         /// <summary>Reserve the band a set of baseline dimensions occupies, extension lines included.</summary>
@@ -389,8 +638,20 @@ public static class PmiDisplayProjection
             var plane = new PmiPlane(new Point3D(0, 0, DimensionLevel), new Vector3D(1, 0, 0), new Vector3D(0, 1, 0));
             var spacing = 2.6 * h; var first = 3.2 * h;
             DimensionDepth = first + (Math.Max(tiersAlongX, 1) - 1) * spacing + 1.2 * h;
-            if (tiersAlongX > 0) Occupy(plane, (minX - h, minY - first - (tiersAlongX - 1) * spacing - 1.2 * h, maxX + h, minY));
-            if (tiersAlongY > 0) Occupy(plane, (minX - first - (tiersAlongY - 1) * spacing - 1.6 * h, minY - h, minX, maxY + h));
+            if (tiersAlongX > 0) Occupy(plane, (minX - h, minY - first - (tiersAlongX - 1) * spacing - 1.2 * h, maxX + h, minY), label: false);
+            if (tiersAlongY > 0) Occupy(plane, (minX - first - (tiersAlongY - 1) * spacing - 1.6 * h, minY - h, minX, maxY + h), label: false);
+        }
+
+        public (double X, double Top) PlaceNotes(PmiPlane plane, double width, double height)
+        {
+            for (var top = minZ - 3 * h; top > minZ - 200 * h; top -= h)
+            {
+                var rect = (maxX - width, top - height, maxX, top);
+                if (!Free(plane, rect, false)) continue;
+                Occupy(plane, rect);
+                return (maxX - width, top);
+            }
+            throw new InvalidOperationException("pmi-display-layout-no-space: the notes have no free position.");
         }
 
         /// <summary>Reserve a rectangle in a plane (for blocks placed by the caller).</summary>
@@ -473,7 +734,7 @@ public static class PmiDisplayProjection
         }
 
         /// <summary>One baseline basic dimension: extension lines, a dimension line with arrows and a boxed value.</summary>
-        public void BasicDimension(PmiCanvas canvas, Vector3D datumNormal, double datumOffset, Point3D axis, double value, int tier)
+        public void BasicDimension(PmiCanvas canvas, Vector3D datumNormal, double datumOffset, Point3D axis, double value, int tier, bool boxed = true)
         {
             // Dimensions along X sit in front of the part; dimensions along Y sit to its left.
             var alongX = Math.Abs(datumNormal.X) > .5;
@@ -481,7 +742,7 @@ public static class PmiDisplayProjection
             var spacing = 2.6 * h; var first = 3.2 * h;
             var datumCoordinate = datumOffset * (alongX ? datumNormal.X : datumNormal.Y);
             var featureCoordinate = alongX ? axis.X : axis.Y;
-            var label = PmiDrafting.TextBlock(PmiDrafting.Number(value), h, boxed: true);
+            var label = PmiDrafting.TextBlock(PmiDrafting.Number(value), h, boxed);
             if (alongX)
             {
                 var y = minY - first - tier * spacing;
@@ -496,7 +757,8 @@ public static class PmiDisplayProjection
                     : (datumCoordinate + featureCoordinate) / 2 - label.Width / 2;
                 canvas.Append(label.Canvas, cx, y - label.Height / 2);
                 dimensionLabels.Add((cx, y - label.Height / 2, cx + label.Width, y + label.Height / 2));
-                Occupy(plane, (Math.Min(datumCoordinate, featureCoordinate), y - label.Height / 2, Math.Max(datumCoordinate, featureCoordinate), y + label.Height / 2));
+                Occupy(plane, (Math.Min(datumCoordinate, featureCoordinate), y - label.Height / 2, Math.Max(datumCoordinate, featureCoordinate), y + label.Height / 2), label: false);
+                Occupy(plane, (cx, y - label.Height / 2, cx + label.Width, y + label.Height / 2));
             }
             else
             {
@@ -511,7 +773,8 @@ public static class PmiDisplayProjection
                     : (datumCoordinate + featureCoordinate) / 2 - label.Height / 2;
                 canvas.Append(label.Canvas, x - label.Width / 2, cy);
                 dimensionLabels.Add((x - label.Width / 2, cy, x + label.Width / 2, cy + label.Height));
-                Occupy(plane, (x - label.Width / 2, Math.Min(datumCoordinate, featureCoordinate), x + label.Width / 2, Math.Max(datumCoordinate, featureCoordinate)));
+                Occupy(plane, (x - label.Width / 2, Math.Min(datumCoordinate, featureCoordinate), x + label.Width / 2, Math.Max(datumCoordinate, featureCoordinate)), label: false);
+                Occupy(plane, (x - label.Width / 2, cy, x + label.Width / 2, cy + label.Height));
             }
             // Mark the controlled axis.
             canvas.Line((axis.X - .8 * h, axis.Y), (axis.X + .8 * h, axis.Y));

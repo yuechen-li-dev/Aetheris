@@ -112,13 +112,97 @@ public sealed class PmiShowcaseTests
         var result = FirmamentBuildAndExport.CompileSource(Showcase());
         Assert.True(result.IsSuccess, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
         var inspection = Step242SemanticPmiInspector.Inspect(result.Value.StepText);
-        Assert.Equal(3, inspection.DatumCount); Assert.Equal(2, inspection.DimensionCount);
+        Assert.Equal(3, inspection.DatumCount); Assert.Equal(17, inspection.DimensionCount);
         Assert.Equal(5, inspection.GeometricToleranceCount); Assert.Equal(3, inspection.AnnotationCount);
         Assert.All(inspection.Items.Where(i => i.Kind != "Annotation"), i => Assert.NotEmpty(i.GeometricFaceEntityIds));
         var display = PmiDisplayProjection.FromStep(result.Value.StepText);
         Assert.Equal(inspection.Items.Count, display.Count);
-        Assert.All(display.Where(a => a.Kind != "Note"), a => Assert.NotNull(a.TextFill));
+        Assert.All(display, a => Assert.NotEmpty(a.Lines));
         Assert.Contains(display, a => a.Text.StartsWith("4X Ø6.6 ±0.1", StringComparison.Ordinal));
         Assert.Contains(display, a => a.Text == "Position Ø0.25 (M) | A | B | C");
+        Assert.Contains(display, a => a.Text == "2X 16 × 40");
+        Assert.Contains(display, a => a.Text == "1 × 45°");
+    }
+
+    [Fact]
+    public void ProjectedDimensions_ComeFromTheBuiltGeometry()
+    {
+        var step = Build("""
+            Datum A { target: face(-Z) }
+            Dimension T { target: stock.Height }
+            Dimension L { target: stock.Length }
+            Dimension W { target: stock.Width }
+            Dimension D { target: hub.Diameter }
+            Dimension H { target: hub.Height }
+            Location FromB { origin: face(-X) to: hub }
+            Location HoleFromC { origin: face(-Y) to: a basic: true }
+            """).StepText;
+        var items = Step242SemanticPmiInspector.Inspect(step).Items.Where(i => i.Kind == "Dimension").ToDictionary(i => i.Name);
+        Assert.Equal(8, items["T"].Value); Assert.Equal("thickness", items["T"].DimensionKind);
+        Assert.Equal(60, items["L"].Value); Assert.Equal(40, items["W"].Value);
+        Assert.Equal(20, items["D"].Value); Assert.Equal(6, items["H"].Value);
+        Assert.Equal(30, items["FromB"].Value); Assert.Equal("location -X", items["FromB"].DimensionKind);
+        Assert.Equal(8, items["HoleFromC"].Value); Assert.Equal("location -Y basic", items["HoleFromC"].DimensionKind);
+        Assert.All(items.Values, i => Assert.NotEmpty(i.GeometricFaceEntityIds));
+    }
+
+    [Fact]
+    public void Sizes_AreAlsoWrittenInStandardAp242Form_AndReadOnce()
+    {
+        var step = Build("HoleDiameter S { target: h dimension: d } Dimension D { target: hub.Diameter } Dimension T { target: stock.Height }").StepText;
+        Assert.Contains("DIMENSIONAL_SIZE(", step); Assert.Contains("PLUS_MINUS_TOLERANCE(", step); Assert.Contains("DIMENSIONAL_LOCATION(", step);
+        Assert.Equal(3, Step242SemanticPmiInspector.Inspect(step).DimensionCount);
+        // A reader that only knows the standard entities finds the same sizes and limits.
+        var standardOnly = step.Replace("PROPERTY_DEFINITION('diameter:", "PROPERTY_DEFINITION('x:").Replace("PROPERTY_DEFINITION('dimension:", "PROPERTY_DEFINITION('x:")
+            .Replace("'firmament-native:", "'x:");
+        var dims = Step242SemanticPmiInspector.Inspect(standardOnly).Items.Where(i => i.Kind == "Dimension").ToArray();
+        var hole = Assert.Single(dims, i => i.Value == 8 && i.DimensionKind == "diameter");
+        Assert.Equal(.1, hole.TolerancePlus); Assert.Equal(.05, hole.ToleranceMinus);
+        Assert.Single(dims, i => i.Value == 20 && i.DimensionKind == "diameter");
+        Assert.Single(dims, i => i.Value == 8 && i.DimensionKind == "linear distance");
+    }
+
+    [Fact]
+    public void HoleCallout_ProjectsItsCounterbore()
+    {
+        var source = Plate.Replace("Hole<Shaft> a { on: +Z; center: [-22mm, -12mm]; diameter: 5mm; end: ThroughAll }",
+            "Hole<Counterbore> a { on: +Z; center: [-22mm, -12mm]; diameter: 5mm; counterboreDiameter: 9mm; counterboreDepth: 3mm; end: ThroughAll }")
+            .Replace("PMI_BODY", "HoleCallout C { target: a value: 5mm tolerance: PlusMinus(0.1mm) }");
+        var result = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(result.IsSuccess, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var items = Step242SemanticPmiInspector.Inspect(result.Value.StepText).Items;
+        Assert.Single(items, i => i.Kind == "Diameter" && i.Value == 5);
+        Assert.Single(items, i => i.Name == "C.CounterboreDiameter" && i.Value == 9);
+        Assert.Single(items, i => i.Name == "C.CounterboreDepth" && i.Value == 3);
+        Assert.Contains(PmiDisplayProjection.FromStep(result.Value.StepText), a => a.Text.Contains("Ø5 ±0.1", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("Dimension D { target: stock.Volume }")]
+    [InlineData("Dimension D { target: [hub.Diameter, stock.Height] }")]
+    [InlineData("Location L { origin: face(+Z) to: hub }")]
+    [InlineData("Location L { origin: face(-X) to: nothing }")]
+    [InlineData("Location L { origin: face(-X) to: hub basic: true tolerance: PlusMinus(0.1mm) }")]
+    public void InvalidProjections_Reject(string pmi)
+    {
+        var result = FirmamentBuildAndExport.CompileSource(Plate.Replace("PMI_BODY", pmi));
+        Assert.False(result.IsSuccess);
+    }
+
+    [Fact]
+    public void HoleWall_OnAComposeHole_TargetsItsShaft()
+    {
+        var step = Build("Datum A { target: face(-Z) } Position P { target: face(h.Wall) tolerance: 0.1mm datumRefs: [A] }").StepText;
+        Assert.NotEmpty(Assert.Single(Step242SemanticPmiInspector.Inspect(step).Items, i => i.Kind == "Position").GeometricFaceEntityIds);
+    }
+
+    [Fact]
+    public void PmiRecordErrors_AreLocatedAndExplained()
+    {
+        var source = Plate.Replace("PMI_BODY", "HoleDiameter S { target: h dimension: nothere }");
+        var report = FirmamentV2.FirmamentV2ValidationReportBuilder.Build(FirmamentV2.FirmamentV2Parser.Parse(source), "plate.firmament", sourceText: source);
+        var error = Assert.Single(report.Diagnostics, d => d.Code.StartsWith("firmament-v2-pmi-dimension-type-mismatch:", StringComparison.Ordinal));
+        Assert.Contains("toleranced Length Static", error.Message);
+        Assert.NotNull(error.Line); Assert.NotEqual(1, error.Line);
     }
 }

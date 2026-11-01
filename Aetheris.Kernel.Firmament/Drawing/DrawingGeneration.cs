@@ -90,7 +90,7 @@ public static partial class FirmamentDrawingCompiler
              || Step242SubsetDecoder.TryGetConstructor(entity.Instance, "DIMENSIONAL_LOCATION") is not null
              || Step242SubsetDecoder.TryGetConstructor(entity.Instance, "GEOMETRIC_TOLERANCE") is not null
              || Step242SubsetDecoder.TryGetConstructor(entity.Instance, "DATUM_FEATURE") is not null)
-            && !inspected.Items.Any(item => item.EntityId == entity.Id)).Select(entity => $"#{entity.Id}:{entity.Name}").ToArray();
+            && !inspected.Items.Any(item => item.EntityId == entity.Id) && !inspected.StandardMirrors.Contains(entity.Id)).Select(entity => $"#{entity.Id}:{entity.Name}").ToArray();
         if (unsupportedPmi.Length > 0) return Failure($"drawing-pmi-family-unsupported: These AP242 semantic entities require a qualified readback adapter: {string.Join(", ", unsupportedPmi)}. They were not omitted from a successful drawing.");
         if (inspected.Items.Count > 0 && Math.Abs(parsed.Value.SourceMillimetresPerUnit - 1) > 1e-12)
             return Failure("drawing-pmi-units-unsupported: Semantic PMI generation currently requires millimetre AP242 measures. Geometry-only reference views can use normalized imported units.");

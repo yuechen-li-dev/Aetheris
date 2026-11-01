@@ -157,6 +157,15 @@ internal static class TrimmedSurfaceTessellator
             return KernelResult<DisplayFaceMeshPatch>.Success(conformingPatch, qualityWarnings);
         }
 
+        // A trim that is exactly the UV rectangle (a hole-wall strip between two section levels, say)
+        // needs no trim fidelity from the grid: size it by the surface's turning, not by the chord
+        // tolerance read as a parameter step, which made a straight ruling hundreds of cells long.
+        if (splineSupport is null && simplifiedLoops.Count == 1 && IsDisplayRectangle(simplifiedLoops[0]))
+        {
+            // Only a straight direction is coarsened; the curved one keeps the samples its edges were cut with.
+            if (curvedU <= 1) uSegments = 1;
+            if (curvedV <= 1) vSegments = 1;
+        }
         var positions = new List<Point3D>((uSegments + 1) * (vSegments + 1));
         var normals = new List<Vector3D>((uSegments + 1) * (vSegments + 1));
         var uvGrid = new List<(double U, double V)>((uSegments + 1) * (vSegments + 1));

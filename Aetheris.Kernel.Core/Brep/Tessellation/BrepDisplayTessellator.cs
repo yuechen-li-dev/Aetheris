@@ -3884,9 +3884,10 @@ public static class BrepDisplayTessellator
             return KernelResult<IReadOnlyList<Point3D>>.Failure(trimResult.Diagnostics);
         }
 
-        var trim = trimResult.Value;
-        var segmentCount = ComputeEllipseSegmentCount(ellipse, trim.Start, trim.End, options);
-        var sampled = SampleEllipseCurve(ellipse, trim, segmentCount).ToArray();
+        var (trimStart, trimDelta) = trimResult.Value;
+        var segmentCount = ComputeEllipseSegmentCount(ellipse, trimStart, trimStart + trimDelta, options);
+        var sampled = Enumerable.Range(0, segmentCount + 1)
+            .Select(i => ellipse.Evaluate(trimStart + trimDelta * i / segmentCount)).ToArray();
         sampled[0] = start;
         sampled[^1] = end;
 
@@ -3899,7 +3900,9 @@ public static class BrepDisplayTessellator
         return KernelResult<IReadOnlyList<Point3D>>.Success(points);
     }
 
-    private static KernelResult<ParameterInterval> ResolvePlanarEllipseTrim(
+    // A start parameter and a signed sweep, as for planar circles: a coedge used against its edge
+    // walks the trim backwards, which an increasing ParameterInterval cannot express.
+    private static KernelResult<(double Start, double Delta)> ResolvePlanarEllipseTrim(
         BrepBody body,
         Coedge coedge,
         bool traversalSwapped,
@@ -3911,10 +3914,11 @@ public static class BrepDisplayTessellator
     {
         if (body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding) && binding.TrimInterval is ParameterInterval trim)
         {
-            var effectiveIsReversed = coedge.IsReversed ^ traversalSwapped;
-            return KernelResult<ParameterInterval>.Success(effectiveIsReversed
-                ? new ParameterInterval(trim.End, trim.Start)
-                : trim);
+            var effectiveIsReversed = coedge.IsReversed ^ traversalSwapped ^ !binding.OrientedEdgeSense;
+            var trimStart = effectiveIsReversed ? trim.End : trim.Start;
+            var trimDelta = (effectiveIsReversed ? trim.Start : trim.End) - trimStart;
+            if (double.IsFinite(trimDelta) && double.Abs(trimDelta) > 1e-9d)
+                return KernelResult<(double, double)>.Success((trimStart, trimDelta));
         }
 
         var startAngle = AngleOnEllipse(ellipse, start);
@@ -3922,7 +3926,7 @@ public static class BrepDisplayTessellator
         var delta = NormalizeToSignedPi(endAngle - startAngle);
         if (double.Abs(delta) < 1e-9d)
         {
-            return KernelResult<ParameterInterval>.Failure([
+            return KernelResult<(double, double)>.Failure([
                 CreateInvalidArgument($"Face {faceId.Value} planar ellipse flattening detected a degenerate ellipse trim.", PlanarCurveFlatteningFailedSource)]);
         }
 
@@ -3932,7 +3936,7 @@ public static class BrepDisplayTessellator
             delta = -delta;
         }
 
-        return KernelResult<ParameterInterval>.Success(new ParameterInterval(startAngle, startAngle + delta));
+        return KernelResult<(double, double)>.Success((startAngle, delta));
     }
 
     private static KernelResult<(double StartAngle, double Delta)> ResolveArcDelta(

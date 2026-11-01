@@ -93,8 +93,10 @@ public sealed class Step242ExporterTests
         Assert.Equal(first.Value, second.Value);
         Assert.Equal(2, CountOccurrences(first.Value, "SHAPE_ASPECT"));
         Assert.Equal(2, CountOccurrences(first.Value, "PROPERTY_DEFINITION_REPRESENTATION"));
-        Assert.Equal(2, CountOccurrences(first.Value, "SHAPE_DIMENSION_REPRESENTATION"));
-        Assert.Equal(2, CountOccurrences(first.Value, "MEASURE_REPRESENTATION_ITEM"));
+        // Native and standard AP242 size forms are both written (2 holes x 2).
+        Assert.Equal(4, CountOccurrences(first.Value, "SHAPE_DIMENSION_REPRESENTATION"));
+        Assert.Equal(4, CountOccurrences(first.Value, "MEASURE_REPRESENTATION_ITEM"));
+        Assert.Equal(2, CountOccurrences(first.Value, "DIMENSIONAL_SIZE("));
         Assert.Contains("firmament-feature:hole_a", first.Value, StringComparison.Ordinal);
         Assert.Contains("firmament-feature:hole_b", first.Value, StringComparison.Ordinal);
         Assert.Contains("MEASURE_REPRESENTATION_ITEM('diameter',8,#", first.Value, StringComparison.Ordinal);

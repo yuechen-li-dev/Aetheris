@@ -1,0 +1,8 @@
+Model TwoHolePlate {
+    units: mm
+    Box Body { size: [80mm, 50mm, 8mm] }
+    Modify Body {
+        Hole<Shaft> Left { on: +Z; center: Point2(-15mm, 0mm); diameter: 8mm; end: ThroughAll }
+        Hole<Shaft> Right { on: +Z; center: Point2(15mm, 0mm); diameter: 8mm; end: ThroughAll }
+    }
+}

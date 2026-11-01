@@ -39,7 +39,8 @@ public static partial class FirmamentBuildAndExport
             var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(h => h.Name, h => h.StableId, StringComparer.Ordinal);
             foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
             foreach (var hole in stack.Feature.CountersinkHoles ?? []) features[hole.Name] = hole.StableId;
-            pmi = BuildV2SemanticPmi(document, [], stack.Feature.Name, features, planned.Correspondence, planned.Body).ToArray();
+            pmi = BuildV2SemanticPmi(document, [], stack.Feature.Name, features, planned.Correspondence, planned.Body,
+                ComposeOperationCapFaces(stack.Feature, planned.Body, planned.Correspondence), stack.Feature).ToArray();
         }
         var step = Step242Exporter.ExportBody(planned.Body, pmi, new Step242ExportOptions {
             ProductName = stack.Feature.Name, ApplicationName = "Aetheris.ProfileRimFinish", BrepExportPreflightMode = BrepExportPreflightMode.Enforce,

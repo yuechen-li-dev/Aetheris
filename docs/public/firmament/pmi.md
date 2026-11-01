@@ -6,11 +6,86 @@ geometry, solving constraints, or proving that a manufacturing process can meet
 the tolerance. Camera and label placement are presentation state. Checked
 compile-time requirements can separately be projected into dimensional PMI.
 
-Native Model export supports planar `Datum`, `HoleDiameter`, and the explicit
-geometric controls below. The diameter record targets a named shaft hole; on a
-counterbore it means the shaft `diameter`, not `counterboreDiameter`. Parsed kinds
-outside the admitted set, including `Distance` and `Coplanar`, remain rejected by
-normal export rather than silently omitted.
+Native Model export supports planar `Datum`, `HoleDiameter`, `HoleCallout`, the
+explicit geometric controls below, sizes and locations projected from construction
+(`Dimension`, `Location`) and part `Note`s. The diameter record targets a named shaft
+hole; on a counterbore it means the shaft `diameter`, not `counterboreDiameter`.
+Parsed kinds outside the admitted set, including the older `Distance` and
+`Coplanar` forms, remain rejected by normal export rather than silently omitted.
+
+Every size is written twice in the AP242 file: in the Aetheris records that
+`aetheris analyze` reports, and in the standard semantic form other CAD and
+inspection software reads (`DIMENSIONAL_SIZE` or `DIMENSIONAL_LOCATION` with a
+`PLUS_MINUS_TOLERANCE`, associated with the measured faces). Readers count each
+size once.
+
+## A part specified by its model
+
+The complete example is
+[`showcase-bearing-mount.firmament`](../../../fixtures/Canonical/PMI/showcase-bearing-mount.firmament):
+a composed block with a boss, two pockets, a bearing bore, four counterbored
+mounting holes and a chamfered edge, with datums, sizes, geometric controls,
+locations and notes complete enough to make the part without a drawing.
+
+```firmament
+Pmi {
+    Datum A { target: face(-Z) }
+    Datum B { target: face(-X) }
+    Datum C { target: face(-Y) }
+    HoleCallout MountSize { target: [mountA, mountB, mountC, mountD] dimension: mountDiameter }
+    Position MountLocation { target: [mountA, mountB, mountC, mountD] tolerance: 0.25mm zone: Cylindrical datumRefs: [A, B, C] modifiers: [MaximumMaterial] }
+    Parallelism HubFace { target: face(hub.Top) tolerance: 0.03mm datumRefs: [A] }
+    Dimension PocketDepth { target: [left.Depth, right.Depth] }
+    Location LeftPocketFromB { origin: face(-X) to: left }
+    Dimension EdgeBreak { target: perimeterBreak.Distance }
+    Note Material { text: "MATERIAL: 6061-T6 ALUMINUM" }
+}
+```
+
+**Targets.**
+
+- `face(-X)` and the other axis faces mean the faces lying in the part's extreme
+  plane in that direction, the surface a datum simulator touches. A face split by
+  construction is associated in all its pieces. If the extreme in that direction is
+  not planar, the target does not resolve and the record rejects.
+- On a `Compose` body, `face(op.Top)` names a Base or Boss top, `face(op.Bottom)` a
+  Base bottom and `face(pocket.Floor)` a Pocket floor. A cap that is not exactly one
+  face rejects.
+- A hole is named directly (`target: bore`); `face(bore.Wall)` means the same on a
+  Compose body. A list of holes (`target: [a, b, c, d]`) is one requirement on every
+  listed hole, written with its quantity ("4X"). It applies to the shaft walls,
+  never to a counterbore or countersink wall.
+- An authored datum that resolves to no face rejects.
+
+**`HoleCallout`** takes the same fields as `HoleDiameter` and adds the hole's
+counterbore diameter and depth, projected from its construction:
+`4X Ø6.6 ±0.1 ⌴Ø11 ↧6.5`. The counterbore of every listed hole must be alike.
+
+**`Dimension`** names a construction parameter; the compiler supplies the value from
+the built geometry, so it cannot disagree with the part:
+
+| Target | Value |
+|---|---|
+| `base.Height`, `base.Length`, `base.Width` | Base thickness; X and Y extent between its walls |
+| `boss.Height`, `boss.Diameter`, `boss.Length`, `boss.Width`, `boss.Radius` | Boss height above its support; round or rectangular size; corner radius |
+| `pocket.Depth`, `pocket.Diameter`, `pocket.Length`, `pocket.Width`, `pocket.Radius` | Pocket depth to its floor; size; corner radius |
+| `finish.Distance` | An equal-distance 45° chamfer (`EdgeFinish<Chamfer>`) |
+
+`Length` runs along X and `Width` along Y, as `Rect2` writes `size: [x, y]`. A list
+of the same parameter on several features (`[left.Depth, right.Depth]`) is one
+requirement with a quantity; the values must agree. A value with no stated
+tolerance falls under the part's general-tolerance note; `dimension:` a toleranced
+`Static` or `tolerance: PlusMinus(..)` attaches one.
+
+**`Location`** runs from an axis face (`origin: face(-X)`) to a hole axis or to the
+centre of a boss or pocket (`to: left`). `basic: true` makes it theoretically exact
+(drawn boxed) and admits no tolerance.
+
+**`Note`** records part-level text such as material, general tolerances and finish.
+They read back as annotations.
+
+Fillet radii, countersink callouts and locations between two features are not yet
+projected. A `Dimension` or `Location` that does not resolve to faces rejects.
 
 ## Explicit GD&T
 
@@ -160,7 +235,10 @@ geometric requirement. The shipped size examples request independent datums and
 size dimensions; they no longer request a relationship that was never emitted.
 
 This is semantic product-definition PMI, recovered by `aetheris analyze`;
-graphical dimension-label placement is separate. Explicit `value:` and
+graphical dimension-label placement is separate. An annotated GLB draws it in 3D:
+callouts sit on their features, feature control frames and datum symbols follow
+ASME Y14.5 shapes, basic dimensions locate position-toleranced holes, and each
+feature's leaders share a colour. Explicit `value:` and
 `tolerance: PlusMinus(upper, lower)` remain supported compatibility forms.
 Existing `Require`-based `from:` / `as:` projections continue to mean a checked
 semantic constraint, rather than an implicit export of all Static values.

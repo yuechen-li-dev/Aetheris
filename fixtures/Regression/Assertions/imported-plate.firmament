@@ -1,0 +1,5 @@
+// The qualification harness supplies plate.step and its dependency lock from the native plate's STEP export.
+Model ImportedPlate {
+    units: mm
+    InlineStep Source { path: "plate.step"; geometryOnly: true }
+}

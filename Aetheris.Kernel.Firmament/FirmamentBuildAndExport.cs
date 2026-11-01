@@ -247,7 +247,12 @@ public static partial class FirmamentBuildAndExport
         if (!support.IsSuccess) return support;
 
         var expectedDatums = pmi.Count(record => record.Kind == FirmamentV2PmiKind.DatumPlane) + export.GeneratedSemanticPmi.OfType<Step242SemanticPmiDatum>().Count();
-        var expectedDiameters = pmi.Count(record => record.Kind == FirmamentV2PmiKind.HoleDiameter) + export.GeneratedSemanticPmi.OfType<Step242SemanticPmiHole>().Count();
+        // Projected sizes and locations are dimensions too; a hole callout on counterbores adds its
+        // counterbore diameter and depth.
+        var counterbores = Regex.Matches(source, @"\bHole<Counterbore>\s+(?<name>[A-Za-z_]\w*)").Select(m => m.Groups["name"].Value).ToHashSet(StringComparer.Ordinal);
+        var calloutExtras = 2 * (document.BoundPmi?.Dimensions ?? []).Count(b => b.Callout && b.Targets.Any(counterbores.Contains));
+        var expectedDiameters = pmi.Count(record => record.Kind is FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Dimension or FirmamentV2PmiKind.Location)
+            + calloutExtras + export.GeneratedSemanticPmi.OfType<Step242SemanticPmiHole>().Count();
         var expectedControls = pmi.Count(record => Step242GeometricToleranceKinds.Find(record.Kind.ToString()) is not null)
             + export.GeneratedSemanticPmi.OfType<Step242SemanticPmiGeometricTolerance>().Count();
         foreach (var imported in document.Solids.Select(s => s.InlineStep).OfType<FirmamentV2InlineStepRecord>().Where(s => !s.GeometryOnly))
@@ -526,7 +531,8 @@ public static partial class FirmamentBuildAndExport
                 var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
                 foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
                 foreach (var hole in stack.Feature.CountersinkHoles ?? []) features[hole.Name] = hole.StableId;
-                semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], stack.Feature.Name, features, emitted.Correspondence, completedBody).ToArray();
+                semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], stack.Feature.Name, features, emitted.Correspondence, completedBody,
+                    ComposeOperationCapFaces(stack.Feature, completedBody, emitted.Correspondence), stack.Feature).ToArray();
             }
             var step = Step242Exporter.ExportBody(completedBody, semanticPmi);
             if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
@@ -1195,7 +1201,8 @@ public static partial class FirmamentBuildAndExport
                 var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
                 foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
                 foreach (var hole in stack.Feature.CountersinkHoles ?? []) features[hole.Name] = hole.StableId;
-                semanticPmi = BuildV2SemanticPmi(canonicalDocument, [], stack.Feature.Name, features, plannedEmission.Correspondence, plannedEmission.Body).ToArray();
+                semanticPmi = BuildV2SemanticPmi(canonicalDocument, [], stack.Feature.Name, features, plannedEmission.Correspondence, plannedEmission.Body,
+                    ComposeOperationCapFaces(stack.Feature, plannedEmission.Body, plannedEmission.Correspondence), stack.Feature).ToArray();
             }
             var plannedStep = Step242Exporter.ExportBody(plannedEmission.Body, semanticPmi, new Step242ExportOptions { ProductName = target.StableId, ApplicationName = "Aetheris.Firmament.ComposedProfileBoundaryChamfer.M3", BrepExportPreflightMode = BrepExportPreflightMode.Enforce, BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute });
             if (!plannedStep.IsSuccess || plannedStep.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(plannedStep.Diagnostics);
@@ -2866,7 +2873,8 @@ public static partial class FirmamentBuildAndExport
     // owner. A supported record kind does not imply every requested field exports.
     internal static KernelDiagnostic? V2PmiExportRejection(FirmamentV2PmiKind kind, string name, FirmamentV2BoundPmiRecord? bound)
     {
-        var message = kind is not (FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter) && Step242GeometricToleranceKinds.Find(kind.ToString()) is null
+        var message = kind is not (FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Note or FirmamentV2PmiKind.Dimension or FirmamentV2PmiKind.Location)
+            && kind != FirmamentV2PmiKind.Location && Step242GeometricToleranceKinds.Find(kind.ToString()) is null
             ? $"firmament-v2-pmi-export-deferred: AP242 export for PMI record '{name}' ({kind.ToString().ToLowerInvariant()}) is deferred; use Datum, HoleDiameter or an admitted geometric control."
             : kind == FirmamentV2PmiKind.HoleDiameter && bound?.DatumRefs.Count > 0
                 ? $"firmament-v2-pmi-datum-reference-export-unsupported: HoleDiameter '{name}' requests datum references that native size export cannot preserve. Export Datum separately; datum-referenced geometric controls require a qualified PMI capability."
@@ -2880,7 +2888,9 @@ public static partial class FirmamentBuildAndExport
         string targetSolid,
         IReadOnlyDictionary<string, string>? explicitFeatureIds = null,
         SemanticTopologyCorrespondence? correspondence = null,
-        BrepBody? body = null)
+        BrepBody? body = null,
+        IReadOnlyDictionary<string, int[]>? namedFaces = null,
+        PrismaticProfileCompositionFeature? composeFeature = null)
     {
         if (document.Pmi is null || document.Pmi.Count == 0)
         {
@@ -2922,30 +2932,86 @@ public static partial class FirmamentBuildAndExport
                 else if (explicitFeatureIds is not null && explicitFeatureIds.TryGetValue(pmi.Target, out var featureId))
                 {
                     result.Add(new Step242SemanticPmiHole(featureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", tolerancePlus, toleranceMinus) { Name = pmi.Name });
+                    if (boundPmi?.Callout == true) result.AddRange(CounterboreCallout(pmi.Name, boundPmi.Targets, composeFeature, correspondence));
                 }
                 else if (TryResolveV2RecognizedRegionTarget(document, targetBinding, pmi.Target, out var importedTarget) || TryResolveV2ImportedFaceTarget(targetBinding, pmi.Target, out importedTarget))
                 {
                     result.Add(new Step242SemanticPmiHole($"{targetSolid}.{pmi.Name}", pmi.Value.Value, null, $"imported_canonical_face:{importedTarget}", tolerancePlus, toleranceMinus) { Name = pmi.Name });
                 }
             }
+            else if (pmi.Kind == FirmamentV2PmiKind.Dimension && boundPmiByName.TryGetValue(pmi.Name, out var projectedRecord))
+            {
+                // Values are measured from the built body; every listed feature must agree.
+                var projections = composeFeature is null || body is null ? []
+                    : projectedRecord.Targets.Select(t => ProjectComposeParameter(composeFeature, body, correspondence, t)).ToArray();
+                var resolved = projections.Length == projectedRecord.Targets.Count && projections.All(p => p is not null)
+                    && projections.Select(p => (p!.Kind, Math.Round(p.Value, 9))).Distinct().Count() == 1;
+                var first = resolved ? projections[0]! : null;
+                var tolerance = projectedRecord.DimensionTolerance;
+                // One aspect per record: the feature, then the record name (features carry several dimensions).
+                result.Add(new Step242SemanticPmiDimension("compose:" + string.Join("+", projectedRecord.Targets.Select(t => t[..t.LastIndexOf('.')])) + "#" + pmi.Name,
+                    pmi.Name, first?.Kind ?? "unresolved", first?.Value ?? 0, tolerance?.Plus, tolerance?.Minus,
+                    resolved && projections.Sum(p => p!.Count) > 1 ? projections.Sum(p => p!.Count) : null)
+                {
+                    StandardKind = first?.Kind switch { "diameter" => "diameter", "radius" => "radius", null => "unresolved",
+                        _ => projections.Length == 1 && first.Ends is not null ? "linear distance" : null },
+                    GeometricFaceIds = resolved ? projections.SelectMany(p => p!.Faces).Distinct().Order().ToArray() : [-1],
+                    LocationFaces = resolved && projections.Length == 1 && first!.Ends is { } ends ? ends : null
+                });
+            }
+            else if (pmi.Kind == FirmamentV2PmiKind.Location && boundPmiByName.TryGetValue(pmi.Name, out var locationRecord) && locationRecord.From is { } fromFace)
+            {
+                var location = composeFeature is null || body is null ? null
+                    : ProjectComposeLocation(composeFeature, body, correspondence, explicitFeatureIds ?? new Dictionary<string, string>(), targetSolid, fromFace, locationRecord.Targets[0], locationRecord.Basic);
+                var tolerance = locationRecord.DimensionTolerance;
+                result.Add(new Step242SemanticPmiDimension("compose:" + locationRecord.Targets[0] + "#" + pmi.Name, pmi.Name, location?.Kind ?? "unresolved", location?.Value ?? 0, tolerance?.Plus, tolerance?.Minus)
+                {
+                    StandardKind = "linear distance",
+                    GeometricFaceIds = location?.Faces ?? [-1],
+                    LocationFaces = location?.Ends
+                });
+            }
+            else if (pmi.Kind == FirmamentV2PmiKind.Note && boundPmiByName.TryGetValue(pmi.Name, out var note) && note.Text is { } text)
+            {
+                result.Add(new Step242SemanticPmiNote(pmi.Name, targetSolid, text));
+            }
             else if (pmi.Kind == FirmamentV2PmiKind.DatumPlane)
             {
                 var selector = TryResolveV2RecognizedRegionTarget(document, targetBinding, pmi.Target, out var recognizedDatumTarget) ? recognizedDatumTarget : ResolveV2DatumTarget(targetBinding, pmi.Target);
-                result.Add(new Step242SemanticPmiDatum(targetSolid, "plane", pmi.Name, selector));
+                result.Add(new Step242SemanticPmiDatum(targetSolid, "plane", pmi.Name, selector)
+                    { GeometricFaceIds = namedFaces?.GetValueOrDefault(pmi.Target) ?? [], RequiresFaceAssociation = true });
             }
             else if (Step242GeometricToleranceKinds.Find(pmi.Kind.ToString()) is { } control && boundPmiByName.TryGetValue(pmi.Name, out var boundControl))
             {
                 var feature = holeByName.TryGetValue(pmi.Target, out var hole) ? hole.FeatureId
                     : boundControl.HoleWallTarget is { } wall && holeByName.TryGetValue(wall.HoleName, out var wallFeature) ? wallFeature.FeatureId
                     : explicitFeatureIds?.GetValueOrDefault(pmi.Target) ?? $"{targetSolid}.{pmi.Name}";
-                var faces = body is not null && FirmamentSelectorResolver.ResolveUniquePlanarFace(body, ResolveV2DatumTarget(targetBinding, pmi.Target)) is { Count: > 0 } planarFaces
+                var faces = namedFaces?.GetValueOrDefault(pmi.Target) is { } named ? named
+                    : body is not null && FirmamentSelectorResolver.ResolveSupportPlaneFaces(body, ResolveV2DatumTarget(targetBinding, pmi.Target)) is { Count: > 0 } planarFaces
                     ? planarFaces.Select(id => id.Value).ToArray() : Array.Empty<int>();
                 result.Add(new Step242SemanticPmiGeometricTolerance(feature, pmi.Name, control.Name, boundControl.ControlTolerance!.NumericValue!.Value, boundControl.DatumRefs)
                     { Modifiers = boundControl.Modifiers, ZoneForm = boundControl.ZoneForm, GeometricFaceIds = faces });
             }
         }
 
-        return result.Select(item => item with
+        // A hole-list target associates one requirement with the shaft walls of every listed hole.
+        int[] ShaftFaces(string featureId) => (correspondence?.Descendants ?? [])
+            .Where(d => d.Face.HasValue && (d.SourceStableId == featureId || d.ParentStableId == featureId)
+                && d.Role is not (SemanticTopologyRole.HoleCounterboreWallFace or SemanticTopologyRole.HoleCountersinkWallFace))
+            .Select(d => d.Face!.Value.Value).ToArray();
+        var holeSets = boundPmiByName.Values.Where(b => b.Targets.Count > 1 && b.Kind != FirmamentV2PmiKind.Distance)
+            .ToDictionary(b => b.Name, b =>
+            {
+                var ids = b.Targets.Select(t => holeByName.TryGetValue(t, out var h) ? h.FeatureId : explicitFeatureIds?.GetValueOrDefault(t)).ToArray();
+                return ids.Any(id => id is null) ? [-1] : ids.SelectMany(id => ShaftFaces(id!)).Distinct().Order().ToArray();
+            }, StringComparer.Ordinal);
+        return result.Select(item => holeSets.TryGetValue(item switch { Step242SemanticPmiHole h => h.Name ?? "", Step242SemanticPmiGeometricTolerance g => g.Name, _ => "" }, out var setFaces)
+            ? item switch
+            {
+                Step242SemanticPmiHole h => h with { GeometricFaceIds = setFaces, Quantity = boundPmiByName[h.Name!].Targets.Count },
+                Step242SemanticPmiGeometricTolerance g => g with { GeometricFaceIds = setFaces, Quantity = boundPmiByName[g.Name].Targets.Count },
+                _ => item
+            } : item).Select(item => item with
         {
             // Imported entity numbers are provenance, not emitted entity numbers or face ordinals.
             // The importer owns the source-entity -> BRep mapping; the exporter owns the inverse
@@ -2953,7 +3019,7 @@ public static partial class FirmamentBuildAndExport
             GeometricFaceIds = importedFaces.TryGetValue(item switch
                 { Step242SemanticPmiDatum d => d.Label, Step242SemanticPmiHole h => h.Name ?? "", Step242SemanticPmiGeometricTolerance g => g.Name, _ => "" }, out var faces)
                 ? faces : item.GeometricFaceIds.Count > 0 ? item.GeometricFaceIds : item is Step242SemanticPmiDatum datum && body is not null
-                ? FirmamentSelectorResolver.ResolveUniquePlanarFace(body, datum.Target).Select(id => id.Value).ToArray()
+                ? FirmamentSelectorResolver.ResolveSupportPlaneFaces(body, datum.Target).Select(id => id.Value).ToArray()
                 : (correspondence?.Descendants ?? [])
                 .Where(descendant => descendant.Face.HasValue
                     && (string.Equals(descendant.SourceStableId, item.FeatureId, StringComparison.Ordinal)
@@ -2961,13 +3027,35 @@ public static partial class FirmamentBuildAndExport
                 // Shaft dimensions follow semantic wall ownership, not the
                 // asserted PMI number: contradictory PMI must keep its target
                 // so downstream geometry/requirement checks can diagnose it.
-                .Where(descendant => item is not Step242SemanticPmiHole
-                    || descendant.Role is not (SemanticTopologyRole.HoleCounterboreWallFace or SemanticTopologyRole.HoleCountersinkWallFace))
+                // A hole's size and geometric controls apply to its shaft; counterbore
+                // and countersink walls are separate features with their own sizes.
+                .Where(descendant => descendant.Role is not (SemanticTopologyRole.HoleCounterboreWallFace or SemanticTopologyRole.HoleCountersinkWallFace))
                 .Select(descendant => descendant.Face!.Value.Value)
                 .Distinct()
                 .Order()
                 .ToArray()
         }).ToArray();
+    }
+
+    /// <summary>A hole callout's counterbore, projected from construction: diameter and depth on the counterbore walls.</summary>
+    private static IEnumerable<Step242SemanticPmi> CounterboreCallout(string name, IReadOnlyList<string> holes,
+        PrismaticProfileCompositionFeature? feature, SemanticTopologyCorrespondence? correspondence)
+    {
+        var counterbores = holes.Select(h => (feature?.CounterboreHoles ?? []).FirstOrDefault(c => c.Name == h)).ToArray();
+        if (counterbores.All(c => c is null)) yield break; // a plain shaft callout has nothing more to say
+        var alike = counterbores.All(c => c is not null)
+            && counterbores.Select(c => (Math.Round(c!.CounterboreDiameter, 9), Math.Round(c.CounterboreDepth, 9))).Distinct().Count() == 1;
+        var faces = alike ? (correspondence?.Descendants ?? []).Where(d => d.Face.HasValue && d.Role == SemanticTopologyRole.HoleCounterboreWallFace
+                && counterbores.Any(c => d.SourceStableId == c!.StableId || d.ParentStableId == c!.StableId))
+            .Select(d => d.Face!.Value.Value).Distinct().Order().ToArray() : [];
+        int[] attached = faces.Length > 0 ? faces : [-1];
+        var quantity = holes.Count > 1 ? holes.Count : (int?)null;
+        var first = counterbores[0];
+        var target = "compose:" + string.Join("+", holes) + "#" + name;
+        yield return new Step242SemanticPmiDimension(target + ".CounterboreDiameter", name + ".CounterboreDiameter", "counterbore diameter", first?.CounterboreDiameter ?? 0, null, null, quantity)
+            { StandardKind = "diameter", GeometricFaceIds = attached };
+        yield return new Step242SemanticPmiDimension(target + ".CounterboreDepth", name + ".CounterboreDepth", "counterbore depth", first?.CounterboreDepth ?? 0, null, null, quantity)
+            { StandardKind = null, GeometricFaceIds = attached };
     }
 
     private static KernelResult<bool> ValidateImportedPmiTargets(IReadOnlyList<Step242SemanticPmi> items, BrepBody body)

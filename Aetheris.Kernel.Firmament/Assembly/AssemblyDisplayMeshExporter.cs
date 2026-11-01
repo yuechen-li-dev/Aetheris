@@ -35,6 +35,8 @@ public sealed record AssemblyDisplayMeshDocument(string Schema, string Name, str
     [System.Text.Json.Serialization.JsonIgnore]
     public DisplayTessellationOptions? TessellationOptions { get; init; }
     public IReadOnlyList<Visualization.PmiDisplayAnnotation> Annotations { get; init; } = [];
+    /// <summary>Optional B-rep edge polylines in Z-up millimetres, drawn over a translucent PMI presentation.</summary>
+    public IReadOnlyList<double[][]> EdgeLines { get; init; } = [];
     public IReadOnlyList<DisplayCamera> Cameras { get; init; } = [];
     public double[]? MinimumMm { get; init; }
     public double[]? MaximumMm { get; init; }

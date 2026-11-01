@@ -24,6 +24,52 @@ public static class PlanarTextProfiles
 {
     private static readonly Lazy<Typeface> DefaultTypeface = new(LoadInter);
 
+    /// <summary>Presentation text as flattened closed polygons, one per glyph contour, with the
+    /// line's advance width. Counters (holes) are separate polygons; fill with even-odd.</summary>
+    internal static (IReadOnlyList<(int Glyph, (double X, double Y)[] Points)> Contours, double Width) PresentationPolygons(string content, double height)
+    {
+        if (string.IsNullOrEmpty(content) || content.IndexOfAny(['\r', '\n']) >= 0 || !double.IsFinite(height) || height <= 0)
+            throw new InvalidOperationException("pmi-display-text-invalid");
+        var typeface = DefaultTypeface.Value;
+        var scale = height / typeface.UnitsPerEm;
+        var cursor = 0d;
+        var polygons = new List<(int Glyph, (double X, double Y)[] Points)>();
+        var glyphNumber = 0;
+        foreach (var rune in content.EnumerateRunes())
+        {
+            glyphNumber++;
+            var index = typeface.GetGlyphIndex(rune.Value);
+            if (index == 0) throw new InvalidOperationException($"pmi-display-text-unsupported: Missing glyph U+{rune.Value:X4}.");
+            var glyph = typeface.GetGlyph(index);
+            if (glyph.IsCffGlyph) throw new InvalidOperationException("pmi-display-text-unsupported: CFF glyph.");
+            var translator = new OutlineTranslator();
+            IGlyphReaderExtensions.Read(translator, glyph.GlyphPoints, glyph.EndPoints);
+            foreach (var contour in translator.Contours.Select(c => c.Transform(cursor, scale)))
+            {
+                var points = new List<(double X, double Y)>();
+                foreach (var curve in contour.Curves)
+                    switch (curve)
+                    {
+                        case LineArcLineSegment2D line: points.Add(line.Start); break;
+                        case LineArcCubicBezier2D cubic:
+                            for (var i = 0; i < 4; i++)
+                            {
+                                var t = i / 4d; var s = 1 - t;
+                                points.Add((s*s*s*cubic.Start.X + 3*s*s*t*cubic.Control1.X + 3*s*t*t*cubic.Control2.X + t*t*t*cubic.End.X,
+                                    s*s*s*cubic.Start.Y + 3*s*s*t*cubic.Control1.Y + 3*s*t*t*cubic.Control2.Y + t*t*t*cubic.End.Y));
+                            }
+                            break;
+                        default: throw new InvalidOperationException("pmi-display-font-curve-unsupported");
+                    }
+                var distinct = points.Where((p, i) => i == 0 || Math.Abs(p.X - points[i - 1].X) + Math.Abs(p.Y - points[i - 1].Y) > 1e-9).ToList();
+                if (distinct.Count > 2 && Math.Abs(distinct[0].X - distinct[^1].X) + Math.Abs(distinct[0].Y - distinct[^1].Y) < 1e-9) distinct.RemoveAt(distinct.Count - 1);
+                if (distinct.Count >= 3) polygons.Add((glyphNumber, distinct.ToArray()));
+            }
+            cursor += typeface.GetAdvanceWidthFromGlyphIndex(index) * scale;
+        }
+        return (polygons, cursor);
+    }
+
     /// <summary>Presentation contours only. Drawing an outline does not require the
     /// material-island arrangement/Boolean normalization used for engineering text.</summary>
     internal static IReadOnlyList<LineArcProfileCurve2D> PresentationContours(string content, double height)

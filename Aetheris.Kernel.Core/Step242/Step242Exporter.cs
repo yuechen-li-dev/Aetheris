@@ -31,6 +31,14 @@ public static class Step242Exporter
             if (control.GeometricFaceIds.Count == 0 || control.GeometricFaceIds.Any(id => !body.Topology.Faces.Any(face => face.Id.Value == id)))
                 return Failure($"pmi-geometric-target-unresolved: '{control.Name}' requires proved face associations.", "Step242.Pmi");
         }
+        // A projected dimension must stay attached to the geometry it measures.
+        foreach (var dimension in (semanticPmi ?? []).OfType<Step242SemanticPmiDimension>().Where(d => d.StandardKind is not null || d.FeatureId.StartsWith("compose:", StringComparison.Ordinal)))
+            if (dimension.GeometricFaceIds.Count == 0 || dimension.GeometricFaceIds.Any(id => !body.Topology.Faces.Any(face => face.Id.Value == id)))
+                return Failure($"pmi-dimension-target-unresolved: '{dimension.Name}' does not resolve to faces of the exported body.", "Step242.Pmi");
+        // A datum feature without its face is a label with nothing to contact; never export one unattached.
+        foreach (var datum in (semanticPmi ?? []).OfType<Step242SemanticPmiDatum>().Where(d => d.RequiresFaceAssociation))
+            if (datum.GeometricFaceIds.Count == 0 || datum.GeometricFaceIds.Any(id => !body.Topology.Faces.Any(face => face.Id.Value == id)))
+                return Failure($"pmi-datum-target-unresolved: Datum '{datum.Label}' does not resolve to a face of the exported body. Use a face that bounds the part in that direction, or name the face of a Compose operation such as face(stock.Top).", "Step242.Pmi");
         IReadOnlyList<KernelDiagnostic> normalizationDiagnostics = [];
         if (options.BrepExportPreflightPolicy == BrepExportPreflightPolicy.TrustedProductionRoute)
         {
@@ -537,6 +545,18 @@ public static class Step242Exporter
                     boundAspect = EmitHoleSemanticPmi(writer, shapeId, repContextId, lengthUnitId, hole);
                     break;
                 case Step242SemanticPmiDimension dimension:
+                    if (dimension.LocationFaces is { } ends)
+                    {
+                        // Each end of a location is its own shape aspect bound to its faces.
+                        string End(IReadOnlyList<int> faces, string role)
+                        {
+                            var end = writer.AddEntity("SHAPE_ASPECT", Step242TextWriter.String($"firmament-location-{role}:{dimension.Name}"),
+                                Step242TextWriter.String($"location {role} {dimension.Name}"), Step242TextWriter.Ref(shapeId), Step242TextWriter.BooleanLogical(true));
+                            EmitGeometricItemAssociations(writer, shapeId, shapeRepresentationId, advancedFaceIds, dimension with { GeometricFaceIds = faces }, end);
+                            return end;
+                        }
+                        dimension = dimension with { Location = (End(ends.From, "origin"), End(ends.To, "target")) };
+                    }
                     boundAspect = EmitDimensionSemanticPmi(writer, shapeId, repContextId, lengthUnitId, dimension);
                     break;
                 case Step242SemanticPmiNote note:
@@ -613,6 +633,7 @@ public static class Step242Exporter
             Step242TextWriter.Ref(repContextId));
         writer.AddEntity("PROPERTY_DEFINITION_REPRESENTATION", Step242TextWriter.Ref(propertyDefinitionId), Step242TextWriter.Ref(representationId));
         EmitBilateralToleranceRepresentation(writer, featureShapeAspectId, repContextId, lengthUnitId, $"diameter_tolerance:{hole.FeatureId}", hole.TolerancePlus, hole.ToleranceMinus);
+        EmitStandardSize(writer, featureShapeAspectId, repContextId, lengthUnitId, "diameter", hole.Diameter, hole.TolerancePlus, hole.ToleranceMinus);
         EmitQuantitySemanticPmi(writer, featureShapeAspectId, hole.FeatureId, hole.Quantity);
 
         if (hole.Depth.HasValue)
@@ -668,8 +689,34 @@ public static class Step242Exporter
         var representationId = writer.AddEntity("SHAPE_DIMENSION_REPRESENTATION", Step242TextWriter.String($"dimension:{dimension.Name}"), Step242TextWriter.List(valueId), Step242TextWriter.Ref(repContextId));
         writer.AddEntity("PROPERTY_DEFINITION_REPRESENTATION", Step242TextWriter.Ref(propertyId), Step242TextWriter.Ref(representationId));
         EmitBilateralToleranceRepresentation(writer, aspectId, repContextId, lengthUnitId, $"dimension_tolerance:{dimension.Name}", dimension.TolerancePlus, dimension.ToleranceMinus);
+        if (dimension.StandardKind is { } standard && standard != "unresolved")
+            EmitStandardSize(writer, aspectId, repContextId, lengthUnitId, standard, dimension.Value, dimension.TolerancePlus, dimension.ToleranceMinus, dimension.Location);
         EmitQuantitySemanticPmi(writer, aspectId, dimension.FeatureId, dimension.Quantity);
         return aspectId;
+    }
+
+    /// <summary>
+    /// The same size in the standard AP242 form other CAD and inspection software reads
+    /// (CAx-IF semantic PMI): DIMENSIONAL_SIZE on the feature's shape aspect, its nominal
+    /// value, and a PLUS_MINUS_TOLERANCE with signed limits. Written alongside the
+    /// established Aetheris property records, which existing consumers read.
+    /// </summary>
+    private static void EmitStandardSize(Step242TextWriter writer, string aspectId, string repContextId, string lengthUnitId,
+        string kind, double nominal, double? tolerancePlus, double? toleranceMinus, (string From, string To)? location = null)
+    {
+        string Measure(double value, string role) => writer.AddRawEntity(
+            $"(LENGTH_MEASURE_WITH_UNIT()MEASURE_REPRESENTATION_ITEM()MEASURE_WITH_UNIT(LENGTH_MEASURE({Step242TextWriter.PmiNumber(value)}),{lengthUnitId})REPRESENTATION_ITEM({Step242TextWriter.String(role)}))");
+        var dimension = location is { } ends
+            ? writer.AddEntity("DIMENSIONAL_LOCATION", Step242TextWriter.String(kind), Step242TextWriter.String($"firmament-native:{aspectId}"), ends.From, ends.To)
+            : writer.AddEntity("DIMENSIONAL_SIZE", aspectId, Step242TextWriter.String(kind));
+        var value = Measure(nominal, "nominal value");
+        var representation = writer.AddEntity("SHAPE_DIMENSION_REPRESENTATION", Step242TextWriter.String(""), Step242TextWriter.List(value), repContextId);
+        writer.AddEntity("DIMENSIONAL_CHARACTERISTIC_REPRESENTATION", dimension, representation);
+        if (!tolerancePlus.HasValue && !toleranceMinus.HasValue) return;
+        var plus = tolerancePlus ?? toleranceMinus!.Value;
+        var minus = toleranceMinus ?? tolerancePlus!.Value;
+        var limits = writer.AddEntity("TOLERANCE_VALUE", Measure(-minus, "lower limit"), Measure(plus, "upper limit"));
+        writer.AddEntity("PLUS_MINUS_TOLERANCE", limits, dimension);
     }
 
     private static void EmitBilateralToleranceRepresentation(

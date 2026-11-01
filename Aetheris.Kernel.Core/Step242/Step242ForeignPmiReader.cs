@@ -46,6 +46,15 @@ internal sealed class Step242ForeignPmiReader
             }
         }
     }
+    /// <summary>Shape aspects carrying an Aetheris native size or dimension record.</summary>
+    private HashSet<int> NativeAspects => nativeAspects ??= entities.Values
+        .Where(e => e.Name == "PROPERTY_DEFINITION" && Str(e.Arguments.FirstOrDefault()) is { } name
+            && (name.StartsWith("diameter:", StringComparison.Ordinal) || name.StartsWith("dimension:", StringComparison.Ordinal)))
+        .Select(e => Ref(e.Arguments.ElementAtOrDefault(2))).OfType<int>().ToHashSet();
+    private HashSet<int>? nativeAspects;
+    /// <summary>Standard size and location entities that restate a native record (read once, through it).</summary>
+    internal HashSet<int> Mirrors { get; } = [];
+
     internal IReadOnlyList<Step242SemanticPmiInspectionItem> Read(IReadOnlyList<Step242SemanticPmiInspectionItem> existing)
     {
         var result = new List<Step242SemanticPmiInspectionItem>(); var skip = existing.Select(i => i.EntityId).ToHashSet();
@@ -81,6 +90,10 @@ internal sealed class Step242ForeignPmiReader
                 var location = entity.Name is "DIMENSIONAL_LOCATION" or "ANGULAR_LOCATION" or "DIRECTED_DIMENSIONAL_LOCATION";
                 var definition = Step242SubsetDecoder.TryGetConstructor(entity.Instance, location ? "DIMENSIONAL_LOCATION" : "DIMENSIONAL_SIZE") ?? entity.Instance.PrimaryConstructor;
                 var target = Ref(definition.Arguments.FirstOrDefault());
+                // Aetheris writes each native size record in the standard form too; read it once.
+                if (!location && target is { } sized && NativeAspects.Contains(sized)
+                    || location && Str(definition.Arguments.ElementAtOrDefault(1))?.StartsWith("firmament-native:", StringComparison.Ordinal) == true)
+                { Mirrors.Add(entity.Id); continue; }
                 var targets = location ? definition.Arguments.Skip(2).OfType<Step242EntityReference>().Select(r => r.TargetId).Take(2).ToArray() : target is { } id ? [id] : [];
                 var representation = dimensionRepresentations.GetValueOrDefault(entity.Id);
                 var measureIds = entities.TryGetValue(representation, out var rep) ? Refs(rep.Arguments.ElementAtOrDefault(1)).ToArray() : [];

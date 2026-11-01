@@ -32,7 +32,15 @@ internal static class Step242Corpus
 
     /// <summary>Absolute path of a corpus file named relative to the repository root.</summary>
     public static string Path(string relativePath) =>
-        System.IO.Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', System.IO.Path.DirectorySeparatorChar));
+        System.IO.Path.Combine(RepoRoot(), relativePath.Replace('/', System.IO.Path.DirectorySeparatorChar));
+
+    public static string RepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(System.IO.Path.Combine(directory.FullName, "Aetheris.slnx")))
+            directory = directory.Parent;
+        return directory?.FullName ?? throw new InvalidOperationException("Unable to locate Aetheris repository root.");
+    }
 
     /// <summary>The file's text, read at most once per path per test run.</summary>
     public static string Text(string relativePath) =>

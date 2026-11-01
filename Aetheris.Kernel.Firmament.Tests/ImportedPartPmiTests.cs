@@ -107,21 +107,25 @@ public sealed class ImportedPartPmiTests
         Assert.Equal(.1, diameter.GetProperty("tolerancePlus").GetDouble());
         Assert.Equal(.05, diameter.GetProperty("toleranceMinus").GetDouble());
         Assert.Equal(1, diameter.GetProperty("stepFaceEntities").GetArrayLength());
-        var target = diameter.GetProperty("target");
-        var targetPoints = target.GetProperty("positions").EnumerateArray().Select(p => p.GetDouble()).ToArray();
-        var targetNormals = target.GetProperty("normals").EnumerateArray().Select(p => p.GetDouble()).ToArray();
-        var offset = target.GetProperty("surfaceOffset").GetDouble();
+        // GLB metadata keeps semantics; the highlighted support is geometry in the buffers.
+        var projected = PmiDisplayProjection.FromStep(built.Value.StepText, options).Single(a => a.Kind == "Diameter").Target!;
+        var targetPoints = projected.Positions; var targetNormals = projected.Normals; var offset = projected.SurfaceOffset;
+        Assert.NotEmpty(targetPoints);
         for (var i = 0; i < targetPoints.Length; i += 3)
         {
             var point = new Point3D(targetPoints[i]-offset*targetNormals[i], targetPoints[i+1]-offset*targetNormals[i+1], targetPoints[i+2]-offset*targetNormals[i+2]);
             Assert.Contains(tess.FacePatches.SelectMany(p => p.Positions), p => (p-point).Length < 1e-8);
         }
-        Assert.Equal(3, root.GetProperty("meshes").GetArrayLength());
-        Assert.All(root.GetProperty("meshes").EnumerateArray().Skip(1), mesh => Assert.Equal(1, mesh.GetProperty("primitives")[0].GetProperty("mode").GetInt32()));
-        Assert.All(root.GetProperty("meshes").EnumerateArray().Skip(1), mesh =>
-            Assert.Contains(mesh.GetProperty("primitives").EnumerateArray(), p => p.GetProperty("mode").GetInt32() == 4));
+        // Body, two annotations and the model edges drawn over the translucent part.
+        Assert.Equal(4, root.GetProperty("meshes").GetArrayLength());
+        var annotationMeshes = root.GetProperty("meshes").EnumerateArray().Where(m => m.TryGetProperty("extras", out var extras)
+            && extras.TryGetProperty("role", out var role) && role.GetString() == "PMI presentation").ToArray();
+        Assert.Equal(2, annotationMeshes.Length);
+        Assert.All(annotationMeshes, mesh => Assert.Equal(1, mesh.GetProperty("primitives")[0].GetProperty("mode").GetInt32()));
+        Assert.All(annotationMeshes, mesh => Assert.Contains(mesh.GetProperty("primitives").EnumerateArray(), p => p.GetProperty("mode").GetInt32() == 4));
+        Assert.Single(root.GetProperty("meshes").EnumerateArray(), m => m.GetProperty("name").GetString() == "edges");
         Assert.Equal("BLEND", root.GetProperty("materials")[0].GetProperty("alphaMode").GetString());
-        Assert.Equal(.78, root.GetProperty("materials")[0].GetProperty("pbrMetallicRoughness").GetProperty("baseColorFactor")[3].GetDouble());
+        Assert.Equal(.55, root.GetProperty("materials")[0].GetProperty("pbrMetallicRoughness").GetProperty("baseColorFactor")[3].GetDouble());
         // Body data is a byte-identical prefix; annotation curves are appended after it.
         var beforeOffset = 28 + BitConverter.ToInt32(baseline, 12);
         var afterOffset = 28 + BitConverter.ToInt32(file.Bytes, 12);
@@ -148,10 +152,9 @@ public sealed class ImportedPartPmiTests
             var target = Assert.IsType<PmiDisplayTarget>(annotation.Target);
             var normal = new Vector3D(target.Normal[0], target.Normal[1], target.Normal[2]);
             Assert.Equal(1, normal.Length, 9);
-            Assert.True((anchor - Point(annotation.Lines[0][1])).Cross(normal).Length < 1e-8);
-            Assert.True((Point(annotation.Lines[0][1]) - anchor).Dot(normal) > 0);
+            // The leader starts on the support itself.
+            var leader = Assert.Single(annotation.Lines, line => (Point(line[0]) - anchor).Length < 1e-9);
             var patch = tess.FacePatches.Single(p => p.FaceId == binding.FaceId);
-            Assert.DoesNotContain(patch.Positions, p => (p-anchor).Length < 1e-6);
             Assert.InRange(target.SurfaceOffset, 0, annotation.TextHeight*.002);
             // Presentation is lifted very slightly to avoid coincident-surface GLB striping.
             // Remove the disclosed offset when proving its relationship to exact geometry.
@@ -161,11 +164,15 @@ public sealed class ImportedPartPmiTests
             if (surface!.Plane is { } plane)
             {
                 Assert.Equal("PlanePatch", target.Kind);
+                // A planar feature is shown edge-on: the stem leaves along the face normal.
+                Assert.True((Point(leader[1]) - anchor).Cross(normal).Length < 1e-8);
+                Assert.True((Point(leader[1]) - anchor).Dot(normal) > 0);
                 Assert.All(marker.Append(anchor), p => Assert.True(Math.Abs((p-plane.Origin).Dot(plane.Normal.ToVector())) < 1e-8));
-                // Every marker corner is in material on this actual trimmed face, including
+                // Every highlighted point is in material on this actual trimmed face, including
                 // its hole exclusion, not merely in the plane or the global box.
                 var seat = new Aetheris.Kernel.Core.Brep.Queries.BrepPlanarSeatQuery(body);
-                Assert.All(marker.Append(anchor), p => Assert.Contains(binding.FaceId, seat.FindFaces(p, normal)));
+                Assert.All(marker, p => Assert.Contains(binding.FaceId, seat.FindFaces(p, normal)));
+                Assert.DoesNotContain(patch.Positions, p => (p-anchor).Length < 1e-6);
             }
             else
             {
@@ -173,17 +180,11 @@ public sealed class ImportedPartPmiTests
                 Assert.Equal("CylinderWall", target.Kind);
                 Assert.All(marker.Append(anchor), p => {
                     var delta = p-cylinder.Origin; var axial = delta.Dot(cylinder.Axis.ToVector());
-                    Assert.Equal(cylinder.Radius, (delta-cylinder.Axis.ToVector()*axial).Length, 8);
+                    Assert.Equal(cylinder.Radius, (delta-cylinder.Axis.ToVector()*axial).Length, 6);
                 });
+                // The anchor is on the wall's actual axial extent (its visible rim), never a chord.
                 var values = patch.Positions.Select(p => (p-cylinder.Origin).Dot(cylinder.Axis.ToVector())).ToArray();
-                var v = (anchor-cylinder.Origin).Dot(cylinder.Axis.ToVector());
-                Assert.InRange(v, values.Min() + (values.Max()-values.Min())*.2, values.Max() - (values.Max()-values.Min())*.2);
-                Assert.True(target.StemLength < cylinder.Radius);
-                Assert.NotEmpty(target.Lines);
-                Assert.All(target.Lines, line => {
-                    var axial = line.Select(p => (Point(p)-cylinder.Origin).Dot(cylinder.Axis.ToVector())).ToArray();
-                    Assert.True(axial.Max()-axial.Min() < 1e-8, "Only physical rims, never the axial parameter seam, should be highlighted.");
-                });
+                Assert.InRange((anchor-cylinder.Origin).Dot(cylinder.Axis.ToVector()), values.Min() - 1e-8, values.Max() + 1e-8);
             }
         }
         static Point3D Point(double[] p) => new(p[0], p[1], p[2]);

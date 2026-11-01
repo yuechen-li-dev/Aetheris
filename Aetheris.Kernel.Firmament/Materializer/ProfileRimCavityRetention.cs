@@ -22,12 +22,11 @@ internal static class ProfileRimCavityRetention
         var holes = (feature.ShaftHoles ?? []).Select(h => new Cavity(h.Name, h.StableId, h.CenterX, h.CenterY, h.Diameter / 2, h.From, h.To))
             .Concat((feature.CounterboreHoles ?? []).Select(h => new Cavity(h.Name, h.StableId, h.CenterX, h.CenterY, h.CounterboreDiameter / 2, h.From, h.To)))
             .Concat((feature.CountersinkHoles ?? []).Select(h => new Cavity(h.Name, h.StableId, h.CenterX, h.CenterY, h.CountersinkDiameter / 2, h.From, h.To))).ToArray();
-        var ids = holes.Select(h => h.StableId).ToHashSet(StringComparer.Ordinal);
         if (stock.Length != 1 || stock[0].ProfileReference != profile.Name || profile.Loops.Count != 1
             || target.ChainKind != ProfileBoundaryChamferChainKind.ClosedLoop
-            || feature.Operations.Any(o => o.Intent != PrismaticProfileIntent.Base && (o.SemanticFeatureId is null || !ids.Contains(o.SemanticFeatureId)))
             || (feature.ConstructionPlaneBlindDrills?.Count ?? 0) != 0)
-            return Fail("ProfileRimFinishHistoryUnsupported: This rim plan preserves one constant-stock Base and disjoint through round holes; additional material operations need a qualified adapter.");
+            return Fail("ProfileRimFinishHistoryUnsupported: This rim plan preserves one constant-stock Base; its other operations must stay inside the finished rim.");
+        var retainsSource = holes.Length > 0 || feature.Operations.Any(o => o.Intent != PrismaticProfileIntent.Base);
         if (!feature.Placement.TryResolveConstructionPlane(out var frame, out var frameError)) return Fail(frameError!);
         if (frame is null || (frame.Origin - Point3D.Origin).Length > Tol
             || (frame.AxisX.ToVector() - new Vector3D(1,0,0)).Length > Tol
@@ -35,14 +34,14 @@ internal static class ProfileRimCavityRetention
             return Fail("ProfileRimFinishFrameUnsupported: The cavity-retaining rim plan currently requires the native XY stock frame.");
         foreach (var hole in holes)
         {
-            if (Math.Abs(hole.From - stock[0].From) > Tol || Math.Abs(hole.To - stock[0].To) > Tol)
-                return Fail($"ProfileRimFinishThroughHoleRequired:{hole.Name}");
             var margin = profile.Loops[0].Segments.Min(s => Distance(s.Geometry, hole.CenterX, hole.CenterY)) - hole.Radius - amount;
             if (!double.IsFinite(margin) || margin <= Tol) return Fail($"ProfileRimFinishCavityInterference:{hole.Name}: Entry footprint must clear the rim corridor by a positive margin; remaining={margin:R}mm.");
         }
         for (var i = 0; i < holes.Length; i++) for (var j = i + 1; j < holes.Length; j++)
             if (Math.Sqrt(Math.Pow(holes[i].CenterX - holes[j].CenterX, 2) + Math.Pow(holes[i].CenterY - holes[j].CenterY, 2)) <= holes[i].Radius + holes[j].Radius + Tol)
                 return Fail($"ProfileRimFinishCavitiesOverlap:{holes[i].Name}:{holes[j].Name}");
+        // Named holes are checked above so their diagnostics locate the Hole; this covers the rest.
+        if (FootprintDiagnostic(stack, profile, stock[0].From, stock[0].To, amount) is { } footprint) return Fail(footprint);
         profile = profile with { LocalStartDepth = stock[0].From, LocalEndDepth = stock[0].To, ConstructionPlane = frame };
         ProfileBoundaryChamferPlanResult finished;
         if (fillet)
@@ -51,11 +50,11 @@ internal static class ProfileRimCavityRetention
             finished = new(plan.Succeeded, plan.Body, plan.Correspondence, target, plan.Diagnostics) { PlanningEvidence = plan.PlanningEvidence };
         }
         else finished = ProfileBoundaryChamferPlanner.TryPlan(profile, target, amount);
-        if (!finished.Succeeded || finished.Body is null || finished.Correspondence is null || holes.Length == 0) return finished;
+        if (!finished.Succeeded || finished.Body is null || finished.Correspondence is null || !retainsSource) return finished;
         if (original.Body is null || original.Correspondence is null) return Fail("ProfileRimFinishSourceNotMaterialized");
         try
         {
-            var graft = RetainCavities(finished.Body, original.Body, stock[0].From, stock[0].To, holes.Length);
+            var graft = RetainCavities(finished.Body, original.Body, stock[0].From, stock[0].To);
             var retained = original.Correspondence.Descendants.Where(d =>
                 (!d.Edge.HasValue || graft.Edges.ContainsKey(d.Edge.Value)) && (!d.Vertex.HasValue || graft.Vertices.ContainsKey(d.Vertex.Value))
                 && (!d.Loop.HasValue || graft.Loops.ContainsKey(d.Loop.Value)) && (!d.Face.HasValue || graft.Faces.ContainsKey(d.Face.Value)))
@@ -89,10 +88,65 @@ internal static class ProfileRimCavityRetention
         return Math.Min(At(arc.StartAngleRadians), At(arc.StartAngleRadians + arc.SweepAngleRadians));
     }
 
+    /// <summary>Every section inside the stock keeps the stock outline with its cavities clear of
+    /// the rim corridor, and material above the stock stands clear inside it.</summary>
+    private static string? FootprintDiagnostic(PrismaticSectionStackConstruction stack, ResolvedProfile2D profile, double low, double high, double amount)
+    {
+        var outline = profile.Loops[0].Segments.Select(s => s.Geometry).ToArray();
+        var polygon = outline.SelectMany(c => Samples(c) ?? []).ToArray();
+        var stockArea = Math.Abs(PrismaticSectionStackCompiler.ProfileArea(profile));
+        string? Clear(ResolvedProfile2D footprint, string what)
+        {
+            foreach (var curve in footprint.Loops.SelectMany(l => l.Segments).Select(s => s.Geometry))
+            {
+                if (Samples(curve) is not { } points) return $"ProfileRimFinishFootprintCurveUnsupported:{what}";
+                foreach (var (x, y) in points)
+                {
+                    var margin = outline.Min(c => Distance(c, x, y)) - amount;
+                    if (!Inside(polygon, x, y) || !double.IsFinite(margin) || margin <= Tol)
+                        return $"ProfileRimFinishCavityInterference:{what}: Footprint must stay inside the rim corridor by a positive margin; remaining={margin:R}mm.";
+                }
+            }
+            return null;
+        }
+        foreach (var slab in stack.Slabs)
+        {
+            if (slab.To <= low + Tol) return "ProfileRimFinishHistoryUnsupported: material below the stock.";
+            if (slab.From < high - Tol)
+            {
+                if (slab.MaterialRegions.Count != 1 || Math.Abs(Math.Abs(PrismaticSectionStackCompiler.ProfileArea(slab.Region.Outer)) - stockArea) > 1e-6 * Math.Max(1, stockArea))
+                    return "ProfileRimFinishHistoryUnsupported: an operation reshapes the stock outline.";
+                foreach (var hole in slab.Region.Holes) if (Clear(hole, hole.Name) is { } d) return d;
+            }
+            else foreach (var region in slab.MaterialRegions) if (Clear(region.Outer, region.Outer.Name) is { } d) return d;
+        }
+        return null;
+    }
+
+    private static (double X, double Y)[]? Samples(LineArcProfileCurve2D curve, int n = 48) => curve switch
+    {
+        LineArcLineSegment2D line => Enumerable.Range(0, n).Select(i => (line.Start.X + (line.End.X - line.Start.X) * i / n, line.Start.Y + (line.End.Y - line.Start.Y) * i / n)).ToArray(),
+        LineArcCircularArc2D arc => Enumerable.Range(0, n + 1).Select(i => arc.StartAngleRadians + arc.SweepAngleRadians * i / n)
+            .Select(a => (arc.Center.X + arc.Radius * Math.Cos(a), arc.Center.Y + arc.Radius * Math.Sin(a))).ToArray(),
+        LineArcFullCircle2D circle => Enumerable.Range(0, 4 * n).Select(i => Math.Tau * i / (4 * n))
+            .Select(a => (circle.Center.X + circle.Radius * Math.Cos(a), circle.Center.Y + circle.Radius * Math.Sin(a))).ToArray(),
+        _ => null,
+    };
+
+    private static bool Inside((double X, double Y)[] polygon, double x, double y)
+    {
+        var inside = false;
+        for (int i = 0, j = polygon.Length - 1; i < polygon.Length; j = i++)
+            if ((polygon[i].Y > y) != (polygon[j].Y > y)
+                && x < (polygon[j].X - polygon[i].X) * (y - polygon[i].Y) / (polygon[j].Y - polygon[i].Y) + polygon[i].X)
+                inside = !inside;
+        return inside;
+    }
+
     private sealed record Graft(BrepBody Body, Dictionary<VertexId, VertexId> Vertices, Dictionary<EdgeId, EdgeId> Edges,
         Dictionary<LoopId, LoopId> Loops, Dictionary<FaceId, FaceId> Faces);
 
-    private static Graft RetainCavities(BrepBody skin, BrepBody source, double low, double high, int count)
+    private static Graft RetainCavities(BrepBody skin, BrepBody source, double low, double high)
     {
         Face Cap(BrepBody body, double z)
         {
@@ -106,13 +160,20 @@ internal static class ProfileRimCavityRetention
         var capIds = caps.Select(c => c.Source.Id).ToHashSet();
         var openings = caps.SelectMany(c => c.Source.LoopIds.Where(id => source.Bindings.FaceBoundaryRoleBindings
             .Any(b => b.FaceId == c.Source.Id && b.LoopId == id && b.Role == FaceBoundaryRole.Inner))).ToHashSet();
-        if (openings.Count != 2 * count) throw new InvalidOperationException("Source cap inner-loop roles do not account for every through hole.");
+        if (openings.Count == 0) throw new InvalidOperationException("Source caps carry no inner loops to retain.");
         var edgeFaces = source.Topology.Faces.SelectMany(f => f.LoopIds.SelectMany(id => source.Topology.GetLoop(id).CoedgeIds)
             .Select(id => (source.Topology.GetCoedge(id).EdgeId, f.Id))).GroupBy(p => p.EdgeId).ToDictionary(g => g.Key, g => g.Select(p => p.Id).Distinct().ToArray());
         var walls = new HashSet<FaceId>(); var pending = new Queue<EdgeId>(openings.SelectMany(id => source.Topology.GetLoop(id).CoedgeIds).Select(id => source.Topology.GetCoedge(id).EdgeId));
         while (pending.TryDequeue(out var edge)) foreach (var face in edgeFaces[edge])
             if (!capIds.Contains(face) && walls.Add(face)) foreach (var loop in source.Topology.GetFace(face).LoopIds)
                 foreach (var use in source.Topology.GetLoop(loop).CoedgeIds) pending.Enqueue(source.Topology.GetCoedge(use).EdgeId);
+        // Everything retained hangs off the cap inner loops. Reaching a cap's outer boundary
+        // would mean an operation reshaped the stock's side walls, which the skin replaces.
+        var outerEdges = caps.SelectMany(c => c.Source.LoopIds.Where(id => !openings.Contains(id)))
+            .SelectMany(id => source.Topology.GetLoop(id).CoedgeIds).Select(id => source.Topology.GetCoedge(id).EdgeId).ToHashSet();
+        if (walls.SelectMany(id => source.Topology.GetFace(id).LoopIds).SelectMany(id => source.Topology.GetLoop(id).CoedgeIds)
+            .Any(id => outerEdges.Contains(source.Topology.GetCoedge(id).EdgeId)))
+            throw new InvalidOperationException("A retained operation reaches the stock's outer side walls.");
         var loops = openings.Concat(walls.SelectMany(id => source.Topology.GetFace(id).LoopIds)).ToHashSet();
         var coedges = loops.SelectMany(id => source.Topology.GetLoop(id).CoedgeIds).ToHashSet();
         var edges = coedges.Select(id => source.Topology.GetCoedge(id).EdgeId).ToHashSet();

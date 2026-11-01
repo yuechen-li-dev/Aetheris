@@ -46,11 +46,16 @@ the GLB reads as an engineering presentation.
 
 ## Stopped or deferred, with reasons
 
-- **Rounded stock corners + boss + chamfer.** The composed chamfer planner transports
-  straight outer segments only (`ComposedProfileBoundaryChamferStackPlanner` casts to
-  line segments); a chamfer around an arc is a conical face the variable-outer
-  emitter does not produce. That is emitter work, not a bug fix; the showcase uses a
-  sharp-cornered outline.
+- **Rounded stock corners + boss + chamfer: works, after one gate change.** Arc outlines
+  route to the rim planner (the chimera route: exact plane and cone chamfer patches),
+  which grafts the source-planned cavities back into the finished skin. It admitted only
+  through round holes. The graft was already generic, so it now retains anything hanging off
+  the stock caps' inner loops (boss, blind pockets, counterbores), provided every
+  footprint clears the rim corridor and no retained face reaches the stock's side walls.
+  The showcase keeps the sharp outline; the rounded variant is covered by
+  `PmiShowcaseTests.RoundedStock_RimChamferRetainsBossPocketsAndCounterbores`. The
+  section-stack route stays line-only (inset, variable-outer interval, emitter).
+  Not projected: the stock corner radius as a `Dimension`.
 - **Standard form for quantity lists.** `2X` pocket lengths, depths and the chamfer
   are written in the native form only; single-feature sizes and all locations are
   written in both. A list needs one standard dimension per feature.

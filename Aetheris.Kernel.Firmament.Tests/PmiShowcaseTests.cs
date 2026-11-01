@@ -43,6 +43,39 @@ public sealed class PmiShowcaseTests
     }
 
     [Fact]
+    public void RoundedStock_RimChamferRetainsBossPocketsAndCounterbores()
+    {
+        var source = Showcase().Replace(
+            "Profile stockOutline = Rect2 { center: [0mm, 0mm]; size: [130mm, 90mm] }",
+            "Profile stockOutline = RoundedRect2 { center: [0mm, 0mm]; size: [130mm, 90mm]; radius: 8mm }");
+        Assert.Contains("RoundedRect2 { center: [0mm, 0mm]; size: [130mm, 90mm]", source);
+        var result = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(result.IsSuccess, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var body = Step242Importer.ImportBody(result.Value.StepText).Value!;
+        var kinds = body.Geometry.Surfaces.GroupBy(s => s.Value.Kind).ToDictionary(g => g.Key, g => g.Count());
+        // One cone per rounded corner of the 1mm rim chamfer; the retained bore, boss, pocket corners
+        // and counterbores are cylinders; nothing degrades to a spline.
+        Assert.Equal(4, kinds.GetValueOrDefault(Core.Geometry.SurfaceGeometryKind.Cone));
+        Assert.False(kinds.ContainsKey(Core.Geometry.SurfaceGeometryKind.BSplineSurfaceWithKnots));
+        Assert.True(BrepExportPreflight.Validate(body).IsValid);
+        var pmi = Step242SemanticPmiInspector.Inspect(result.Value.StepText);
+        Assert.All(pmi.Items.Where(i => i.Kind != "Annotation"), i => Assert.NotEmpty(i.GeometricFaceEntityIds));
+    }
+
+    [Fact]
+    public void RimChamfer_RejectsAPocketInsideTheCorridor()
+    {
+        var source = Showcase()
+            .Replace("Profile stockOutline = Rect2 { center: [0mm, 0mm]; size: [130mm, 90mm] }",
+                "Profile stockOutline = RoundedRect2 { center: [0mm, 0mm]; size: [130mm, 90mm]; radius: 8mm }")
+            .Replace("EdgeFinish<Chamfer> perimeterBreak { target: stockOutline.Outer; on: Top; distance: 1mm }",
+                "EdgeFinish<Chamfer> perimeterBreak { target: stockOutline.Outer; on: Top; distance: 9mm }");
+        var result = FirmamentBuildAndExport.CompileSource(source);
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ProfileRimFinishCavityInterference", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void TypedToleranceDimension_BindsOnAComposedBody()
     {
         var step = Build("HoleDiameter S { target: h dimension: d }").StepText;

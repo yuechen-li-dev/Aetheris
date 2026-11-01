@@ -1,0 +1,5 @@
+include "parameters.firmament";
+Model PackedPlate {
+  units: mm
+  Box stock { size: [40mm, 30mm, Depth] }
+}

@@ -1,0 +1,17 @@
+schema_version = "1.0.0"
+id = "aetheris_cad"
+version = "0.1.0"
+name = "Aetheris CAD"
+tagline = "Exact Firmament CAD parts with Blender modeling and rendering"
+maintainer = "Aetheris"
+type = "add-on"
+blender_version_min = "5.2.0"
+license = ["SPDX:AGPL-3.0-only"]
+platforms = ["windows-x64"]
+tags = ["Modeling", "Import-Export"]
+
+[permissions]
+files = "Read project files, run the local compiler, and export STEP"
+
+[build]
+paths_exclude_pattern = ["__pycache__/", "*.pyc"]

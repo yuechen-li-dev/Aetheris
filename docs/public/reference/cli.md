@@ -71,6 +71,14 @@ retaining the structured polygon representation.
 
 ## Assembly display meshes
 
+For a standalone BRep part, use
+`aetheris mesh part.firmament --format display-json --output artifacts/local/part.display.json --step-output artifacts/local/part.step --json`.
+This exports the shared display schema in millimetres with one definition and
+one identity-frame occurrence. The optional `--step-output` writes the exact
+body from the same compilation. Compilation and tessellation finish before
+either output is written; filesystem write errors may still leave one output.
+This is the transport used by [Aetheris CAD for Blender](../blender.md).
+
 `aetheris mesh <assembly.firmament|assembly.firmasm> --format assembly-json --output <file.mesh.json> --json` exports shared local definition meshes and stable world-space occurrences. Failed geometry is not omitted. The default destination is `artifacts/local/mesh/<name>.mesh.json`. See [editable mechanisms](../firmament/editable-mechanisms.md) for the schema and a working consumer.
 
 ## Generate engineering drawings

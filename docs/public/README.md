@@ -85,6 +85,7 @@ cannot honour.
 
 ### Tools and integration
 
+- [Aetheris CAD for Blender](blender.md): exact Firmament parts, editable mesh copies and STEP export
 - Helios: [sketching](firmament/sketcher.md), [AI author](firmament/ai-author.md),
   [engineering references](firmament/engineering-assistance.md)
 - Cadmata: [overview](cadmata/overview.md), [measurement](cadmata/measurement.md),

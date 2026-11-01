@@ -135,7 +135,7 @@ public static class CliRunner
         int? RigidRootCount = null);
     private const string TopLevelUsage = "Usage: aetheris <command> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament|file.firmasm> [--output <path>] [--locked] [--json]";
-    private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.firmasm|file.step> [--format stl|obj|glb|assembly-json] [--output <path>] [--debug-ir <path>] [--json] (glb: MeshState sources)";
+    private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.firmasm|file.step> [--format stl|obj|glb|assembly-json|display-json] [--output <path>] [--step-output <path> (display-json only)] [--debug-ir <path>] [--json] (glb: MeshState sources)";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--locked] [--forge-pack <path>] [--parse-only] [--explain] [--shadow [--ast]] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
     private const string InspectSpansUsage = "Usage: aetheris inspect-spans <file.firmament> --json";
@@ -1379,7 +1379,7 @@ Model CanonicalPanel {
     private static int RunMesh(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length == 0 || IsHelpFlag(args[0])) { CommandHelp.Write(stdout, MeshUsage, "Build or import a part and export a display mesh. The target format must be admitted by the compiled product.", "aetheris mesh bracket.firmament --format stl --output bracket.stl"); return args.Length == 0 ? 1 : 0; }
-        var input = args[0]; var format = "stl"; string? output = null; string? debugIr = null; var json = false;
+        var input = args[0]; var format = "stl"; string? output = null; string? debugIr = null; string? stepOutput = null; var json = false;
         for (var i = 1; i < args.Length; i++)
         {
             switch (args[i])
@@ -1387,10 +1387,17 @@ Model CanonicalPanel {
                 case "--format" when i + 1 < args.Length: format = args[++i]; break;
                 case "--output" when i + 1 < args.Length: output = args[++i]; break;
                 case "--debug-ir" when i + 1 < args.Length: debugIr = args[++i]; break;
+                case "--step-output" when i + 1 < args.Length: stepOutput = args[++i]; break;
                 case "--json": json = true; break;
                 default: stderr.WriteLine($"Unknown mesh option '{args[i]}'."); stderr.WriteLine(MeshUsage); return 1;
             }
         }
+        if (string.Equals(format, "display-json", StringComparison.OrdinalIgnoreCase))
+        {
+            if (debugIr is not null) { stderr.WriteLine("display-json does not support --debug-ir."); return 1; }
+            return PartDisplayMeshCommand.Run(input, output, stepOutput, stdout);
+        }
+        if (stepOutput is not null) { stderr.WriteLine("--step-output requires --format display-json."); return 1; }
         if (string.Equals(format, "assembly-json", StringComparison.OrdinalIgnoreCase))
         {
             if (debugIr is not null) { stderr.WriteLine("assembly-json does not support --debug-ir."); return 1; }

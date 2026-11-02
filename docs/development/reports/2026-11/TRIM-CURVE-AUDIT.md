@@ -45,10 +45,15 @@ stays unqualified.
 - Exports of a body with tolerant edges declare a distance uncertainty of at least its
   worst gap, so Aetheris never claims more precision than it holds. Bodies without tolerant
   edges declare nothing, as before.
-- Tolerant traces are not written to STEP; readers re-derive them. Recovered traces on
-  B-spline supports are not written either: once SO-101's recovery succeeded, one was
-  written and came back outside the reread surface's domain (U −14.7). **Known issue**,
-  not yet diagnosed (likely knot or parameter mapping between write and read).
+- All traces are written to STEP again, tolerant and recovered alike. Excluding them hid one
+  bug, now fixed: circles and ellipses are written untrimmed, so the reader derives the trim
+  from the vertices and may land a whole turn away from the stored trim (SO-101 stores
+  [2π, 2π+0.43]; the reader gets [0, 0.43]). Conic traces are periodic and didn't care.
+  Line, polyline and spline traces aren't, and SO-101's straight trace on a B-spline face read
+  back from U −14.7 on a [0, 1] surface. The exporter now shifts those traces by the whole
+  turns the reader's trim will differ by. The reader also keeps a start that sits on the seam
+  on the turn that starts at 0: depending on how the vertex was rounded it used to read as
+  2π−ε or +ε, so neither side could predict it.
 - `BrepThroughHoleRevisionTests` expected the default CTC-01 import to leave trims missing;
   tolerant edges now do by default what its explicit source-accuracy policy did.
 

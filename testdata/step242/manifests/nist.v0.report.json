@@ -17,7 +17,7 @@
       "edges": 318,
       "faces": 117
     },
-    "canonicalSha256": "8a1865e832511ec24aecbb61f7b306865d5bd032fe75178a6e6cdf5f60191a96"
+    "canonicalSha256": "f0a0da70f663e4c7bd829321ab9bcdefda29c8873b0dd7c919871149881db4bf"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_02_asme1_ap242-e2",
@@ -37,7 +37,7 @@
       "edges": 1410,
       "faces": 635
     },
-    "canonicalSha256": "3e4275a7c4025beb94735a16b4cd54d0c5b3fe17315afe23c9445c39274e2bd3"
+    "canonicalSha256": "c725ff7b31d3da76717365f70bd12767f74f102a462504343c4d590ca51ccf06"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_03_asme1_ap242-e2",
@@ -77,7 +77,7 @@
       "edges": 1108,
       "faces": 483
     },
-    "canonicalSha256": "14b748b514bb765f0bb1da4ea20ea45642d9e96441503ebbfbe9c847cf6c3e16"
+    "canonicalSha256": "e032d691278fea03e584041fa502e19290bbc0f36213502ac017ad5bc0f7ce5d"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_05_asme1_ap242-e1",
@@ -117,7 +117,7 @@
       "edges": 476,
       "faces": 187
     },
-    "canonicalSha256": "162258e5b935368b90b96780fab489210af2dbd83b473e357acf52bbc5b217d2"
+    "canonicalSha256": "b43cd5d2c63e72bc0281a370cc7f832d3da92627b3e87e26dfe55f036eeb7a28"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_07_asme1_ap242-e2",
@@ -137,7 +137,7 @@
       "edges": 865,
       "faces": 304
     },
-    "canonicalSha256": "7fef61e1a1781c28ba5399a805f48f478b5a78d445d85877f26d0bd1693b87b1"
+    "canonicalSha256": "4e5eda24fe9e16777e6a841a04dedb1c0b638340b6ac74c39768780cdf9dd38a"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e1-tg",
@@ -297,7 +297,7 @@
       "edges": 705,
       "faces": 270
     },
-    "canonicalSha256": "177d16dbb8ad0c53f42a3f2837ae0c050d7a484e9b0762f75e0d54602a11d8ea"
+    "canonicalSha256": "1c70df2622ff63e2efc6023bed96dcc9e88f94a0c0dc2b64d4fb027724b556a1"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_09_asme1_ap242-e3",

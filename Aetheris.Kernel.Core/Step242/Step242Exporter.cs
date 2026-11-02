@@ -1226,20 +1226,32 @@ public static class Step242Exporter
             : body.Bindings.PcurveBindings
                 .Where(binding => model.GetCoedge(binding.CoedgeId).EdgeId == edgeId
                     && (body.PcurveRecoveryReport is not { IsSuccess: false }
-                        || binding.SourceStepPcurveEntityId is not null)
-                    // Tolerant traces stay internal: the reader re-derives them from the 3D curve, and the
-                    // declared uncertainty below carries the gap. UV traces are optional STEP data.
-                    && binding.Qualification?.RecoveryMethod.StartsWith(BrepPcurveRecovery.SourceTolerantMethod, StringComparison.Ordinal) != true
-                    // Recovered traces on B-spline supports are not written either: written for SO-101 once its
-                    // recovery succeeded, one came back outside the reread surface's domain (U -14.7). Known issue,
-                    // see TRIM-CURVE-AUDIT.md; the reader re-derives them.
-                    && binding.Qualification?.Origin != PcurveBindingOrigin.RecoveredSpline)
+                        || binding.SourceStepPcurveEntityId is not null))
                 .OrderBy(binding => binding.FaceId.Value)
                 .ThenBy(binding => binding.CoedgeId.Value)
                 .ToArray();
+        // A circle or ellipse is written untrimmed, so a reader derives its trim from the vertices and lands on
+        // its own turn, which may differ from the stored trim by whole turns (SO-101 stores [2pi, 5pi/2]). Analytic
+        // conic traces are periodic and survive that. Line, polyline and spline traces are not: SO-101 stores a
+        // straight UV trace on a B-spline face over [2pi, 2pi+0.43], which, read against [0, 0.43], started at
+        // U -14.7 on a [0, 1] surface. So those traces move by the same whole turns.
+        var periodShift = 0d;
+        if (edgeBinding.TrimInterval is { } storedTrim && curve.Kind is CurveGeometryKind.Circle3 or CurveGeometryKind.Ellipse3)
+        {
+            var readerTrim = curve.Kind == CurveGeometryKind.Circle3
+                ? Step242Importer.ComputeCircleTrim(curve.Circle3!.Value, startPoint, endPoint, emittedSameSense)
+                : Step242Importer.ComputeEllipseTrim(curve.Ellipse3!.Value, startPoint, endPoint, emittedSameSense);
+            if (readerTrim.IsSuccess)
+                periodShift = double.Round((readerTrim.Value.Start - storedTrim.Start) / (2d * double.Pi)) * 2d * double.Pi;
+        }
         var pcurveIds = pcurveContextId is null
             ? []
             : edgePcurveBindings
+                .Select(binding => periodShift != 0d && (binding.Pcurve.PolynomialCurve is not null
+                        || binding.Pcurve.Kind is PcurveGeometryKind.Line or PcurveGeometryKind.Polyline)
+                    ? binding with { Pcurve = ReparameterizeLinePcurve(binding.Pcurve,
+                        new ParameterInterval(binding.Pcurve.Domain.Start + periodShift, binding.Pcurve.Domain.End + periodShift)) }
+                    : binding)
                 .Select(binding => BuildStepPcurve(writer, binding, surfaceIds, pcurveContextId,
                     curve.Kind == CurveGeometryKind.Line3 && binding.Qualification is
                         { Origin: PcurveBindingOrigin.RecoveredAnalytic or PcurveBindingOrigin.RecoveredSpline or PcurveBindingOrigin.DerivedAnalytic or PcurveBindingOrigin.ConstructedBoundary }

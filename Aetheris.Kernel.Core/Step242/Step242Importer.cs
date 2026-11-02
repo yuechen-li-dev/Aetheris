@@ -1891,7 +1891,7 @@ public static class Step242Importer
                 source)
         ]);
 
-    private static KernelResult<ParameterInterval> ComputeEllipseTrim(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint, bool edgeSameSense)
+    internal static KernelResult<ParameterInterval> ComputeEllipseTrim(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint, bool edgeSameSense)
     {
         var tolerance = ComputeEllipseTrimTolerance(ellipse, startPoint, endPoint);
 
@@ -2055,6 +2055,10 @@ public static class Step242Importer
             return KernelResult<ParameterInterval>.Success(new ParameterInterval(0d, 2d * double.Pi));
         }
 
+        // A start on the seam reads as 2pi-e or +e depending on how the coordinates were rounded, so the trim
+        // would land a whole turn apart for the same file written twice. Keep it on the turn that starts at 0;
+        // face traces written against this trim (Step242Exporter's period shift) rely on that.
+        if (canonicalStart >= (2d * double.Pi) - angleTolerance) canonicalStart -= 2d * double.Pi;
         var normalizedEnd = canonicalStart + span;
         if (normalizedEnd <= canonicalStart)
         {

@@ -20,8 +20,13 @@ public sealed class Step242OrientationSemanticsTests
         Assert.Equal(forwardCoedge.IsReversed, reversedCoedge.IsReversed);
     }
 
+    /// <summary>
+    /// FACE_BOUND orientation .F. means the face uses its EDGE_LOOP reversed (ISO 10303-42): the loop order
+    /// reverses and every oriented edge flips. Flipping senses without reversing order (the pre-March 2026
+    /// handler) breaks loop connectivity; ignoring the flag leaves loops running against their faces.
+    /// </summary>
     [Fact]
-    public void ImportBody_FaceBoundOrientationFalse_DoesNotFlipCoedgeReversalStateDuringAssembly()
+    public void ImportBody_FaceBoundOrientationFalse_UsesTheLoopReversed()
     {
         var forward = Step242Importer.ImportBody(BuildSingleTriangleStep(edgeCurveSameSense: true, faceBoundOrientation: true, advancedFaceSameSense: true));
         var reversed = Step242Importer.ImportBody(BuildSingleTriangleStep(edgeCurveSameSense: true, faceBoundOrientation: false, advancedFaceSameSense: true));
@@ -31,7 +36,7 @@ public sealed class Step242OrientationSemanticsTests
 
         var forwardCoedge = Assert.Single(forward.Value.Topology.Coedges);
         var reversedCoedge = Assert.Single(reversed.Value.Topology.Coedges);
-        Assert.Equal(forwardCoedge.IsReversed, reversedCoedge.IsReversed);
+        Assert.NotEqual(forwardCoedge.IsReversed, reversedCoedge.IsReversed);
     }
 
     /// <summary>

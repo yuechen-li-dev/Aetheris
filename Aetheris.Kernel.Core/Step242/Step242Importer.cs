@@ -356,7 +356,7 @@ public static class Step242Importer
                     return KernelResult<BrepBody>.Failure(boundOrientationResult.Diagnostics);
                 }
 
-                _ = boundOrientationResult.Value;
+                var boundAgreesWithLoop = boundOrientationResult.Value;
                 var isDeclaredOuter = string.Equals(boundEntity.Name, "FACE_OUTER_BOUND", StringComparison.OrdinalIgnoreCase);
 
                 var loopEntityResult = document.TryGetEntity(loopRefResult.Value.TargetId);
@@ -543,6 +543,22 @@ public static class Step242Importer
                     importRepairs.Add(new("step-import-loop-order-recovered", message, StepEntityId: faceEntity.Id));
                     shellRoleDiagnostics.Add(new(KernelDiagnosticCode.Unknown, KernelDiagnosticSeverity.Info,
                         "step-import-loop-order-recovered: " + message, $"Entity:{faceEntity.Id}"));
+                }
+
+                // FACE_BOUND orientation .F. means the face uses its EDGE_LOOP reversed (ISO 10303-42).
+                // Dropping it left the loop running against the face, which reversed spherical caps
+                // (a concave corner drew as the rest of its sphere) and was written back out on export.
+                if (!boundAgreesWithLoop)
+                {
+                    loopCoedges.Reverse();
+                    var count = loopCoedges.Count;
+                    loopCoedges = loopCoedges.Select((c, index) => c with
+                    {
+                        IsReversed = !c.IsReversed,
+                        NextCoedgeId = loopCoedges[(index + 1) % count].Id,
+                        PrevCoedgeId = loopCoedges[(index + count - 1) % count].Id,
+                    }).ToList();
+                    loopSamples.Reverse();
                 }
 
                 var closingGap = ClassifyCoedgeGap(loopSamples[^1], loopSamples[0], bindSurfaceResult.Value.SurfaceGeometry);

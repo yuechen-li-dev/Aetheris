@@ -50,10 +50,13 @@ internal static class BlendNetworkRemoval
         // 1. Each strip spans exactly two anchors (from classification: tangent for fillets, leaning for chamfers).
         var bridge = new Dictionary<FaceId, (FaceId A, FaceId B)>();
         var longitudinal = new HashSet<EdgeId>();
+        // A face spanning other than two anchors is a joiner (corner patch, setback, a blend that only
+        // meets blends): it has no edge of its own to leave behind, so all its edges are transverse and
+        // its vertices collapse into the corners around it. Its own geometry never matters.
         foreach (var s in strips)
         {
             var anchor = anchors.GetValueOrDefault(s) ?? [];
-            if (anchor.Length != 2) throw new InvalidOperationException($"blend-removal-strip-not-two-anchored: face {s.Value} spans {anchor.Length} faces; corners are E3");
+            if (anchor.Length != 2) continue;
             var (a, b) = (anchor[0], anchor[1]);
             Plane(a); Plane(b);
             bridge[s] = (a, b);
@@ -148,6 +151,20 @@ internal static class BlendNetworkRemoval
                 newLoops.Add(loop with { CoedgeIds = ids });
             }
         foreach (var e in newEdges.Values) model.AddEdge(new Edge(e.Id, e.Start, e.End));
+        // Every rebuilt loop must chain: each use ends where the next begins.
+        var edgeEnds = keptEdges.ToDictionary(e => e.Id, e => (Map(e.StartVertexId), Map(e.EndVertexId)));
+        foreach (var e in newEdges.Values) edgeEnds[e.Id] = (e.Start, e.End);
+        foreach (var loop in newLoops)
+        {
+            var uses = loop.CoedgeIds.Select(id => newCoedges.Single(c => c.Id == id)).ToArray();
+            for (var i = 0; i < uses.Length; i++)
+            {
+                var (a, b) = edgeEnds[uses[i].EdgeId]; var (c, d) = edgeEnds[uses[(i + 1) % uses.Length].EdgeId];
+                var end = uses[i].IsReversed ? a : b; var start = uses[(i + 1) % uses.Length].IsReversed ? d : c;
+                if (end != start)
+                    throw new InvalidOperationException($"blend-removal-loop-broken: loop {loop.Id.Value} edge {uses[i].EdgeId.Value} ends at vertex {end.Value} but edge {uses[(i + 1) % uses.Length].EdgeId.Value} starts at {start.Value}");
+            }
+        }
         foreach (var c in newCoedges) model.AddCoedge(c);
         foreach (var l in newLoops) model.AddLoop(l);
         foreach (var f in topology.Faces.Where(f => !strips.Contains(f.Id))) model.AddFace(f);
@@ -166,6 +183,8 @@ internal static class BlendNetworkRemoval
             var moved = clusterOf.ContainsKey(e.StartVertexId) || clusterOf.ContainsKey(e.EndVertexId);
             if (moved)
             {
+                // Every face owning a re-trimmed edge needs its pcurves rebuilt, not only faces whose loops changed.
+                changedFaces.UnionWith(edgeFaces[e.Id]);
                 var curve = body.Geometry.GetCurve(binding.CurveGeometryId);
                 if (curve.Line3 is not { } line) throw new InvalidOperationException($"blend-removal-moved-edge-not-straight: edge {e.Id.Value} is {curve.Kind}");
                 double At(Point3D p) => (p - line.Origin).Dot(line.Direction.ToVector());
@@ -188,8 +207,23 @@ internal static class BlendNetworkRemoval
         foreach (var b in body.Bindings.VertexLoopParameterBindings.Where(b => !changedFaces.Contains(b.FaceId) && !strips.Contains(b.FaceId))) bindings.AddVertexLoopParameterBinding(b);
         foreach (var id in bindings.EdgeBindings.Select(b => b.CurveGeometryId).Distinct().Where(id => !geometry.TryGetCurve(id, out _))) geometry.AddCurve(id, body.Geometry.GetCurve(id));
         foreach (var id in bindings.FaceBindings.Select(b => b.SurfaceGeometryId).Distinct()) geometry.AddSurface(id, body.Geometry.GetSurface(id));
-        var pcurves = BrepPcurveRecovery.Populate(model, geometry, bindings);
+        // Rebuild pcurves on the changed faces only. Populating the whole body would also invent pcurves
+        // on untouched faces that never had them, which changes what the export writes for them.
+        var sub = new TopologyModel();
+        var subLoops = changedFaces.SelectMany(f => model.GetFace(f).LoopIds).Select(model.GetLoop).ToArray();
+        var subCoedges = subLoops.SelectMany(l => l.CoedgeIds).Select(model.GetCoedge).ToArray();
+        var subEdges = subCoedges.Select(c => model.GetEdge(c.EdgeId)).Distinct().ToArray();
+        foreach (var v in subEdges.SelectMany(e => new[] { e.StartVertexId, e.EndVertexId }).Distinct()) sub.AddVertex(new Vertex(v));
+        foreach (var e in subEdges) sub.AddEdge(e);
+        foreach (var c in subCoedges) sub.AddCoedge(c);
+        foreach (var l in subLoops) sub.AddLoop(l);
+        foreach (var f in changedFaces) sub.AddFace(model.GetFace(f));
+        var scratch = new BrepBindingModel();
+        foreach (var b in bindings.EdgeBindings) scratch.AddEdgeBinding(b);
+        foreach (var b in bindings.FaceBindings) scratch.AddFaceBinding(b);
+        var pcurves = BrepPcurveRecovery.Populate(sub, geometry, scratch);
         if (pcurves.Diagnostics.Count > 0) throw new InvalidOperationException("blend-removal-pcurves: " + string.Join("; ", pcurves.Diagnostics.Take(3).Select(d => d.Message)));
+        foreach (var b in scratch.PcurveBindings) bindings.AddPcurveBinding(b);
         return new(new BrepBody(model, geometry, bindings, points, null, body.ShellRepresentation), null, newEdges.Count, clusters.Count);
     }
 

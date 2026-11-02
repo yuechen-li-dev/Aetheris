@@ -79,6 +79,47 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
         Assert.Equal(Points(plain), Points(reimported.Value));
     }
 
+    /// <summary>E3: rounded convex solids lose every fillet and corner patch (3- to 5-valent corners).</summary>
+    [Theory]
+    [InlineData("box-rounded", "")]
+    [InlineData("polyhedron-4-rounded", "polyhedron-4")]
+    [InlineData("polyhedron-6-rounded", "polyhedron-6")]
+    [InlineData("polyhedron-8-rounded", "polyhedron-8")]
+    [InlineData("polyhedron-12-rounded", "polyhedron-12")]
+    [InlineData("polyhedron-20-rounded", "polyhedron-20")]
+    public void RemovingStripsAndCorners_ReturnsTheSharpSolid(string rounded, string plainName)
+    {
+        var dir = Path.Combine(Root(), "fixtures/Regression/ConvexStock");
+        var source = File.ReadAllText(Path.Combine(dir, rounded + ".firmament"));
+        var finished = Import(source);
+        var plain = Import(plainName.Length > 0 ? File.ReadAllText(Path.Combine(dir, plainName + ".firmament"))
+            : Regex.Replace(source, @"Modify stock \{\s*EdgeFinish[^{}]*\{[^{}]*\}\s*\}", ""));
+        Assert.True(plain.Topology.Faces.Count() < finished.Topology.Faces.Count());
+
+        var probe = BlendRegionProbe.Run(rounded, finished);
+        var blends = probe.Regions.SelectMany(r => r.Faces).Select(f => new FaceId(f)).ToHashSet();
+        var joiners = probe.Regions.SelectMany(r => r.Faces.Zip(r.FaceBridges)).Count(p => p.Second != 2);
+        var removed = BlendNetworkRemoval.Remove(finished, blends, Anchors(probe));
+        Assert.True(removed.Body is not null, removed.Refusal);
+        output.WriteLine($"{rounded}: removed {blends.Count} faces ({joiners} corner joiners), {removed.NewEdges} sharp edges, {removed.Clusters} corners");
+
+        var body = removed.Body!;
+        Assert.True(TopologyGraphValidator.Validate(body.Topology).IsSuccess);
+        Assert.True(BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        Assert.Equal(plain.Topology.Faces.Count(), body.Topology.Faces.Count());
+        Assert.Equal(plain.Topology.Edges.Count(), body.Topology.Edges.Count());
+        Assert.Equal(Points(plain), Points(body));
+        // All faces are planar here, so the tessellated volume is exact; the same evaluator for both.
+        var expected = BrepMassProperties.TryEvaluateExactVolume(plain, out var e) ? e.AbsoluteVolume : BrepMassProperties.Evaluate(plain).AbsoluteVolume;
+        var actual = BrepMassProperties.TryEvaluateExactVolume(body, out var a) ? a.AbsoluteVolume : BrepMassProperties.Evaluate(body).AbsoluteVolume;
+        Assert.Equal(expected, actual, 6);
+        var step = Step242Exporter.ExportBody(body);
+        Assert.True(step.IsSuccess, string.Join("\n", step.Diagnostics.Select(d => d.Message)));
+        var reimported = Step242Importer.ImportBody(step.Value);
+        Assert.True(reimported.IsSuccess, string.Join("\n", reimported.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(Points(plain), Points(reimported.Value));
+    }
+
     [Theory]
     [InlineData("fixtures/Regression/EdgeFinishRobustness/d-profile-fillet.firmament", "blend-removal-primary-not-planar")]
     [InlineData("fixtures/Regression/CanonicalGeometry/profile-edgefinish-chimera-fillet.firmament", "blend-removal-")]
@@ -130,12 +171,14 @@ public sealed class BlendNetworkRemovalReach
             var body = import.Value;
             BrepMassProperties.TryEvaluateExactVolume(body, out var before);
             var probe = BlendRegionProbe.Run(Path.GetFileName(path), body);
+            var baseline = Step242Exporter.ExportBody(body);
+            var baselineBack = baseline.IsSuccess ? Step242Importer.ImportBody(baseline.Value) : null;
+            lines.Add($"   {Path.GetFileNameWithoutExtension(path)} baseline round trip: {(baselineBack is { IsSuccess: true } ? "ok" : baseline.IsSuccess ? "reimport fails: " + baselineBack!.Diagnostics.FirstOrDefault()?.Message : "export fails: " + baseline.Diagnostics.FirstOrDefault()?.Message)}");
             var outcome = new Dictionary<string, int>();
             foreach (var region in probe.Regions)
             {
                 string verdict;
                 if (region.FaceBlockers.Any(b => b is not null)) verdict = "blocked:" + region.FaceBlockers.First(b => b is not null)!.Split(':')[0];
-                else if (region.FaceBridges.Any(b => b != 2) && region.Shape != "chamfer") verdict = "joiner(E3)";
                 else
                 {
                     var removed = BlendNetworkRemoval.Remove(body, region.Faces.Select(f => new FaceId(f)).ToHashSet(), BlendNetworkRemovalTests.Anchors(probe));
@@ -144,8 +187,13 @@ public sealed class BlendNetworkRemovalReach
                     {
                         var valid = TopologyGraphValidator.Validate(removed.Body.Topology).IsSuccess
                                     && BrepBindingValidator.Validate(removed.Body, requireAllEdgeAndFaceBindings: true).IsSuccess;
-                        var step = valid ? Step242Exporter.ExportBody(removed.Body) : null;
+                        // Geometry and topology round trip without pcurves (imported NIST bodies carry many
+                        // invalid source pcurves); the full round trip is reported alongside.
+                        var step = valid ? Step242Exporter.ExportBody(removed.Body, [], new Step242ExportOptions { EmitQualifiedPcurves = false }) : null;
                         var back = step is { IsSuccess: true } ? Step242Importer.ImportBody(step.Value) : null;
+                        var full = valid ? Step242Exporter.ExportBody(removed.Body) : null;
+                        var fullBack = full is { IsSuccess: true } ? Step242Importer.ImportBody(full.Value) : null;
+                        if (fullBack is { IsSuccess: true }) total["  of which full pcurve round trip ok"] = total.GetValueOrDefault("  of which full pcurve round trip ok") + region.Faces.Length;
                         // Exact volume where available; otherwise the tessellated evaluation for both bodies.
                         var grew = BrepMassProperties.TryEvaluateExactVolume(removed.Body, out var after) && before is not null
                                    ? after.AbsoluteVolume - before.AbsoluteVolume
@@ -153,6 +201,14 @@ public sealed class BlendNetworkRemovalReach
                         // A convex blend's removal adds material and a concave one's removes it; either way the
                         // change is bounded by the blend's area times the largest admitted radius.
                         var stripArea = region.Faces.Sum(f => probe.FaceReports.Single(r => r.Face == f).Area);
+                        if (false)
+                        {
+                            var before0 = BrepPcurveValidator.Validate(body, 1e-5);
+                            var after0 = BrepPcurveValidator.Validate(removed.Body, 1e-5);
+                            lines.Add($"   {Path.GetFileNameWithoutExtension(path)} R{region.Id} pcurves before: {string.Join(" | ", before0.Diagnostics.Take(2))} after: {string.Join(" | ", after0.Diagnostics.Take(3))}");
+                        }
+                        if (back is { IsSuccess: false }) lines.Add($"   {Path.GetFileNameWithoutExtension(path)} R{region.Id} reimport: {back.Diagnostics.FirstOrDefault()?.Message}");
+                        if (step is { IsSuccess: false }) lines.Add($"   {Path.GetFileNameWithoutExtension(path)} R{region.Id} export: {step.Diagnostics.FirstOrDefault()?.Message}");
                         verdict = !valid ? "removed-invalid" : back is not { IsSuccess: true } ? "removed-reimport-failed"
                             : (Math.Abs(grew) > 1e-9 && Math.Abs(grew) <= stripArea * 5 && !wroteSample.Contains(path) && wroteSample.Add(path)
                                && WriteSample(root, Path.GetFileNameWithoutExtension(path), region.Id, body, removed.Body)) ? "unreachable"

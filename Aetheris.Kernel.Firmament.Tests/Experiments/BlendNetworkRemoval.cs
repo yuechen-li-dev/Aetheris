@@ -12,8 +12,9 @@ namespace Aetheris.Kernel.Firmament.Tests.Experiments;
 /// E1 of blend clean-up: delete a network of blend strips bounded by planes and rebuild the
 /// sharp geometry from the extended planes. Each strip becomes the line where its two bridged
 /// planes meet; every cluster of vertices joined by a strip's end or miter edges becomes the
-/// point where the planes meeting there intersect. Experimental: planar primaries only;
-/// anything else refuses with a reason.
+/// point where the planes meeting there intersect. E2 extends this to cylinders and cones: a strip
+/// between a plane and a revolved face across its axis becomes a circle, one along it a line, and
+/// corners among curved faces are solved implicitly. Anything else refuses with a reason.
 /// </summary>
 internal static class BlendNetworkRemoval
 {
@@ -30,6 +31,9 @@ internal static class BlendNetworkRemoval
     private static Result Run(BrepBody body, IReadOnlySet<FaceId> strips, IReadOnlyDictionary<FaceId, FaceId[]> anchors)
     {
         var topology = body.Topology;
+        // An imported body is only as exact as its source says: corners and kept edges are checked to the
+        // declared distance accuracy (10 um when it declares none), as tolerant edges are on import.
+        var accuracy = body.ImportQualification is { } qualification ? Math.Max(1e-6, qualification.SourceDistanceAccuracyMillimetres ?? 0.01) : 1e-6;
         var edgeFaces = new Dictionary<EdgeId, List<FaceId>>();
         foreach (var face in topology.Faces)
             foreach (var loop in face.LoopIds)
@@ -39,16 +43,17 @@ internal static class BlendNetworkRemoval
                     if (!edgeFaces.TryGetValue(e, out var list)) edgeFaces[e] = list = [];
                     list.Add(face.Id);
                 }
-        PlaneSurface Plane(FaceId f) => body.TryGetFaceSurfaceGeometry(f, out var s) && s?.Plane is { } p ? p
-            : throw new InvalidOperationException($"blend-removal-primary-not-planar: face {f.Value} borders the network and is {s?.Kind}; E1 admits planes only");
-        var lengths = BrepDisplayTessellator.Tessellate(body).Value.EdgePolylines
-            .ToDictionary(p => p.EdgeId, p => p.Points.Zip(p.Points.Skip(1)).Sum(q => (q.Second - q.First).Length));
+        Implicit Surface(FaceId f) => body.TryGetFaceSurfaceGeometry(f, out var s) && s is { Kind: SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone }
+            ? new Implicit(f, s)
+            : throw new InvalidOperationException($"blend-removal-primary-unsupported: face {f.Value} borders the network and is {s?.Kind}; E2 admits planes, cylinders and cones");
+        var polylines = BrepDisplayTessellator.Tessellate(body).Value.EdgePolylines.ToDictionary(p => p.EdgeId, p => p.Points);
         FaceId Other(EdgeId e, FaceId f) => edgeFaces[e].Count == 2 && edgeFaces[e][0] != edgeFaces[e][1] ? edgeFaces[e].Single(x => x != f) : throw new InvalidOperationException($"blend-removal-seam-edge: edge {e.Value} is a seam or non-manifold");
         IEnumerable<EdgeId> EdgesOf(FaceId f) => topology.GetFace(f).LoopIds.SelectMany(l => topology.GetLoop(l).CoedgeIds)
             .Select(c => topology.GetCoedge(c).EdgeId).Distinct();
 
         // 1. Each strip spans exactly two anchors (from classification: tangent for fillets, leaning for chamfers).
         var bridge = new Dictionary<FaceId, (FaceId A, FaceId B)>();
+        var bridgeCircle = new Dictionary<FaceId, (Point3D Center, Vector3D Axis, double Radius)?>();
         var longitudinal = new HashSet<EdgeId>();
         // A face spanning other than two anchors is a joiner (corner patch, setback, a blend that only
         // meets blends): it has no edge of its own to leave behind, so all its edges are transverse and
@@ -58,12 +63,13 @@ internal static class BlendNetworkRemoval
             var anchor = anchors.GetValueOrDefault(s) ?? [];
             if (anchor.Length != 2) continue;
             var (a, b) = (anchor[0], anchor[1]);
-            Plane(a); Plane(b);
             bridge[s] = (a, b);
-            foreach (var e in EdgesOf(s).Where(e => edgeFaces[e].Count == 2 && (Other(e, s) == a || Other(e, s) == b))) longitudinal.Add(e);
+            bridgeCircle[s] = SharpEdge(Surface(a), Surface(b), s);
+            // A strip's own seam (a ring blend) has both sides on the strip: it is transverse.
+            foreach (var e in EdgesOf(s).Where(e => edgeFaces[e].Count == 2 && edgeFaces[e][0] != edgeFaces[e][1] && (Other(e, s) == a || Other(e, s) == b))) longitudinal.Add(e);
         }
-        if (strips.SelectMany(EdgesOf).Any(e => edgeFaces[e].Count != 2 || edgeFaces[e][0] == edgeFaces[e][1]))
-            throw new InvalidOperationException("blend-removal-seam-edge: a strip has a seam or non-manifold edge");
+        if (strips.SelectMany(EdgesOf).Any(e => edgeFaces[e].Count != 2 || (edgeFaces[e][0] == edgeFaces[e][1] && !strips.Contains(edgeFaces[e][0]))))
+            throw new InvalidOperationException("blend-removal-seam-edge: a strip has a non-manifold edge");
         var touched = strips.SelectMany(EdgesOf).ToHashSet();
         var transverse = touched.Where(e => !longitudinal.Contains(e)).ToHashSet();
 
@@ -87,10 +93,15 @@ internal static class BlendNetworkRemoval
         var representative = new Dictionary<VertexId, VertexId>();
         foreach (var (root, members) in clusters)
         {
-            var planes = members.SelectMany(v => vertexFaces[v]).Where(f => !strips.Contains(f)).Distinct().Select(f => (Face: f, Plane: Plane(f))).ToArray();
-            body.TryGetVertexPoint(members[0], out var seed);
-            corner[root] = Solve(planes.Select(p => p.Plane).ToArray(), seed,
-                $"cluster of vertices {string.Join(',', members.Select(m => m.Value))} on faces {string.Join(',', planes.Select(p => p.Face.Value))}");
+            var around = members.SelectMany(v => vertexFaces[v]).Where(f => !strips.Contains(f)).Distinct().Select(Surface).ToArray();
+            // Seed from a vertex a kept edge leaves from: that edge's curve already holds it, and the
+            // smallest move onto the other surfaces keeps it there when the cluster is underdetermined.
+            var anchorVertex = members.FirstOrDefault(v => topology.Edges.Any(e => !touched.Contains(e.Id) && (e.StartVertexId == v || e.EndVertexId == v)), members[0]);
+            body.TryGetVertexPoint(anchorVertex, out var seed);
+            var where = $"cluster of vertices {string.Join(',', members.Select(m => m.Value))} on faces {string.Join(',', around.Select(p => $"{p.Face.Value}{p.Surface.Kind.ToString()[..3]}"))}";
+            corner[root] = around.All(p => p.Surface.Plane is not null)
+                ? Solve(around.Select(p => p.Surface.Plane!.Value).ToArray(), seed, where, accuracy)
+                : SolveImplicit(around, seed, where, accuracy);
             representative[root] = members.MinBy(v => v.Value)!;
         }
         VertexId Map(VertexId v) => clusterOf.TryGetValue(v, out var root) ? representative[root] : v;
@@ -98,19 +109,52 @@ internal static class BlendNetworkRemoval
         // 3. One straight edge per (corner, corner, plane pair).
         var nextEdge = topology.Edges.Max(e => e.Id.Value) + 1;
         var nextCurve = body.Geometry.Curves.Max(c => c.Key.Value) + 1;
-        var newEdges = new Dictionary<(int, int, int, int), (EdgeId Id, VertexId Start, VertexId End, CurveGeometryId Curve, Line3Curve Line, double Length)>();
-        (EdgeId Id, VertexId Start, VertexId End, CurveGeometryId Curve, Line3Curve Line, double Length) NewEdge(EdgeId old, FaceId s)
+        var newEdges = new Dictionary<(int, int, int, int), NewEdgeData>();
+        NewEdgeData NewEdge(EdgeId old, FaceId s)
         {
             var edge = topology.GetEdge(old);
             var (u, v) = (Map(edge.StartVertexId), Map(edge.EndVertexId));
-            if (u == v) throw new InvalidOperationException($"blend-removal-strip-collapses: edge {old.Value} has both ends in one corner");
+            var circle = bridgeCircle[s];
+            if (u == v && circle is null) throw new InvalidOperationException($"blend-removal-strip-collapses: edge {old.Value} has both ends in one corner");
             var (a, b) = bridge[s];
             var key = (Math.Min(u.Value, v.Value), Math.Max(u.Value, v.Value), Math.Min(a.Value, b.Value), Math.Max(a.Value, b.Value));
             if (newEdges.TryGetValue(key, out var made)) return made;
             var (start, end) = u.Value < v.Value ? (u, v) : (v, u);
             var p = corner[clusterOf[start]]; var q = corner[clusterOf[end]];
-            var line = new Line3Curve(p, Direction3D.Create(q - p));
-            return newEdges[key] = (new EdgeId(nextEdge++), start, end, new CurveGeometryId(nextCurve++), line, (q - p).Length);
+            NewEdgeData result;
+            if (circle is not { } c)
+            {
+                var line = new Line3Curve(p, Direction3D.Create(q - p));
+                result = new(new EdgeId(nextEdge++), start, end, new CurveGeometryId(nextCurve++), CurveGeometry.FromLine(line), new ParameterInterval(0, (q - p).Length));
+            }
+            else
+            {
+                // The arc runs the way the old edge ran: through the old edge's midpoint, which sits a blend
+                // radius away from the sharp edge but at the same angle.
+                var points = polylines[old];
+                var middle = points[points.Count / 2];
+                var axis = c.Axis;
+                var x = p - c.Center; x -= axis * x.Dot(axis);
+                if (Math.Abs(x.Length - c.Radius) > accuracy) throw new InvalidOperationException($"blend-removal-corner-off-circle: corner off strip {s.Value}'s sharp edge by {Math.Abs(x.Length - c.Radius):G3} mm");
+                var closed = start == end;
+                if (!closed)
+                {
+                    var trial = new Circle3Curve(c.Center, Direction3D.Create(axis), c.Radius, Direction3D.Create(x));
+                    double Angle(Circle3Curve k, Point3D r) { var d = r - k.Center; var t = Math.Atan2(d.Dot(k.YAxis.ToVector()), d.Dot(k.XAxis.ToVector())); return t < 0 ? t + 2 * Math.PI : t; }
+                    // Of the two arcs from start to end, the sharp edge is the one under the old edge.
+                    if (Angle(trial, middle) > Angle(trial, q)) axis = -axis;
+                }
+                var k = new Circle3Curve(c.Center, Direction3D.Create(axis), c.Radius, Direction3D.Create(x));
+                var dq = q - k.Center;
+                var sweep = closed ? 2 * Math.PI : Math.Atan2(dq.Dot(k.YAxis.ToVector()), dq.Dot(k.XAxis.ToVector()));
+                if (sweep <= 0) sweep += 2 * Math.PI;
+                result = new(new EdgeId(nextEdge++), start, end, new CurveGeometryId(nextCurve++), CurveGeometry.FromCircle(k), new ParameterInterval(0, sweep));
+            }
+            // The sharp edge lies on both surfaces it separates.
+            var mid = result.Evaluate(0.5 * (result.Trim.Start + result.Trim.End));
+            foreach (var f in new[] { a, b })
+                if (Math.Abs(Surface(f).F(mid)) > accuracy) throw new InvalidOperationException($"blend-removal-sharp-edge-off-surface: strip {s.Value}'s new edge misses face {f.Value} by {Math.Abs(Surface(f).F(mid)):G3} mm");
+            return newEdges[key] = result;
         }
 
         // 4. Rebuild the loops of every face outside the network.
@@ -138,7 +182,17 @@ internal static class BlendNetworkRemoval
                     var edge = topology.GetEdge(c.EdgeId);
                     var from = Map(c.IsReversed ? edge.EndVertexId : edge.StartVertexId);
                     var made = NewEdge(c.EdgeId, s);
-                    var use = (made.Id, from != made.Start);
+                    bool reversed;
+                    if (made.Start != made.End) reversed = from != made.Start;
+                    else
+                    {
+                        // A closed edge has one vertex: compare directions where the old edge ran.
+                        var pts = polylines[c.EdgeId];
+                        var i = pts.Count / 2;
+                        var oldDirection = (pts[Math.Min(i + 1, pts.Count - 1)] - pts[Math.Max(i - 1, 0)]) * (c.IsReversed ? -1 : 1);
+                        reversed = made.Tangent(pts[i]).Dot(oldDirection) < 0;
+                    }
+                    var use = (made.Id, reversed);
                     if (uses.Count == 0 || uses[^1] != use) uses.Add(use);
                 }
                 if (changed) changedFaces.Add(face.Id);
@@ -186,10 +240,32 @@ internal static class BlendNetworkRemoval
                 // Every face owning a re-trimmed edge needs its pcurves rebuilt, not only faces whose loops changed.
                 changedFaces.UnionWith(edgeFaces[e.Id]);
                 var curve = body.Geometry.GetCurve(binding.CurveGeometryId);
-                if (curve.Line3 is not { } line) throw new InvalidOperationException($"blend-removal-moved-edge-not-straight: edge {e.Id.Value} is {curve.Kind}");
-                double At(Point3D p) => (p - line.Origin).Dot(line.Direction.ToVector());
-                var (s, t) = (At(points[Map(e.StartVertexId)]), At(points[Map(e.EndVertexId)]));
-                if (!binding.OrientedEdgeSense) (s, t) = (t, s);
+                var (ps, pe) = (points[Map(e.StartVertexId)], points[Map(e.EndVertexId)]);
+                double s, t;
+                if (curve.Line3 is { } line)
+                {
+                    double At(Point3D p) => (p - line.Origin).Dot(line.Direction.ToVector());
+                    foreach (var p in new[] { ps, pe })
+                        if ((p - line.Evaluate(At(p))).Length > accuracy) throw new InvalidOperationException($"blend-removal-corner-off-kept-edge: edge {e.Id.Value} misses its new corner by {(p - line.Evaluate(At(p))).Length:G3} mm");
+                    (s, t) = (At(ps), At(pe));
+                    if (!binding.OrientedEdgeSense) (s, t) = (t, s);
+                }
+                else if (curve.Circle3 is { } circle && binding.TrimInterval is { } old)
+                {
+                    double Angle(Point3D p)
+                    {
+                        var d = p - circle.Center;
+                        var off = Math.Abs(d.Dot(circle.Normal.ToVector())) + Math.Abs((d - circle.Normal.ToVector() * d.Dot(circle.Normal.ToVector())).Length - circle.Radius);
+                        if (off > accuracy) throw new InvalidOperationException($"blend-removal-corner-off-kept-edge: circular edge {e.Id.Value} misses its new corner by {off:G3} mm");
+                        return Math.Atan2(d.Dot(circle.YAxis.ToVector()), d.Dot(circle.XAxis.ToVector()));
+                    }
+                    // Unwrap each end next to where it was: corners move by a blend radius, not a turn.
+                    static double Near(double angle, double reference) => reference + Math.IEEERemainder(angle - reference, 2 * Math.PI);
+                    var (first, last) = binding.OrientedEdgeSense ? (ps, pe) : (pe, ps);
+                    s = Near(Angle(first), old.Start);
+                    t = e.StartVertexId == e.EndVertexId ? s + (old.End - old.Start) : Near(Angle(last), old.End);
+                }
+                else throw new InvalidOperationException($"blend-removal-moved-edge-unsupported: edge {e.Id.Value} is {curve.Kind}");
                 if (t - s <= Tol) throw new InvalidOperationException($"blend-removal-edge-inverts: edge {e.Id.Value}");
                 binding = binding with { TrimInterval = new ParameterInterval(s, t) };
             }
@@ -197,8 +273,8 @@ internal static class BlendNetworkRemoval
         }
         foreach (var e in newEdges.Values)
         {
-            geometry.AddCurve(e.Curve, CurveGeometry.FromLine(e.Line));
-            bindings.AddEdgeBinding(new EdgeGeometryBinding(e.Id, e.Curve, new ParameterInterval(0, e.Length)));
+            geometry.AddCurve(e.Curve, e.Geometry);
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(e.Id, e.Curve, e.Trim));
         }
         foreach (var b in body.Bindings.FaceBindings.Where(b => !strips.Contains(b.FaceId))) bindings.AddFaceBinding(b);
         foreach (var b in body.Bindings.FaceBoundaryRoleBindings.Where(b => !strips.Contains(b.FaceId))) bindings.AddFaceBoundaryRoleBinding(b);
@@ -221,15 +297,98 @@ internal static class BlendNetworkRemoval
         var scratch = new BrepBindingModel();
         foreach (var b in bindings.EdgeBindings) scratch.AddEdgeBinding(b);
         foreach (var b in bindings.FaceBindings) scratch.AddFaceBinding(b);
-        var pcurves = BrepPcurveRecovery.Populate(sub, geometry, scratch);
+        var pcurves = BrepPcurveRecovery.Populate(sub, geometry, scratch, sourceTolerance: accuracy > 1e-6 ? accuracy : null);
         if (pcurves.Diagnostics.Count > 0) throw new InvalidOperationException("blend-removal-pcurves: " + string.Join("; ", pcurves.Diagnostics.Take(3).Select(d => d.Message)));
         foreach (var b in scratch.PcurveBindings) bindings.AddPcurveBinding(b);
         return new(new BrepBody(model, geometry, bindings, points, null, body.ShellRepresentation), null, newEdges.Count, clusters.Count);
     }
 
+    private sealed record NewEdgeData(EdgeId Id, VertexId Start, VertexId End, CurveGeometryId Curve, CurveGeometry Geometry, ParameterInterval Trim)
+    {
+        public Point3D Evaluate(double t) => Geometry.Line3 is { } l ? l.Evaluate(t) : Geometry.Circle3!.Value.Evaluate(t);
+        public Vector3D Tangent(Point3D near)
+        {
+            if (Geometry.Line3 is { } l) return l.Direction.ToVector();
+            var c = Geometry.Circle3!.Value; var d = near - c.Center;
+            return c.Tangent(Math.Atan2(d.Dot(c.YAxis.ToVector()), d.Dot(c.XAxis.ToVector())));
+        }
+    }
+
+    /// <summary>A face's support as an implicit function: signed distance for planes and cylinders, distance to
+    /// the generator for cones.</summary>
+    private sealed record Implicit(FaceId Face, SurfaceGeometry Surface)
+    {
+        public double F(Point3D x) => Eval(x).F;
+        public Vector3D Gradient(Point3D x) => Eval(x).G;
+        private (double F, Vector3D G) Eval(Point3D x)
+        {
+            if (Surface.Plane is { } p) return (p.Normal.ToVector().Dot(x - p.Origin), p.Normal.ToVector());
+            var (origin, axis) = Surface.Cylinder is { } c ? (c.Origin, c.Axis.ToVector()) : (Surface.Cone!.Value.Apex, Surface.Cone!.Value.Axis.ToVector());
+            var v = x - origin; var h = v.Dot(axis); var radial = v - axis * h; var rho = radial.Length;
+            var unit = rho > 1e-12 ? radial * (1 / rho) : Vector3D.Zero;
+            if (Surface.Cylinder is { } cylinder) return (rho - cylinder.Radius, unit);
+            var a = Surface.Cone!.Value.SemiAngleRadians; var side = h < 0 ? -1d : 1d;
+            return (rho * Math.Cos(a) - Math.Abs(h) * Math.Sin(a), unit * Math.Cos(a) - axis * (side * Math.Sin(a)));
+        }
+    }
+
+    /// <summary>The circle where a plane meets a cylinder or cone across its axis; null for two planes or a plane
+    /// along a cylinder's axis, whose sharp edge is the straight line between its corners.</summary>
+    private static (Point3D Center, Vector3D Axis, double Radius)? SharpEdge(Implicit a, Implicit b, FaceId strip)
+    {
+        if (a.Surface.Plane is null) (a, b) = (b, a);
+        if (a.Surface.Plane is not { } plane) throw new InvalidOperationException($"blend-removal-anchor-pair-unsupported: strip {strip.Value} bridges {a.Surface.Kind} and {b.Surface.Kind}");
+        if (b.Surface.Plane is not null) return null;
+        var n = plane.Normal.ToVector();
+        var (origin, axis) = b.Surface.Cylinder is { } c ? (c.Origin, c.Axis.ToVector()) : (b.Surface.Cone!.Value.Apex, b.Surface.Cone!.Value.Axis.ToVector());
+        var along = n.Dot(axis);
+        if (Math.Abs(along) < 1e-9 && b.Surface.Cylinder is not null) return null;
+        if (Math.Abs(Math.Abs(along) - 1) > 1e-9) throw new InvalidOperationException($"blend-removal-anchor-pair-oblique: strip {strip.Value} meets a {b.Surface.Kind} obliquely");
+        var center = origin + axis * ((plane.Origin - origin).Dot(n) / along);
+        var radius = b.Surface.Cylinder is { } cylinder ? cylinder.Radius : Math.Abs((center - origin).Dot(axis)) * Math.Tan(b.Surface.Cone!.Value.SemiAngleRadians);
+        if (radius < 1e-9) throw new InvalidOperationException($"blend-removal-sharp-edge-degenerate: strip {strip.Value}'s plane meets the cone at its apex");
+        return (center, axis, radius);
+    }
+
+    /// <summary>Corner on curved faces: Gauss-Newton with the minimum-norm step from the seed, so an
+    /// underdetermined cluster (two faces) lands on the nearest point of their intersection.</summary>
+    private static Point3D SolveImplicit(Implicit[] surfaces, Point3D seed, string where, double accuracy)
+    {
+        if (surfaces.Length < 2) throw new InvalidOperationException($"blend-removal-corner-underdetermined: {where}");
+        var x = seed;
+        var m = surfaces.Length;
+        for (var iteration = 0; iteration < 100; iteration++)
+        {
+            var f = surfaces.Select(s => s.F(x)).ToArray();
+            if (f.Max(Math.Abs) < 1e-11) break;
+            var g = surfaces.Select(s => s.Gradient(x)).ToArray();
+            // delta = J^T (J J^T + lambda I)^-1 f
+            var a = new double[m, m + 1];
+            for (var i = 0; i < m; i++) { for (var j = 0; j < m; j++) a[i, j] = g[i].Dot(g[j]) + (i == j ? 1e-12 : 0); a[i, m] = f[i]; }
+            for (var col = 0; col < m; col++)
+            {
+                var pivot = Enumerable.Range(col, m - col).MaxBy(r => Math.Abs(a[r, col]));
+                for (var k = 0; k <= m; k++) (a[col, k], a[pivot, k]) = (a[pivot, k], a[col, k]);
+                for (var r = 0; r < m; r++)
+                {
+                    if (r == col) continue;
+                    var factor = a[r, col] / a[col, col];
+                    for (var k = col; k <= m; k++) a[r, k] -= factor * a[col, k];
+                }
+            }
+            var step = Vector3D.Zero;
+            for (var i = 0; i < m; i++) step += g[i] * (a[i, m] / a[i, i]);
+            x -= step;
+        }
+        var residual = surfaces.Max(s => Math.Abs(s.F(x)));
+        if (residual > Math.Max(1e-7, accuracy)) throw new InvalidOperationException($"blend-removal-corner-not-common: {surfaces.Length} surfaces miss one point by {residual:G3} mm at {where}");
+        if ((x - seed).Length > 100) throw new InvalidOperationException($"blend-removal-corner-far: corner moved {(x - seed).Length:G3} mm at {where}");
+        return x;
+    }
+
     /// <summary>Point common to the planes (least squares, then checked), or the point on their
     /// line nearest the seed when only two planes meet there.</summary>
-    private static Point3D Solve(PlaneSurface[] planes, Point3D seed, string where)
+    private static Point3D Solve(PlaneSurface[] planes, Point3D seed, string where, double accuracy)
     {
         if (planes.Length < 2) throw new InvalidOperationException($"blend-removal-corner-underdetermined: {where}");
         var n = planes.Select(p => p.Normal.ToVector()).ToArray();
@@ -255,7 +414,7 @@ internal static class BlendNetworkRemoval
             x = Solve3([new(a[0, 0], a[0, 1], a[0, 2]), new(a[1, 0], a[1, 1], a[1, 2]), new(a[2, 0], a[2, 1], a[2, 2])], r);
         }
         var residual = n.Zip(d).Max(p => Math.Abs(p.First.Dot(x - Point3D.Origin) - p.Second));
-        if (residual > 1e-6) throw new InvalidOperationException($"blend-removal-corner-not-common: {planes.Length} planes miss one point by {residual:G3} mm at {where}");
+        if (residual > accuracy) throw new InvalidOperationException($"blend-removal-corner-not-common: {planes.Length} planes miss one point by {residual:G3} mm at {where}");
         return x;
     }
 

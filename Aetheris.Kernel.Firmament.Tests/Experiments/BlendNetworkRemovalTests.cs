@@ -41,7 +41,50 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
         { "rect-top-chamfer", Rect("Modify Body { EdgeFinish Rim { target: Section.Outer; on: Top; kind: Chamfer; distance: 2mm } }") },
         { "rect-bottom-fillet", Rect("Modify Body { EdgeFinish Rim { target: Section.Outer; on: Bottom; kind: Fillet; radius: 3mm } }") },
         { "polygon-rim-fillet", "fixtures/Regression/EdgeFinishRobustness/polygon-rim-fillet.firmament" },
+        // E2: rims that run along cylinders (arcs in the profile) as well as planes.
+        { "d-profile-fillet", "fixtures/Regression/EdgeFinishRobustness/d-profile-fillet.firmament" },
+        { "rounded-rect-top-fillet", RoundedRect("Modify Body { EdgeFinish Rim { target: Section.Outer; on: Top; kind: Fillet; radius: 2mm } }") },
+        { "rounded-rect-top-chamfer", RoundedRect("Modify Body { EdgeFinish Rim { target: Section.Outer; on: Top; kind: Chamfer; distance: 2mm } }") },
     };
+
+    /// <summary>Corner arcs tangent to the sides: the rim strips along the arcs bridge the top and a cylinder
+    /// across its axis, and meet the side strips where a plane and a cylinder are tangent.</summary>
+    private static string RoundedRect(string finish) => $$"""
+        Model RR {
+            units: mm
+            Path Outline {
+                start: Point2(6mm, 0mm)
+                heading: 0deg
+                Line South { length: 28mm }
+                Arc SE { turn: 90deg; radius: 6mm }
+                Line East { length: 13mm }
+                Arc NE { turn: 90deg; radius: 6mm }
+                Line North { length: 28mm }
+                Arc NW { turn: 90deg; radius: 6mm }
+                Line West { length: 13mm }
+                Arc SW { turn: 90deg; radius: 6mm }
+            }
+            Profile Section from Outline
+            Struct Body { Extrude Stock { profile: Section; from: 0mm; to: 10mm } }
+            {{finish}}
+        }
+        """;
+
+    /// <summary>The chimera's convex 4 mm arc under a 4 mm fillet: the blend there is a sphere touching the top at
+    /// one point, which the probe reads as a joiner with no anchors. Its corner is two corners merged.</summary>
+    [Fact]
+    public void FilletAsLargeAsTheArc_Refuses()
+    {
+        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/CanonicalGeometry/profile-edgefinish-chimera-fillet.firmament"));
+        var finished = Import(source);
+        var probe = BlendRegionProbe.Run("chimera", finished);
+        var strips = probe.Regions.SelectMany(r => r.Faces).Select(f => new FaceId(f))
+            .Where(f => !(finished.TryGetFaceSurfaceGeometry(f, out var g) && g!.Cylinder is { } c && Math.Abs(Math.Abs(c.Axis.ToVector().Z) - 1) < 1e-9))
+            .ToHashSet();
+        var removed = BlendNetworkRemoval.Remove(finished, strips, Anchors(probe));
+        Assert.Null(removed.Body);
+        Assert.StartsWith("blend-removal-corner-not-common", removed.Refusal);
+    }
 
     [Theory]
     [MemberData(nameof(Admitted))]
@@ -50,27 +93,42 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
         var source = sourceOrPath.StartsWith("fixtures/", StringComparison.Ordinal) ? File.ReadAllText(Path.Combine(Root(), sourceOrPath)) : sourceOrPath;
         var finished = Import(source);
         var stripped = Regex.Replace(source, @"Modify Body \{\s*EdgeFinish[^{}]*\{[^{}]*\}\s*\}", "");
-        Assert.DoesNotContain("EdgeFinish", stripped);
+        Assert.DoesNotMatch(@"EdgeFinish \w+ \{", stripped);
         var plain = Import(Regex.Replace(source, @"Modify Body \{\s*EdgeFinish[^{}]*\{[^{}]*\}\s*\}", ""));
 
         var probe = BlendRegionProbe.Run(name, finished);
-        var strips = probe.Regions.SelectMany(r => r.Faces).Select(f => new FaceId(f)).ToHashSet();
+        // Profile arcs extruded along Z are tangent walls the probe also reads as blends; the authored part
+        // without the finish keeps them, so only the finish is removed and the arcs stay as anchors.
+        var strips = probe.Regions.SelectMany(r => r.Faces).Select(f => new FaceId(f))
+            .Where(f => !(finished.TryGetFaceSurfaceGeometry(f, out var g) && g!.Cylinder is { } c && Math.Abs(Math.Abs(c.Axis.ToVector().Z) - 1) < 1e-9))
+            .ToHashSet();
         Assert.NotEmpty(strips);
-        var removed = BlendNetworkRemoval.Remove(finished, strips, Anchors(probe));
+        // A kept wall the probe read as a blend is an anchor of the strips along it.
+        var kept = probe.Regions.SelectMany(r => r.Faces).Select(f => new FaceId(f)).Where(f => !strips.Contains(f)).ToHashSet();
+        var anchors = Anchors(probe);
+        foreach (var f in strips)
+            anchors[f] = anchors[f].Concat(Neighbours(finished, f).Where(kept.Contains)).Distinct().ToArray();
+        var removed = BlendNetworkRemoval.Remove(finished, strips, anchors);
         Assert.True(removed.Body is not null, removed.Refusal);
         output.WriteLine($"{name}: removed {strips.Count} faces, {removed.NewEdges} sharp edges, {removed.Clusters} corners");
 
         var body = removed.Body!;
         Assert.True(TopologyGraphValidator.Validate(body.Topology).IsSuccess);
         Assert.True(BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        output.WriteLine("plain: " + Kinds(plain)); output.WriteLine("body:  " + Kinds(body));
         Assert.Equal(plain.Topology.Faces.Count(), body.Topology.Faces.Count());
         Assert.Equal(plain.Topology.Edges.Count(), body.Topology.Edges.Count());
         Assert.Equal(plain.Topology.Vertices.Count(), body.Topology.Vertices.Count());
         Assert.Equal(Points(plain), Points(body));
 
-        Assert.True(BrepMassProperties.TryEvaluateExactVolume(plain, out var expected));
-        Assert.True(BrepMassProperties.TryEvaluateExactVolume(body, out var actual), actual?.Status.ToString());
-        Assert.Equal(expected.AbsoluteVolume, actual.AbsoluteVolume, 6);
+        // Exact volume where both have one; curved faces fall back to the tessellated evaluator for both.
+        if (BrepMassProperties.TryEvaluateExactVolume(plain, out var expected) && BrepMassProperties.TryEvaluateExactVolume(body, out var actual))
+            Assert.Equal(expected.AbsoluteVolume, actual.AbsoluteVolume, 6);
+        else
+        {
+            var (v0, v1) = (BrepMassProperties.Evaluate(plain).AbsoluteVolume, BrepMassProperties.Evaluate(body).AbsoluteVolume);
+            Assert.True(Math.Abs(v1 - v0) <= 1e-3 * v0, $"volume {v1} vs {v0}");
+        }
 
         var step = Step242Exporter.ExportBody(body);
         Assert.True(step.IsSuccess, string.Join("\n", step.Diagnostics.Select(d => d.Message)));
@@ -120,19 +178,6 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
         Assert.Equal(Points(plain), Points(reimported.Value));
     }
 
-    [Theory]
-    [InlineData("fixtures/Regression/EdgeFinishRobustness/d-profile-fillet.firmament", "blend-removal-primary-not-planar")]
-    [InlineData("fixtures/Regression/CanonicalGeometry/profile-edgefinish-chimera-fillet.firmament", "blend-removal-")]
-    public void CurvedNeighbours_Refuse_WithAReason(string path, string code)
-    {
-        var finished = Import(File.ReadAllText(Path.Combine(Root(), path)));
-        var probe = BlendRegionProbe.Run(path, finished);
-        var removed = BlendNetworkRemoval.Remove(finished, probe.Regions.SelectMany(r => r.Faces).Select(f => new FaceId(f)).ToHashSet(), Anchors(probe));
-        Assert.Null(removed.Body);
-        Assert.StartsWith(code, removed.Refusal);
-        output.WriteLine(removed.Refusal);
-    }
-
     internal static Dictionary<FaceId, FaceId[]> Anchors(BlendRegionProbe.Report probe) => probe.Regions
         .SelectMany(r => r.Faces.Zip(r.FaceAnchors)).ToDictionary(p => new FaceId(p.First), p => p.Second.Select(a => new FaceId(a)).ToArray());
 
@@ -144,6 +189,15 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
         Assert.True(body.IsSuccess);
         return body.Value;
     }
+
+    private static IEnumerable<FaceId> Neighbours(BrepBody body, FaceId f)
+    {
+        var t = body.Topology;
+        var edges = t.GetFace(f).LoopIds.SelectMany(l => t.GetLoop(l).CoedgeIds).Select(c => t.GetCoedge(c).EdgeId).ToHashSet();
+        return t.Faces.Where(o => o.Id != f && o.LoopIds.SelectMany(l => t.GetLoop(l).CoedgeIds).Any(c => edges.Contains(t.GetCoedge(c).EdgeId))).Select(o => o.Id);
+    }
+
+    private static string Kinds(BrepBody body) => string.Join(",", body.Topology.Faces.Select(f => body.TryGetFaceSurfaceGeometry(f.Id, out var g) ? g!.Kind.ToString()[..3] : "?").GroupBy(k => k).Select(g => $"{g.Key}x{g.Count()}"));
 
     private static string[] Points(BrepBody body) => body.Topology.Vertices
         .Select(v => { body.TryGetVertexPoint(v.Id, out var p); return $"{Math.Round(p.X, 6) + 0.0:F6},{Math.Round(p.Y, 6) + 0.0:F6},{Math.Round(p.Z, 6) + 0.0:F6}"; })

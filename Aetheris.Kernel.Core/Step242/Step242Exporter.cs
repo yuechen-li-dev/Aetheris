@@ -1231,7 +1231,10 @@ public static class Step242Exporter
                 .Select(binding => BuildStepPcurve(writer, binding, surfaceIds, pcurveContextId,
                     curve.Kind == CurveGeometryKind.Line3 && binding.Qualification is
                         { Origin: PcurveBindingOrigin.RecoveredAnalytic or PcurveBindingOrigin.RecoveredSpline or PcurveBindingOrigin.DerivedAnalytic or PcurveBindingOrigin.ConstructedBoundary }
-                        ? new ParameterInterval(0d, (endPoint - startPoint).Length) : null))
+                        ? new ParameterInterval(0d, (endPoint - startPoint).Length) : null,
+                    // The rewritten line starts at the start vertex. That vertex is the stored trim's end when
+                    // the edge runs against its curve, and the pcurve may itself run against the edge curve.
+                    reverseLineDomain: edgeBinding.OrientedEdgeSense != binding.SameSense))
                 .Where(id => id is not null)
                 .Select(id => id!)
                 .ToArray();
@@ -1257,14 +1260,15 @@ public static class Step242Exporter
         CoedgePcurveBinding binding,
         IReadOnlyDictionary<SurfaceGeometryId, string> surfaceIds,
         string contextId,
-        ParameterInterval? reparameterizedLineDomain)
+        ParameterInterval? reparameterizedLineDomain,
+        bool reverseLineDomain = false)
     {
         if (!surfaceIds.TryGetValue(binding.SurfaceGeometryId, out var surfaceId)) return null;
         var representationName = binding.Qualification is { } qualification
             ? $"aetheris-qualified-pcurve:{Step242TextWriter.Number(qualification.QualificationToleranceMillimetres)}"
             : "pcurve";
         if (reparameterizedLineDomain is { } lineDomain)
-            binding = binding with { Pcurve = ReparameterizeLinePcurve(binding.Pcurve, lineDomain) };
+            binding = binding with { Pcurve = ReparameterizeLinePcurve(binding.Pcurve, lineDomain, reverseLineDomain), SameSense = true };
         if (binding.Pcurve.PolynomialCurve is { } polynomial)
         {
             var controls = polynomial.ControlPoints.Select(p => writer.AddEntity("CARTESIAN_POINT", "$",
@@ -1362,8 +1366,9 @@ public static class Step242Exporter
         return writer.AddEntity("PCURVE", "$", Step242TextWriter.Ref(surfaceId), Step242TextWriter.Ref(representationId));
     }
 
-    internal static PcurveGeometry ReparameterizeLinePcurve(PcurveGeometry pcurve, ParameterInterval lineDomain)
+    internal static PcurveGeometry ReparameterizeLinePcurve(PcurveGeometry pcurve, ParameterInterval lineDomain, bool reverse = false)
     {
+        if (reverse) pcurve = Reversed(pcurve);
         if (pcurve.PolynomialCurve is { } polynomial)
         {
             var source = pcurve.Domain;
@@ -1383,6 +1388,27 @@ public static class Step242Exporter
             PcurveGeometryKind.Line => PcurveGeometry.Line(lineDomain, pcurve.Points[0], pcurve.Points[1]),
             PcurveGeometryKind.Polyline => PcurveGeometry.Polyline(lineDomain, pcurve.Points),
             _ => pcurve
+        };
+    }
+
+    /// <summary>The same trace traversed the other way over the same domain: t maps to Start + End - t.</summary>
+    private static PcurveGeometry Reversed(PcurveGeometry pcurve)
+    {
+        var d = pcurve.Domain;
+        if (pcurve.PolynomialCurve is { } polynomial)
+        {
+            var knots = polynomial.KnotValues.Reverse().Select(k => k == d.Start ? d.End : k == d.End ? d.Start : d.Start + d.End - k).ToArray();
+            var reversed = new BSpline3Curve(polynomial.Degree, polynomial.ControlPoints.Reverse().ToArray(),
+                polynomial.KnotMultiplicities.Reverse().ToArray(), knots, polynomial.CurveForm,
+                polynomial.ClosedCurve, polynomial.SelfIntersect, polynomial.KnotSpec);
+            return pcurve.RationalWeights is { } weights ? PcurveGeometry.RationalPolynomial(d, reversed, weights.Reverse().ToArray())
+                : PcurveGeometry.Polynomial(d, reversed);
+        }
+        return pcurve.Kind switch
+        {
+            PcurveGeometryKind.Line => PcurveGeometry.Line(d, pcurve.Points[1], pcurve.Points[0]),
+            PcurveGeometryKind.Polyline => PcurveGeometry.Polyline(d, pcurve.Points.Reverse().ToArray()),
+            _ => throw new InvalidOperationException($"A {pcurve.Kind} pcurve on a straight edge cannot be reversed for export."),
         };
     }
 

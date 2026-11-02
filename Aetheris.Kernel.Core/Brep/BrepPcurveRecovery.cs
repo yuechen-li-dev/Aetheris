@@ -146,10 +146,12 @@ public static class BrepPcurveRecovery
                     if (residual <= tolerance) return (candidate, residual, null);
                 }
             }
-            return BuildPeriodicAnalytic(surface, curve, interval, tolerance, point => ConeUv(cone, point));
+            return BuildPeriodicAnalytic(surface, curve, interval, tolerance, point => ConeUv(cone, point),
+                singular: point => (point - cone.Apex).Length <= 1e-9 * double.Max(1d, (EvaluateCurve(curve, interval.Start) - cone.Apex).Length));
         }
         if (surface.Sphere is { } sphere)
-            return BuildPeriodicAnalytic(surface, curve, interval, tolerance, point => SphereUv(sphere, point));
+            return BuildPeriodicAnalytic(surface, curve, interval, tolerance, point => SphereUv(sphere, point),
+                singular: point => (point - sphere.Center - sphere.Axis.ToVector() * (point - sphere.Center).Dot(sphere.Axis.ToVector())).Length <= 1e-9 * sphere.Radius);
         if (surface.Torus is { } torus)
             return BuildPeriodicAnalytic(surface, curve, interval, tolerance, point => TorusUv(torus, point), unwrapV: true);
         if (surface.BSplineSurfaceWithKnots is not { } spline)
@@ -411,12 +413,30 @@ public static class BrepPcurveRecovery
 
     private static (PcurveGeometry? Pcurve, double MaximumResidual, string? Diagnostic) BuildPeriodicAnalytic(
         SurfaceGeometry surface, CurveGeometry curve, ParameterInterval interval, double tolerance,
-        Func<Point3D, SurfaceParameterPoint> inverse, bool unwrapV = false)
+        Func<Point3D, SurfaceParameterPoint> inverse, bool unwrapV = false, Func<Point3D, bool>? singular = null)
     {
         var best = double.PositiveInfinity;
         for (var count = 17; count <= 513; count = (count - 1) * 2 + 1)
         {
             var uv = Sample(interval, count, t => inverse(EvaluateCurve(curve, t))).ToArray();
+            // A sphere pole or cone apex has no U of its own (atan2 of zero returns noise). The pcurve's
+            // U there is its limit along the curve: take it from the nearest regular sample.
+            if (singular is not null)
+            {
+                var atSingular = Enumerable.Range(0, count).Select(i => singular(EvaluateCurve(curve, interval.Start + (interval.End - interval.Start) * i / (count - 1d)))).ToArray();
+                if (atSingular.Any(x => x) && !atSingular.All(x => x))
+                {
+                    for (var i = 0; i < count; i++)
+                    {
+                        if (!atSingular[i]) continue;
+                        var regular = Enumerable.Range(1, count).SelectMany(d => new[] { i - d, i + d }).First(j => j >= 0 && j < count && !atSingular[j]);
+                        var limit = i == 0 || i == count - 1
+                            ? inverse(EvaluateCurve(curve, interval.Start + (interval.End - interval.Start) * (i == 0 ? 1e-6 : 1 - 1e-6)))
+                            : uv[regular];
+                        uv[i] = uv[i] with { U = limit.U };
+                    }
+                }
+            }
             UnwrapAngles(uv, unwrapV);
             var controls = new List<Point3D>((count - 1) * 3 + 1);
             var knots = new List<double>(count);
@@ -424,7 +444,9 @@ public static class BrepPcurveRecovery
             for (var index = 0; index < count - 1; index++)
             {
                 var start = interval.Start + (interval.End - interval.Start) * index / (count - 1d);
-                var end = interval.Start + (interval.End - interval.Start) * (index + 1) / (count - 1d);
+                // The last knot is the interval end exactly; Start + (End - Start) * 1 can fall one ulp short,
+                // which leaves the trim outside the curve's domain.
+                var end = index == count - 2 ? interval.End : interval.Start + (interval.End - interval.Start) * (index + 1) / (count - 1d);
                 var delta = (end - start) * 1e-4d;
                 var nearStart = inverse(EvaluateCurve(curve, start + delta));
                 var nearEnd = inverse(EvaluateCurve(curve, end - delta));

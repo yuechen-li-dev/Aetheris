@@ -742,7 +742,10 @@ public static class Step242Importer
         if (orientation.Value.Bindings.PcurveBindings.Any())
         {
             var pcurveTolerance = double.Max(1e-6d, document.SourceDistanceAccuracyMillimetres ?? 0d);
-            var pcurveEvidence = BrepPcurveValidator.Validate(orientation.Value, pcurveTolerance);
+            var pcurveEvidence = BrepPcurveValidator.Validate(orientation.Value, pcurveTolerance,
+                sourceTopology: document.SourceDistanceAccuracyMillimetres is > 0d and var sourceAccuracy
+                    ? new BrepPcurveTopologyEvidence(orientation.Value.Topology.Vertices.ToDictionary(v => v.Id, _ => sourceAccuracy), new HashSet<(CoedgeId, CoedgeId)>())
+                    : null);
             qualificationEvidence = pcurveEvidence;
             if (!pcurveEvidence.IsValid)
             {
@@ -763,8 +766,12 @@ public static class Step242Importer
             var recovery = BrepPcurveRecovery.Populate(
                 orientation.Value.Topology, orientation.Value.Geometry, orientation.Value.Bindings,
                 tolerance: document.PcurveQualificationToleranceMillimetres);
+            // Vertices only need to lie within the source's declared distance accuracy of their curves.
+            var sourceVertexTolerance = document.SourceDistanceAccuracyMillimetres is > 0d and var accuracy
+                ? new BrepPcurveTopologyEvidence(orientation.Value.Topology.Vertices.ToDictionary(v => v.Id, _ => accuracy), new HashSet<(CoedgeId, CoedgeId)>())
+                : null;
             var pcurveEvidence = BrepPcurveValidator.Validate(orientation.Value,
-                document.PcurveQualificationToleranceMillimetres, requireEveryCoedge: true);
+                document.PcurveQualificationToleranceMillimetres, requireEveryCoedge: true, sourceTopology: sourceVertexTolerance);
             qualificationEvidence = pcurveEvidence;
             orientation.Value.PcurveRecoveryReport = pcurveEvidence.IsValid ? recovery : recovery with
             {

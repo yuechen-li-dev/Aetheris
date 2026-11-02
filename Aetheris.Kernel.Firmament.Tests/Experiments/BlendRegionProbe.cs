@@ -24,7 +24,7 @@ internal static class BlendRegionProbe
         int TangentEdges, int SharpEdges, int InnerLoops, bool ConcaveRound);
 
     internal sealed record RegionReport(int Id, string Shape, int[] Faces, string[] FaceKinds, int[] TangentPrimaries,
-        string[] TangentPrimaryKinds, int[] SharpNeighbours, string[] Blockers, int[] FaceBridges, string?[] FaceBlockers);
+        string[] TangentPrimaryKinds, int[] SharpNeighbours, string[] Blockers, int[] FaceBridges, string?[] FaceBlockers, int[][] FaceAnchors);
 
     internal sealed record Report(string Name, int Faces, int Secondaries, FaceReport[] FaceReports, RegionReport[] Regions,
         Dictionary<int, (float[] Positions, int[] Indices)> Mesh);
@@ -152,12 +152,16 @@ internal static class BlendRegionProbe
             var anchors = isChamfer ? sharp.Length : tangentPrimaries.Length;
             var shape = isChamfer ? "chamfer" : anchors switch { 2 => "chain", 3 => "corner", < 2 => "underanchored", _ => "complex" };
             // Per member: distinct primaries it is tangent to (2 = strip, 3 = corner, 0-1 = blend meeting blends).
-            var bridges = members.OrderBy(f => f.Value).Select(f => faceEdges[f].Where(e => e.Tangent)
-                .Select(e => e.Faces[0] == f ? e.Faces[1] : e.Faces[0]).Where(n => reports[n].Role == "primary").Distinct().Count()).ToArray();
+            // Anchors: the primaries a blend face actually spans. A fillet's are its tangent neighbours;
+            // a chamfer's are the neighbours it leans 20-70° against (its end caps meet it near 90°).
+            var faceAnchors = members.OrderBy(f => f.Value).Select(f => faceEdges[f]
+                .Where(e => reports[f].Reason == "chamfer-strip" ? e.MaxAngleDegrees is > 20 and < 70 : e.Tangent)
+                .Select(e => e.Faces[0] == f ? e.Faces[1] : e.Faces[0]).Where(n => reports[n].Role == "primary").Distinct().Select(n => n.Value).Order().ToArray()).ToArray();
+            var bridges = faceAnchors.Select(a => a.Length).ToArray();
             regions.Add(new(regions.Count + 1, shape, members.Select(f => f.Value).Order().ToArray(),
                 members.OrderBy(f => f.Value).Select(f => reports[f].Kind).ToArray(),
                 tangentPrimaries.Select(f => f.Value).ToArray(), tangentPrimaries.Select(f => reports[f].Kind).ToArray(),
-                sharp.Select(f => f.Value).ToArray(), blockers.Distinct().ToArray(), bridges, faceBlockers));
+                sharp.Select(f => f.Value).ToArray(), blockers.Distinct().ToArray(), bridges, faceBlockers, faceAnchors));
         }
 
         var mesh = patches.ToDictionary(p => p.Key.Value, p =>

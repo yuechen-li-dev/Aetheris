@@ -12,8 +12,14 @@ public sealed record BrepPcurveRecoveryDiagnostic(string Code, string Message, s
 /// <summary>Builds deterministic face-local pcurves from edge and support geometry.</summary>
 public static class BrepPcurveRecovery
 {
+    /// <summary>Tag on qualifications accepted at the source's measured gap rather than the policy tolerance.</summary>
+    public const string SourceTolerantMethod = "SourceTolerant";
+
+    /// <param name="sourceTolerance">When set, an imported edge whose 3D curve lies off its surface by more than
+    /// <paramref name="tolerance"/> but no more than this is accepted as a tolerant edge: its pcurve is kept, its
+    /// measured gap becomes its qualification tolerance, and nothing is repaired.</param>
     public static BrepPcurveRecoveryResult Populate(TopologyModel topology, BrepGeometryStore geometry, BrepBindingModel bindings,
-        double tolerance = 1e-5, int sampleCount = 129)
+        double tolerance = 1e-5, int sampleCount = 129, double? sourceTolerance = null)
     {
         var diagnostics = new List<BrepPcurveRecoveryDiagnostic>();
         var count = 0;
@@ -39,7 +45,20 @@ public static class BrepPcurveRecovery
                     maximum = double.Max(maximum, residual); count++; continue;
                 }
                 (PcurveGeometry? Pcurve, double MaximumResidual, string? Diagnostic) built;
-                try { built = Build(surface, curve, interval, qualificationTolerance, sampleCount); }
+                var tolerant = false;
+                try
+                {
+                    built = Build(surface, curve, interval, qualificationTolerance, sampleCount);
+                    // Measure, record, don't repair: the gap is the source's, within what it declared.
+                    if (built.Pcurve is null && sourceTolerance is { } cap && cap > qualificationTolerance
+                        && double.IsFinite(built.MaximumResidual) && built.MaximumResidual <= cap)
+                    {
+                        var retry = Build(surface, curve, interval, cap, sampleCount);
+                        // A looser fit must still be a trace on the surface: on a B-spline support it may not
+                        // wander outside the parameter domain.
+                        if (retry.Pcurve is not null && WithinDomain(surface, retry.Pcurve)) { built = retry; tolerant = true; qualificationTolerance = cap; }
+                    }
+                }
                 catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or NotSupportedException)
                 {
                     diagnostics.Add(new("surf-pcurve-invalid",
@@ -67,14 +86,26 @@ public static class BrepPcurveRecovery
                     && (curve.Kind is CurveGeometryKind.Line3 or CurveGeometryKind.Circle3 || curve.BSpline3 is not null);
                 var origin = exactPlanarProjection ? PcurveBindingOrigin.DerivedAnalytic
                     : surface.BSplineSurfaceWithKnots is null ? PcurveBindingOrigin.RecoveredAnalytic : PcurveBindingOrigin.RecoveredSpline;
+                // A tolerant edge is qualified at its measured gap (with a little headroom), not at the cap.
+                var bindingTolerance = tolerant ? double.Min(qualificationTolerance, double.Max(tolerance, liftResidual * 1.01d)) : qualificationTolerance;
                 bindings.AddPcurveBinding(new(coedge.Id, face.Id, faceBinding.SurfaceGeometryId, built.Pcurve,
-                    Qualification: new(origin, liftResidual, qualificationTolerance, liftSamples,
-                        boundaryBounded ? "BezierBoundaryControlHull" : built.Pcurve.Kind.ToString(), surface.Kind.ToString())));
+                    Qualification: new(origin, liftResidual, bindingTolerance, liftSamples,
+                        tolerant ? $"{SourceTolerantMethod}:{built.Pcurve.Kind}" : boundaryBounded ? "BezierBoundaryControlHull" : built.Pcurve.Kind.ToString(), surface.Kind.ToString())));
                 maximum = double.Max(maximum, liftResidual);
                 count++;
             }
         }
         return new(diagnostics.Count == 0, count, maximum, diagnostics);
+    }
+
+    private static bool WithinDomain(SurfaceGeometry surface, PcurveGeometry pcurve)
+    {
+        if (surface.BSplineSurfaceWithKnots is not { } spline) return true;
+        const double slack = 1e-9;
+        return Enumerable.Range(0, 257).Select(i => pcurve.Evaluate(pcurve.Domain.Start + (pcurve.Domain.End - pcurve.Domain.Start) * i / 256d))
+            .All(uv => double.IsFinite(uv.U) && double.IsFinite(uv.V)
+                && uv.U >= spline.DomainStartU - slack && uv.U <= spline.DomainEndU + slack
+                && uv.V >= spline.DomainStartV - slack && uv.V <= spline.DomainEndV + slack);
     }
 
     private static double ResolveQualificationTolerance(SurfaceGeometry surface, CurveGeometry curve, double baseTolerance)

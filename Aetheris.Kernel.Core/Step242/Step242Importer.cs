@@ -763,9 +763,12 @@ public static class Step242Importer
             !orientation.Value.Bindings.TryGetPcurveBinding(coedge.Id, out _)))
         {
             using var recoveryPhase = BuildPerfTrace.Phase("step.pcurve-recovery-and-qualification");
+            // Tolerant edges: accept a measured curve-surface gap up to the file's declared accuracy, or 10 µm
+            // when it declares none. Beyond that the source is wrong and the edge stays unqualified.
             var recovery = BrepPcurveRecovery.Populate(
                 orientation.Value.Topology, orientation.Value.Geometry, orientation.Value.Bindings,
-                tolerance: document.PcurveQualificationToleranceMillimetres);
+                tolerance: document.PcurveQualificationToleranceMillimetres,
+                sourceTolerance: document.SourceDistanceAccuracyMillimetres is > 0d and var declared ? declared : 0.01d);
             // Vertices only need to lie within the source's declared distance accuracy of their curves.
             var sourceVertexTolerance = document.SourceDistanceAccuracyMillimetres is > 0d and var accuracy
                 ? new BrepPcurveTopologyEvidence(orientation.Value.Topology.Vertices.ToDictionary(v => v.Id, _ => accuracy), new HashSet<(CoedgeId, CoedgeId)>())

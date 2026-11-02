@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Tests.Step242;
@@ -67,5 +68,53 @@ public sealed class Step242PcurveAuditTests
     {
         foreach (var path in new[] { "testdata/step242/nist/STC/nist_stc_07_asme1_ap242-e3.stp", "testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp" })
             Assert.DoesNotContain(Step242Corpus.Body(path).PcurveRecoveryReport!.Diagnostics, d => d.Message.Contains("requires a finite in-domain trim", StringComparison.Ordinal));
+    }
+}
+
+/// <summary>Tolerant edges: an imported edge whose curve lies off its surface within the file's declared
+/// accuracy keeps its pcurve at its measured gap; nothing is repaired, and exports declare the gap.</summary>
+public sealed class Step242TolerantEdgeTests
+{
+    private static Aetheris.Kernel.Core.Brep.CoedgePcurveBinding[] Tolerant(Aetheris.Kernel.Core.Brep.BrepBody body) => body.Bindings.PcurveBindings
+        .Where(b => b.Qualification?.RecoveryMethod.StartsWith(BrepPcurveRecovery.SourceTolerantMethod, StringComparison.Ordinal) == true).ToArray();
+
+    [Theory]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp", 28)]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", 52)]
+    public void GapsWithinDeclaredAccuracy_Qualify_AtTheirMeasuredGap(string path, int expected)
+    {
+        var body = Step242Corpus.Body(path);
+        var tolerant = Tolerant(body);
+        Assert.Equal(expected, tolerant.Length);
+        var accuracy = body.ImportQualification!.SourceDistanceAccuracyMillimetres!.Value;
+        Assert.All(tolerant, b =>
+        {
+            Assert.True(b.Qualification!.MaximumLiftDeviationMillimetres <= accuracy);
+            Assert.True(b.Qualification.QualificationToleranceMillimetres < accuracy, "recorded at the measured gap, not the cap");
+        });
+        Assert.Equal(Aetheris.Kernel.Core.Import.ImportQualificationStatus.Qualified, body.ImportQualification.GeometryStatus);
+    }
+
+    /// <summary>FTC-11: three edges sit within the declared 5 µm and are kept; three sit 14 µm off and still fail.</summary>
+    [Fact]
+    public void GapsBeyondDeclaredAccuracy_StillFail()
+    {
+        var body = Step242Corpus.Body("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp");
+        Assert.Equal(3, Tolerant(body).Length);
+        Assert.False(body.PcurveRecoveryReport!.IsSuccess);
+        Assert.Equal(3, body.Topology.Coedges.Count(c => !body.Bindings.TryGetPcurveBinding(c.Id, out _)));
+    }
+
+    [Fact]
+    public void Export_DeclaresAtLeastTheWorstTolerantGap()
+    {
+        var body = Step242Corpus.Body("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp");
+        var worst = Tolerant(body).Max(b => b.Qualification!.QualificationToleranceMillimetres);
+        var step = Step242Exporter.ExportBody(body).Value;
+        var declared = double.Parse(System.Text.RegularExpressions.Regex.Match(step, @"UNCERTAINTY_MEASURE_WITH_UNIT\(LENGTH_MEASURE\(([0-9.Ee-]+)\)").Groups[1].Value,
+            System.Globalization.CultureInfo.InvariantCulture);
+        Assert.True(declared >= worst);
+        // A body without tolerant edges keeps its exact form and declares nothing.
+        Assert.DoesNotContain("UNCERTAINTY_MEASURE_WITH_UNIT", Step242Exporter.ExportBody(Step242Corpus.Body("testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp")).Value);
     }
 }

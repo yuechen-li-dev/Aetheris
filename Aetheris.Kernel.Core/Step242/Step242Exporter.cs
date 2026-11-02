@@ -193,7 +193,12 @@ public static class Step242Exporter
         var planeAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)PLANE_ANGLE_UNIT()SI_UNIT($,.RADIAN.))");
         var solidAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)SI_UNIT($,.STERADIAN.)SOLID_ANGLE_UNIT())");
         var uncertaintyContext = string.Empty;
-        if (options.DistanceAccuracyMillimetres is { } accuracy)
+        // A body with tolerant edges must not claim more precision than its worst measured gap.
+        var tolerantFloor = body.Bindings.PcurveBindings
+            .Where(b => b.Qualification?.RecoveryMethod.StartsWith(BrepPcurveRecovery.SourceTolerantMethod, StringComparison.Ordinal) == true)
+            .Select(b => b.Qualification!.QualificationToleranceMillimetres).DefaultIfEmpty(0d).Max();
+        var declaredAccuracy = tolerantFloor > 0d ? double.Max(options.DistanceAccuracyMillimetres ?? 0d, tolerantFloor) : options.DistanceAccuracyMillimetres;
+        if (declaredAccuracy is { } accuracy)
         {
             if (!double.IsFinite(accuracy) || accuracy <= 0)
                 return Failure("DistanceAccuracyMillimetres must be positive and finite.", "Exporter.DistanceAccuracy");
@@ -1221,7 +1226,14 @@ public static class Step242Exporter
             : body.Bindings.PcurveBindings
                 .Where(binding => model.GetCoedge(binding.CoedgeId).EdgeId == edgeId
                     && (body.PcurveRecoveryReport is not { IsSuccess: false }
-                        || binding.SourceStepPcurveEntityId is not null))
+                        || binding.SourceStepPcurveEntityId is not null)
+                    // Tolerant traces stay internal: the reader re-derives them from the 3D curve, and the
+                    // declared uncertainty below carries the gap. UV traces are optional STEP data.
+                    && binding.Qualification?.RecoveryMethod.StartsWith(BrepPcurveRecovery.SourceTolerantMethod, StringComparison.Ordinal) != true
+                    // Recovered traces on B-spline supports are not written either: written for SO-101 once its
+                    // recovery succeeded, one came back outside the reread surface's domain (U -14.7). Known issue,
+                    // see TRIM-CURVE-AUDIT.md; the reader re-derives them.
+                    && binding.Qualification?.Origin != PcurveBindingOrigin.RecoveredSpline)
                 .OrderBy(binding => binding.FaceId.Value)
                 .ThenBy(binding => binding.CoedgeId.Value)
                 .ToArray();

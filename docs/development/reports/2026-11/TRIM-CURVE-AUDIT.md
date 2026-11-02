@@ -32,14 +32,28 @@ The **exporter** validates before writing pcurves and silently omits them on fai
 With the validator fixes, all 16 exact-geometry NIST files validate with **zero**
 diagnostics at their declared accuracy.
 
-## Remaining recovery failures (policy, not bugs)
+## Tolerant edges (follow-up, same day)
 
-- 201 coedges whose source curves sit 2–35 µm off their surfaces, within each file's
-  declared accuracy. Recovery qualifies at a fixed 1 µm, so it demands more than the file
-  promises. Deciding whether to qualify against `max(policy, source accuracy)` is a policy
-  choice.
-- 6 exact curves on CTC-04 fit to 1.9 µm against 1 µm (cubic fitting convergence).
-- 89 coedges on B-spline surfaces were not measured in this audit.
+Decision: **measure, record, don't repair.** When recovery cannot meet the 1 µm policy but
+the edge's measured curve-to-surface gap is within the file's declared distance accuracy
+(10 µm when the file declares none), the pcurve is kept and qualified at its measured gap,
+tagged `SourceTolerant`. Geometry is not touched. Beyond the declared accuracy the edge
+stays unqualified.
+
+- 9 of 16 exact NIST files now qualify fully (was 4). Recorded gaps: worst 34.6 µm on FTC-07
+  (declared 127 µm). The 23 edges beyond declared accuracy still fail.
+- Exports of a body with tolerant edges declare a distance uncertainty of at least its
+  worst gap, so Aetheris never claims more precision than it holds. Bodies without tolerant
+  edges declare nothing, as before.
+- Tolerant traces are not written to STEP; readers re-derive them. Recovered traces on
+  B-spline supports are not written either: once SO-101's recovery succeeded, one was
+  written and came back outside the reread surface's domain (U −14.7). **Known issue**,
+  not yet diagnosed (likely knot or parameter mapping between write and read).
+- `BrepThroughHoleRevisionTests` expected the default CTC-01 import to leave trims missing;
+  tolerant edges now do by default what its explicit source-accuracy policy did.
+
+Still open: 6 exact CTC-04 curves at the cubic fitter's 1.9 µm limit (now tolerant, within
+5 µm), and coedges on B-spline surfaces not measured in this audit.
 
 ## Effects
 

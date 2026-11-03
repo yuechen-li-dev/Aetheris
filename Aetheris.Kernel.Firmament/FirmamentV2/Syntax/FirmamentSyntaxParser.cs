@@ -25,7 +25,19 @@ public static class FirmamentSyntaxParser
     }
 
     private const int ParseCacheCapacity = 256;
-    private static readonly Dictionary<(string File, string Source), SyntaxParseResult> ParseCache = new();
+    // Cache identity is ordinal for both strings. An explicit comparer also avoids
+    // ValueTuple<TRef,TRef>.GetHashCode's shared virtual-dispatch path, which can
+    // abort the Mono WASM AOT runtime while tracing a valid IntelliDraft outline.
+    private static readonly Dictionary<(string File, string Source), SyntaxParseResult> ParseCache = new(new ParseCacheKeyComparer());
+
+    private sealed class ParseCacheKeyComparer : IEqualityComparer<(string File, string Source)>
+    {
+        public bool Equals((string File, string Source) x, (string File, string Source) y)
+            => StringComparer.Ordinal.Equals(x.File, y.File) && StringComparer.Ordinal.Equals(x.Source, y.Source);
+
+        public int GetHashCode((string File, string Source) key)
+            => HashCode.Combine(StringComparer.Ordinal.GetHashCode(key.File), StringComparer.Ordinal.GetHashCode(key.Source));
+    }
 
     private sealed class ParseFailure : Exception;
     private sealed class Parser

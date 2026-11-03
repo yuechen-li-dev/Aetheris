@@ -42,14 +42,14 @@ public sealed class ConvexStockCliTests
     [InlineData("Polyhedron<10> stock { edgeLength: 20mm }", "", "polyhedron-face-count-unsupported")]
     [InlineData("Polyhedron<6> stock { edgeLength: 20 }", "", "field-value-invalid")]
     [InlineData("Ellipsoid stock { radii: [18mm, 0mm, 25mm] }", "", "ellipsoid-radii-invalid")]
-    [InlineData("Cylinder stock { radius: 10mm; height: 20mm }", "EdgeFinish<Fillet> rounding { target: AllEdges; radius: 1mm }", "uniform-stock-fillet-unsupported")]
-    [InlineData("Ellipsoid stock { radii: [18mm, 12mm, 25mm] }", "EdgeFinish<Fillet> rounding { target: AllEdges; radius: 1mm }", "uniform-stock-fillet-unsupported")]
+    [InlineData("Cylinder stock { radius: 10mm; height: 20mm }", "EdgeFinish<Fillet> rounding { target: AllEdges; radius: 1mm }", "uniform-rounding-circular-edge-unsupported")]
+    [InlineData("Ellipsoid stock { radii: [18mm, 12mm, 25mm] }", "EdgeFinish<Fillet> rounding { target: AllEdges; radius: 1mm }", "uniform-rounding-elliptical-edge-unsupported")]
     [InlineData("Box stock { size: [20mm, 20mm, 20mm] }", "EdgeFinish<Fillet> rounding { target: AllEdges; radius: 10mm }", "UniformFilletRadiusTooLarge")]
     [InlineData("Box stock { size: [20mm, 20mm, 20mm] }", "EdgeFinish<Fillet> rounding { target: AllEdges; face: [1, 2]; radius: 1mm }", "field-value-invalid")]
     [InlineData("Box stock { size: [20mm, 20mm, 20mm] }", "EdgeFinish<Fillet> rounding { target: AllEdges; kind: 9; radius: 1mm }", "field-value-invalid")]
     [InlineData("Box stock { size: [20mm, 20mm, 20mm] }", "EdgeFinish<Fillet> rounding { target: AllEdges; distance: 1mm }", "field-value-invalid")]
     [InlineData("Box stock { size: [20mm, 20mm, 20mm] }", "EdgeFinish<Chamfer> rounding { target: AllEdges; distance: 1mm }", "uniform-stock-fillet-unsupported")]
-    [InlineData("Box stock { size: [20mm, 20mm, 20mm] }", "EdgeFinish<Fillet> rounding { target: AllEdges; radius: 1mm } Hole<Shaft> H { on: +Z; center: [0mm, 0mm]; diameter: 2mm; end: ThroughAll }", "uniform-stock-fillet-unsupported")]
+    [InlineData("Box stock { size: [20mm, 20mm, 20mm] }", "EdgeFinish<Fillet> rounding { target: AllEdges; radius: 1mm } Hole<Shaft> H { on: +Z; center: [0mm, 0mm]; diameter: 2mm; end: ThroughAll }", "uniform-rounding-circular-edge-unsupported")]
     public void UnsupportedAndInvalidIntentCannotProduceAnArtifact(string stock, string operation, string code)
     {
         var source = "Model Rejected {\n units: mm\n " + stock + "\n" + (operation.Length == 0 ? "" : " Modify stock {\n " + operation + "\n }\n") + "}";

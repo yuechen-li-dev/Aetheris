@@ -140,6 +140,26 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
         Assert.Equal(Points(plain), Points(reimported.Value));
     }
 
+    /// <summary>The two toolboxes undo each other: an extruded prism rounded whole through Firmament, then every
+    /// strip and corner removed, is the prism again.</summary>
+    [Fact]
+    public void RemovingWholeBodyRounding_ReturnsThePrism()
+    {
+        var source = Integration.UniformRoundingRouteTests.Prism(2);
+        var finished = Import(source);
+        var plain = Import(Regex.Replace(source, @"Modify Body \{\s*EdgeFinish[^{}]*\{[^{}]*\}\s*\}", ""));
+        Assert.Equal((5, 20), (plain.Topology.Faces.Count(), finished.Topology.Faces.Count()));
+        var probe = BlendRegionProbe.Run("rounded-prism", finished);
+        var blends = probe.Regions.SelectMany(r => r.Faces).Select(f => new FaceId(f)).ToHashSet();
+        Assert.Equal(15, blends.Count);
+        var removed = BlendNetworkRemoval.Remove(finished, blends, Anchors(probe));
+        Assert.True(removed.Body is not null, removed.Refusal);
+        var body = removed.Body!;
+        Assert.True(BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        Assert.Equal(plain.Topology.Edges.Count(), body.Topology.Edges.Count());
+        Assert.Equal(Points(plain), Points(body));
+    }
+
     /// <summary>E3: rounded convex solids lose every fillet and corner patch (3- to 5-valent corners).</summary>
     [Theory]
     [InlineData("box-rounded", "")]

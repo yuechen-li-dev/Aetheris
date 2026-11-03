@@ -48,6 +48,21 @@ public static class ConvexStockPrimitives
         return Build(vertices.Select(p => new Point3D(p.X * scale, p.Y * scale, p.Z * scale)).ToArray(), filletRadius, faceCount);
     }
 
+    /// <summary>The convex hull of the points as a solid bounded by planes (coplanar points share one face).</summary>
+    public static KernelResult<BrepBody> CreateHull(IReadOnlyList<Point3D> points)
+    {
+        ArgumentNullException.ThrowIfNull(points);
+        if (points.Count < 4) return Failure("ConvexHullInvalid: a solid hull needs at least four points.");
+        var extent = points.Max(p => (p - Point3D.Origin).Length);
+        var tolerance = System.Math.Max(1e-9, extent * 1e-10);
+        var local = points.ToArray();
+        var faces = Hull(local, tolerance);
+        if (faces.Count < 4) return Failure("ConvexHullInvalid: the points do not span a solid.");
+        var used = faces.SelectMany(f => f.Vertices).Distinct().Order().ToArray();
+        if (used.Length != local.Length) return Failure("ConvexHullInvalid: some points are inside the hull; give its corners only.");
+        return Sweep(faces, local, 0);
+    }
+
     /// <summary>Kernel-centered Box; Firmament applies its existing bottom-on-XY stock frame.</summary>
     public static KernelResult<BrepBody> CreateRoundedBox(double x, double y, double z, double radius)
     {
@@ -75,6 +90,30 @@ public static class ConvexStockPrimitives
             return Failure(FormattableString.Invariant($"UniformFilletRadiusTooLarge: radius {radius:R}mm must be smaller than the stock inradius {limit:R}mm, leaving positive planar faces and edge spans."));
         if (radius > 0 && radius <= tolerance) return Failure("UniformFilletRadiusInvalid: radius is below the stock construction tolerance.");
 
+        var incident = Enumerable.Range(0, points.Count).Select(v => Enumerable.Range(0, faces.Count).Where(f => faces[f].Vertices.Contains(v)).ToArray()).ToArray();
+        var inner = radius == 0 ? points.ToArray() : Enumerable.Range(0, points.Count).Select(v => OffsetVertex(incident[v], faces, radius)).ToArray();
+        if (inner.Any(p => !double.IsFinite(p.X) || !double.IsFinite(p.Y) || !double.IsFinite(p.Z)))
+            return Failure("ConvexStockOffsetInvalid: the stock's incident planes do not have a finite common inward offset.");
+        return Sweep(faces, inner, radius);
+    }
+
+    /// <summary>
+    /// The ball swept over an eroded convex hull, as a BRep: every hull face carried out by the radius (a plane),
+    /// every hull edge a cylinder, every hull vertex a sphere patch with one side per incident face. Exact, with
+    /// no surface intersection. <paramref name="eroded"/> is the hull already moved in by the radius.
+    /// </summary>
+    internal static KernelResult<BrepBody> Dilate(IReadOnlyList<Point3D> eroded, double radius)
+    {
+        if (!Positive(radius)) return Failure("UniformFilletRadiusInvalid: radius must be finite and positive.");
+        var extent = eroded.Max(p => (p - Point3D.Origin).Length);
+        var tolerance = System.Math.Max(1e-9, extent * 1e-10);
+        var faces = Hull(eroded, tolerance);
+        if (faces.Count < 4) return Failure("ConvexStockHullInvalid: the eroded stock has no volume.");
+        return Sweep(faces, eroded.ToArray(), radius);
+    }
+
+    private static KernelResult<BrepBody> Sweep(List<StockFace> faces, Point3D[] inner, double radius)
+    {
         var builder = new TopologyBuilder();
         var geometry = new BrepGeometryStore();
         var bindings = new BrepBindingModel();
@@ -83,10 +122,7 @@ public static class ConvexStockPrimitives
         var contact = new Dictionary<(int Vertex, int Face), VertexId>();
         var lines = new Dictionary<(int A, int B, int Face), EdgeId>();
         var arcs = new Dictionary<(int Vertex, int A, int B), EdgeId>();
-        var incident = Enumerable.Range(0, points.Count).Select(v => Enumerable.Range(0, faces.Count).Where(f => faces[f].Vertices.Contains(v)).ToArray()).ToArray();
-        var inner = radius == 0 ? points.ToArray() : Enumerable.Range(0, points.Count).Select(v => OffsetVertex(incident[v], faces, radius)).ToArray();
-        if (inner.Any(p => !double.IsFinite(p.X) || !double.IsFinite(p.Y) || !double.IsFinite(p.Z)))
-            return Failure("ConvexStockOffsetInvalid: the stock's incident planes do not have a finite common inward offset.");
+        var incident = Enumerable.Range(0, inner.Length).Select(v => Enumerable.Range(0, faces.Count).Where(f => faces[f].Vertices.Contains(v)).ToArray()).ToArray();
 
         VertexId Vertex(int v, int f)
         {
@@ -140,9 +176,9 @@ public static class ConvexStockPrimitives
         }
         for (var f = 0; f < faces.Count; f++)
         {
-            var face = faces[f]; var n = Direction3D.Create(face.Normal); var x = Direction3D.Create(points[face.Vertices[1]] - points[face.Vertices[0]]);
+            var face = faces[f]; var n = Direction3D.Create(face.Normal); var x = Direction3D.Create(inner[face.Vertices[1]] - inner[face.Vertices[0]]);
             Face(face.Vertices.Select((v, i) => Line(v, face.Vertices[(i + 1) % face.Vertices.Length], f)).ToArray(),
-                SurfaceGeometry.FromPlane(new(points[face.Vertices[0]], n, x)), face.Normal);
+                SurfaceGeometry.FromPlane(new(inner[face.Vertices[0]] + face.Normal * radius, n, x)), face.Normal);
         }
         if (radius > 0)
         {
@@ -157,8 +193,9 @@ public static class ConvexStockPrimitives
                 Face([Line(edge.A, edge.B, a), Arc(edge.B, a, b), Line(edge.B, edge.A, b), Arc(edge.A, b, a)],
                     SurfaceGeometry.FromCylinder(new(inner[edge.A], Direction3D.Create(inner[edge.B] - inner[edge.A]), radius, Direction3D.Create(faces[a].Normal))), normal);
             }
-            for (var v = 0; v < points.Count; v++)
+            for (var v = 0; v < inner.Length; v++)
             {
+                if (incident[v].Length == 0) continue;
                 var normal = incident[v].Aggregate(Vector3D.Zero, (n, f) => n + faces[f].Normal);
                 var axis = Direction3D.Create(normal); var x = Tangent(axis.ToVector()); var y = axis.ToVector().Cross(x);
                 var ordered = incident[v].OrderBy(f => double.Atan2(faces[f].Normal.Dot(y), faces[f].Normal.Dot(x))).ToArray();
@@ -180,12 +217,15 @@ public static class ConvexStockPrimitives
             var cross = (points[b] - points[a]).Cross(points[c] - points[a]);
             if (cross.Length <= tolerance * tolerance) continue;
             var normal = cross * (1 / cross.Length); var d = normal.Dot(points[a] - Point3D.Origin);
-            if (d < 0) { normal *= -1; d *= -1; }
-            if (d <= tolerance || points.Any(p => normal.Dot(p - Point3D.Origin) > d + tolerance)) continue;
+            // Outward: every point on the inner side. Independent of where the origin is.
+            if (points.Any(p => normal.Dot(p - Point3D.Origin) > d + tolerance)) { normal *= -1; d *= -1; }
+            if (points.Any(p => normal.Dot(p - Point3D.Origin) > d + tolerance)) continue;
             var coplanar = Enumerable.Range(0, points.Count).Where(i => double.Abs(normal.Dot(points[i] - Point3D.Origin) - d) <= tolerance).ToArray();
             var key = string.Join(',', coplanar); if (found.ContainsKey(key)) continue;
             var x = Tangent(normal); var y = normal.Cross(x);
-            var ordered = coplanar.OrderBy(i => double.Atan2((points[i] - Point3D.Origin).Dot(y), (points[i] - Point3D.Origin).Dot(x))).ToArray();
+            // Around the face's own centre: the origin's projection need not be inside the face.
+            var centre = coplanar.Aggregate(Vector3D.Zero, (sum, i) => sum + (points[i] - Point3D.Origin)) * (1d / coplanar.Length);
+            var ordered = coplanar.OrderBy(i => double.Atan2((points[i] - Point3D.Origin - centre).Dot(y), (points[i] - Point3D.Origin - centre).Dot(x))).ToArray();
             found.Add(key, new(ordered, normal, d));
         }
         return found.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => k.Value).ToList();

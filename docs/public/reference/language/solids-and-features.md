@@ -146,7 +146,7 @@ What you can select depends on the body:
 | An unmodified Box | `face: +X`, `-X`, `+Y`, `-Y`, `+Z` or `-Z` with `target: Boundary`: that face's rim |
 | An extruded Profile | `target: section.Outer` or `Boundary` with `on: Top` or `on: Bottom`: the whole rim |
 | A Compose body | `target: profile.Outer` with `on: Top` or `on: Bottom`, within the qualified material history below |
-| An untouched Box or `Polyhedron<N>` | `target: AllEdges`, fillet only: every edge |
+| An untouched Box or `Polyhedron<N>`, or any convex body bounded by planes | `target: AllEdges`, fillet only: every edge |
 
 The details that trip people up:
 
@@ -164,10 +164,17 @@ The details that trip people up:
   This cavity-retaining path currently requires native XY stock, a single outer
   loop and positive clearance between each entry footprint and the rim corridor.
   Blind holes, slots and additional material operations reject in that path.
-- **Whole-stock rounding.** `target: AllEdges` needs one fillet, a radius smaller
-  than the stock's inradius, and no other edits. It rejects on every other body,
-  including Ellipsoid, RoundedBox, imported, hollow and already-edited stock, and
-  it rejects an all-edge chamfer.
+- **Whole-body rounding.** `target: AllEdges` needs one fillet. On Box and
+  Polyhedron stock the radius must be below the stock's inradius. On any other
+  body, the body is built without the finish and every edge of the result is
+  rounded: each edge becomes a cylinder strip and each vertex a sphere corner,
+  and where four or more faces meet unevenly the corner opens into short strips,
+  as a rolled ball would leave it. This works on convex bodies bounded by planes.
+  It does not support spline or elliptical edges yet (common on imported parts
+  and on planes cut at an angle through cylinders), nor circular edges or concave
+  bodies; each is refused at the finish, naming the edges found. A radius that
+  does not fit is refused with the largest that does. Assertions measure the
+  rounded body. An all-edge chamfer is refused.
 - **Size.** A finish must leave a non-collapsing cap. Straight polygon corners
   need not be right angles; tangent line/arc rims and arcs closed by a chord also
   work. `endClearance` is for open chains and rejects on closed loops.

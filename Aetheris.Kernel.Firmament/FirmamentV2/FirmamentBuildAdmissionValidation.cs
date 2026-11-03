@@ -9,6 +9,9 @@ public static class FirmamentBuildAdmissionValidation
     public static FirmamentV2ValidationReport Admit(
         FirmamentV2ValidationReport report, string source, string? sourceDirectory = null)
     {
+        if (report.Status == "invalid" && report.Diagnostics.Any(d => d.Code == UniformStockFilletAdmission.Code)
+            && UniformRoundingRoute.Find(source) is not null)
+            return Rounded(report, source, sourceDirectory);
         if (report.Status == "invalid") return report;
         var compilation = FirmamentBuildAndExport.CompileSource(source, sourceDirectory);
         var diagnostics = report.Diagnostics.Concat(compilation.Diagnostics.Select(diagnostic =>
@@ -24,6 +27,24 @@ public static class FirmamentBuildAdmissionValidation
                 FatalDiagnosticCount = fatal,
                 WarningDiagnosticCount = diagnostics.Count(diagnostic => diagnostic.Severity == "warning")
             }
+        };
+    }
+
+    /// <summary>An AllEdges fillet the stock route does not admit is validated the way build answers it: by building
+    /// the body and rounding it. The stock route's refusal and the generic parse failure give way to that answer.</summary>
+    private static FirmamentV2ValidationReport Rounded(FirmamentV2ValidationReport report, string source, string? sourceDirectory)
+    {
+        var built = FirmamentBuildAndExport.CompileSource(source, sourceDirectory);
+        var diagnostics = report.Diagnostics.Where(d => d.Code is not (UniformStockFilletAdmission.Code or "firmament-v2-parse-failed"))
+            .Concat(built.Diagnostics.Select(d => Present(d, report.Source, source))).Distinct().ToArray();
+        var fatal = diagnostics.Count(d => d.Severity is "fatal" or "error");
+        return report with
+        {
+            Status = built.IsSuccess && fatal == 0 ? "valid" : "invalid",
+            ValidationLevel = built.IsSuccess ? "Built" : "BuildRejected",
+            ParserRoute = UniformRoundingRoute.Code,
+            Diagnostics = diagnostics,
+            Summary = report.Summary with { FatalDiagnosticCount = fatal, WarningDiagnosticCount = diagnostics.Count(d => d.Severity == "warning") },
         };
     }
 

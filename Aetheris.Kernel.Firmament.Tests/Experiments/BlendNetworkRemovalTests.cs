@@ -225,6 +225,9 @@ public sealed class BlendNetworkRemovalReach
             var body = import.Value;
             BrepMassProperties.TryEvaluateExactVolume(body, out var before);
             var probe = BlendRegionProbe.Run(Path.GetFileName(path), body);
+            var recognition = Aetheris.Kernel.Core.Brep.Blends.BlendRecognition.Recognize(body).ToDictionary(r => r.Face);
+            var railLength = Aetheris.Kernel.Core.Brep.Tessellation.BrepDisplayTessellator.Tessellate(body).Value.EdgePolylines
+                .ToDictionary(p => p.EdgeId, p => p.Points.Zip(p.Points.Skip(1)).Sum(q => (q.Second - q.First).Length));
             var baseline = Step242Exporter.ExportBody(body);
             var baselineBack = baseline.IsSuccess ? Step242Importer.ImportBody(baseline.Value) : null;
             lines.Add($"   {Path.GetFileNameWithoutExtension(path)} baseline round trip: {(baselineBack is { IsSuccess: true } ? "ok" : baseline.IsSuccess ? "reimport fails: " + baselineBack!.Diagnostics.FirstOrDefault()?.Message : "export fails: " + baseline.Diagnostics.FirstOrDefault()?.Message)}");
@@ -255,11 +258,35 @@ public sealed class BlendNetworkRemovalReach
                         // A convex blend's removal adds material and a concave one's removes it; either way the
                         // change is bounded by the blend's area times the largest admitted radius.
                         var stripArea = region.Faces.Sum(f => probe.FaceReports.Single(r => r.Face == f).Area);
+                        // Expected change from the certificate alone: each strip's section area times its length
+                        // (mean of its rails). Corner joiners are not modelled, so those regions report separately.
+                        var hasCorners = region.Faces.Any(f => recognition[new FaceId(f)].Role != Aetheris.Kernel.Core.Brep.Blends.BlendFaceRole.Strip);
+                        var expected = region.Faces.Sum(f =>
+                        {
+                            var b = recognition[new FaceId(f)].Blend;
+                            if (b is null) return 0d;
+                            var t = body.Topology;
+                            double Rail(FaceId anchor) => t.GetFace(new FaceId(f)).LoopIds.SelectMany(l => t.GetLoop(l).CoedgeIds).Select(c => t.GetCoedge(c).EdgeId).Distinct()
+                                .Where(e => t.Faces.Any(o => o.Id == anchor && o.LoopIds.SelectMany(l => t.GetLoop(l).CoedgeIds).Any(c => t.GetCoedge(c).EdgeId == e))).Sum(e => railLength.GetValueOrDefault(e));
+                            var length = (Rail(b.Hypothesis.AnchorA) + Rail(b.Hypothesis.AnchorB)) / 2;
+                            var theta = b.AnchorTurnDegrees * Math.PI / 180;
+                            var area = b.Hypothesis.Section == Aetheris.Kernel.Core.Brep.Blends.BlendSection.Round
+                                ? b.Size * b.Size * (Math.Tan(theta / 2) - theta / 2)
+                                : b.Size * b.SecondSize / (2 * Math.Sin(theta));
+                            return (b.Hypothesis.Convex ? 1 : -1) * area * length;
+                        });
                         if (false)
                         {
                             var before0 = BrepPcurveValidator.Validate(body, 1e-5);
                             var after0 = BrepPcurveValidator.Validate(removed.Body, 1e-5);
                             lines.Add($"   {Path.GetFileNameWithoutExtension(path)} R{region.Id} pcurves before: {string.Join(" | ", before0.Diagnostics.Take(2))} after: {string.Join(" | ", after0.Diagnostics.Take(3))}");
+                        }
+                        if (back is { IsSuccess: true } && Math.Abs(expected) > 1e-9)
+                        {
+                            var error = Math.Abs(grew - expected) / Math.Abs(expected);
+                            var bucket = (hasCorners ? "  volume vs certificate (with corners) " : "  volume vs certificate (strips only) ") + (error <= 0.02 ? "within 2%" : error <= 0.1 ? "within 10%" : "off >10%");
+                            total[bucket] = total.GetValueOrDefault(bucket) + region.Faces.Length;
+                            if (!hasCorners && error > 0.1) lines.Add($"   {Path.GetFileNameWithoutExtension(path)} R{region.Id} volume {grew:G5} vs certificate {expected:G5}");
                         }
                         if (back is { IsSuccess: false }) lines.Add($"   {Path.GetFileNameWithoutExtension(path)} R{region.Id} reimport: {back.Diagnostics.FirstOrDefault()?.Message}");
                         if (step is { IsSuccess: false }) lines.Add($"   {Path.GetFileNameWithoutExtension(path)} R{region.Id} export: {step.Diagnostics.FirstOrDefault()?.Message}");

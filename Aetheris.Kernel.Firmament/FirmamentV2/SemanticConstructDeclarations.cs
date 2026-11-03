@@ -1,6 +1,45 @@
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 // These are opt-in public Firmament surfaces. The parser remains the execution authority.
+[FirmamentConstruct("Model", "Model", Context = "Document", Entry = "Model part {\n  units: mm\n  Box body { size: [40mm, 30mm, 8mm] }\n}", Description = "One engineered part and its construction. A mechanical Model contains one material body.")]
+[FirmamentField("Units", "Units", FirmamentSchemaValueKind.Choice, Required = true, Choices = ["mm"], Description = "Mechanical model length unit; dimensional values still carry explicit units.")]
+[FirmamentField("Material", "Material", FirmamentSchemaValueKind.ConstructReference, Description = "Physical material identity; does not change the body's geometry.")]
+public static class ModelSemanticDeclaration { }
+
+[FirmamentConstruct("Cylinder", "Cylinder", Context = "Model or Struct", Entry = "Cylinder body { radius: 10mm; height: 20mm }", Description = "Round solid on the Z axis, from Z = 0 to height.")]
+[FirmamentField("Radius", "Radius", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true)]
+[FirmamentField("Height", "Height", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true)]
+public static class CylinderSemanticDeclaration { }
+
+[FirmamentConstruct("Cone", "Cone", Context = "Model or Struct", Entry = "Cone body { bottomRadius: 10mm; topRadius: 0mm; height: 20mm }", Description = "Coaxial cone or truncated cone on the Z axis.")]
+[FirmamentField("BottomRadius", "BottomRadius", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true)]
+[FirmamentField("TopRadius", "TopRadius", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true, Description = "Zero makes a pointed cone.")]
+[FirmamentField("Height", "Height", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true)]
+public static class ConeSemanticDeclaration { }
+
+[FirmamentConstruct("Frustum", "Frustum", Context = "Model or Struct", Entry = "Frustum body { bottomRadius: 10mm; topRadius: 6mm; height: 20mm }", Description = "Truncated coaxial cone on the Z axis.")]
+[FirmamentField("BottomRadius", "BottomRadius", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true)]
+[FirmamentField("TopRadius", "TopRadius", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true)]
+[FirmamentField("Height", "Height", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true)]
+public static class FrustumSemanticDeclaration { }
+
+[FirmamentConstruct("Sphere", "Sphere", Context = "Model or Struct", Entry = "Sphere body { radius: 10mm }", Description = "Sphere centered on the origin.")]
+[FirmamentField("Radius", "Radius", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true)]
+public static class SphereSemanticDeclaration { }
+
+[FirmamentConstruct("Torus", "Torus", Context = "Model or Struct", Entry = "Torus body { majorRadius: 15mm; minorRadius: 3mm }", Description = "Ring centered on the origin, with its axis on Y.")]
+[FirmamentField("MajorRadius", "MajorRadius", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true)]
+[FirmamentField("MinorRadius", "MinorRadius", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true)]
+public static class TorusSemanticDeclaration { }
+
+[FirmamentConstruct("RoundedBox", "RoundedBox", Context = "Model or Struct", Entry = "RoundedBox body { size: [40mm, 30mm, 8mm]; cornerRadius: 3mm }", Description = "Box centered on the origin with rounded vertical corners.")]
+[FirmamentField("Size", "Size", FirmamentSchemaValueKind.Vector, Unit = FirmamentUnitKind.Length, Required = true)]
+[FirmamentField("CornerRadius", "CornerRadius", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Required = true)]
+public static class RoundedBoxSemanticDeclaration { }
+
+[FirmamentConstruct("Modify", "Modify", Context = "Model or Struct", Entry = "Modify body {\n  Hole<Shaft> hole { on: +Z; center: Point2(0mm, 0mm); diameter: 6mm; end: ThroughAll }\n}", Description = "Features applied to a named material body.")]
+public static class ModifySemanticDeclaration { }
+
 [FirmamentConstruct("Box", "Box", Context = "Model or Struct", Entry = "Box Body { Size: [10mm, 10mm, 10mm] }", Description = "Rectangular solid.")]
 [FirmamentField("Size", "Size", FirmamentSchemaValueKind.Vector, Unit = FirmamentUnitKind.Length, Description = "Three lengths for the box dimensions; supply Size or Bounds.")]
 [FirmamentField("Bounds", "Bounds", FirmamentSchemaValueKind.Box3, Description = "A semantic Box3 bound instead of Size.")]

@@ -123,6 +123,16 @@ public static class FirmamentBuildAdmissionValidation
             return diagnostic with { SourceFile = sourceFile, Line = sourceLine, Column = sourceColumn };
         }
         if (source is null) return diagnostic with { SourceFile = sourceFile, LocationNote = "Original source is unavailable." };
+        if (diagnostic.Code.StartsWith("firmament-v2-thread-field-invalid:", StringComparison.Ordinal))
+        {
+            var name = diagnostic.Code.Split(':')[^1];
+            var fields = Syntax.FirmamentSyntaxTraversal.Declarations(Syntax.FirmamentSyntaxParser.Parse(source).Document)
+                .Where(d => d.Type.Name.Text == "Thread")
+                .SelectMany(d => d.Body?.Statements.OfType<Syntax.FieldSyntax>() ?? [])
+                .Where(f => Syntax.FirmamentSyntaxFields.SameField(f.Name.Text, name)).ToArray();
+            if (fields.Length == 1)
+                return Locate(diagnostic with { SourceSpan = fields[0].Name.Span, LocationNote = null }, source, sourceFile);
+        }
         var tokens = FirmamentLanguageAnalysisService.Lex(source).Where(token => token.Shape != "comment").ToArray();
         // Only these parser-owned diagnostics identify a specific original token.
         // All other legacy producers receive a disclosed enclosing declaration span.

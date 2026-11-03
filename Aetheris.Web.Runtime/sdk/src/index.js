@@ -100,7 +100,7 @@ export class Aetheris {
       hover: (source, offset, options = {}) => this.transport.request({ operation: 'languageHover', source, offset,
         sourceName: options.sourceName, sourceRevision: options.sourceRevision }),
       definition: (source, offset, options = {}) => this.transport.request({ operation: 'languageDefinition', source, offset,
-        sourceName: options.sourceName, sourceRevision: options.sourceRevision }),
+        sourceName: options.sourceName, sourceRevision: options.sourceRevision, projectDocuments: options.projectDocuments, projectRoot: options.projectRoot }),
       format: (source, options = {}) => this.transport.request({ operation: 'languageFormat', source,
         sourceName: options.sourceName, sourceRevision: options.sourceRevision })
     };

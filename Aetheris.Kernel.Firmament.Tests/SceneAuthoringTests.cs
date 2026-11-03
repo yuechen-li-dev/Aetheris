@@ -102,7 +102,10 @@ public sealed class SceneAuthoringTests
     public void SceneEditorProjectsSchemaHoverDiagnosticsAndCommentSafePreferredFormatting()
     {
         var source=Source("room"); var entries=FirmamentLanguageService.Complete("", "scene","r",0).Entries!;
-        foreach(var kind in new[] {"Scene","Room","Door","Window","Camera"}) Assert.Contains(entries,e => e.Name == kind);
+        Assert.Contains(entries,e => e.Name == "Scene");
+        Assert.DoesNotContain(entries,e => e.Name is "Room" or "Door" or "Window" or "Camera");
+        var sceneEntries=FirmamentLanguageService.Complete("Scene Factory {\n", "scene", "r", "Scene Factory {\n".Length).Entries!;
+        foreach(var kind in new[] {"Room","Door","Window","Camera"}) Assert.Contains(sceneEntries,e => e.Name == kind);
         var prefix="Scene Factory { units: m; Room hall { "; var completion=FirmamentLanguageService.Complete(prefix,"scene","r",prefix.Length);
         Assert.Equal("Room",completion.Context); Assert.Contains(completion.Fields,f => f.Name == "Size");
         var scenePrefix="Scene Factory { units: m;\n  Ro";

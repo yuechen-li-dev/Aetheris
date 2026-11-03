@@ -2,6 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Aetheris } from '../src/index.js';
 
+test('definition lookup retains the in-memory project snapshot', async () => {
+  const requests = [];
+  const cad = new Aetheris({ request: async request => { requests.push(request); return null; } });
+  const options = { sourceName: 'root.firmament', sourceRevision: 'r4', projectRoot: 'root.firmament', projectDocuments: { 'parts/library.firmament': 'Feature member() {}' } };
+  await cad.language.definition('member()', 2, options);
+  assert.deepEqual(requests, [{ operation: 'languageDefinition', source: 'member()', offset: 2, ...options }]);
+});
+
 test('sketch projection and edit retain the authored revision and selected Profile without compiling', async () => {
   const requests = []; const cad = new Aetheris({ request: async request => { requests.push(request); return { revision: request.sourceRevision }; } });
   const options = { sourceName: 'part.firmament', sourceRevision: 'r5' };

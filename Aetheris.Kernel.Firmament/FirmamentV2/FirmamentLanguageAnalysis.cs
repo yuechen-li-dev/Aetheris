@@ -1,6 +1,7 @@
 using System.Text;
 using Aetheris.Kernel.Firmament.Scene;
 using Aetheris.Kernel.Firmament.Assembly;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
@@ -20,8 +21,8 @@ public sealed record FirmamentLanguageFormat(string Document, string Revision, s
 public static class FirmamentLanguageAnalysisService
 {
     internal sealed record Lexeme(int Start, int Length, string Text, string Shape, string? Error = null);
-    private static readonly HashSet<string> Keywords = ["Model", "Units", "Modify", "WireForm", "Construction", "Use", "schema", "Let", "Static", "Enum", "Options", "match", "Match", "With", "with", "Expose", "Include", "Subassembly", "Assembly", "Part", "Template", "Function", "Record", "Pattern", "Over", "Using", "As", "as", "Output", "tol", "Concept", "Require", "Motion", "Track", "Keyframes", "Keyframe"];
-    private static readonly HashSet<string> DeclarationKinds = ["Model", "Struct", "Subassembly", "Assembly", "Template", "Profile", "Static", "Record", "Function", "Pattern", "Section", "SectionChain", "FrameTransform", "Points", "Path", "Semantic", "Enum", "Options", "Concept", "Motion", "Track", "Keyframes", "Keyframe"];
+    private static readonly HashSet<string> Keywords = ["Model", "Units", "Modify", "WireForm", "Construction", "Use", "schema", "Let", "Static", "Enum", "Options", "match", "Match", "With", "with", "Expose", "Include", "Subassembly", "Assembly", "Part", "Template", "Feature", "return", "Function", "Record", "Table", "Set", "Assert", "measure", "Pattern", "Over", "Using", "As", "as", "Output", "tol", "Concept", "Require", "Motion", "Track", "Keyframes", "Keyframe"];
+    private static readonly HashSet<string> DeclarationKinds = ["Model", "Struct", "Subassembly", "Assembly", "Template", "Profile", "Static", "Record", "Feature", "Function", "Table", "Set", "Pattern", "Section", "SectionChain", "FrameTransform", "Points", "Path", "Semantic", "Enum", "Options", "Concept", "Motion", "Track", "Keyframes", "Keyframe"];
     private static readonly HashSet<string> Types = ["Length", "Angle", "Time", "Float", "Int", "Bool", "Box3", "Plane", "Point2", "Point3"];
     private static readonly HashSet<string> Choices = FirmamentSemanticSchemas.All
         .SelectMany(construct => construct.Fields).SelectMany(field => field.Choices).ToHashSet(StringComparer.Ordinal);
@@ -106,10 +107,24 @@ public static class FirmamentLanguageAnalysisService
         var construct = FirmamentSemanticSchemas.All.FirstOrDefault(item => item.Name == token.Text);
         if (construct is not null)
             return new(document, revision, token.Start, token.Length, construct.Name, construct.Description ?? construct.Context ?? "Firmament construct");
-        var field = FirmamentSemanticSchemas.All.SelectMany(item => item.Fields).FirstOrDefault(item => item.Name == token.Text);
+        var field = FirmamentLanguageService.FieldAt(FirmamentSourceSpelling.Normalize(source), token.Start, token.Text);
         if (field is not null && Classify(lexemes, index) == "field")
             return new(document, revision, token.Start, token.Length, field.Name,
-                $"{field.Kind}{(field.Unit == FirmamentUnitKind.None ? "" : $" · {field.Unit}")}. {field.Description ?? ""}".Trim());
+                $"{field.Type}{(field.Required ? " · required" : "")}. {field.Meaning}".Trim());
+        var definition = Definition(source, document, offset);
+        if (definition is not null)
+        {
+            var declaration = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
+                .FirstOrDefault(d => d.Name?.Span.Start == definition.Start);
+            if (declaration is not null)
+                return new(document, revision, token.Start, token.Length, token.Text,
+                    "```firmament\n" + source.Substring(declaration.Span.Start, (declaration.Body?.Span.Start ?? declaration.Span.Start + declaration.Span.Length) - declaration.Span.Start).Trim() + "\n```");
+            var parameter = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document)
+                .SelectMany(d => d.Parameters).FirstOrDefault(p => p.Name?.Span.Start == definition.Start);
+            if (parameter is not null)
+                return new(document, revision, token.Start, token.Length, token.Text,
+                    "Parameter: `" + source.Substring(parameter.Span.Start, parameter.Span.Length) + "`");
+        }
         return null;
     }
 
@@ -118,6 +133,14 @@ public static class FirmamentLanguageAnalysisService
         var tokens = Lex(FirmamentSourceSpelling.Normalize(source));
         var selected = tokens.FirstOrDefault(item => item.Shape == "identifier" && item.Start <= offset && offset <= item.Start + item.Length);
         if (selected is null) return null;
+        var syntax = FirmamentSyntaxParser.Parse(source).Document;
+        if (FirmamentSyntaxTraversal.Expressions(syntax).OfType<ReferenceSyntax>().Any(r => r.Span.Start == selected.Start))
+        {
+            var parameters = FirmamentSyntaxTraversal.Declarations(syntax).Where(d => d.Body is { } body &&
+                body.ContentSpan.Start <= offset && offset <= body.ContentSpan.Start + body.ContentSpan.Length)
+                .SelectMany(d => d.Parameters).Where(p => p.Name?.Text == selected.Text).ToArray();
+            if (parameters.Length == 1) return new(document, parameters[0].Name!.Span.Start, parameters[0].Name!.Span.Length);
+        }
         var declarations = Declarations(tokens, selected.Text, ReferenceKind(tokens, selected)).ToArray();
         return declarations.Length == 1 ? new(document, declarations[0].Start, declarations[0].Length) : null;
     }
@@ -245,6 +268,10 @@ public static class FirmamentLanguageAnalysisService
                 throw new InvalidOperationException("Scene formatting changed parser admission.");
             return scene;
         }
+        var sharedSyntax = FirmamentSyntaxParser.Parse(source, document);
+        if (sharedSyntax.IsSuccess && (HasAssemblyRoot(source) || !sharedSyntax.Document.Statements.OfType<DeclarationSyntax>().Any(d =>
+            d.Type.Name.Text is "Model" or "model" or "Struct" && !d.Modifiers.Any(m => m.Name.Text is "Template" or "Concept"))))
+            return FormatConventions(source, document, revision);
         if (!FirmamentV2Parser.Parse(source).IsSuccess)
             throw new InvalidOperationException("Format Document requires valid Firmament source. Fix syntax errors first.");
         var preferred = FirmamentSourceSpelling.Prefer(source);
@@ -264,7 +291,8 @@ public static class FirmamentLanguageAnalysisService
             else if (gap.Contains('\n') && token.Text != ";" && previous?.Text != "{") BreakLine();
 
             if (lineStart) { output.Append(' ', indent * 2); lineStart = false; }
-            else if (NeedsSpace(previous?.Text, token.Text)) output.Append(' ');
+            else if (!(gap.Length == 0 && (previous?.Shape == "number" && token.Shape == "identifier"
+                || previous?.Shape == "identifier" && token.Text == "<")) && NeedsSpace(previous?.Text, token.Text)) output.Append(' ');
             output.Append(token.Text);
             if (token.Shape == "comment" || token.Text is "{" or ";" or "}")
             {
@@ -277,8 +305,10 @@ public static class FirmamentLanguageAnalysisService
         if (!Lex(FirmamentSourceSpelling.Normalize(source)).Select(t => (t.Text, t.Shape))
             .SequenceEqual(Lex(FirmamentSourceSpelling.Normalize(formatted)).Select(t => (t.Text, t.Shape))))
             throw new InvalidOperationException("Canonical layout was refused because it changed source tokens.");
-        if (!FirmamentV2Parser.Parse(formatted).IsSuccess)
-            throw new InvalidOperationException("Canonical layout was refused because it changed parser admission.");
+        var formattedParse = FirmamentV2Parser.Parse(formatted);
+        if (!formattedParse.IsSuccess)
+            throw new InvalidOperationException("Canonical layout was refused because it changed parser admission: " + string.Join(", ",
+                formattedParse.SyntaxDiagnostics.Select(d => d.Code + ": " + d.Message).Concat(formattedParse.Diagnostics).Distinct()));
         return new(document, revision, formatted, formatted != source);
 
         void BreakLine()

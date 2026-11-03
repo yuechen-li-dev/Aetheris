@@ -1,0 +1,13 @@
+Feature mountHole(center: Point2, diameter: Length = 4mm) -> Hole<Shaft> {
+  return Hole<Shaft> { on: +Z; center: center; diameter: diameter; end: ThroughAll }
+}
+
+Model editorPart {
+  units: mm
+  Static thickness: Length = 8mm
+  // A commented brace } and a field radius: must not change the editor scope.
+  Box stock { size: [40mm, 30mm, thickness] }
+  Modify stock {
+    mountHole(center: Point2(0mm, 0mm))
+  }
+}

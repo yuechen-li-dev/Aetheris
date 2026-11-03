@@ -58,9 +58,12 @@ It is **not validation**: validate/build the consuming assembly after a sweep.
 
 The same pass is available as
 `FirmamentLanguageAnalysisService.FormatConventions`. The existing standalone
-V2 `Format` API also prefers these spellings while arranging layout, and checks
-both token equivalence and parser admission. Imported modules use the conservative
-pass and their consuming project's compiler; they are not standalone parts.
+V2 `Format` API also prefers these spellings while arranging part layout, and checks
+both token equivalence and parser admission. For valid shared-syntax modules and
+assemblies, `Format` selects the conservative spelling pass and preserves layout.
+Validate imported modules with their consuming project's compiler; they are not
+standalone parts. Formatting refuses malformed shared syntax and does not claim
+that a module will compile in every consuming context.
 
 Compatibility is scoped to schema-owned properties, AST-position Profile links
 and symmetry fields, plus the bounded frame, assembly, point and wire

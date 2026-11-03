@@ -87,6 +87,10 @@ public static class FirmamentV2DiagnosticAdapter
             => $"Invalid value for field '{diagnosticCode.Split(':')[^1]}' in {diagnosticCode.Split(':')[1]}. Check the value type, units and admitted vocabulary.",
         _ when diagnosticCode.StartsWith(FirmamentV2Parser.CanonicalFieldUnknown + ":", StringComparison.Ordinal)
             => $"Unknown field '{diagnosticCode.Split(':')[^1]}' in {diagnosticCode.Split(':')[1]}. Check this construct's documented fields.",
+        _ when diagnosticCode.StartsWith("firmament-v2-thread-field-invalid:", StringComparison.Ordinal)
+            => FirmamentSchemaAuthoringFields.For("Thread").Any(f => f.Name == diagnosticCode.Split(':')[^1])
+                ? $"Thread field '{FirmamentSourceSpelling.PreferredField(diagnosticCode.Split(':')[^1])}' is specified more than once. Keep one value."
+                : $"Unknown Thread field '{diagnosticCode.Split(':')[^1]}'. Use " + string.Join(", ", FirmamentSchemaAuthoringFields.For("Thread").Select(f => f.Spelling)) + ".",
         _ when diagnosticCode.StartsWith(FirmamentV2Parser.CanonicalDeclarationUnknown + ":", StringComparison.Ordinal)
             => $"Unknown statement '{diagnosticCode.Split(':')[^1]}'{(diagnosticCode.Split(':').Length > 2 ? " in " + diagnosticCode.Split(':')[1] : "")}. Use an admitted construct in this context.",
         // Producers write "code[:parameters]: explanation"; the explanation is the message.

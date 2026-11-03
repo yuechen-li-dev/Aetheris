@@ -11,10 +11,10 @@ public sealed class FirmamentSemanticSchemaTests
         string[] expectedNames =
         [
             "Appearance", "FrameTransform", "Placement", "Pmi", "Note", "Provenance",
-            "Box", "Circle2", "Compose", "Base", "Concept", "Points", "Door", "Drape", "EdgeFinish", "Ellipsoid", "Extrude", "Fabric", "FigureFit", "Fitting", "Garment",
+            "Box", "Circle2", "Compose", "Base", "Concept", "Points", "Cone", "Cylinder", "Door", "Drape", "EdgeFinish", "Ellipsoid", "Extrude", "Fabric", "FigureFit", "Fitting", "Frustum", "Garment",
             "Groove", "Helix", "Hole", "Interface<Fixed>", "Interface<Prismatic>", "Interface<Revolute>",
-            "Interface<Stitch>", "Inventory", "Joint", "Loft", "Panel", "Perforation", "Material", "Linear", "Series", "Polyhedron", "Pose", "PoseTransition",
-            "Profile", "Rect2", "Rib", "Room", "RoundedRect2", "Scene", "Camera", "Section", "Slot2", "Thread", "Window", "Follow", "WireRoute",
+            "Interface<Stitch>", "Inventory", "Joint", "Loft", "Model", "Modify", "Panel", "Perforation", "Material", "Linear", "Series", "Polyhedron", "Pose", "PoseTransition",
+            "Profile", "Rect2", "Rib", "Room", "RoundedBox", "RoundedRect2", "Scene", "Camera", "Section", "Slot2", "Sphere", "Thread", "Torus", "Window", "Follow", "WireRoute",
         ];
         Assert.Equal(expectedNames, FirmamentSemanticSchemas.All.Select(schema => schema.Name));
         var hole = Assert.IsType<FirmamentConstructSchema>(FirmamentSemanticSchemas.Get("Hole"));

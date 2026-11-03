@@ -15,7 +15,9 @@ public sealed class FirmamentHeliosAuthoringFeedbackTests
     {
         var source = Source("hole-variant").Replace("<Shaft>", $"<{variant}>").Replace("            end:", relief + "            end:");
         var offset = source.IndexOf("            on:", StringComparison.Ordinal);
-        var completion = FirmamentLanguageService.Complete(source, "bracket.firmament", "1", offset);
+        // Simulate authoring before these fields exist. A complete document must
+        // not offer duplicate fields merely because they are below the caret.
+        var completion = FirmamentLanguageService.Complete(source[..offset], "bracket.firmament", "1", offset);
         Assert.Equal("Hole", completion.Context);
         Assert.Equal(variant == "Counterbore", completion.Fields.Any(f => f.Name == "CounterboreDepth"));
         Assert.Equal(variant == "Countersink", completion.Fields.Any(f => f.Name == "CountersinkAngle"));

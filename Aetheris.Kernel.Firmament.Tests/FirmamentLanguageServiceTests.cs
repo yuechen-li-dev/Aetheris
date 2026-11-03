@@ -74,6 +74,10 @@ public sealed class FirmamentLanguageServiceTests
         Assert.Contains(analysis.Tokens, token => token.Kind == "construct" && source.Substring(token.Start, token.Length) == "Thread");
         Assert.Contains(analysis.Tokens, token => token.Kind == "field" && source.Substring(token.Start, token.Length) == "Size");
         Assert.Contains(analysis.Diagnostics, diagnostic => diagnostic.Code.Contains("thread-field-invalid", StringComparison.Ordinal));
+        var invalid = Assert.Single(analysis.Diagnostics, diagnostic => diagnostic.Code.Contains("thread-field-invalid", StringComparison.Ordinal));
+        Assert.Contains("Unknown Thread field 'Wrong'", invalid.Message);
+        Assert.Equal(source.IndexOf("Wrong", StringComparison.Ordinal), invalid.Start);
+        Assert.Equal("Wrong".Length, invalid.Length);
         var hover = FirmamentLanguageAnalysisService.Hover(source, "test.firmament", "6", source.IndexOf("Thread", StringComparison.Ordinal) + 2);
         Assert.Contains("thread", hover!.Description, StringComparison.OrdinalIgnoreCase);
         var definition = FirmamentLanguageAnalysisService.Definition(source + "\nT", "test.firmament", source.Length + 1);

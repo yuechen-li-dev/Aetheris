@@ -206,8 +206,15 @@ public static partial class Program
     {
         if (request.Source is null || request.Offset is null)
             throw new WebRuntimeException("language-input-required", "languageDefinition requires source and offset.");
-        var location = FirmamentLanguageAnalysisService.Definition(request.Source, request.SourceName ?? "model.firmament", request.Offset.Value);
-        return location is null ? null : SourceRefAt(location.Document, request.Source, location.Start, location.Length);
+        var name = request.SourceName ?? "model.firmament";
+        var documents = request.ProjectDocuments is { Count: > 0 }
+            ? new Dictionary<string, string>(request.ProjectDocuments, StringComparer.Ordinal) { [name] = request.Source }
+            : null;
+        var location = documents is null
+            ? FirmamentLanguageAnalysisService.Definition(request.Source, name, request.Offset.Value)
+            : FirmamentLanguageAnalysisService.Definition(new FirmamentProjectSnapshot(request.ProjectRoot ?? name, documents), name, request.Offset.Value);
+        return location is null ? null : SourceRefAt(location.Document,
+            documents?.GetValueOrDefault(location.Document) ?? request.Source, location.Start, location.Length);
     }
 
     private static object LanguageFormat(WebRequest request)

@@ -122,6 +122,8 @@ public sealed class Step242NistAuditHarnessTests
         // geometry sharing then changes entity numbering too. Preserve strict byte
         // snapshots for each qualified runtime without changing import evidence.
         var platform = OperatingSystem.IsLinux() ? "linux"
+            : OperatingSystem.IsWindows() && System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.X64
+                ? "win-x64"
             : OperatingSystem.IsMacOS() && System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64
                 ? "osx-arm64" : null;
         if (platform is not null)

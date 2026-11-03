@@ -13,6 +13,8 @@
 
 ## About
 
+*Check out [Helios](https://github.com/yuechen-li-dev/HeliosCAD), the reference browser CAD frontend for Aetheris in early alpha, if you want to try it out for yourself.*
+
 Aetheris is a next generation open-source geometric modeling kernel/engineering runtime platform, currently primarily used for mechanical computer aided design (mCAD) applications, similar to Parasolid/ACIS/OpenCascade, developed solo by Yuechen Li with the assistance of GPT-5/6, Claude 4/5, and Gemini 3 from scratch over the course of the year 2026. 
 
 Think of it as the operating system for software such as SolidWorks/Creo/Catia/NX/Fusion 360/Inventor/FreeCAD, and long has it been considered "one of the most complex software engineering challenges, requiring deep expertise in computational geometry, topology, and numerical stability". This repo stands as the testament that it is now a solved problem.

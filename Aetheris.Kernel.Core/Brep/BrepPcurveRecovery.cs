@@ -12,8 +12,14 @@ public sealed record BrepPcurveRecoveryDiagnostic(string Code, string Message, s
 /// <summary>Builds deterministic face-local pcurves from edge and support geometry.</summary>
 public static class BrepPcurveRecovery
 {
+    /// <summary>Tag on qualifications accepted at the source's measured gap rather than the policy tolerance.</summary>
+    public const string SourceTolerantMethod = "SourceTolerant";
+
+    /// <param name="sourceTolerance">When set, an imported edge whose 3D curve lies off its surface by more than
+    /// <paramref name="tolerance"/> but no more than this is accepted as a tolerant edge: its pcurve is kept, its
+    /// measured gap becomes its qualification tolerance, and nothing is repaired.</param>
     public static BrepPcurveRecoveryResult Populate(TopologyModel topology, BrepGeometryStore geometry, BrepBindingModel bindings,
-        double tolerance = 1e-5, int sampleCount = 129)
+        double tolerance = 1e-5, int sampleCount = 129, double? sourceTolerance = null)
     {
         var diagnostics = new List<BrepPcurveRecoveryDiagnostic>();
         var count = 0;
@@ -39,7 +45,20 @@ public static class BrepPcurveRecovery
                     maximum = double.Max(maximum, residual); count++; continue;
                 }
                 (PcurveGeometry? Pcurve, double MaximumResidual, string? Diagnostic) built;
-                try { built = Build(surface, curve, interval, qualificationTolerance, sampleCount); }
+                var tolerant = false;
+                try
+                {
+                    built = Build(surface, curve, interval, qualificationTolerance, sampleCount);
+                    // Measure, record, don't repair: the gap is the source's, within what it declared.
+                    if (built.Pcurve is null && sourceTolerance is { } cap && cap > qualificationTolerance
+                        && double.IsFinite(built.MaximumResidual) && built.MaximumResidual <= cap)
+                    {
+                        var retry = Build(surface, curve, interval, cap, sampleCount);
+                        // A looser fit must still be a trace on the surface: on a B-spline support it may not
+                        // wander outside the parameter domain.
+                        if (retry.Pcurve is not null && WithinDomain(surface, retry.Pcurve)) { built = retry; tolerant = true; qualificationTolerance = cap; }
+                    }
+                }
                 catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or NotSupportedException)
                 {
                     diagnostics.Add(new("surf-pcurve-invalid",
@@ -67,14 +86,26 @@ public static class BrepPcurveRecovery
                     && (curve.Kind is CurveGeometryKind.Line3 or CurveGeometryKind.Circle3 || curve.BSpline3 is not null);
                 var origin = exactPlanarProjection ? PcurveBindingOrigin.DerivedAnalytic
                     : surface.BSplineSurfaceWithKnots is null ? PcurveBindingOrigin.RecoveredAnalytic : PcurveBindingOrigin.RecoveredSpline;
+                // A tolerant edge is qualified at its measured gap (with a little headroom), not at the cap.
+                var bindingTolerance = tolerant ? double.Min(qualificationTolerance, double.Max(tolerance, liftResidual * 1.01d)) : qualificationTolerance;
                 bindings.AddPcurveBinding(new(coedge.Id, face.Id, faceBinding.SurfaceGeometryId, built.Pcurve,
-                    Qualification: new(origin, liftResidual, qualificationTolerance, liftSamples,
-                        boundaryBounded ? "BezierBoundaryControlHull" : built.Pcurve.Kind.ToString(), surface.Kind.ToString())));
+                    Qualification: new(origin, liftResidual, bindingTolerance, liftSamples,
+                        tolerant ? $"{SourceTolerantMethod}:{built.Pcurve.Kind}" : boundaryBounded ? "BezierBoundaryControlHull" : built.Pcurve.Kind.ToString(), surface.Kind.ToString())));
                 maximum = double.Max(maximum, liftResidual);
                 count++;
             }
         }
         return new(diagnostics.Count == 0, count, maximum, diagnostics);
+    }
+
+    private static bool WithinDomain(SurfaceGeometry surface, PcurveGeometry pcurve)
+    {
+        if (surface.BSplineSurfaceWithKnots is not { } spline) return true;
+        const double slack = 1e-9;
+        return Enumerable.Range(0, 257).Select(i => pcurve.Evaluate(pcurve.Domain.Start + (pcurve.Domain.End - pcurve.Domain.Start) * i / 256d))
+            .All(uv => double.IsFinite(uv.U) && double.IsFinite(uv.V)
+                && uv.U >= spline.DomainStartU - slack && uv.U <= spline.DomainEndU + slack
+                && uv.V >= spline.DomainStartV - slack && uv.V <= spline.DomainEndV + slack);
     }
 
     private static double ResolveQualificationTolerance(SurfaceGeometry surface, CurveGeometry curve, double baseTolerance)
@@ -146,10 +177,12 @@ public static class BrepPcurveRecovery
                     if (residual <= tolerance) return (candidate, residual, null);
                 }
             }
-            return BuildPeriodicAnalytic(surface, curve, interval, tolerance, point => ConeUv(cone, point));
+            return BuildPeriodicAnalytic(surface, curve, interval, tolerance, point => ConeUv(cone, point),
+                singular: point => (point - cone.Apex).Length <= 1e-9 * double.Max(1d, (EvaluateCurve(curve, interval.Start) - cone.Apex).Length));
         }
         if (surface.Sphere is { } sphere)
-            return BuildPeriodicAnalytic(surface, curve, interval, tolerance, point => SphereUv(sphere, point));
+            return BuildPeriodicAnalytic(surface, curve, interval, tolerance, point => SphereUv(sphere, point),
+                singular: point => (point - sphere.Center - sphere.Axis.ToVector() * (point - sphere.Center).Dot(sphere.Axis.ToVector())).Length <= 1e-9 * sphere.Radius);
         if (surface.Torus is { } torus)
             return BuildPeriodicAnalytic(surface, curve, interval, tolerance, point => TorusUv(torus, point), unwrapV: true);
         if (surface.BSplineSurfaceWithKnots is not { } spline)
@@ -411,12 +444,30 @@ public static class BrepPcurveRecovery
 
     private static (PcurveGeometry? Pcurve, double MaximumResidual, string? Diagnostic) BuildPeriodicAnalytic(
         SurfaceGeometry surface, CurveGeometry curve, ParameterInterval interval, double tolerance,
-        Func<Point3D, SurfaceParameterPoint> inverse, bool unwrapV = false)
+        Func<Point3D, SurfaceParameterPoint> inverse, bool unwrapV = false, Func<Point3D, bool>? singular = null)
     {
         var best = double.PositiveInfinity;
         for (var count = 17; count <= 513; count = (count - 1) * 2 + 1)
         {
             var uv = Sample(interval, count, t => inverse(EvaluateCurve(curve, t))).ToArray();
+            // A sphere pole or cone apex has no U of its own (atan2 of zero returns noise). The pcurve's
+            // U there is its limit along the curve: take it from the nearest regular sample.
+            if (singular is not null)
+            {
+                var atSingular = Enumerable.Range(0, count).Select(i => singular(EvaluateCurve(curve, interval.Start + (interval.End - interval.Start) * i / (count - 1d)))).ToArray();
+                if (atSingular.Any(x => x) && !atSingular.All(x => x))
+                {
+                    for (var i = 0; i < count; i++)
+                    {
+                        if (!atSingular[i]) continue;
+                        var regular = Enumerable.Range(1, count).SelectMany(d => new[] { i - d, i + d }).First(j => j >= 0 && j < count && !atSingular[j]);
+                        var limit = i == 0 || i == count - 1
+                            ? inverse(EvaluateCurve(curve, interval.Start + (interval.End - interval.Start) * (i == 0 ? 1e-6 : 1 - 1e-6)))
+                            : uv[regular];
+                        uv[i] = uv[i] with { U = limit.U };
+                    }
+                }
+            }
             UnwrapAngles(uv, unwrapV);
             var controls = new List<Point3D>((count - 1) * 3 + 1);
             var knots = new List<double>(count);
@@ -424,7 +475,9 @@ public static class BrepPcurveRecovery
             for (var index = 0; index < count - 1; index++)
             {
                 var start = interval.Start + (interval.End - interval.Start) * index / (count - 1d);
-                var end = interval.Start + (interval.End - interval.Start) * (index + 1) / (count - 1d);
+                // The last knot is the interval end exactly; Start + (End - Start) * 1 can fall one ulp short,
+                // which leaves the trim outside the curve's domain.
+                var end = index == count - 2 ? interval.End : interval.Start + (interval.End - interval.Start) * (index + 1) / (count - 1d);
                 var delta = (end - start) * 1e-4d;
                 var nearStart = inverse(EvaluateCurve(curve, start + delta));
                 var nearEnd = inverse(EvaluateCurve(curve, end - delta));

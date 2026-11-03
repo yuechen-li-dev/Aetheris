@@ -356,7 +356,7 @@ public static class Step242Importer
                     return KernelResult<BrepBody>.Failure(boundOrientationResult.Diagnostics);
                 }
 
-                _ = boundOrientationResult.Value;
+                var boundAgreesWithLoop = boundOrientationResult.Value;
                 var isDeclaredOuter = string.Equals(boundEntity.Name, "FACE_OUTER_BOUND", StringComparison.OrdinalIgnoreCase);
 
                 var loopEntityResult = document.TryGetEntity(loopRefResult.Value.TargetId);
@@ -545,6 +545,22 @@ public static class Step242Importer
                         "step-import-loop-order-recovered: " + message, $"Entity:{faceEntity.Id}"));
                 }
 
+                // FACE_BOUND orientation .F. means the face uses its EDGE_LOOP reversed (ISO 10303-42).
+                // Dropping it left the loop running against the face, which reversed spherical caps
+                // (a concave corner drew as the rest of its sphere) and was written back out on export.
+                if (!boundAgreesWithLoop)
+                {
+                    loopCoedges.Reverse();
+                    var count = loopCoedges.Count;
+                    loopCoedges = loopCoedges.Select((c, index) => c with
+                    {
+                        IsReversed = !c.IsReversed,
+                        NextCoedgeId = loopCoedges[(index + 1) % count].Id,
+                        PrevCoedgeId = loopCoedges[(index + count - 1) % count].Id,
+                    }).ToList();
+                    loopSamples.Reverse();
+                }
+
                 var closingGap = ClassifyCoedgeGap(loopSamples[^1], loopSamples[0], bindSurfaceResult.Value.SurfaceGeometry);
                 ReportCoedgeGapDiagnostic(new LoopRoleCoedgeGapDiagnostic(
                     FaceEntityId: faceEntity.Id,
@@ -726,7 +742,10 @@ public static class Step242Importer
         if (orientation.Value.Bindings.PcurveBindings.Any())
         {
             var pcurveTolerance = double.Max(1e-6d, document.SourceDistanceAccuracyMillimetres ?? 0d);
-            var pcurveEvidence = BrepPcurveValidator.Validate(orientation.Value, pcurveTolerance);
+            var pcurveEvidence = BrepPcurveValidator.Validate(orientation.Value, pcurveTolerance,
+                sourceTopology: document.SourceDistanceAccuracyMillimetres is > 0d and var sourceAccuracy
+                    ? new BrepPcurveTopologyEvidence(orientation.Value.Topology.Vertices.ToDictionary(v => v.Id, _ => sourceAccuracy), new HashSet<(CoedgeId, CoedgeId)>())
+                    : null);
             qualificationEvidence = pcurveEvidence;
             if (!pcurveEvidence.IsValid)
             {
@@ -744,11 +763,18 @@ public static class Step242Importer
             !orientation.Value.Bindings.TryGetPcurveBinding(coedge.Id, out _)))
         {
             using var recoveryPhase = BuildPerfTrace.Phase("step.pcurve-recovery-and-qualification");
+            // Tolerant edges: accept a measured curve-surface gap up to the file's declared accuracy, or 10 µm
+            // when it declares none. Beyond that the source is wrong and the edge stays unqualified.
             var recovery = BrepPcurveRecovery.Populate(
                 orientation.Value.Topology, orientation.Value.Geometry, orientation.Value.Bindings,
-                tolerance: document.PcurveQualificationToleranceMillimetres);
+                tolerance: document.PcurveQualificationToleranceMillimetres,
+                sourceTolerance: document.SourceDistanceAccuracyMillimetres is > 0d and var declared ? declared : 0.01d);
+            // Vertices only need to lie within the source's declared distance accuracy of their curves.
+            var sourceVertexTolerance = document.SourceDistanceAccuracyMillimetres is > 0d and var accuracy
+                ? new BrepPcurveTopologyEvidence(orientation.Value.Topology.Vertices.ToDictionary(v => v.Id, _ => accuracy), new HashSet<(CoedgeId, CoedgeId)>())
+                : null;
             var pcurveEvidence = BrepPcurveValidator.Validate(orientation.Value,
-                document.PcurveQualificationToleranceMillimetres, requireEveryCoedge: true);
+                document.PcurveQualificationToleranceMillimetres, requireEveryCoedge: true, sourceTopology: sourceVertexTolerance);
             qualificationEvidence = pcurveEvidence;
             orientation.Value.PcurveRecoveryReport = pcurveEvidence.IsValid ? recovery : recovery with
             {
@@ -1865,7 +1891,7 @@ public static class Step242Importer
                 source)
         ]);
 
-    private static KernelResult<ParameterInterval> ComputeEllipseTrim(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint, bool edgeSameSense)
+    internal static KernelResult<ParameterInterval> ComputeEllipseTrim(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint, bool edgeSameSense)
     {
         var tolerance = ComputeEllipseTrimTolerance(ellipse, startPoint, endPoint);
 
@@ -2029,6 +2055,10 @@ public static class Step242Importer
             return KernelResult<ParameterInterval>.Success(new ParameterInterval(0d, 2d * double.Pi));
         }
 
+        // A start on the seam reads as 2pi-e or +e depending on how the coordinates were rounded, so the trim
+        // would land a whole turn apart for the same file written twice. Keep it on the turn that starts at 0;
+        // face traces written against this trim (Step242Exporter's period shift) rely on that.
+        if (canonicalStart >= (2d * double.Pi) - angleTolerance) canonicalStart -= 2d * double.Pi;
         var normalizedEnd = canonicalStart + span;
         if (normalizedEnd <= canonicalStart)
         {

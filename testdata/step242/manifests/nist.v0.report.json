@@ -17,7 +17,7 @@
       "edges": 318,
       "faces": 117
     },
-    "canonicalSha256": "34112db67f7d0e88e50804788de4284dfa7d5313374845fb75f690b5350bb2e2"
+    "canonicalSha256": "f0a0da70f663e4c7bd829321ab9bcdefda29c8873b0dd7c919871149881db4bf"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_02_asme1_ap242-e2",
@@ -37,7 +37,7 @@
       "edges": 1410,
       "faces": 635
     },
-    "canonicalSha256": "38d99195ba043ec9f98a6b319b35373745434772445f6fcf1d995949974c0df1"
+    "canonicalSha256": "c725ff7b31d3da76717365f70bd12767f74f102a462504343c4d590ca51ccf06"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_03_asme1_ap242-e2",
@@ -77,7 +77,7 @@
       "edges": 1108,
       "faces": 483
     },
-    "canonicalSha256": "9d454f422d94c8a4375cc741d596491648e15d8fb1ec4a2385fbc60ac61e4120"
+    "canonicalSha256": "e032d691278fea03e584041fa502e19290bbc0f36213502ac017ad5bc0f7ce5d"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_05_asme1_ap242-e1",
@@ -97,7 +97,7 @@
       "edges": 331,
       "faces": 156
     },
-    "canonicalSha256": "24e5a7ea124779f9389c367ff2e3a31cdae9d76ec5a8cef555e9f79f778f5ca7"
+    "canonicalSha256": "cedca3b92fdd337542d09b1c1037f076aafbac25cce7332225c1e13f1ea11b74"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_06_asme1_ap242-e2",
@@ -117,7 +117,7 @@
       "edges": 476,
       "faces": 187
     },
-    "canonicalSha256": "3a0543da81b49635c1499203c87f0f7fdf761cf571c08009a7c782f334b5f9de"
+    "canonicalSha256": "b43cd5d2c63e72bc0281a370cc7f832d3da92627b3e87e26dfe55f036eeb7a28"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_07_asme1_ap242-e2",
@@ -137,7 +137,7 @@
       "edges": 865,
       "faces": 304
     },
-    "canonicalSha256": "ea03b61c119b5b72c369a5b879cded916df4eece654a612fa3641845192060a7"
+    "canonicalSha256": "4e5eda24fe9e16777e6a841a04dedb1c0b638340b6ac74c39768780cdf9dd38a"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e1-tg",
@@ -177,7 +177,7 @@
       "edges": 616,
       "faces": 247
     },
-    "canonicalSha256": "abf1ac7b799cc9181d1f88b6f9406474e19d2b0ab3e6d03a661edaa39be19790"
+    "canonicalSha256": "e16a234296d3f8dcd35cd0d835f5cac5e1f0ab8d16eb915645a0336a1686a9b6"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_09_asme1_ap242-e1",
@@ -217,7 +217,7 @@
       "edges": 799,
       "faces": 264
     },
-    "canonicalSha256": "eff9d4990ed0509a2105389cfa785c9ba253a69ff0f7f1f2b8c2bfe4c07b73b5"
+    "canonicalSha256": "3153a5f08c542d58cf602b1435f859f82ea25c4c3e66de163d11d94eff8ee109"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_11_asme1_ap242-e2",
@@ -237,7 +237,7 @@
       "edges": 104,
       "faces": 42
     },
-    "canonicalSha256": "14844407daef24f74d3121afee941a02a310cd5f31605ed03431d2a0b3ab32e1"
+    "canonicalSha256": "a85cc3381f92b7e484c2f7ebd4d02c0adc371ab0a9ef7150116be3564099689d"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_06_asme1_ap242-e3",
@@ -257,7 +257,7 @@
       "edges": 310,
       "faces": 144
     },
-    "canonicalSha256": "3e2f51dd321be739eef6f65636c9e33a2afb681ea1d0c281b7576204eb640c5e"
+    "canonicalSha256": "e9392176c0e168443dd5d1a6ec8e8f615209987c04e9a70d52a62e2349beb833"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_07_asme1_ap242-e3",
@@ -277,7 +277,7 @@
       "edges": 865,
       "faces": 304
     },
-    "canonicalSha256": "a3a92441ebe787a047c459a1bc01994c681cbf2b608e6d3c7704dc5be582f7fd"
+    "canonicalSha256": "14ee75c39f148370c3acdad57cc8511d08f6218e0c0887bef6df5a811630d2b2"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_08_asme1_ap242-e3",
@@ -297,7 +297,7 @@
       "edges": 705,
       "faces": 270
     },
-    "canonicalSha256": "869b4ce0ab04da3b3cf7cde445440dd42d094ebdee65d50b334cb37020a3f39b"
+    "canonicalSha256": "1c70df2622ff63e2efc6023bed96dcc9e88f94a0c0dc2b64d4fb027724b556a1"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_09_asme1_ap242-e3",
@@ -337,6 +337,6 @@
       "edges": 551,
       "faces": 256
     },
-    "canonicalSha256": "b3fefea3aa7068984fa1e2beb809b3bfe8ebb9176a913ac967b2e9101a57319b"
+    "canonicalSha256": "b2f3bc168bd85c77cf6b4c0056a9b2b590c2e880524de86a64296746c57d11d9"
   }
 ]

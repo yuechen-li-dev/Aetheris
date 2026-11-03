@@ -82,7 +82,10 @@ public sealed class BrepThroughHoleRevisionTests
         Assert.Equal(ImportQualificationStatus.Qualified, source.ImportQualification!.GeometryStatus);
         Assert.Equal(636, source.Bindings.PcurveBindings.Count());
         Assert.True(BrepPcurveValidator.Validate(source, .01, requireEveryCoedge: true, samples: 1025).IsValid);
-        Assert.True(strict.ImportQualification!.MissingPcurves > 0);
+        // The default import now keeps edges whose curve lies off its surface within the declared accuracy as
+        // tolerant edges (measured, recorded, not repaired), so it no longer leaves trims missing.
+        Assert.Equal(0, strict.ImportQualification!.MissingPcurves);
+        Assert.Contains(strict.Bindings.PcurveBindings, b => b.Qualification?.RecoveryMethod.StartsWith(BrepPcurveRecovery.SourceTolerantMethod, StringComparison.Ordinal) == true);
         Assert.Equal(JsonSerializer.Serialize(strict.Geometry.Curves), JsonSerializer.Serialize(source.Geometry.Curves));
         Assert.Equal(JsonSerializer.Serialize(strict.Geometry.Surfaces), JsonSerializer.Serialize(source.Geometry.Surfaces));
         var rejected = BrepThroughHoleRevision.Execute(source, Request with { ImportToleranceMillimetres = .001 });

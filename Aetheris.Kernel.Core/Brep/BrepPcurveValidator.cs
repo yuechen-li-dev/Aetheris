@@ -98,10 +98,13 @@ public static class BrepPcurveValidator
             if (coedgeMaximum > bindingTolerance)
                 diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:face={face.Id.Value}:surface={surface.Kind}:curve={curve.Kind}:pcurve={binding.Pcurve.Kind}:deviation={coedgeMaximum:R}:tolerance={bindingTolerance:R}");
 
+            // The coedge runs from its first vertex to its last. Which trim end that is depends on both the
+            // coedge's use of the edge and the edge's sense along its curve (EDGE_CURVE same_sense).
+            var runsAgainstCurve = coedge.IsReversed ^ !edgeBinding.OrientedEdgeSense;
             var startVertexId = coedge.IsReversed ? body.Topology.GetEdge(coedge.EdgeId).EndVertexId : body.Topology.GetEdge(coedge.EdgeId).StartVertexId;
             if (body.TryGetVertexPoint(startVertexId, out var start))
             {
-                var parameter = coedge.IsReversed ? interval.End : interval.Start;
+                var parameter = runsAgainstCurve ? interval.End : interval.Start;
                 var uv = binding.Pcurve.Evaluate(binding.SameSense ? parameter : interval.End - (parameter - interval.Start));
                 var reconstructed = Evaluate(surface, uv);
                 var vertexTolerance = sourceTopology?.VertexTolerancesMillimetres.GetValueOrDefault(startVertexId) ?? 0d;
@@ -116,7 +119,7 @@ public static class BrepPcurveValidator
             var endVertex = coedge.IsReversed ? edge.StartVertexId : edge.EndVertexId;
             if (body.TryGetVertexPoint(endVertex, out var endPoint))
             {
-                var parameter = coedge.IsReversed ? interval.Start : interval.End;
+                var parameter = runsAgainstCurve ? interval.Start : interval.End;
                 var uv = binding.Pcurve.Evaluate(binding.SameSense ? parameter : interval.End - (parameter - interval.Start));
                 var reconstructed = Evaluate(surface, uv);
                 var vertexTolerance = sourceTopology?.VertexTolerancesMillimetres.GetValueOrDefault(endVertex) ?? 0d;
@@ -132,12 +135,17 @@ public static class BrepPcurveValidator
                 && body.Bindings.TryGetEdgeBinding(next.EdgeId, out var nextEdgeBinding)
                 && nextEdgeBinding.TrimInterval is { } nextInterval)
             {
-                var currentLoopParameter = coedge.IsReversed ? interval.Start : interval.End;
-                var nextLoopParameter = next.IsReversed ? nextInterval.End : nextInterval.Start;
+                var nextRunsAgainstCurve = next.IsReversed ^ !nextEdgeBinding.OrientedEdgeSense;
+                var currentLoopParameter = runsAgainstCurve ? interval.Start : interval.End;
+                var nextLoopParameter = nextRunsAgainstCurve ? nextInterval.End : nextInterval.Start;
                 var currentUv = binding.Pcurve.Evaluate(binding.SameSense ? currentLoopParameter : interval.End - (currentLoopParameter - interval.Start));
                 var nextUv = nextBinding.Pcurve.Evaluate(nextBinding.SameSense ? nextLoopParameter : nextInterval.End - (nextLoopParameter - nextInterval.Start));
                 var closure = UvDistance(surface, currentUv, nextUv);
                 maximumUvClosure = double.Max(maximumUvClosure, closure);
+                // Two edges that each end within the source's vertex tolerance of their shared vertex may
+                // stop up to twice that apart; in UV that is checked in model space below.
+                var sharedVertex = runsAgainstCurve ? body.Topology.GetEdge(coedge.EdgeId).StartVertexId : body.Topology.GetEdge(coedge.EdgeId).EndVertexId;
+                var sharedVertexTolerance = sourceTopology?.VertexTolerancesMillimetres.GetValueOrDefault(sharedVertex) ?? 0d;
                 var closureTolerance = double.Max(bindingTolerance,
                     nextBinding.Qualification?.QualificationToleranceMillimetres ?? tolerance);
                 if (sourceTopology?.CollapsedSingularTransitions.Contains((coedge.Id, next.Id)) == true)
@@ -156,7 +164,9 @@ public static class BrepPcurveValidator
                         diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:collapsed-singular-lift");
                     }
                 }
-                else if (closure > closureTolerance)
+                else if (closure > closureTolerance && !MeetAtSingularPoint(surface, currentUv, nextUv, closureTolerance)
+                         && !(sharedVertexTolerance > 0d && Evaluate(surface, currentUv) is { } liftA && Evaluate(surface, nextUv) is { } liftB
+                              && (liftA - liftB).Length <= 2d * sharedVertexTolerance + closureTolerance))
                 {
                     loopClosureValid = false;
                     diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:uv-loop-closure={closure:R}:tolerance={closureTolerance:R}");
@@ -172,6 +182,16 @@ public static class BrepPcurveValidator
             MaximumUvLoopClosure = maximumUvClosure,
             RootMeanSquareReconstructionDeviation = residualSamples == 0 ? 0d : double.Sqrt(squaredResidual / residualSamples)
         };
+    }
+
+    /// <summary>A sphere pole or cone apex is one model point for every U: two pcurves can meet there
+    /// with any U gap. Accept when both ends lift to the same point and U is degenerate at it.</summary>
+    private static bool MeetAtSingularPoint(SurfaceGeometry surface, SurfaceParameterPoint a, SurfaceParameterPoint b, double tolerance)
+    {
+        if (Evaluate(surface, a) is not { } pa || Evaluate(surface, b) is not { } pb || (pa - pb).Length > tolerance) return false;
+        bool Degenerate(SurfaceParameterPoint uv, Point3D p)
+            => Evaluate(surface, new SurfaceParameterPoint(uv.U + 1e-3, uv.V)) is { } q && (q - p).Length <= tolerance;
+        return Degenerate(a, pa) && Degenerate(b, pb);
     }
 
     private static bool WithinSurfaceDomain(SurfaceGeometry surface, SurfaceParameterPoint uv, double tolerance)

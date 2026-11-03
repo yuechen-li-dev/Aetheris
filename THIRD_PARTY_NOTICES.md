@@ -82,6 +82,14 @@ Institute of Standards and Technology. NIST does not endorse Aetheris, no NIST
 code is represented as part of Aetheris, and the models are not represented as
 AGPL-licensed or authored by Aetheris.
 
+## SO-101 robot arm part (TheRobotStudio SO-ARM100)
+
+`testdata/step242/community/so101/Under_arm_SO101.step` is an unmodified part
+of the SO-101 arm from TheRobotStudio's SO-ARM100 project
+(https://github.com/TheRobotStudio/SO-ARM100), licensed under the Apache
+License, Version 2.0. It is used as import test data only; it is not
+represented as AGPL-licensed or authored by Aetheris.
+
 ## GarmentCode sewing-pattern reference and interchange
 
 The GarmentCode curve-coordinate and stitch conventions used by

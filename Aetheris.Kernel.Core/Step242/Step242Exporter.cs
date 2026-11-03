@@ -193,7 +193,12 @@ public static class Step242Exporter
         var planeAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)PLANE_ANGLE_UNIT()SI_UNIT($,.RADIAN.))");
         var solidAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)SI_UNIT($,.STERADIAN.)SOLID_ANGLE_UNIT())");
         var uncertaintyContext = string.Empty;
-        if (options.DistanceAccuracyMillimetres is { } accuracy)
+        // A body with tolerant edges must not claim more precision than its worst measured gap.
+        var tolerantFloor = body.Bindings.PcurveBindings
+            .Where(b => b.Qualification?.RecoveryMethod.StartsWith(BrepPcurveRecovery.SourceTolerantMethod, StringComparison.Ordinal) == true)
+            .Select(b => b.Qualification!.QualificationToleranceMillimetres).DefaultIfEmpty(0d).Max();
+        var declaredAccuracy = tolerantFloor > 0d ? double.Max(options.DistanceAccuracyMillimetres ?? 0d, tolerantFloor) : options.DistanceAccuracyMillimetres;
+        if (declaredAccuracy is { } accuracy)
         {
             if (!double.IsFinite(accuracy) || accuracy <= 0)
                 return Failure("DistanceAccuracyMillimetres must be positive and finite.", "Exporter.DistanceAccuracy");
@@ -1225,13 +1230,35 @@ public static class Step242Exporter
                 .OrderBy(binding => binding.FaceId.Value)
                 .ThenBy(binding => binding.CoedgeId.Value)
                 .ToArray();
+        // A circle or ellipse is written untrimmed, so a reader derives its trim from the vertices and lands on
+        // its own turn, which may differ from the stored trim by whole turns (SO-101 stores [2pi, 5pi/2]). Analytic
+        // conic traces are periodic and survive that. Line, polyline and spline traces are not: SO-101 stores a
+        // straight UV trace on a B-spline face over [2pi, 2pi+0.43], which, read against [0, 0.43], started at
+        // U -14.7 on a [0, 1] surface. So those traces move by the same whole turns.
+        var periodShift = 0d;
+        if (edgeBinding.TrimInterval is { } storedTrim && curve.Kind is CurveGeometryKind.Circle3 or CurveGeometryKind.Ellipse3)
+        {
+            var readerTrim = curve.Kind == CurveGeometryKind.Circle3
+                ? Step242Importer.ComputeCircleTrim(curve.Circle3!.Value, startPoint, endPoint, emittedSameSense)
+                : Step242Importer.ComputeEllipseTrim(curve.Ellipse3!.Value, startPoint, endPoint, emittedSameSense);
+            if (readerTrim.IsSuccess)
+                periodShift = double.Round((readerTrim.Value.Start - storedTrim.Start) / (2d * double.Pi)) * 2d * double.Pi;
+        }
         var pcurveIds = pcurveContextId is null
             ? []
             : edgePcurveBindings
+                .Select(binding => periodShift != 0d && (binding.Pcurve.PolynomialCurve is not null
+                        || binding.Pcurve.Kind is PcurveGeometryKind.Line or PcurveGeometryKind.Polyline)
+                    ? binding with { Pcurve = ReparameterizeLinePcurve(binding.Pcurve,
+                        new ParameterInterval(binding.Pcurve.Domain.Start + periodShift, binding.Pcurve.Domain.End + periodShift)) }
+                    : binding)
                 .Select(binding => BuildStepPcurve(writer, binding, surfaceIds, pcurveContextId,
                     curve.Kind == CurveGeometryKind.Line3 && binding.Qualification is
                         { Origin: PcurveBindingOrigin.RecoveredAnalytic or PcurveBindingOrigin.RecoveredSpline or PcurveBindingOrigin.DerivedAnalytic or PcurveBindingOrigin.ConstructedBoundary }
-                        ? new ParameterInterval(0d, (endPoint - startPoint).Length) : null))
+                        ? new ParameterInterval(0d, (endPoint - startPoint).Length) : null,
+                    // The rewritten line starts at the start vertex. That vertex is the stored trim's end when
+                    // the edge runs against its curve, and the pcurve may itself run against the edge curve.
+                    reverseLineDomain: edgeBinding.OrientedEdgeSense != binding.SameSense))
                 .Where(id => id is not null)
                 .Select(id => id!)
                 .ToArray();
@@ -1257,14 +1284,15 @@ public static class Step242Exporter
         CoedgePcurveBinding binding,
         IReadOnlyDictionary<SurfaceGeometryId, string> surfaceIds,
         string contextId,
-        ParameterInterval? reparameterizedLineDomain)
+        ParameterInterval? reparameterizedLineDomain,
+        bool reverseLineDomain = false)
     {
         if (!surfaceIds.TryGetValue(binding.SurfaceGeometryId, out var surfaceId)) return null;
         var representationName = binding.Qualification is { } qualification
             ? $"aetheris-qualified-pcurve:{Step242TextWriter.Number(qualification.QualificationToleranceMillimetres)}"
             : "pcurve";
         if (reparameterizedLineDomain is { } lineDomain)
-            binding = binding with { Pcurve = ReparameterizeLinePcurve(binding.Pcurve, lineDomain) };
+            binding = binding with { Pcurve = ReparameterizeLinePcurve(binding.Pcurve, lineDomain, reverseLineDomain), SameSense = true };
         if (binding.Pcurve.PolynomialCurve is { } polynomial)
         {
             var controls = polynomial.ControlPoints.Select(p => writer.AddEntity("CARTESIAN_POINT", "$",
@@ -1362,8 +1390,9 @@ public static class Step242Exporter
         return writer.AddEntity("PCURVE", "$", Step242TextWriter.Ref(surfaceId), Step242TextWriter.Ref(representationId));
     }
 
-    internal static PcurveGeometry ReparameterizeLinePcurve(PcurveGeometry pcurve, ParameterInterval lineDomain)
+    internal static PcurveGeometry ReparameterizeLinePcurve(PcurveGeometry pcurve, ParameterInterval lineDomain, bool reverse = false)
     {
+        if (reverse) pcurve = Reversed(pcurve);
         if (pcurve.PolynomialCurve is { } polynomial)
         {
             var source = pcurve.Domain;
@@ -1383,6 +1412,27 @@ public static class Step242Exporter
             PcurveGeometryKind.Line => PcurveGeometry.Line(lineDomain, pcurve.Points[0], pcurve.Points[1]),
             PcurveGeometryKind.Polyline => PcurveGeometry.Polyline(lineDomain, pcurve.Points),
             _ => pcurve
+        };
+    }
+
+    /// <summary>The same trace traversed the other way over the same domain: t maps to Start + End - t.</summary>
+    private static PcurveGeometry Reversed(PcurveGeometry pcurve)
+    {
+        var d = pcurve.Domain;
+        if (pcurve.PolynomialCurve is { } polynomial)
+        {
+            var knots = polynomial.KnotValues.Reverse().Select(k => k == d.Start ? d.End : k == d.End ? d.Start : d.Start + d.End - k).ToArray();
+            var reversed = new BSpline3Curve(polynomial.Degree, polynomial.ControlPoints.Reverse().ToArray(),
+                polynomial.KnotMultiplicities.Reverse().ToArray(), knots, polynomial.CurveForm,
+                polynomial.ClosedCurve, polynomial.SelfIntersect, polynomial.KnotSpec);
+            return pcurve.RationalWeights is { } weights ? PcurveGeometry.RationalPolynomial(d, reversed, weights.Reverse().ToArray())
+                : PcurveGeometry.Polynomial(d, reversed);
+        }
+        return pcurve.Kind switch
+        {
+            PcurveGeometryKind.Line => PcurveGeometry.Line(d, pcurve.Points[1], pcurve.Points[0]),
+            PcurveGeometryKind.Polyline => PcurveGeometry.Polyline(d, pcurve.Points.Reverse().ToArray()),
+            _ => throw new InvalidOperationException($"A {pcurve.Kind} pcurve on a straight edge cannot be reversed for export."),
         };
     }
 

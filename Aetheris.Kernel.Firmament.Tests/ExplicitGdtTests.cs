@@ -59,8 +59,12 @@ public sealed class ExplicitGdtTests
         {
             var build = FirmamentBuildAndExport.CompileSource(specimen, Path.GetDirectoryName(path));
             Assert.True(build.IsSuccess, string.Join(";", build.Diagnostics.Select(d => d.Message)));
-            Assert.NotEqual(Aetheris.Kernel.Core.Import.ImportQualificationStatus.Qualified, build.Value.RuntimeBody!.ImportQualification!.GeometryStatus);
-            Assert.Contains(build.Diagnostics, d => d.Message.StartsWith("step-export-recovered-pcurves-omitted:", StringComparison.Ordinal));
+            // FTC-11 used to stand in for a part without qualified UV traces. That status came from the pcurve
+            // validator ignoring edge sense (Nov 2026): within the InlineStep route's 0.1 mm recovery allowance
+            // every trace is recovered and valid, so the part qualifies and none are omitted. The unqualified-UV
+            // export path this test was named for needs a genuinely unqualified specimen.
+            Assert.Equal(Aetheris.Kernel.Core.Import.ImportQualificationStatus.Qualified, build.Value.RuntimeBody!.ImportQualification!.GeometryStatus);
+            Assert.DoesNotContain(build.Diagnostics, d => d.Message.StartsWith("step-export-recovered-pcurves-omitted:", StringComparison.Ordinal));
             var inspection = Step242SemanticPmiInspector.Inspect(build.Value.StepText);
             Assert.Equal(2, inspection.DatumCount); Assert.Equal(6, inspection.DimensionCount);
             Assert.Equal(specimen == source ? 5 : 4, inspection.GeometricToleranceCount);

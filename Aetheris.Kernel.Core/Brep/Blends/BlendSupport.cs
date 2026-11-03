@@ -29,6 +29,27 @@ public sealed class BlendSupport
         _ => null,
     };
 
+    /// <summary>Distance from the point to the support's core: a cylinder's axis, a sphere's centre, a torus's tube
+    /// circle; null for supports without one. A ball whose centre sits on the core has a collapsed offset.</summary>
+    public double? CoreDistance(Point3D x)
+    {
+        switch (_surface.Kind)
+        {
+            case SurfaceGeometryKind.Cylinder:
+                var c = _surface.Cylinder!.Value;
+                return Radial(x - c.Origin, c.Axis.ToVector()).Length;
+            case SurfaceGeometryKind.Sphere:
+                return (x - _surface.Sphere!.Value.Center).Length;
+            case SurfaceGeometryKind.Torus:
+                var t = _surface.Torus!.Value; var axis = t.Axis.ToVector();
+                var radial = Radial(x - t.Center, axis);
+                var tube = radial.Length > 1e-12 ? t.Center + radial * (t.MajorRadius / radial.Length) : t.Center;
+                return (x - tube).Length;
+            default:
+                return null;
+        }
+    }
+
     public static BlendSupport? Of(BrepBody body, FaceId face) =>
         body.TryGetFaceSurfaceGeometry(face, out var surface) && surface is { Kind: SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder
             or SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus }

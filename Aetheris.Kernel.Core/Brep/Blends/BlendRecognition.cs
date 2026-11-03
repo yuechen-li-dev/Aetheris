@@ -34,7 +34,9 @@ public sealed record BlendMeasurement(
     double AnchorTurnDegrees,
     bool BothRailsAlongEdges,
     int Samples,
-    double Lean = 1);
+    double Lean = 1,
+    FaceId? CollapsedAnchor = null,
+    bool CollapsedAlongEdge = false);
 
 public sealed record BlendRecognitionOptions
 {
@@ -65,13 +67,18 @@ public static class BlendRecognition
     /// <summary>"Not bounded" as a finite number: the judgment rejects non-finite evidence by design.</summary>
     private const double Unbounded = 1e300;
 
-    public static IReadOnlyList<FaceBlendRecognition> Recognize(BrepBody body, BlendRecognitionOptions? options = null)
+    /// <param name="keep">Faces the caller keeps (a selection's complement, a wall it wants left): never read as
+    /// blends, so always available as anchors.</param>
+    public static IReadOnlyList<FaceBlendRecognition> Recognize(BrepBody body, BlendRecognitionOptions? options = null, IReadOnlySet<FaceId>? keep = null)
     {
+        keep ??= new HashSet<FaceId>();
         options ??= new();
         var tess = BrepDisplayTessellator.Tessellate(body);
         if (!tess.IsSuccess) throw new InvalidOperationException("blend-recognition: tessellation failed: " + string.Join("; ", tess.Diagnostics.Select(d => d.Message)));
         var context = new Context(body, tess.Value, options);
-        var results = body.Topology.Faces.OrderBy(f => f.Id.Value).Select(f => RecognizeStrip(context, f.Id, new HashSet<FaceId>())).ToDictionary(r => r.Face);
+        var results = body.Topology.Faces.OrderBy(f => f.Id.Value)
+            .Select(f => keep.Contains(f.Id) ? new FaceBlendRecognition(f.Id, BlendFaceRole.Primary, null, null, "kept by the caller") : RecognizeStrip(context, f.Id, new HashSet<FaceId>()))
+            .ToDictionary(r => r.Face);
         // An anchor is a face that stays. Joiners (corner patches: smooth all round, meeting a strip, spanning no
         // two faces of their own) are decided from the strips; a strip read against a joiner or another strip (a
         // transition patch rolling on a fillet of its own radius) is judged again without them, until nothing changes.
@@ -83,7 +90,7 @@ public static class BlendRecognition
             var spanned = results.Values.Where(r => r.Blend is not null).SelectMany(r => new[] { r.Blend!.Hypothesis.AnchorA, r.Blend.Hypothesis.AnchorB }).ToHashSet();
             foreach (var face in results.Values.Where(r => r.Role == BlendFaceRole.Primary).ToArray())
             {
-                if (context.Kind(face.Face) == SurfaceGeometryKind.Plane || spanned.Contains(face.Face)) continue;
+                if (context.Kind(face.Face) == SurfaceGeometryKind.Plane || spanned.Contains(face.Face) || keep.Contains(face.Face)) continue;
                 var edges = context.Edges(face.Face);
                 if (edges.Length == 0 || !edges.All(e => context.Tangent(e, face.Face))) continue;
                 if (!edges.Any(e => results[context.Other(e, face.Face)].Role == BlendFaceRole.Strip)) continue;
@@ -104,8 +111,8 @@ public static class BlendRecognition
         new("coverage", (m, _) => new(m.Coverage >= 0.8, "blend-certificate-coverage", m.Coverage, 0.8, "fraction of samples whose ball touches an anchor")),
         new("size", (m, o) => new(m.Size > 0 && double.Max(m.Size, m.SecondSize) <= o.MaxSize + o.Limit(o.MaxSize), "blend-size-over-limit", double.Max(m.Size, m.SecondSize), o.MaxSize, "radius or setback within the policy limit (a measured size is known to the certificate's tolerance)")),
         new("residual", (m, o) => new(m.Residual <= o.Limit(m.Size), "blend-certificate-residual", m.Residual, o.Limit(m.Size), "worst miss of the certificate, mm")),
-        new("offset-not-collapsed", (m, o) => new(m.CollapseMargin > CollapseLimit(m, o), "blend-anchor-offset-collapsed", m.CollapseMargin, CollapseLimit(m, o), "an anchor of the ball's own radius (within 1%: approximating nets differ) is a sibling blend, not a face the ball rolls on")),
-        new("spine-is-a-curve", (m, o) => new(m.Hypothesis.Section == BlendSection.Chamfer || m.SpineExtent > 10 * o.Limit(m.Size), "blend-spine-is-a-point", m.SpineExtent, 10 * o.Limit(m.Size), "a ball that does not move is a corner, not a strip")),
+        new("offset-not-collapsed", (m, o) => new(m.CollapseMargin > CollapseLimit(m, o) || BallTriangle(m, o), "blend-anchor-offset-collapsed", m.CollapseMargin, CollapseLimit(m, o), "distance from the ball centres to an anchor's core (axis, centre): on it, the anchor is of the ball's own radius with the ball inside (within 1%: approximating nets differ), a sibling blend, not a face the ball rolls on; unless the ball does not move and that anchor runs along an edge (the ball's triangle)")),
+        new("spine-is-a-curve", (m, o) => new(m.Hypothesis.Section == BlendSection.Chamfer || m.SpineExtent > 10 * o.Limit(m.Size) || BallTriangle(m, o), "blend-spine-is-a-point", m.SpineExtent, 10 * o.Limit(m.Size), "a ball that does not move is a corner, not a strip; unless one anchor is a face of the ball's own radius along an edge (the ball's triangle)")),
         new("chamfer-leans", (m, _) => new(m.Lean > 0.05, "blend-chamfer-does-not-lean", m.Lean, 0.05, "a chamfer's outward normal leans towards both anchors' (cosine); a wall square to them is not one")),
         new("anchors-turn-at-all", (m, _) => new(m.AnchorTurnDegrees > 1, "blend-anchors-do-not-turn", m.AnchorTurnDegrees, 1, "degrees between the anchors: tangent anchors have no edge to blend")),
         new("anchors-turn", (m, _) => new(m.AnchorTurnDegrees < 179, "blend-full-round", m.AnchorTurnDegrees, 179, "section sweep (round) or anchor turn (chamfer), degrees: a full round between facing walls has no sharp edge")),
@@ -117,6 +124,12 @@ public static class BlendRecognition
     ]);
 
     private static double CollapseLimit(BlendMeasurement m, BlendRecognitionOptions o) => double.Max(o.Limit(m.Size), 0.01 * m.Size);
+
+    /// <summary>The ball's triangle: a round whose radius equals the radius of a face it runs along (a fillet as large
+    /// as the arc it follows). That face's offset collapses onto its axis, so the ball's centre is fixed: the blend is
+    /// a piece of the ball, touching the other anchor at a point. Its sharp edge is still where the anchors meet.</summary>
+    public static bool BallTriangle(BlendMeasurement m, BlendRecognitionOptions o) =>
+        m.Hypothesis.Section == BlendSection.Round && m.SpineExtent <= 10 * o.Limit(m.Size) && m.CollapsedAnchor is not null && m.CollapsedAlongEdge;
 
     private static FaceBlendRecognition RecognizeStrip(Context c, FaceId face, IReadOnlySet<FaceId> notAnchors)
     {
@@ -183,7 +196,15 @@ public static class BlendRecognition
 
         BlendMeasurement Result(double radius, double residual, double coverage, (Point3D P, Vector3D N)[] used)
         {
-            var collapse = new[] { a.ConstantRadius, b.ConstantRadius }.Where(x => x is not null).Select(x => double.Abs(x!.Value - radius)).DefaultIfEmpty(Unbounded).Min();
+            var centresForCore = used.Select(s => s.P - s.N * (side * radius)).ToArray();
+            // An anchor's offset collapses when the ball's centre sits on its core (a cylinder's axis, a sphere's centre):
+            // a ball of the anchor's own radius on its inside. On the outside of a reflex arc of the same radius it rolls.
+            double Core(BlendSupport s) => centresForCore.Length == 0 || s.CoreDistance(centresForCore[0]) is null ? Unbounded : centresForCore.Max(p => s.CoreDistance(p)!.Value);
+            var collapse = double.Min(Core(a), Core(b));
+            var limit = double.Max(c.Options.Limit(radius), 0.01 * radius);
+            var collapsed = new[] { a, b }.Where(s => Core(s) <= limit).ToArray();
+            FaceId? collapsedAnchor = collapsed.Length == 1 ? collapsed[0].Face : null;
+            var collapsedAlongEdge = collapsedAnchor is { } ca && c.SharesEdge(h.Face, ca);
             var centres = used.Select(s => s.P - s.N * (side * radius)).ToArray();
             var extent = centres.Length < 2 ? 0 : centres.Max(p => (p - centres[0]).Length);
             // The section's sweep: the angle between the ball's two feet, 90° at a box edge, 180° for a full round
@@ -192,7 +213,7 @@ public static class BlendRecognition
             Vector3D Foot(BlendSupport s) { var n = s.Normal(middle); return s.Distance(middle + n * radius) <= s.Distance(middle - n * radius) ? n : n * -1; }
             var (footA, footB) = (Foot(a), Foot(b));
             var sweep = double.Acos(double.Clamp(footA.Dot(footB), -1, 1)) * 180 / double.Pi;
-            return new(h, true, radius, 0, residual, coverage, collapse, extent, sweep, railsOnEdges, used.Length);
+            return new(h, true, radius, 0, residual, coverage, collapse, extent, sweep, railsOnEdges, used.Length, 1, collapsedAnchor, collapsedAlongEdge);
         }
 
         double Residual((Point3D P, Vector3D N)[] used, double radius) => used.Length == 0 ? Unbounded : used.Max(s =>

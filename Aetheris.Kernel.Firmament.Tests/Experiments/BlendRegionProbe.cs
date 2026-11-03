@@ -15,7 +15,7 @@ namespace Aetheris.Kernel.Firmament.Tests.Experiments;
 /// </summary>
 internal static class BlendRegionProbe
 {
-    internal sealed record Options(double MaxBlendRadius = 5, double TangentDegrees = 3, bool Certificate = true)
+    internal sealed record Options(double MaxBlendRadius = 5, double TangentDegrees = 3, bool Certificate = true, IReadOnlySet<FaceId>? Keep = null)
     {
         // A 45° chamfer of size c is c·√2 wide; admit chamfers up to the blend-radius limit.
         public double MaxChamferWidth => MaxBlendRadius * Math.Sqrt(2) + 1e-6;
@@ -64,7 +64,7 @@ internal static class BlendRegionProbe
         // The rolling-ball certificate (Core BlendRecognition) decides strips, joiners and anchors; the shape
         // heuristics below remain for comparison (Options.Certificate = false).
         var recognized = options.Certificate
-            ? BlendRecognition.Recognize(body, new BlendRecognitionOptions { MaxSize = options.MaxBlendRadius, TangentDegrees = options.TangentDegrees }).ToDictionary(r => r.Face)
+            ? BlendRecognition.Recognize(body, new BlendRecognitionOptions { MaxSize = options.MaxBlendRadius, TangentDegrees = options.TangentDegrees }, options.Keep).ToDictionary(r => r.Face)
             : null;
         foreach (var face in body.Topology.Faces)
         {

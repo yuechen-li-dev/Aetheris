@@ -78,11 +78,28 @@ internal static class BlendNetworkRemoval
         var touched = strips.SelectMany(EdgesOf).ToHashSet();
         var transverse = touched.Where(e => !longitudinal.Contains(e)).ToHashSet();
 
+        // The ball's triangle (a fillet as large as the arc it follows) touches one anchor at a single vertex. That
+        // vertex is no corner: each strip ending at it ends at its own corner, reached along its own end edge, and
+        // the vertex itself disappears with the blend.
+        var contact = new HashSet<VertexId>();
+        foreach (var (s, (a, b)) in bridge)
+            foreach (var point in new[] { a, b }.Where(x => !EdgesOf(s).Any(e => edgeFaces[e].Contains(x))))
+                foreach (var v in EdgesOf(s).Select(topology.GetEdge).SelectMany(e => new[] { e.StartVertexId, e.EndVertexId }).Distinct())
+                    if (body.TryGetVertexPoint(v, out var at) && Math.Abs(Surface(point).F(at)) <= 10 * accuracy) contact.Add(v);
+
         // 2. Vertex clusters: vertices joined by transverse (end, miter) edges collapse to one corner.
         var parent = new Dictionary<VertexId, VertexId>();
         VertexId Find(VertexId v) { if (!parent.ContainsKey(v)) parent[v] = v; while (parent[v] != v) v = parent[v] = parent[parent[v]]; return v; }
         foreach (var e in touched) { var edge = topology.GetEdge(e); Find(edge.StartVertexId); Find(edge.EndVertexId); }
-        foreach (var e in transverse) { var edge = topology.GetEdge(e); parent[Find(edge.StartVertexId)] = Find(edge.EndVertexId); }
+        foreach (var e in transverse)
+        {
+            var edge = topology.GetEdge(e);
+            if (contact.Contains(edge.StartVertexId) || contact.Contains(edge.EndVertexId)) continue;
+            parent[Find(edge.StartVertexId)] = Find(edge.EndVertexId);
+        }
+        foreach (var v in contact) parent.Remove(v);
+        if (contact.Any(v => topology.Edges.Any(e => !touched.Contains(e.Id) && (e.StartVertexId == v || e.EndVertexId == v))))
+            throw new InvalidOperationException("blend-removal-contact-vertex-kept-edge: a point-contact vertex also ends a kept edge");
         var clusterOf = parent.Keys.ToDictionary(v => v, Find);
         var clusters = clusterOf.GroupBy(p => p.Value).ToDictionary(g => g.Key, g => g.Select(p => p.Key).ToArray());
 
@@ -111,7 +128,11 @@ internal static class BlendNetworkRemoval
         }
         foreach (var (root, members) in clusters)
         {
-            var around = members.SelectMany(v => vertexFaces[v]).Where(f => !strips.Contains(f)).Distinct().Select(Surface).ToArray();
+            // The faces round the cluster, and the anchors of the strips ending there: a corner beside a point
+            // contact touches the anchor it was in contact with only through those strips.
+            var around = members.SelectMany(v => vertexFaces[v]).Where(f => !strips.Contains(f))
+                .Concat(members.SelectMany(v => vertexFaces[v]).Where(bridge.ContainsKey).SelectMany(f => new[] { bridge[f].A, bridge[f].B }))
+                .Distinct().Select(Surface).ToArray();
             try { corner[root] = Corner(members, around); representative[root] = members.MinBy(v => v.Value)!; continue; }
             catch (InvalidOperationException refusal) when (refusal.Message.StartsWith("blend-removal-corner-not-common", StringComparison.Ordinal))
             {
@@ -152,7 +173,15 @@ internal static class BlendNetworkRemoval
         NewEdgeData NewEdge(EdgeId old, FaceId s)
         {
             var edge = topology.GetEdge(old);
-            var (u, v) = (MapCorner(edge.StartVertexId), MapCorner(edge.EndVertexId));
+            VertexId Through(VertexId x)
+            {
+                if (!contact.Contains(x)) return MapCorner(x);
+                // Along this strip's own end edge at the contact, to the corner at its other end.
+                var end = EdgesOf(s).Where(transverse.Contains).Select(topology.GetEdge).FirstOrDefault(e => e.StartVertexId == x || e.EndVertexId == x)
+                    ?? throw new InvalidOperationException($"blend-removal-contact-unreached: strip {s.Value} reaches contact vertex {x.Value} by no end edge");
+                return MapCorner(end.StartVertexId == x ? end.EndVertexId : end.StartVertexId);
+            }
+            var (u, v) = (Through(edge.StartVertexId), Through(edge.EndVertexId));
             var circle = bridgeCircle[s];
             if (u == v && circle is null) throw new InvalidOperationException($"blend-removal-strip-collapses: edge {old.Value} has both ends in one corner");
             var (a, b) = bridge[s];
@@ -205,6 +234,8 @@ internal static class BlendNetworkRemoval
         foreach (var e in transverse)
         {
             var edge = topology.GetEdge(e);
+            // An end edge at a point contact goes with the blend: each side's strip ends at its own corner.
+            if (contact.Contains(edge.StartVertexId) || contact.Contains(edge.EndVertexId)) continue;
             var (u, v) = (Map(edge.StartVertexId), Map(edge.EndVertexId));
             if (u == v) continue;
             var kept = edgeFaces[e].Where(f => !strips.Contains(f)).ToArray();
@@ -219,7 +250,9 @@ internal static class BlendNetworkRemoval
 
         // 4. Rebuild the loops of every face outside the network.
         var model = new TopologyModel();
-        var keptVertices = topology.Vertices.Select(v => Map(v.Id)).Distinct().ToArray();
+        var keptVertices = topology.Vertices.Where(v => !contact.Contains(v.Id)).Select(v => Map(v.Id)).Distinct().ToArray();
+        // Every sharp edge first: a face may need one it does not own an old edge for (the top across a point contact).
+        foreach (var e in longitudinal) NewEdge(e, edgeFaces[e].First(strips.Contains));
         foreach (var v in keptVertices) model.AddVertex(new Vertex(v));
         var keptEdges = topology.Edges.Where(e => !touched.Contains(e.Id)).ToArray();
         foreach (var e in keptEdges) model.AddEdge(e with { StartVertexId = Map(e.StartVertexId), EndVertexId = Map(e.EndVertexId) });
@@ -272,15 +305,18 @@ internal static class BlendNetworkRemoval
                 }
                 if (changed) changedFaces.Add(face.Id);
                 if (uses.Count > 1 && uses[0] == uses[^1]) uses.RemoveAt(uses.Count - 1);
-                // An anchor's loop runs along the sharp edge to the corner, then on along an end edge to the vertex
-                // that stayed: insert the end edges this face owns where its loop has such a gap.
-                foreach (var end in endEdges.Values.Where(x => x.Anchor == face.Id))
+                // Where the loop has a gap, a new edge this face lies on closes it: an end edge on to a vertex that
+                // stayed, or a strip's sharp edge the face meets only across a point contact.
+                var fillers = endEdges.Values.Where(x => x.Anchor == face.Id).Select(x => x.Edge)
+                    .Concat(newEdges.Where(p => p.Key.Item3 == face.Id.Value || p.Key.Item4 == face.Id.Value).Select(p => p.Value)).ToArray();
+                foreach (var filler in fillers)
                     for (var i = 0; i < uses.Count; i++)
                     {
+                        if (uses.Any(x => x.Edge == filler.Id)) break;
                         var to = Ends(uses[i]).To; var from = Ends(uses[(i + 1) % uses.Count]).From;
                         if (to == from) continue;
-                        if (to == end.Edge.Start && from == end.Edge.End) { uses.Insert(i + 1, (end.Edge.Id, false)); break; }
-                        if (to == end.Edge.End && from == end.Edge.Start) { uses.Insert(i + 1, (end.Edge.Id, true)); break; }
+                        if (to == filler.Start && from == filler.End) { uses.Insert(i + 1, (filler.Id, false)); break; }
+                        if (to == filler.End && from == filler.Start) { uses.Insert(i + 1, (filler.Id, true)); break; }
                     }
                 if (uses.Count == 0) throw new InvalidOperationException($"blend-removal-loop-vanishes: face {face.Id.Value} loop {loopId.Value}");
                 var ids = loop.CoedgeIds.Count == uses.Count && !changed ? loop.CoedgeIds.ToArray()

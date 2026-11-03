@@ -45,6 +45,9 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
         { "d-profile-fillet", "fixtures/Regression/EdgeFinishRobustness/d-profile-fillet.firmament" },
         { "rounded-rect-top-fillet", RoundedRect("Modify Body { EdgeFinish Rim { target: Section.Outer; on: Top; kind: Fillet; radius: 2mm } }") },
         { "rounded-rect-top-chamfer", RoundedRect("Modify Body { EdgeFinish Rim { target: Section.Outer; on: Top; kind: Chamfer; distance: 2mm } }") },
+        // The convex 4 mm arc under a 4 mm fillet: the blend there is a piece of the ball touching the top at one point
+        // (the ball's triangle); its sharp edge is still the arc where the top meets the arc wall.
+        { "chimera-fillet", "fixtures/Regression/CanonicalGeometry/profile-edgefinish-chimera-fillet.firmament" },
     };
 
     /// <summary>Corner arcs tangent to the sides: the rim strips along the arcs bridge the top and a cylinder
@@ -70,20 +73,24 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
         }
         """;
 
-    /// <summary>The chimera's convex 4 mm arc under a 4 mm fillet: the blend there is a sphere touching the top at
-    /// one point, which the probe reads as a joiner with no anchors. Its corner is two corners merged.</summary>
+    /// <summary>A 4 mm fillet on a 4 mm convex arc: the blend is a piece of the ball (the ball's triangle), touching
+    /// the top at one vertex, rolling on nothing, its centre on the arc's axis. Read as a strip between the top and
+    /// the arc wall; a sharp corner's sphere (three strips, no wall of its radius) stays a joiner.</summary>
     [Fact]
-    public void FilletAsLargeAsTheArc_Refuses()
+    public void FilletAsLargeAsItsArc_ReadsAsTheBallsTriangle()
     {
-        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/CanonicalGeometry/profile-edgefinish-chimera-fillet.firmament"));
-        var finished = Import(source);
-        var probe = BlendRegionProbe.Run("chimera", finished);
-        var strips = probe.Regions.SelectMany(r => r.Faces).Select(f => new FaceId(f))
-            .Where(f => !(finished.TryGetFaceSurfaceGeometry(f, out var g) && g!.Cylinder is { } c && Math.Abs(Math.Abs(c.Axis.ToVector().Z) - 1) < 1e-9))
-            .ToHashSet();
-        var removed = BlendNetworkRemoval.Remove(finished, strips, Anchors(probe));
-        Assert.Null(removed.Body);
-        Assert.StartsWith("blend-removal-corner-not-common", removed.Refusal);
+        var finished = Import(File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/CanonicalGeometry/profile-edgefinish-chimera-fillet.firmament")));
+        var keep = finished.Topology.Faces.Select(f => f.Id)
+            .Where(f => finished.TryGetFaceSurfaceGeometry(f, out var g) && g!.Cylinder is { } c && Math.Abs(Math.Abs(c.Axis.ToVector().Z) - 1) < 1e-9).ToHashSet();
+        var recognized = Aetheris.Kernel.Core.Brep.Blends.BlendRecognition.Recognize(finished, null, keep);
+        var sphere = recognized.Single(r => finished.TryGetFaceSurfaceGeometry(r.Face, out var g) && g!.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Sphere);
+        Assert.Equal(Aetheris.Kernel.Core.Brep.Blends.BlendFaceRole.Strip, sphere.Role);
+        Assert.True(Aetheris.Kernel.Core.Brep.Blends.BlendRecognition.BallTriangle(sphere.Blend!, new()));
+        Assert.Contains(sphere.Blend!.CollapsedAnchor!.Value, keep);
+        Assert.Equal(4, sphere.Blend.Size, 9);
+
+        var box = Aetheris.Kernel.Core.Brep.Blends.BlendRecognition.Recognize(Aetheris.Kernel.Core.Brep.ConvexStockPrimitives.CreateRoundedBox(40, 30, 20, 3).Value);
+        Assert.Equal(8, box.Count(r => r.Role == Aetheris.Kernel.Core.Brep.Blends.BlendFaceRole.Joiner));
     }
 
     [Theory]
@@ -96,18 +103,14 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
         Assert.DoesNotMatch(@"EdgeFinish \w+ \{", stripped);
         var plain = Import(Regex.Replace(source, @"Modify Body \{\s*EdgeFinish[^{}]*\{[^{}]*\}\s*\}", ""));
 
-        var probe = BlendRegionProbe.Run(name, finished);
-        // Profile arcs extruded along Z are tangent walls the probe also reads as blends; the authored part
-        // without the finish keeps them, so only the finish is removed and the arcs stay as anchors.
-        var strips = probe.Regions.SelectMany(r => r.Faces).Select(f => new FaceId(f))
-            .Where(f => !(finished.TryGetFaceSurfaceGeometry(f, out var g) && g!.Cylinder is { } c && Math.Abs(Math.Abs(c.Axis.ToVector().Z) - 1) < 1e-9))
-            .ToHashSet();
+        // Profile arcs extruded along Z are tangent walls, geometrically blends between the side walls; the authored
+        // part without the finish keeps them, so the caller keeps them and only the finish is recognized.
+        var keep = finished.Topology.Faces.Select(f => f.Id)
+            .Where(f => finished.TryGetFaceSurfaceGeometry(f, out var g) && g!.Cylinder is { } c && Math.Abs(Math.Abs(c.Axis.ToVector().Z) - 1) < 1e-9).ToHashSet();
+        var probe = BlendRegionProbe.Run(name, finished, new BlendRegionProbe.Options(Keep: keep));
+        var strips = probe.Regions.SelectMany(r => r.Faces).Select(f => new FaceId(f)).ToHashSet();
         Assert.NotEmpty(strips);
-        // A kept wall the probe read as a blend is an anchor of the strips along it.
-        var kept = probe.Regions.SelectMany(r => r.Faces).Select(f => new FaceId(f)).Where(f => !strips.Contains(f)).ToHashSet();
         var anchors = Anchors(probe);
-        foreach (var f in strips)
-            anchors[f] = anchors[f].Concat(Neighbours(finished, f).Where(kept.Contains)).Distinct().ToArray();
         var removed = BlendNetworkRemoval.Remove(finished, strips, anchors);
         Assert.True(removed.Body is not null, removed.Refusal);
         output.WriteLine($"{name}: removed {strips.Count} faces, {removed.NewEdges} sharp edges, {removed.Clusters} corners");

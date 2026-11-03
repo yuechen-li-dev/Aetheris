@@ -60,3 +60,28 @@ predicted), the source-tessellation error found by hand before. Most of the 45 a
 - Freeform anchors (no distance function yet): `freeform-neighbour-not-extendable` 186 faces.
 - Point-contact strips (the chimera sphere; item 2 of the plan) read as joiners for now.
 - Pappus length for curved strips in the volume prediction.
+
+## Point contacts: the ball's triangle
+
+A fillet as large as the arc it follows (the chimera's 4 mm fillet on a 4 mm convex arc) is a
+piece of the ball: its centre is fixed on the arc's axis, and it touches the top at one vertex.
+solidcore names it the ball's triangle (#2403).
+
+- **Recognition.** An anchor's offset collapses when the ball's centres sit on its core (a
+  cylinder's axis, a sphere's centre, a torus's tube circle), measured, not inferred from equal
+  radii: on the outside of a reflex arc of the same radius the ball rolls (the chimera's torus 24
+  was wrongly refused before this). A reading whose centre does not move and whose one collapsed
+  anchor runs along an edge is admitted as the ball's triangle (`BlendRecognition.BallTriangle`).
+  A box corner's sphere never qualifies: its candidate anchors are sibling strips.
+- **Keep set.** `Recognize(body, options, keep)`: faces the caller keeps are never blends, so
+  they are anchors. The chimera's profile arcs are geometrically blends between the side walls;
+  a caller removing only the rim finish keeps them. Replaces the test-side anchor workaround.
+- **Removal.** The contact vertex joins no cluster and disappears; each strip ending at it maps
+  it along its own end edge to its own corner; corners include the anchors of the strips ending
+  there; every sharp edge is built before the loops, and a loop gap is closed by any new edge on
+  that face (the top gets the arc across the contact).
+
+The chimera now comes back as the authored sharp part (19 faces, every vertex within 1e-6 mm,
+volume, export and reimport); `FilletAsLargeAsTheArc_Refuses` is replaced by that ground truth and
+`FilletAsLargeAsItsArc_ReadsAsTheBallsTriangle`. Reach unchanged (802; 697 full pcurve): the
+corpus has no ball's triangle.

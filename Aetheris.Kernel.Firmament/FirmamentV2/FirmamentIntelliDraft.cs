@@ -98,12 +98,18 @@ public static class FirmamentIntelliDraft
     public static FirmamentLanguageEdit Edit(string source, string document, string revision, FirmamentDraftOperation request)
     {
         try { return EditOnce(source, document, revision, request); }
-        catch (FirmamentLanguageEditException error) when (request is { Action: "trace", Trace: { Count: > 1 } picks }
-            && picks.All(t => t.Connect) && error.Message.Contains("outer winding must be CounterClockwise", StringComparison.Ordinal))
+        catch (FirmamentLanguageEditException error)
         {
-            // Edges picked on the canvas carry no intended direction. A clockwise pick order is
-            // written in the counter-clockwise order an outer loop requires; the geometry is the same.
-            return EditOnce(source, document, revision, request with { Trace = picks.Reverse().ToArray() });
+            // Keep the retry decision in the handler. Mono WASM AOT corrupts the
+            // retry arguments when this pattern binding lives in an exception filter.
+            if (request is { Action: "trace", Trace: { Count: > 1 } picks }
+                && picks.All(t => t.Connect) && error.Message.Contains("outer winding must be CounterClockwise", StringComparison.Ordinal))
+            {
+                // Edges picked on the canvas carry no intended direction. A clockwise pick order is
+                // written in the counter-clockwise order an outer loop requires; the geometry is the same.
+                return EditOnce(source, document, revision, request with { Trace = picks.Reverse().ToArray() });
+            }
+            throw;
         }
     }
 

@@ -1118,7 +1118,7 @@ public static class Step242Importer
 
             var trimResult = explicitTrim is { } specified
                 ? KernelResult<ParameterInterval>.Success(specified)
-                : ComputeCircleTrim(circleResult.Value, startPoint, endPoint, edgeSameSense);
+                : ComputeCircleTrim(circleResult.Value, startPoint, endPoint, edgeSameSense, document.SourceDistanceAccuracyMillimetres ?? 0d);
             if (!trimResult.IsSuccess)
             {
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(trimResult.Diagnostics);
@@ -1138,7 +1138,7 @@ public static class Step242Importer
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(ellipseResult.Diagnostics);
             }
 
-            var trimResult = ComputeEllipseTrim(ellipseResult.Value, startPoint, endPoint, edgeSameSense);
+            var trimResult = ComputeEllipseTrim(ellipseResult.Value, startPoint, endPoint, edgeSameSense, document.SourceDistanceAccuracyMillimetres ?? 0d);
             if (!trimResult.IsSuccess)
             {
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(trimResult.Diagnostics);
@@ -1891,17 +1891,20 @@ public static class Step242Importer
                 source)
         ]);
 
-    internal static KernelResult<ParameterInterval> ComputeEllipseTrim(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint, bool edgeSameSense)
+    internal static KernelResult<ParameterInterval> ComputeEllipseTrim(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint, bool edgeSameSense, double sourceAccuracy = 0d)
     {
         var tolerance = ComputeEllipseTrimTolerance(ellipse, startPoint, endPoint);
+        // A vertex need only lie within the source's declared distance accuracy of its curve. That widens the
+        // projection only; empty and full spans keep the geometric tolerance.
+        var projection = double.Max(tolerance, sourceAccuracy);
 
-        var startAngleResult = ProjectPointToEllipseAngle(ellipse, startPoint, tolerance);
+        var startAngleResult = ProjectPointToEllipseAngle(ellipse, startPoint, projection);
         if (!startAngleResult.IsSuccess)
         {
             return KernelResult<ParameterInterval>.Failure(startAngleResult.Diagnostics);
         }
 
-        var endAngleResult = ProjectPointToEllipseAngle(ellipse, endPoint, tolerance);
+        var endAngleResult = ProjectPointToEllipseAngle(ellipse, endPoint, projection);
         if (!endAngleResult.IsSuccess)
         {
             return KernelResult<ParameterInterval>.Failure(endAngleResult.Diagnostics);
@@ -1947,15 +1950,17 @@ public static class Step242Importer
         return System.Math.Max(1e-6d, scale * 1e-8d);
     }
 
-    internal static KernelResult<ParameterInterval> ComputeCircleTrim(Circle3Curve circle, Point3D startPoint, Point3D endPoint, bool edgeSameSense)
+    internal static KernelResult<ParameterInterval> ComputeCircleTrim(Circle3Curve circle, Point3D startPoint, Point3D endPoint, bool edgeSameSense, double sourceAccuracy = 0d)
     {
         var tolerance = ComputeCircleTrimTolerance(circle, startPoint, endPoint);
+        // Vertices within the source's declared accuracy of the circle project; spans keep the geometric tolerance.
+        var projection = double.Max(tolerance, sourceAccuracy);
         if ((startPoint - endPoint).Length <= tolerance)
         {
             // A closed circular edge starts wherever its vertex sits (CAD exporters frequently put the seam
             // vertex away from the circle's parameter origin), so the full-circle trim must begin at that angle or
             // the curve's trim endpoints no longer coincide with the edge's vertices.
-            var seamAngle = ProjectPointToCircleAngle(circle, startPoint, tolerance);
+            var seamAngle = ProjectPointToCircleAngle(circle, startPoint, projection);
             if (seamAngle.IsSuccess && seamAngle.Value > 1e-9d && seamAngle.Value < (2d * double.Pi) - 1e-9d)
             {
                 return KernelResult<ParameterInterval>.Success(new ParameterInterval(seamAngle.Value, seamAngle.Value + (2d * double.Pi)));
@@ -1964,13 +1969,13 @@ public static class Step242Importer
             return KernelResult<ParameterInterval>.Success(new ParameterInterval(0d, 2d * double.Pi));
         }
 
-        var startAngleResult = ProjectPointToCircleAngle(circle, startPoint, tolerance);
+        var startAngleResult = ProjectPointToCircleAngle(circle, startPoint, projection);
         if (!startAngleResult.IsSuccess)
         {
             return KernelResult<ParameterInterval>.Failure(startAngleResult.Diagnostics);
         }
 
-        var endAngleResult = ProjectPointToCircleAngle(circle, endPoint, tolerance);
+        var endAngleResult = ProjectPointToCircleAngle(circle, endPoint, projection);
         if (!endAngleResult.IsSuccess)
         {
             return KernelResult<ParameterInterval>.Failure(endAngleResult.Diagnostics);

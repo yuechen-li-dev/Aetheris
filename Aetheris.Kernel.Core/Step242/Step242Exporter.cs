@@ -1239,8 +1239,8 @@ public static class Step242Exporter
         if (edgeBinding.TrimInterval is { } storedTrim && curve.Kind is CurveGeometryKind.Circle3 or CurveGeometryKind.Ellipse3)
         {
             var readerTrim = curve.Kind == CurveGeometryKind.Circle3
-                ? Step242Importer.ComputeCircleTrim(curve.Circle3!.Value, startPoint, endPoint, emittedSameSense)
-                : Step242Importer.ComputeEllipseTrim(curve.Ellipse3!.Value, startPoint, endPoint, emittedSameSense);
+                ? Step242Importer.ComputeCircleTrim(curve.Circle3!.Value, startPoint, endPoint, emittedSameSense, 0.01d)
+                : Step242Importer.ComputeEllipseTrim(curve.Ellipse3!.Value, startPoint, endPoint, emittedSameSense, 0.01d);
             if (readerTrim.IsSuccess)
                 periodShift = double.Round((readerTrim.Value.Start - storedTrim.Start) / (2d * double.Pi)) * 2d * double.Pi;
         }

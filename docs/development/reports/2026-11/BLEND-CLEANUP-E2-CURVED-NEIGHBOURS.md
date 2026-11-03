@@ -59,3 +59,34 @@ half-cylinders come back at exactly πrh. Display tessellator issue, not investi
     fillet as large as its arc, where the blend touches the top at a point (chimera; the
     probe reads it as a 0-anchor joiner). Pinned by `FilletAsLargeAsTheArc_Refuses`.
 - Anchor pairs not covered (74): cylinder–cylinder, cone–cylinder, oblique plane–cone.
+
+## E2b: corners that do not meet
+
+Framing: this is a clean-up toolbox for parts other systems blended badly. A refusal is
+useful when it tells the caller what to select or what is missing.
+
+- **Kept corners stay.** When a cluster's surfaces miss one point, vertices that are already
+  exact sharp corners of three or more kept faces stay put; the rest collapse to the strip's
+  corner, and the end edge between them becomes the kept face meeting the strip's anchor.
+  Tried only after the full collapse fails, so earlier results are unchanged.
+- **Ellipses.** A plane cutting a cylinder obliquely gives an elliptical sharp edge (CTC-01's
+  end edges); moved kept ellipses are re-trimmed like circles.
+- **Lone corners refuse with a selection hint.** A corner patch with no selected strip beside
+  it (21 in CTC-02: B-spline joiners among fillet cylinders the probe put in other regions)
+  names the faces it joins: "select the fillets it joins too".
+- **Corner refusals name the curved faces they hit.** Most remaining ones are strips running
+  into another blend that was not selected with them (CTC-04 R42: a straight chamfer ending
+  on chamfer cones round rounded corners, which the probe region split off).
+- **Tolerant results stay honest.** Where a vertex that stayed sits within the source's
+  accuracy but off an anchor (5.5 µm in CTC-01), edges ending there are tagged
+  `SourceTolerant` at their measured gap (vertex to curve, curve to face, vertex to face), so
+  the export declares the uncertainty. The importer now projects circle and ellipse trim
+  points to the file's declared accuracy (span thresholds keep the geometric tolerance).
+
+Reach: 754 removed (578 full pcurve round trip); corner-not-common 138 → 114, plus 23 now
+named lone corners. Remaining full-round-trip gap includes CTC-01 R2: a line rewritten through
+its vertices on export lands 1.09e-5 mm from its trace (not chased).
+
+Next: per-region reach undercounts a toolbox that selects whole networks. Merging probe
+regions that meet at unselected blend faces (cones, cylinders tangent to the strip ends) is
+the next lever; then cylinder–cylinder and cone–cylinder sharp edges (73 faces).

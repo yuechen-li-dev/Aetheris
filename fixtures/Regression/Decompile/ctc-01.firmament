@@ -1,0 +1,142 @@
+// NIST CTC-01 (testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp) reconstructed as design intent:
+// a dog-bone plate with four corner lugs underneath, a hexagonal boss on top, through holes and slots, and
+// notches in the long edges. Compare against the original with
+//   aetheris analyze compare <original.stp> <this.step> --shape
+// Not expressible yet, and therefore absent here:
+//   - two horizontal Ø20 blind drilled holes with 118° points entering the -Y face at x = ±30, z = -25
+//     (Compose holes are +Z through holes only);
+//   - the R5 fillet at the hex boss's foot (a second finish on the body, and a concave boss foot);
+//   - R10 fillets where the lugs' inner walls meet the plate underside (no selection of individual
+//     concave edges).
+Model Ctc01 {
+    units: mm
+
+    Concept Struct Datums {
+        Center: Plane { origin: [0mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        Midline: Plane { origin: [0mm, 0mm, 0mm]; normal: [0, 1, 0]; up: [0, 0, 1] }
+    }
+    Construction Plane CenterPlane { Trace: Datums.Center }
+    Construction Plane MidPlane { Trace: Datums.Midline }
+
+    // V-notch: 60° included angle, R10 tip whose centre is 30 mm in from the edge. Lengths follow from the
+    // angle (no trig in Static arithmetic, so tan 60° is written as Pow(3, 0.5)).
+    Static root3: Float = Pow(3, 0.5)
+    Static vTip: Length = 10mm
+    Static vTipCentre: Length = 30mm
+    Static vHalfMouth: Length = (vTipCentre + 2 * vTip) / root3
+    Static vFlank: Length = (vTipCentre + vTip / 2) * 2 / root3
+    Static vX: Length = 110mm
+    Static chamfer: Length = 50mm * Pow(2, 0.5)
+
+    // Plate silhouette, counterclockwise from the bottom-left lug. The long edges carry two 60° V-notches
+    // (y = -125, R10 tips at x = ±110) and two rectangular notches (y = +125, 85 wide, 25 deep, R10 corners).
+    Path Outline {
+        start: Point2(-400mm, 0mm)
+        heading: -90deg
+        Line EndLeftLower { length: 175mm }
+        Arc LugOuterFrontLeft { radius: 50mm; turn: 90deg }
+        Line LugFootLeft { length: 50mm }
+        Arc LugCornerLeft { radius: 50mm; turn: 90deg }
+        Line LugInnerLeft { length: 25mm }
+        Arc WaistLeft { radius: 25mm; turn: -90deg }
+        Line FrontLeft { length: 115mm - vHalfMouth }
+        Line VLeftIn { turn: 60deg; length: vFlank }
+        Arc VLeftTip { radius: 10mm; turn: -120deg }
+        Line VLeftOut { length: vFlank }
+        Line FrontMiddle { turn: 60deg; length: 2 * (vX - vHalfMouth) }
+        Line VRightIn { turn: 60deg; length: vFlank }
+        Arc VRightTip { radius: 10mm; turn: -120deg }
+        Line VRightOut { length: vFlank }
+        Line FrontRight { turn: 60deg; length: 115mm - vHalfMouth }
+        Arc WaistFrontRight { radius: 25mm; turn: -90deg }
+        Line LugInnerFrontRight { length: 25mm }
+        Arc LugCornerFrontRight { radius: 50mm; turn: 90deg }
+        Line LugFootFrontRight { length: 50mm }
+        Arc LugOuterFrontRight { radius: 50mm; turn: 90deg }
+        Line EndRight { length: 350mm }
+        Line Chamfer { turn: 45deg; length: chamfer }
+        Line LugFootBackRight { turn: 45deg; length: 50mm }
+        Arc LugCornerBackRight { radius: 50mm; turn: 90deg }
+        Line LugInnerBackRight { length: 25mm }
+        Arc WaistBackRight { radius: 25mm; turn: -90deg }
+        Line BackRight { length: 32.5mm }
+        Line NotchRightIn { turn: 90deg; length: 15mm }
+        Arc NotchRightCornerA { radius: 10mm; turn: -90deg }
+        Line NotchRightFloor { length: 65mm }
+        Arc NotchRightCornerB { radius: 10mm; turn: -90deg }
+        Line NotchRightOut { length: 15mm }
+        Line BackMiddle { turn: 90deg; length: 215mm }
+        Line NotchLeftIn { turn: 90deg; length: 15mm }
+        Arc NotchLeftCornerA { radius: 10mm; turn: -90deg }
+        Line NotchLeftFloor { length: 65mm }
+        Arc NotchLeftCornerB { radius: 10mm; turn: -90deg }
+        Line NotchLeftOut { length: 15mm }
+        Line BackLeft { turn: 90deg; length: 32.5mm }
+        Arc WaistBackLeft { radius: 25mm; turn: -90deg }
+        Line LugInnerBackLeft { length: 25mm }
+        Arc LugCornerBackLeft { radius: 50mm; turn: 90deg }
+        Line LugFootBackLeft { length: 50mm }
+        Arc LugOuterBackLeft { radius: 50mm; turn: 90deg }
+        Close EndLeftUpper
+    }
+    Profile Plate from Outline
+
+    // A lug below the plate: the end's footprint beyond the waist, rounded on its outer edge.
+    Path LugPath {
+        start: Point2(-400mm, 125mm)
+        heading: 0deg
+        Line Inner { length: 150mm }
+        Line Side { turn: 90deg; length: 50mm }
+        Arc InnerCorner { radius: 50mm; turn: 90deg }
+        Line Foot { length: 50mm }
+        Arc OuterCorner { radius: 50mm; turn: 90deg }
+        Close Outer
+    }
+    Profile LugBackLeft from LugPath
+    Mirrored Profile LugFrontLeft from LugBackLeft { across: MidPlane }
+    Mirrored Profile LugFrontRight from LugFrontLeft { across: CenterPlane }
+    // The back-right lug's outer corner is a 50 mm chamfer, not a radius.
+    Path LugChamferedPath {
+        start: Point2(250mm, 125mm)
+        heading: 0deg
+        Line Inner { length: 150mm }
+        Line Side { turn: 90deg; length: 50mm }
+        Line Chamfer { turn: 45deg; length: chamfer }
+        Line Foot { turn: 45deg; length: 50mm }
+        Arc InnerCorner { radius: 50mm; turn: 90deg }
+        Close Outer
+    }
+    Profile LugBackRight from LugChamferedPath
+
+    Concept Struct BossLayout on XY {
+        RegularPolygon2<6> Hexagon { center: [0mm, 0mm]; acrossFlats: 100mm; rotation: 30deg }
+    }
+    Profile HexBoss using BossLayout { Loop Outer { Hexagon |> TraceLoop } }
+    Profile Obround = Slot2 { center: [-285mm, 0mm]; length: 120mm; width: 40mm }
+    Profile Window = RoundedRect2 { center: [285mm, 0mm]; size: [100mm, 50mm]; radius: 10mm }
+
+    Struct Part {
+        Compose Body {
+            Base PlateStock { profile: Plate; from: -50mm; to: 0mm; role: Stock }
+            Add BackLeftLug { profile: LugBackLeft; from: -100mm; to: -50mm; role: Pad }
+            Add FrontLeftLug { profile: LugFrontLeft; from: -100mm; to: -50mm; role: Pad }
+            Add FrontRightLug { profile: LugFrontRight; from: -100mm; to: -50mm; role: Pad }
+            Add BackRightLug { profile: LugBackRight; from: -100mm; to: -50mm; role: Pad }
+            Boss Hex { on: Top; profile: HexBoss; height: 50mm }
+            Pocket ObroundSlot { on: Top; profile: Obround; end: ThroughAll }
+            Pocket RectWindow { on: Top; profile: Window; end: ThroughAll }
+        }
+    }
+
+    Modify Body {
+        Hole<Shaft> BoltBackLeft { on: +Z; center: Point2(-160mm, 45mm); diameter: 25mm; end: ThroughAll }
+        Mirrored Feature BoltBackRight from BoltBackLeft { across: CenterPlane }
+        Mirrored Feature BoltFrontLeft from BoltBackLeft { across: MidPlane }
+        Mirrored Feature BoltFrontRight from BoltBackRight { across: MidPlane }
+        Hole<Shaft> LugHoleBackLeft { on: +Z; center: Point2(-325mm, 175mm); diameter: 35mm; end: ThroughAll }
+        Mirrored Feature LugHoleBackRight from LugHoleBackLeft { across: CenterPlane }
+        Mirrored Feature LugHoleFrontLeft from LugHoleBackLeft { across: MidPlane }
+        Mirrored Feature LugHoleFrontRight from LugHoleBackRight { across: MidPlane }
+        EdgeFinish<Chamfer> HexTop { on: Top; target: HexBoss.Outer; distance: 5mm }
+    }
+}

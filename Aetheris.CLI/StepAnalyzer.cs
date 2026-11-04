@@ -301,6 +301,11 @@ public sealed record VolumeAnalysisResult(
             return false;
         }
 
+        if (!PlanarFacesBoundTheBox(body, bbox, holeAxis: 0))
+        {
+            return false;
+        }
+
         var baseVolume = (bbox.Max.X - bbox.Min.X) * (bbox.Max.Y - bbox.Min.Y) * (bbox.Max.Z - bbox.Min.Z);
         // One analytic cylinder may be represented by multiple trimmed faces
         // (the local-frame hole planner deliberately uses two arcs to avoid a
@@ -356,6 +361,11 @@ public sealed record VolumeAnalysisResult(
             return false;
         }
 
+        if (!PlanarFacesBoundTheBox(body, bbox, holeAxis: 2))
+        {
+            return false;
+        }
+
         var baseVolume = (bbox.Max.X - bbox.Min.X) * (bbox.Max.Y - bbox.Min.Y) * (bbox.Max.Z - bbox.Min.Z);
         var breakpoints = cylinders.SelectMany(c => new[] { c.ZMin, c.ZMax }).Distinct().OrderBy(z => z).ToArray();
         var removed = 0d;
@@ -387,6 +397,32 @@ public sealed record VolumeAnalysisResult(
         volume = baseVolume - removed;
         basis = "Exact analytic volume for an axis-aligned rectangular box with supported +Z semantic cylindrical/counterbore/countersink hole intervals.";
         return double.IsFinite(volume) && volume > 0d;
+    }
+
+    /// <summary>
+    /// The box-minus-hole formulas take the bounding box as the stock, so they only hold when every planar face is
+    /// axis-aligned and lies on a bounding-box side. Planes normal to the hole axis may also sit inside the box
+    /// (counterbore shoulders and blind-hole floors); any other plane means the stock is not the box.
+    /// </summary>
+    private static bool PlanarFacesBoundTheBox(BrepBody body, BoundingBox3D bbox, int holeAxis)
+    {
+        var tolerance = double.Max(1e-7, (bbox.Max - bbox.Min).Length * 1e-9);
+        foreach (var face in body.Topology.Faces)
+        {
+            if (!body.TryGetFaceSurface(face.Id, out var surface) || surface?.Plane is not { } plane) continue;
+            var n = plane.Normal.ToVector();
+            var o = plane.Origin;
+            double[] normal = [n.X, n.Y, n.Z];
+            double[] origin = [o.X, o.Y, o.Z];
+            double[] lo = [bbox.Min.X, bbox.Min.Y, bbox.Min.Z];
+            double[] hi = [bbox.Max.X, bbox.Max.Y, bbox.Max.Z];
+            var axis = Array.FindIndex(normal, c => double.Abs(double.Abs(c) - 1d) <= 1e-9);
+            if (axis < 0) return false;
+            if (axis == holeAxis) continue;
+            if (double.Abs(origin[axis] - lo[axis]) > tolerance && double.Abs(origin[axis] - hi[axis]) > tolerance) return false;
+        }
+
+        return true;
     }
 
     private static bool TryResolveFaceZSpan(BrepBody body, FaceId faceId, out double zMin, out double zMax)
@@ -855,7 +891,7 @@ public sealed record VolumeAnalysisResult(
         return av.Dot(bv.Cross(cv)) / 6d;
     }
 
-    private static (string FullPath, BrepBody Body) ImportStepBody(string stepPath)
+    internal static (string FullPath, BrepBody Body) ImportStepBody(string stepPath)
     {
         var fullPath = Path.GetFullPath(stepPath);
         var import = Step242Importer.ImportBody(File.ReadAllText(fullPath));

@@ -145,7 +145,7 @@ public static class CliRunner
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> | --views six --llm) --resolution <NxM> [--point <u,v>] [--rank-probes|--evidence-bundle] --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> ((--xy|--xz|--yz) --offset <value>|--origin <x,y,z> --normal <x,y,z>) [--out <section.svg>] [--json]";
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
-    private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
+    private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--shape [--shape-resolution <N>]] [--json]";
     private const string AnalyzeCompoundUsage = "Usage: aetheris analyze compound <file.step> [--json]";
     private const string AnalyzeAssemblyUsage = "Usage: aetheris analyze assembly <file.step> [--json]";
     private const string SectionsUsage = "Usage: aetheris sections <artifact.step> --axis Z --levels <z,...> [--epsilon <mm>] --json";
@@ -3426,6 +3426,8 @@ Model CanonicalPanel {
         var json = false;
         var approximateVolume = false;
         int? resolution = null;
+        var shape = false;
+        var shapeResolution = 400;
         for (var i = 2; i < args.Length; i++)
         {
             switch (args[i])
@@ -3433,6 +3435,16 @@ Model CanonicalPanel {
                 case "--json":
                     json = true;
                     break;
+                case "--shape":
+                    shape = true;
+                    break;
+                case "--shape-resolution" when i + 1 < args.Length && int.TryParse(args[++i], out var parsedShape) && parsedShape > 0:
+                    shape = true;
+                    shapeResolution = parsedShape;
+                    break;
+                case "--shape-resolution":
+                    stderr.WriteLine("Analyze compare option --shape-resolution requires a positive integer value.");
+                    return 1;
                 case "--approximate-volume":
                     approximateVolume = true;
                     break;
@@ -3463,6 +3475,20 @@ Model CanonicalPanel {
         var surfaceComparison = CompareSurfaceFamilies(reference.Analysis?.Summary.SurfaceFamilies, candidate.Analysis?.Summary.SurfaceFamilies);
         var volumeComparison = CompareVolumes(reference.Volume, candidate.Volume, approximateVolume, resolution);
         var success = reference.Success && candidate.Success;
+        StepShapeComparison.ShapeComparisonResult? shapeComparison = null;
+        string? shapeError = null;
+        if (shape && success)
+        {
+            try
+            {
+                shapeComparison = StepShapeComparison.Compare(referencePath, candidatePath, shapeResolution);
+            }
+            catch (Exception ex) when (ex is StepAnalysisImportException or InvalidOperationException)
+            {
+                shapeError = ex.Message;
+                success = false;
+            }
+        }
 
         if (json)
         {
@@ -3475,6 +3501,8 @@ Model CanonicalPanel {
                 topologyComparison,
                 surfaceFamilyComparison = surfaceComparison,
                 volumeComparison,
+                shapeComparison,
+                shapeError,
                 notes = new[] { approximateVolume ? "Volume comparison uses explicit voxel approximation when exact fails per-side." : "Volume comparison uses exact path only." }
             }, JsonOptions));
             return success ? 0 : 1;
@@ -3496,6 +3524,32 @@ Model CanonicalPanel {
         stdout.WriteLine($"  Comparison: {JsonSerializer.Serialize(surfaceComparison, JsonOptions)}");
         stdout.WriteLine("Volume:");
         stdout.WriteLine($"  Comparison: {JsonSerializer.Serialize(volumeComparison, JsonOptions)}");
+        if (shapeError is not null) stdout.WriteLine($"Shape comparison failed: {shapeError}");
+        if (shapeComparison is { } sc)
+        {
+            var o = sc.Overlap;
+            stdout.WriteLine("Shape overlap (approximate, tessellated rays):");
+            stdout.WriteLine(FormattableString.Invariant($"  Reference {o.ReferenceVolume:0.###}  Candidate {o.CandidateVolume:0.###}  IoU {o.IntersectionOverUnion:0.######}"));
+            stdout.WriteLine(FormattableString.Invariant($"  Reference only {o.ReferenceOnlyVolume:0.###}  Candidate only {o.CandidateOnlyVolume:0.###}  (grid {o.ColumnsX}x{o.ColumnsY}, cell {o.CellSize:0.####})"));
+            foreach (var r in o.Regions)
+            {
+                stdout.WriteLine(FormattableString.Invariant($"    {r.Side,-15} {r.Volume,12:0.###}  x {r.BoundsMin[0]:0.##}..{r.BoundsMax[0]:0.##}  y {r.BoundsMin[1]:0.##}..{r.BoundsMax[1]:0.##}  z {r.BoundsMin[2]:0.##}..{r.BoundsMax[2]:0.##}"));
+            }
+
+            var c = sc.Carriers;
+            stdout.WriteLine($"Carriers: reference {c.ReferenceCarrierCount}, candidate {c.CandidateCarrierCount}, matched {c.MatchedCarrierCount}");
+            foreach (var (label, groups) in new[] { ("missing", c.MissingFromCandidate), ("extra", c.ExtraInCandidate) })
+            {
+                foreach (var g in groups)
+                {
+                    var where = g.BoundsMin is { } lo && g.BoundsMax is { } hi
+                        ? FormattableString.Invariant($"  [{lo[0]:0.##},{lo[1]:0.##},{lo[2]:0.##}]..[{hi[0]:0.##},{hi[1]:0.##},{hi[2]:0.##}]")
+                        : string.Empty;
+                    stdout.WriteLine($"  {label,-7} {g.Description}  faces {string.Join(',', g.FaceIds)}{where}");
+                }
+            }
+        }
+
         return success ? 0 : 1;
     }
 

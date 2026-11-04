@@ -1392,7 +1392,8 @@ public static class SurfaceMeshIrTessellator
 
     private static SurfacePatch? BuildFourSidedPatch(
         FaceId faceId, bool sameSense, SurfaceMeshSupport support, IReadOnlyList<LoopId> loops, FourSidedBoundary boundary,
-        Func<Point3D, (double U, double V)?> project, Func<double, double, Point3D> evaluate, List<SurfaceMeshVertex> vertices, ref int nextVertexId, bool hasPeriodicUSeam)
+        Func<Point3D, (double U, double V)?> project, Func<double, double, Point3D> evaluate, List<SurfaceMeshVertex> vertices, ref int nextVertexId, bool hasPeriodicUSeam,
+        bool periodicV = false)
     {
         var columns = boundary.Top.Count;
         var rows = boundary.Left.Count;
@@ -1409,7 +1410,8 @@ public static class SurfaceMeshIrTessellator
             {
                 var top = topUv[column]!.Value; var bottom = bottomUv[column]!.Value;
                 var u = InterpolateAngle(top.U, bottom.U, t);
-                var v = top.V + ((bottom.V - top.V) * t);
+                // A torus's V is its minor angle: across a tube that crosses V = 0 the short way round is the patch.
+                var v = periodicV ? InterpolateAngle(top.V, bottom.V, t) : top.V + ((bottom.V - top.V) * t);
                 var point = evaluate(u, v);
                 grid[row, column] = new SurfaceMeshVertex(nextVertexId++, point, u, v);
                 vertices.Add(grid[row, column]);
@@ -1577,8 +1579,9 @@ public static class SurfaceMeshIrTessellator
         List<SurfaceMeshVertex> vertices,
         ref int nextVertexId)
     {
-        // A swept bend has two closed minor rings and one bounded major arc
-        // used twice as a seam. Those rings do not imply a complete torus.
+        // Two closed rings and one bounded arc used twice as a seam: a swept
+        // bend (minor rings, major seam) or a rounded rim (major rings, minor
+        // seam). Those rings do not imply a complete torus.
         for (var offset = 0; offset < 4; offset++)
         {
             if (!TryGetFourSidedBoundary(body, faceId, plans, out var band, offset, allowClosed: true)
@@ -1590,10 +1593,23 @@ public static class SurfaceMeshIrTessellator
             var ring = band.Top.Select(sample => TryProjectPointToTorusUv(torus, sample.Position)).ToArray();
             var seam = band.Left.Select(sample => TryProjectPointToTorusUv(torus, sample.Position)).ToArray();
             if (ring.Any(uv => uv is null) || seam.Any(uv => uv is null)) return null;
-            // Validate ring correspondence before adding any vertices.
-            for (var column = 0; column < ring.Length; column++)
-                if ((torus.Evaluate(seam[^1]!.Value.U, ring[column]!.Value.V) - band.Bottom[column].Position).Length > 1e-7d)
-                    return null;
+            // The rings are minor circles and the seam a major arc (a swept bend), or the rings are major circles
+            // around the axis and the seam a minor arc (a rim rounded all the way round). Each grid point is the
+            // ring's parameter along it and the seam's across.
+            (double U, double V) At(int row, int column, bool majorRings) =>
+                majorRings ? (ring[column]!.Value.U, seam[row]!.Value.V) : (seam[row]!.Value.U, ring[column]!.Value.V);
+            bool? layout = null;
+            foreach (var majorRings in new[] { false, true })
+            {
+                var matches = true;
+                for (var column = 0; column < ring.Length && matches; column++)
+                {
+                    var (u, v) = At(seam.Length - 1, column, majorRings);
+                    matches = (torus.Evaluate(u, v) - band.Bottom[column].Position).Length <= 1e-7d;
+                }
+                if (matches) { layout = majorRings; break; }
+            }
+            if (layout is not { } majorRingLayout) return null;
             var bandGrid = new int[seam.Length, ring.Length];
             for (var row = 0; row < seam.Length; row++)
                 for (var column = 0; column < ring.Length; column++)
@@ -1604,7 +1620,7 @@ public static class SurfaceMeshIrTessellator
                     else if (column == ring.Length - 1) bandGrid[row, column] = band.Right[row].Id;
                     else
                     {
-                        var u = seam[row]!.Value.U; var v = ring[column]!.Value.V;
+                        var (u, v) = At(row, column, majorRingLayout);
                         bandGrid[row, column] = nextVertexId++;
                         vertices.Add(new SurfaceMeshVertex(bandGrid[row, column], torus.Evaluate(u, v), u, v));
                     }
@@ -1614,13 +1630,12 @@ public static class SurfaceMeshIrTessellator
                 for (var column = 0; column < ring.Length - 1; column++)
                 {
                     int[] ids = [bandGrid[row,column],bandGrid[row,column+1],bandGrid[row+1,column+1],bandGrid[row+1,column]];
-                    // Columns follow minor V and rows major U. Their traversal
-                    // can oppose the analytic support orientation; resolve the
-                    // chart winding before applying the authoritative face sign.
-                    var u = seam[row]!.Value.U; var v = ring[column]!.Value.V;
+                    // The traversal can oppose the analytic support orientation; resolve the chart winding before
+                    // applying the authoritative face sign.
+                    var (u, v) = At(row, column, majorRingLayout);
                     var p = torus.Evaluate(u, v);
-                    var cross = (torus.Evaluate(u, ring[column+1]!.Value.V) - p)
-                        .Cross(torus.Evaluate(seam[row+1]!.Value.U, v) - p);
+                    var along = At(row, column + 1, majorRingLayout); var across = At(row + 1, column, majorRingLayout);
+                    var cross = (torus.Evaluate(along.U, along.V) - p).Cross(torus.Evaluate(across.U, across.V) - p);
                     if (cross.Dot(torus.Normal(u, v).ToVector()) < 0) Array.Reverse(ids);
                     bandCells.Add(new QuadCell(Orient(ids, sameSense)));
                 }
@@ -1636,7 +1651,7 @@ public static class SurfaceMeshIrTessellator
         {
             return BuildFourSidedPatch(faceId, sameSense, new SurfaceMeshSupport(SurfaceMeshSupportKind.Torus, Torus: torus), body.GetLoopIds(faceId), bounded,
                 point => TryProjectPointToTorusUv(torus, point), (u, v) => torus.Evaluate(u, v), vertices, ref nextVertexId,
-                hasPeriodicUSeam: false);
+                hasPeriodicUSeam: false, periodicV: true);
         }
         if (body.GetLoopIds(faceId).Count != 1)
         {

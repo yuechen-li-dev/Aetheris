@@ -55,3 +55,45 @@ Chamfer-all and several AllEdges finishes keep the old refusal.
 - Circular edges (cylinders, holes): the erosion is no longer polyhedral.
 - Concave edges: closing by the ball (the dual operation) is not built.
 - Spline / elliptical edges: no plan yet; the message says so to be fed back.
+
+## Stage 1: circular edges (local rolling ball)
+
+`LocalRounding` builds the rounding on the body's own face graph for small r:
+faces keep their surfaces and are re-trimmed; each convex edge's strip is the
+tube around the ball centre's path (cylinder around a line, torus around a
+circle); each three-edge corner a sphere. Ball centres: 3×3 Newton on the faces'
+distance functions at corners (exact in one step on planes), 2×2 in the meridian
+for closed circles, at the seam's angle so rebuilt seams stay generators.
+Convex planar bodies still go to the opening (it handles uneven high-valence
+corners); `LocalRounding_MatchesTheOpening` checks the two agree (counts,
+points, volume to 1e-4) on box, tetrahedron, dodecahedron and a skew prism.
+
+Found on the way:
+
+- Input loops are not oriented: STEP-imported and primitive bodies walk shared
+  edges the same way on both faces, and point containment answers Boundary even
+  at a tetrahedron's centre (primitives only). Orientation and convexity are
+  therefore computed, not read: each loop's exact signed area (shoelace plus
+  circular segments in the plane; the (angle, height) chart on cylinders and
+  cones, where circles and generators are straight) sets outer loops CCW about
+  the outward normal, and convexity follows from the oriented coedges. Output is
+  consistently oriented (every edge used once each way), STEP round trip too.
+- `BrepPrimitives.CreateCylinder` leaves seam vertices unplaced; positions come
+  from the curves' ends.
+- A ball that only touches a third face pinches a face to nothing (a bore 2 mm
+  from a wall at r = 1 built with zero volume); touching is now refused.
+- SurfaceMeshIR: a rim rounded all the way round is a torus band whose closed
+  rings run around the major direction (the swept-bend case had only minor
+  rings); and the four-sided torus patch interpolated V (the minor angle)
+  linearly, folding any strip whose tube crosses V = 0 (the bottom rim of an
+  extruded arc). Both fixed; the four fixtures mesh watertight and outward.
+
+Results: `fixtures/Regression/UniformRounding` — cylinder (2 tori), frustum (2
+tori on a cone), block with a through bore (12 cylinder strips, 2 tori, 8
+spheres), D-profile (4 cylinder strips, 2 tori, 4 spheres). Each validates and
+builds through the CLI, round-trips STEP, meshes watertight, reads back by the
+certificate at r, and Remove(Round(x)) restores x's faces and edges. Fit sizes
+are exact where checkable: a Ø6 bore in a 20 mm block refuses r = 4 "under
+3.5 mm" (10 − r − 3 = r); a bore 2 mm from a wall refuses r = 1 "under 1 mm".
+
+Next: concave edges (stage 2), mixed vertices and tangent junctions (stage 3).

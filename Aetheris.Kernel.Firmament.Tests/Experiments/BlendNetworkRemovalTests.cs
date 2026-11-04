@@ -160,6 +160,39 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
         Assert.Equal(Points(plain), Points(body));
     }
 
+    /// <summary>Bodies with circular edges rounded whole, then every strip and corner removed: the body again.
+    /// The original walls are kept (they are faces the body was built with, not blends).</summary>
+    [Theory]
+    [InlineData("cylinder-rounded")]
+    [InlineData("frustum-rounded")]
+    [InlineData("box-hole-rounded")]
+    [InlineData("d-profile-rounded")]
+    public void RemovingWholeBodyRounding_ReturnsTheBody(string name)
+    {
+        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/UniformRounding", name + ".firmament"));
+        var finished = Import(source);
+        var plain = Import(Regex.Replace(source, @"EdgeFinish<Fillet>[^{}]*\{[^{}]*\}", ""));
+        var walls = plain.Topology.Faces.Select(f => plain.TryGetFaceSurfaceGeometry(f.Id, out var g) ? g : null).Where(g => g is { Kind: not Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane }).ToArray();
+        var keep = finished.Topology.Faces.Select(f => f.Id).Where(f => finished.TryGetFaceSurfaceGeometry(f, out var g) && walls.Any(w => w!.Kind == g!.Kind && Same(w, g))).ToHashSet();
+        var probe = BlendRegionProbe.Run(name, finished, new BlendRegionProbe.Options(Keep: keep));
+        var blends = probe.Regions.SelectMany(r => r.Faces).Select(f => new FaceId(f)).ToHashSet();
+        Assert.Equal(finished.Topology.Faces.Count() - plain.Topology.Faces.Count(), blends.Count);
+        var removed = BlendNetworkRemoval.Remove(finished, blends, Anchors(probe));
+        Assert.True(removed.Body is not null, removed.Refusal);
+        var body = removed.Body!;
+        Assert.True(BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        Assert.Equal(plain.Topology.Faces.Count(), body.Topology.Faces.Count());
+        Assert.Equal(plain.Topology.Edges.Count(), body.Topology.Edges.Count());
+        output.WriteLine($"{name}: removed {blends.Count} faces; plain {Kinds(plain)}; body {Kinds(body)}");
+    }
+
+    private static bool Same(Aetheris.Kernel.Core.Geometry.SurfaceGeometry? a, Aetheris.Kernel.Core.Geometry.SurfaceGeometry? b) => (a, b) switch
+    {
+        ({ Cylinder: { } x }, { Cylinder: { } y }) => Math.Abs(x.Radius - y.Radius) < 1e-9 && x.Axis.ToVector().Cross(y.Axis.ToVector()).Length < 1e-9,
+        ({ Cone: { } x }, { Cone: { } y }) => Math.Abs(x.SemiAngleRadians - y.SemiAngleRadians) < 1e-9,
+        _ => false,
+    };
+
     /// <summary>E3: rounded convex solids lose every fillet and corner patch (3- to 5-valent corners).</summary>
     [Theory]
     [InlineData("box-rounded", "")]

@@ -103,15 +103,75 @@ public sealed class UniformRoundingTests
         Assert.Contains("elliptical", message);
     }
 
-    [Fact]
-    public void CircularEdges_RefuseByName()
+    /// <summary>The local rolling ball on the body's own faces against the opening, where both apply: convex
+    /// bodies bounded by planes with three faces at every corner. Same faces, edges, corners and points.</summary>
+    [Theory]
+    [InlineData("box")]
+    [InlineData("tetrahedron")]
+    [InlineData("dodecahedron")]
+    [InlineData("skew-prism")]
+    public void LocalRounding_MatchesTheOpening(string name)
     {
-        var refused = UniformRounding.RoundAllEdges(BrepPrimitives.CreateCylinder(10, 20).Value, 1);
-        Assert.StartsWith("uniform-rounding-circular-edge-unsupported", refused.Diagnostics.Single().Message);
+        Point3D[] bottom = [new(0, 0, 0), new(24, 0, 0), new(28, 14, 0), new(6, 17, 0)];
+        var body = name switch
+        {
+            "box" => ConvexStockPrimitives.CreateHull(BoxCorners(40, 30, 20)).Value,
+            "tetrahedron" => ConvexStockPrimitives.CreateRegular(4, 30).Value,
+            "dodecahedron" => ConvexStockPrimitives.CreateRegular(12, 20).Value,
+            _ => ConvexStockPrimitives.CreateHull([.. bottom, .. bottom.Select(p => new Point3D(p.X, p.Y, 10 + 0.25 * p.X + 0.15 * p.Y))]).Value,
+        };
+        var opening = UniformRounding.RoundAllEdges(body, 1.5);
+        var local = LocalRounding.Round(body, 1.5);
+        Assert.True(local.Body is not null, local.Refusal?.Message);
+        AssertSameSolid(opening.Value, local.Body!, volumeDigits: null);
+        var (v0, v1) = (BrepMassProperties.Evaluate(opening.Value).AbsoluteVolume, BrepMassProperties.Evaluate(local.Body!).AbsoluteVolume);
+        Assert.True(double.Abs(v1 - v0) <= 1e-4 * v0, $"volume {v1} vs {v0}");
+    }
+
+    /// <summary>A cylinder's two rims are circles: each rounds to a torus around the axis (major R - r), the caps
+    /// and the side shrink onto the tori's contact circles, and the side's seam runs between them.</summary>
+    [Fact]
+    public void Cylinder_EachRimATorus()
+    {
+        var rounded = UniformRounding.RoundAllEdges(BrepPrimitives.CreateCylinder(10, 20).Value, 2);
+        Assert.True(rounded.IsSuccess, string.Join("; ", rounded.Diagnostics.Select(d => d.Message)));
+        var body = rounded.Value;
+        Assert.True(BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        var tori = body.Topology.Faces.Select(f => body.TryGetFaceSurfaceGeometry(f.Id, out var g) ? g!.Torus : null).Where(t => t is not null).Select(t => t!.Value).ToArray();
+        Assert.Equal(2, tori.Length);
+        Assert.All(tori, t => { Assert.Equal(8, t.MajorRadius, 9); Assert.Equal(2, t.MinorRadius, 9); Assert.Equal(8, double.Abs(t.Center.Z), 9); });
+        Assert.Equal((5, 7), (body.Topology.Faces.Count(), body.Topology.Edges.Count()));
+        // The caps keep a disc of radius R - r; the side runs between z = ±(h/2 - r).
+        Assert.All(body.Topology.Vertices, v => { body.TryGetVertexPoint(v.Id, out var p); Assert.True(double.Abs(double.Hypot(p.X, p.Y) - 8) < 1e-9 && double.Abs(double.Abs(p.Z) - 10) < 1e-9 || double.Abs(double.Hypot(p.X, p.Y) - 10) < 1e-9 && double.Abs(double.Abs(p.Z) - 8) < 1e-9); });
+        AssertRoundTrips(body);
+        var strips = BlendRecognition.Recognize(body).Where(r => r.Role == BlendFaceRole.Strip).ToArray();
+        Assert.Equal(2, strips.Length);
+        Assert.All(strips, s => Assert.Equal(2, s.Blend!.Size, 9));
+    }
+
+    [Fact]
+    public void Cylinder_RadiusAsLargeAsTheCylinder_Refuses()
+    {
+        var refused = UniformRounding.RoundAllEdges(BrepPrimitives.CreateCylinder(10, 40).Value, 12);
+        var message = refused.Diagnostics.Single().Message;
+        Assert.StartsWith("uniform-rounding-radius-too-large", message);
+        var fit = double.Parse(System.Text.RegularExpressions.Regex.Match(message, @"fits is under ([0-9.Ee+-]+) mm").Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        Assert.InRange(fit, 4.9, 10);
+        Assert.True(UniformRounding.RoundAllEdges(BrepPrimitives.CreateCylinder(10, 40).Value, fit * 0.99).IsSuccess);
     }
 
     private static Point3D[] BoxCorners(double x, double y, double z) =>
         [.. from a in new[] { -1, 1 } from b in new[] { -1, 1 } from c in new[] { -1, 1 } select new Point3D(a * x / 2, b * y / 2, c * z / 2)];
+
+    private static void AssertRoundTrips(BrepBody body)
+    {
+        var step = Aetheris.Kernel.Core.Step242.Step242Exporter.ExportBody(body);
+        Assert.True(step.IsSuccess, string.Join("; ", step.Diagnostics.Select(d => d.Message)));
+        var back = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(step.Value);
+        Assert.True(back.IsSuccess, string.Join("; ", back.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(body.Topology.Faces.Count(), back.Value.Topology.Faces.Count());
+        Assert.Equal(Points(body), Points(back.Value));
+    }
 
     private static void AssertReadsBack(BrepBody body, int faces, int edges, int vertices, double radius)
     {
@@ -124,14 +184,14 @@ public sealed class UniformRoundingTests
         Assert.Equal(faces, read.Count(r => r.Role == BlendFaceRole.Primary));
     }
 
-    private static void AssertSameSolid(BrepBody expected, BrepBody actual)
+    private static void AssertSameSolid(BrepBody expected, BrepBody actual, int? volumeDigits = 6)
     {
         Assert.True(BrepBindingValidator.Validate(actual, requireAllEdgeAndFaceBindings: true).IsSuccess);
         Assert.Equal(expected.Topology.Faces.Count(), actual.Topology.Faces.Count());
         Assert.Equal(expected.Topology.Edges.Count(), actual.Topology.Edges.Count());
         Assert.Equal(expected.Topology.Vertices.Count(), actual.Topology.Vertices.Count());
         Assert.Equal(Points(expected), Points(actual));
-        Assert.Equal(BrepMassProperties.Evaluate(expected).AbsoluteVolume, BrepMassProperties.Evaluate(actual).AbsoluteVolume, 6);
+        if (volumeDigits is { } digits) Assert.Equal(BrepMassProperties.Evaluate(expected).AbsoluteVolume, BrepMassProperties.Evaluate(actual).AbsoluteVolume, digits);
     }
 
     private static string[] Points(BrepBody body) => body.Topology.Vertices

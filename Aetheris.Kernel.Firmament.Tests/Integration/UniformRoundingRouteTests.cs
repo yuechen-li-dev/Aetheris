@@ -96,11 +96,43 @@ public sealed class UniformRoundingRouteTests
         Assert.Contains("concave edge", message);
     }
 
-    [Fact]
-    public void CircularEdges_RefuseByName()
+    /// <summary>Bodies with circular edges: every rim a torus, every line edge a cylinder, every three-edge corner a
+    /// sphere, read back by the rolling-ball certificate at the radius, exported and imported again.</summary>
+    [Theory]
+    [InlineData("cylinder-rounded", 2, 2, 1, 2, 0, 0, 2)]
+    [InlineData("frustum-rounded", 1.5, 2, 0, 2, 0, 1, 2)]
+    [InlineData("box-hole-rounded", 1, 6, 13, 2, 8, 0, 14)]
+    [InlineData("d-profile-rounded", 1, 3, 5, 2, 4, 0, 6)]
+    public void CircularEdges_RoundToTori(string name, double radius, int planes, int cylinders, int tori, int spheres, int cones, int edges)
     {
-        var refused = FirmamentBuildAndExport.CompileSource("Model Can { units: mm; Cylinder stock { radius: 10mm; height: 20mm } Modify stock { EdgeFinish<Fillet> rounding { target: AllEdges; radius: 1mm } } }");
-        Assert.Contains("uniform-rounding-circular-edge-unsupported", Assert.Single(refused.Diagnostics).Message);
+        var built = FirmamentBuildAndExport.CompileSource(File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/UniformRounding", name + ".firmament")));
+        Assert.True(built.IsSuccess, string.Join("\n", built.Diagnostics.Select(d => d.Message)));
+        var body = Step242Importer.ImportBody(built.Value.StepText).Value;
+        Assert.True(BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        int Count(SurfaceGeometryKind kind) => body.Topology.Faces.Count(f => body.TryGetFaceSurfaceGeometry(f.Id, out var g) && g!.Kind == kind);
+        Assert.Equal((planes, cylinders, tori, spheres, cones),
+            (Count(SurfaceGeometryKind.Plane), Count(SurfaceGeometryKind.Cylinder), Count(SurfaceGeometryKind.Torus), Count(SurfaceGeometryKind.Sphere), Count(SurfaceGeometryKind.Cone)));
+        var read = BlendRecognition.Recognize(body);
+        var strips = read.Where(r => r.Role == BlendFaceRole.Strip).ToArray();
+        Assert.Equal(edges, strips.Length); // one per edge of the body before rounding
+        Assert.All(strips, s => Assert.Equal(radius, s.Blend!.Size, 9));
+        Assert.Equal(spheres, read.Count(r => r.Role == BlendFaceRole.Joiner));
+        Assert.True(BrepMassProperties.Evaluate(body).AbsoluteVolume > 0);
+    }
+
+    /// <summary>A bore 2 mm from a wall: the bore's rim torus and the wall's edge strip meet at a 1 mm radius, so
+    /// 1 mm is refused (it would pinch the top face to nothing) and the reported fit is under 1 mm.</summary>
+    [Fact]
+    public void BoreNearAWall_RefusesTheRadiusThatPinchesTheTop()
+    {
+        string Source(double r) => $"Model Near {{ units: mm\n Box stock {{ size: [20mm, 20mm, 20mm] }}\n Modify stock {{ Hole<Shaft> Bore {{ on: +Z; center: [5mm, 0mm]; diameter: 6mm; end: ThroughAll }} EdgeFinish<Fillet> Round {{ target: AllEdges; radius: {r}mm }} }} }}";
+        var message = Assert.Single(FirmamentBuildAndExport.CompileSource(Source(1)).Diagnostics).Message;
+        Assert.Contains("uniform-rounding-radius-too-large", message);
+        Assert.Contains("reaches face", message);
+        Assert.Matches(@"largest that fits is under (1|0\.99\d*) mm", message);
+        var fits = FirmamentBuildAndExport.CompileSource(Source(0.9));
+        Assert.True(fits.IsSuccess, string.Join("\n", fits.Diagnostics.Select(d => d.Message)));
+        Assert.True(BrepMassProperties.Evaluate(Step242Importer.ImportBody(fits.Value.StepText).Value).AbsoluteVolume > 0);
     }
 
     /// <summary>The diagnostic an LLM or a person feeds back: the body has splines, how many, and which.</summary>

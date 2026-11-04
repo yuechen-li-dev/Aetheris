@@ -9,5 +9,5 @@ reimport, full face display, mesh closure/orientation, and validate/build agreem
 Invalid mutations are tested separately without rewriting these accepted sources.
 
 `AllEdges` on Box and the five regular Polyhedron stocks uses the dedicated builder;
-other convex planar bodies are rounded after they are built (see the Firmament
+other bodies are rounded after they are built (see `../UniformRounding` and the Firmament
 UniformRoundingRoute tests). It never silently ignores other operations.

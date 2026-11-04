@@ -146,7 +146,7 @@ What you can select depends on the body:
 | An unmodified Box | `face: +X`, `-X`, `+Y`, `-Y`, `+Z` or `-Z` with `target: Boundary`: that face's rim |
 | An extruded Profile | `target: section.Outer` or `Boundary` with `on: Top` or `on: Bottom`: the whole rim |
 | A Compose body | `target: profile.Outer` with `on: Top` or `on: Bottom`, within the qualified material history below |
-| An untouched Box or `Polyhedron<N>`, or any convex body bounded by planes | `target: AllEdges`, fillet only: every edge |
+| An untouched Box or `Polyhedron<N>`, or any body of plane, cylinder and cone faces with convex edges | `target: AllEdges`, fillet only: every edge |
 
 The details that trip people up:
 
@@ -167,14 +167,18 @@ The details that trip people up:
 - **Whole-body rounding.** `target: AllEdges` needs one fillet. On Box and
   Polyhedron stock the radius must be below the stock's inradius. On any other
   body, the body is built without the finish and every edge of the result is
-  rounded: each edge becomes a cylinder strip and each vertex a sphere corner,
-  and where four or more faces meet unevenly the corner opens into short strips,
-  as a rolled ball would leave it. This works on convex bodies bounded by planes.
-  It does not support spline or elliptical edges yet (common on imported parts
-  and on planes cut at an angle through cylinders), nor circular edges or concave
-  bodies; each is refused at the finish, naming the edges found. A radius that
-  does not fit is refused with the largest that does. Assertions measure the
-  rounded body. An all-edge chamfer is refused.
+  rounded: each straight edge becomes a cylinder strip, each circular edge (a
+  cylinder's rim, a hole's rim, an arc in an extruded profile) a torus, and each
+  corner a sphere. Faces may be planes, cylinders and cones; every edge must be
+  convex. On convex bodies bounded by planes, corners where four or more faces
+  meet unevenly open into short strips, as a rolled ball would leave them; on
+  curved bodies each corner must join three edges. Not supported yet: spline or
+  elliptical edges (common on imported parts and on planes cut at an angle
+  through cylinders), concave edges, and faces meeting tangentially; each is
+  refused at the finish, naming the edges found. A radius that does not fit,
+  for instance one whose ball would reach a nearby hole, is refused with the
+  largest that does. Assertions measure the rounded body. An all-edge chamfer is
+  refused.
 - **Size.** A finish must leave a non-collapsing cap. Straight polygon corners
   need not be right angles; tangent line/arc rims and arcs closed by a chord also
   work. `endClearance` is for open chains and rejects on closed loops.

@@ -221,8 +221,9 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex HoleCounterboreDepth = new(@"\bCounterboreDepth\s*:\s*(?<d>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleOn = new(@"\bOn\s*:\s*(?<face>[+-][XYZ]|[A-Za-z_]\w*)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleEnd = new(@"\bEnd\s*:\s*(?<end>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-    private static readonly Regex HoleDepthEnd = new(@"\bEnd\s*:\s*(?<kind>ShaftDepth|TotalDepth)\s*\(\s*(?<depth>[-+.\d]+)mm\s*\)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-    private static readonly Regex HoleFrom = new(@"\bFrom\s*:\s*(?<plane>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    // "Blind 45mm" is the shaft depth: drawings dimension a drilled hole's full-diameter depth, excluding the point.
+    private static readonly Regex HoleDepthEnd = new(@"\bEnd\s*:\s*(?:(?<kind>ShaftDepth|TotalDepth)\s*\(\s*(?<depth>[-+.\d]+)mm\s*\)|(?<kind>Blind)\s+(?<depth>[-+.\d]+)mm)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex HoleFrom = new(@"\bFrom\s*:\s*(?<plane>\w+(?:\.\w+)?)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleTermination = new(@"\bTermination\s*:\s*DrillPoint\b(?:\s*\{\s*PointAngle\s*:\s*(?<angle>[-+.\d]+)deg\s*\})?", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleRole = new(@"\bRole\s*:\s*(?<role>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex SlotHeader = new(@"\bSlot\s*<\s*(?<variant>\w+)\s*>\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -678,14 +679,23 @@ public static class PrismaticProfileCompositionParser
             fields.Complete();
             if (from.Success)
             {
+                if (Regex.IsMatch(body, @"\bTermination\s*:\s*Flat", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase))
+                { diagnostics.Add($"compose-construction-plane-blind-hole-invalid-contract:{name}: A hole drilled from a Construction Plane ends in a drill point; a flat floor from a plane is not supported."); continue; }
+                // A blind drilled hole has a 118° point unless Termination says otherwise.
                 if (!string.Equals((FirmamentSyntaxValues.Reference(declaration.Type.Arguments.FirstOrDefault()?.Value) ?? ""), "Shaft", StringComparison.OrdinalIgnoreCase)
-                    || !depthEnd.Success || !termination.Success)
-                { diagnostics.Add($"compose-construction-plane-blind-hole-invalid-contract:{name}"); continue; }
+                    || !depthEnd.Success || !termination.Success && Regex.IsMatch(body, @"\bTermination\s*:", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase))
+                { diagnostics.Add($"compose-construction-plane-blind-hole-invalid-contract:{name}: A Hole<Shaft> From a Construction Plane needs End: Blind <depth>, ShaftDepth(...) or TotalDepth(...), and optionally Termination: DrillPoint {{ PointAngle: ... }}."); continue; }
                 if (!center.Success || !diameter.Success) { diagnostics.Add($"compose-construction-plane-blind-hole-missing-center-or-diameter:{name}"); continue; }
-                var trace = ResolveConstructionPlaneTrace(source, from.Groups["plane"].Value);
+                // From: Outline.FrontMiddle names the plane a straight Path step sweeps; From: Work names a Construction Plane.
+                var fromName = from.Groups["plane"].Value;
+                var pathStep = fromName.Split('.');
                 string? planeDiagnostic = null; string? frameDiagnostic = null;
-                if (trace is null || !ConceptIrResolver.TryResolvePlane(source, trace, out var conceptPlane, out planeDiagnostic)
-                    || conceptPlane is null
+                ConceptIrPlaneValue? conceptPlane = null;
+                var trace = pathStep.Length == 2 ? null : ResolveConstructionPlaneTrace(source, fromName);
+                var resolved = pathStep.Length == 2
+                    ? ProfileAuthoringParser.TryDerivePathStepPlane(source, pathStep[0], pathStep[1], out conceptPlane, out planeDiagnostic)
+                    : trace is not null && ConceptIrResolver.TryResolvePlane(source, trace, out conceptPlane, out planeDiagnostic);
+                if (!resolved || conceptPlane is null
                     || !ConstructionPlane.TryTrace($"construction:{from.Groups["plane"].Value}", conceptPlane, $"offset:{declaration.Span.Start}", out var plane, out frameDiagnostic))
                 { diagnostics.Add(planeDiagnostic ?? frameDiagnostic ?? $"compose-construction-plane-not-found:{from.Groups["plane"].Value}"); continue; }
                 var localX = N(center, "x"); var localY = N(center, "y"); var localDiameter = N(diameter, "d"); var declaredDepth = N(depthEnd, "depth");

@@ -1,0 +1,8 @@
+// A top-face blind hole on Box stock: Blind ends in the default 118° drill point.
+Model BlindDrillPointDefault {
+    units: mm
+    Box Base { size: [60mm, 40mm, 20mm] }
+    Modify Base {
+        Hole<Shaft> Default { on: +Z; center: Point2(-15mm, 5mm); diameter: 8mm; end: Blind 10mm }
+    }
+}

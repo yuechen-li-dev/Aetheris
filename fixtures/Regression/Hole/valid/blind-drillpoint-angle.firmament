@@ -1,0 +1,8 @@
+// A top-face blind hole with an explicit 135° drill point.
+Model BlindDrillPointAngle {
+    units: mm
+    Box Base { size: [60mm, 40mm, 20mm] }
+    Modify Base {
+        Hole<Shaft> Steep { on: +Z; center: Point2(-15mm, 5mm); diameter: 8mm; end: Blind 10mm; termination: DrillPoint { pointAngle: 135deg } }
+    }
+}

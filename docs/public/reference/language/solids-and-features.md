@@ -104,6 +104,58 @@ This bounded stack rejects arbitrary placements, mismatched joining radii, radia
 `end` is `ThroughAll` or `Blind <depth>`, for example `end: Blind 10mm`. A field
 from another variant, such as `counterboreDepth` on a Shaft hole, is an error.
 
+A blind `Hole<Shaft>` is a drilled hole. It ends in a 118° drill point, and its
+depth is the full-diameter depth, excluding the point, as drawings dimension it.
+`termination` changes the end:
+
+| `termination` | End of the hole |
+| --- | --- |
+| omitted, or `DrillPoint` | 118° drill point |
+| `DrillPoint { pointAngle: 135deg }` | drill point with that included angle |
+| `Flat` | flat floor (a flat-bottom drill or end mill) |
+
+`termination` applies to blind holes only. Blind counterbores and countersinks
+have flat floors; a drill point on them is rejected. On Box stock, the top-face
+drill point is built in a plane derived from the box, never from a face
+reference.
+
+### Holes from a plane
+
+`from` replaces `on` to drill from a plane instead of a host face. Name an
+explicit `Construction Plane` (Box and Compose bodies), or, on a Compose body, a
+straight step of a closed Path, normally the Path its Profile is traced from:
+
+```firmament
+Hole<Shaft> SideDrill { from: Outline.FrontMiddle; center: Point2(-30mm, -25mm); diameter: 20mm; end: Blind 45mm }
+Mirrored Feature SideDrillMirror from SideDrill { across: CenterPlane }
+```
+
+`Outline.FrontMiddle` is shorthand for the plane that step sweeps when the Path is
+extruded. It is computed from the Path alone, so it moves when the Path changes
+and never refers to a body face. Written out, it is
+`Plane { origin: <foot of the sketch origin on the step's line>; normal: <into the material>; up: [0, 0, 1] }`.
+`center` is in that plane's frame: v runs along the extrusion (+Z), the hole runs
+into the material, and u completes a right-handed frame. For a counter-clockwise
+outline, u therefore runs against the step's direction; on a front edge stepped
+along +X, u is world −X. The
+[CTC-01 reconstruction](../../../../fixtures/Regression/Decompile/ctc-01.firmament)
+uses this form.
+
+Rules:
+
+- `end` is `Blind <depth>`, `ShaftDepth(<depth>)` or `TotalDepth(<depth>)`
+  (depth including the point). The hole ends in a drill point; `termination:
+  Flat` from a plane is rejected.
+- The mouth must lie wholly inside one planar side face of the body, which must
+  coincide with the plane. Coplanar faces separated by notches are told apart by
+  their own boundaries.
+- On Box stock the plane's axes must be signed world axes. On a Compose body the
+  drill direction is ±X or ±Y. The full-radius tool
+  envelope through the point must stay in material, and envelopes of different
+  drills must not touch.
+- A Path-step plane needs a straight `Line` step of a closed Path in the XY
+  sketch.
+
 In a Compose body, all three variants are supported on the `+Z` support with
 `end: ThroughAll`:
 
@@ -114,8 +166,8 @@ In a Compose body, all three variants are supported on the `+Z` support with
   slots. Overlapping or tangent entries and breakouts through a wall reject.
 - A counterbore or countersink must leave a positive length of plain shaft below
   it. A countersink is an exact cone.
-- Holes on other supports of a Compose body, and blind counterbores or
-  countersinks there, are not supported.
+- Blind holes on `+Z` of a Compose body, and holes on its other faces through
+  `on`, are not supported; drill side holes with `from`.
 
 ## Edge finishes
 

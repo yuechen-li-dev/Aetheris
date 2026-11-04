@@ -1,0 +1,25 @@
+// Three blind drilled holes from Path-step planes. The front edge is split by a notch, so FrontLeft and FrontRight
+// are coplanar faces of the same slab; each drill must land in its own face. Default 118° points.
+Model PathStepPlaneDrills {
+    units: mm
+    Path Outline {
+        start: Point2(-30mm, -15mm)
+        heading: 0deg
+        Line FrontLeft { length: 20mm }
+        Line NotchIn { turn: 90deg; length: 5mm }
+        Line NotchFloor { turn: -90deg; length: 20mm }
+        Line NotchOut { turn: -90deg; length: 5mm }
+        Line FrontRight { turn: 90deg; length: 20mm }
+        Line Right { turn: 90deg; length: 30mm }
+        Line Back { turn: 90deg; length: 60mm }
+        Close Left
+    }
+    Profile Plate from Outline
+    Compose Body { Base Stock { profile: Plate; from: -10mm; to: 0mm; role: Stock } }
+    Modify Body {
+        // u runs against each step's direction: world -X on the front edge, +X on the back edge.
+        Hole<Shaft> FrontLeftDrill { from: Outline.FrontLeft; center: Point2(20mm, -5mm); diameter: 4mm; end: Blind 8mm }
+        Hole<Shaft> FrontRightDrill { from: Outline.FrontRight; center: Point2(-20mm, -5mm); diameter: 4mm; end: Blind 8mm }
+        Hole<Shaft> BackDrill { from: Outline.Back; center: Point2(0mm, -5mm); diameter: 4mm; end: Blind 8mm }
+    }
+}

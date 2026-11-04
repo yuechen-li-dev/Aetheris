@@ -57,7 +57,10 @@ internal static class FirmamentV2SemanticHoleLowering
         {
             FirmamentV2SemanticHoleVariant.Counterbore => AirHoleFeature.CreateCounterbore(hole.Name, $"{modify.TargetSolid}.{hole.Name}", modify.TargetSolid, placement, axis, shaft, endCondition, new AirHoleCounterboreComponent(Required(hole.CounterboreDiameter, "CounterboreDiameter"), Required(hole.CounterboreDepth, "CounterboreDepth")), provenance),
             FirmamentV2SemanticHoleVariant.Countersink => AirHoleFeature.CreateCountersink(hole.Name, $"{modify.TargetSolid}.{hole.Name}", modify.TargetSolid, placement, axis, shaft, endCondition, new AirHoleCountersinkComponent(Required(hole.CountersinkDiameter, "CountersinkDiameter"), Required(hole.CountersinkAngleDegrees, "CountersinkAngle")), provenance),
-            _ => AirHoleFeature.CreateSimpleShaft(hole.Name, $"{modify.TargetSolid}.{hole.Name}", modify.TargetSolid, placement, axis, shaft, endCondition, provenance)
+            _ => hole.Termination is { Kind: FirmamentV2SemanticHoleTerminationKind.DrillPoint } tip
+                ? AirHoleFeature.CreateSimpleShaft(hole.Name, $"{modify.TargetSolid}.{hole.Name}", modify.TargetSolid, placement, axis, shaft, endCondition, provenance)
+                    with { Termination = new AirHoleTermination.DrillPoint(tip.PointAngleDegrees ?? AirHoleTermination.DrillPoint.DefaultPointAngleDegrees) }
+                : AirHoleFeature.CreateSimpleShaft(hole.Name, $"{modify.TargetSolid}.{hole.Name}", modify.TargetSolid, placement, axis, shaft, endCondition, provenance)
         };
     }
 

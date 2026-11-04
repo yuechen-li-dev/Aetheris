@@ -103,6 +103,41 @@ steps, but none are in the public docs. `Notch` is rectangular with sharp corner
 CTC-01's notches still need a corner radius, and its V-notches a V form with a tip radius. Item 3 is
 better framed as extending these steps than as new path primitives.
 
+## Follow-up: drilled holes (item 1)
+
+Plane-hosted holes already existed as `Hole<Shaft> { From: <Construction Plane>; End: ShaftDepth(...);
+Termination: DrillPoint }`. The public docs said they were unsupported. On CTC-01 they failed for reasons
+that were bugs and limits, not missing design:
+
+- **Mouth-face selection matched only plane and Z slab.** The front edge is three coplanar faces split by the
+  V-notches, so the match was ambiguous. A mouth host must now enclose the mouth disk inside its own boundary.
+  Faces the disk merely touches stay candidates, so tangency is still refused.
+- **Only one drill per body.** Drills now apply in sequence to the exact plan. A pairwise check (segment
+  distance against the sum of radii, through total depth) refuses touching tool envelopes, and an
+  already-drilled face can host another mouth.
+- **The drilled face's geometry binding was copied after the face was removed.** STEP preflight rejected the
+  dangling binding in the composed-chamfer route.
+- **The composed-chamfer route re-emitted the stack without its drills.** Both routes now apply drills through
+  one helper.
+
+New behaviour:
+
+- **Blind means drilled.** A blind `Hole<Shaft>` ends in a 118° point. `termination: DrillPoint { pointAngle }`
+  changes the angle and `termination: Flat` keeps a flat floor. `End: Blind <d>` is the full-diameter depth.
+  On Box stock, the top-face drill is built in a plane derived from the box (X, −Y, −Z at the top centre).
+- **`From: Outline.FrontMiddle`** names the plane a straight Path step sweeps. It is computed from source as
+  the Concept plane an author would write. Right-handedness forces its u axis to run against the step for a
+  counter-clockwise outline, the same frame an explicit plane with that normal and up gets.
+- The canonical blind-hole example, the Learn lesson and the reference describe the new default. The
+  all-edge rounding witness states `termination: Flat`.
+
+CTC-01 now drills both side holes as `from: Outline.FrontMiddle; end: Blind 45mm` plus a mirror. Carriers are
+75/85 with 0 extra, and IoU is 0.9989. Everything still missing is fillet: the lug underside R10 and the hex
+foot R5.
+
+`analyze compare --shape` also skips rays with an odd crossing count, near cone apexes and seams, on both
+sides. It used to read them as empty, which showed about 1100 mm³ of false difference per drill tip.
+
 ## Verdict
 
 Meaningful progression. CTC-01 builds with every feature Firmament can express, and the comparison

@@ -109,6 +109,8 @@ internal static class AirHoleSimpleShaftMaterializer
     {
         if (feature.ConstructionPlanePlacement is { } constructionPlacement)
             return ExecuteConstructionPlaneThroughAll(feature, host, constructionPlacement);
+        if (TopFaceDrillPoint(feature, host) is { } drilled)
+            return ExecuteConstructionPlaneThroughAll(drilled, host, drilled.ConstructionPlanePlacement!);
 
         var footprint = AirHoleFootprint.Classify(feature, host, FootprintTolerance);
         if (footprint.Contact is AirHoleFootprintContact.Tangent or AirHoleFootprintContact.Misses)
@@ -172,6 +174,30 @@ internal static class AirHoleSimpleShaftMaterializer
         var correspondence = BuildCorrespondence(planResult.Plan, execution.Body);
         diagnostics.Add("air-hole-x2 semantic correspondence published: entry/exit loops and edges plus shaft wall face.");
         return new(AirHoleSimpleShaftMaterializationStatus.Succeeded, planResult.Plan, execution.Body, diagnostics, correspondence);
+    }
+
+    /// <summary>
+    /// A blind drilled hole on the top face is the same construction as a drill from a plane coincident with that
+    /// face: the plane is derived from the host, never a reference to its face. The frame is right-handed (X, -Y, -Z)
+    /// at the top centre, so the face-local (U, V) maps to local (U, -V) and the drill enters along -Z.
+    /// </summary>
+    private static AirHoleFeature? TopFaceDrillPoint(AirHoleFeature feature, AirHoleSimpleShaftHost host)
+    {
+        if (feature.Placement is not AirFaceLocalHolePlacement { FaceName: "top" } face
+            || feature.Termination is not AirHoleTermination.DrillPoint
+            || feature.EndCondition is not AirHoleEndCondition.Depth depth
+            || feature.Stack.Kind != AirHoleStackKind.SimpleShaft) return null;
+        var placement = new AirConstructionPlaneHolePlacement($"derived:{feature.TargetBodyId}.top", $"derived:{feature.TargetBodyId}.top",
+            new Aetheris.Kernel.Core.Math.Point3D(0d, 0d, host.ZMax),
+            Direction3D.Create(new Vector3D(1d, 0d, 0d)), Direction3D.Create(new Vector3D(0d, -1d, 0d)), Direction3D.Create(new Vector3D(0d, 0d, -1d)),
+            face.U, -face.V, "", "top-face-derived-plane");
+        return feature with
+        {
+            Placement = placement,
+            Axis = new AirHoleAxis(placement.AxisZ, false),
+            EndCondition = new AirHoleEndCondition.ShaftDepth(depth.Value),
+            Stack = AirHoleStack.SimpleShaft(feature.Shaft, new AirHoleEndCondition.ShaftDepth(depth.Value))
+        };
     }
 
     public static AirHoleSimpleShaftMaterializationResult TryCreatePlan(AirHoleFeature feature, AirHoleSimpleShaftHost host)

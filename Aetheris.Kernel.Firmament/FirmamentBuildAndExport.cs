@@ -525,16 +525,8 @@ public static partial class FirmamentBuildAndExport
             var emitted = PrismaticSectionStackEmitter.Emit(stack);
             if (emitted.Body is null)
                 return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition")).ToArray());
-            if ((stack.Feature.ConstructionPlaneBlindDrills?.Count ?? 0) > 0)
-            {
-                var finalPlan = SectionStackBlindDrillComposeBridge.TryApply(stack, emitted.Plan!, out var bridgeDiagnostics, out _);
-                if (finalPlan?.TopologyPlan is null)
-                    return KernelResult<FirmamentStepExportResult>.Failure(bridgeDiagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition.BlindDrill")).ToArray());
-                var materialized = PrismaticSectionStackBrepMaterializer.TryMaterialize(finalPlan.TopologyPlan);
-                if (materialized.Body is null)
-                    return KernelResult<FirmamentStepExportResult>.Failure(materialized.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition.BlindDrill")).ToArray());
-                emitted = new PrismaticSectionStackEmissionResult(materialized.Body, finalPlan, emitted.Diagnostics.Concat(bridgeDiagnostics).ToArray(), finalPlan.Correspondence);
-            }
+            if (ApplyConstructionPlaneBlindDrills(stack, emitted, out var drilled) is { } drillFailure) return drillFailure;
+            emitted = drilled;
             if (materializerSource.Contains("EdgeFinish", StringComparison.Ordinal))
                 return ExportComposedSemanticTopBoundaryChamfer(materializerSource, parsed, stack, emitted, v2Parse.Document);
             // The composition route either retained the checked body above or
@@ -1168,6 +1160,23 @@ public static partial class FirmamentBuildAndExport
             "template-exact-construction", "ExactCoaxialPart", ConceptIr: document.ConceptIr, StandardPart: report));
     }
 
+    /// <summary>Applies a section stack's construction-plane blind drills to an emitted plan and materializes the
+    /// result; returns a failure, or null with the drilled emission (unchanged when there are no drills).</summary>
+    private static KernelResult<FirmamentStepExportResult>? ApplyConstructionPlaneBlindDrills(
+        PrismaticSectionStackConstruction stack, PrismaticSectionStackEmissionResult emitted, out PrismaticSectionStackEmissionResult result)
+    {
+        result = emitted;
+        if ((stack.Feature.ConstructionPlaneBlindDrills?.Count ?? 0) == 0) return null;
+        static KernelResult<FirmamentStepExportResult> Failure(IEnumerable<string> codes) => KernelResult<FirmamentStepExportResult>.Failure(codes.Select(x =>
+            new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition.BlindDrill")).ToArray());
+        var finalPlan = SectionStackBlindDrillComposeBridge.TryApply(stack, emitted.Plan!, out var bridgeDiagnostics, out _);
+        if (finalPlan?.TopologyPlan is null) return Failure(bridgeDiagnostics);
+        var materialized = PrismaticSectionStackBrepMaterializer.TryMaterialize(finalPlan.TopologyPlan);
+        if (materialized.Body is null) return Failure(materialized.Diagnostics);
+        result = new PrismaticSectionStackEmissionResult(materialized.Body, finalPlan, emitted.Diagnostics.Concat(bridgeDiagnostics).ToArray(), finalPlan.Correspondence);
+        return null;
+    }
+
     private static KernelResult<FirmamentStepExportResult> ExportComposedSemanticTopBoundaryChamfer(
         string source, PrismaticProfileCompositionParseResult parsed, PrismaticSectionStackConstruction stack, PrismaticSectionStackEmissionResult emitted,
         FirmamentV2Document? canonicalDocument)
@@ -1211,6 +1220,9 @@ public static partial class FirmamentBuildAndExport
             if (adjusted is null) return Fail(planDiagnostics.FirstOrDefault() ?? "ProfileBoundaryChamferComposeTopologyPlanNotMaterialized");
             var plannedEmission = PrismaticSectionStackEmitter.Emit(adjusted);
             if (plannedEmission.Body is null) return Fail(plannedEmission.Diagnostics.FirstOrDefault() ?? "ProfileBoundaryChamferComposeMaterializationFailed");
+            // The chamfer re-emits the adjusted stack, so construction-plane drills apply again to that plan.
+            if (ApplyConstructionPlaneBlindDrills(adjusted, plannedEmission, out var drilledEmission) is { } chamferDrillFailure) return chamferDrillFailure;
+            plannedEmission = drilledEmission;
             if (!FirmamentManifoldChecker.IsManifold(plannedEmission.Body)) return Fail("ProfileBoundaryChamferNonManifold");
             var semanticPmi = Array.Empty<Step242SemanticPmi>();
             if (canonicalDocument is not null)

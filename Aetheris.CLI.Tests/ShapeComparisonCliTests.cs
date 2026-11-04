@@ -52,14 +52,15 @@ public sealed class ShapeComparisonCliTests
 
         // Everything the reconstruction builds is on the original's surfaces.
         Assert.Empty(result.Carriers.ExtraInCandidate);
-        Assert.True(result.Overlap.IntersectionOverUnion >= 0.996, $"IoU {result.Overlap.IntersectionOverUnion}");
+        Assert.True(result.Overlap.IntersectionOverUnion >= 0.9985, $"IoU {result.Overlap.IntersectionOverUnion}");
+        Assert.True(result.Carriers.MatchedCarrierCount >= 75, $"matched {result.Carriers.MatchedCarrierCount}");
 
         // What is missing is exactly the features Firmament cannot yet express (see the fixture's header).
         // Closing one of these gaps shrinks this list; a new kind of discrepancy fails here.
         foreach (var carrier in result.Carriers.MissingFromCandidate)
         {
             Assert.True(
-                IsSideDrill(carrier) || IsHexFootFillet(carrier) || IsLugUndersideFillet(carrier),
+                IsHexFootFillet(carrier) || IsLugUndersideFillet(carrier),
                 $"Unexpected missing carrier: {carrier.Description}");
         }
     }
@@ -94,10 +95,6 @@ public sealed class ShapeComparisonCliTests
         Assert.Equal(1, shape.GetProperty("carriers").GetProperty("missingFromCandidate").GetArrayLength());
         Assert.True(shape.GetProperty("overlap").GetProperty("candidateOnlyVolume").GetDouble() > 0);
     }
-
-    private static bool IsSideDrill(StepShapeComparison.CarrierGroup c)
-        => c.BoundsMin is { } lo && c.BoundsMax is { } hi && lo[1] >= -125.01 && hi[1] <= -73.9 && lo[2] >= -35.01 && hi[2] <= -14.99
-           && (c.Kind == "Cone" || (c.Kind == "Cylinder" && c.Description.Contains("r=10 ", StringComparison.Ordinal)));
 
     private static bool IsHexFootFillet(StepShapeComparison.CarrierGroup c)
         => c.Kind == "Cylinder" && c.Description.Contains("r=5 ", StringComparison.Ordinal) && c.BoundsMax is { } hi && hi[2] <= 5.01;

@@ -489,6 +489,11 @@ internal static class ConceptIrResolver
                 var localEnd = ParseConstructionPlaneHoleEnd(localEndText);
                 if (localEnd is null) { diagnostics.Add(string.Equals(localEndText, "Blind", StringComparison.OrdinalIgnoreCase) ? FirmamentV2Parser.HoleConstructionPlaneExtentUnsupported : FirmamentV2Parser.HoleBlindDepthInvalid); continue; }
                 var termination = ParseConstructionPlaneHoleTermination(holeBody, diagnostics);
+                if (Regex.IsMatch(holeBody, @"\btermination\s*:\s*Flat", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+                { diagnostics.Add($"{FirmamentV2Parser.HoleConstructionPlaneExtentUnsupported}: A hole drilled from a Construction Plane ends in a drill point; a flat floor from a plane is not supported."); continue; }
+                // A blind drilled hole has a 118° point unless Termination says otherwise.
+                if (termination is null && localEnd.Kind != FirmamentV2SemanticHoleEndKind.ThroughAll && !Regex.IsMatch(holeBody, @"\btermination\s*:", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+                    termination = new(FirmamentV2SemanticHoleTerminationKind.DrillPoint, AirHoleTermination.DrillPoint.DefaultPointAngleDegrees);
                 if (localEnd.Kind == FirmamentV2SemanticHoleEndKind.ThroughAll)
                 {
                     if (termination is not null) { diagnostics.Add(FirmamentV2Parser.HoleTerminationConflictsWithExtent); continue; }
@@ -1034,11 +1039,12 @@ internal static class ConceptIrResolver
     private static FirmamentV2SemanticHoleEnd? ParseConstructionPlaneHoleEnd(string value)
     {
         if (string.Equals(value, "ThroughAll", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "Through", StringComparison.OrdinalIgnoreCase)) return new(FirmamentV2SemanticHoleEndKind.ThroughAll);
-        var match = Regex.Match(value, @"^(?<kind>ShaftDepth|TotalDepth)\s*\(\s*(?<value>[^)]+)\s*\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        // "Blind 45mm" is the shaft depth: the full-diameter depth, excluding the point.
+        var match = Regex.Match(value, @"^(?:(?<kind>ShaftDepth|TotalDepth)\s*\(\s*(?<value>[^)]+)\s*\)|(?<kind>Blind)\s+(?<value>\S+))$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (!match.Success) return null;
         var depth = ParseLengthOrUnitless(match.Groups["value"].Value);
-        if (!double.IsFinite(depth) || (string.Equals(match.Groups["kind"].Value, "ShaftDepth", StringComparison.OrdinalIgnoreCase) ? depth < 0d : depth <= 0d)) return null;
-        return new(string.Equals(match.Groups["kind"].Value, "ShaftDepth", StringComparison.OrdinalIgnoreCase) ? FirmamentV2SemanticHoleEndKind.ShaftDepth : FirmamentV2SemanticHoleEndKind.TotalDepth, depth);
+        if (!double.IsFinite(depth) || (string.Equals(match.Groups["kind"].Value, "TotalDepth", StringComparison.OrdinalIgnoreCase) ? depth <= 0d : depth < 0d)) return null;
+        return new(string.Equals(match.Groups["kind"].Value, "TotalDepth", StringComparison.OrdinalIgnoreCase) ? FirmamentV2SemanticHoleEndKind.TotalDepth : FirmamentV2SemanticHoleEndKind.ShaftDepth, depth);
     }
     private static FirmamentV2SemanticHoleTermination? ParseConstructionPlaneHoleTermination(string body, List<string> diagnostics)
     {

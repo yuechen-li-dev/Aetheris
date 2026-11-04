@@ -3,8 +3,6 @@
 // notches in the long edges. Compare against the original with
 //   aetheris analyze compare <original.stp> <this.step> --shape
 // Not expressible yet, and therefore absent here:
-//   - two horizontal Ø20 blind drilled holes with 118° points entering the -Y face at x = ±30, z = -25
-//     (Compose holes are +Z through holes only);
 //   - the R5 fillet at the hex boss's foot (a second finish on the body, and a concave boss foot);
 //   - R10 fillets where the lugs' inner walls meet the plate underside (no selection of individual
 //     concave edges).
@@ -132,6 +130,10 @@ Model Ctc01 {
         Mirrored Feature LugHoleBackRight from LugHoleBackLeft { across: CenterPlane }
         Mirrored Feature LugHoleFrontLeft from LugHoleBackLeft { across: MidPlane }
         Mirrored Feature LugHoleFrontRight from LugHoleBackRight { across: MidPlane }
+        // Two Ø20 blind drilled holes into the front face, 45 mm full-diameter depth with the default 118° point.
+        // The plane is the one the Outline's FrontMiddle step sweeps; its u axis runs along world -X.
+        Hole<Shaft> SideDrillRight { from: Outline.FrontMiddle; center: Point2(-30mm, -25mm); diameter: 20mm; end: Blind 45mm }
+        Mirrored Feature SideDrillLeft from SideDrillRight { across: CenterPlane }
         EdgeFinish<Chamfer> HexTop { on: Top; target: HexBoss.Outer; distance: 5mm }
     }
 }

@@ -217,8 +217,7 @@ public static class StepShapeComparison
         var candidateOnlyColumns = new (double Length, double ZMin, double ZMax)[nx * ny];
         for (var k = 0; k < nx * ny; k++)
         {
-            var r = referenceColumns[k];
-            var c = candidateColumns[k];
+            if (referenceColumns[k] is not { } r || candidateColumns[k] is not { } c) continue;
             referenceVolume += Length(r) * area;
             candidateVolume += Length(c) * area;
             union += Length(Combine(r, c, (a, b) => a || b)) * area;
@@ -255,7 +254,7 @@ public static class StepShapeComparison
             "Parallel +Z rays at cell centres through each side's display tessellation (chord 0.02); inside intervals by crossing parity.");
     }
 
-    private static List<double>[] CastColumns(DisplayTessellationResult mesh, Point3D min, double cell, int nx, int ny, out int unpaired)
+    private static List<double>?[] CastColumns(DisplayTessellationResult mesh, Point3D min, double cell, int nx, int ny, out int unpaired)
     {
         var bins = new List<Triangle>[nx * ny];
         foreach (var patch in mesh.FacePatches)
@@ -279,7 +278,7 @@ public static class StepShapeComparison
         // An irrational offset keeps ray centres off mesh vertices and edges, which sit on round numbers.
         const double jitterX = 0.5d + 0.0012345678d;
         const double jitterY = 0.5d - 0.0008765432d;
-        var columns = new List<double>[nx * ny];
+        var columns = new List<double>?[nx * ny];
         var odd = 0;
         Parallel.For(0, nx * ny, k =>
         {
@@ -292,10 +291,13 @@ public static class StepShapeComparison
             }
 
             hits.Sort();
+            // An odd crossing count (a ray grazing a seam or apex) cannot be classified; it is skipped on
+            // both sides rather than read as empty, which would show as a false difference.
             if (hits.Count % 2 != 0)
             {
                 Interlocked.Increment(ref odd);
-                hits.Clear();
+                columns[k] = null;
+                return;
             }
 
             columns[k] = hits;

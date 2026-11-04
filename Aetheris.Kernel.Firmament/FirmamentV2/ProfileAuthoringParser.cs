@@ -540,6 +540,32 @@ public static class ProfileAuthoringParser
         _ => double.NaN
     };
 
+    /// <summary>
+    /// The plane a straight Path step sweeps when its closed Path is extruded along the sketch normal, written as
+    /// the explicit Concept plane an author would declare: origin at the foot of the sketch origin on the step's line,
+    /// normal pointing into the material (to the left of a counter-clockwise loop), up along +Z. It is computed from
+    /// source alone, so the plane moves with the Path and never refers to a body face.
+    /// </summary>
+    internal static bool TryDerivePathStepPlane(string source, string path, string step, out ConceptIrPlaneValue? plane, out string? diagnostic)
+    {
+        plane = null; diagnostic = null;
+        var diagnostics = new List<string>();
+        var paths = BindPaths(source, new(StringComparer.Ordinal), new(StringComparer.Ordinal), diagnostics);
+        if (!paths.TryGetValue(path, out var bound)) { diagnostic = $"path-step-plane-path-unknown:{path}.{step}: '{path}' is not a Path in this model."; return false; }
+        var boundStep = bound.Steps.FirstOrDefault(s => s.Name == step);
+        if (boundStep is null) { diagnostic = $"path-step-plane-step-unknown:{path}.{step}: Path '{path}' has no step '{step}'."; return false; }
+        if (boundStep.Curves is not [LineArcLineSegment2D line]) { diagnostic = $"path-step-plane-not-straight:{path}.{step}: only a straight Line step sweeps a plane."; return false; }
+        var curves = bound.Steps.SelectMany(s => s.Curves).ToArray();
+        if (!IsClosed(curves)) { diagnostic = $"path-step-plane-path-open:{path}.{step}: the Path must be closed for its inside to be known."; return false; }
+        var dx = line.End.X - line.Start.X; var dy = line.End.Y - line.Start.Y; var length = Math.Sqrt(dx * dx + dy * dy);
+        dx /= length; dy /= length;
+        var inward = SignedArea(curves) > 0 ? (X: -dy, Y: dx) : (X: dy, Y: -dx);
+        var along = -(line.Start.X * dx + line.Start.Y * dy);
+        var foot = (X: line.Start.X + dx * along, Y: line.Start.Y + dy * along);
+        plane = new ConceptIrPlaneValue($"path-step:{path}.{step}", new(foot.X, foot.Y, 0d), new(inward.X, inward.Y, 0d), $"derived from Path step {path}.{step}", new(0d, 0d, 1d));
+        return true;
+    }
+
     private static IReadOnlyDictionary<string, BoundPath> BindPaths(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics)
     {
         var result = new Dictionary<string, BoundPath>(StringComparer.Ordinal);

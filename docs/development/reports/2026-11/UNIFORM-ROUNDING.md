@@ -170,3 +170,39 @@ outward, read back at r, and Remove(Round(x)) restores x's faces and edges.
 Refused by name: `boss-mixed-corner` (two concave and one convex at each foot
 corner), `pocket-split-face` (the composed plate's walls are split in two
 coplanar faces at the pocket's depth: needs a coplanar-face merge first).
+
+## Stabilization
+
+Swept every fixture plus off-centre variants (14 bodies) over r = 0.02 … 5 mm
+through the real Firmament path (112 cases). Checked per success: every edge
+used once each way after STEP, watertight and outward SurfaceMeshIR mesh,
+certificate strips at r, STEP face count, volume change bounded by area·r;
+per refusal: a named code, a reported fit not above r, and 0.98·fit building.
+
+Found and fixed:
+
+- A contact edge just over the construction tolerance but too short for a
+  direction crashed `NewEdge` near the limit; degenerate edges now refuse as a
+  size limit, so the fit bisection treats them like any other.
+- Asking for exactly the limit read "largest that fits is under 2 mm" for r = 2;
+  now says the radius asked for is the limit itself.
+- Firmament's profile revolve wrote a full revolution's annular caps in profile
+  order with no boundary roles, so an inward-walking profile put the hole first
+  and STEP re-import flipped the cap (a sleeve measured 1553 mm³ for 4712; a
+  stepped bushing did not mesh at all). Caps now put the larger circle first
+  and bind outer/inner roles: the sleeve meshes at 4688.5 (tessellated) and
+  re-imports with no orientation mismatch, either profile direction.
+
+Limits are exact against hand checks: a R10 cylinder r < 5 (rim torus major
+R − r > r), a 6 mm-cornered rounded rect r < 3, a 3 mm-walled bushing or
+counterbore shoulder r < 1.5, a Ø8 blind floor r < 2, a Ø6 bore 10 mm from a
+wall r < 3.5 and 8 mm off-centre r < 2.5. Volume losses follow Pappus (R10
+cylinder, r = 2: 103 mm³ exact, 107 tessellated).
+
+Wireframes (`aetheris wireframe … --view iso`) of the fixtures show the
+expected strips, tori, corners and the L's filled inner corner. The renderer
+draws no isolines on periodic faces with seams (cylinder sides, closed-rim
+tori) even on unrounded bodies: a renderer limit, not the rounding.
+
+Regression: `RadiusSweep_EitherSoundOrRefusedWithAFitThatBuilds` (9 fixtures ×
+5 radii) and `RevolvedAnnulusCapTests`.

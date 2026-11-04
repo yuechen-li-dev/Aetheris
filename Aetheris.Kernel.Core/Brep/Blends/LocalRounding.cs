@@ -379,8 +379,11 @@ internal static class LocalRounding
             s.Centre = centre.Value;
         }
 
-        return Build(body, radius, tol, points, supports, oriented, shapes, sharp, kept, seams, plans, boundaries);
+        try { return Build(body, radius, tol, points, supports, oriented, shapes, sharp, kept, seams, plans, boundaries); }
+        catch (Degenerate) { return TooLarge(radius, "the rounding shrinks an edge to nothing"); }
     }
+
+    private sealed class Degenerate : Exception;
 
     private static Outcome Build(BrepBody body, double radius, double tol, Dictionary<VertexId, Point3D> points, Dictionary<FaceId, Support> supports,
         Dictionary<FaceId, List<List<(EdgeId Edge, bool Reversed)>>> oriented, Dictionary<EdgeId, Shape> shapes, Dictionary<EdgeId, Sharp> sharp,
@@ -398,6 +401,10 @@ internal static class LocalRounding
         VertexId NewVertex(Point3D p) { var id = builder.AddVertex(); positions[id] = p; return id; }
         EdgeId NewEdge(VertexId a, VertexId b, Shape shape)
         {
+            // An edge too short or an arc too small to have a direction: the radius has used it up.
+            if (!Direction3D.TryCreate(shape.Arc ? shape.Normal : shape.End - shape.Start, out _) || shape.Arc && !Direction3D.TryCreate(shape.Start - shape.Center!.Value, out _)
+                || shape.Arc && shape.Sweep <= 1e-9)
+                throw new Degenerate();
             var edge = builder.AddEdge(a, b); var id = new CurveGeometryId(geometry.Curves.Count() + 1);
             if (shape.Arc)
             {

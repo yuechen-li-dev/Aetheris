@@ -31,7 +31,10 @@ public static class UniformRounding
         if (refusal.Code != TooLargeCode) return Failure(refusal.Code, refusal.Message);
         var (lo, hi) = (0d, radius);
         for (var i = 0; i < 40; i++) { var mid = 0.5 * (lo + hi); if (LocalRounding.RoundAll(body, mid).Body is not null) lo = mid; else hi = mid; }
-        return Failure(refusal.Code, $"{refusal.Message}; the largest that fits is under {hi:G6} mm");
+        // Every smaller radius tried fits: the one asked for is the limit itself.
+        return Failure(refusal.Code, hi >= radius * (1 - 1e-9)
+            ? $"{refusal.Message}; {radius:G6} mm is the limit itself, so the largest that fits is under {radius:G6} mm"
+            : $"{refusal.Message}; the largest that fits is under {hi:G6} mm");
     }
 
     public static KernelResult<BrepBody> RoundAllEdges(BrepBody body, double radius)

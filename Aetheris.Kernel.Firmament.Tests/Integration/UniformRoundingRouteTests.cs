@@ -203,6 +203,47 @@ public sealed class UniformRoundingRouteTests
         Assert.Contains(refused.Diagnostics, d => d.Code == UniformRoundingRoute.Code && d.Message.Contains("radius-too-large", StringComparison.Ordinal));
     }
 
+    /// <summary>Every fixture across radii from far below to beyond its limit: each result is either a body that
+    /// meshes watertight and outward with every strip at the radius, or a named refusal whose reported fit, taken
+    /// just under, builds.</summary>
+    [Theory]
+    [InlineData("cylinder-rounded")]
+    [InlineData("frustum-rounded")]
+    [InlineData("box-hole-rounded")]
+    [InlineData("d-profile-rounded")]
+    [InlineData("bushing-rounded")]
+    [InlineData("counterbore-rounded")]
+    [InlineData("blind-hole-rounded")]
+    [InlineData("rounded-rect-rounded")]
+    [InlineData("ell-rounded")]
+    public void RadiusSweep_EitherSoundOrRefusedWithAFitThatBuilds(string name)
+    {
+        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/UniformRounding", name + ".firmament"));
+        string With(double r) => System.Text.RegularExpressions.Regex.Replace(source, @"(target: AllEdges; radius: )[0-9.]+mm", m => m.Groups[1].Value + r.ToString(System.Globalization.CultureInfo.InvariantCulture) + "mm");
+        foreach (var r in new[] { 0.02, 0.5, 1.5, 3, 6 })
+        {
+            var built = FirmamentBuildAndExport.CompileSource(With(r));
+            if (!built.IsSuccess)
+            {
+                var message = Assert.Single(built.Diagnostics).Message;
+                Assert.Matches("uniform-rounding-[a-z-]+", message);
+                var fit = System.Text.RegularExpressions.Regex.Match(message, @"fits is under ([0-9.Ee+-]+) mm");
+                if (!fit.Success) continue;
+                var limit = double.Parse(fit.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                Assert.True(limit <= r, message);
+                Assert.True(FirmamentBuildAndExport.CompileSource(With(limit * 0.98)).IsSuccess, $"{limit * 0.98} should fit: {message}");
+                continue;
+            }
+            var body = Step242Importer.ImportBody(built.Value.StepText).Value;
+            Assert.All(body.Topology.Coedges.GroupBy(c => c.EdgeId), g => Assert.True(g.Count() == 2 && g.First().IsReversed != g.Last().IsReversed));
+            Assert.True(Aetheris.Kernel.Core.Brep.Tessellation.SurfaceMeshIrTessellator.TryBuild(body,
+                Aetheris.Kernel.Core.Brep.Tessellation.SurfaceMeshPolicy.FromDisplayOptions(Aetheris.Kernel.Core.Brep.Tessellation.DisplayTessellationOptions.Default), out var document, out var failure), $"r={r}: {failure}");
+            Assert.True(Aetheris.Kernel.Core.Brep.Tessellation.SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out _, out var mesh));
+            Assert.True(mesh.IsWatertight && mesh.IsOutwardOriented && mesh.SignedVolume > 0, $"r={r}: watertight={mesh.IsWatertight} outward={mesh.IsOutwardOriented}");
+            Assert.All(BlendRecognition.Recognize(body).Where(x => x.Role == BlendFaceRole.Strip), x => Assert.Equal(r, x.Blend!.Size, 6));
+        }
+    }
+
     private static string Root()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

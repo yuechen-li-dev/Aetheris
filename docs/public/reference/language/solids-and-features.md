@@ -123,7 +123,9 @@ reference.
 
 `from` replaces `on` to drill from a plane instead of a host face. Name an
 explicit `Construction Plane` (Box and Compose bodies), or, on a Compose body, a
-straight step of a closed Path, normally the Path its Profile is traced from:
+straight step of a closed Path or a named straight edge of a traced Profile's
+outer loop (for example one traced with `as Front`), normally the outline the
+body is built from:
 
 ```firmament
 Hole<Shaft> SideDrill { from: Outline.FrontMiddle; center: Point2(-30mm, -25mm); diameter: 20mm; end: Blind 45mm }
@@ -131,7 +133,7 @@ Mirrored Feature SideDrillMirror from SideDrill { across: CenterPlane }
 ```
 
 `Outline.FrontMiddle` is shorthand for the plane that step sweeps when the Path is
-extruded. It is computed from the Path alone, so it moves when the Path changes
+extruded; `Plate.Front` is the same for a Profile edge. It is computed from the Path alone, so it moves when the Path changes
 and never refers to a body face. Written out, it is
 `Plane { origin: <foot of the sketch origin on the step's line>; normal: <into the material>; up: [0, 0, 1] }`.
 `center` is in that plane's frame: v runs along the extrusion (+Z), the hole runs
@@ -154,7 +156,8 @@ Rules:
   envelope through the point must stay in material, and envelopes of different
   drills must not touch.
 - A Path-step plane needs a straight `Line` step of a closed Path in the XY
-  sketch.
+  sketch; a Profile-edge plane needs a straight, named outer-loop edge of a
+  Profile in the XY sketch.
 
 In a Compose body, all three variants are supported on the `+Z` support with
 `end: ThroughAll`:

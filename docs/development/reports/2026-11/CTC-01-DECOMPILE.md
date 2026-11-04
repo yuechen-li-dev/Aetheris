@@ -138,6 +138,40 @@ foot R5.
 `analyze compare --shape` also skips rays with an odd crossing count, near cone apexes and seams, on both
 sides. It used to read them as empty, which showed about 1100 mm³ of false difference per drill tip.
 
+## Follow-up: shape-based outline, delta notches, traced lugs
+
+The fixture no longer turtle-paths the outline. The model now follows the part's own structure:
+- **Outline:** two `RoundedRect2` ends (R50) and a `Rect2` bridge in a Concept Struct, joined by four R25
+  waist `Arc2`s, with the back-right corner replaced by a chamfer `Line2`, all traced with `|>`.
+- **Notches:** `Template<Center, Owner> ProfileDelta`s for the V-notch and the slot notch, applied four times
+  to the traced `Front` and `Back` edges.
+- **Lugs:** traced from the end shapes themselves, so corner radii and the chamfer are stated once; three are
+  mirrors of one.
+- **Side drills:** `from: Plate.Front`. Planes can now come from a named straight edge of a traced Profile,
+  as well as from a Path step.
+
+The result is identical to the turtle version: 75/85 carriers, 0 extra, IoU 0.9989. Against the turtle plate
+alone, the shape-built plate matches all 37 carriers at IoU 1.0.
+
+What this showed about the language:
+
+| Finding | Effect |
+| --- | --- |
+| The V-notch tip **is** expressible: `Diagonal` flanks plus concave `Round` transitions give the exact R10 tip | Corrects item 3 above |
+| `Round` needs `Concave: true` for both the V tip and the slot floor corners; the wrong value builds a plausible wrong outline with no diagnostic | Only `compare --shape` caught it; add a check that a round is tangent to its neighbours, or a clearer default |
+| Each waist needs 3 `Point2`s and an `Arc2` (16 lines for four R25 waists) | A corner-round stage in traced loops (`|> Round 25mm`, filleting the junction of the stages either side) would replace them; it would also give Path vertex rounding |
+| `RoundedRect2` publishes no tangent points; they exist only as internal `Name_Path.Step.End` names | Publish them (for example `LeftEnd.Right.Start`); four `Point2`s here only restate them |
+| A partial span needs both `from` and `to`; `edge to P` alone is a stage-type error | `to`-only continuing from the current point would read naturally |
+| Edges from two shapes collide (`Bottom`, `Left`, ...), so every stage needs `as` | Acceptable; the error names the collision |
+| A delta's `CenteredAt` is a distance from the edge's start, not a coordinate | Notch centres become 115/335/75/375 mm, not x = ±110/±150 |
+| Template arguments take scalars but not inline record literals (`P: Spec { Center: 115mm }`) | Use scalar parameters or a named Static |
+| A `Feature` cannot return `Add`, and `Boss` only grows up from a top | No reusable lug/foot feature under a plate; lug reuse happens at Profile level |
+| Two `ProfileDelta`s with one name reported `apply-unresolved` | Now reported as `profile-edit-apply-ambiguous`, naming the count |
+
+`Template<…> Feature` is not a form. Features are already parameterized (`Feature X(params) -> Kind`); Templates
+specialize Struct/Model/Concept Struct/Panel/SheetMetal/Profile/ProfileDelta, plus the separate record-array
+feature-template form used by `Pattern … over`. For CTC-01 the useful reuse was `Template<…> ProfileDelta`.
+
 ## Verdict
 
 Meaningful progression. CTC-01 builds with every feature Firmament can express, and the comparison

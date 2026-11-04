@@ -50,6 +50,16 @@ public sealed class DrilledHoleCliTests
         Assert.Equal(expected.OrderBy(a => a).ToArray(), apexes);
     }
 
+    [Fact]
+    public void ANamedProfileEdgeSweepsTheDrillPlane()
+    {
+        var body = BuildAndImport("fixtures/Regression/Hole/valid/profile-edge-plane-drill.firmament");
+        var cone = Assert.Single(Cones(body));
+        Assert.Equal(10d, cone.Apex.X, 9);
+        Assert.Equal(-15d + 10d + Tip(2d, 118d), cone.Apex.Y, 9);
+        Assert.Equal(-4d, cone.Apex.Z, 9);
+    }
+
     [Theory]
     [InlineData("drill-envelopes-touch.firmament", "SectionStackBlindDrillToolEnvelopesIntersect")]
     [InlineData("plane-drill-flat.firmament", "a flat floor from a plane is not supported")]

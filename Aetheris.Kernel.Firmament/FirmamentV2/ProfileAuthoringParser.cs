@@ -541,29 +541,54 @@ public static class ProfileAuthoringParser
     };
 
     /// <summary>
-    /// The plane a straight Path step sweeps when its closed Path is extruded along the sketch normal, written as
-    /// the explicit Concept plane an author would declare: origin at the foot of the sketch origin on the step's line,
-    /// normal pointing into the material (to the left of a counter-clockwise loop), up along +Z. It is computed from
-    /// source alone, so the plane moves with the Path and never refers to a body face.
+    /// The plane a straight Path step, or a named straight outer edge of a traced Profile, sweeps when extruded along
+    /// the sketch normal, written as the explicit Concept plane an author would declare: origin at the foot of the
+    /// sketch origin on the edge's line, normal pointing into the material (to the left of a counter-clockwise loop),
+    /// up along +Z. It is computed from source alone, so the plane moves with the outline and never refers to a body
+    /// face.
     /// </summary>
     internal static bool TryDerivePathStepPlane(string source, string path, string step, out ConceptIrPlaneValue? plane, out string? diagnostic)
     {
         plane = null; diagnostic = null;
         var diagnostics = new List<string>();
         var paths = BindPaths(source, new(StringComparer.Ordinal), new(StringComparer.Ordinal), diagnostics);
-        if (!paths.TryGetValue(path, out var bound)) { diagnostic = $"path-step-plane-path-unknown:{path}.{step}: '{path}' is not a Path in this model."; return false; }
-        var boundStep = bound.Steps.FirstOrDefault(s => s.Name == step);
-        if (boundStep is null) { diagnostic = $"path-step-plane-step-unknown:{path}.{step}: Path '{path}' has no step '{step}'."; return false; }
-        if (boundStep.Curves is not [LineArcLineSegment2D line]) { diagnostic = $"path-step-plane-not-straight:{path}.{step}: only a straight Line step sweeps a plane."; return false; }
-        var curves = bound.Steps.SelectMany(s => s.Curves).ToArray();
-        if (!IsClosed(curves)) { diagnostic = $"path-step-plane-path-open:{path}.{step}: the Path must be closed for its inside to be known."; return false; }
+        if (paths.TryGetValue(path, out var bound))
+        {
+            var boundStep = bound.Steps.FirstOrDefault(s => s.Name == step);
+            if (boundStep is null) { diagnostic = $"path-step-plane-step-unknown:{path}.{step}: Path '{path}' has no step '{step}'."; return false; }
+            if (boundStep.Curves is not [LineArcLineSegment2D pathLine]) { diagnostic = $"path-step-plane-not-straight:{path}.{step}: only a straight Line step sweeps a plane."; return false; }
+            var pathCurves = bound.Steps.SelectMany(s => s.Curves).ToArray();
+            if (!IsClosed(pathCurves)) { diagnostic = $"path-step-plane-path-open:{path}.{step}: the Path must be closed for its inside to be known."; return false; }
+            plane = SweptPlane(pathLine, SignedArea(pathCurves) > 0, $"Path step {path}.{step}", $"path-step:{path}.{step}");
+            return true;
+        }
+
+        // A named straight edge of a closed Profile's outer loop (for example one traced with `as Front`)
+        // sweeps the same plane; the Profile must lie in the XY sketch, as an extruded Path does.
+        var profiles = BindPathDerivedProfiles(source, diagnostics);
+        if (!profiles.TryGetValue(path, out var profile))
+        { diagnostic = $"path-step-plane-path-unknown:{path}.{step}: '{path}' is not a Path or a traced Profile in this model."; return false; }
+        if (profile.ConstructionPlane is { } frame && frame != ConstructionPlane.WorldXY)
+        { diagnostic = $"path-step-plane-profile-not-xy:{path}.{step}: only a Profile in the XY sketch sweeps a plane along +Z."; return false; }
+        var outer = profile.Loops.FirstOrDefault(l => l.IsOuter);
+        var segment = outer?.Segments.FirstOrDefault(s => s.Name == step);
+        if (outer is null || segment is null)
+        { diagnostic = $"path-step-plane-step-unknown:{path}.{step}: Profile '{path}' has no outer-loop edge named '{step}'."; return false; }
+        if (segment.Geometry is not LineArcLineSegment2D edgeLine) { diagnostic = $"path-step-plane-not-straight:{path}.{step}: only a straight edge sweeps a plane."; return false; }
+        plane = SweptPlane(edgeLine, SignedArea(outer.Segments.Select(s => s.Geometry)) > 0, $"Profile edge {path}.{step}", $"profile-edge:{path}.{step}");
+        return true;
+    }
+
+    /// <summary>The plane a straight edge sweeps along +Z: origin at the foot of the sketch origin on the edge's line,
+    /// normal into the material (left of a counter-clockwise loop), up +Z.</summary>
+    private static ConceptIrPlaneValue SweptPlane(LineArcLineSegment2D line, bool counterClockwise, string provenance, string stableId)
+    {
         var dx = line.End.X - line.Start.X; var dy = line.End.Y - line.Start.Y; var length = Math.Sqrt(dx * dx + dy * dy);
         dx /= length; dy /= length;
-        var inward = SignedArea(curves) > 0 ? (X: -dy, Y: dx) : (X: dy, Y: -dx);
+        var inward = counterClockwise ? (X: -dy, Y: dx) : (X: dy, Y: -dx);
         var along = -(line.Start.X * dx + line.Start.Y * dy);
         var foot = (X: line.Start.X + dx * along, Y: line.Start.Y + dy * along);
-        plane = new ConceptIrPlaneValue($"path-step:{path}.{step}", new(foot.X, foot.Y, 0d), new(inward.X, inward.Y, 0d), $"derived from Path step {path}.{step}", new(0d, 0d, 1d));
-        return true;
+        return new ConceptIrPlaneValue(stableId, new(foot.X, foot.Y, 0d), new(inward.X, inward.Y, 0d), $"derived from {provenance}", new(0d, 0d, 1d));
     }
 
     private static IReadOnlyDictionary<string, BoundPath> BindPaths(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics)

@@ -1,0 +1,21 @@
+// A blind drill from the plane a traced Profile's named edge sweeps. The front edge runs along +X, so the
+// plane's u axis is world -X and v is +Z; the hole enters at x = 10, z = -4 and runs along +Y.
+Model ProfileEdgePlaneDrill {
+    units: mm
+    Concept Struct Layout on XY {
+        Rect2 Blank { center: [0mm, 0mm]; size: [60mm, 30mm] }
+    }
+    Profile Plate using Layout {
+        Loop Outer {
+            Blank.Bottom as Front
+            |> Blank.Right as Right
+            |> Blank.Top as Back
+            |> Blank.Left as Left
+            |> Close
+        }
+    }
+    Compose Body { Base Stock { profile: Plate; from: -8mm; to: 0mm; role: Stock } }
+    Modify Body {
+        Hole<Shaft> Drill { from: Plate.Front; center: Point2(-10mm, -4mm); diameter: 4mm; end: Blind 10mm }
+    }
+}

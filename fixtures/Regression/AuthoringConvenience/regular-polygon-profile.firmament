@@ -1,0 +1,6 @@
+// A variant shape as a one-line Profile.
+Model RegularPolygonProfile {
+    units: mm
+    Profile Hex = RegularPolygon2<6> { center: [0mm, 0mm]; acrossFlats: 20mm }
+    Extrude Body { profile: Hex; from: 0mm; to: 5mm }
+}

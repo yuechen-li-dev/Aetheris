@@ -147,12 +147,14 @@ internal static class ClosedBoundary2Authoring
             { diagnostics.Add(Prefix + "profile-value-header:" + profile.Name!.Text); continue; }
             var name = profile.Name!.Text;
             string replacement;
-            if (profile.Initializer is ObjectSyntax { Name: null, Type: ReferenceSyntax type } value && IsBoundaryType(type.Name.Text))
+            // A variant shape such as RegularPolygon2<6> { ... } parses as an object whose type is a specialization.
+            if (profile.Initializer is ObjectSyntax { Name: null } value
+                && BoundaryValueType(value.Type, out var type, out var typeArguments) && IsBoundaryType(type.Name.Text))
             {
                 var boundaryName = name + "__Boundary";
                 if (FirmamentSyntaxTraversal.Declarations(syntax).Any(d => d.Name?.Text == boundaryName))
                 { diagnostics.Add(Prefix + "duplicate-name:" + boundaryName); continue; }
-                var boundary = new DeclarationSyntax(new(type.Name, [], type.Span), new(boundaryName, value.Span),
+                var boundary = new DeclarationSyntax(new(type.Name, typeArguments, value.Type!.Span), new(boundaryName, value.Span),
                     [], [], null, null, [], null, value.Body, false, value.Span);
                 replacement = FirmamentSyntaxWriter.Statement(boundary) + $"\nProfile {name} {{ From: {boundaryName}; }}";
             }
@@ -165,6 +167,17 @@ internal static class ClosedBoundary2Authoring
         foreach (var change in changes.OrderByDescending(c => c.Start))
             source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
         return source;
+    }
+
+    private static bool BoundaryValueType(ExpressionSyntax? syntax, out ReferenceSyntax type, out IReadOnlyList<ArgumentSyntax> arguments)
+    {
+        (type, arguments) = syntax switch
+        {
+            ReferenceSyntax plain => (plain, []),
+            SpecializationSyntax { Target: ReferenceSyntax generic } specialized => (generic, specialized.Arguments),
+            _ => (null!, [])
+        };
+        return type is not null;
     }
 
     internal static bool IsBoundaryType(string type) => type is "Rect2" or "Square2" or "Circle2" or "Ellipse2" or "Slot2"

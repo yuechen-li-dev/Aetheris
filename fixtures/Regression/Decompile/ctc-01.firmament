@@ -18,23 +18,19 @@ Model Ctc01 {
     Construction Plane CenterPlane { Trace: Datums.Center }
     Construction Plane MidPlane { Trace: Datums.Midline }
 
-    // V-notch: 60° included angle, R10 tip whose centre is 30 mm in from the edge. Lengths follow from the
-    // angle (no trig in Static arithmetic, so tan 60° is written as Pow(3, 0.5)).
-    Static root3: Float = Pow(3, 0.5)
+    // V-notch: 60° included angle, R10 tip whose centre is 30 mm in from the edge. Lengths follow from the angle.
     Static vTip: Length = 10mm
     Static vTipCentre: Length = 30mm
-    Static vHalfMouth: Length = (vTipCentre + 2 * vTip) / root3
-    Static vFlank: Length = (vTipCentre + vTip / 2) * 2 / root3
+    Static vHalfMouth: Length = (vTipCentre + 2 * vTip) / Tan(60deg)
+    Static vFlank: Length = (vTipCentre + vTip / 2) * 2 / Tan(60deg)
     Static vX: Length = 110mm
-    Static chamfer: Length = 50mm * Pow(2, 0.5)
+    Static chamfer: Length = 50mm * Sqrt(2)
 
     // Plate silhouette, counterclockwise from the bottom-left lug. The long edges carry two 60° V-notches
     // (y = -125, R10 tips at x = ±110) and two rectangular notches (y = +125, 85 wide, 25 deep, R10 corners).
     Path Outline {
-        start: Point2(-400mm, 0mm)
-        heading: -90deg
-        Line EndLeftLower { length: 175mm }
-        Arc LugOuterFrontLeft { radius: 50mm; turn: 90deg }
+        start: Point2(-350mm, -225mm)
+        heading: 0deg
         Line LugFootLeft { length: 50mm }
         Arc LugCornerLeft { radius: 50mm; turn: 90deg }
         Line LugInnerLeft { length: 25mm }
@@ -77,7 +73,9 @@ Model Ctc01 {
         Arc LugCornerBackLeft { radius: 50mm; turn: 90deg }
         Line LugFootBackLeft { length: 50mm }
         Arc LugOuterBackLeft { radius: 50mm; turn: 90deg }
-        Close EndLeftUpper
+        Line EndLeft { length: 350mm }
+        Arc LugOuterFrontLeft { radius: 50mm; turn: 90deg }
+        Close Done
     }
     Profile Plate from Outline
 
@@ -108,10 +106,7 @@ Model Ctc01 {
     }
     Profile LugBackRight from LugChamferedPath
 
-    Concept Struct BossLayout on XY {
-        RegularPolygon2<6> Hexagon { center: [0mm, 0mm]; acrossFlats: 100mm; rotation: 30deg }
-    }
-    Profile HexBoss using BossLayout { Loop Outer { Hexagon |> TraceLoop } }
+    Profile HexBoss = RegularPolygon2<6> { center: [0mm, 0mm]; acrossFlats: 100mm; rotation: 30deg }
     Profile Obround = Slot2 { center: [-285mm, 0mm]; length: 120mm; width: 40mm }
     Profile Window = RoundedRect2 { center: [285mm, 0mm]; size: [100mm, 50mm]; radius: 10mm }
 

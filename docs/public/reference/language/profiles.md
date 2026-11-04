@@ -27,8 +27,15 @@ Model Plate {
 ```
 
 This uses the same fields and the same exact boundary as a named `Rect2`,
-`Circle2`, `Slot2` or other closed shape. `Profile copy = outline` derives an
-immutable copy of a named Profile or closed shape.
+`Circle2`, `Slot2` or other closed shape, including variant shapes such as
+`Profile hex = RegularPolygon2<6> { center: [0mm, 0mm]; acrossFlats: 24mm }`.
+`Profile copy = outline` derives an immutable copy of a named Profile or closed
+shape.
+
+A Path's final `Close name` step draws the straight edge back to the start. If
+the steps before it already end at the start (for example, the outline ends with
+an arc into its start point), `Close` adds no edge and only marks the Path
+closed. In that case it names no edge either.
 
 [Sheet metal](../../firmament/sheet-metal.md) consumes the same named Profiles
 for its `Base` and `Cut` operations, within its own limits (a rectangular base,

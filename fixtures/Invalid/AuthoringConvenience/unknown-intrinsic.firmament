@@ -1,0 +1,5 @@
+Model UnknownIntrinsic {
+    units: mm
+    Static a: Float = Atan(1)
+    Box Body { size: [10mm, 10mm, 10mm] }
+}

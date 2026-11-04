@@ -78,6 +78,31 @@ drawing would: plate, lugs, boss, cuts, holes, chamfer.
 
 Not investigated: `analyze section` reports "no bounded geometry" on CTC-01 at z = −75, −55 and −25.
 
+## Follow-up: items 4–6 and diagnostics fixed
+
+- `Tan` and `Sqrt` join `Pow`, `Sin` and `Cos`. All five now come from one intrinsic list, which Function
+  binding also uses for its reserved names.
+  - Correction to item 4: `Sin` and `Cos` already worked. They passed only because the "deg" in
+    `Sin(60deg)` contains an `e`, which the Static literal sniff reads as Float.
+  - Static typing now takes an evaluated literal's Int/Float spelling from its own text, not from the
+    authored span it replaced. `Sqrt(3)` was typed Int and rejected.
+  - Unknown calls and out-of-domain calls (`Sqrt(-2)`, `Tan(90deg)`) get specific messages.
+- `Close` after a path that already returns to its start adds no edge. It previously failed with
+  `concept-path-zero-length`.
+- `Profile X = RegularPolygon2<N> { … }` builds. One-line Profile values now accept specialized
+  shape types.
+- `concept-path-*` and `firmament-boundary2-*` codes get explanatory messages. The generated
+  `__Boundary` suffix is no longer shown to authors.
+- The CTC-01 fixture now uses `Tan(60deg)`, `Sqrt(2)`, a plain final `Close` and the one-line hexagon. Its
+  geometry is unchanged (IoU 0.9967, 71/85 carriers).
+- Tests: `AuthoringConvenienceCliTests`, with fixtures under `fixtures/Regression/AuthoringConvenience`
+  and `fixtures/Invalid/AuthoringConvenience`.
+
+Found while checking item 3: Paths already have semantic `Chamfer`, `Cutback`, `Step`, `Notch` and `Tab`
+steps, but none are in the public docs. `Notch` is rectangular with sharp corners (width, depth), so
+CTC-01's notches still need a corner radius, and its V-notches a V form with a tip radius. Item 3 is
+better framed as extending these steps than as new path primitives.
+
 ## Verdict
 
 Meaningful progression. CTC-01 builds with every feature Firmament can express, and the comparison

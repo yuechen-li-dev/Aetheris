@@ -590,6 +590,9 @@ public static class ProfileAuthoringParser
                 var guideName = $"{name}.{step.Name}";
                 var endpointName = $"{guideName}.End";
                 if (guides.ContainsKey(guideName) || points.ContainsKey(endpointName)) { diagnostics.Add($"concept-path-name-collision:{guideName}"); continue; }
+                // A path whose last step already returns to the start needs no closing edge: Close then only marks
+                // the loop closed, adds no segment and names no guide.
+                if (step.Kind == "Close" && path.Steps.Count > 0 && Distance(current, path.Start) <= Tolerance) { points[endpointName] = path.Start; continue; }
                 if (!TryBindStep(name, step, current, ref heading, path.Start, points, out var curves, out var endpoint, out var diagnostic)) { diagnostics.Add(diagnostic!); continue; }
                 if (curves!.Count == 1) guides[guideName] = curves[0];
                 points[endpointName] = endpoint; path.Steps.Add(new BoundPathStep(step.Name, step.Kind == "Line" ? "Span" : step.Kind == "Arc" ? "ArcTransition" : step.Kind, guideName, endpointName, curves, current, endpoint, heading)); current = endpoint;

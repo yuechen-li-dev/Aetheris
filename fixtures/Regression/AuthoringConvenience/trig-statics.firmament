@@ -1,0 +1,10 @@
+// Compile-time trigonometry: a 60° V-notch's flank and a square's diagonal, written as the drawing states them.
+Model TrigStatics {
+    units: mm
+    Static depth: Length = 10mm
+    Static flank: Length = depth / Cos(30deg)
+    Static halfMouth: Length = depth * Tan(30deg)
+    Static diagonal: Length = 10mm * Sqrt(2)
+    Static width: Length = 2 * flank * Sin(60deg) + diagonal * Sqrt(2) + halfMouth * Tan(60deg)
+    Box Body { size: [width, 10mm, 10mm] }
+}

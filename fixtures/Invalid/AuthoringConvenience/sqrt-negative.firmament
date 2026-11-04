@@ -1,0 +1,5 @@
+Model SqrtNegative {
+    units: mm
+    Static s: Float = Sqrt(-2)
+    Box Body { size: [10mm, 10mm, 10mm] }
+}

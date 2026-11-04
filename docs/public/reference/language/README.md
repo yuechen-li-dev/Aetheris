@@ -118,8 +118,11 @@ units optional in every field.
 | Volume (assertions) | `mm^3` |
 
 Mixed degree/radian arithmetic needs an explicit conversion; the compiler will
-not add the raw numbers. `Sin` and `Cos` take radians as a bare number, or an
-angle with explicit units, and return a dimensionless value.
+not add the raw numbers. `Sin`, `Cos` and `Tan` take radians as a bare number,
+or an angle with explicit units, and return a dimensionless value; `Tan` rejects
+90deg + k*180deg. `Sqrt(x)` and `Pow(x, y)` take dimensionless values; `Sqrt`
+rejects a negative argument. For example,
+`Static flank: Length = depth / Cos(30deg)`.
 
 Planar points such as a Hole's or Rect2's `center` accept both `Point2(x, y)` and
 `[x, y]`, with length coordinates. Arithmetic with dimensional checking is

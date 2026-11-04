@@ -1,0 +1,19 @@
+// A rounded-rectangle Path whose last arc returns to its start, so Close adds no edge.
+Model CloseAfterArc {
+    units: mm
+    Path Outline {
+        start: Point2(-15mm, -20mm)
+        heading: 0deg
+        Line Bottom { length: 30mm }
+        Arc BottomRight { radius: 5mm; turn: 90deg }
+        Line Right { length: 30mm }
+        Arc TopRight { radius: 5mm; turn: 90deg }
+        Line Top { length: 30mm }
+        Arc TopLeft { radius: 5mm; turn: 90deg }
+        Line Left { length: 30mm }
+        Arc BottomLeft { radius: 5mm; turn: 90deg }
+        Close Done
+    }
+    Profile Plate from Outline
+    Extrude Body { profile: Plate; from: 0mm; to: 4mm }
+}

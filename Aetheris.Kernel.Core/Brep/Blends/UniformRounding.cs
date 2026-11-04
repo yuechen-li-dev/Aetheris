@@ -25,12 +25,12 @@ public static class UniformRounding
     /// bisection: every check that refuses a radius also refuses every larger one).</summary>
     private static KernelResult<BrepBody> Local(BrepBody body, double radius)
     {
-        var outcome = LocalRounding.Round(body, radius);
+        var outcome = LocalRounding.RoundAll(body, radius);
         if (outcome.Body is not null) return KernelResult<BrepBody>.Success(outcome.Body);
         var refusal = outcome.Refusal!;
         if (refusal.Code != TooLargeCode) return Failure(refusal.Code, refusal.Message);
         var (lo, hi) = (0d, radius);
-        for (var i = 0; i < 40; i++) { var mid = 0.5 * (lo + hi); if (LocalRounding.Round(body, mid).Body is not null) lo = mid; else hi = mid; }
+        for (var i = 0; i < 40; i++) { var mid = 0.5 * (lo + hi); if (LocalRounding.RoundAll(body, mid).Body is not null) lo = mid; else hi = mid; }
         return Failure(refusal.Code, $"{refusal.Message}; the largest that fits is under {hi:G6} mm");
     }
 

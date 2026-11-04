@@ -292,20 +292,26 @@ public static partial class FirmamentBuildAndExport
         var canonicalParseWatch = System.Diagnostics.Stopwatch.StartNew();
         var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory, null, explicitSchema, resources);
         canonicalParseWatch.Stop();
-        // Fillet every edge on a body the dedicated Box/Polyhedron route does not take (the source fails only
-        // because of the finish: without it, it parses): build the body without the finish, then round it whole,
-        // or refuse with the rounding's reason, at the finish.
-        if (!v2Parse.IsSuccess && UniformRoundingRoute.Find(sourceText) is { } rounding
-            && FirmamentV2Parser.Parse(rounding.Stripped, sourceDirectory, null, explicitSchema, resources).IsSuccess)
+        // Fillet every edge on a body no dedicated route takes: the source fails only because of the finish (without
+        // it, it parses), or it parses but the edge-finish lowering refuses the whole-body selector. Build the body
+        // without the finish, then round it whole, or refuse with the rounding's reason, at the finish. The
+        // dedicated Box/Polyhedron builder keeps its own refusals (UniformFillet...).
+        KernelResult<FirmamentStepExportResult> Round(UniformRoundingRoute.Request rounding)
         {
-            // The source as written does not parse (the stock route refuses the finish), so the admitted document
-            // (bodies, assertions) is the one without it; assertions then measure the rounded body.
+            // The admitted document (bodies, assertions) is the one without the finish; assertions then measure the
+            // rounded body.
             var rounded = UniformRoundingRoute.Export(rounding, stripped => ExportSource(stripped, sourceDirectory, allowV1Compatibility, explicitSchema, resources));
             return rounded.IsSuccess && rounded.Value.RuntimeAdmissionDocument is null && ParseSemanticSource(rounding.Stripped, sourceDirectory).Document is { } admitted
                 ? KernelResult<FirmamentStepExportResult>.Success(rounded.Value with { RuntimeAdmissionDocument = admitted }, rounded.Diagnostics)
                 : rounded;
         }
+        if (!v2Parse.IsSuccess && UniformRoundingRoute.Find(sourceText) is { } unparsed
+            && FirmamentV2Parser.Parse(unparsed.Stripped, sourceDirectory, null, explicitSchema, resources).IsSuccess)
+            return Round(unparsed);
         var built = ExportAdmittedSource(sourceText, sourceDirectory, allowV1Compatibility, explicitSchema, resources, v2Parse, canonicalParseWatch);
+        if (!built.IsSuccess && !built.Diagnostics.Any(d => d.Message.StartsWith("UniformFillet", StringComparison.Ordinal))
+            && UniformRoundingRoute.Find(sourceText) is { } unbuilt)
+            return Round(unbuilt);
         if (!built.IsSuccess) return built;
         var accounting = FirmamentFeatureAccounting.Verify(v2Parse, authoredSource, built.Value);
         return accounting.IsSuccess ? KernelResult<FirmamentStepExportResult>.Success(accounting.Value, built.Diagnostics) : accounting;

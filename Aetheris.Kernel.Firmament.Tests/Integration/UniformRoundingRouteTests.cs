@@ -70,15 +70,43 @@ public sealed class UniformRoundingRouteTests
         Assert.NotNull(refused.Diagnostics.Single().SourceSpan);
     }
 
-    /// <summary>An L-shaped extrusion: its inner vertical edge is concave and meets the convex top and bottom
-    /// edges, a corner whose two possible orders of rounding give different geometry. Refused, naming it.</summary>
+    /// <summary>An L-shaped extrusion: its inner vertical edge is concave and meets the convex top and bottom edges.
+    /// The concave edge is filled first (fillets before rounds): its strip ends square on the top and bottom, whose
+    /// new arcs round to tori running on into the neighbouring strips. Every blend reads back at the radius.</summary>
     [Fact]
-    public void MixedCorner_RefusesNamingTheVertex()
+    public void MixedCorner_FilledThenRounded()
     {
-        var message = Assert.Single(FirmamentBuildAndExport.CompileSource(File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/UniformRounding/ell-mixed-corner.firmament"))).Diagnostics).Message;
+        var built = FirmamentBuildAndExport.CompileSource(File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/UniformRounding/ell-rounded.firmament")));
+        Assert.True(built.IsSuccess, string.Join("\n", built.Diagnostics.Select(d => d.Message)));
+        var body = Step242Importer.ImportBody(built.Value.StepText).Value;
+        int Count(SurfaceGeometryKind kind) => body.Topology.Faces.Count(f => body.TryGetFaceSurfaceGeometry(f.Id, out var g) && g!.Kind == kind);
+        Assert.Equal((8, 18, 2, 10), (Count(SurfaceGeometryKind.Plane), Count(SurfaceGeometryKind.Cylinder), Count(SurfaceGeometryKind.Torus), Count(SurfaceGeometryKind.Sphere)));
+        var read = BlendRecognition.Recognize(body);
+        Assert.Equal(30, read.Count(r => r.Role is BlendFaceRole.Strip or BlendFaceRole.Joiner));
+        Assert.All(read.Where(r => r.Role == BlendFaceRole.Strip), b => Assert.Equal(1, b.Blend!.Size, 9));
+        // The concave fill is the only concave strip; its tori are major radius 2r around its axis.
+        Assert.All(body.Topology.Faces.Select(f => body.TryGetFaceSurfaceGeometry(f.Id, out var g) ? g!.Torus : null).Where(t => t is not null), t => Assert.Equal(2, t!.Value.MajorRadius, 9));
+    }
+
+    /// <summary>A boss on a plate: at each foot corner two concave edges meet a convex one. Filling the concave
+    /// edges first would leave the convex edge between two fills; refused, naming the corner.</summary>
+    [Fact]
+    public void TwoConcaveAndAConvex_RefusesNamingTheVertex()
+    {
+        var message = Assert.Single(FirmamentBuildAndExport.CompileSource(File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/UniformRounding/boss-mixed-corner.firmament"))).Diagnostics).Message;
         Assert.Contains("uniform-rounding-mixed-vertex-unsupported", message);
-        Assert.Contains("convex and concave edges meet", message);
+        Assert.Contains("two concave edges and a convex one meet", message);
         Assert.Matches(@"vertex \d+ joins edges \d+ \((convex|concave)\), \d+ \((convex|concave)\), \d+ \((convex|concave)\)", message);
+    }
+
+    /// <summary>A plate with a pocket, built by composition, has each side wall split at the pocket's depth into two
+    /// faces on one plane. Refused by name rather than rounded along the split.</summary>
+    [Fact]
+    public void SplitFace_RefusesByName()
+    {
+        var message = Assert.Single(FirmamentBuildAndExport.CompileSource(File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/UniformRounding/pocket-split-face.firmament"))).Diagnostics).Message;
+        Assert.Contains("uniform-rounding-split-face-unsupported", message);
+        Assert.Contains("lie on one plane", message);
     }
 
     /// <summary>A blind hole's floor rounds to a concave torus around the hole's axis with major radius R - r: it
@@ -106,6 +134,8 @@ public sealed class UniformRoundingRouteTests
     [InlineData("bushing-rounded", 1, 3, 3, 6, 0, 0, 6)]
     [InlineData("counterbore-rounded", 1, 7, 14, 4, 8, 0, 16)]
     [InlineData("blind-hole-rounded", 0.5, 7, 13, 2, 8, 0, 14)]
+    // Strips running on into each other where flat and curved walls meet tangentially.
+    [InlineData("rounded-rect-rounded", 1, 6, 12, 8, 0, 0, 16)]
     public void CircularEdges_RoundToTori(string name, double radius, int planes, int cylinders, int tori, int spheres, int cones, int edges)
     {
         var built = FirmamentBuildAndExport.CompileSource(File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/UniformRounding", name + ".firmament")));

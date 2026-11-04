@@ -170,6 +170,8 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
     [InlineData("bushing-rounded")]
     [InlineData("counterbore-rounded")]
     [InlineData("blind-hole-rounded")]
+    [InlineData("rounded-rect-rounded")]
+    [InlineData("ell-rounded")]
     public void RemovingWholeBodyRounding_ReturnsTheBody(string name)
     {
         var source = File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/UniformRounding", name + ".firmament"));

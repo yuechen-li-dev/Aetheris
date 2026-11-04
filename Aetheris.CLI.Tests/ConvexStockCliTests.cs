@@ -16,7 +16,9 @@ public sealed class ConvexStockCliTests
         { "../UniformRounding/box-hole-rounded", 29 }, { "../UniformRounding/d-profile-rounded", 14 },
         // Concave edges too.
         { "../UniformRounding/bushing-rounded", 12 }, { "../UniformRounding/counterbore-rounded", 33 },
-        { "../UniformRounding/blind-hole-rounded", 30 }
+        { "../UniformRounding/blind-hole-rounded", 30 },
+        // Tangent junctions, and a corner where a concave edge meets convex ones.
+        { "../UniformRounding/rounded-rect-rounded", 26 }, { "../UniformRounding/ell-rounded", 38 }
     };
 
     [Theory]

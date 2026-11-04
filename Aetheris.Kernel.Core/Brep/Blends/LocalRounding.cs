@@ -54,6 +54,16 @@ internal static class LocalRounding
                     var c = Surface.Cylinder!.Value; var a = c.Axis.ToVector(); var q = x - c.Origin; var h = q.Dot(a);
                     return c.Origin + a * h + Radial(q, a, c.XAxis.ToVector()) * c.Radius;
                 }
+                case SurfaceGeometryKind.Sphere:
+                {
+                    var c = Surface.Sphere!.Value; var q = x - c.Center;
+                    return c.Center + (q.Length > 1e-14 ? q * (c.Radius / q.Length) : c.XAxis.ToVector() * c.Radius);
+                }
+                case SurfaceGeometryKind.Torus:
+                {
+                    var t = Surface.Torus!.Value; var tube = Tube(t, x); var q = x - tube;
+                    return tube + (q.Length > 1e-14 ? q * (t.MinorRadius / q.Length) : t.Axis.ToVector() * t.MinorRadius);
+                }
                 default:
                 {
                     var k = Surface.Cone!.Value; var a = k.Axis.ToVector(); var q = x - k.Apex; var h = q.Dot(a);
@@ -76,6 +86,8 @@ internal static class LocalRounding
                     var c = Surface.Cylinder!.Value;
                     n = Radial(x - c.Origin, c.Axis.ToVector(), c.XAxis.ToVector()); break;
                 }
+                case SurfaceGeometryKind.Sphere: n = Unit(Foot(x) - Surface.Sphere!.Value.Center); break;
+                case SurfaceGeometryKind.Torus: n = Unit(Foot(x) - Tube(Surface.Torus!.Value, x)); break;
                 default:
                 {
                     var k = Surface.Cone!.Value; var a = k.Axis.ToVector();
@@ -88,6 +100,13 @@ internal static class LocalRounding
 
         /// <summary>Signed distance to the surface, positive on the material side.</summary>
         public double Inside(Point3D x) { var f = Foot(x); return -Outward(x).Dot(x - f); }
+
+        /// <summary>The nearest point of the torus's tube circle.</summary>
+        private static Point3D Tube(TorusSurface t, Point3D x)
+        {
+            var a = t.Axis.ToVector(); var r = Radial(x - t.Center, a, t.XAxis.ToVector());
+            return t.Center + r * t.MajorRadius;
+        }
 
         private static Vector3D Radial(Vector3D q, Vector3D axis, Vector3D fallback)
         {
@@ -109,25 +128,55 @@ internal static class LocalRounding
             Arc ? Enumerable.Range(0, arcSegments + 1).Select(i => At(i / (double)arcSegments)) : [Start, End];
     }
 
-    /// <summary>A sharp edge to round: its two faces (A uses it forward), its shape, and what it is built from.</summary>
+    /// <summary>Which edges a pass rounds: every sharp edge, or only the concave ones (the first pass where convex
+    /// and concave edges meet at a corner: fillets before rounds).</summary>
+    internal enum Pass { All, ConcaveOnly }
+
+    internal const string MixedCode = "uniform-rounding-mixed-vertex-unsupported";
+
+    /// <summary>A sharp edge to round: its two faces (A walks it forward), its shape and side.</summary>
     private sealed class Sharp
     {
         public required Edge Edge { get; init; }
         public required Shape Shape { get; init; }
-        public required Support F0 { get; init; }
-        public required Support F1 { get; init; }
-        // Once the faces' loops are oriented: A walks the edge forward, B backward.
         public required Support A { get; init; }
         public required Support B { get; init; }
         public bool Closed => Edge.StartVertexId == Edge.EndVertexId;
         // +1 across a convex edge (the ball inside the material, cutting it away), -1 across a concave one (the ball
         // outside, filling the corner).
         public required double Side { get; init; }
-        // Closed circles: the ball centre, and where it touches A and B, at the seam's meridian.
+        // Closed circles: the ball centre at the seam's meridian.
         public Point3D Centre { get; set; }
     }
 
-    internal static Outcome Round(BrepBody body, double radius)
+    private enum VertexKind { Untouched, Corner, End, Junction }
+
+    /// <summary>What becomes of a vertex: kept; a piece of the ball where three rounded edges meet; the end of a
+    /// rounded edge's strip on the face across it (the two other edges kept); or two rounded edges whose strips
+    /// run on into each other where their faces meet tangentially. One ball centre each.</summary>
+    private sealed class Plan
+    {
+        public required VertexKind Kind { get; init; }
+        public Point3D Centre { get; init; }
+        // Corner: its three faces. End: the strip's two faces, then the face it ends on. Junction: the common face,
+        // then the two tangent faces.
+        public FaceId[] Faces { get; init; } = [];
+        public EdgeId[] Rounded { get; init; } = [];
+        public double Side { get; init; }
+    }
+
+    /// <summary>Every sharp edge rounded, in one pass, or in two where convex and concave edges meet at a corner:
+    /// the concave edges filled first, then everything that is still sharp rounded (on a body this construction
+    /// built, so its orientation is trusted).</summary>
+    internal static Outcome RoundAll(BrepBody body, double radius)
+    {
+        var outcome = Round(body, radius, Pass.All, trusted: false);
+        if (outcome.Refusal?.Code != MixedCode || outcome.Refusal.Message.Contains("two concave", StringComparison.Ordinal)) return outcome;
+        var filled = Round(body, radius, Pass.ConcaveOnly, trusted: false);
+        return filled.Body is null ? filled : Round(filled.Body, radius, Pass.All, trusted: true);
+    }
+
+    internal static Outcome Round(BrepBody body, double radius, Pass pass = Pass.All, bool trusted = false)
     {
         var topology = body.Topology;
         var points = VertexPoints(body);
@@ -137,11 +186,12 @@ internal static class LocalRounding
         var tol = double.Max(1e-9, (extent + 1) * 1e-10) * 1e2;
         if (radius <= 1e3 * tol) return Refuse("uniform-rounding-radius-invalid", $"radius {radius:G6} mm is below the construction tolerance");
 
-        // Faces: supports with their outward side.
+        // Faces: supports with their outward side. A body this construction built may carry its own blends.
         var supports = new Dictionary<FaceId, Support>();
         foreach (var face in topology.Faces.OrderBy(f => f.Id.Value))
         {
-            if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface is null || surface.Kind is not (SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone))
+            if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface is null
+                || surface.Kind is not (SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone) && !(trusted && surface.Kind is SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus))
                 return Refuse("uniform-rounding-curved-face-unsupported", $"rounding every edge supports faces on planes, cylinders and cones for now; face {face.Id.Value} is {surface?.Kind.ToString() ?? "unbound"}");
             body.Bindings.TryGetFaceBinding(face.Id, out var binding);
             supports.Add(face.Id, new Support(face.Id, surface, binding.Orientation.IsAlignedWithSurface ? 1 : -1));
@@ -149,9 +199,8 @@ internal static class LocalRounding
         var faceOfLoop = topology.Faces.SelectMany(f => f.LoopIds.Select(l => (l, f.Id))).ToDictionary(x => x.l, x => x.Id);
         var uses = topology.Coedges.GroupBy(c => c.EdgeId).ToDictionary(g => g.Key, g => g.ToArray());
 
-        // Edges: shapes, seams, and the sharp convex edges to round.
+        // Edges: shapes, seams (one face on both sides) and pairs of faces.
         var shapes = new Dictionary<EdgeId, Shape>();
-        var sharp = new Dictionary<EdgeId, Sharp>();
         var seams = new Dictionary<EdgeId, FaceId>();
         var pairs = new Dictionary<EdgeId, (FaceId F0, FaceId F1)>();
         foreach (var edge in topology.Edges.OrderBy(e => e.Id.Value))
@@ -165,62 +214,68 @@ internal static class LocalRounding
             var (f0, f1) = (faceOfLoop[pair[0].LoopId], faceOfLoop[pair[1].LoopId]);
             if (f0 == f1)
             {
-                if (shape.Arc || supports[f0].Kind == SurfaceGeometryKind.Plane)
+                if (!trusted && (shape.Arc || supports[f0].Kind == SurfaceGeometryKind.Plane))
                     return Refuse("uniform-rounding-edge-unsupported", $"edge {edge.Id.Value} has face {f0.Value} on both sides and is not the seam of a cylinder or cone");
                 seams.Add(edge.Id, f0); continue;
             }
             pairs.Add(edge.Id, (f0, f1));
         }
-
-        // Orientation: every edge of a face walked with the face's interior on its left about the outward normal.
-        // Decided per edge by stepping off it into the face, because the input's loops are not oriented (their
-        // coedge senses are not even consistent within one loop). Seams are walked both ways.
-        var span = 1e-6 * (extent + 1);
         var boundaries = topology.Faces.ToDictionary(f => f.Id, f => f.LoopIds.SelectMany(l => topology.GetLoop(l).CoedgeIds.Select(c => topology.GetCoedge(c).EdgeId)).Distinct().Select(e => shapes[e]).ToArray());
 
-        // Outward sides, by ray parity from just off each face: the input's face orientations are not relied on
-        // either (a revolved body's cap can be bound facing into its material).
-        foreach (var face in topology.Faces.OrderBy(f => f.Id.Value))
-        {
-            var support = supports[face.Id];
-            var edge = face.LoopIds.SelectMany(l => topology.GetLoop(l).CoedgeIds.Select(c => topology.GetCoedge(c).EdgeId)).FirstOrDefault(e => !seams.ContainsKey(e));
-            var shape = shapes[edge]; var p = shape.At(0.5); var t = shape.Tangent(p);
-            var w = Unit(support.Outward(p).Cross(t));
-            var onFace = new[] { support.Foot(p + w * span * 1e3), support.Foot(p - w * span * 1e3) }.Where(q => InsideFace(support, boundaries[face.Id], q)).ToArray();
-            if (onFace.Length != 1) return Refuse("uniform-rounding-edge-unsupported", $"could not find the inside of face {face.Id.Value}");
-            var normal = support.Outward(onFace[0]) * support.Sense; // the surface's own normal there
-            var outside = !Inside(supports.Values, boundaries, onFace[0] + normal * (span * 1e2));
-            var inside = Inside(supports.Values, boundaries, onFace[0] - normal * (span * 1e2));
-            if (outside != inside) return Refuse("uniform-rounding-edge-unsupported", $"could not tell which side of face {face.Id.Value} the material is on");
-            support.Sense = outside ? 1 : -1;
-        }
-
+        // Orientation: every edge of a face walked with the face's interior on its left about the outward normal.
+        // A body from elsewhere is not trusted for it (its loops' senses are not even consistent within one loop,
+        // and a revolved body's cap can be bound facing into its material): outward sides by ray parity from just
+        // off each face, each edge's direction by stepping off it into the face. Seams are walked both ways.
         var oriented = new Dictionary<FaceId, List<List<(EdgeId Edge, bool Reversed)>>>();
-        foreach (var face in topology.Faces.OrderBy(f => f.Id.Value))
+        if (trusted)
         {
-            var support = supports[face.Id];
-            var boundary = boundaries[face.Id];
-            var loops = new List<List<(EdgeId, bool)>>();
-            foreach (var loopId in face.LoopIds)
+            foreach (var face in topology.Faces)
+                oriented.Add(face.Id, face.LoopIds.Select(l => topology.GetLoop(l).CoedgeIds.Select(topology.GetCoedge).Select(c => (c.EdgeId, c.IsReversed)).ToList()).ToList());
+        }
+        else
+        {
+            var span = 1e-6 * (extent + 1);
+            foreach (var face in topology.Faces.OrderBy(f => f.Id.Value))
             {
-                var loop = new List<(EdgeId, bool)>();
-                foreach (var edge in topology.GetLoop(loopId).CoedgeIds.Select(c => topology.GetCoedge(c).EdgeId).Distinct())
-                {
-                    if (seams.ContainsKey(edge)) { loop.Add((edge, false)); loop.Add((edge, true)); continue; }
-                    var shape = shapes[edge]; var p = shape.At(0.5); var t = shape.Tangent(p);
-                    var w = Unit(support.Outward(p).Cross(t));
-                    var (left, right) = (InsideFace(support, boundary, support.Foot(p + w * span)), InsideFace(support, boundary, support.Foot(p - w * span)));
-                    if (left == right)
-                        return Refuse("uniform-rounding-edge-unsupported", $"could not tell which side of edge {edge.Value} face {face.Id.Value} lies on");
-                    loop.Add((edge, !left));
-                }
-                loops.Add(loop);
+                var support = supports[face.Id];
+                var edge = face.LoopIds.SelectMany(l => topology.GetLoop(l).CoedgeIds.Select(c => topology.GetCoedge(c).EdgeId)).FirstOrDefault(e => !seams.ContainsKey(e));
+                var shape = shapes[edge]; var p = shape.At(0.5); var t = shape.Tangent(p);
+                var w = Unit(support.Outward(p).Cross(t));
+                var onFace = new[] { support.Foot(p + w * span * 1e3), support.Foot(p - w * span * 1e3) }.Where(q => InsideFace(support, boundaries[face.Id], q)).ToArray();
+                if (onFace.Length != 1) return Refuse("uniform-rounding-edge-unsupported", $"could not find the inside of face {face.Id.Value}");
+                var normal = support.Outward(onFace[0]) * support.Sense; // the surface's own normal there
+                var outside = !Inside(supports.Values, boundaries, onFace[0] + normal * (span * 1e2));
+                var inside = Inside(supports.Values, boundaries, onFace[0] - normal * (span * 1e2));
+                if (outside != inside) return Refuse("uniform-rounding-edge-unsupported", $"could not tell which side of face {face.Id.Value} the material is on");
+                support.Sense = outside ? 1 : -1;
             }
-            oriented.Add(face.Id, loops);
+            foreach (var face in topology.Faces.OrderBy(f => f.Id.Value))
+            {
+                var support = supports[face.Id];
+                var loops = new List<List<(EdgeId, bool)>>();
+                foreach (var loopId in face.LoopIds)
+                {
+                    var loop = new List<(EdgeId, bool)>();
+                    foreach (var edge in topology.GetLoop(loopId).CoedgeIds.Select(c => topology.GetCoedge(c).EdgeId).Distinct())
+                    {
+                        if (seams.ContainsKey(edge)) { loop.Add((edge, false)); loop.Add((edge, true)); continue; }
+                        var shape = shapes[edge]; var p = shape.At(0.5); var t = shape.Tangent(p);
+                        var w = Unit(support.Outward(p).Cross(t));
+                        var (left, right) = (InsideFace(support, boundaries[face.Id], support.Foot(p + w * span)), InsideFace(support, boundaries[face.Id], support.Foot(p - w * span)));
+                        if (left == right)
+                            return Refuse("uniform-rounding-edge-unsupported", $"could not tell which side of edge {edge.Value} face {face.Id.Value} lies on");
+                        loop.Add((edge, !left));
+                    }
+                    loops.Add(loop);
+                }
+                oriented.Add(face.Id, loops);
+            }
         }
 
-        // Sharp convex edges: A walks the edge forward, B backward; B's interior is left of B's direction about its
-        // outward normal, and across a convex edge it lies behind A's tangent plane.
+        // Edges between two faces: tangent ones are kept; sharp ones have a side (A walks the edge forward, and across
+        // a convex edge B's interior, left of B's direction about its outward normal, lies behind A's tangent plane).
+        var sharp = new Dictionary<EdgeId, Sharp>();
+        var kept = new Dictionary<EdgeId, (FaceId F0, FaceId F1, double Side)>(); // side 0: tangent
         foreach (var (edgeId, (f0, f1)) in pairs)
         {
             var edge = topology.GetEdge(edgeId); var shape = shapes[edgeId];
@@ -232,40 +287,84 @@ internal static class LocalRounding
             var p = shape.At(0.5);
             var (na, nb) = (a.Outward(p), b.Outward(p));
             if (na.Cross(nb).Length < 1e-7 && na.Dot(nb) > 0)
-                return Refuse("uniform-rounding-tangent-edge-unsupported", $"rounding every edge does not support edges where faces meet tangentially yet: edge {edgeId.Value} between faces {a.Face.Value} and {b.Face.Value} is smooth");
-            var intoB = nb.Cross(shape.Tangent(p) * -1);
-            var side = na.Dot(intoB) < 0 ? 1d : -1d;
+            {
+                // Two faces on one plane: one face split in two (some constructions leave a wall cut at a pocket's
+                // depth). The edge between them is not an edge of the part.
+                if (a.Kind == SurfaceGeometryKind.Plane && b.Kind == SurfaceGeometryKind.Plane)
+                    return Refuse("uniform-rounding-split-face-unsupported", $"faces {f0.Value} and {f1.Value} lie on one plane and meet at edge {edgeId.Value}: the body has a face split in two, and rounding every edge needs each face whole for now");
+                kept.Add(edgeId, (f0, f1, 0)); continue;
+            }
+            var side = na.Dot(nb.Cross(shape.Tangent(p) * -1)) < 0 ? 1d : -1d;
+            if (pass == Pass.ConcaveOnly && side > 0) { kept.Add(edgeId, (f0, f1, side)); continue; }
             if (!Shares(a, shape, tol) || !Shares(b, shape, tol))
                 return Refuse("uniform-rounding-edge-unsupported", $"rounding every edge needs each edge's faces to run along its line or around its circle's axis: edge {edgeId.Value} {(shape.Arc ? "is a circle" : "is a line")} between a {Article(a.Kind)} and a {Article(b.Kind)} face that do not, so the ball's path along it is not a line or a circle");
-            sharp.Add(edgeId, new Sharp { Edge = edge, Shape = shape, F0 = a, F1 = b, A = a, B = b, Side = side });
+            sharp.Add(edgeId, new Sharp { Edge = edge, Shape = shape, A = a, B = b, Side = side });
         }
+        string Kind(EdgeId e) => sharp.TryGetValue(e, out var s) ? s.Side > 0 ? "convex" : "concave" : kept[e].Side > 0 ? "convex" : kept[e].Side < 0 ? "concave" : "tangent";
+        FaceId[] FacesOf(EdgeId e) => sharp.TryGetValue(e, out var s) ? [s.A.Face, s.B.Face] : [kept[e].F0, kept[e].F1];
 
-        // Corners: every vertex on an open sharp edge joins exactly three sharp edges and three faces.
-        var corners = new Dictionary<VertexId, (Point3D Centre, EdgeId[] Edges, FaceId[] Faces, double Side)>();
+        // Vertices.
+        var plans = new Dictionary<VertexId, Plan>();
         foreach (var vertex in topology.Vertices.OrderBy(v => v.Id.Value))
         {
-            var incident = topology.Edges.Where(e => e.StartVertexId == vertex.Id || e.EndVertexId == vertex.Id).ToArray();
-            var open = incident.Where(e => e.StartVertexId != e.EndVertexId).ToArray();
-            if (open.Length == 0) continue;
-            if (open.Any(e => seams.ContainsKey(e.Id)) && open.All(e => seams.ContainsKey(e.Id))) continue; // seam ends
-            if (open.Length != 3 || open.Any(e => !sharp.ContainsKey(e.Id)))
-                return Refuse("uniform-rounding-vertex-unsupported", $"vertex {vertex.Id.Value} joins {open.Length} edges; rounding every edge on a body with curved faces needs three sharp edges at each corner for now");
-            var faces = open.SelectMany(e => new[] { sharp[e.Id].F0.Face, sharp[e.Id].F1.Face }).Distinct().ToArray();
-            if (faces.Length != 3)
-                return Refuse("uniform-rounding-vertex-unsupported", $"vertex {vertex.Id.Value} joins {faces.Length} faces with three edges; rounding needs three faces at each corner");
-            var sides = open.Select(e => sharp[e.Id].Side).Distinct().ToArray();
+            var open = topology.Edges.Where(e => (e.StartVertexId == vertex.Id || e.EndVertexId == vertex.Id) && e.StartVertexId != e.EndVertexId && !seams.ContainsKey(e.Id)).ToArray();
+            var rounded = open.Where(e => sharp.ContainsKey(e.Id)).Select(e => e.Id).ToArray();
+            var others = open.Where(e => !sharp.ContainsKey(e.Id)).Select(e => e.Id).ToArray();
+            if (rounded.Length == 0) { plans.Add(vertex.Id, new Plan { Kind = VertexKind.Untouched }); continue; }
+            var joins = string.Join(", ", open.Select(e => $"{e.Id.Value} ({Kind(e.Id)})"));
+            var sides = rounded.Select(e => sharp[e].Side).Concat(others.Where(e => kept[e].Side != 0).Select(e => kept[e].Side)).Distinct().ToArray();
+            var faces = open.SelectMany(e => FacesOf(e.Id)).Distinct().ToArray();
+            var side = sharp[rounded[0]].Side;
+            if (rounded.Length == 3 && others.Length == 0 && faces.Length == 3)
+            {
+                if (sides.Length > 1)
+                    return Refuse(MixedCode, $"rounding every edge does not support corners where convex and concave edges meet yet: vertex {vertex.Id.Value} joins edges {joins}");
+                var centre = Centre(faces.Select(f => supports[f]).ToArray(), points[vertex.Id], [side * radius, side * radius, side * radius], tol);
+                if (centre is null || (centre.Value - points[vertex.Id]).Length > 50 * radius)
+                    return TooLarge(radius, $"the ball does not fit in the corner at vertex {vertex.Id.Value}");
+                plans.Add(vertex.Id, new Plan { Kind = VertexKind.Corner, Centre = centre.Value, Faces = faces, Rounded = rounded, Side = side });
+                continue;
+            }
+            if (rounded.Length == 1 && others.Length == 2 && faces.Length == 3 && others.All(e => kept[e].Side != 0) && pass == Pass.ConcaveOnly)
+            {
+                // The strip ends on the face across the vertex, which must stand square to it: the ball's
+                // cross-section is then where the strip meets that face.
+                var s = sharp[rounded[0]]; var across = faces.Single(f => f != s.A.Face && f != s.B.Face);
+                if (s.Shape.Arc || supports[across].Kind != SurfaceGeometryKind.Plane || supports[across].Surface.Plane!.Value.Normal.ToVector().Cross(Unit(s.Shape.End - s.Shape.Start)).Length > 1e-9)
+                    return Refuse("uniform-rounding-vertex-unsupported", $"at vertex {vertex.Id.Value} the concave edge {rounded[0].Value} ends on face {across.Value}, which does not stand square to it; filling it there is not built yet");
+                var centre = Centre([s.A, s.B, supports[across]], points[vertex.Id], [side * radius, side * radius, 0], tol);
+                if (centre is null || new[] { s.A, s.B }.Any(f => double.Abs(supports[across].Inside(f.Foot(centre.Value))) > tol))
+                    return TooLarge(radius, $"the ball does not fit where edge {rounded[0].Value} ends at vertex {vertex.Id.Value}");
+                plans.Add(vertex.Id, new Plan { Kind = VertexKind.End, Centre = centre.Value, Faces = [s.A.Face, s.B.Face, across], Rounded = rounded, Side = side });
+                continue;
+            }
+            if (rounded.Length == 2 && others.Length == 1 && kept[others[0]].Side == 0 && faces.Length == 3 && sides.Length == 1)
+            {
+                // Two strips run on into each other: their common face, and the two faces meeting tangentially.
+                var (e1, e2) = (sharp[rounded[0]], sharp[rounded[1]]);
+                var common = new[] { e1.A.Face, e1.B.Face }.Intersect([e2.A.Face, e2.B.Face]).ToArray();
+                var tangent = shapes[others[0]];
+                if (common.Length != 1 || tangent.Arc)
+                    return Refuse("uniform-rounding-vertex-unsupported", $"vertex {vertex.Id.Value} joins edges {joins}; two strips meeting where faces join tangentially need a straight tangent edge and one common face");
+                var g = common[0]; var (fa, fb) = (kept[others[0]].F0, kept[others[0]].F1);
+                var d = Unit(tangent.End - tangent.Start) * (topology.GetEdge(others[0]).StartVertexId == vertex.Id ? 1 : -1);
+                var centre = Junction(supports[g], supports[fa], points[vertex.Id], d, side * radius, tol);
+                if (centre is null || double.Abs(supports[fb].Inside(centre.Value) - side * radius) > tol * 1e2)
+                    return TooLarge(radius, $"the ball does not fit where the strips meet at vertex {vertex.Id.Value}");
+                plans.Add(vertex.Id, new Plan { Kind = VertexKind.Junction, Centre = centre.Value, Faces = [g, fa, fb], Rounded = rounded, Side = side });
+                continue;
+            }
             if (sides.Length > 1)
-                return Refuse("uniform-rounding-mixed-vertex-unsupported", $"rounding every edge does not support corners where convex and concave edges meet yet: vertex {vertex.Id.Value} joins edges {string.Join(", ", open.Select(e => $"{e.Id.Value} ({(sharp[e.Id].Side > 0 ? "convex" : "concave")})"))}");
-            var centre = Centre(faces.Select(f => supports[f]).ToArray(), points[vertex.Id], sides[0] * radius, tol);
-            if (centre is null || (centre.Value - points[vertex.Id]).Length > 50 * radius)
-                return TooLarge(radius, $"the ball does not fit in the corner at vertex {vertex.Id.Value}");
-            corners.Add(vertex.Id, (centre.Value, open.Select(e => e.Id).ToArray(), faces, sides[0]));
+                return Refuse(MixedCode, rounded.Length == 2 && pass == Pass.ConcaveOnly
+                    ? $"rounding every edge does not support corners where two concave edges and a convex one meet: vertex {vertex.Id.Value} joins edges {joins} (filling the concave edges leaves the convex one between two fills, which does not round to a torus)"
+                    : $"rounding every edge does not support corners where convex and concave edges meet yet: vertex {vertex.Id.Value} joins edges {joins}");
+            return Refuse("uniform-rounding-vertex-unsupported", $"vertex {vertex.Id.Value} joins edges {joins}; rounding needs three edges at a corner, or two strips meeting where faces join tangentially");
         }
 
         // Closed circles: the ball centre at the seam's meridian (or the circle's own start).
         foreach (var s in sharp.Values.Where(s => s.Closed))
         {
-            var seam = seams.Where(x => x.Value == s.F0.Face || x.Value == s.F1.Face).Select(x => shapes[x.Key].Start).ToArray();
+            var seam = seams.Where(x => x.Value == s.A.Face || x.Value == s.B.Face).Select(x => shapes[x.Key].Start).ToArray();
             var c = s.Shape.Center!.Value; var nu = s.Shape.Normal;
             var x0 = Unit(s.Shape.Start - c);
             if (seam.Length > 0)
@@ -275,17 +374,18 @@ internal static class LocalRounding
                     return Refuse("uniform-rounding-edge-unsupported", $"the faces around circle edge {s.Edge.Id.Value} have seams at different angles");
                 x0 = meridian;
             }
-            var centre = Meridian(s.F0, s.F1, c, nu, x0, s.Shape.Start, s.Side * radius, tol, (s.Shape.Start - c).Length);
+            var centre = Meridian(s.A, s.B, c, nu, x0, s.Shape.Start, s.Side * radius, tol, (s.Shape.Start - c).Length);
             if (centre is null) return TooLarge(radius, $"the ball does not fit along circle edge {s.Edge.Id.Value}");
             s.Centre = centre.Value;
         }
 
-        return Build(body, radius, tol, supports, oriented, shapes, sharp, seams, corners, boundaries);
+        return Build(body, radius, tol, points, supports, oriented, shapes, sharp, kept, seams, plans, boundaries);
     }
 
-    private static Outcome Build(BrepBody body, double radius, double tol, Dictionary<FaceId, Support> supports, Dictionary<FaceId, List<List<(EdgeId Edge, bool Reversed)>>> oriented,
-        Dictionary<EdgeId, Shape> shapes, Dictionary<EdgeId, Sharp> sharp, Dictionary<EdgeId, FaceId> seams,
-        Dictionary<VertexId, (Point3D Centre, EdgeId[] Edges, FaceId[] Faces, double Side)> corners, Dictionary<FaceId, Shape[]> boundaries)
+    private static Outcome Build(BrepBody body, double radius, double tol, Dictionary<VertexId, Point3D> points, Dictionary<FaceId, Support> supports,
+        Dictionary<FaceId, List<List<(EdgeId Edge, bool Reversed)>>> oriented, Dictionary<EdgeId, Shape> shapes, Dictionary<EdgeId, Sharp> sharp,
+        Dictionary<EdgeId, (FaceId F0, FaceId F1, double Side)> kept, Dictionary<EdgeId, FaceId> seams, Dictionary<VertexId, Plan> plans,
+        Dictionary<FaceId, Shape[]> boundaries)
     {
         var topology = body.Topology;
         var builder = new TopologyBuilder();
@@ -330,13 +430,30 @@ internal static class LocalRounding
             var sid = new SurfaceGeometryId(geometry.Surfaces.Count() + 1); geometry.AddSurface(sid, surface);
             bindings.AddFaceBinding(new FaceGeometryBinding(face, sid, aligned));
         }
+        VertexId StartOfEdge(EdgeId e) => builder.Model.GetEdge(e).StartVertexId;
 
-        // Contact vertices: where the ball at a corner touches each of its faces; for closed circles, where the ball
-        // at the meridian touches each side.
+        // Vertices: kept ones once; where the ball touches each face at a corner, an end or a junction (both tangent
+        // faces at one point); for closed circles, where the ball at the meridian touches each side.
+        var keep = new Dictionary<VertexId, VertexId>();
+        VertexId Kept(VertexId v) => keep.TryGetValue(v, out var k) ? k : keep[v] = NewVertex(points[v]);
         var contact = new Dictionary<(VertexId Vertex, FaceId Face), VertexId>();
-        foreach (var (vertex, corner) in corners)
-            foreach (var face in corner.Faces)
-                contact.Add((vertex, face), NewVertex(supports[face].Foot(corner.Centre)));
+        foreach (var (vertex, plan) in plans.OrderBy(p => p.Key.Value))
+        {
+            switch (plan.Kind)
+            {
+                case VertexKind.Corner:
+                    foreach (var face in plan.Faces) contact.Add((vertex, face), NewVertex(supports[face].Foot(plan.Centre)));
+                    break;
+                case VertexKind.End:
+                    foreach (var face in plan.Faces.Take(2)) contact.Add((vertex, face), NewVertex(supports[face].Foot(plan.Centre)));
+                    break;
+                case VertexKind.Junction:
+                    contact.Add((vertex, plan.Faces[0]), NewVertex(supports[plan.Faces[0]].Foot(plan.Centre)));
+                    var touch = NewVertex(supports[plan.Faces[1]].Foot(plan.Centre));
+                    contact.Add((vertex, plan.Faces[1]), touch); contact.Add((vertex, plan.Faces[2]), touch);
+                    break;
+            }
+        }
         var ring = new Dictionary<(EdgeId Edge, FaceId Face), VertexId>();
         foreach (var s in sharp.Values.Where(s => s.Closed))
         {
@@ -344,9 +461,11 @@ internal static class LocalRounding
             ring.Add((s.Edge.Id, s.B.Face), NewVertex(s.B.Foot(s.Centre)));
         }
 
-        // Contact edges along each sharp edge, on each of its faces; the ball's cross-section arcs at its ends.
+        // Rounded edges: contact edges on each face, the ball's cross-section at each end (shared where two strips
+        // meet), and the strip.
         var along = new Dictionary<(EdgeId Edge, FaceId Face), EdgeId>();
         var section = new Dictionary<(EdgeId Edge, VertexId Vertex), EdgeId>();
+        var shared = new Dictionary<VertexId, EdgeId>();
         var strips = new List<(Sharp Sharp, SurfaceGeometry Surface)>();
         foreach (var s in sharp.Values.OrderBy(s => s.Edge.Id.Value))
         {
@@ -361,8 +480,7 @@ internal static class LocalRounding
                     along.Add((s.Edge.Id, face.Face), NewEdge(v, v, new Shape(p, p, centre, nu, Turn)));
                 }
                 var (a, b) = (ring[(s.Edge.Id, s.A.Face)], ring[(s.Edge.Id, s.B.Face)]);
-                var tangent = Unit(nu.Cross(s.Centre - c));
-                section.Add((s.Edge.Id, s.Edge.StartVertexId), NewEdge(a, b, Cross(positions[a], positions[b], s.Centre, tangent)));
+                section.Add((s.Edge.Id, s.Edge.StartVertexId), NewEdge(a, b, Cross(positions[a], positions[b], s.Centre, Unit(nu.Cross(s.Centre - c)))));
                 var axisCentre = c + nu * (s.Centre - c).Dot(nu); var major = (s.Centre - axisCentre).Length;
                 if (major <= radius + tol) return TooLarge(radius, $"the ball along circle edge {s.Edge.Id.Value} reaches the circle's axis");
                 strips.Add((s, SurfaceGeometry.FromTorus(new TorusSurface(axisCentre, Direction3D.Create(nu), major, radius, Direction3D.Create(s.Centre - axisCentre)))));
@@ -370,32 +488,21 @@ internal static class LocalRounding
             }
 
             var (start, end) = (s.Edge.StartVertexId, s.Edge.EndVertexId);
-            var (c0, c1) = (corners[start].Centre, corners[end].Centre);
+            var (c0, c1) = (plans[start].Centre, plans[end].Centre);
             foreach (var face in new[] { s.A, s.B })
             {
                 var (v0, v1) = (contact[(start, face.Face)], contact[(end, face.Face)]);
-                var (p0, p1) = (positions[v0], positions[v1]);
-                Shape? path = null;
-                if (!shape.Arc)
-                {
-                    if ((p1 - p0).Dot(shape.End - shape.Start) <= tol * (shape.End - shape.Start).Length)
-                        return TooLarge(radius, $"the rounding uses up edge {s.Edge.Id.Value} on face {face.Face.Value}");
-                    path = new Shape(p0, p1, null, Vector3D.Zero, 0);
-                }
-                else
-                {
-                    var c = shape.Center!.Value; var nu = shape.Normal; var centre = c + nu * (p0 - c).Dot(nu);
-                    var sweep = Angle(p0 - centre, p1 - centre, nu);
-                    if ((p0 - centre).Length <= tol || double.Abs(sweep - shape.Sweep) >= double.Pi / 2 || sweep <= 1e-9)
-                        return TooLarge(radius, $"the rounding uses up edge {s.Edge.Id.Value} on face {face.Face.Value}");
-                    path = new Shape(p0, p1, centre, nu, sweep);
-                }
+                var path = Trimmed(shape, positions[v0], positions[v1], tol);
+                if (path is null) return TooLarge(radius, $"the rounding uses up edge {s.Edge.Id.Value} on face {face.Face.Value}");
                 along.Add((s.Edge.Id, face.Face), NewEdge(v0, v1, path));
             }
             foreach (var (vertex, centre) in new[] { (start, c0), (end, c1) })
             {
+                if (plans[vertex].Kind == VertexKind.Junction && shared.TryGetValue(vertex, out var existing)) { section.Add((s.Edge.Id, vertex), existing); continue; }
                 var (a, b) = (contact[(vertex, s.A.Face)], contact[(vertex, s.B.Face)]);
-                section.Add((s.Edge.Id, vertex), NewEdge(a, b, Cross(positions[a], positions[b], centre, shape.Tangent(shape.Arc ? Project(centre, shape) : centre))));
+                var cut = NewEdge(a, b, Cross(positions[a], positions[b], centre, shape.Tangent(shape.Arc ? Project(centre, shape) : centre)));
+                section.Add((s.Edge.Id, vertex), cut);
+                if (plans[vertex].Kind == VertexKind.Junction) shared.Add(vertex, cut);
             }
             if (!shape.Arc)
             {
@@ -411,18 +518,53 @@ internal static class LocalRounding
             }
         }
 
-        // Seams: the generator between the contacts at either end of the periodic face.
+        // Kept edges, trimmed to wherever their ends went: a kept vertex, the contact on the face they share with a
+        // strip that ends there, or the tangent faces' common contact.
+        VertexId EndOf(EdgeId edge, VertexId vertex)
+        {
+            var plan = plans.GetValueOrDefault(vertex);
+            if (plan is null || plan.Kind == VertexKind.Untouched) return Kept(vertex);
+            var faces = kept[edge] is var k ? new[] { k.F0, k.F1 } : [];
+            return contact[(vertex, faces.First(f => contact.ContainsKey((vertex, f))))];
+        }
+        var keptEdges = new Dictionary<EdgeId, EdgeId>();
+        foreach (var edge in kept.Keys.Concat(seams.Keys.Where(e => !sharp.Values.Any(s => s.Closed && (s.A.Face == seams[e] || s.B.Face == seams[e])))).OrderBy(e => e.Value))
+        {
+            var original = topology.GetEdge(edge); var shape = shapes[edge];
+            var (v0, v1) = (EndOf(edge, original.StartVertexId), original.StartVertexId == original.EndVertexId ? EndOf(edge, original.StartVertexId) : EndOf(edge, original.EndVertexId));
+            var path = original.StartVertexId == original.EndVertexId ? shape with { Start = positions[v0], End = positions[v0] } : Trimmed(shape, positions[v0], positions[v1], tol);
+            if (path is null) return TooLarge(radius, $"the rounding uses up edge {edge.Value}");
+            keptEdges.Add(edge, NewEdge(v0, v1, path));
+        }
+
+        // Seams of faces whose rims are rounded: the generator between the contacts at either end.
         var seam = new Dictionary<EdgeId, EdgeId>();
-        foreach (var (edge, face) in seams)
+        foreach (var (edge, face) in seams.Where(x => !keptEdges.ContainsKey(x.Key)))
         {
             var shape = shapes[edge];
-            VertexId? Nearest(Point3D p) => sharp.Values.Where(s => s.Closed && (s.A.Face == face || s.B.Face == face))
-                .OrderBy(s => double.Abs((p - s.Shape.Center!.Value).Dot(s.Shape.Normal))).Select(s => (VertexId?)ring[(s.Edge.Id, face)]).FirstOrDefault();
+            VertexId? Nearest(Point3D p) => sharp.Values.Where(s => s.Closed && (s.A.Face == face || s.B.Face == face)).Select(s => (Shape: s.Shape, Vertex: ring[(s.Edge.Id, face)]))
+                .Concat(kept.Keys.Where(e => topology.GetEdge(e).StartVertexId == topology.GetEdge(e).EndVertexId && (kept[e].F0 == face || kept[e].F1 == face)).Select(e => (Shape: shapes[e], Vertex: builder.Model.GetEdge(keptEdges[e]).StartVertexId)))
+                .OrderBy(x => double.Abs((p - x.Shape.Center!.Value).Dot(x.Shape.Normal))).Select(x => (VertexId?)x.Vertex).FirstOrDefault();
             if (Nearest(shape.Start) is not { } v0 || Nearest(shape.End) is not { } v1 || v0 == v1)
                 return Refuse("uniform-rounding-edge-unsupported", $"seam edge {edge.Value} on face {face.Value} does not run between two circle edges");
-            if ((positions[v1] - positions[v0]).Dot(shape.End - shape.Start) <= tol)
+            if ((positions[v1] - positions[v0]).Dot(shape.End - shape.Start) <= tol || Unit(positions[v1] - positions[v0]).Cross(Unit(shape.End - shape.Start)).Length > 1e-7)
                 return TooLarge(radius, $"the rounding uses up face {face.Value} along its seam");
             seam.Add(edge, NewEdge(v0, v1, new Shape(positions[v0], positions[v1], null, Vector3D.Zero, 0)));
+        }
+
+        // Strips: the contact on A from the end back to the start, the section at the start across to B, the
+        // contact on B, the section at the end back to A. Each section's direction from its own ends.
+        var stripUse = new Dictionary<EdgeId, bool>();
+        var stripLoops = new List<(Sharp Sharp, SurfaceGeometry Surface, List<(EdgeId, bool)> Loop)>();
+        foreach (var (s, surface) in strips)
+        {
+            var a = along[(s.Edge.Id, s.A.Face)]; var b = along[(s.Edge.Id, s.B.Face)];
+            var first = section[(s.Edge.Id, s.Edge.StartVertexId)];
+            var last = s.Closed ? first : section[(s.Edge.Id, s.Edge.EndVertexId)];
+            var firstReversed = StartOfEdge(first) != StartOfEdge(a);
+            var lastReversed = s.Closed ? !firstReversed : StartOfEdge(last) != builder.Model.GetEdge(b).EndVertexId;
+            stripUse[first] = firstReversed; if (!s.Closed) stripUse[last] = lastReversed;
+            stripLoops.Add((s, surface, [(a, true), (first, firstReversed), (b, false), (last, lastReversed)]));
         }
 
         // Each loop's uses in walking order, from the new edges' shared vertices.
@@ -442,17 +584,23 @@ internal static class LocalRounding
             return From(ordered[0]) == To(ordered[^1]) ? ordered : null;
         }
 
-        // Original faces, trimmed: each edge replaced by its contact edge (or rebuilt seam), same direction.
+        // Original faces, trimmed: each edge replaced by its contact edge, kept edge or rebuilt seam, same
+        // direction; a strip that ends on the face leaves its end section in the loop where the vertex was.
         var originalLoops = new Dictionary<FaceId, List<List<(EdgeId Edge, bool Reversed)>>>();
         foreach (var face in topology.Faces.OrderBy(f => f.Id.Value))
         {
+            var ends = plans.Where(p => p.Value.Kind == VertexKind.End && p.Value.Faces[2] == face.Id)
+                .Select(p => (Edge: section[(p.Value.Rounded[0], p.Key)], Vertex: p.Key)).ToList();
             var loops = new List<List<(EdgeId Edge, bool Reversed)>>();
             foreach (var loop in oriented[face.Id])
             {
-                var chained = Chain(loop.Select(u => (seam.TryGetValue(u.Edge, out var rebuilt) ? rebuilt : along[(u.Edge, face.Id)], u.Reversed)).ToList());
+                var mapped = loop.Select(u => (seam.TryGetValue(u.Edge, out var rebuilt) ? rebuilt : keptEdges.TryGetValue(u.Edge, out var k) ? k : along[(u.Edge, face.Id)], u.Reversed)).ToList();
+                var touching = ends.Where(x => topology.Edges.Any(e => (e.StartVertexId == x.Vertex || e.EndVertexId == x.Vertex) && loop.Any(u => u.Edge == e.Id))).ToList();
+                mapped.AddRange(touching.Select(x => (x.Edge, !stripUse[x.Edge])));
+                var chained = Chain(mapped);
                 if (chained is null)
                 {
-                    var walk = string.Join(" ", loop.Select(u => { var n = seam.TryGetValue(u.Edge, out var r) ? r : along[(u.Edge, face.Id)]; var e = builder.Model.GetEdge(n); return $"{u.Edge.Value}{(u.Reversed ? "-" : "+")}:{e.StartVertexId.Value}>{e.EndVertexId.Value}"; }));
+                    var walk = string.Join(" ", mapped.Select(u => { var e = builder.Model.GetEdge(u.Item1); return $"{u.Item1.Value}{(u.Item2 ? "-" : "+")}:{e.StartVertexId.Value}>{e.EndVertexId.Value}"; }));
                     return Refuse("uniform-rounding-edge-unsupported", $"a boundary of face {face.Id.Value} does not close after rounding ({walk})");
                 }
                 loops.Add(chained);
@@ -469,35 +617,25 @@ internal static class LocalRounding
             NewFace(loops.Select(l => (IReadOnlyList<(EdgeId, bool)>)l).ToList(), supports[face.Id].Surface, supports[face.Id].Sense > 0);
         }
 
-        // Strips: the contact on A against A's direction, the section at the start, the contact on B, the section
-        // at the end back. A uses the edge forward, so every shared edge is used once each way.
-        foreach (var (s, surface) in strips)
-        {
-            var a = along[(s.Edge.Id, s.A.Face)]; var b = along[(s.Edge.Id, s.B.Face)];
-            var first = section[(s.Edge.Id, s.Edge.StartVertexId)];
-            var last = s.Closed ? first : section[(s.Edge.Id, s.Edge.EndVertexId)];
-            // A concave strip faces its own axis: the body's outward normal opposes the tube's.
-            NewFace([[(a, true), (first, false), (b, false), (last, true)]], surface, s.Side > 0);
-        }
+        // A concave strip faces its own axis: the body's outward normal opposes the tube's.
+        foreach (var (s, surface, loop) in stripLoops)
+            NewFace([loop], surface, s.Side > 0);
 
         // Corners: the three sections, each against the direction its strip uses it.
-        foreach (var (vertex, corner) in corners.OrderBy(c => c.Key.Value))
+        foreach (var (vertex, plan) in plans.Where(p => p.Value.Kind == VertexKind.Corner).OrderBy(p => p.Key.Value))
         {
-            var arcs = corner.Edges.Select(e => (Edge: section[(e, vertex)], Reversed: sharp[e].Edge.StartVertexId == vertex)).ToList();
-            var ordered = new List<(EdgeId, bool)> { arcs[0] }; arcs.RemoveAt(0);
-            while (arcs.Count > 0)
-            {
-                var (last, reversed) = ordered[^1]; var e = builder.Model.GetEdge(last); var end = reversed ? e.StartVertexId : e.EndVertexId;
-                var next = arcs.FindIndex(x => (x.Reversed ? builder.Model.GetEdge(x.Edge).EndVertexId : builder.Model.GetEdge(x.Edge).StartVertexId) == end);
-                if (next < 0) return Refuse("uniform-rounding-vertex-unsupported", $"the corner at vertex {vertex.Value} does not close");
-                ordered.Add(arcs[next]); arcs.RemoveAt(next);
-            }
-            var axis = Unit(corner.Faces.Aggregate(Vector3D.Zero, (n, f) => n + supports[f].Outward(corner.Centre)));
-            NewFace([ordered], SurfaceGeometry.FromSphere(new SphereSurface(corner.Centre, Direction3D.Create(axis), radius, Direction3D.Create(Perpendicular(axis)))), corner.Side > 0);
+            var ordered = Chain(plan.Rounded.Select(e => (section[(e, vertex)], !stripUse[section[(e, vertex)]])).ToList());
+            if (ordered is null) return Refuse("uniform-rounding-vertex-unsupported", $"the corner at vertex {vertex.Value} does not close");
+            var axis = Unit(plan.Faces.Aggregate(Vector3D.Zero, (n, f) => n + supports[f].Outward(plan.Centre)));
+            NewFace([ordered], SurfaceGeometry.FromSphere(new SphereSurface(plan.Centre, Direction3D.Create(axis), radius, Direction3D.Create(Perpendicular(axis)))), plan.Side > 0);
         }
 
+        // Every edge used once each way (a seam twice by one face).
+        var wrong = builder.Model.Coedges.GroupBy(c => c.EdgeId).Where(g => g.Count() != 2 || g.First().IsReversed == g.Last().IsReversed).Select(g => g.Key.Value).ToArray();
+        if (wrong.Length > 0) return Refuse("uniform-rounding-build-failed", $"the rounded body does not use edges {string.Join(", ", wrong.Take(8))} once each way");
+
         // Fit: the ball touches nothing beyond its own faces, and planar faces keep their loops simple.
-        var refusal = Clearance(boundaries, radius, tol, supports, sharp, corners) ?? Planar(radius, tol, supports, shapes, built, originalLoops);
+        var refusal = Clearance(boundaries, radius, tol, supports, sharp, plans) ?? Planar(radius, tol, supports, shapes, built, originalLoops);
         if (refusal is not null) return new Outcome { Refusal = refusal };
 
         builder.AddBody([builder.AddShell(resultFaces)]);
@@ -507,23 +645,51 @@ internal static class LocalRounding
             : Refuse("uniform-rounding-build-failed", string.Join("; ", validation.Diagnostics.Select(d => d.Message)));
     }
 
-    /// <summary>The ball centre at signed inward distance <paramref name="radius"/> from three faces (negative:
-    /// outside, across concave edges), by Newton on their distance functions (whose gradients are the inward
-    /// normals); exact in one step on planes.</summary>
-    private static Point3D? Centre(Support[] faces, Point3D vertex, double radius, double tol)
+    /// <summary>The same line or circle between new ends, still running the original way; null if it folded.</summary>
+    private static Shape? Trimmed(Shape shape, Point3D p0, Point3D p1, double tol)
     {
-        var x = vertex - Unit(faces.Aggregate(Vector3D.Zero, (n, f) => n + f.Outward(vertex))) * radius;
+        if (!shape.Arc)
+            return (p1 - p0).Dot(shape.End - shape.Start) > tol * (shape.End - shape.Start).Length ? new Shape(p0, p1, null, Vector3D.Zero, 0) : null;
+        var c = shape.Center!.Value; var nu = shape.Normal; var centre = c + nu * (p0 - c).Dot(nu);
+        var sweep = Angle(p0 - centre, p1 - centre, nu);
+        return (p0 - centre).Length > tol && sweep > 1e-9 && double.Abs(sweep - shape.Sweep) < double.Pi / 2 ? new Shape(p0, p1, centre, nu, sweep) : null;
+    }
+
+    /// <summary>The ball centre at the given signed inward distances from three faces (negative: outside, across
+    /// concave edges; zero: on the face), by Newton on their distance functions (whose gradients are the inward
+    /// normals); exact in one step on planes.</summary>
+    private static Point3D? Centre(Support[] faces, Point3D vertex, double[] targets, double tol)
+    {
+        var x = vertex - Unit(faces.Zip(targets).Where(p => p.Second != 0).Aggregate(Vector3D.Zero, (n, p) => n + p.First.Outward(vertex))) * targets[0];
         for (var i = 0; i < 60; i++)
         {
             var rows = faces.Select(f => f.Outward(x) * -1).ToArray();
-            var residual = faces.Select(f => f.Inside(x) - radius).ToArray();
+            var residual = faces.Select((f, k) => f.Inside(x) - targets[k]).ToArray();
             if (residual.All(r => double.Abs(r) <= tol * 1e-3)) return x;
             var det = rows[0].Dot(rows[1].Cross(rows[2]));
             if (double.Abs(det) < 1e-12) return null;
             var step = (rows[1].Cross(rows[2]) * -residual[0] + rows[2].Cross(rows[0]) * -residual[1] + rows[0].Cross(rows[1]) * -residual[2]) * (1 / det);
             x += step;
         }
-        return faces.All(f => double.Abs(f.Inside(x) - radius) <= tol) ? x : null;
+        return faces.Select((f, k) => double.Abs(f.Inside(x) - targets[k])).All(r => r <= tol) ? x : null;
+    }
+
+    /// <summary>Where two strips meet across a tangent edge: the ball touching the tangent faces at one point of
+    /// the edge and the common face, found along the edge from the vertex.</summary>
+    private static Point3D? Junction(Support common, Support tangent, Point3D vertex, Vector3D along, double target, double tol)
+    {
+        Point3D Ball(double s) { var q = vertex + along * s; return q - tangent.Outward(q) * target; }
+        var t = 0d;
+        for (var i = 0; i < 60; i++)
+        {
+            var f = common.Inside(Ball(t)) - target;
+            if (double.Abs(f) <= tol * 1e-3) return Ball(t);
+            var h = 1e-6 * (double.Abs(target) + double.Abs(t));
+            var slope = (common.Inside(Ball(t + h)) - common.Inside(Ball(t - h))) / (2 * h);
+            if (double.Abs(slope) < 1e-12) return null;
+            t -= f / slope;
+        }
+        return null;
     }
 
     /// <summary>The ball centre at signed inward distance <paramref name="radius"/> from two coaxial faces, in the
@@ -531,9 +697,8 @@ internal static class LocalRounding
     private static Point3D? Meridian(Support a, Support b, Point3D centre, Vector3D axis, Vector3D meridian, Point3D onEdge, double radius, double tol, double rho0)
     {
         var start = centre + meridian * rho0;
-        var (rho, z) = (rho0, 0d);
         var guess = start - Unit(a.Outward(start) + b.Outward(start)) * radius;
-        (rho, z) = ((guess - centre).Dot(meridian), (guess - centre).Dot(axis));
+        var (rho, z) = ((guess - centre).Dot(meridian), (guess - centre).Dot(axis));
         for (var i = 0; i < 60; i++)
         {
             var x = centre + meridian * rho + axis * z;
@@ -549,29 +714,31 @@ internal static class LocalRounding
     }
 
     /// <summary>Sampled ball centres along every strip and at every corner stay further than r from each face that
-    /// is not one of their own, wherever that face actually is.</summary>
+    /// is not one of their own (a strip's own include the face it ends on and the faces it meets tangentially),
+    /// wherever that face actually is.</summary>
     private static Refusal? Clearance(Dictionary<FaceId, Shape[]> boundaries, double radius, double tol, Dictionary<FaceId, Support> supports,
-        Dictionary<EdgeId, Sharp> sharp, Dictionary<VertexId, (Point3D Centre, EdgeId[] Edges, FaceId[] Faces, double Side)> corners)
+        Dictionary<EdgeId, Sharp> sharp, Dictionary<VertexId, Plan> plans)
     {
         IEnumerable<(Point3D Centre, FaceId[] Own, string Where)> Samples()
         {
             foreach (var s in sharp.Values)
             {
-                var own = new[] { s.A.Face, s.B.Face };
                 if (s.Closed)
                 {
                     var c = s.Shape.Center!.Value;
-                    for (var i = 0; i < 24; i++) yield return (Rotate(s.Centre, c, s.Shape.Normal, Turn * i / 24), own, $"along edge {s.Edge.Id.Value}");
+                    for (var i = 0; i < 24; i++) yield return (Rotate(s.Centre, c, s.Shape.Normal, Turn * i / 24), [s.A.Face, s.B.Face], $"along edge {s.Edge.Id.Value}");
                     continue;
                 }
-                var (c0, c1) = (corners[s.Edge.StartVertexId].Centre, corners[s.Edge.EndVertexId].Centre);
+                var (p0, p1) = (plans[s.Edge.StartVertexId], plans[s.Edge.EndVertexId]);
+                var own = new[] { s.A.Face, s.B.Face }.Concat(new[] { p0, p1 }.Where(p => p.Kind is VertexKind.End or VertexKind.Junction).SelectMany(p => p.Faces)).Distinct().ToArray();
+                var (c0, c1) = (p0.Centre, p1.Centre);
                 for (var i = 1; i < 8; i++)
                 {
                     var t = i / 8d;
                     yield return (!s.Shape.Arc ? c0 + (c1 - c0) * t : Rotate(c0, s.Shape.Center!.Value, s.Shape.Normal, Angle(c0 - Axial(c0, s.Shape), c1 - Axial(c0, s.Shape), s.Shape.Normal) * t), own, $"along edge {s.Edge.Id.Value}");
                 }
             }
-            foreach (var (vertex, corner) in corners) yield return (corner.Centre, corner.Faces, $"at vertex {vertex.Value}");
+            foreach (var (vertex, plan) in plans.Where(p => p.Value.Kind == VertexKind.Corner)) yield return (plan.Centre, plan.Faces, $"at vertex {vertex.Value}");
         }
         foreach (var (centre, own, where) in Samples())
             foreach (var (face, support) in supports)
@@ -702,6 +869,9 @@ internal static class LocalRounding
             }
             return crossings % 2 == 1;
         }
+        // A blend this construction made (a sphere corner, a closed rim's torus) is never asked: it only comes back
+        // as a face of a second pass, never in the way of a ball there.
+        if (face.Kind is not (SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone)) return false;
         var (origin, axis) = face.Kind == SurfaceGeometryKind.Cylinder
             ? (face.Surface.Cylinder!.Value.Origin, face.Surface.Cylinder!.Value.Axis.ToVector())
             : (face.Surface.Cone!.Value.Apex, face.Surface.Cone!.Value.Axis.ToVector());

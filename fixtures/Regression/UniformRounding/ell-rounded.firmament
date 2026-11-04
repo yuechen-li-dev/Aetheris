@@ -1,4 +1,4 @@
-Model MixedCorner {
+Model RoundedEll {
     units: mm
     Path Outline {
         start: Point2(0mm, 0mm)

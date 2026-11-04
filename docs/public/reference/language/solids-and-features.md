@@ -171,14 +171,19 @@ The details that trip people up:
   cylinder's rim, a hole's rim, an arc in an extruded profile) a torus, and each
   corner a sphere. Faces may be planes, cylinders and cones. Convex edges are
   rounded off; concave edges (a shoulder, a counterbore's step, a blind hole's
-  floor) are filled in with the same radius. On convex bodies bounded by planes,
-  corners where four or more faces meet unevenly open into short strips, as a
-  rolled ball would leave them; on curved bodies each corner must join three
-  edges. Not supported yet: spline or elliptical edges (common on imported parts
-  and on planes cut at an angle through cylinders), faces meeting tangentially,
-  and corners where convex and concave edges meet (the inner corner of an
-  L-shaped extrusion, a rectangular pocket's rim); each is refused at the
-  finish, naming the edges or corner found. A radius that does not fit, for
+  floor) are filled in with the same radius. Where flat and curved walls meet
+  tangentially (a rounded-rectangle extrusion) the strips run on into each
+  other. Where one concave edge meets convex ones (the inner corner of an
+  L-shaped extrusion) the concave edge is filled first and then rounded over,
+  as fillets before rounds. On convex bodies bounded by planes, corners where
+  four or more faces meet unevenly open into short strips, as a rolled ball
+  would leave them; on curved bodies each corner must join three edges. Not
+  supported yet: spline or elliptical edges (common on imported parts and on
+  planes cut at an angle through cylinders), corners where two concave edges
+  meet a convex one (a boss's foot corner), and faces split in two along one
+  plane (some compositions leave a pocketed plate's walls split at the pocket's
+  depth); each is refused at the finish, naming the edges, corner or faces
+  found. A radius that does not fit, for
   instance one whose ball would reach a nearby hole or a small hole's axis, is
   refused with the largest that does. Assertions measure the rounded body. An
   all-edge chamfer is refused.

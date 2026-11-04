@@ -1,0 +1,22 @@
+Concept Struct PocketLayout On XY {
+    Point2 A { Position: [-10mm, -10mm] } Point2 B { Position: [10mm, -10mm] } Point2 C { Position: [10mm, 10mm] } Point2 D { Position: [-10mm, 10mm] }
+    Point2 E { Position: [-4mm, -4mm] } Point2 F { Position: [4mm, -4mm] } Point2 G { Position: [4mm, 4mm] } Point2 H { Position: [-4mm, 4mm] }
+    Line2 AB { From: A; To: B } Line2 BC { From: B; To: C } Line2 CD { From: C; To: D } Line2 DA { From: D; To: A }
+    Line2 EF { From: E; To: F } Line2 FG { From: F; To: G } Line2 GH { From: G; To: H } Line2 HE { From: H; To: E }
+}
+Profile Plate Using PocketLayout { Loop Outer {
+     AB
+     |> BC
+     |> CD
+     |> DA
+     |> Close
+ } }
+Profile Pocket Using PocketLayout { Loop Outer {
+     EF
+     |> FG
+     |> GH
+     |> HE
+     |> Close
+ } }
+Struct Pocket { Compose Body { Base PrimaryPlate { Profile: Plate; From: 0mm; To: 10mm; Role: Stock } Remove TopPocket { Profile: Pocket; From: 7mm; To: 10mm; Role: Relief } } }
+Modify Pocket { EdgeFinish<Fillet> Round { target: AllEdges; radius: 0.5mm } }

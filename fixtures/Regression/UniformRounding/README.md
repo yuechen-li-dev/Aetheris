@@ -8,8 +8,11 @@ rims round to tori next to the block's cylinder strips and sphere corners) and
 cylinder down each line-to-arc edge, spheres at the four corners). With concave
 edges filled in: `bushing-rounded` (a revolved stepped bushing: the shoulder's
 inner corner is a concave torus), `counterbore-rounded` (the step's corner) and
-`blind-hole-rounded` (the floor's corner). `ell-mixed-corner` is refused: its
-inner corner joins a concave edge with convex ones.
+`blind-hole-rounded` (the floor's corner). `rounded-rect-rounded` runs strips on
+into each other where flat and arc walls meet tangentially; `ell-rounded` fills
+the L's concave inner edge first and rounds over it. Refused by name:
+`boss-mixed-corner` (two concave edges and a convex one at each foot corner) and
+`pocket-split-face` (the composed plate's walls are split at the pocket's depth).
 
 The Firmament UniformRoundingRoute tests build them; the BlendNetworkRemoval
 experiments remove the rounding again.

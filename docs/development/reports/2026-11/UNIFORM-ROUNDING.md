@@ -137,3 +137,36 @@ outward, read back by the certificate at r, and Remove(Round(x)) restores x's
 faces and edges. Concave fit sizes are exact: a Ø8 blind hole's floor refuses
 r = 2.5 "under 2 mm" (major radius R − r must exceed r). `ell-mixed-corner`
 refuses at the inner corner.
+
+## Stage 3: tangent junctions and mixed corners
+
+Every vertex gets a plan with one ball centre: kept; a sphere corner; a strip
+end (one rounded edge whose strip runs square into the face across, which
+takes the ball's cross-section into its loop where the vertex was); or a
+junction (two rounded edges meeting where their other faces join tangentially,
+sharing one cross-section; the tangent edge is trimmed to the ball's contact).
+Edges a pass leaves alone, tangent or sharp, are trimmed to wherever their
+ends went. Section directions come from their own ends, so the kinds compose.
+
+Mixed corners (one concave edge, convex others): two passes, fillets before
+rounds. Pass 1 fills only concave edges: at the mixed corner the fill ends
+square on the top face, leaving a convex arc and a tangent junction. Pass 2
+rounds everything still sharp on that body, whose orientation is trusted
+(this construction built it, with explicit boundary roles). The other order
+is not exact (crossing strips meet in an ellipse), so there is no competing
+interpretation to judge: the order is a rule. Two concave edges with a convex
+one stay refused; rounding the odd edge first would work there too, but the
+same edge's far end would then become a rolled corner instead of a sphere, a
+real choice of geometry left for when it is wanted.
+
+The route also takes AllEdges fillets that parse but that the edge-finish
+lowering refuses (Compose bodies), leaving the dedicated stock builder's own
+refusals alone.
+
+Results: `rounded-rect-rounded` (8 cylinder strips, 8 tori, no corners),
+`ell-rounded` (the concave fill, 17 convex strips, 2 tori of major radius 2r
+over the fill's ends, 10 spheres) build through the CLI, mesh watertight and
+outward, read back at r, and Remove(Round(x)) restores x's faces and edges.
+Refused by name: `boss-mixed-corner` (two concave and one convex at each foot
+corner), `pocket-split-face` (the composed plate's walls are split in two
+coplanar faces at the pocket's depth: needs a coplanar-face merge first).

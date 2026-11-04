@@ -206,3 +206,19 @@ tori) even on unrounded bodies: a renderer limit, not the rounding.
 
 Regression: `RadiusSweep_EitherSoundOrRefusedWithAFitThatBuilds` (9 fixtures ×
 5 radii) and `RevolvedAnnulusCapTests`.
+
+## Wireframe preview: periodic faces
+
+`aetheris wireframe` drew no isolines on faces that run all the way round a
+periodic parameter (a cylinder's side, a bore, a closed rim's torus), rounded
+or not: the even/odd test treated their pcurve loops as plane polygons, and a
+band's loop (seam up, rim round, seam down, rim back) encloses nothing there.
+Trim loops are now windowed per periodic parameter around the face's circular
+mean; a loop covering a whole period makes the face a band, classified by a
+ray along the other parameter counting segments crossed modulo the period
+(seams run along the ray). Coverage went from 2/5 faces (rounded cylinder),
+3/12 (bushing), 27/33 (counterbore) to every face of every fixture; the plain
+cylinder from 2/3 to 3/3. `PeriodicFacesGetIsolinesInsideTheirTrims` checks
+coverage and that isolines stay on the part (within the fillet radius of the
+edges' box: a frustum's rim torus bulges past its contact circles). Existing
+deterministic-output tests unchanged.

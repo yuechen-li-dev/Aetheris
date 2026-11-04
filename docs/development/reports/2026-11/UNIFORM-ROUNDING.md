@@ -97,3 +97,43 @@ are exact where checkable: a Ø6 bore in a 20 mm block refuses r = 4 "under
 3.5 mm" (10 − r − 3 = r); a bore 2 mm from a wall refuses r = 1 "under 1 mm".
 
 Next: concave edges (stage 2), mixed vertices and tangent junctions (stage 3).
+
+## Stage 2: concave edges
+
+Each sharp edge carries a side: +1 convex (ball inside the material), −1
+concave (ball outside, filling the corner). The ball centre is where every
+face's signed inward distance is side·r, so the same Newton solves, contacts
+and tubes serve both; concave strips and corners are bound opposed to their
+surfaces (the body faces the tube's axis). Corners must be one-sided: where
+convex and concave edges meet, `uniform-rounding-mixed-vertex-unsupported`
+names the vertex and each edge's kind (stage 3).
+
+Found on the way, all in the input, not the rounding:
+
+- Loops are not even self-consistent: a revolved sleeve's outer cylinder walks
+  both cap circles the same way. Orientation is now decided per (face, edge) by
+  stepping off the edge along n × t and testing the point against the face's
+  own boundary (exact even-odd: lines and arcs in the plane; circles over the
+  point's angle on cylinders and cones); loops are re-chained on the new
+  vertices (closed circles first at a shared vertex).
+- Face orientation flags can be wrong: Firmament's profile revolve writes an
+  annular cap's inner loop first with no boundary roles, so the STEP reader takes
+  the hole as the outer bound and flips the cap (a revolved sleeve re-imports
+  measuring 1553 mm³ instead of 4712). Outward sides are now computed by ray
+  parity against the faces' exact surfaces and boundaries; output faces carry
+  explicit outer/inner boundary roles, outer first. The revolve emitter's own
+  bug is not fixed here.
+- The kernel's face-domain query misjudged a point far outside a counterbore's
+  shoulder annulus as inside it; clearance uses the same exact point-in-face test.
+- The rounding route now triggers whenever the AllEdges fillet is all that keeps
+  the source from parsing (it parses without it), which takes in bodies whose
+  construction admits no Modify (Revolve); it claims only finishes it reads
+  whole (target, radius, kind Fillet), so invalid fields keep their own errors.
+
+Results: `bushing-rounded` (6 tori, the shoulder's concave), `counterbore-rounded`
+(4 tori, the step's concave, 12 strips, 8 corners), `blind-hole-rounded` (rim
+and concave floor tori) build and validate through the CLI, mesh watertight and
+outward, read back by the certificate at r, and Remove(Round(x)) restores x's
+faces and edges. Concave fit sizes are exact: a Ø8 blind hole's floor refuses
+r = 2.5 "under 2 mm" (major radius R − r must exceed r). `ell-mixed-corner`
+refuses at the inner corner.

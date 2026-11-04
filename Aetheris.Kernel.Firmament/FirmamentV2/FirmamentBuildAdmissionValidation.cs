@@ -9,8 +9,8 @@ public static class FirmamentBuildAdmissionValidation
     public static FirmamentV2ValidationReport Admit(
         FirmamentV2ValidationReport report, string source, string? sourceDirectory = null)
     {
-        if (report.Status == "invalid" && report.Diagnostics.Any(d => d.Code == UniformStockFilletAdmission.Code)
-            && UniformRoundingRoute.Find(source) is not null)
+        if (report.Status == "invalid" && UniformRoundingRoute.Find(source) is { } rounding
+            && FirmamentV2Parser.Parse(rounding.Stripped, sourceDirectory).IsSuccess)
             return Rounded(report, source, sourceDirectory);
         if (report.Status == "invalid") return report;
         var compilation = FirmamentBuildAndExport.CompileSource(source, sourceDirectory);
@@ -30,12 +30,14 @@ public static class FirmamentBuildAdmissionValidation
         };
     }
 
-    /// <summary>An AllEdges fillet the stock route does not admit is validated the way build answers it: by building
-    /// the body and rounding it. The stock route's refusal and the generic parse failure give way to that answer.</summary>
+    /// <summary>An AllEdges fillet that is all that stops the source parsing (the stock route refuses it, or the
+    /// body's construction takes no Modify) is validated the way build answers it: by building the body and
+    /// rounding it.</summary>
     private static FirmamentV2ValidationReport Rounded(FirmamentV2ValidationReport report, string source, string? sourceDirectory)
     {
         var built = FirmamentBuildAndExport.CompileSource(source, sourceDirectory);
-        var diagnostics = report.Diagnostics.Where(d => d.Code is not (UniformStockFilletAdmission.Code or "firmament-v2-parse-failed"))
+        // Only the finish failed the parse, so the parse's diagnostics give way to the build's answer.
+        var diagnostics = report.Diagnostics.Where(d => d.Severity is not ("fatal" or "error"))
             .Concat(built.Diagnostics.Select(d => Present(d, report.Source, source))).Distinct().ToArray();
         var fatal = diagnostics.Count(d => d.Severity is "fatal" or "error");
         return report with

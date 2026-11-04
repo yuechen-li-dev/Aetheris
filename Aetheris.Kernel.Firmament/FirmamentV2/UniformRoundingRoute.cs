@@ -32,6 +32,11 @@ internal static class UniformRoundingRoute
         var generic = finish.Type.Arguments.Count == 1 ? FirmamentSyntaxValues.Reference(finish.Type.Arguments[0].Value) : null;
         var kind = generic ?? FirmamentSyntaxValues.Reference(Field(finish, "Kind"));
         if (kind != "Fillet" || !FirmamentSyntaxValues.TryMeasure(Field(finish, "Radius"), "mm", out var radius)) return null;
+        // Only a finish this route reads whole: any other field (a face selector, a distance, an invalid kind) keeps
+        // the parser's own diagnostic.
+        var fields = finish.Body?.Statements.OfType<FieldSyntax>().ToArray() ?? [];
+        if (fields.Any(f => !new[] { "Target", "Radius", "Kind" }.Any(n => FirmamentSyntaxFields.SameField(f.Name.Text, n)))
+            || Field(finish, "Kind") is { } k && FirmamentSyntaxValues.Reference(k) != "Fillet") return null;
         // Remove the finish; a Modify left empty goes with it.
         var owner = declarations.FirstOrDefault(d => d.Type.Name.Text == "Modify" && d.Body?.Statements.Contains(finish) == true);
         var span = owner is not null && owner.Body!.Statements.Count == 1 ? owner.Span : finish.Span;

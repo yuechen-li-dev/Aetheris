@@ -1,0 +1,7 @@
+Model RoundedBushing {
+    units: mm
+    Axis Spin { Origin: [0mm, 0mm, 0mm]; Direction: [0, 1, 0] }
+    Polygon2 Section { Points: [[4mm, 0mm], [10mm, 0mm], [10mm, 20mm], [7mm, 20mm], [7mm, 35mm], [4mm, 35mm]] }
+    Revolve Body { Profile: Section; About: Spin; Angle: full }
+    Modify Body { EdgeFinish<Fillet> Round { target: AllEdges; radius: 1mm } }
+}

@@ -167,11 +167,14 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
     [InlineData("frustum-rounded")]
     [InlineData("box-hole-rounded")]
     [InlineData("d-profile-rounded")]
+    [InlineData("bushing-rounded")]
+    [InlineData("counterbore-rounded")]
+    [InlineData("blind-hole-rounded")]
     public void RemovingWholeBodyRounding_ReturnsTheBody(string name)
     {
         var source = File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/UniformRounding", name + ".firmament"));
         var finished = Import(source);
-        var plain = Import(Regex.Replace(source, @"EdgeFinish<Fillet>[^{}]*\{[^{}]*\}", ""));
+        var plain = Import(Aetheris.Kernel.Firmament.FirmamentV2.UniformRoundingRoute.Find(source)!.Stripped);
         var walls = plain.Topology.Faces.Select(f => plain.TryGetFaceSurfaceGeometry(f.Id, out var g) ? g : null).Where(g => g is { Kind: not Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane }).ToArray();
         var keep = finished.Topology.Faces.Select(f => f.Id).Where(f => finished.TryGetFaceSurfaceGeometry(f, out var g) && walls.Any(w => w!.Kind == g!.Kind && Same(w, g))).ToHashSet();
         var probe = BlendRegionProbe.Run(name, finished, new BlendRegionProbe.Options(Keep: keep));

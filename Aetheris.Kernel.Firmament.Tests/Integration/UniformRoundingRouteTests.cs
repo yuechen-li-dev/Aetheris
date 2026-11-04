@@ -70,30 +70,29 @@ public sealed class UniformRoundingRouteTests
         Assert.NotNull(refused.Diagnostics.Single().SourceSpan);
     }
 
+    /// <summary>An L-shaped extrusion: its inner vertical edge is concave and meets the convex top and bottom
+    /// edges, a corner whose two possible orders of rounding give different geometry. Refused, naming it.</summary>
     [Fact]
-    public void ConcaveBody_RefusesAsConcave()
+    public void MixedCorner_RefusesNamingTheVertex()
     {
-        const string source = """
-            Model Ell {
-                units: mm
-                Path Outline {
-                    start: Point2(0mm, 0mm)
-                    heading: 0deg
-                    Line A { length: 40mm }
-                    Line B { turn: 90deg; length: 15mm }
-                    Line C { turn: 90deg; length: 25mm }
-                    Line D { turn: -90deg; length: 15mm }
-                    Line E { turn: 90deg; length: 15mm }
-                    Close F
-                }
-                Profile Section from Outline
-                Struct Body { Extrude Stock { profile: Section; from: 0mm; to: 10mm } }
-                Modify Body { EdgeFinish<Fillet> Round { target: AllEdges; radius: 1mm } }
-            }
-            """;
+        var message = Assert.Single(FirmamentBuildAndExport.CompileSource(File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/UniformRounding/ell-mixed-corner.firmament"))).Diagnostics).Message;
+        Assert.Contains("uniform-rounding-mixed-vertex-unsupported", message);
+        Assert.Contains("convex and concave edges meet", message);
+        Assert.Matches(@"vertex \d+ joins edges \d+ \((convex|concave)\), \d+ \((convex|concave)\), \d+ \((convex|concave)\)", message);
+    }
+
+    /// <summary>A blind hole's floor rounds to a concave torus around the hole's axis with major radius R - r: it
+    /// needs R - r > r, so a 8 mm hole takes radii under 2 mm.</summary>
+    [Fact]
+    public void BlindHoleFloor_RefusesARadiusThatReachesTheAxis()
+    {
+        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/UniformRounding/blind-hole-rounded.firmament")).Replace("radius: 0.5mm", "radius: 2.5mm");
         var message = Assert.Single(FirmamentBuildAndExport.CompileSource(source).Diagnostics).Message;
-        Assert.Contains("uniform-rounding-concave-unsupported", message);
-        Assert.Contains("concave edge", message);
+        Assert.Contains("uniform-rounding-radius-too-large", message);
+        Assert.Contains("reaches the circle's axis", message);
+        var fit = double.Parse(System.Text.RegularExpressions.Regex.Match(message, @"fits is under ([0-9.Ee+-]+) mm").Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(2, fit, 3);
+        Assert.True(FirmamentBuildAndExport.CompileSource(source.Replace("radius: 2.5mm", "radius: 1.9mm")).IsSuccess);
     }
 
     /// <summary>Bodies with circular edges: every rim a torus, every line edge a cylinder, every three-edge corner a
@@ -103,6 +102,10 @@ public sealed class UniformRoundingRouteTests
     [InlineData("frustum-rounded", 1.5, 2, 0, 2, 0, 1, 2)]
     [InlineData("box-hole-rounded", 1, 6, 13, 2, 8, 0, 14)]
     [InlineData("d-profile-rounded", 1, 3, 5, 2, 4, 0, 6)]
+    // Concave edges too: the bushing's shoulder corner, the counterbore's step, the blind hole's floor.
+    [InlineData("bushing-rounded", 1, 3, 3, 6, 0, 0, 6)]
+    [InlineData("counterbore-rounded", 1, 7, 14, 4, 8, 0, 16)]
+    [InlineData("blind-hole-rounded", 0.5, 7, 13, 2, 8, 0, 14)]
     public void CircularEdges_RoundToTori(string name, double radius, int planes, int cylinders, int tori, int spheres, int cones, int edges)
     {
         var built = FirmamentBuildAndExport.CompileSource(File.ReadAllText(Path.Combine(Root(), "fixtures/Regression/UniformRounding", name + ".firmament")));

@@ -292,10 +292,11 @@ public static partial class FirmamentBuildAndExport
         var canonicalParseWatch = System.Diagnostics.Stopwatch.StartNew();
         var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory, null, explicitSchema, resources);
         canonicalParseWatch.Stop();
-        // Fillet every edge on a body the dedicated Box/Polyhedron route does not take: build the body without the
-        // finish, then round it whole (or refuse with the rounding's reason, at the finish).
-        if (!v2Parse.IsSuccess && v2Parse.SyntaxDiagnostics.Any(d => d.Code == UniformStockFilletAdmission.Code)
-            && UniformRoundingRoute.Find(sourceText) is { } rounding)
+        // Fillet every edge on a body the dedicated Box/Polyhedron route does not take (the source fails only
+        // because of the finish: without it, it parses): build the body without the finish, then round it whole,
+        // or refuse with the rounding's reason, at the finish.
+        if (!v2Parse.IsSuccess && UniformRoundingRoute.Find(sourceText) is { } rounding
+            && FirmamentV2Parser.Parse(rounding.Stripped, sourceDirectory, null, explicitSchema, resources).IsSuccess)
         {
             // The source as written does not parse (the stock route refuses the finish), so the admitted document
             // (bodies, assertions) is the one without it; assertions then measure the rounded body.

@@ -13,7 +13,10 @@ public sealed class ConvexStockCliTests
         { "polyhedron-12-rounded", 62 }, { "polyhedron-20-rounded", 62 },
         // Every edge of a body built first: rim tori, line strips, sphere corners.
         { "../UniformRounding/cylinder-rounded", 5 }, { "../UniformRounding/frustum-rounded", 5 },
-        { "../UniformRounding/box-hole-rounded", 29 }, { "../UniformRounding/d-profile-rounded", 14 }
+        { "../UniformRounding/box-hole-rounded", 29 }, { "../UniformRounding/d-profile-rounded", 14 },
+        // Concave edges too.
+        { "../UniformRounding/bushing-rounded", 12 }, { "../UniformRounding/counterbore-rounded", 33 },
+        { "../UniformRounding/blind-hole-rounded", 30 }
     };
 
     [Theory]

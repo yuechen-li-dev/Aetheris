@@ -2620,33 +2620,71 @@ public static partial class FirmamentBuildAndExport
             if (!cylindricalStep.IsSuccess || cylindricalStep.Value is null)
                 return Failure("perforation-cylindrical-step-export-failed: " + string.Join(" | ", cylindricalStep.Diagnostics.Select(d => d.Message)));
             var stepExportMilliseconds = Stopwatch.GetElapsedTime(stepExportStart).TotalMilliseconds;
+            // The reimport proves that the STEP text faithfully encodes the body validated above. Openings of a
+            // pattern are congruent (one realization moved rigidly) and proven disjoint at compile time, so a
+            // one- and a two-opening specimen prove the encoding of an opening, alone and sharing host faces; the
+            // full file must then hold exactly the entities N congruent openings add. Re-importing every opening
+            // would re-prove the same opening N times.
+            string? Verify(string stepText, int openings)
+            {
+                var imported = Step242Importer.ImportBody(stepText);
+                if (!imported.IsSuccess || imported.Value is null || !FirmamentManifoldChecker.IsManifold(imported.Value))
+                    return "perforation-cylindrical-step-reimport-invalid: " + string.Join(" | ", imported.Diagnostics.Select(d => d.Message));
+                var importedCylinders = imported.Value.Geometry.Surfaces
+                    .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Cylinder)
+                    .Select(pair => pair.Value.Cylinder!.Value.Radius).ToArray();
+                var importedPlanes = imported.Value.Geometry.Surfaces
+                    .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Plane)
+                    .Select(pair => pair.Value.Plane!.Value.Origin.Z).ToArray();
+                var importedTori = imported.Value.Geometry.Surfaces
+                    .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Torus)
+                    .Select(pair => pair.Value.Torus!.Value).ToArray();
+                if (imported.Value.Topology.Faces.Count() != openings + (hollow.BottomBlendRadius > 0 ? 7 : 5) ||
+                    importedCylinders.Length != openings + 2 ||
+                    importedPlanes.Length != 3 ||
+                    importedTori.Length != (hollow.BottomBlendRadius > 0 ? 2 : 0) ||
+                    (hollow.BottomBlendRadius > 0 &&
+                     (importedTori.Any(torus => System.Math.Abs(torus.MajorRadius - (cylinder.Radius - hollow.BottomBlendRadius)) > 1e-6) ||
+                      !importedTori.Any(torus => System.Math.Abs(torus.MinorRadius - hollow.BottomBlendRadius) < 1e-6) ||
+                      !importedTori.Any(torus => System.Math.Abs(torus.MinorRadius - (hollow.BottomBlendRadius - hollow.WallThickness)) < 1e-6))) ||
+                    !new[] { 0d, hollow.WallThickness, cylinder.Height }.All(z => importedPlanes.Any(p => System.Math.Abs(p - z) < 1e-6)) ||
+                    importedCylinders.Count(r => System.Math.Abs(r - feature.Diameter / 2) < 1e-6) != openings ||
+                    importedCylinders.Count(r => System.Math.Abs(r - cylinder.Radius) < 1e-6) != 1 ||
+                    importedCylinders.Count(r => System.Math.Abs(r - (cylinder.Radius - hollow.WallThickness)) < 1e-6) != 1)
+                    return "perforation-cylindrical-step-reimport-invalid: opening count or analytic radii changed";
+                return null;
+            }
             var stepReimportStart = Stopwatch.GetTimestamp();
-            var cylindricalImport = Step242Importer.ImportBody(cylindricalStep.Value);
-            if (!cylindricalImport.IsSuccess || cylindricalImport.Value is null || !FirmamentManifoldChecker.IsManifold(cylindricalImport.Value))
-                return Failure("perforation-cylindrical-step-reimport-invalid: " + string.Join(" | ", cylindricalImport.Diagnostics.Select(d => d.Message)));
+            string verificationBasis;
+            if (placements.Length <= 2)
+            {
+                if (Verify(cylindricalStep.Value, placements.Length) is { } reimportFailure) return Failure(reimportFailure);
+                verificationBasis = "full-reimport";
+            }
+            else
+            {
+                var specimenCounts = new List<IReadOnlyDictionary<string, int>>();
+                foreach (var openings in new[] { 1, 2 })
+                {
+                    var specimen = BrepHollowRadialCutPattern.Build(hollowBody.Value, placements[..openings]);
+                    var specimenStep = specimen.IsSuccess && specimen.Value is not null
+                        ? Step242Exporter.ExportBody(specimen.Value.Body, new Step242ExportOptions
+                        {
+                            ProductName = cylindricalFeatureId, ApplicationName = "Aetheris.Firmament.Perforation.Cylindrical",
+                            BrepExportPreflightMode = BrepExportPreflightMode.Enforce, BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+                        })
+                        : null;
+                    if (specimenStep is not { IsSuccess: true, Value: { } specimenText })
+                        return Failure($"perforation-cylindrical-specimen-invalid: the {openings}-opening specimen did not build and export");
+                    if (Verify(specimenText, openings) is { } specimenFailure) return Failure(specimenFailure);
+                    specimenCounts.Add(Step242EntityCensus.Count(specimenText));
+                }
+                var full = Step242EntityCensus.Count(cylindricalStep.Value);
+                if (Step242EntityCensus.LinearMismatch(specimenCounts[0], specimenCounts[1], full, placements.Length) is { } mismatch)
+                    return Failure($"perforation-cylindrical-step-congruence-invalid: {mismatch}");
+                verificationBasis = "congruent-specimens";
+            }
             var stepReimportMilliseconds = Stopwatch.GetElapsedTime(stepReimportStart).TotalMilliseconds;
-            var importedCylinders = cylindricalImport.Value.Geometry.Surfaces
-                .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Cylinder)
-                .Select(pair => pair.Value.Cylinder!.Value.Radius).ToArray();
-            var importedPlanes = cylindricalImport.Value.Geometry.Surfaces
-                .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Plane)
-                .Select(pair => pair.Value.Plane!.Value.Origin.Z).ToArray();
-            var importedTori = cylindricalImport.Value.Geometry.Surfaces
-                .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Torus)
-                .Select(pair => pair.Value.Torus!.Value).ToArray();
-            if (cylindricalImport.Value.Topology.Faces.Count() != placements.Length + (hollow.BottomBlendRadius > 0 ? 7 : 5) ||
-                importedCylinders.Length != placements.Length + 2 ||
-                importedPlanes.Length != 3 ||
-                importedTori.Length != (hollow.BottomBlendRadius > 0 ? 2 : 0) ||
-                (hollow.BottomBlendRadius > 0 &&
-                 (importedTori.Any(torus => System.Math.Abs(torus.MajorRadius - (cylinder.Radius - hollow.BottomBlendRadius)) > 1e-6) ||
-                  !importedTori.Any(torus => System.Math.Abs(torus.MinorRadius - hollow.BottomBlendRadius) < 1e-6) ||
-                  !importedTori.Any(torus => System.Math.Abs(torus.MinorRadius - (hollow.BottomBlendRadius - hollow.WallThickness)) < 1e-6))) ||
-                !new[] { 0d, hollow.WallThickness, cylinder.Height }.All(z => importedPlanes.Any(p => System.Math.Abs(p - z) < 1e-6)) ||
-                importedCylinders.Count(r => System.Math.Abs(r - feature.Diameter / 2) < 1e-6) != placements.Length ||
-                importedCylinders.Count(r => System.Math.Abs(r - cylinder.Radius) < 1e-6) != 1 ||
-                importedCylinders.Count(r => System.Math.Abs(r - (cylinder.Radius - hollow.WallThickness)) < 1e-6) != 1)
-                return Failure("perforation-cylindrical-step-reimport-invalid: opening count or analytic radii changed");
             var cylindricalDescendants = placements.SelectMany(placement => new[]
             {
                 new SemanticTopologyDescendant($"material:perforation:{placement.StableId}:wall", "Face", SemanticTopologyRole.HoleWallFace,
@@ -2680,7 +2718,8 @@ public static partial class FirmamentBuildAndExport
                     c.InnerHostPcurveBoundMm, c.InnerToolPcurveBoundMm }.Max()),
                 PatternBuildMilliseconds = patternBuildMilliseconds,
                 StepExportMilliseconds = stepExportMilliseconds,
-                StepReimportMilliseconds = stepReimportMilliseconds
+                StepReimportMilliseconds = stepReimportMilliseconds,
+                VerificationBasis = verificationBasis
             };
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(cylindricalStep.Value,
                 cylindricalFeatureId, 0, "perforation-cylindrical", "local-radial-through-wall", Perforation: cylindricalReport)

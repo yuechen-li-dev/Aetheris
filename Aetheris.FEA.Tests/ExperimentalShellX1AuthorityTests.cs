@@ -35,6 +35,12 @@ public sealed class ExperimentalShellX1AuthorityTests
         Assert.InRange(result.Equilibrium.ResidualNewton.Length,0,1e-5);
         Assert.InRange(result.StrainEnergy!.RelativeResidual,0,1e-6);
         Assert.True(double.IsFinite(result.MaximumDisplacementMeters)&&result.MaximumDisplacementMeters>0);
+        // Determinism is a property of the native shell route, not of model size: repeat the cheapest native solve.
+        var repeat=Aetheris.FEA.Mechanics.LinearElasticSolver.Solve(compiled.Analysis!,new(RelativeResidualTolerance:1e-8,MaximumIterations:10000));
+        Assert.True(repeat.IsSuccess);
+        Assert.Equal(result.MaximumDisplacementMeters,repeat.MaximumDisplacementMeters);
+        Assert.Equal(result.ExperimentalShell.DeterministicDiscretizationHash,repeat.ExperimentalShell!.DeterministicDiscretizationHash);
+        Assert.Equal(result.Solver.ResidualHistory,repeat.Solver.ResidualHistory);
     }
 
     [Fact]
@@ -64,11 +70,6 @@ public sealed class ExperimentalShellX1AuthorityTests
         Assert.True(result.IsSuccess,string.Join("; ",result.Diagnostics.Select(x=>x.Code+":"+x.Message)));
         Assert.Equal(180,result.ExperimentalShell!.NativeSheetMetal!.SharedDisplacementDegreesOfFreedom);
         Assert.InRange(result.Equilibrium.ResidualNewton.Length,0,1e-5);
-        var repeat=Aetheris.FEA.Mechanics.LinearElasticSolver.Solve(analysis,new(RelativeResidualTolerance:1e-8,MaximumIterations:10000));
-        Assert.True(repeat.IsSuccess);
-        Assert.Equal(result.MaximumDisplacementMeters,repeat.MaximumDisplacementMeters);
-        Assert.Equal(result.ExperimentalShell.DeterministicDiscretizationHash,repeat.ExperimentalShell!.DeterministicDiscretizationHash);
-        Assert.Equal(result.Solver.ResidualHistory,repeat.Solver.ResidualHistory);
     }
 
     [Fact]

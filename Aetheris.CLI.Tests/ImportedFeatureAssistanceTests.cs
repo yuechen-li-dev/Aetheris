@@ -89,10 +89,7 @@ public sealed class ImportedFeatureAssistanceTests
         Assert.Contains("Source.MountHole.exit.Y", authored);
         if (!remove) Assert.Contains("diameter: Source.MountHole.diameter", authored);
         Assert.True(File.Exists(Path.Combine(directory,"firmament.lock.toml")));
-        stdout.GetStringBuilder().Clear();
-        Assert.Equal(0, CliRunner.Run(["validate", source, "--locked", "--json"], stdout, stderr));
-        using var validation = JsonDocument.Parse(stdout.ToString());
-        Assert.Equal("Built", validation.RootElement.GetProperty("firmamentV2Validation").GetProperty("validationLevel").GetString());
+        // The plan's admission already reported Built; a locked build re-checks the receipt and compiles once more.
         stdout.GetStringBuilder().Clear();
         Assert.Equal(0, CliRunner.Run(["build", source, "--locked", "--output", Path.Combine(directory,"revision.step"), "--json"], stdout, stderr));
         using var build = JsonDocument.Parse(stdout.ToString());

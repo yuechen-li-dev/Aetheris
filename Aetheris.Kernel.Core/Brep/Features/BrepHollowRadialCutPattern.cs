@@ -127,6 +127,7 @@ public static class BrepHollowRadialCutPattern
         var edgeNames = new Dictionary<string, IReadOnlyList<EdgeId>>(StringComparer.Ordinal);
         var certificates = new Dictionary<string, HollowRadialCutCertificate>(StringComparer.Ordinal);
         var nextCurve = blended ? 9 : 7; var nextSurface = blended ? 8 : 6;
+        var templates = new Dictionary<double, OpeningTemplate>();
         foreach (var placement in placements)
         {
             var canonicalAngle = Normalize(placement.AngleRadians);
@@ -140,14 +141,32 @@ public static class BrepHollowRadialCutPattern
             if (!outerAuthority.IsSuccess) return InstanceFailure(placement, outerAuthority.Diagnostics);
             var innerAuthority = CylinderCylinderIntersectionCurve.Create(inner, tool, center, CylinderIntersectionBranch.PositiveCutterAxis, full, tolerance: tol);
             if (!innerAuthority.IsSuccess) return InstanceFailure(placement, innerAuthority.Diagnostics);
-            var outerCurve = CylinderIntersectionCurveRealizer.Realize(outerAuthority.Value, tol);
-            if (!outerCurve.IsSuccess) return InstanceFailure(placement, outerCurve.Diagnostics);
-            var innerCurve = CylinderIntersectionCurveRealizer.Realize(innerAuthority.Value, tol);
-            if (!innerCurve.IsSuccess) return InstanceFailure(placement, innerCurve.Diagnostics);
-            var outerUv = CylinderIntersectionPcurveRealizer.Realize(outerCurve.Value, tol);
-            if (!outerUv.IsSuccess) return InstanceFailure(placement, outerUv.Diagnostics);
-            var innerUv = CylinderIntersectionPcurveRealizer.Realize(innerCurve.Value, tol);
-            if (!innerUv.IsSuccess) return InstanceFailure(placement, innerUv.Diagnostics);
+            // Openings of one radius are congruent: a rotation about the host axis and a shift along it. The
+            // first is realized adaptively; every other is that realization moved rigidly, so identical holes
+            // carry identical representations and the realization cost is paid once per radius.
+            KernelResult<QualifiedCylinderIntersectionRepresentation> outerCurve, innerCurve;
+            KernelResult<QualifiedCylinderIntersectionPcurves> outerUv, innerUv;
+            if (templates.TryGetValue(placement.Radius, out var template)
+                && Place(template.Outer, outerAuthority.Value, canonicalAngle - template.Angle, placement.Z - template.Z) is { } placedOuter
+                && Place(template.Inner, innerAuthority.Value, canonicalAngle - template.Angle, placement.Z - template.Z) is { } placedInner)
+            {
+                outerCurve = KernelResult<QualifiedCylinderIntersectionRepresentation>.Success(placedOuter.Edge);
+                innerCurve = KernelResult<QualifiedCylinderIntersectionRepresentation>.Success(placedInner.Edge);
+                outerUv = KernelResult<QualifiedCylinderIntersectionPcurves>.Success(placedOuter);
+                innerUv = KernelResult<QualifiedCylinderIntersectionPcurves>.Success(placedInner);
+            }
+            else
+            {
+                outerCurve = CylinderIntersectionCurveRealizer.Realize(outerAuthority.Value, tol);
+                if (!outerCurve.IsSuccess) return InstanceFailure(placement, outerCurve.Diagnostics);
+                innerCurve = CylinderIntersectionCurveRealizer.Realize(innerAuthority.Value, tol);
+                if (!innerCurve.IsSuccess) return InstanceFailure(placement, innerCurve.Diagnostics);
+                outerUv = CylinderIntersectionPcurveRealizer.Realize(outerCurve.Value, tol);
+                if (!outerUv.IsSuccess) return InstanceFailure(placement, outerUv.Diagnostics);
+                innerUv = CylinderIntersectionPcurveRealizer.Realize(innerCurve.Value, tol);
+                if (!innerUv.IsSuccess) return InstanceFailure(placement, innerUv.Diagnostics);
+                templates.TryAdd(placement.Radius, new(canonicalAngle, placement.Z, outerUv.Value, innerUv.Value));
+            }
             var o0 = V(outerAuthority.Value.Evaluate(0)); var oPi = V(outerAuthority.Value.Evaluate(System.Math.PI));
             var i0 = V(innerAuthority.Value.Evaluate(0)); var iPi = V(innerAuthority.Value.Evaluate(System.Math.PI));
             var outerFirst = builder.AddEdge(o0, oPi); var outerSecond = builder.AddEdge(oPi, o0);
@@ -272,6 +291,47 @@ public static class BrepHollowRadialCutPattern
         if (!preflight.IsValid) return Reject("Brep.HollowRadialCutPattern.Preflight", string.Join("; ", preflight.Diagnostics.Where(d => d.Severity == BrepExportPreflightSeverity.Error).Select(d => $"{d.Code}: {d.Message}")));
         return KernelResult<HollowRadialCutPatternResult>.Success(new(body,
             new HollowRadialCutTopologyMap(faceNames, loopNames, edgeNames), certificates, seamAngle));
+    }
+
+    private sealed record OpeningTemplate(double Angle, double Z, QualifiedCylinderIntersectionPcurves Outer, QualifiedCylinderIntersectionPcurves Inner);
+
+    /// <summary>
+    /// Moves a realized opening curve and its pcurves to another congruent opening on the same host: the 3D curve
+    /// rotates about +Z by <paramref name="angle"/> and shifts by <paramref name="dz"/>; the host pcurve shifts in
+    /// (u, v) by the exact authority's own offset; the cutter pcurve lives in the cutter's frame and is unchanged.
+    /// Rigid motion preserves every analytic bound; the numerical allowance grows by the transform's round-off.
+    /// Returns null when the exact authorities disagree with that model, so the caller realizes the instance itself.
+    /// </summary>
+    private static QualifiedCylinderIntersectionPcurves? Place(QualifiedCylinderIntersectionPcurves template,
+        CylinderCylinderIntersectionCurve authority, double angle, double dz)
+    {
+        var source = template.Edge.Authority;
+        var probes = new[] { source.Domain.Start, (source.Domain.Start + source.Domain.End) / 2, source.Domain.End };
+        var (cos, sin) = (System.Math.Cos(angle), System.Math.Sin(angle));
+        Point3D Move(Point3D p) => new(p.X * cos - p.Y * sin, p.X * sin + p.Y * cos, p.Z + dz);
+        var hostShift = authority.EvaluateHostPcurve(probes[0]);
+        var hostOrigin = source.EvaluateHostPcurve(probes[0]);
+        var (du, dv) = (hostShift.U - hostOrigin.U, hostShift.V - hostOrigin.V);
+        foreach (var t in probes)
+        {
+            var exact = authority.Evaluate(t); var moved = Move(source.Evaluate(t));
+            var host = authority.EvaluateHostPcurve(t); var sourceHost = source.EvaluateHostPcurve(t);
+            var tool = authority.EvaluateToolPcurve(t); var sourceTool = source.EvaluateToolPcurve(t);
+            if ((exact - moved).Length > 1e-9 || System.Math.Abs(host.U - sourceHost.U - du) > 1e-12 || System.Math.Abs(host.V - sourceHost.V - dv) > 1e-9
+                || System.Math.Abs(tool.U - sourceTool.U) > 1e-12 || System.Math.Abs(tool.V - sourceTool.V) > 1e-9) return null;
+        }
+
+        static BSpline3Curve Map(BSpline3Curve curve, Func<Point3D, Point3D> map) => new(curve.Degree, curve.ControlPoints.Select(map).ToArray(),
+            curve.KnotMultiplicities, curve.KnotValues, curve.CurveForm, curve.ClosedCurve, curve.SelfIntersect, curve.KnotSpec);
+        var scale = template.Edge.Curve.ControlPoints.Max(p => System.Math.Abs(p.X) + System.Math.Abs(p.Y) + System.Math.Abs(p.Z)) + System.Math.Abs(dz);
+        var roundOff = 8 * 2.2204460492503131e-16 * scale;
+        var edge = template.Edge with { Authority = authority, Curve = Map(template.Edge.Curve, Move), NumericalAllowanceMm = template.Edge.NumericalAllowanceMm + roundOff };
+        return template with
+        {
+            Edge = edge,
+            Host = Map(template.Host, p => new Point3D(p.X + du, p.Y + dv, p.Z)),
+            NumericalAllowanceMm = template.NumericalAllowanceMm + roundOff
+        };
     }
 
     private static double Normalize(double value) { value %= 2 * System.Math.PI; return value < 0 ? value + 2 * System.Math.PI : value; }

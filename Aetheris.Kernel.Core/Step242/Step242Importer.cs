@@ -117,9 +117,9 @@ public static class Step242Importer
         using var buildPerfPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("step.import-body");
         // BUILD-PERF-M2: one build reimports the same canonical STEP several times (export
         // validation, volume assertions, the assembly definition). Import is a pure function of the
-        // text unless a policy, a diagnostics capture or rational preservation is in effect, so a
-        // recent successful import is replayed as an independent clone of the same body.
-        var memoizable = policy is null && !RationalSurfacesArePreserved && CircularSamplingDiagnosticsSink.Value is null
+        // text and policy (a value record) unless a diagnostics capture or rational preservation is in
+        // effect, so a recent successful import is replayed as an independent clone of the same body.
+        var memoizable = !RationalSurfacesArePreserved && CircularSamplingDiagnosticsSink.Value is null
             && CoedgeGapDiagnosticsSink.Value is null && CylinderProjectionDiagnosticsSink.Value is null
             && TorusProjectionDiagnosticsSink.Value is null && PlanarMultiBoundJudgmentDiagnosticsSink.Value is null;
         if (memoizable)
@@ -128,8 +128,8 @@ public static class Step242Importer
             {
                 for (var i = RecentImports.Count - 1; i >= 0; i--)
                 {
-                    var (text, body, diagnostics) = RecentImports[i];
-                    if (text.Length != stepText.Length || !string.Equals(text, stepText, StringComparison.Ordinal)) continue;
+                    var (text, recentPolicy, body, diagnostics) = RecentImports[i];
+                    if (!Equals(recentPolicy, policy) || text.Length != stepText.Length || !string.Equals(text, stepText, StringComparison.Ordinal)) continue;
                     return KernelResult<BrepBody>.Success(body.Clone(), diagnostics);
                 }
             }
@@ -143,7 +143,7 @@ public static class Step242Importer
             var retained = result.Value.Clone();
             lock (RecentImports)
             {
-                RecentImports.Add((stepText, retained, result.Diagnostics));
+                RecentImports.Add((stepText, policy, retained, result.Diagnostics));
                 if (RecentImports.Count > RecentImportCapacity) RecentImports.RemoveAt(0);
             }
         }
@@ -151,7 +151,7 @@ public static class Step242Importer
     }
 
     private const int RecentImportCapacity = 8;
-    private static readonly List<(string Text, BrepBody Body, IReadOnlyList<Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic> Diagnostics)> RecentImports = [];
+    private static readonly List<(string Text, ImportPolicy? Policy, BrepBody Body, IReadOnlyList<Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic> Diagnostics)> RecentImports = [];
 
     private static KernelResult<BrepBody> ImportAuto(Step242ParsedDocument document)
     {

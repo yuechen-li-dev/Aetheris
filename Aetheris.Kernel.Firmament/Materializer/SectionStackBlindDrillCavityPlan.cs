@@ -73,7 +73,7 @@ internal static class SectionStackBlindDrillCavityPlanner
         if (d.Count != 0) { diagnostics = d; return null; }
 
         var mouthHostFaceId = input.MouthHostFaceIds[0];
-        var mapping = source!.FaceMappings.SingleOrDefault(x => x.FaceId == mouthHostFaceId && x.Kind == "PrismaticSide");
+        var mapping = source!.FaceMappings.SingleOrDefault(x => x.FaceId == mouthHostFaceId && x.Kind is "PrismaticSide" or "HostFaceReplacement");
         if (mapping is null) d.Add("SectionStackBlindDrillMouthFaceProvenanceMissing");
         if (!source.Topology.TryGetFace(mouthHostFaceId, out var originalFace) || originalFace is null) d.Add("SectionStackBlindDrillMouthFaceMissing");
         SurfaceGeometry? originalSurface = null;
@@ -341,8 +341,29 @@ public static class SectionStackBlindDrillComposeBridge
         var declarations = stack.Feature.ConstructionPlaneBlindDrills ?? [];
         evidence = null;
         if (declarations.Count == 0) { diagnostics = d; return hostPlan; }
-        if (declarations.Count != 1) { diagnostics = ["SectionStackBlindDrillOnlyOneFeatureIsAdmitted"]; return null; }
-        var declaration = declarations[0];
+        // Several drills apply one after another to the same exact plan. Each corridor is proven against the
+        // stack's own material; disjoint tool envelopes make the order irrelevant.
+        var applied = new List<(string FeatureId, Point3D Mouth, Vector3D Axis, double Depth, double Radius)>();
+        var plan = hostPlan;
+        foreach (var declaration in declarations)
+        {
+            plan = TryApplyOne(stack, plan, declaration, applied, d, out evidence);
+            if (plan is null) { diagnostics = d; return null; }
+        }
+
+        diagnostics = d;
+        return plan;
+    }
+
+    private static PrismaticSectionStackBrepPlan? TryApplyOne(
+        PrismaticSectionStackConstruction stack,
+        PrismaticSectionStackBrepPlan hostPlan,
+        PrismaticConstructionPlaneBlindDrillFeature declaration,
+        List<(string FeatureId, Point3D Mouth, Vector3D Axis, double Depth, double Radius)> applied,
+        List<string> d,
+        out BlindDrillToolCorridorEvidence? evidence)
+    {
+        evidence = null;
         var placement = new AirConstructionPlaneHolePlacement(declaration.ConstructionPlaneId, declaration.SourceConceptPlaneId,
             declaration.FrameOrigin, declaration.AxisX, declaration.AxisY, declaration.AxisZ, declaration.LocalCenterX, declaration.LocalCenterY,
             declaration.SourceSpan, declaration.Provenance);
@@ -358,29 +379,93 @@ public static class SectionStackBlindDrillComposeBridge
         var corridor = TransverseBlindDrillToolCorridor.Prove(feature, stack, placement);
         evidence = corridor;
         if (corridor.Classification != BlindDrillToolCorridorClassification.CorridorProven)
-        { d.AddRange(corridor.Diagnostics); d.Add("SectionStackBlindDrillClearanceContractRejected"); diagnostics = d; return null; }
+        { d.AddRange(corridor.Diagnostics); d.Add("SectionStackBlindDrillClearanceContractRejected"); return null; }
+
+        var mouth = placement.WorldMouthCenter; var axis = placement.AxisZ.ToVector(); var depth = corridor.ShaftDepth + corridor.TipLength;
+        foreach (var other in applied)
+        {
+            // Conservative: full-radius cylinders through each total depth are disjoint when their axis
+            // segments stay farther apart than the sum of the radii.
+            if (SegmentDistance(mouth, mouth + axis * depth, other.Mouth, other.Mouth + other.Axis * other.Depth) <= feature.Shaft.Radius + other.Radius + Tol)
+            { d.Add($"SectionStackBlindDrillToolEnvelopesIntersect:{other.FeatureId}:{feature.FeatureId}"); return null; }
+        }
 
         var faces = FindMouthFaces(hostPlan.TopologyPlan!, placement, feature.Shaft.Radius, d);
-        if (faces is null) { diagnostics = d; return null; }
+        if (faces is null) return null;
         var cavity = SectionStackBlindDrillCavityPlanner.TryPlan(new(stack, hostPlan, feature, placement, corridor, faces), out var cavityDiagnostics);
         d.AddRange(cavityDiagnostics);
-        if (cavity is null) { diagnostics = d; return null; }
+        if (cavity is null) return null;
         d.Add("SectionStackBlindDrillComposeBridge");
-        diagnostics = d;
+        applied.Add((feature.FeatureId, mouth, axis, depth, feature.Shaft.Radius));
         return cavity.ReplacementHostPlan;
+    }
+
+    private static double SegmentDistance(Point3D p0, Point3D p1, Point3D q0, Point3D q1)
+    {
+        var u = p1 - p0; var v = q1 - q0; var w = p0 - q0;
+        double a = u.Dot(u), b = u.Dot(v), c = v.Dot(v), dd = u.Dot(w), e = v.Dot(w);
+        var denominator = a * c - b * b;
+        var s = denominator < 1e-12 ? 0 : Math.Clamp((b * e - c * dd) / denominator, 0, 1);
+        var t = c < 1e-12 ? 0 : Math.Clamp((b * s + e) / c, 0, 1);
+        s = a < 1e-12 ? 0 : Math.Clamp((b * t - dd) / a, 0, 1);
+        return ((p0 + u * s) - (q0 + v * t)).Length;
+    }
+
+    private enum DiskContainment { Inside, Crossing, Outside }
+
+    /// <summary>
+    /// Where the mouth disk lies relative to one straight-edged planar host face, in the hole's frame:
+    /// wholly inside, crossing the boundary, or wholly outside. A face that is not a straight-edged single
+    /// loop reports Crossing so it stays a candidate for the existing seam rules.
+    /// </summary>
+    private static DiskContainment DiskInsideFace(PrismaticSectionStackTopologyPlan plan, FaceId faceId, AirConstructionPlaneHolePlacement placement, double radius)
+    {
+        // The first loop is the outer boundary; inner loops are earlier holes' mouths, which the pairwise
+        // tool-envelope check already keeps clear of this one.
+        if (!plan.Topology.TryGetFace(faceId, out var face) || face is null || face.LoopIds.Count == 0) return DiskContainment.Crossing;
+        var loop = plan.Topology.Loops.Single(l => l.Id == face.LoopIds[0]);
+        var u = placement.AxisX.ToVector(); var v = placement.AxisY.ToVector(); var mouth = placement.WorldMouthCenter;
+        var polygon = new List<(double U, double V)>();
+        foreach (var coedgeId in loop.CoedgeIds)
+        {
+            var coedge = plan.Topology.Coedges.Single(c => c.Id == coedgeId);
+            var edge = plan.Topology.Edges.Single(e => e.Id == coedge.EdgeId);
+            if (!plan.Bindings.TryGetEdgeBinding(edge.Id, out var binding) || !plan.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve)
+                || curve?.Kind != CurveGeometryKind.Line3) return DiskContainment.Crossing;
+            var p = plan.VertexPoints[coedge.IsReversed ? edge.EndVertexId : edge.StartVertexId] - mouth;
+            polygon.Add((p.Dot(u), p.Dot(v)));
+        }
+
+        var inside = false;
+        var nearest = double.PositiveInfinity;
+        for (var i = 0; i < polygon.Count; i++)
+        {
+            var a = polygon[i]; var b = polygon[(i + 1) % polygon.Count];
+            if ((a.V > 0) != (b.V > 0) && 0 < a.U + (0 - a.V) * (b.U - a.U) / (b.V - a.V)) inside = !inside;
+            var du = b.U - a.U; var dv = b.V - a.V; var lengthSquared = du * du + dv * dv;
+            var t = lengthSquared <= 0 ? 0 : Math.Clamp(-(a.U * du + a.V * dv) / lengthSquared, 0, 1);
+            nearest = Math.Min(nearest, Math.Sqrt(Math.Pow(a.U + t * du, 2) + Math.Pow(a.V + t * dv, 2)));
+        }
+
+        if (nearest < radius - Tol) return DiskContainment.Crossing;
+        return inside ? DiskContainment.Inside : DiskContainment.Outside;
     }
 
     private static IReadOnlyList<FaceId>? FindMouthFaces(PrismaticSectionStackTopologyPlan plan, AirConstructionPlaneHolePlacement placement, double radius, List<string> diagnostics)
     {
         var mouth = placement.WorldMouthCenter; var axis = placement.AxisZ.ToVector();
-        var compatible = plan.FaceMappings.Where(x => x.Kind == "PrismaticSide")
+        var compatible = plan.FaceMappings.Where(x => x.Kind is "PrismaticSide" or "HostFaceReplacement")
             .Where(x => plan.Bindings.TryGetFaceBinding(x.FaceId, out var binding)
                          && plan.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var surface)
                          && surface is { Kind: SurfaceGeometryKind.Plane, Plane: { } plane }
                          && Math.Abs(Math.Abs(plane.Normal.ToVector().Dot(axis)) - 1d) <= Tol
                          && Math.Abs((mouth - plane.Origin).Dot(plane.Normal.ToVector())) <= Tol)
             .ToArray();
-        var candidates = compatible.Where(x => x.SlabFrom is { } from && x.SlabTo is { } to && mouth.Z - radius >= from - Tol && mouth.Z + radius <= to + Tol).ToArray();
+        // Coplanar side faces of one slab (an edge interrupted by notches) share plane and Z range; the
+        // mouth belongs to the one whose own boundary encloses the mouth disk.
+        compatible = compatible.Where(x => DiskInsideFace(plan, x.FaceId, placement, radius) != DiskContainment.Outside).ToArray();
+        var candidates = compatible.Where(x => x.SlabFrom is { } from && x.SlabTo is { } to && mouth.Z - radius >= from - Tol && mouth.Z + radius <= to + Tol
+                                               && DiskInsideFace(plan, x.FaceId, placement, radius) == DiskContainment.Inside).ToArray();
         if (candidates.Length == 1)
         {
             var tangent = compatible.Any(x => x.FaceId != candidates[0].FaceId

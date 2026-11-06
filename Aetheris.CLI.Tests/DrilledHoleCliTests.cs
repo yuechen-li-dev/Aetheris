@@ -68,11 +68,15 @@ public sealed class DrilledHoleCliTests
     {
         // A drill point is a cone closed at its apex: its loop walks the seam out and back, and its rim may be split
         // where the hole wall is. The last fixture also passes through a junction fillet, which rebuilds the body.
-        var stl = Path.Combine(Path.GetTempPath(), "aetheris-drilled-holes", Guid.NewGuid().ToString("N") + ".stl");
-        Directory.CreateDirectory(Path.GetDirectoryName(stl)!);
+        // Meshing a source writes its STEP beside it, so mesh a copy outside the repository.
+        var directory = Path.Combine(Path.GetTempPath(), "aetheris-drilled-holes", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var source = Path.Combine(directory, Path.GetFileName(fixture));
+        File.Copy(Path.Combine(RepoRoot, fixture), source);
+        var stl = Path.Combine(directory, "mesh.stl");
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var exit = CliRunner.Run(["mesh", Path.Combine(RepoRoot, fixture), "--format", "stl", "--output", stl], stdout, stderr);
+        var exit = CliRunner.Run(["mesh", source, "--format", "stl", "--output", stl], stdout, stderr);
         Assert.True(exit == 0, $"{fixture}: {stderr}{stdout}");
         Assert.Contains("watertight: True", stdout.ToString(), StringComparison.Ordinal);
     }

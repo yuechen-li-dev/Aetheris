@@ -72,19 +72,23 @@ public static class CylinderIntersectionCurveRealizer
                 p3 - authority.Derivative(end) * (h / 3d), p3));
         }
 
-        var controls = new List<Point3D>(spans.Count * 4);
+        // Consecutive Bezier spans share their joint control point (both evaluate the exact curve at the same
+        // parameter), so interior knots carry multiplicity 3: a cubic B-spline admits no interior knot of
+        // multiplicity above its degree, and readers (OCCT among them) reject the curve, and its solid, otherwise.
+        var controls = new List<Point3D>(spans.Count * 3 + 1);
         var knots = new List<double>(spans.Count + 1);
         var multiplicities = new List<int>(spans.Count + 1);
         knots.Add(spans[0].Start);
         multiplicities.Add(4);
-        foreach (var span in spans)
+        controls.Add(spans[0].P0);
+        for (var index = 0; index < spans.Count; index++)
         {
-            controls.Add(span.P0);
+            var span = spans[index];
             controls.Add(span.P1);
             controls.Add(span.P2);
             controls.Add(span.P3);
             knots.Add(span.End);
-            multiplicities.Add(4);
+            multiplicities.Add(index == spans.Count - 1 ? 4 : 3);
         }
 
         var curve = new BSpline3Curve(3, controls, multiplicities, knots,

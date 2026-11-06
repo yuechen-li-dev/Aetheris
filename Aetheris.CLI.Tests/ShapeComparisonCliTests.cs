@@ -85,6 +85,8 @@ public sealed class ShapeComparisonCliTests
             .OfType<Aetheris.Kernel.Core.Geometry.Curves.BSpline3Curve>().ToArray();
         // One cut per lug, where its root fillet meets the R25 waist.
         Assert.Equal(4, splines.Length);
+        // Interior knots no higher than the degree: other readers (OCCT) drop the whole solid otherwise.
+        Assert.All(splines, spline => Assert.All(spline.KnotMultiplicities.Skip(1).SkipLast(1), m => Assert.True(m <= spline.Degree)));
         foreach (var spline in splines)
         {
             var (t0, t1) = (spline.KnotValues[0], spline.KnotValues[^1]);

@@ -273,6 +273,24 @@ stack splits; carriers and volume agree.
     sense.
 - **Junction fillets now work on the exported body.** A drilled body's in-memory handle can predate the drills.
 
+## Follow-up: exported B-splines OCCT rejected
+
+FreeCAD and CAD Assistant (both OCCT) imported the CTC-01 STEP as empty, and Fusion dropped a hole.
+
+- **Cause:** the cylinder-intersection realizer wrote each certified Hermite span as its own Bezier piece, so
+  every interior knot had multiplicity 4 on a cubic and every joint control point appeared twice. A B-spline admits
+  no interior knot above its degree. OCCT rejects the curve and, with it, the whole solid.
+- **Scope:** this hit every export of these curves: the CTC-01 lug cuts, perforated hollows and cross holes. The
+  8-hole perforation grid also read back empty in OCCT.
+- **Why we missed it:** our own importer accepted the file, so nothing in the lane caught it.
+- **Fix:** spans share their joint control point (both evaluate the exact curve at the same parameter), and
+  interior knots carry multiplicity 3. The curve is unchanged.
+- **Evidence (OCCT 7.x via OCP):**
+  - CTC-01 is one valid solid with 113 faces and volume 14 644 822.6 mm³ (NIST: 14 644 823.3).
+  - Its top face has the same 12 wires and every through hole.
+  - The perforation fixtures are valid solids.
+  - Tests now assert no interior knot above the degree.
+
 ## Verdict
 
 Success. CTC-01 decompiles into Firmament that rebuilds every surface of the NIST original (85/85, IoU 0.999992),

@@ -88,7 +88,9 @@ public sealed class CylinderCylinderIntersectionCurveTests
         var observedHostResidual = 0d;
         var observedToolResidual = 0d;
         Assert.True(result.CertifiedDeviationBoundMm <= ToleranceContext.Default.Linear);
-        Assert.Equal(result.SegmentCount * 4, result.Curve.ControlPoints.Count);
+        // Spans share their joint control points; no interior knot exceeds the degree (readers reject that).
+        Assert.Equal(result.SegmentCount * 3 + 1, result.Curve.ControlPoints.Count);
+        Assert.All(result.Curve.KnotMultiplicities.Skip(1).SkipLast(1), m => Assert.True(m <= result.Curve.Degree));
         var stored = CurveGeometry.FromCertifiedIntersection(result);
         Assert.Same(result, stored.CertifiedIntersection);
         Assert.Equal(result.Curve, stored.BSpline3!.Value);
@@ -221,6 +223,7 @@ public sealed class CylinderCylinderIntersectionCurveTests
         Assert.True(realized.IsSuccess, string.Join("; ", realized.Diagnostics.Select(d => d.Message)));
         var result = realized.Value;
         Assert.True(result.CertifiedDeviationBoundMm <= ToleranceContext.Default.Linear);
+        Assert.All(result.Curve.KnotMultiplicities.Skip(1).SkipLast(1), m => Assert.True(m <= result.Curve.Degree));
         var observed = 0d;
         for (var i = 0; i <= 4096; i++)
         {

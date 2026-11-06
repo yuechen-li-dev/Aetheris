@@ -1,0 +1,19 @@
+// A rectangle rounded corner by corner with `|> Round(r)`: the same solid as RoundedRect2 with radius 5mm.
+Model RoundedByStages {
+    units: mm
+    Concept Struct Layout on XY { Rect2 Blank { center: [0mm, 0mm]; size: [60mm, 30mm] } }
+    Profile Plate using Layout {
+        Loop Outer {
+            Blank.Bottom as Bottom
+            |> Round(5mm)
+            |> Blank.Right as Right
+            |> Round(5mm)
+            |> Blank.Top as Top
+            |> Round(5mm)
+            |> Blank.Left as Left
+            |> Round(5mm) as ClosingCorner
+            |> Close
+        }
+    }
+    Extrude Body { profile: Plate; from: 0mm; to: 4mm }
+}

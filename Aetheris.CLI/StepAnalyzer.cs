@@ -305,6 +305,10 @@ public sealed record VolumeAnalysisResult(
         {
             return false;
         }
+        if (!cylinders.All(c => DiskInsideFootprint(c.CenterY, c.CenterZ, c.Radius, bbox.Min.Y, bbox.Max.Y, bbox.Min.Z, bbox.Max.Z, bbox)))
+        {
+            return false;
+        }
 
         var baseVolume = (bbox.Max.X - bbox.Min.X) * (bbox.Max.Y - bbox.Min.Y) * (bbox.Max.Z - bbox.Min.Z);
         // One analytic cylinder may be represented by multiple trimmed faces
@@ -362,6 +366,10 @@ public sealed record VolumeAnalysisResult(
         }
 
         if (!PlanarFacesBoundTheBox(body, bbox, holeAxis: 2))
+        {
+            return false;
+        }
+        if (!cylinders.All(c => DiskInsideFootprint(c.CenterX, c.CenterY, c.Radius, bbox.Min.X, bbox.Max.X, bbox.Min.Y, bbox.Max.Y, bbox)))
         {
             return false;
         }
@@ -423,6 +431,17 @@ public sealed record VolumeAnalysisResult(
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// A hole's cross-section must lie strictly inside the box's footprint. A cylinder reaching the box side is
+    /// a rounded corner or edge of the stock (material, not a hole), and subtracting it would be wrong.
+    /// </summary>
+    private static bool DiskInsideFootprint(double u, double v, double radius, double uMin, double uMax, double vMin, double vMax, BoundingBox3D bbox)
+    {
+        var tolerance = double.Max(1e-7, (bbox.Max - bbox.Min).Length * 1e-9);
+        return u - radius > uMin + tolerance && u + radius < uMax - tolerance
+            && v - radius > vMin + tolerance && v + radius < vMax - tolerance;
     }
 
     private static bool TryResolveFaceZSpan(BrepBody body, FaceId faceId, out double zMin, out double zMax)

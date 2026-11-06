@@ -1,0 +1,26 @@
+// Partial spans: `from P` alone runs to the guide's end, `to P` alone runs from the current point.
+// A 60 x 30 plate with a 20 mm wide, 10 mm deep V cut into its bottom edge.
+Model PartialSpans {
+    units: mm
+    Concept Struct Layout on XY {
+        Rect2 Blank { center: [0mm, 0mm]; size: [60mm, 30mm] }
+        Point2 NotchLeft { position: [-10mm, -15mm] }
+        Point2 NotchTip { position: [0mm, -5mm] }
+        Point2 NotchRight { position: [10mm, -15mm] }
+        Line2 FlankIn { from: NotchLeft; to: NotchTip }
+        Line2 FlankOut { from: NotchTip; to: NotchRight }
+    }
+    Profile Plate using Layout {
+        Loop Outer {
+            Blank.Bottom from NotchRight as BottomRight
+            |> Blank.Right as Right
+            |> Blank.Top as Top
+            |> Blank.Left as Left
+            |> Blank.Bottom to NotchLeft as BottomLeft
+            |> FlankIn as In
+            |> FlankOut as Out
+            |> Close
+        }
+    }
+    Extrude Body { profile: Plate; from: 0mm; to: 4mm }
+}

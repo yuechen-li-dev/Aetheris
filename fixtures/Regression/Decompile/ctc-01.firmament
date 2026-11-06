@@ -58,37 +58,12 @@ Model Ctc01 {
         RoundedRect2 RightEnd { center: [325mm, 0mm]; size: [150mm, 450mm]; radius: 50mm }
         Rect2 Bridge { center: [0mm, 0mm]; size: [500mm, 250mm] }
 
-        // Waists: R25 arcs from an end's inner side to the bridge edge.
-        Point2 FrontLeftWaistCenter { position: [-225mm, -150mm] }
-        Point2 FrontLeftWaistEnd { position: [-250mm, -150mm] }
-        Point2 FrontLeftWaistBridge { position: [-225mm, -125mm] }
-        Arc2 FrontLeftWaist { center: FrontLeftWaistCenter; from: FrontLeftWaistBridge; to: FrontLeftWaistEnd }
-        Point2 FrontRightWaistCenter { position: [225mm, -150mm] }
-        Point2 FrontRightWaistEnd { position: [250mm, -150mm] }
-        Point2 FrontRightWaistBridge { position: [225mm, -125mm] }
-        Arc2 FrontRightWaist { center: FrontRightWaistCenter; from: FrontRightWaistEnd; to: FrontRightWaistBridge }
-        Point2 BackRightWaistCenter { position: [225mm, 150mm] }
-        Point2 BackRightWaistEnd { position: [250mm, 150mm] }
-        Point2 BackRightWaistBridge { position: [225mm, 125mm] }
-        Arc2 BackRightWaist { center: BackRightWaistCenter; from: BackRightWaistBridge; to: BackRightWaistEnd }
-        Point2 BackLeftWaistCenter { position: [-225mm, 150mm] }
-        Point2 BackLeftWaistEnd { position: [-250mm, 150mm] }
-        Point2 BackLeftWaistBridge { position: [-225mm, 125mm] }
-        Arc2 BackLeftWaist { center: BackLeftWaistCenter; from: BackLeftWaistEnd; to: BackLeftWaistBridge }
-
-        // Where each end's inner straight side meets its R50 corners (RoundedRect2 publishes no tangent points).
-        Point2 LeftEndInnerFront { position: [-250mm, -175mm] }
-        Point2 LeftEndInnerBack { position: [-250mm, 175mm] }
-        Point2 RightEndInnerFront { position: [250mm, -175mm] }
-        Point2 RightEndInnerBack { position: [250mm, 175mm] }
-
         // The back-right corner is cut at 45 degrees between the right end's straight sides.
         Point2 ChamferStart { position: [400mm, 175mm] }
         Point2 ChamferEnd { position: [350mm, 225mm] }
         Line2 Chamfer { from: ChamferStart; to: ChamferEnd }
 
         // Lugs hang below each end where it overhangs the bridge, cut off along the bridge's long edges.
-        Point2 LeftEndOuterBack { position: [-400mm, 175mm] }
         Point2 LeftLugCutBack { position: [-400mm, 125mm] }
         Line2 BackLeftLugCut { from: Bridge.TopLeft; to: LeftLugCutBack }
         Point2 RightLugCutBack { position: [400mm, 125mm] }
@@ -101,11 +76,11 @@ Model Ctc01 {
             |> LeftEnd.BottomLeftCorner as LeftFrontOuterCorner
             |> LeftEnd.Bottom as LeftFront
             |> LeftEnd.BottomRightCorner as LeftFrontInnerCorner
-            |> LeftEnd.Right from LeftEndInnerFront to FrontLeftWaistEnd as LeftInnerFront
-            |> FrontLeftWaist
-            |> Bridge.Bottom from FrontLeftWaistBridge to FrontRightWaistBridge as Front
-            |> FrontRightWaist
-            |> RightEnd.Left from FrontRightWaistEnd to RightEndInnerFront as RightInnerFront
+            |> LeftEnd.Right to Bridge.BottomLeft as LeftInnerFront
+            |> Round(25mm) as FrontLeftWaist
+            |> Bridge.Bottom as Front
+            |> Round(25mm) as FrontRightWaist
+            |> RightEnd.Left from Bridge.BottomRight as RightInnerFront
             |> RightEnd.BottomLeftCorner as RightFrontInnerCorner
             |> RightEnd.Bottom as RightFront
             |> RightEnd.BottomRightCorner as RightFrontOuterCorner
@@ -113,19 +88,19 @@ Model Ctc01 {
             |> Chamfer
             |> RightEnd.Top as RightBack
             |> RightEnd.TopLeftCorner as RightBackInnerCorner
-            |> RightEnd.Left from RightEndInnerBack to BackRightWaistEnd as RightInnerBack
-            |> BackRightWaist
-            |> Bridge.Top from BackRightWaistBridge to BackLeftWaistBridge as Back
-            |> BackLeftWaist
-            |> LeftEnd.Right from BackLeftWaistEnd to LeftEndInnerBack as LeftInnerBack
+            |> RightEnd.Left to Bridge.TopRight as RightInnerBack
+            |> Round(25mm) as BackRightWaist
+            |> Bridge.Top as Back
+            |> Round(25mm) as BackLeftWaist
+            |> LeftEnd.Right from Bridge.TopLeft as LeftInnerBack
             |> LeftEnd.TopRightCorner as LeftBackInnerCorner
             |> LeftEnd.Top as LeftBack
             |> LeftEnd.TopLeftCorner as LeftBackOuterCorner
             |> Close
         }
     }
-    // Notches in the bridge's long edges. Front runs from x = -225 to +225 and Back from +225 to -225;
-    // centers are measured from each edge's start.
+    // Notches in the bridge's long edges. After the R25 waists, Front runs from x = -225 to +225 and Back from
+    // +225 to -225; centers are measured from each edge's start.
     ProfileDelta FrontLeftV = VNotch<Center: 115mm, Owner: Plate.Front>
     ProfileDelta FrontRightV = VNotch<Center: 335mm, Owner: Plate.Front>
     ProfileDelta BackRightSlot = SlotNotch<Center: 75mm, Owner: Plate.Back>
@@ -141,11 +116,11 @@ Model Ctc01 {
     // Each lug is traced from its end's own outline, so the end's corners and chamfer are stated once.
     Profile BackLeftLugOutline using Layout {
         Loop Outer {
-            LeftEnd.Right from Bridge.TopLeft to LeftEndInnerBack as Inner
+            LeftEnd.Right from Bridge.TopLeft as Inner
             |> LeftEnd.TopRightCorner as InnerCorner
             |> LeftEnd.Top as Back
             |> LeftEnd.TopLeftCorner as OuterCorner
-            |> LeftEnd.Left from LeftEndOuterBack to LeftLugCutBack as Outer
+            |> LeftEnd.Left to LeftLugCutBack as Outer
             |> BackLeftLugCut as Cut
             |> Close
         }
@@ -159,7 +134,7 @@ Model Ctc01 {
             |> Chamfer as Chamfer
             |> RightEnd.Top as Back
             |> RightEnd.TopLeftCorner as InnerCorner
-            |> RightEnd.Left from RightEndInnerBack to Bridge.TopRight as Inner
+            |> RightEnd.Left to Bridge.TopRight as Inner
             |> Close
         }
     }

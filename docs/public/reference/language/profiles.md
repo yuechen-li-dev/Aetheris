@@ -111,8 +111,33 @@ guide from startPoint to endPoint as selectedEdge
 ```
 
 After the first stage, `guide to endPoint` starts from the previous endpoint.
-Endpoints must be named points on that guide. Circular spans work the same way,
-and `Reverse` takes the other way round.
+`guide from startPoint` runs from `startPoint` to the guide's own end (its start
+under `Reverse`), so the point where a `RoundedRect2` side meets its corner never
+needs to be placed by hand. Endpoints must be named points on that guide.
+Circular spans work the same way, and `Reverse` takes the other way round.
+
+### Rounding a corner with `Round(r)`
+
+`|> Round(r)` between two stages replaces the corner where they meet with an
+arc of radius `r` tangent to both. Both neighbours are trimmed back to the
+tangent points; the arc bends into whichever side the corner turns, so the same
+stage rounds convex and concave corners. Line and arc neighbours are both
+supported. Before `Close`, `Round(r)` rounds the corner between the last stage
+and the first.
+
+```text
+Blank.Bottom as Bottom
+|> Round(5mm)
+|> Blank.Right as Right
+|> Round(5mm) as BottomRightRound
+```
+
+The arc is named by `as`, or otherwise `{previousEdge}Round{n}`, where `n` counts
+the rounds in the loop.
+[`round-stages.firmament`](../../../../fixtures/Regression/AuthoringConvenience/round-stages.firmament)
+builds the same solid as a `RoundedRect2`. `Round(r)` is rejected when its
+neighbours already meet tangentially, when they do not meet, when `r` is not a
+positive length, and when the arc would not fit on either neighbour.
 
 `|>` is only for tracing. It is not a general map, filter or function
 composition operator. Manual `Segment` declarations remain available for

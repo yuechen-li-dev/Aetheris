@@ -1017,9 +1017,33 @@ public static class ProfileAuthoringParser
         (double X, double Y)? first = null;
         (double X, double Y)? current = null;
         string? currentIdentity = null;
+        PipelineStage? pendingRound = null;
+        var roundCount = 0;
+        ResolvedProfileSegment2D? Rounded(PipelineStage round, int previousIndex, ref LineArcProfileCurve2D next, int index)
+        {
+            var previous = result[previousIndex];
+            var rounded = ProfileCornerRound.TryRound(previous.Geometry, next, round.Radius!.Value, out var failure);
+            if (rounded is null)
+            {
+                diagnostics.Add($"firmament-pipeline-round-invalid:{loopName}:{previous.Name}: Round({round.Radius.Value:0.###}mm) after '{previous.Name}': {failure}.");
+                return null;
+            }
+            result[previousIndex] = previous with { Geometry = rounded.Previous };
+            next = rounded.Next;
+            var arcName = round.Alias ?? $"{previous.Name}Round{++roundCount}";
+            if (!names.Add(arcName)) { diagnostics.Add($"firmament-profile-pipeline-identity-collision:{arcName}"); return null; }
+            return PipelineSegment(profile, loopName, arcName, rounded.Arc, $"concept:{profile.Frame ?? "XY"}.Round:{arcName}", "Round", false, index, expression.Span.Start + round.Offset);
+        }
         for (var index = 0; index < traceStages.Length; index++)
         {
             var stage = traceStages[index];
+            if (stage.Kind == PipelineStageKind.Round)
+            {
+                if (result.Count == 0 || pendingRound is not null)
+                { diagnostics.Add($"firmament-pipeline-round-invalid:{loopName}: Round must follow a traced stage and precede another stage or Close."); continue; }
+                pendingRound = stage;
+                continue;
+            }
             if (stage.Kind != PipelineStageKind.Trace)
             {
                 diagnostics.Add($"firmament-pipeline-stage-type:{stage.Reference}");
@@ -1031,10 +1055,19 @@ public static class ProfileAuthoringParser
                 continue;
             }
             bool reversed;
-            var oriented = stage.To is null
+            // `from P` alone runs from P to the guide's end in its own direction (its start under Reverse);
+            // `to P` alone continues from the current point.
+            var oriented = stage.To is null && stage.From is null
                 ? OrientPipelineCurve(source, stage.Reverse, current, stage.Reference!, points, diagnostics, out reversed)
                 : SelectPipelineSubspan(source, stage, current, points, diagnostics, out reversed);
             if (oriented is null) continue;
+            ResolvedProfileSegment2D? roundArc = null;
+            if (pendingRound is not null)
+            {
+                roundArc = Rounded(pendingRound, result.Count - 1, ref oriented, index);
+                pendingRound = null;
+                if (roundArc is not null) result.Add(roundArc);
+            }
             var start = Start(oriented); var end = End(oriented);
             first ??= start;
             current = end;
@@ -1043,6 +1076,24 @@ public static class ProfileAuthoringParser
             var name = stage.Alias ?? inheritedName;
             if (!names.Add(name)) { diagnostics.Add($"firmament-profile-pipeline-identity-collision:{name}"); continue; }
             result.Add(PipelineSegment(profile, loopName, name, oriented, $"concept:{profile.Frame ?? "XY"}.{stage.Reference}", stage.Reference!, reversed, index, expression.Span.Start + stage.Offset));
+        }
+        if (pendingRound is not null)
+        {
+            // A Round before Close fillets the junction where the loop closes, between the last and first stages.
+            if (!close || result.Count < 2)
+                diagnostics.Add($"firmament-pipeline-round-invalid:{loopName}: Round must follow a traced stage and precede another stage or Close.");
+            else
+            {
+                var firstCurve = result[0].Geometry;
+                if (Rounded(pendingRound, result.Count - 1, ref firstCurve, traceStages.Length) is { } closingArc)
+                {
+                    result[0] = result[0] with { Geometry = firstCurve };
+                    result.Add(closingArc);
+                    first = Start(firstCurve);
+                    current = End(closingArc.Geometry);
+                    currentIdentity = DescribeEndpoint(current.Value, points);
+                }
+            }
         }
         if (close && first is not null && current is not null && Distance(first.Value, current.Value) > Tolerance)
             diagnostics.Add($"firmament-pipeline-close-open:{loopName}:first={DescribeEndpoint(first.Value, points)}:current={currentIdentity}");
@@ -1071,7 +1122,9 @@ public static class ProfileAuthoringParser
             if (stage.Kind != PipelineStageKind.Trace) { diagnostics.Add($"firmament-pipeline-stage-type:{stage.Reference}"); continue; }
             if (!guides.TryGetValue(stage.Reference!, out var source)) { diagnostics.Add($"firmament-pipeline-unknown-guide:{stage.Reference}"); continue; }
             bool reversed;
-            var oriented = stage.To is null
+            // `from P` alone runs from P to the guide's end in its own direction (its start under Reverse);
+            // `to P` alone continues from the current point.
+            var oriented = stage.To is null && stage.From is null
                 ? OrientPipelineCurve(source, stage.Reverse, current, stage.Reference!, points, diagnostics, out reversed)
                 : SelectPipelineSubspan(source, stage, current, points, diagnostics, out reversed);
             if (oriented is null) continue;
@@ -1118,7 +1171,10 @@ public static class ProfileAuthoringParser
             diagnostics.Add($"firmament-pipeline-unknown-endpoint:{stage.From}");
             return null;
         }
-        if (stage.To is null || !points.TryGetValue(stage.To, out var end))
+        // `from P` alone runs to the guide's own end (its start under `reverse`).
+        (double X, double Y) end;
+        if (stage.To is null) end = stage.Reverse ? Start(source) : End(source);
+        else if (!points.TryGetValue(stage.To, out end))
         {
             diagnostics.Add($"firmament-pipeline-unknown-endpoint:{stage.To}");
             return null;
@@ -1137,7 +1193,7 @@ public static class ProfileAuthoringParser
         {
             if (!OnBoundedLine(start, line) || !OnBoundedLine(end, line) || Distance(start, end) <= Tolerance)
             {
-                diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To}");
+                diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To ?? DescribeEndpoint(end, points)}");
                 return null;
             }
             var dx = line.End.X - line.Start.X; var dy = line.End.Y - line.Start.Y;
@@ -1148,7 +1204,7 @@ public static class ProfileAuthoringParser
         {
             if (!OnCircle(start, circle.Center, circle.Radius) || !OnCircle(end, circle.Center, circle.Radius) || Distance(start, end) <= Tolerance)
             {
-                diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To}");
+                diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To ?? DescribeEndpoint(end, points)}");
                 return null;
             }
             var startAngle = Math.Atan2(start.Y - circle.Center.Y, start.X - circle.Center.X);
@@ -1170,7 +1226,7 @@ public static class ProfileAuthoringParser
                 return selected;
             }
         }
-        diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To}");
+        diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To ?? DescribeEndpoint(end, points)}");
         return null;
     }
 
@@ -1307,6 +1363,15 @@ public static class ProfileAuthoringParser
             var offset = value.Span.Start - expression.Span.Start;
             if (value is ReferenceSyntax { Name.Text: "Close" }) { stages.Add(new(PipelineStageKind.Close, null, null, false, offset)); return; }
             if (value is ReferenceSyntax { Name.Text: "TraceLoop" }) { stages.Add(new(PipelineStageKind.TraceLoop, null, null, false, offset)); return; }
+            // Round(r) between two stages fillets their junction; `Round(r) as Name` names the arc.
+            var roundAlias = value is AliasSyntax { Value: CallSyntax } aliased ? aliased.Name.Text : null;
+            if ((value is AliasSyntax { Value: CallSyntax } wrapped ? wrapped.Value : value) is CallSyntax { Target: ReferenceSyntax { Name.Text: "Round" } } round)
+            {
+                var measured = round.Arguments.Count == 1 && round.Arguments[0].Name is null
+                    && FirmamentSyntaxValues.TryMeasure(round.Arguments[0].Value, "mm", out var radius) && radius > 0 ? radius : (double?)null;
+                stages.Add(new(measured is null ? PipelineStageKind.Invalid : PipelineStageKind.Round, "Round", roundAlias, false, offset, Radius: measured));
+                return;
+            }
             string? alias = null, from = null, to = null;
             var reverse = false; var valid = true; var traced = false;
             var inner = value;
@@ -1317,7 +1382,7 @@ public static class ProfileAuthoringParser
                 {
                     valid &= !traced; traced = true;
                     from = FirmamentSyntaxValues.Reference(t.From); to = FirmamentSyntaxValues.Reference(t.To);
-                    valid &= (t.From is null || from is not null) && (t.To is null || to is not null) && (from is null || to is not null);
+                    valid &= (t.From is null || from is not null) && (t.To is null || to is not null);
                     inner = t.Source;
                 }
                 else if (inner is UnarySyntax { Operator: UnaryOperator.Reverse } u) { valid &= !reverse; reverse = true; inner = u.Operand; }
@@ -1544,7 +1609,7 @@ public static class ProfileAuthoringParser
     private sealed record PathStep(string Kind, string Name, string Body, int Index);
     private sealed record BoundPathStep(string Name, string Kind, string GuideName, string EndpointName, IReadOnlyList<LineArcProfileCurve2D> Curves, (double X, double Y) Start, (double X, double Y) End, double Heading, string? SourceReference = null, bool WasReversed = false, int? PipelineIndex = null, string? SourceRange = null);
     private sealed record BoundPath(string Name, (double X, double Y) Start, double InitialHeading, List<BoundPathStep> Steps);
-    private enum PipelineStageKind { Trace, Close, TraceLoop, Invalid }
-    private sealed record PipelineStage(PipelineStageKind Kind, string? Reference, string? Alias, bool Reverse, int Offset, string? From = null, string? To = null);
+    private enum PipelineStageKind { Trace, Close, TraceLoop, Round, Invalid }
+    private sealed record PipelineStage(PipelineStageKind Kind, string? Reference, string? Alias, bool Reverse, int Offset, string? From = null, string? To = null, double? Radius = null);
 
 }

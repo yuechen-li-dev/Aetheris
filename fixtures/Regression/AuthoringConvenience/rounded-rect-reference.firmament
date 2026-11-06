@@ -1,0 +1,6 @@
+// The reference for round-stages.firmament.
+Model RoundedReference {
+    units: mm
+    Profile Plate = RoundedRect2 { center: [0mm, 0mm]; size: [60mm, 30mm]; radius: 5mm }
+    Extrude Body { profile: Plate; from: 0mm; to: 4mm }
+}

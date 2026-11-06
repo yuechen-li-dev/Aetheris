@@ -34,10 +34,24 @@ public sealed class AuthoringConvenienceCliTests
         Assert.Equal(8, body.Topology.Faces.Count());
     }
 
+    [Fact]
+    public void PartialSpansRunFromAPointToTheGuideEndAndFromTheCurrentPointToAPoint()
+    {
+        var body = BuildAndImport("fixtures/Regression/AuthoringConvenience/partial-spans.firmament");
+        // Two bottom pieces, two flanks, three full sides, top and bottom.
+        Assert.Equal(9, body.Topology.Faces.Count());
+        var points = body.Topology.Vertices.Select(v => body.TryGetVertexPoint(v.Id, out var p) ? (Math.Round(p.X, 9), Math.Round(p.Y, 9)) : (double.NaN, double.NaN)).Distinct().ToHashSet();
+        Assert.Contains((-10d, -15d), points);
+        Assert.Contains((0d, -5d), points);
+        Assert.Contains((10d, -15d), points);
+        Assert.Equal(7, points.Count);
+    }
+
     [Theory]
     [InlineData("sqrt-negative.firmament", "firmament-v2-expression-unsupported", "outside its domain")]
     [InlineData("unknown-intrinsic.firmament", "firmament-v2-expression-unsupported", "calls 'Atan', which is not a compile-time intrinsic (Pow, Sqrt, Sin, Cos, Tan)")]
     [InlineData("zero-length-step.firmament", "concept-path-zero-length:Outline:Back", "Step 'Back' of Path 'Outline' has zero length")]
+    [InlineData("round-oversized.firmament", "firmament-pipeline-round-invalid:Outer:Bottom", "Round(40mm) after 'Bottom': the radius is too large")]
     [InlineData("shape-negative-size.firmament", "firmament-boundary2-invalid-dimensions:Plate__Boundary", "Shape 'Plate' has missing or non-positive dimensions")]
     public void RejectionsExplainThemselves(string file, string code, string message)
     {
@@ -47,10 +61,10 @@ public sealed class AuthoringConvenienceCliTests
         Assert.NotEqual(0, exit);
         using var document = JsonDocument.Parse(stdout.ToString());
         var report = document.RootElement.TryGetProperty("firmamentV2Validation", out var nested) ? nested : document.RootElement;
-        var diagnostic = report.GetProperty("diagnostics").EnumerateArray().Single(d => d.GetProperty("code").GetString() == code);
+        var diagnostic = report.GetProperty("diagnostics").EnumerateArray().Single(d => d.GetProperty("code").GetString()!.Split(": ")[0] == code);
         var text = diagnostic.GetProperty("message").GetString()!;
         Assert.Contains(message, text, StringComparison.Ordinal);
-        Assert.NotEqual(code, text);
+        Assert.False(text.StartsWith(code, StringComparison.Ordinal), text);
     }
 
     private static Aetheris.Kernel.Core.Brep.BrepBody BuildAndImport(string fixture)

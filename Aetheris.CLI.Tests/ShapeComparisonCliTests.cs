@@ -9,6 +9,7 @@ public sealed class ShapeComparisonCliTests
     private static readonly Lazy<string> PlateBossHole = new(() => Build("fixtures/Regression/ShapeCompare/plate-boss-hole.firmament"));
     private static readonly Lazy<string> PlateBoss = new(() => Build("fixtures/Regression/ShapeCompare/plate-boss.firmament"));
     private static readonly Lazy<string> Ctc01 = new(() => Build("fixtures/Regression/Decompile/ctc-01.firmament"));
+    private static readonly Lazy<string> RoundStages = new(() => Build("fixtures/Regression/AuthoringConvenience/round-stages.firmament"));
     private static string Ctc01Original => Path.Combine(RepoRoot, "testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp");
 
     [Fact]
@@ -66,9 +67,22 @@ public sealed class ShapeComparisonCliTests
     }
 
     [Fact]
+    public void RoundStagesBuildTheSameSolidAsRoundedRect2()
+    {
+        var reference = Build("fixtures/Regression/AuthoringConvenience/rounded-rect-reference.firmament");
+        var result = StepShapeComparison.Compare(reference, RoundStages.Value, resolution: 200);
+
+        Assert.Empty(result.Carriers.MissingFromCandidate);
+        Assert.Empty(result.Carriers.ExtraInCandidate);
+        Assert.Equal(10, result.Carriers.ReferenceCarrierCount);
+        Assert.Equal(1d, result.Overlap.IntersectionOverUnion, 9);
+    }
+
+    [Fact]
     public void BoxMinusHoleVolumeIsNotClaimedForStockThatIsNotTheBoundingBox()
     {
-        foreach (var step in new[] { PlateBossHole.Value, Ctc01.Value })
+        // The rounded rectangle's corner cylinders reach the box sides: they are stock, not holes.
+        foreach (var step in new[] { PlateBossHole.Value, Ctc01.Value, RoundStages.Value })
         {
             try
             {

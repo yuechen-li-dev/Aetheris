@@ -1,0 +1,16 @@
+// A 40 mm round on a 30 mm tall rectangle: the tangent point falls beyond the right side.
+Model RoundOversized {
+    units: mm
+    Concept Struct Layout on XY { Rect2 Blank { center: [0mm, 0mm]; size: [60mm, 30mm] } }
+    Profile Plate using Layout {
+        Loop Outer {
+            Blank.Bottom as Bottom
+            |> Round(40mm)
+            |> Blank.Right as Right
+            |> Blank.Top as Top
+            |> Blank.Left as Left
+            |> Close
+        }
+    }
+    Extrude Body { profile: Plate; from: 0mm; to: 4mm }
+}

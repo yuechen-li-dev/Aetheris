@@ -193,6 +193,38 @@ Evidence:
   and arc/arc corners: tangency and continuity at both joins.
 - The full parallel lane is green.
 
+## Follow-up: junction fillets (`where: A meets B`)
+
+`EdgeFinish<Fillet> HexFoot { where: Hex meets PlateStock; radius: 5mm }` fillets the hex boss's foot.
+
+What changed:
+- **Syntax:** `A meets B` and `role X` are expressions (`JunctionSyntax`).
+- **Route:** `JunctionFilletRoute` strips the `where` finishes, builds the body, and attributes each face to the
+  Compose operations whose prisms it lies on. It then rounds the edges between A-only and B-only faces with
+  `UniformRounding.RoundSelectedEdges`.
+- **Kernel:** `LocalRounding` gains:
+  - a `Selected` pass with a radius per edge, so all junction finishes are built in one construction;
+  - a `Mitre` vertex: two strips on one floor meeting where the kept edge between their walls stands square
+    to it. The strips' axes cross at the ball touching all three planes, and the section is an exact quarter
+    `Ellipse3`.
+- **Fixed in passing:** `LocalRounding`'s loop walk turned back along a seam on hole walls whose rims are split
+  into arcs, which strands the rims. Rounding any body with such a hole hit it.
+
+Evidence:
+- **CTC-01:** 81/85 carriers, 0 extra, IoU 0.999029 (from 0.998904). The six R5 cylinders match the
+  original's axes, through-points and bounds exactly.
+- **Standalone hex foot:** 19 faces, 6 cylinders, 6 ellipse edges, manifold. The added volume is within the
+  sampling error of the analytic mitred prism (1900.0 mm³).
+- **Refusals:** five invalid fixtures, each naming its cause. A radius that does not fit reports the largest
+  that does (19.28 mm, where the offset hexagon's corner reaches the plate's edge).
+
+The lug R10 fillets are the honest stop. `where: role Pad meets PlateStock` selects the right edges. But each
+lug's inner root edge ends at the point where the plate underside's boundary runs tangentially into an R25 waist
+wall (`uniform-rounding-mixed-vertex-unsupported`, naming the vertex). The original ends those fillets against
+the waist cylinder carried down through the lug. That end edge is a cylinder–cylinder intersection, a true
+spline. Closing it needs a general intersection curve and a rule for where a strip ends against a curved wall.
+That is a feature of its own, not a patch to this one.
+
 ## Verdict
 
 Meaningful progression. CTC-01 builds with every feature Firmament can express, and the comparison

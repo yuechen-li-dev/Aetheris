@@ -1,0 +1,15 @@
+// A junction is selected for fillets only.
+Model HexBossFoot {
+    units: mm
+    Profile Plate = Rect2 { center: [0mm, 0mm]; size: [200mm, 160mm] }
+    Profile HexBoss = RegularPolygon2<6> { center: [0mm, 0mm]; acrossFlats: 100mm; rotation: 30deg }
+    Struct Part {
+        Compose Body {
+            Base Stock { profile: Plate; from: -20mm; to: 0mm; role: Stock }
+            Boss Hex { on: Top; profile: HexBoss; height: 30mm }
+        }
+    }
+    Modify Body {
+        EdgeFinish<Chamfer> HexFoot { where: Hex meets Stock; distance: 5mm }
+    }
+}

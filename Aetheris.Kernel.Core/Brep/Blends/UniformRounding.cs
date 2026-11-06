@@ -37,6 +37,43 @@ public static class UniformRounding
             : $"{refusal.Message}; the largest that fits is under {hi:G6} mm");
     }
 
+    /// <summary>A sharp edge offered to <see cref="RoundSelectedEdges"/>: its midpoint, a point just inside each of its
+    /// two faces with that face's surface, and whether it is concave.</summary>
+    public sealed record EdgeCandidate(Point3D Midpoint, Point3D InsideA, SurfaceGeometry SurfaceA, Point3D InsideB, SurfaceGeometry SurfaceB, bool Concave);
+
+    /// <summary>
+    /// Rounds only the sharp edges <paramref name="radiusOf"/> gives a radius, each by a rolling ball of that radius,
+    /// in one construction; every other edge is kept as it is. A rounded edge may end on a face standing square to it,
+    /// and two rounded edges sharing a face mitre where the kept edge between their other faces stands square to that
+    /// face. Edges of different radii must not meet. Radii that do not fit are refused with the largest that do.
+    /// </summary>
+    public static KernelResult<BrepBody> RoundSelectedEdges(BrepBody body, Func<EdgeCandidate, double?> radiusOf)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(radiusOf);
+        var chosen = new SortedSet<double>();
+        var scale = 1d;
+        double? Select(LocalRounding.EdgeQuery q)
+        {
+            if (radiusOf(new EdgeCandidate(q.Midpoint, q.InsideA, q.SurfaceA, q.InsideB, q.SurfaceB, q.Concave)) is not { } r) return null;
+            chosen.Add(r); return r * scale;
+        }
+        // Each chosen radius is checked against the construction tolerance as it is chosen.
+        LocalRounding.Outcome Attempt(double k) { scale = k; chosen.Clear(); return LocalRounding.Round(body, k, LocalRounding.Pass.Selected, trusted: false, Select); }
+        var outcome = Attempt(1);
+        if (chosen.Any(r => !double.IsFinite(r) || r <= 0)) return Failure("uniform-rounding-radius-invalid", "radius must be finite and positive");
+        if (outcome.Body is not null)
+            return chosen.Count > 0 ? KernelResult<BrepBody>.Success(outcome.Body) : Failure("uniform-rounding-selection-empty", "no edge of the body matches the selection");
+        var refusal = outcome.Refusal!;
+        if (refusal.Code != TooLargeCode) return Failure(refusal.Code, refusal.Message);
+        var radii = chosen.ToArray();
+        var (lo, hi) = (0d, 1d);
+        for (var i = 0; i < 30; i++) { var mid = 0.5 * (lo + hi); if (Attempt(mid).Body is not null) lo = mid; else hi = mid; }
+        return Failure(refusal.Code, radii.Length == 1
+            ? $"{refusal.Message}; the largest that fits is under {hi * radii[0]:G6} mm"
+            : $"{refusal.Message}; scaled together, the radii fit below {string.Join(", ", radii.Select(r => $"{hi * r:G6} mm (for {r:G6})"))}");
+    }
+
     public static KernelResult<BrepBody> RoundAllEdges(BrepBody body, double radius)
     {
         ArgumentNullException.ThrowIfNull(body);

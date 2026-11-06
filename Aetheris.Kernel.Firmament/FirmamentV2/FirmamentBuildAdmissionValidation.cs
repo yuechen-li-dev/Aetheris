@@ -9,6 +9,9 @@ public static class FirmamentBuildAdmissionValidation
     public static FirmamentV2ValidationReport Admit(
         FirmamentV2ValidationReport report, string source, string? sourceDirectory = null)
     {
+        // A junction fillet is validated the way build answers it: the body built without it, then filleted.
+        if (JunctionFilletRoute.Find(source) is { } junction && FirmamentV2Parser.Parse(junction.Stripped, sourceDirectory).IsSuccess)
+            return Rounded(report, source, sourceDirectory, JunctionFilletRoute.Code);
         if (report.Status == "invalid" && UniformRoundingRoute.Find(source) is { } rounding
             && FirmamentV2Parser.Parse(rounding.Stripped, sourceDirectory).IsSuccess)
             return Rounded(report, source, sourceDirectory);
@@ -33,7 +36,7 @@ public static class FirmamentBuildAdmissionValidation
     /// <summary>An AllEdges fillet that is all that stops the source parsing (the stock route refuses it, or the
     /// body's construction takes no Modify) is validated the way build answers it: by building the body and
     /// rounding it.</summary>
-    private static FirmamentV2ValidationReport Rounded(FirmamentV2ValidationReport report, string source, string? sourceDirectory)
+    private static FirmamentV2ValidationReport Rounded(FirmamentV2ValidationReport report, string source, string? sourceDirectory, string route = UniformRoundingRoute.Code)
     {
         var built = FirmamentBuildAndExport.CompileSource(source, sourceDirectory);
         // Only the finish failed the parse, so the parse's diagnostics give way to the build's answer.
@@ -44,7 +47,7 @@ public static class FirmamentBuildAdmissionValidation
         {
             Status = built.IsSuccess && fatal == 0 ? "valid" : "invalid",
             ValidationLevel = built.IsSuccess ? "Built" : "BuildRejected",
-            ParserRoute = UniformRoundingRoute.Code,
+            ParserRoute = route,
             Diagnostics = diagnostics,
             Summary = report.Summary with { FatalDiagnosticCount = fatal, WarningDiagnosticCount = diagnostics.Count(d => d.Severity == "warning") },
         };

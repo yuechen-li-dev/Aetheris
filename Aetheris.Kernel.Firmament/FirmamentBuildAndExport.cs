@@ -289,6 +289,15 @@ public static partial class FirmamentBuildAndExport
         // Its expansion pipeline runs once in the frontend. Unmigrated domain owners
         // retain their existing expansion boundary until their own cutover.
         sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
+        // Fillets where two Compose operations meet (`where: A meets B`): build the body without them, then round the
+        // edges between the two operations' faces.
+        if (JunctionFilletRoute.Find(sourceText) is { } junction)
+        {
+            var filleted = JunctionFilletRoute.Export(junction, stripped => ExportSource(stripped, sourceDirectory, allowV1Compatibility, explicitSchema, resources, authoredSource), sourceDirectory);
+            return filleted.IsSuccess && filleted.Value.RuntimeAdmissionDocument is null && ParseSemanticSource(junction.Stripped, sourceDirectory).Document is { } admittedJunction
+                ? KernelResult<FirmamentStepExportResult>.Success(filleted.Value with { RuntimeAdmissionDocument = admittedJunction }, filleted.Diagnostics)
+                : filleted;
+        }
         var canonicalParseWatch = System.Diagnostics.Stopwatch.StartNew();
         var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory, null, explicitSchema, resources);
         canonicalParseWatch.Stop();

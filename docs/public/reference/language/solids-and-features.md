@@ -194,6 +194,38 @@ Model Plate {
 }
 ```
 
+### Fillets where two operations meet
+
+`where: A meets B` selects the edges where the faces of two Compose operations
+meet, and rounds them with one ball:
+
+```text
+EdgeFinish<Fillet> HexFoot { where: Hex meets Stock; radius: 5mm }
+```
+
+[`hex-boss-foot.firmament`](../../../../fixtures/Regression/JunctionFillet/hex-boss-foot.firmament)
+rounds a hexagonal boss's foot this way.
+
+- `A` and `B` name Compose operations (`Base`, `Add`, `Boss`, `Pocket`), or
+  `role Name` for every operation with that role (`where: role Pad meets Plate`).
+- A face belongs to an operation when it lies on that operation's prism: a cap
+  inside its profile at one of its heights, or a side on its outline. An edge is
+  selected when one of its faces belongs to `A` but not `B` and the other to `B`
+  but not `A`. A wall that two operations share, such as a pad flush with the
+  plate's side, selects nothing.
+- Straight edges become exact cylinders and circular ones tori. Where two rounded
+  edges on one face turn a corner and the edge between their walls stands square
+  to that face, as at a boss's foot, they meet in an exact quarter-ellipse mitre.
+  A rounded edge may also end on a face standing square to it.
+- Several `where` finishes on one body are built together, each with its own
+  radius, after the body's other construction (holes and another finish
+  included). Edges of different radii must not meet.
+- Rejected: `where` on a chamfer; operations that are not on XY along +Z; names
+  that are not operations or roles of the Compose body; a junction with no edges;
+  a rounded edge that ends where its face's edge runs on tangentially into a
+  curved wall, or at a corner of convex and concave edges other than a mitre; and
+  a radius that does not fit, which is refused with the largest that does.
+
 What you can select depends on the body:
 
 | Body | Selection |
@@ -207,7 +239,8 @@ The details that trip people up:
 
 - **One finish per construction.** Several finish requests on one Profile or
   Compose body reject, rather than building only the first. Uncalled Feature and
-  Template definitions do not count.
+  Template definitions do not count. `where` fillets are the exception: any number
+  of them can sit alongside one other finish.
 - **Box rim with holes.** One Box top-rim chamfer or fillet can sit with top
   `ThroughAll` holes in the same Modify, if the hole entries stay strictly inside
   the inset top face. Blind and side holes sharing a rim finish are not supported.

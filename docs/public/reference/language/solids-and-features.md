@@ -217,14 +217,23 @@ rounds a hexagonal boss's foot this way.
   edges on one face turn a corner and the edge between their walls stands square
   to that face, as at a boss's foot, they meet in an exact quarter-ellipse mitre.
   A rounded edge may also end on a face standing square to it.
+- Where a fillet's floor runs out into a cylindrical wall that stands square to
+  the floor and is tangent to the fillet's own wall (a pad's root reaching a
+  rounded waist in the plate's outline), the wall is carried down through the
+  fillet and cuts it off. The cut is an exact cylinder–cylinder curve; in STEP it
+  is written as a B-spline whose distance from that curve is certified below the
+  model tolerance.
+- A wall split in two on one plane, as where another operation's outline meets
+  it, is treated as one face.
 - Several `where` finishes on one body are built together, each with its own
   radius, after the body's other construction (holes and another finish
   included). Edges of different radii must not meet.
 - Rejected: `where` on a chamfer; operations that are not on XY along +Z; names
   that are not operations or roles of the Compose body; a junction with no edges;
-  a rounded edge that ends where its face's edge runs on tangentially into a
-  curved wall, or at a corner of convex and concave edges other than a mitre; and
-  a radius that does not fit, which is refused with the largest that does.
+  a fillet that runs out into a wall other than a square-standing cylinder
+  tangent to its own wall, or ends at any other corner of convex and concave
+  edges than a mitre; and a radius that does not fit, which is refused with the
+  largest that does.
 
 What you can select depends on the body:
 

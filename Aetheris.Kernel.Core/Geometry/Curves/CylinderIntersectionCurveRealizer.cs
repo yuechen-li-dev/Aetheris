@@ -34,7 +34,7 @@ public static class CylinderIntersectionCurveRealizer
         var tol = tolerance ?? ToleranceContext.Default;
         var scale = double.Max(1d, double.Max(
             double.Max(double.Abs(authority.Center.X), double.Abs(authority.Center.Y)),
-            double.Max(double.Abs(authority.Center.Z), authority.Host.Radius + authority.Tool.Radius)));
+            double.Max(double.Abs(authority.Center.Z), authority.Host.Radius + authority.Tool.Radius + double.Abs(authority.Offset))));
         // Keep roundoff separate from the analytic Hermite remainder. Large coordinates
         // whose floating-point allowance consumes the tolerance fail explicitly.
         var numericalAllowance = 256d * MachineEpsilon * scale;
@@ -49,7 +49,7 @@ public static class CylinderIntersectionCurveRealizer
         while (pending.Count > 0)
         {
             var (start, end) = pending.Pop();
-            var bound = HermiteErrorBound(authority.Host.Radius, authority.Tool.Radius, start, end);
+            var bound = authority.FourthDerivativeBound(start, end) * double.Pow(end - start, 4d) / 384d;
             if (!double.IsFinite(bound))
                 return Failure("The intersection remainder bound is nonfinite.",
                     "Geometry.CylinderIntersection.NonFiniteBound");
@@ -92,31 +92,6 @@ public static class CylinderIntersectionCurveRealizer
         return KernelResult<QualifiedCylinderIntersectionRepresentation>.Success(new(
             authority, curve, tol.Linear, spans.Max(span => span.Bound),
             numericalAllowance, spans.Count));
-    }
-
-    private static double HermiteErrorBound(double hostRadius, double toolRadius, double start, double end)
-    {
-        var r2 = toolRadius * toolRadius;
-        var maxCosSq = double.Max(double.Pow(double.Cos(start), 2d), double.Pow(double.Cos(end), 2d));
-        if (double.Ceiling(start / double.Pi) * double.Pi <= end)
-            maxCosSq = 1d;
-        var minG = hostRadius * hostRadius - r2 * maxCosSq;
-        if (minG <= 0d) return double.PositiveInfinity;
-        var sqrtG = double.Sqrt(minG);
-        var g3 = minG * sqrtG;
-        var g5 = minG * g3;
-        var g7 = minG * g5;
-        // For x=sqrt(g), g=R²-r²cos²(t):
-        // |g'|<=r², |g''|<=2r², |g'''|<=4r², |g''''|<=8r².
-        // The chain rule bounds |x''''| by the expression below. Both remaining
-        // coordinates are r*cos(t), r*sin(t), with fourth derivatives <=r.
-        var xFourth = (15d * double.Pow(r2, 4d) / (16d * g7))
-            + (4.5d * double.Pow(r2, 3d) / g5)
-            + (7d * r2 * r2 / g3)
-            + (4d * r2 / sqrtG);
-        var vectorFourth = double.Sqrt(xFourth * xFourth + 2d * toolRadius * toolRadius);
-        var h = end - start;
-        return vectorFourth * double.Pow(h, 4d) / 384d;
     }
 
     private static KernelResult<QualifiedCylinderIntersectionRepresentation> Failure(string message, string source)

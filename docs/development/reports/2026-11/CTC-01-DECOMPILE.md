@@ -225,8 +225,38 @@ the waist cylinder carried down through the lug. That end edge is a cylinder–c
 spline. Closing it needs a general intersection curve and a rule for where a strip ends against a curved wall.
 That is a feature of its own, not a patch to this one.
 
+## Follow-up: lug root fillets end on the waist (CTC-01 complete)
+
+`EdgeFinish<Fillet> LugRoots { where: role Pad meets PlateStock; radius: 10mm }` closes the last gap.
+
+What changed:
+- **Exact curve:** `CylinderCylinderIntersectionCurve.CreateOffset` takes perpendicular cylinders whose axes need
+  not cross, including a cutter touching the host from inside.
+  - At the touching point R² − y² has a double root: R ∓ y = 2r·sin²(t/2) or 2r·cos²(t/2). The evaluator roots
+    it exactly, so the curve stays analytic through the fillet's tangent end.
+  - The export fit is certified by a Cauchy estimate on a complex strip, |P⁽⁴⁾| ≤ 4!·M/ρ⁴.
+  - The crossing-axes path, and every STEP file it writes, is unchanged.
+- **Doctrine:** the exact curve lives in the B-rep (`CurveGeometry.FromCertifiedIntersection`). STEP gets a
+  non-rational B-spline with a certified deviation. Every consumer already reads it as a `BSpline3`.
+- **Coplanar merge:** a selective rounding merges faces split on one plane before classifying vertices. The
+  section stack splits the x = −250 wall three ways at the waist's tangent line.
+- **`Wall` vertex:** a strip whose floor runs out into a cylindrical wall standing square to it, tangent to the
+  strip's wall. The wall contact ends on the tangent line one radius off the floor. The floor contact ends where it
+  crosses the cylinder. The wall's face grows over the strip's end, bounded by the certified cut.
+
+Evidence:
+- **CTC-01:** 85/85 carriers, 0 extra, IoU 0.999992. Enclosed manifold.
+- **The cut against NIST's edge 180:** our cut runs exactly from (−240, 130, −50) to (−250, 150, −60). NIST's
+  edge 180 is a 6-control-point spline lying 3.4 µm off both cylinders, and it is within 3.5 µm of our exact
+  curve (its own fitting error). Our fit is certified at 1.26e-7 mm, with a sampled maximum of 1.3e-8 mm over
+  64 spans.
+- **Topology at the cut vertex:** tangent line, wall contact and cut meet as in the original (edges 180/187 there).
+
+Remaining difference: face count, 154 against NIST's 117. It comes from cylinders and other faces the section
+stack splits; carriers and volume agree.
+
 ## Verdict
 
-Meaningful progression. CTC-01 builds with every feature Firmament can express, and the comparison
-proves the rest are exactly three language gaps. Items 1 and 2 are the features worth designing. Items
-3–6 are small and independent.
+Success. CTC-01 decompiles into Firmament that rebuilds every surface of the NIST original (85/85, IoU 0.999992),
+from shape-based outlines with `|> Round(r)` stages, derived-plane drills, and `where: A meets B` fillets. The
+only approximated geometry is four exported edges, each certified against its exact curve.

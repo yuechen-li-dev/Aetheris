@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Aetheris.CLI;
+using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.CLI.Tests;
 
@@ -47,20 +48,38 @@ public sealed class ShapeComparisonCliTests
     }
 
     [Fact]
-    public void Ctc01ReconstructionMatchesTheOriginalExceptForKnownLanguageGaps()
+    public void Ctc01ReconstructionMatchesTheOriginal()
     {
         var result = StepShapeComparison.Compare(Ctc01Original, Ctc01.Value);
-
-        // Everything the reconstruction builds is on the original's surfaces.
+        // Every analytic surface of the original, and nothing else.
+        Assert.Empty(result.Carriers.MissingFromCandidate);
         Assert.Empty(result.Carriers.ExtraInCandidate);
-        Assert.True(result.Overlap.IntersectionOverUnion >= 0.999, $"IoU {result.Overlap.IntersectionOverUnion}");
-        Assert.True(result.Carriers.MatchedCarrierCount >= 81, $"matched {result.Carriers.MatchedCarrierCount}");
+        Assert.Equal(85, result.Carriers.MatchedCarrierCount);
+        Assert.True(result.Overlap.IntersectionOverUnion >= 0.99995, $"IoU {result.Overlap.IntersectionOverUnion}");
+    }
 
-        // What is missing is exactly the features Firmament cannot yet express (see the fixture's header).
-        // Closing one of these gaps shrinks this list; a new kind of discrepancy fails here.
-        foreach (var carrier in result.Carriers.MissingFromCandidate)
+    [Fact]
+    public void Ctc01LugRootFilletsEndOnTheWaistAlongTheExactCylinderIntersection()
+    {
+        var import = Step242Importer.ImportBody(File.ReadAllText(Ctc01.Value));
+        Assert.True(import.IsSuccess);
+        var body = import.Value;
+        var splines = body.Topology.Edges.Select(e => body.Bindings.TryGetEdgeBinding(e.Id, out var b) && body.Geometry.TryGetCurve(b.CurveGeometryId, out var c) ? c?.BSpline3 : null)
+            .OfType<Aetheris.Kernel.Core.Geometry.Curves.BSpline3Curve>().ToArray();
+        // One cut per lug, where its root fillet meets the R25 waist.
+        Assert.Equal(4, splines.Length);
+        foreach (var spline in splines)
         {
-            Assert.True(IsLugUndersideFillet(carrier), $"Unexpected missing carrier: {carrier.Description}");
+            var (t0, t1) = (spline.KnotValues[0], spline.KnotValues[^1]);
+            var start = spline.Evaluate(t0);
+            // The waist centre and the fillet's axis, by symmetry from the lug's quadrant.
+            var (sx, sy) = (double.Sign(start.X), double.Sign(start.Y));
+            for (var i = 0; i <= 200; i++)
+            {
+                var p = spline.Evaluate(t0 + (t1 - t0) * i / 200);
+                Assert.Equal(25d, double.Hypot(p.X - sx * 225, p.Y - sy * 150), 6);
+                Assert.Equal(10d, double.Hypot(p.X - sx * 240, p.Z + 60), 6);
+            }
         }
     }
 
@@ -107,10 +126,6 @@ public sealed class ShapeComparisonCliTests
         Assert.Equal(1, shape.GetProperty("carriers").GetProperty("missingFromCandidate").GetArrayLength());
         Assert.True(shape.GetProperty("overlap").GetProperty("candidateOnlyVolume").GetDouble() > 0);
     }
-
-    private static bool IsLugUndersideFillet(StepShapeComparison.CarrierGroup c)
-        => c.Kind == "Cylinder" && c.Description.Contains("r=10 ", StringComparison.Ordinal)
-           && c.BoundsMin is { } lo && c.BoundsMax is { } hi && lo[2] >= -60.01 && hi[2] <= -49.99;
 
     private static string Build(string fixture)
     {

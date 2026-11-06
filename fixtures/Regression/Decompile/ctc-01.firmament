@@ -2,9 +2,9 @@
 // a dog-bone plate (two rounded ends and a bridge) with four lugs underneath, a hexagonal boss on top,
 // through holes, slots, side drills, and notches in the long edges. Compare against the original with
 //   aetheris analyze compare <original.stp> <this.step> --shape
-// Not expressible yet, and therefore absent here: the R10 fillets where the lugs' inner walls meet the plate
-// underside. Each ends where the underside's edge runs tangentially into an R25 waist wall; the original ends it
-// against that wall's cylinder carried down through the lug, which leaves a spline edge.
+// Every feature of the original is expressed. Each R10 lug-root fillet ends where the plate underside runs into an
+// R25 waist wall; the wall is carried down and cuts the fillet off along an exact cylinder-cylinder curve,
+// exported as a certified B-spline.
 Model Ctc01 {
     units: mm
 
@@ -170,5 +170,6 @@ Model Ctc01 {
         Mirrored Feature SideDrillLeft from SideDrillRight { across: CenterPlane }
         EdgeFinish<Chamfer> HexTop { on: Top; target: HexBoss.Outer; distance: 5mm }
         EdgeFinish<Fillet> HexFoot { where: Hex meets PlateStock; radius: 5mm }
+        EdgeFinish<Fillet> LugRoots { where: role Pad meets PlateStock; radius: 10mm }
     }
 }

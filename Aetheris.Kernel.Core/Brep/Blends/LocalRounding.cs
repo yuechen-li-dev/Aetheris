@@ -115,20 +115,24 @@ internal static class LocalRounding
         }
     }
 
-    /// <summary>An edge's shape from its start to its end: a segment, an arc about a normal (right-handed), or a
-    /// quarter ellipse about <see cref="Mitre"/> whose two semi-axes run to its ends (a mitre between two strips).</summary>
-    private sealed record Shape(Point3D Start, Point3D End, Point3D? Center, Vector3D Normal, double Sweep, Point3D? Mitre = null)
+    /// <summary>An edge's shape from its start to its end: a segment, an arc about a normal (right-handed), a
+    /// quarter ellipse about <see cref="Mitre"/> whose two semi-axes run to its ends (a mitre between two strips), or
+    /// an exact cylinder intersection over its whole domain (<see cref="Certified"/>: a strip cut off by a wall).</summary>
+    private sealed record Shape(Point3D Start, Point3D End, Point3D? Center, Vector3D Normal, double Sweep, Point3D? Mitre = null,
+        QualifiedCylinderIntersectionRepresentation? Certified = null)
     {
         public bool Arc => Center is not null;
 
-        public Point3D At(double t) => Mitre is { } m
+        public Point3D At(double t) => Certified is { } c
+            ? c.Authority.Evaluate(c.Authority.Domain.Start + (c.Authority.Domain.End - c.Authority.Domain.Start) * t)
+            : Mitre is { } m
             ? m + (Start - m) * double.Cos(t * double.Pi / 2) + (End - m) * double.Sin(t * double.Pi / 2)
             : !Arc ? Start + (End - Start) * t : Rotate(Start, Center!.Value, Normal, Sweep * t);
 
         public Vector3D Tangent(Point3D p) => !Arc ? Unit(End - Start) : Unit(Normal.Cross(p - Center!.Value));
 
         public IEnumerable<Point3D> Points(int arcSegments) =>
-            Arc || Mitre is not null ? Enumerable.Range(0, arcSegments + 1).Select(i => At(i / (double)arcSegments)) : [Start, End];
+            Arc || Mitre is not null || Certified is not null ? Enumerable.Range(0, arcSegments + 1).Select(i => At(i / (double)arcSegments)) : [Start, End];
     }
 
     /// <summary>Which edges a pass rounds: every sharp edge, or only the concave ones (the first pass where convex
@@ -146,8 +150,8 @@ internal static class LocalRounding
     {
         public required Edge Edge { get; init; }
         public required Shape Shape { get; init; }
-        public required Support A { get; init; }
-        public required Support B { get; init; }
+        public required Support A { get; set; }
+        public required Support B { get; set; }
         public bool Closed => Edge.StartVertexId == Edge.EndVertexId;
         // +1 across a convex edge (the ball inside the material, cutting it away), -1 across a concave one (the ball
         // outside, filling the corner).
@@ -158,7 +162,7 @@ internal static class LocalRounding
         public Point3D Centre { get; set; }
     }
 
-    private enum VertexKind { Untouched, Corner, End, Junction, Mitre }
+    private enum VertexKind { Untouched, Corner, End, Junction, Mitre, Wall }
 
     /// <summary>What becomes of a vertex: kept; a piece of the ball where three rounded edges meet; the end of a
     /// rounded edge's strip on the face across it (the two other edges kept); or two rounded edges whose strips
@@ -176,6 +180,11 @@ internal static class LocalRounding
         // Mitre: where the kept edge leaves the strips (one ball radius off the common face).
         public Point3D Touch { get; init; }
         public double Radius { get; init; }
+        // Wall: the strip's floor contact where the wall cuts it off (Touch is its wall contact), and the exact
+        // curve along which the wall cuts the strip.
+        public Point3D Reach { get; init; }
+        public FaceId Floor { get; init; }
+        public QualifiedCylinderIntersectionRepresentation? Cut { get; init; }
     }
 
     /// <summary>Every sharp edge rounded, in one pass, or in two where convex and concave edges meet at a corner:
@@ -290,6 +299,7 @@ internal static class LocalRounding
         // a convex edge B's interior, left of B's direction about its outward normal, lies behind A's tangent plane).
         var sharp = new Dictionary<EdgeId, Sharp>();
         var kept = new Dictionary<EdgeId, (FaceId F0, FaceId F1, double Side)>(); // side 0: tangent
+        var split = new List<EdgeId>();
         foreach (var (edgeId, (f0, f1)) in pairs)
         {
             var edge = topology.GetEdge(edgeId); var shape = shapes[edgeId];
@@ -302,7 +312,10 @@ internal static class LocalRounding
             var (na, nb) = (a.Outward(p), b.Outward(p));
             if (na.Cross(nb).Length < 1e-7 && na.Dot(nb) > 0)
             {
-                // A selective rounding leaves every edge it was not asked for alone, split faces included.
+                // A selective rounding merges a face split in two on one plane (some constructions cut a wall where
+                // another operation's outline meets it) back into one face: the edge between them is not an edge of
+                // the part, and a strip ending there must see the whole wall.
+                if (pass == Pass.Selected && a.Kind == SurfaceGeometryKind.Plane && b.Kind == SurfaceGeometryKind.Plane) { split.Add(edgeId); continue; }
                 if (pass == Pass.Selected) { kept.Add(edgeId, (f0, f1, 0)); continue; }
                 // Two faces on one plane: one face split in two (some constructions leave a wall cut at a pocket's
                 // depth). The edge between them is not an edge of the part.
@@ -328,6 +341,7 @@ internal static class LocalRounding
                 return Refuse("uniform-rounding-edge-unsupported", $"rounding every edge needs each edge's faces to run along its line or around its circle's axis: edge {edgeId.Value} {(shape.Arc ? "is a circle" : "is a line")} between a {Article(a.Kind)} and a {Article(b.Kind)} face that do not, so the ball's path along it is not a line or a circle");
             sharp.Add(edgeId, new Sharp { Edge = edge, Shape = shape, A = a, B = b, Side = side, Radius = radius });
         }
+        if (split.Count > 0 && Merge(topology, split, supports, oriented, shapes, sharp, kept, boundaries) is { } unmerged) return Refuse("uniform-rounding-edge-unsupported", unmerged);
         string Kind(EdgeId e) => sharp.TryGetValue(e, out var s) ? s.Side > 0 ? "convex" : "concave" : kept[e].Side > 0 ? "convex" : kept[e].Side < 0 ? "concave" : "tangent";
         FaceId[] FacesOf(EdgeId e) => sharp.TryGetValue(e, out var s) ? [s.A.Face, s.B.Face] : [kept[e].F0, kept[e].F1];
 
@@ -335,7 +349,7 @@ internal static class LocalRounding
         var plans = new Dictionary<VertexId, Plan>();
         foreach (var vertex in topology.Vertices.OrderBy(v => v.Id.Value))
         {
-            var open = topology.Edges.Where(e => (e.StartVertexId == vertex.Id || e.EndVertexId == vertex.Id) && e.StartVertexId != e.EndVertexId && !seams.ContainsKey(e.Id)).ToArray();
+            var open = topology.Edges.Where(e => (e.StartVertexId == vertex.Id || e.EndVertexId == vertex.Id) && e.StartVertexId != e.EndVertexId && !seams.ContainsKey(e.Id) && shapes.ContainsKey(e.Id)).ToArray();
             var rounded = open.Where(e => sharp.ContainsKey(e.Id)).Select(e => e.Id).ToArray();
             var others = open.Where(e => !sharp.ContainsKey(e.Id)).Select(e => e.Id).ToArray();
             if (rounded.Length == 0) { plans.Add(vertex.Id, new Plan { Kind = VertexKind.Untouched }); continue; }
@@ -410,6 +424,22 @@ internal static class LocalRounding
                 plans.Add(vertex.Id, new Plan { Kind = VertexKind.Mitre, Centre = centre.Value, Faces = [floor, walls[0], walls[1]], Rounded = rounded, Side = side, Touch = touch, Radius = r });
                 continue;
             }
+            if (pass == Pass.Selected && rounded.Length == 1 && others.Length == 2 && faces.Length == 3
+                && others.Count(e => kept[e].Side == 0) == 1 && others.Count(e => kept[e].Side != 0) == 1)
+            {
+                // A strip whose floor runs out into a curved wall standing square to it, tangent to the strip's own
+                // wall: the wall carried down through the strip cuts it off (the wall's face grows over the strip's
+                // end), along the exact intersection of the strip's cylinder with the wall's.
+                var s = sharp[rounded[0]];
+                var across = faces.Single(f => f != s.A.Face && f != s.B.Face);
+                var tangentEdge = others.Single(e => kept[e].Side == 0);
+                var wall = kept[tangentEdge].F0 == across ? kept[tangentEdge].F1 : kept[tangentEdge].F0;
+                var floor = wall == s.A.Face ? s.B.Face : s.A.Face;
+                var plan = WallEnd(vertex.Id, s, supports[floor], supports[wall], supports[across], shapes[tangentEdge], points, side, r, tol, out var why);
+                if (plan is null) return Refuse("uniform-rounding-vertex-unsupported", $"vertex {vertex.Id.Value} joins edges {joins}: {why}");
+                plans.Add(vertex.Id, plan);
+                continue;
+            }
             if (sides.Length > 1)
                 return Refuse(MixedCode, rounded.Length == 2 && pass == Pass.ConcaveOnly
                     ? $"rounding every edge does not support corners where two concave edges and a convex one meet: vertex {vertex.Id.Value} joins edges {joins} (filling the concave edges leaves the convex one between two fills, which does not round to a torus)"
@@ -462,7 +492,12 @@ internal static class LocalRounding
                 || shape.Arc && shape.Sweep <= 1e-9)
                 throw new Degenerate();
             var edge = builder.AddEdge(a, b); var id = new CurveGeometryId(geometry.Curves.Count() + 1);
-            if (shape.Mitre is { } m)
+            if (shape.Certified is { } certified)
+            {
+                geometry.AddCurve(id, CurveGeometry.FromCertifiedIntersection(certified));
+                bindings.AddEdgeBinding(new(edge, id, certified.Authority.Domain));
+            }
+            else if (shape.Mitre is { } m)
             {
                 // A quarter ellipse whose semi-axes run from the centre to the two ends; the longer one is the major.
                 var (u, v) = (shape.Start - m, shape.End - m);
@@ -529,6 +564,10 @@ internal static class LocalRounding
                 case VertexKind.End:
                     foreach (var face in plan.Faces.Take(2)) contact.Add((vertex, face), NewVertex(supports[face].Foot(plan.Centre)));
                     break;
+                case VertexKind.Wall:
+                    contact.Add((vertex, plan.Floor), NewVertex(plan.Reach));
+                    contact.Add((vertex, plan.Faces[0] == plan.Floor ? plan.Faces[1] : plan.Faces[0]), NewVertex(plan.Touch));
+                    break;
                 case VertexKind.Mitre:
                     contact.Add((vertex, plan.Faces[0]), NewVertex(supports[plan.Faces[0]].Foot(plan.Centre)));
                     var touches = NewVertex(plan.Touch);
@@ -588,6 +627,14 @@ internal static class LocalRounding
                 var joined = plans[vertex].Kind is VertexKind.Junction or VertexKind.Mitre;
                 if (joined && shared.TryGetValue(vertex, out var existing)) { section.Add((s.Edge.Id, vertex), existing); continue; }
                 var (a, b) = (contact[(vertex, s.A.Face)], contact[(vertex, s.B.Face)]);
+                if (plans[vertex].Cut is { } exact)
+                {
+                    // The wall's cut runs its own way: start at whichever contact its domain starts at.
+                    var forward = (exact.Authority.Evaluate(exact.Authority.Domain.Start) - positions[a]).Length < (exact.Authority.Evaluate(exact.Authority.Domain.Start) - positions[b]).Length;
+                    var (from, to) = forward ? (a, b) : (b, a);
+                    section.Add((s.Edge.Id, vertex), NewEdge(from, to, new Shape(positions[from], positions[to], null, Vector3D.Zero, 0, Certified: exact)));
+                    continue;
+                }
                 var cut = NewEdge(a, b, plans[vertex].Kind == VertexKind.Mitre
                     ? new Shape(positions[a], positions[b], null, Vector3D.Zero, 0, centre)
                     : Cross(positions[a], positions[b], centre, shape.Tangent(shape.Arc ? Project(centre, shape) : centre)));
@@ -682,9 +729,9 @@ internal static class LocalRounding
         // Original faces, trimmed: each edge replaced by its contact edge, kept edge or rebuilt seam, same
         // direction; a strip that ends on the face leaves its end section in the loop where the vertex was.
         var originalLoops = new Dictionary<FaceId, List<List<(EdgeId Edge, bool Reversed)>>>();
-        foreach (var face in topology.Faces.OrderBy(f => f.Id.Value))
+        foreach (var face in topology.Faces.Where(f => supports.ContainsKey(f.Id)).OrderBy(f => f.Id.Value))
         {
-            var ends = plans.Where(p => p.Value.Kind == VertexKind.End && p.Value.Faces[2] == face.Id)
+            var ends = plans.Where(p => p.Value.Kind is VertexKind.End or VertexKind.Wall && p.Value.Faces[2] == face.Id)
                 .Select(p => (Edge: section[(p.Value.Rounded[0], p.Key)], Vertex: p.Key)).ToList();
             var loops = new List<List<(EdgeId Edge, bool Reversed)>>();
             foreach (var loop in oriented[face.Id])
@@ -738,6 +785,120 @@ internal static class LocalRounding
         var validation = BrepBindingValidator.Validate(result, requireAllEdgeAndFaceBindings: true);
         return validation.IsSuccess ? new Outcome { Body = result }
             : Refuse("uniform-rounding-build-failed", string.Join("; ", validation.Diagnostics.Select(d => d.Message)));
+    }
+
+    /// <summary>
+    /// Merges faces split on one plane into one face across their split edges: the lowest face id of each group
+    /// stands for it, its loops are its members' uses without the split edges, re-chained, and every edge and blend
+    /// refers to it. All members share the plane and its outward side, so their walking directions agree. Returns
+    /// why it could not, or null.
+    /// </summary>
+    private static string? Merge(TopologyModel topology, List<EdgeId> split, Dictionary<FaceId, Support> supports,
+        Dictionary<FaceId, List<List<(EdgeId Edge, bool Reversed)>>> oriented, Dictionary<EdgeId, Shape> shapes,
+        Dictionary<EdgeId, Sharp> sharp, Dictionary<EdgeId, (FaceId F0, FaceId F1, double Side)> kept, Dictionary<FaceId, Shape[]> boundaries)
+    {
+        var parent = supports.Keys.ToDictionary(f => f, f => f);
+        FaceId Root(FaceId f) { while (parent[f] != f) f = parent[f] = parent[parent[f]]; return f; }
+        var faceOfUse = oriented.SelectMany(x => x.Value.SelectMany(l => l).Select(u => (u.Edge, Face: x.Key))).ToLookup(x => x.Edge, x => x.Face);
+        foreach (var edge in split)
+        {
+            var faces = faceOfUse[edge].Select(Root).Distinct().OrderBy(f => f.Value).ToArray();
+            for (var i = 1; i < faces.Length; i++) parent[faces[i]] = faces[0];
+        }
+        var absorbed = split.ToHashSet();
+        foreach (var group in supports.Keys.GroupBy(Root).Where(g => g.Count() > 1).ToArray())
+        {
+            var root = group.Key;
+            var uses = group.OrderBy(f => f.Value).SelectMany(f => oriented[f].SelectMany(l => l)).Where(u => !absorbed.Contains(u.Edge)).ToList();
+            VertexId From((EdgeId Edge, bool Reversed) u) { var e = topology.GetEdge(u.Edge); return u.Reversed ? e.EndVertexId : e.StartVertexId; }
+            VertexId To((EdgeId Edge, bool Reversed) u) { var e = topology.GetEdge(u.Edge); return u.Reversed ? e.StartVertexId : e.EndVertexId; }
+            var loops = new List<List<(EdgeId, bool)>>();
+            while (uses.Count > 0)
+            {
+                var loop = new List<(EdgeId Edge, bool Reversed)> { uses[0] }; uses.RemoveAt(0);
+                while (From(loop[0]) != To(loop[^1]))
+                {
+                    // At a vertex where the merged face's boundary touches itself, keep to the use that turns the
+                    // face's interior the same way: the one whose edge is not the reverse of the last.
+                    var next = uses.FindIndex(u => From(u) == To(loop[^1]) && u.Edge != loop[^1].Edge);
+                    if (next < 0) return $"faces {string.Join(", ", group.Select(f => f.Value))} lie on one plane, but their boundaries do not close once merged";
+                    loop.Add(uses[next]); uses.RemoveAt(next);
+                }
+                loops.Add(loop);
+            }
+            foreach (var member in group) { if (member != root) { supports.Remove(member); oriented.Remove(member); boundaries.Remove(member); } }
+            oriented[root] = loops;
+            boundaries[root] = loops.SelectMany(l => l).Select(u => shapes[u.Item1]).ToArray();
+        }
+        foreach (var edge in split) { shapes.Remove(edge); kept.Remove(edge); }
+        foreach (var (edge, k) in kept.ToArray()) kept[edge] = (Root(k.F0), Root(k.F1), k.Side);
+        foreach (var s in sharp.Values) { s.A = supports[Root(s.A.Face)]; s.B = supports[Root(s.B.Face)]; }
+        return null;
+    }
+
+    /// <summary>
+    /// The end of a straight strip (floor and wall planes) where its floor runs out into a cylindrical wall that
+    /// stands square to the floor and is tangent to the strip's wall along <paramref name="tangent"/>. The strip's
+    /// wall contact ends on that tangent line one ball radius off the floor (where the strip touches the cylinder);
+    /// its floor contact ends where it crosses the cylinder; between them the cylinder cuts the strip along an exact
+    /// cylinder-cylinder curve, certified as a B-spline for export.
+    /// </summary>
+    private static Plan? WallEnd(VertexId vertex, Sharp s, Support floor, Support wall, Support across, Shape tangent,
+        Dictionary<VertexId, Point3D> points, double side, double r, double tol, out string why)
+    {
+        why = "";
+        if (s.Shape.Arc || tangent.Arc || floor.Kind != SurfaceGeometryKind.Plane || wall.Kind != SurfaceGeometryKind.Plane || across.Kind != SurfaceGeometryKind.Cylinder)
+        { why = "a strip ends on a wall only along a straight edge between planes, against a cylinder"; return null; }
+        var v = points[vertex];
+        var cylinder = across.Surface.Cylinder!.Value; var axis = cylinder.Axis.ToVector();
+        var nf = floor.Outward(v); var nw = wall.Outward(v);
+        var u = Unit(tangent.End - tangent.Start);
+        if (axis.Cross(nf).Length > 1e-9 || u.Cross(axis).Length > 1e-9)
+        { why = $"the wall face {across.Face.Value} does not stand square to the floor face {floor.Face.Value}"; return null; }
+        // Into the strip from this end, along the rounded edge.
+        var other = s.Edge.StartVertexId == vertex ? s.Shape.End : s.Shape.Start;
+        var d = Unit(other - v); var length = (other - v).Length;
+        // Wall contact: on the tangent line, one radius outside (concave) or inside (convex) the floor.
+        var touch = v + u * (-side * r / u.Dot(nf));
+        var centre = touch - nw * (side * r);
+        // Floor contact: the floor's contact line, where it first meets the cylinder going into the strip.
+        var foot = floor.Foot(centre);
+        var p = foot - cylinder.Origin; p -= axis * p.Dot(axis);
+        var (bq, cq) = (p.Dot(d), p.Dot(p) - cylinder.Radius * cylinder.Radius);
+        var disc = bq * bq - cq;
+        if (disc < 0) { why = "the strip's floor contact never meets the wall"; return null; }
+        var mu = new[] { -bq - double.Sqrt(disc), -bq + double.Sqrt(disc) }.Where(m => m > tol).DefaultIfEmpty(double.NaN).Min();
+        if (!(mu < length - tol)) { why = "the wall cuts the strip off beyond the rounded edge's far end"; return null; }
+        var reach = foot + d * mu;
+        // The cut: the wall's cylinder as host, the strip's as cutter, over the section between the two contacts.
+        var tool = new CylinderSurface(centre, Direction3D.Create(d), r, Direction3D.Create(nw));
+        double Angle(Point3D q)
+        {
+            var x = Unit(d); var z = axis; var y = z.Cross(x);
+            var rel = q - centre; rel -= x * rel.Dot(x);
+            return double.Atan2(rel.Dot(z), rel.Dot(y));
+        }
+        var (tq, tt) = (Angle(reach), Angle(touch));
+        tt = tq + double.Ieee754Remainder(tt - tq, 2 * double.Pi);
+        var domain = new ParameterInterval(double.Min(tq, tt), double.Max(tq, tt));
+        QualifiedCylinderIntersectionRepresentation? best = null;
+        foreach (var branch in new[] { CylinderIntersectionBranch.PositiveCutterAxis, CylinderIntersectionBranch.NegativeCutterAxis })
+        {
+            var curve = CylinderCylinderIntersectionCurve.CreateOffset(cylinder, tool, branch, domain);
+            if (!curve.IsSuccess) { why = string.Join("; ", curve.Diagnostics.Select(x => x.Message)); continue; }
+            var lo = curve.Value.Evaluate(domain.Start); var hi = curve.Value.Evaluate(domain.End);
+            var ends = new[] { reach, touch };
+            if (ends.Min(e => (e - lo).Length) > 1e3 * tol || ends.Min(e => (e - hi).Length) > 1e3 * tol) continue;
+            var realized = CylinderIntersectionCurveRealizer.Realize(curve.Value);
+            if (!realized.IsSuccess) { why = string.Join("; ", realized.Diagnostics.Select(x => x.Message)); return null; }
+            best = realized.Value; break;
+        }
+        if (best is null) { why = why.Length > 0 ? why : "the wall's cut does not run between the strip's contacts"; return null; }
+        return new Plan
+        {
+            Kind = VertexKind.Wall, Centre = centre, Faces = [s.A.Face, s.B.Face, across.Face], Rounded = [s.Edge.Id], Side = side,
+            Radius = r, Touch = touch, Reach = reach, Floor = floor.Face, Cut = best,
+        };
     }
 
     /// <summary>The same line or circle between new ends, still running the original way; null if it folded.</summary>
@@ -825,7 +986,7 @@ internal static class LocalRounding
                     continue;
                 }
                 var (p0, p1) = (plans[s.Edge.StartVertexId], plans[s.Edge.EndVertexId]);
-                var own = new[] { s.A.Face, s.B.Face }.Concat(new[] { p0, p1 }.Where(p => p.Kind is VertexKind.End or VertexKind.Junction or VertexKind.Mitre).SelectMany(p => p.Faces)).Distinct().ToArray();
+                var own = new[] { s.A.Face, s.B.Face }.Concat(new[] { p0, p1 }.Where(p => p.Kind is VertexKind.End or VertexKind.Junction or VertexKind.Mitre or VertexKind.Wall).SelectMany(p => p.Faces)).Distinct().ToArray();
                 var (c0, c1) = (p0.Centre, p1.Centre);
                 for (var i = 1; i < 8; i++)
                 {

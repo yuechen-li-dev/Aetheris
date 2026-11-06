@@ -22,7 +22,7 @@ public sealed record BrepHelicalRibResult(
 /// remains beneath the displaced profile. An inward law removes material from
 /// stock with the same certified helical machinery, without a general Boolean.
 /// </summary>
-public static class BrepHelicalRib
+public static partial class BrepHelicalRib
 {
     private readonly record struct Use(EdgeId Edge, bool Reverse, PcurveGeometry? Pcurve = null);
 

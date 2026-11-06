@@ -232,4 +232,55 @@ public sealed class BrepHelicalRibTests
             }
         return volume;
     }
+
+    [Theory]
+    [InlineData(1.7d)]
+    [InlineData(1.95d)]
+    [InlineData(2.2d)]
+    [InlineData(2.25d)]
+    [InlineData(2.6d)]
+    [InlineData(2.85d)]
+    public void GrooveRunsOutThroughTipChamfer(double start)
+    {
+        // M8 x 1.25 cut into an 8 mm rod with a 45-degree tip chamfer, at several phases of the last turn.
+        const double pitch = 1.25d;
+        var rootWidth = 5d * pitch / 6d;
+        var crestWidth = pitch / 8d;
+        var depth = (rootWidth - crestWidth) * double.Sqrt(3d) / 2d;
+        var parameters = new HelicalRibParameters(Point3D.Origin,
+            Direction3D.Create(new Vector3D(1, 0, 0)), Direction3D.Create(new Vector3D(0, 1, 0)),
+            0.2d, 20d, 4d, 4d - depth, pitch, start, start + 10d * pitch, pitch - crestWidth, pitch - rootWidth,
+            Intent: HelicalProfileIntent.RemoveGroove);
+        var rib = HelicalRibGeometry.Create(parameters);
+        Assert.True(rib.IsSuccess);
+        var result = BrepHelicalRib.CreateWithTipRunOut(rib.Value, new HelicalTipRunOut(15.0625d, 16d, 3.0625d));
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics));
+        var body = result.Value.Body;
+        Assert.Contains("TipRunOut.Cone", result.Value.FaceRoles.Values);
+        Assert.DoesNotContain("EndCap", result.Value.FaceRoles.Values);
+        // Turns continue until the last section clears the cone where it reaches the groove bottom.
+        Assert.True(result.Value.Authority.Parameters.AxialEndMm - crestWidth / 2d > 15.0625d + depth);
+        foreach (var edge in body.Topology.Edges)
+        {
+            var uses = body.Topology.Coedges.Where(item => item.EdgeId == edge.Id).ToArray();
+            Assert.Equal(2, uses.Length);
+            Assert.NotEqual(uses[0].IsReversed, uses[1].IsReversed);
+        }
+        var pcurves = BrepPcurveValidator.Validate(body, 1e-6d);
+        Assert.True(pcurves.IsValid, string.Join(Environment.NewLine, pcurves.Diagnostics.Take(12)));
+        // No vertex lies outside the chamfered stock.
+        foreach (var vertex in body.Topology.Vertices)
+        {
+            Assert.True(body.TryGetVertexPoint(vertex.Id, out var point));
+            var radius = double.Sqrt(point.Y * point.Y + point.Z * point.Z);
+            Assert.True(point.X <= 16d + 1e-9d && radius <= 4d - double.Max(0d, point.X - 15.0625d) + 1e-6d);
+        }
+        var step = Step242Exporter.ExportBody(body);
+        Assert.True(step.IsSuccess, string.Join(Environment.NewLine, step.Diagnostics));
+        var imported = Step242Importer.ImportBody(step.Value);
+        Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics));
+        Assert.Equal(body.Topology.Faces.Count(), imported.Value.Topology.Faces.Count());
+        var mass = Aetheris.Kernel.Core.Brep.Verification.BrepMassProperties.EvaluateEnclosure(imported.Value);
+        Assert.True(mass.IsEnclosed && mass.IsOrientationConsistent, string.Join(" | ", mass.Diagnostics));
+    }
 }

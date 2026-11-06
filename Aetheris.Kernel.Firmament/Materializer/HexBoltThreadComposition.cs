@@ -76,11 +76,16 @@ internal static class HexBoltThreadComposition
         if (rib.Authority.Parameters.Intent != HelicalProfileIntent.RemoveGroove ||
             Math.Abs(rib.Authority.Parameters.RootRadiusMm - bolt.Spec.NominalDiameter / 2d) > 1e-7d)
             throw new InvalidOperationException("HexBolt threads require a groove cut into major-diameter stock.");
+        // A thread that runs out through the tip replaces the tip chamfer and end face too, and meets only the head.
+        var runOut = rib.FaceRoles.Values.Contains("TipRunOut.Cone");
+        bool Replaced(string stableId) => stableId.StartsWith(bolt.Semantics.BodyStableId + ".Shank.Face[", StringComparison.Ordinal)
+            || (runOut && (stableId.StartsWith(bolt.Semantics.BodyStableId + ".TipChamfer.Face[", StringComparison.Ordinal)
+                || stableId == bolt.Semantics.BodyStableId + ".TipFace"));
         var shank = bolt.Semantics.Descendants
-            .Where(item => item.StableId.StartsWith(bolt.Semantics.BodyStableId + ".Shank.Face[", StringComparison.Ordinal)
-                           && item.Face.HasValue)
+            .Where(item => Replaced(item.StableId) && item.Face.HasValue)
             .Select(item => item.Face!.Value).ToHashSet();
-        if (shank.Count != 2) throw new InvalidOperationException("HexBolt thread composition requires exactly two cylindrical shank faces.");
+        if (shank.Count != (runOut ? 5 : 2))
+            throw new InvalidOperationException("HexBolt thread composition requires two cylindrical shank faces (and, to run out, the tip chamfer and end).");
         var retainedBolt = bolt.Body.Topology.Faces.Where(face => !shank.Contains(face.Id)).Select(face => face.Id).ToArray();
         var retainedRib = rib.FaceRoles.Where(item => item.Value is not ("Support.BottomCap" or "Support.TopCap"))
             .Select(item => item.Key).ToArray();
@@ -89,10 +94,10 @@ internal static class HexBoltThreadComposition
         var shankEdges = EdgesOfFaces(bolt.Body, shank).ToHashSet();
         var retainedEdges = EdgesOfFaces(bolt.Body, retainedBolt).ToHashSet();
         var sharedRings = shankEdges.Intersect(retainedEdges).ToArray();
-        if (sharedRings.Length != 4) throw new InvalidOperationException("HexBolt shank must meet head and tip at two half-circle rings.");
+        if (sharedRings.Length != (runOut ? 2 : 4)) throw new InvalidOperationException("HexBolt shank must meet head and tip at two half-circle rings.");
         var rims = rib.EdgeRoles.Where(pair => pair.Value.StartsWith("Support.BottomRim", StringComparison.Ordinal)
             || pair.Value.StartsWith("Support.TopRim", StringComparison.Ordinal)).Select(pair => pair.Key).ToArray();
-        if (rims.Length != 4) throw new InvalidOperationException("Grooved stock requires split major-radius rims.");
+        if (rims.Length != sharedRings.Length) throw new InvalidOperationException("Grooved stock requires split major-radius rims.");
         var shared = rims.ToDictionary(edge => edge, edge => boltCopy.Edges[
             sharedRings.Single(host => SameEdge(bolt.Body, host, rib.Body, edge))]);
         var ribCopy = shell.CopyFaces(rib.Body, retainedRib, shared);

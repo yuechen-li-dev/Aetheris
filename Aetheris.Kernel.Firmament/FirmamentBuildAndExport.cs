@@ -1031,15 +1031,21 @@ public static partial class FirmamentBuildAndExport
         var grooveBottomWidth = feature.PitchMm - rootWidth;
         var start = supportStart + (feature.StartOffsetMm ?? grooveWidth / 2d + 1d);
         var end = start + feature.LengthMm;
-        if (start - grooveWidth / 2d <= supportStart + 1e-6d || end + grooveWidth / 2d >= supportEnd - 1e-6d)
-            return Failure("support-bounds", "Thread footprint requires stock margins inside the HexBolt shank, before the tip chamfer.");
+        // A thread whose footprint reaches the tip chamfer runs out through the tip, as a die-cut thread does, so a
+        // nut can start on it.
+        var runOut = end + grooveWidth / 2d >= supportEnd - 1e-6d;
+        if (start - grooveWidth / 2d <= supportStart + 1e-6d || (runOut && start + grooveWidth / 2d >= supportEnd))
+            return Failure("support-bounds", "Thread footprint requires stock margins inside the HexBolt shank, starting before the tip chamfer.");
         var buildStart = Stopwatch.GetTimestamp();
         var rib = HelicalRibGeometry.Create(new HelicalRibParameters(Point3D.Origin,
             Direction3D.Create(new Vector3D(1d, 0d, 0d)), Direction3D.Create(new Vector3D(0d, 1d, 0d)),
-            supportStart, supportEnd, feature.MajorDiameterMm / 2d, rootRadius, feature.PitchMm,
+            supportStart, runOut ? double.Max(supportEnd, end + grooveWidth) : supportEnd,
+            feature.MajorDiameterMm / 2d, rootRadius, feature.PitchMm,
             start, end, grooveWidth, grooveBottomWidth, Intent: HelicalProfileIntent.RemoveGroove));
         if (!rib.IsSuccess) return Failure("geometry-invalid", string.Join(" | ", rib.Diagnostics.Select(d => d.Message)));
-        var built = BrepHelicalRib.Create(rib.Value, splitStockRims: true);
+        var built = runOut
+            ? BrepHelicalRib.CreateWithTipRunOut(rib.Value, new HelicalTipRunOut(supportEnd, bolt.Spec.Length, bolt.Spec.TipDiameter / 2d))
+            : BrepHelicalRib.Create(rib.Value, splitStockRims: true);
         if (!built.IsSuccess) return Failure("brep-invalid", string.Join(" | ", built.Diagnostics.Select(d => d.Message)));
         HexBoltThreadComposition.Result stitched;
         try { stitched = HexBoltThreadComposition.Create(bolt, built.Value); }
@@ -1088,11 +1094,11 @@ public static partial class FirmamentBuildAndExport
             bolt.DeterministicSignature, authoredPart.Parameters, boltSemantics);
         var report = new FirmamentThreadReport(featureId, $"face({document.Solid.Name}.Shank)",
             feature.MajorDiameterMm, 2d * rootRadius, feature.PitchMm, feature.PitchMm, feature.LengthMm,
-            start - supportStart, start, feature.Hand, "metric-60-degree-truncated", (int)Math.Round(rib.Value.Turns),
+            start - supportStart, start, feature.Hand, "metric-60-degree-truncated", (int)Math.Round(built.Value.Authority.Turns),
             stitched.Body.Topology.Faces.Count(), stitched.Body.Topology.Edges.Count(),
             stitched.Body.Topology.Vertices.Count(), built.Value.SeamSplits, constructionMs, exportMs,
             Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))))
-        { HeadSideLandMm = start - supportStart - grooveWidth / 2d, TipSideLandMm = supportEnd - end - grooveWidth / 2d };
+        { HeadSideLandMm = start - supportStart - grooveWidth / 2d, TipSideLandMm = runOut ? 0d : supportEnd - end - grooveWidth / 2d };
         return ApplyHexBoltMakerMark(new FirmamentStepExportResult(
             step.Value, featureId, 0, "thread-external-hexbolt", "metric-60-degree",
             StandardPart: boltReport, Thread: report)

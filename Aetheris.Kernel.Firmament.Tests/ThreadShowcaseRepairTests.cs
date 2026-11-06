@@ -86,8 +86,8 @@ public sealed class ThreadShowcaseRepairTests
         Assert.Equal("stock-minus-groove", compiled.Value.Thread!.Construction);
         Assert.Equal(38, compiled.Value.Thread.Turns);
         Assert.Equal(1.25, compiled.Value.Thread.PitchMm);
-        Assert.Equal(.953125, compiled.Value.Thread.HeadSideLandMm, 8);
-        Assert.Equal(1.315625, compiled.Value.Thread.TipSideLandMm, 8);
+        Assert.Equal(3.753125, compiled.Value.Thread.HeadSideLandMm, 8);
+        Assert.Equal(0d, compiled.Value.Thread.TipSideLandMm, 8);
         var imported = Step242Importer.ImportBody(compiled.Value.StepText);
         Assert.True(imported.IsSuccess, string.Join(" | ", imported.Diagnostics.Select(d => d.Message)));
         Assert.Single(imported.Value.Topology.Bodies);

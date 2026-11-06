@@ -65,6 +65,8 @@ The full lane runs test projects in parallel; that is the day-to-day gate. Never
 as verified on the fast lane alone - it omits the corpus-driven tests, which are the ones that
 catch interchange regressions.
 
+CI runs the parallel lane on every push and pull request; release qualification runs the serial one.
+
 The serial lane is an optional determinism check, not a daily gate. Run it when a change touches
 shared static state (caches, memos, ambient context), test isolation, or ordering, or when a
 parallel-lane failure looks order-dependent:

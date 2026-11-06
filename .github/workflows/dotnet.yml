@@ -73,10 +73,12 @@ jobs:
       - name: Install optional PDF renderer for interoperability tests
         run: sudo apt-get update && sudo apt-get install -y poppler-utils
 
+      # The day-to-day gate runs test projects in parallel (AGENTS.md); release qualification keeps the serial
+      # lane as its determinism check.
       - name: Test full solution
         env:
           AETHERIS_TEST_PDFTOPPM: /usr/bin/pdftoppm
-        run: dotnet test Aetheris.slnx --configuration Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1 xUnit.ParallelizeTestCollections=false
+        run: dotnet test Aetheris.slnx --configuration Release --no-build
 
       - name: Qualify portable CLI package
         shell: pwsh

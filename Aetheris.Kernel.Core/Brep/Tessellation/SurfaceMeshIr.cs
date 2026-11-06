@@ -1028,7 +1028,9 @@ public static class SurfaceMeshIrTessellator
             HasPeriodicUSeam: true);
     }
 
-    private static SurfacePatch? TryBuildConeApexPatch(
+    /// <summary>A sector of a cone closed at its apex: two generators from the apex and the rim between them, as
+    /// one ring of quads round a central fan.</summary>
+    private static SurfacePatch? TryBuildConeSectorPatch(
         BrepBody body,
         FaceId faceId,
         bool sameSense,
@@ -1097,6 +1099,98 @@ public static class SurfaceMeshIrTessellator
             MaxRefinementLevel: 1,
             HasPeriodicUSeam: false,
             TrimLoopData: [new SurfaceMeshTrimLoop(loops[0], ordered, uv, false, SignedArea(uv))]);
+    }
+
+    private static SurfacePatch? TryBuildConeApexPatch(
+        BrepBody body,
+        FaceId faceId,
+        bool sameSense,
+        ConeSurface cone,
+        IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans,
+        List<SurfaceMeshVertex> vertices,
+        ref int nextVertexId)
+    {
+        // A cone closed at its apex: one loop of the seam (a generator) walked down from the apex and back up, and
+        // the rim between, in one or more arcs. Meshed as rings in (u, v): the apex, then one ring per seam sample
+        // down to the rim. Each ring starts and ends on the seam's own vertex, so the seam stays manifold.
+        var loops = body.GetLoopIds(faceId);
+        if (loops.Count != 1) return null;
+        var coedges = body.GetCoedgeIds(loops[0]).Select(body.Topology.GetCoedge).ToArray();
+        if (coedges.Length < 3) return null;
+        var seamEdges = coedges.GroupBy(c => c.EdgeId).Where(g => g.Count() == 2).Select(g => g.Key).ToArray();
+        // Without a seam the face is a sector between two generators.
+        if (seamEdges.Length == 0) return TryBuildConeSectorPatch(body, faceId, sameSense, cone, plans, vertices, ref nextVertexId);
+        if (seamEdges.Length != 1 || plans[seamEdges[0]].CurveKind != CurveGeometryKind.Line3) return null;
+        if (coedges.Any(c => c.EdgeId != seamEdges[0] && plans[c.EdgeId].CurveKind != CurveGeometryKind.Circle3)) return null;
+        var vertexById = vertices.ToDictionary(vertex => vertex.Id);
+        int[] Ids(Coedge c) { var ids = plans[c.EdgeId].Samples.Select(x => x.Id).ToArray(); if (c.IsReversed) Array.Reverse(ids); return ids; }
+        bool AtApex(int id) => (vertexById[id].Position - cone.Apex).Length <= Epsilon;
+        // Start the loop at the seam walked down from the apex.
+        var down = Array.FindIndex(coedges, c => c.EdgeId == seamEdges[0] && AtApex(Ids(c)[0]));
+        if (down < 0) return null;
+        var ordered = Enumerable.Range(0, coedges.Length).Select(k => coedges[(down + k) % coedges.Length]).ToArray();
+        if (ordered[^1].EdgeId != seamEdges[0]) return null;
+        var seam = Ids(ordered[0]);
+        var rim = new List<int> { seam[^1] };
+        foreach (var arc in ordered[1..^1])
+        {
+            var ids = Ids(arc);
+            if (ids[0] != rim[^1]) return null;
+            rim.AddRange(ids[1..]);
+        }
+        if (rim[^1] != seam[^1] || rim.Count < 4) return null;
+
+        var rimUv = rim.Select(id => TryProjectPointToConeUv(cone, vertexById[id].Position)).ToArray();
+        if (rimUv.Any(value => value is null)) return null;
+        var unwrapped = UnwrapPeriodicU(rimUv.Select(value => value!.Value).ToArray());
+        if (double.Abs(double.Abs(unwrapped[^1].U - unwrapped[0].U) - 2d * double.Pi) > 1e-6) return null;
+        var apexV = cone.AxialParameterFromPoint(cone.Apex);
+        var seamV = seam.Select((id, k) => k == 0 ? apexV : TryProjectPointToConeUv(cone, vertexById[id].Position)?.V).ToArray();
+        if (seamV.Any(v => v is null)) return null;
+
+        // Rows from just below the apex to the rim: row k sits at the seam's k-th sample.
+        var rows = new List<int[]>();
+        for (var k = 1; k < seam.Length; k++)
+        {
+            if (k == seam.Length - 1) { rows.Add(rim.ToArray()); break; }
+            var row = new int[rim.Count];
+            row[0] = row[^1] = seam[k];
+            for (var index = 1; index < rim.Count - 1; index++)
+            {
+                var (u, v) = (unwrapped[index].U, seamV[k]!.Value);
+                row[index] = nextVertexId++;
+                vertices.Add(new SurfaceMeshVertex(row[index], cone.Evaluate(u, v), u, v));
+            }
+            rows.Add(row);
+        }
+        // The trim loop as walked: down the seam at the rim's first u, round the rim, up the seam at its last.
+        var loopIds = new List<int>(); var loopUv = new List<(double U, double V)>();
+        for (var k = 0; k < seam.Length - 1; k++) { loopIds.Add(seam[k]); loopUv.Add((unwrapped[0].U, seamV[k]!.Value)); }
+        for (var index = 0; index < rim.Count - 1; index++) { loopIds.Add(rim[index]); loopUv.Add(unwrapped[index]); }
+        for (var k = seam.Length - 1; k >= 1; k--) { loopIds.Add(seam[k]); loopUv.Add((unwrapped[^1].U, seamV[k]!.Value)); }
+        var uv = loopUv.ToArray();
+        if (double.Abs(SignedArea(uv)) <= Epsilon) return null;
+        // Cells are wound counter-clockwise in (u, v), then turned to the face's sense, as in the other patches: the
+        // loop's own walking direction is not trusted for it (a source file's face sense may disagree with it).
+        var ccw = SignedArea(uv) > 0;
+        int[] Wind(int[] ids) => ccw ? ids : ids.Reverse().ToArray();
+        var cells = new List<SurfaceMeshCell>();
+        var apex = seam[0];
+        for (var index = 0; index < rim.Count - 1; index++)
+            cells.Add(new TriangleCell(Orient(Wind([rows[0][index], rows[0][index + 1], apex]), sameSense), 1));
+        for (var k = 0; k + 1 < rows.Count; k++)
+        for (var index = 0; index < rim.Count - 1; index++)
+            cells.Add(new QuadCell(Orient(Wind([rows[k + 1][index], rows[k + 1][index + 1], rows[k][index + 1], rows[k][index]]), sameSense), 1));
+
+        return new SurfacePatch(
+            faceId,
+            new SurfaceMeshSupport(SurfaceMeshSupportKind.Cone, Cone: cone),
+            loops,
+            cells,
+            sameSense,
+            MaxRefinementLevel: 1,
+            HasPeriodicUSeam: false,
+            TrimLoopData: [new SurfaceMeshTrimLoop(loops[0], loopIds, uv, false, SignedArea(uv))]);
     }
 
     private static SurfacePatch? TryBuildSampledBoundaryBand(

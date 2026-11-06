@@ -82,13 +82,11 @@ internal static class JunctionFilletRoute
         if (composition.Feature is not { } feature)
             return Refuse(request.Finishes[0], "a junction fillet selects edges between the operations of a Compose body, and this source has none"
                 + (composition.Diagnostics.Count > 0 ? $" ({string.Join("; ", composition.Diagnostics.Take(3))})" : ""));
-        var body = unfinished.Value.RuntimeBody;
-        if (body is null)
-        {
-            var imported = Step242Importer.ImportBody(unfinished.Value.StepText);
-            if (!imported.IsSuccess) return Refuse(request.Finishes[0], "the body before filleting could not be read back: " + string.Join("; ", imported.Diagnostics.Select(d => d.Message)));
-            body = imported.Value;
-        }
+        // Fillet the body exactly as it was exported: some routes' in-memory body is an intermediate (a drilled
+        // body's runtime handle can predate the drills' final topology).
+        var imported = Step242Importer.ImportBody(unfinished.Value.StepText);
+        var body = imported.IsSuccess ? imported.Value : unfinished.Value.RuntimeBody;
+        if (body is null) return Refuse(request.Finishes[0], "the body before filleting could not be read back: " + string.Join("; ", imported.Diagnostics.Select(d => d.Message)));
         // Every finish's edges are rounded in one construction, each by its own radius: a later finish never has
         // to round a body an earlier one already rounded.
         var sides = new List<(Finish Finish, IReadOnlyList<Prism> Left, IReadOnlyList<Prism> Right)>();
@@ -100,14 +98,18 @@ internal static class JunctionFilletRoute
             sides.Add((finish, left!, right!));
         }
         var claimed = sides.ToDictionary(s => s.Finish, _ => 0);
+        var touching = sides.ToDictionary(s => s.Finish, _ => (Left: 0, Right: 0));
+        var offered = 0;
         Finish? conflict = null;
         var rounded = UniformRounding.RoundSelectedEdges(body, edge =>
         {
             static bool In(IReadOnlyList<Prism> side, Point3D p, SurfaceGeometry s) => side.Any(prism => prism.Holds(p, s));
             double? radius = null;
+            offered++;
             foreach (var (finish, left, right) in sides)
             {
                 var (aL, aR, bL, bR) = (In(left, edge.InsideA, edge.SurfaceA), In(right, edge.InsideA, edge.SurfaceA), In(left, edge.InsideB, edge.SurfaceB), In(right, edge.InsideB, edge.SurfaceB));
+                var t = touching[finish]; touching[finish] = (t.Left + (aL || bL ? 1 : 0), t.Right + (aR || bR ? 1 : 0));
                 if (!(aL && !aR && bR && !bL || aR && !aL && bL && !bR)) continue;
                 if (radius is not null && radius != finish.Radius) conflict = finish;
                 radius ??= finish.Radius; claimed[finish]++;
@@ -116,11 +118,13 @@ internal static class JunctionFilletRoute
         });
         if (conflict is not null) return Refuse(conflict, "an edge it selects is also selected by another finish with a different radius");
         // Edges are offered before anything is built, so a finish that claimed none is reported as such even when
-        // the construction refuses later.
+        // the construction refuses later; a refusal before any edge was offered is reported as itself.
+        if (offered == 0 && !rounded.IsSuccess) return Refuse(request.Finishes[0], string.Join("; ", rounded.Diagnostics.Select(d => d.Message)), all: request.Finishes);
         if (sides.FirstOrDefault(s => claimed[s.Finish] == 0).Finish is { } empty)
-            return Refuse(empty, "no edge of the body lies where these operations meet");
+            return Refuse(empty, $"no edge of the body lies where these operations meet ({touching[empty].Left} edges touch {Describe(empty.Left)}'s faces, {touching[empty].Right} touch {Describe(empty.Right)}'s)");
         if (!rounded.IsSuccess) return Refuse(request.Finishes[0], string.Join("; ", rounded.Diagnostics.Select(d => d.Message)), all: request.Finishes);
-        body = rounded.Value;
+        // Faces the construction left split on one surface go back together before export.
+        body = BrepSplitFaceMerge.Merge(rounded.Value);
         var receipts = request.Finishes.Select(f => new FirmamentFeatureReceipt(request.Host ?? unfinished.Value.ExportedFeatureId, "EdgeFinish", f.Name)).ToList();
         var step = Step242Exporter.ExportBody(body, new Step242ExportOptions { ProductName = unfinished.Value.ExportedFeatureId });
         if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);

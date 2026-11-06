@@ -59,6 +59,23 @@ public sealed class ShapeComparisonCliTests
     }
 
     [Fact]
+    public void Ctc01HasTheOriginalsTopologyClassWithItsSplitFacesMerged()
+    {
+        var stdout = new StringWriter();
+        Assert.Equal(0, CliRunner.Run(["analyze", Ctc01.Value, "--json"], stdout, new StringWriter()));
+        using var report = JsonDocument.Parse(stdout.ToString());
+        var summary = report.RootElement.GetProperty("summary");
+        Assert.Equal("enclosed-manifold", summary.GetProperty("structuralAssessment").GetString());
+        var body = Step242Importer.ImportBody(File.ReadAllText(Ctc01.Value)).Value;
+        var (v, e, f) = (body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count());
+        // The original: 206 vertices, 318 edges, 117 faces (V - E + F = 5). The section stack's split walls and
+        // holes are merged back; the original keeps four more split faces than this.
+        Assert.Equal(5, v - e + f);
+        Assert.Equal(206, v);
+        Assert.InRange(f, 113, 117);
+    }
+
+    [Fact]
     public void Ctc01LugRootFilletsEndOnTheWaistAlongTheExactCylinderIntersection()
     {
         var import = Step242Importer.ImportBody(File.ReadAllText(Ctc01.Value));

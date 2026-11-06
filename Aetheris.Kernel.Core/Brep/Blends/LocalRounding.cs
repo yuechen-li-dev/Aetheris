@@ -1175,6 +1175,11 @@ internal static class LocalRounding
                 if (edge.StartVertexId == edge.EndVertexId)
                     return new Shape(start, start, c, binding.OrientedEdgeSense ? n : n * -1, Turn);
                 var forward = Angle(start - c, end - c, n);
+                // The binding says which way the edge runs round the circle: with the curve's parameter, about its
+                // normal, or against it. The endpoints alone cannot tell for a half circle (both ways sweep pi).
+                var about = binding.OrientedEdgeSense ? n : n * -1;
+                var sweep = binding.OrientedEdgeSense ? forward : Turn - forward;
+                if (double.Abs(sweep - span) < 1e-6) return new Shape(start, end, c, about, sweep);
                 if (double.Abs(forward - span) < 1e-6) return new Shape(start, end, c, n, forward);
                 if (double.Abs(Turn - forward - span) < 1e-6) return new Shape(start, end, c, n * -1, Turn - forward);
                 return null;

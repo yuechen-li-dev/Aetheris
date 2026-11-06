@@ -61,6 +61,23 @@ public sealed class DrilledHoleCliTests
     }
 
     [Theory]
+    [InlineData("fixtures/Regression/Hole/valid/blind-drillpoint-default.firmament")]
+    [InlineData("fixtures/Regression/Hole/valid/path-step-plane-drills.firmament")]
+    [InlineData("fixtures/Regression/JunctionFillet/drilled-boss-foot.firmament")]
+    public void DrillPointsMeshWatertight(string fixture)
+    {
+        // A drill point is a cone closed at its apex: its loop walks the seam out and back, and its rim may be split
+        // where the hole wall is. The last fixture also passes through a junction fillet, which rebuilds the body.
+        var stl = Path.Combine(Path.GetTempPath(), "aetheris-drilled-holes", Guid.NewGuid().ToString("N") + ".stl");
+        Directory.CreateDirectory(Path.GetDirectoryName(stl)!);
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var exit = CliRunner.Run(["mesh", Path.Combine(RepoRoot, fixture), "--format", "stl", "--output", stl], stdout, stderr);
+        Assert.True(exit == 0, $"{fixture}: {stderr}{stdout}");
+        Assert.Contains("watertight: True", stdout.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("drill-envelopes-touch.firmament", "SectionStackBlindDrillToolEnvelopesIntersect")]
     [InlineData("plane-drill-flat.firmament", "a flat floor from a plane is not supported")]
     public void UnsupportedDrillsAreRefused(string fixture, string expected)

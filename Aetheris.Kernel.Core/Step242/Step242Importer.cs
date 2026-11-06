@@ -2760,10 +2760,23 @@ public static class Step242Importer
             case SurfaceGeometryKind.Cone:
             {
                 var cone = surface.Cone!.Value;
-                var delta = center - cone.Apex;
-                var radial = delta - (cone.Axis.ToVector() * delta.Dot(cone.Axis.ToVector()));
+                var axis = cone.Axis.ToVector();
+                Vector3D Radial(Point3D p) { var d = p - cone.Apex; return d - axis * d.Dot(axis); }
+                var radial = Radial(center);
+                var reach = points.Average(p => Radial(p).Length);
+                // A loop running right round the cone (a drill point's rim with its seam) has its centroid on the
+                // axis, where the radial direction means nothing: there the cone's normal averaged round the loop
+                // is the reference, whose radial parts cancel and leave the axial one.
+                if (radial.Length < 0.25d * reach)
+                {
+                    supportNormal = Vector3D.Zero;
+                    foreach (var p in points)
+                        if (Radial(p).TryNormalize(out var r)) supportNormal += r - axis * double.Tan(cone.SemiAngleRadians);
+                    if (supportNormal.Length <= 1e-12d) return false;
+                    break;
+                }
                 if (!radial.TryNormalize(out var radialDirection)) return false;
-                supportNormal = radialDirection - (cone.Axis.ToVector() * double.Tan(cone.SemiAngleRadians));
+                supportNormal = radialDirection - (axis * double.Tan(cone.SemiAngleRadians));
                 break;
             }
             case SurfaceGeometryKind.Torus:

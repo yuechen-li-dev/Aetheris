@@ -255,6 +255,24 @@ Evidence:
 Remaining difference: face count, 154 against NIST's 117. It comes from cylinders and other faces the section
 stack splits; carriers and volume agree.
 
+## Follow-up: split-face merge and meshing the rebuilt part
+
+- **`BrepSplitFaceMerge`:** a clean-up pass that merges faces split on one surface and fuses the edge pairs this
+  leaves behind.
+  - Planes merge across lines and cylinders across circles. Across generators, merging stops at two faces, so a full
+    hole keeps two half faces and no seam edge is introduced.
+  - Any group whose boundary does not re-chain cleanly is left as it was.
+  - It runs after junction fillets. The general Compose export does not run it yet, because PMI and the runtime
+    correspondence address faces by id there.
+  - CTC-01 now has 113 faces, 314 edges and 206 vertices (NIST: 117, 318, 206; the same Euler characteristic).
+- **Drill-point fixes** (all three predate this work and broke meshing of any drilled body):
+  - The mesher's apex-cone patch mishandled a seam walked out and back, and rims split into arcs.
+  - The importer judged an apex cone's loop winding from the radial direction at the loop's centroid, which is
+    undefined for a loop that runs round the axis. It now uses the cone's normal averaged round the loop.
+  - `LocalRounding` could not tell which way a half-circle arc runs from its endpoints. It now uses the binding's
+    sense.
+- **Junction fillets now work on the exported body.** A drilled body's in-memory handle can predate the drills.
+
 ## Verdict
 
 Success. CTC-01 decompiles into Firmament that rebuilds every surface of the NIST original (85/85, IoU 0.999992),

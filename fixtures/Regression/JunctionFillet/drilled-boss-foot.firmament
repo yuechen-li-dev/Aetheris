@@ -1,0 +1,29 @@
+// A boss with a filleted foot on a plate with two blind side drills: the drill points' cones close at their
+// apexes and their rims are split where the hole walls are. The rounded body must mesh watertight.
+Model DrilledBossFoot {
+    units: mm
+    Concept Struct Layout on XY {
+        Rect2 Blank { center: [0mm, 0mm]; size: [120mm, 60mm] }
+    }
+    Profile Plate using Layout {
+        Loop Outer {
+            Blank.Bottom as Front
+            |> Blank.Right as Right
+            |> Blank.Top as Back
+            |> Blank.Left as Left
+            |> Close
+        }
+    }
+    Profile Pad = Rect2 { center: [0mm, 0mm]; size: [30mm, 20mm] }
+    Struct Part {
+        Compose Body {
+            Base Stock { profile: Plate; from: -12mm; to: 0mm; role: Stock }
+            Boss Block { on: Top; profile: Pad; height: 10mm }
+        }
+    }
+    Modify Body {
+        Hole<Shaft> LeftDrill { from: Plate.Front; center: Point2(30mm, -6mm); diameter: 5mm; end: Blind 15mm }
+        Hole<Shaft> RightDrill { from: Plate.Front; center: Point2(-30mm, -6mm); diameter: 5mm; end: Blind 15mm }
+        EdgeFinish<Fillet> BlockFoot { where: Block meets Stock; radius: 3mm }
+    }
+}

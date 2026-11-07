@@ -27,6 +27,16 @@ Linux meshes have identical indices and array lengths, with maximum position
 and normal differences within the existing component bounds. No design dimensions
 or exact construction geometry changed.
 
+On 2026-11-06 the STEP writer began deriving loop direction (each edge used once each
+way, counter-clockwise about the outward normal), and the coil sweep's tube faces were
+bound opposed to their B-spline nets, whose normals point into the wire. The parts
+round-trip through STEP, so 19 of the 21 definitions re-mesh from different loop start
+points. Before refreshing, every definition's triangle area, signed volume and bounding
+box were compared with the prior archive and agreed within `1e-6 mm²`, `1e-6 mm³` and
+`1e-9 mm`; one definition has 8 fewer triangles for the same area. The archive was
+frozen from the Linux projection, which earlier comparisons place within the component
+bounds of the Windows one.
+
 To recover the archive, run the demo at the qualified current revision with
 default `V8Spec` (see the JSON's `reproduction` field), then from the current
 repository root:

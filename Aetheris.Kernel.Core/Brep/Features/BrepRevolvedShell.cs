@@ -137,6 +137,13 @@ public static class BrepRevolvedShell
             if (circles[(i + 1) % loop.Count] is { } endCircle) AddLoop(endCircle, true);
             if (loops.Count == 0) return Failure("revolve-shell-meridian-invalid", $"Meridian span {i} sweeps no area.");
             var face = builder.AddFace(loops);
+            // An annulus's outer boundary is its larger circle, whichever end of the span that is.
+            if (surface.Kind == SurfaceGeometryKind.Plane && loops.Count == 2)
+            {
+                var startOuter = p.X > q.X;
+                bindings.AddFaceBoundaryRoleBinding(new FaceBoundaryRoleBinding(face, loops[0], startOuter ? FaceBoundaryRole.Outer : FaceBoundaryRole.Inner));
+                bindings.AddFaceBoundaryRoleBinding(new FaceBoundaryRoleBinding(face, loops[1], startOuter ? FaceBoundaryRole.Inner : FaceBoundaryRole.Outer));
+            }
             var surfaceId = new SurfaceGeometryId(nextSurface++);
             geometry.AddSurface(surfaceId, surface);
             bindings.AddFaceBinding(new FaceGeometryBinding(face, surfaceId, sameSense));

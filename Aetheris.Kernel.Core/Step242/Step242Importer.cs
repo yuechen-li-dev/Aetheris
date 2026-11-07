@@ -2687,6 +2687,10 @@ public static class Step242Importer
                     ? conicalAligned
                 : projected is not null && double.Abs(signedArea) > ComputeAreaTolerance(projected)
                     ? signedArea > 0d
+                // A free-form face can turn through more than a right angle (a swept tube), where the loop's
+                // polygon normal says nothing about the side; the source's same_sense with the loop's direction does.
+                : surface.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots
+                    ? isOuter == sourceSameSense
                 : TryDeriveSupportAlignmentFromBoundaryNormal(loop.Samples, surface, out var aligned)
                     ? aligned
                     : isOuter;

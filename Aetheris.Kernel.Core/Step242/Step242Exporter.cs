@@ -143,7 +143,8 @@ public static class Step242Exporter
             ? writer.AddEntity("REPRESENTATION_CONTEXT", Step242TextWriter.String("2D"), Step242TextWriter.String("parameter space"))
             : null;
 
-        var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, advancedFaceIds, pcurveContextId);
+        var orientationDiagnostics = new List<KernelDiagnostic>();
+        var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, advancedFaceIds, pcurveContextId, orientationDiagnostics);
         EmitAuxiliaryVertexPointForVertexlessAnalyticBody(writer, body, model);
         if (outerClosedShellId is null)
         {
@@ -160,7 +161,7 @@ public static class Step242Exporter
             var orientedVoidShellIds = new List<string>();
             foreach (var innerShellId in shellRepresentation.InnerShellIds.OrderBy(id => id.Value))
             {
-                var innerClosedShellId = BuildClosedShell(writer, body, model, innerShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, advancedFaceIds, pcurveContextId);
+                var innerClosedShellId = BuildClosedShell(writer, body, model, innerShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, advancedFaceIds, pcurveContextId, orientationDiagnostics);
                 if (innerClosedShellId is null)
                 {
                     return Failure($"Shell {innerShellId.Value} could not be exported.", $"Shell:{innerShellId.Value}");
@@ -230,7 +231,7 @@ public static class Step242Exporter
             : [];
         return KernelResult<string>.Success(
             writer.Build(options.HeaderMetadata),
-            normalizationDiagnostics.Concat(importedPmiDiagnostics).Concat(repairDiagnostics).Concat(trimDiagnostics).Concat(preflight is null ? [] : ToKernelDiagnostics(preflight, errorsAsWarnings: true)).ToArray());
+            normalizationDiagnostics.Concat(orientationDiagnostics).Concat(importedPmiDiagnostics).Concat(repairDiagnostics).Concat(trimDiagnostics).Concat(preflight is null ? [] : ToKernelDiagnostics(preflight, errorsAsWarnings: true)).ToArray());
     }
 
     private static void EmitAuxiliaryVertexPointForVertexlessAnalyticBody(Step242TextWriter writer, BrepBody body, TopologyModel model)
@@ -270,7 +271,8 @@ public static class Step242Exporter
         Dictionary<EdgeId, string> hyperbolaIds,
         Dictionary<SurfaceGeometryId, string> surfaceIds,
         Dictionary<FaceId, string> advancedFaceIds,
-        string? pcurveContextId)
+        string? pcurveContextId,
+        List<KernelDiagnostic> orientationDiagnostics)
     {
         if (!model.TryGetShell(shellId, out var shell) || shell is null)
         {
@@ -292,6 +294,16 @@ public static class Step242Exporter
             if (!built.IsSuccess) return null;
             surfaceIds[binding.SurfaceGeometryId] = built.Value;
         }
+
+        var loopUses = shell.FaceIds.Select(model.GetFace).SelectMany(face => face.LoopIds).Select(model.GetLoop)
+            .Where(loop => loop.Kind == LoopKind.Edge)
+            .ToDictionary(loop => loop.Id, loop => (IReadOnlyList<(Coedge, bool)>)ResolveConnectedLoopUses(body, model, loop).Select(use => (use.Coedge, use.IsReversed)).ToArray());
+        var reversedLoops = StepLoopOrientation.ReversedLoops(body, loopUses);
+        var inverted = StepLoopOrientation.FacesAgainstTheirLoops(body, loopUses, reversedLoops).Where(shell.FaceIds.Contains).ToArray();
+        if (inverted.Length > 0)
+            orientationDiagnostics.Add(new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
+                $"step-export-face-normal-inverted: planar faces {string.Join(",", inverted.Select(f => f.Value))} declare an outward normal against the shell's loops; the builder bound them the wrong way round.",
+                "Step242.Export.LoopOrientation"));
 
         var faceIds = new List<string>();
         foreach (var face in shell.FaceIds.OrderBy(id => id.Value).Select(model.GetFace))
@@ -340,7 +352,9 @@ public static class Step242Exporter
 
                 // Loop.CoedgeIds is the authoritative cyclic order. Sorting this list can
                 // silently turn a coherent loop into a disconnected STEP EDGE_LOOP.
-                foreach (var loopUse in ResolveConnectedLoopUses(body, model, loop))
+                var traversal = ResolveConnectedLoopUses(body, model, loop);
+                if (reversedLoops.Contains(loop.Id)) traversal = traversal.Reverse().Select(use => use with { IsReversed = !use.IsReversed }).ToArray();
+                foreach (var loopUse in traversal)
                 {
                     var coedge = loopUse.Coedge;
 

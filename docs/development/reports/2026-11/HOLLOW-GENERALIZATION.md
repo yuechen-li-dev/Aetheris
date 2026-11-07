@@ -199,7 +199,7 @@ The two outliers had four unrelated import defects, each of which picked the wro
 | STC-06 | 179703.7 | 3323539.5 | 3323540.5 |
 | CTC-05 | 9277231.0 | 12726632.0 | 12694917.8 |
 | FTC-11 | 5271.3 | 5134.4 | 5135.1 |
-| STC-10 | 190412.0 | 187534.6 | 188312.8 |
+| STC-10 | 190412.0 | 188525.9 | 188312.8 |
 
 Those four files re-hash; FTC-08 does not move (503632.9 against OCCT's 503633.0). The two tests
 that asserted STC-06 stays orientation-ambiguous now assert it resolves, and to OCCT's volume.
@@ -208,20 +208,43 @@ CTC-05's remaining +0.25% is one torus face (a quarter-tube fillet 63° long): t
 65536-triangle budget before refining the trim, and chord-to-arc slivers along its circular edges add 986 mm² of area.
 The display tessellation of the same face matches OCCT's area. It is an estimator limit, not a topology defect.
 
-### Found, not fixed: cap loops across the kernel
+### Loop direction across the kernel
 
 A sweep of the 278 canonical fixtures that export STEP found edges used the same way twice in 230 of them, starting
-with `Basics/box`: `BrepExtrude` and the hand-built box routes (`BrepBooleanBoxCylinderHoleBuilder` and others) wind both
-caps counter-clockwise about +Z, so the bottom cap is clockwise about its outward normal. OCCT's volume is right, and the
-importer re-solves orientation, so nothing in the kernel noticed. Gear routes have hundreds of such edges each. A
-receiving system that trusts the loops (or heals them) sees inverted caps. Fixing it changes every box-derived STEP
-hash and needs its own pass; the test this change adds (`AssertEdgesUsedOnceEachWay`) is the check to extend to those
-builders.
+with `Basics/box`. The kernel has no shared loop convention: `BrepExtrude` wound both caps about the extrude normal,
+`BrepBooleanBoxCylinderHoleBuilder` both caps and their holes about +Z, the gear routes their own way. Nothing in the
+kernel reads it (tessellation, mass properties and the importer derive orientation themselves), so only STEP saw it;
+OCCT tolerates it on planes and cylinders.
+
+STEP owns the contract, so the writer now derives loop direction (`StepLoopOrientation`). Two loops sharing an edge
+must use it in opposite directions; that fixes every loop up to one choice per connected set, which the set's planar
+faces settle (signed area about the declared outward normal, each face's largest loop as its outer boundary). After it,
+every closed solid in the sweep uses each edge once each way. `BrepExtrude`'s caps are also corrected at source, which
+keeps box round-trip text stable.
+
+That pass exposed builders whose faces declare the wrong outward normal, which the inconsistent loops had masked:
+
+- `WireCoils`: the tube's B-spline nets have normals into the wire but were bound aligned. Fixed (bound opposed, loops
+  reversed). The STEP importer's B-spline alignment fallback, a polygon-normal test that is meaningless on a face
+  turning through more than a right angle, now reads same_sense instead.
+- Still open, now reported by the writer as `step-export-face-normal-inverted` (a warning; the CLI does not print
+  export warnings): 42 fixtures, by planar face count: sheet-metal lowering (most of the 7–20 counts), structural
+  members and joints, PlasticShell rib/standoff faces, `EdgeFinish` end faces of a bounded fillet, the counterbore
+  shoulder, `EquationCurves` arch caps, `Revolve/arbitrary-axis`, one section-chain duct. OCCT reorients these on read
+  and our importer re-solves them, so volumes are right; a receiving system that trusts same_sense sees faces turned
+  inward.
+
+`BrepRevolvedShell` now binds an annulus's larger circle as its outer boundary (the writer had labelled whichever
+circle came first).
+
+The 2026-11-06 V8 display meshes re-mesh from different loop start points (the parts round-trip through STEP); all 21
+definitions keep their area, signed volume and bounds, and the archive was refrozen (see the fixture README). STC-10
+moves to 188525.9 (OCCT 188312.8) with the B-spline fallback.
 
 ## Next
 
 - Closed vessels: the cavity is a second shell; the section stack and the revolved shell both need void shells.
 - Apexes and poles in `BrepRevolvedShell` (pointed cones, domed bottoms).
 - Perforation onto the general hollow body instead of its own cylinder builder.
-- Cap loop orientation in `BrepExtrude` and the box builders (above).
+- Outward normals in the builders listed above.
 - Phases 4 and 5 as planned.

@@ -87,7 +87,9 @@ public static class BrepHollowRadialCutPattern
         var innerFloorVertex = blended ? V(new Point3D(0, 0, thickness) + hostReference.ToVector() * floorRadius) : ib;
         var outerFloor = blended ? builder.AddEdge(outerFloorVertex, outerFloorVertex) : outerBottom;
         var innerFloor = blended ? builder.AddEdge(innerFloorVertex, innerFloorVertex) : innerBottom;
-        var outerEnvelope = AddLoop(builder, [new(outerSeam), new(outerTop), new(outerSeam, true), new(outerBottom, true)]);
+        // Loops run counter-clockwise about the face's outward normal: the outer wall goes round +u at its bottom circle,
+        // the inner wall (whose outward normal faces the axis) round +u at its top circle.
+        var outerEnvelope = AddLoop(builder, [new(outerSeam), new(outerTop, true), new(outerSeam, true), new(outerBottom)]);
         var innerEnvelope = AddLoop(builder, [new(innerSeam), new(innerTop), new(innerSeam, true), new(innerBottom, true)]);
         var geometry = new BrepGeometryStore();
         geometry.AddCurve(new CurveGeometryId(1), CurveGeometry.FromLine(new Line3Curve(points[ob], z)));
@@ -213,15 +215,15 @@ public static class BrepHollowRadialCutPattern
         }
         var outerFace = builder.AddFace([outerEnvelope.Id, .. holes.Select(h => h.Outer.Id)]);
         var innerFace = builder.AddFace([innerEnvelope.Id, .. holes.Select(h => h.Inner.Id)]);
-        var bottomOutside = AddLoop(builder, [new(outerFloor)]); var outerBottomFace = builder.AddFace([bottomOutside.Id]);
+        var bottomOutside = AddLoop(builder, [new(outerFloor, true)]); var outerBottomFace = builder.AddFace([bottomOutside.Id]);
         var bottomInside = AddLoop(builder, [new(innerFloor)]); var innerBottomFace = builder.AddFace([bottomInside.Id]);
-        var outerBlendFloor = blended ? AddLoop(builder, [new(outerFloor, true)]) : default;
+        var outerBlendFloor = blended ? AddLoop(builder, [new(outerFloor)]) : default;
         var outerBlendWall = blended ? AddLoop(builder, [new(outerBottom, true)]) : default;
         var innerBlendFloor = blended ? AddLoop(builder, [new(innerFloor, true)]) : default;
-        var innerBlendWall = blended ? AddLoop(builder, [new(innerBottom, true)]) : default;
+        var innerBlendWall = blended ? AddLoop(builder, [new(innerBottom)]) : default;
         var outerBlendFace = blended ? builder.AddFace([outerBlendFloor.Id, outerBlendWall.Id]) : default;
         var innerBlendFace = blended ? builder.AddFace([innerBlendFloor.Id, innerBlendWall.Id]) : default;
-        var rimOuter = AddLoop(builder, [new(outerTop, true)]); var rimInner = AddLoop(builder, [new(innerTop, true)]);
+        var rimOuter = AddLoop(builder, [new(outerTop)]); var rimInner = AddLoop(builder, [new(innerTop, true)]);
         var rimFace = builder.AddFace([rimOuter.Id, rimInner.Id]);
         var shell = builder.AddShell(blended
             ? [outerFace, innerFace, outerBottomFace, innerBottomFace, rimFace, outerBlendFace, innerBlendFace, .. holes.Select(h => h.WallFace)]
@@ -258,16 +260,19 @@ public static class BrepHollowRadialCutPattern
             Role(innerBlendFace, innerBlendFloor.Id, FaceBoundaryRole.Outer);
             Role(innerBlendFace, innerBlendWall.Id, FaceBoundaryRole.Inner);
         }
-        void HostEnvelope((LoopId Id, CoedgeId[] Coedges) loop, FaceId face, int surface, double startZ, double originZ)
+        // The seam is walked up one side of the envelope and down the other: up at u = 2π on the outer wall, whose
+        // loop runs +u along its bottom, and up at u = 0 on the inner wall, whose loop runs +u along its top.
+        void HostEnvelope((LoopId Id, CoedgeId[] Coedges) loop, FaceId face, int surface, double startZ, double originZ, bool upAtEnd)
         {
             var length = height - startZ; var uvStart = startZ - originZ; var uvEnd = height - originZ;
-            Bind(loop.Coedges[0], face, surface, PcurveGeometry.Line(new(0, length), new(0, uvStart), new(0, uvEnd)));
+            var (up, down) = upAtEnd ? (2 * System.Math.PI, 0d) : (0d, 2 * System.Math.PI);
+            Bind(loop.Coedges[0], face, surface, PcurveGeometry.Line(new(0, length), new(up, uvStart), new(up, uvEnd)));
             Bind(loop.Coedges[1], face, surface, PcurveGeometry.Line(full, new(0, uvEnd), new(2 * System.Math.PI, uvEnd)));
-            Bind(loop.Coedges[2], face, surface, PcurveGeometry.Line(new(0, length), new(2 * System.Math.PI, uvStart), new(2 * System.Math.PI, uvEnd)));
+            Bind(loop.Coedges[2], face, surface, PcurveGeometry.Line(new(0, length), new(down, uvStart), new(down, uvEnd)));
             Bind(loop.Coedges[3], face, surface, PcurveGeometry.Line(full, new(0, uvStart), new(2 * System.Math.PI, uvStart)));
         }
-        HostEnvelope(outerEnvelope, outerFace, 1, wallStart, 0);
-        HostEnvelope(innerEnvelope, innerFace, 2, blended ? wallStart : thickness, thickness);
+        HostEnvelope(outerEnvelope, outerFace, 1, wallStart, 0, upAtEnd: true);
+        HostEnvelope(innerEnvelope, innerFace, 2, blended ? wallStart : thickness, thickness, upAtEnd: false);
         Bind(bottomOutside.Coedges[0], outerBottomFace, 3, PcurveGeometry.Circle(full, new(0, 0), floorRadius, -floorRadius));
         Bind(bottomInside.Coedges[0], innerBottomFace, 4, PcurveGeometry.Circle(full, new(0, 0), blended ? floorRadius : innerRadius, blended ? floorRadius : innerRadius));
         Bind(rimOuter.Coedges[0], rimFace, 5, PcurveGeometry.Circle(full, new(0, 0), radius, radius));

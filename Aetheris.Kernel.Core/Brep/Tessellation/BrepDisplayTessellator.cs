@@ -791,7 +791,7 @@ public static class BrepDisplayTessellator
 
             return TrimmedSurfaceTessellator.Tessellate(
                 faceId,
-                uvLoopsResult.Value,
+                StitchWrappingLoops(uvLoopsResult.Value),
                 (u, v) => cylinder.Evaluate(u, v),
                 (u, _) => cylinder.Normal(u).ToVector(),
                 options,
@@ -838,7 +838,7 @@ public static class BrepDisplayTessellator
 
             return TrimmedSurfaceTessellator.Tessellate(
                 faceId,
-                uvLoopsResult.Value,
+                StitchWrappingLoops(uvLoopsResult.Value),
                 (u, v) => cone.Evaluate(u, v),
                 (u, _) => cone.Normal(u).ToVector(),
                 options,
@@ -1344,6 +1344,61 @@ public static class BrepDisplayTessellator
         }
 
         return KernelResult<IReadOnlyList<(double U, double V)>>.Success(uvPoints);
+    }
+
+    /// <summary>
+    /// Two loops that each run once round a periodic surface bound the band between them. In the unrolled chart each is
+    /// an open polyline one period long, so treated as polygons they enclose only what lies between each polyline and
+    /// its own closing chord: a wavy loop (a slot cut into a bore's end) keeps only its notch and loses the band. The
+    /// band is one polygon: one loop over a period from a common seam, then the other back along it.
+    /// </summary>
+    internal static IReadOnlyList<IReadOnlyList<(double U, double V)>> StitchWrappingLoops(IReadOnlyList<IReadOnlyList<(double U, double V)>> loops)
+    {
+        const double period = 2d * double.Pi;
+        static double Turn(IReadOnlyList<(double U, double V)> loop) => loop.Count < 2 ? 0d : loop[^1].U - loop[0].U;
+        var wrapping = Enumerable.Range(0, loops.Count)
+            .Where(i => loops[i].Count >= 2 && double.Abs(double.Abs(Turn(loops[i])) - period) < 1e-3d)
+            .ToArray();
+        if (wrapping.Length != 2) return loops;
+        // A period of each loop running +u from where it first crosses the seam; the seam avoids every vertex, so each
+        // crossing is a proper one.
+        var seam = loops[wrapping[0]][0].U + 1e-3d * double.Pi;
+        List<(double U, double V)>? Period(IReadOnlyList<(double U, double V)> loop)
+        {
+            var forward = Turn(loop) > 0d ? loop.ToList() : loop.Reverse().ToList();
+            var shift = double.Floor((seam - forward[0].U) / period) * period;
+            var extended = new List<(double U, double V)>();
+            for (var k = 0; k < 3; k++) extended.AddRange(forward.Skip(k == 0 ? 0 : 1).Select(p => (U: p.U + shift + k * period, p.V)));
+            for (var i = 0; i + 1 < extended.Count; i++)
+            {
+                var (a, b) = (extended[i], extended[i + 1]);
+                if (!(a.U <= seam && b.U > seam)) continue;
+                var t = (seam - a.U) / (b.U - a.U);
+                (double U, double V) start = (seam, a.V + t * (b.V - a.V));
+                var result = new List<(double U, double V)> { start };
+                for (var j = i + 1; j + 1 < extended.Count; j++)
+                {
+                    var (c, d) = (extended[j], extended[j + 1]);
+                    result.Add(c);
+                    if (c.U < seam + period && d.U >= seam + period)
+                    {
+                        var s = (seam + period - c.U) / (d.U - c.U);
+                        result.Add((seam + period, c.V + s * (d.V - c.V)));
+                        return result;
+                    }
+                }
+                return null;
+            }
+            return null;
+        }
+        var lower = Period(loops[wrapping[0]]);
+        var upper = Period(loops[wrapping[1]]);
+        if (lower is null || upper is null) return loops;
+        upper.Reverse();
+        var band = lower.Concat(upper).ToList();
+        var stitched = new List<IReadOnlyList<(double U, double V)>> { band };
+        stitched.AddRange(Enumerable.Range(0, loops.Count).Where(i => !wrapping.Contains(i)).Select(i => loops[i]));
+        return stitched;
     }
 
     private static KernelResult<IReadOnlyList<IReadOnlyList<(double U, double V)>>> TryBuildPeriodicTrimmedSurfaceUvLoops(

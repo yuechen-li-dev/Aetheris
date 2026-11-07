@@ -671,7 +671,7 @@ public static class Step242Importer
                 faceSameSenseResult.Value,
                 faceEntity.Id,
                 surfaceResult.Value.ReferenceId)));
-            var loopOrientation = DeriveSupportAlignedBoundaries(classifyResult.Value, surfaceGeometry);
+            var loopOrientation = DeriveSupportAlignedBoundaries(classifyResult.Value, surfaceGeometry, faceSameSenseResult.Value);
             supportAlignedBoundary[faceId] = loopOrientation.FaceAligned;
             foreach (var pair in loopOrientation.Loops) supportAlignedLoopBoundary[pair.Key] = pair.Value;
         }
@@ -2639,11 +2639,15 @@ public static class Step242Importer
 
     private static (bool FaceAligned, IReadOnlyDictionary<LoopId, bool> Loops) DeriveSupportAlignedBoundaries(
         IReadOnlyList<LoopBuildData> loops,
-        SurfaceGeometry surface)
+        SurfaceGeometry surface,
+        bool sourceSameSense)
     {
         if (loops.Count == 0) return (true, new Dictionary<LoopId, bool>());
-        var outer = loops.SingleOrDefault(loop => loop.IsDeclaredOuter) ?? loops[0];
-        var resolved = new Dictionary<LoopId, bool>();
+        // One loop on a sphere splits it into two caps, and the loop alone cannot say which is the face: the small cap
+        // traversed one way and the large cap the other wind identically. STEP's same_sense with the loop's direction
+        // can, since the loop runs counter-clockwise about the face's outward normal.
+        if (surface.Kind == SurfaceGeometryKind.Sphere && loops.Count == 1)
+            return (sourceSameSense, new Dictionary<LoopId, bool> { [loops[0].LoopId] = sourceSameSense });
         IReadOnlyList<UvPoint>? Project(LoopBuildData loop) => surface.Kind switch
         {
             SurfaceGeometryKind.Plane => SimplifyClosedPolygon(ProjectLoopToPlane(loop.Samples, surface.Plane!.Value), ContainmentEps),
@@ -2654,6 +2658,17 @@ public static class Step242Importer
             _ => null,
         };
         var projections = loops.ToDictionary(loop => loop.LoopId, Project);
+        // The material side follows from the loops' winding, not from which one carries FACE_OUTER_BOUND. Some writers
+        // put that label on a hole (NIST STC-06 does, on 23 planar faces), so on a plane the loop enclosing the most
+        // area is the outer boundary whatever it is called.
+        var outer = surface.Kind == SurfaceGeometryKind.Plane && loops.Count > 1 && loops.All(loop => projections[loop.LoopId] is { Count: >= 3 })
+            ? loops.MaxBy(loop => double.Abs(ComputeSignedArea(projections[loop.LoopId]!)))!
+            : loops.SingleOrDefault(loop => loop.IsDeclaredOuter) ?? loops[0];
+        // Likewise two circles running round a torus bound two bands, the short way round the tube and the long way.
+        if (surface.Kind == SurfaceGeometryKind.Torus && loops.All(loop => projections[loop.LoopId] is { } p
+                && TryDeriveFullPeriodTraversalAlignment(p, SurfacePeriodicity.Of(surface), out _)))
+            return (sourceSameSense, loops.ToDictionary(loop => loop.LoopId, _ => sourceSameSense));
+        var resolved = new Dictionary<LoopId, bool>();
         foreach (var loop in loops)
         {
             var isOuter = loop.LoopId == outer.LoopId;
@@ -2680,14 +2695,15 @@ public static class Step242Importer
         return (resolved[outer.LoopId], resolved);
 
     // A loop running once round a cylinder or cone says nothing by itself about which side the face lies on. When the
-    // face has another loop, the face lies between them: a loop with the face on its +v side bounds an aligned face
+    // face has another loop, the face lies between them; a lone loop on a cone bounds the side holding the apex: a loop with the face on its +v side bounds an aligned face
     // when it runs +u. The answer is the face's, so an inner loop reports it negated, as the caller expects.
     bool FullTurnLoopAlignment(LoopBuildData loop, IReadOnlyList<UvPoint> projected, bool runsPositiveU, bool isOuter)
     {
-        if (surface.Kind is not (SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone) || loops.Count < 2) return runsPositiveU;
+        if (surface.Kind is not (SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone)) return runsPositiveU;
         var others = loops.Where(other => other.LoopId != loop.LoopId).Select(other => projections[other.LoopId]).Where(p => p is { Count: > 0 }).ToArray();
-        if (others.Length == 0) return runsPositiveU;
-        var side = others.Average(p => p!.Average(point => point.Y)) - projected.Average(point => point.Y);
+        // Alone on a cone (a drill point), the loop bounds the finite side: the face runs to the apex, where v is 0.
+        if (others.Length == 0 && surface.Kind != SurfaceGeometryKind.Cone) return runsPositiveU;
+        var side = (others.Length == 0 ? 0d : others.Average(p => p!.Average(point => point.Y))) - projected.Average(point => point.Y);
         if (double.Abs(side) <= ContainmentEps) return runsPositiveU;
         var faceAligned = (side > 0d) == runsPositiveU;
         return isOuter ? faceAligned : !faceAligned;

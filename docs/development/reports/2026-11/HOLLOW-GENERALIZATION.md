@@ -166,16 +166,62 @@ kernel volume moves towards OCCT's:
 | CTC-05 | 4837978.1 | 9277231.0 | 12694917.8 |
 | STC-06 | 94655.2 | 179703.7 | 3323540.5 |
 
-CTC-05 and STC-06 are still far from OCCT (STC-06 by a factor of 18), so their kernel volumes have another defect; it is not chased here.
+CTC-05 and STC-06 were still far from OCCT; see "Loop orientation and the NIST volumes" below.
 
-Found, not caused here: the perforated blended utensil holder (`ordning-utensil-holder-blended`) exports with OCCT
-volume −21002 mm³, before and after this change. Its shell is inside out; the Perforation radial-cut builder owns that
-topology.
+## Loop orientation and the NIST volumes
+
+### The perforated holder
+
+The bespoke thin-wall planner bound coedge directions to the surface's own normal XOR'd with the face sense, and
+`BrepRevolvedShell` and both radial-cut builders inherited it. STEP (and OCCT) read a loop as counter-clockwise about
+the face's outward normal. Planes and cylinders tolerate the wrong winding in OCCT, so their volumes looked right; on a
+torus the loop selects the band, and OCCT took the 270° complement of the blend. The blended cup measured 95528.8 mm³
+for 46411.3, and the perforated holder came out inside out (−21002 mm³).
+
+Loops now follow the outward normal in `BrepRevolvedShell`, `BrepHollowRadialCut` and `BrepHollowRadialCutPattern`:
+each edge is used once each way. The single radial cut refuses bottom-blended hosts; the pattern builder owns those.
+`ordning-utensil-holder-blended` measures 39636.9 mm³ in OCCT (blank 40569.2 less 932.4 of vents).
+
+### The NIST volumes
+
+The two outliers had four unrelated import defects, each of which picked the wrong side of a face:
+
+| Defect | Where | Fix |
+| --- | --- | --- |
+| FACE_OUTER_BOUND on a hole loop (23 planar faces of STC-06) | orientation baseline taken from the declared outer loop | on a plane, the loop enclosing the most area is the outer boundary |
+| One loop on a sphere: small cap one way, large cap the other wind alike | baseline assumed the small cap | trust same_sense |
+| Two full circles on a torus: quarter tube or three-quarter tube | baseline from u direction alone | trust same_sense |
+| Lone full-turn loop on a cone (drill point) | face side not decided | the face holds the apex |
+| Two loops each running once round a cylinder or cone, one wavy (a notch in a bore end) | each tessellated as its own polygon, losing the band | stitched into one band polygon at a common seam |
+
+| File | Before | After | OCCT |
+| --- | --- | --- | --- |
+| STC-06 | 179703.7 | 3323539.5 | 3323540.5 |
+| CTC-05 | 9277231.0 | 12726632.0 | 12694917.8 |
+| FTC-11 | 5271.3 | 5134.4 | 5135.1 |
+| STC-10 | 190412.0 | 187534.6 | 188312.8 |
+
+Those four files re-hash; FTC-08 does not move (503632.9 against OCCT's 503633.0). The two tests
+that asserted STC-06 stays orientation-ambiguous now assert it resolves, and to OCCT's volume.
+
+CTC-05's remaining +0.25% is one torus face (a quarter-tube fillet 63° long): the mass-property tessellation hits its
+65536-triangle budget before refining the trim, and chord-to-arc slivers along its circular edges add 986 mm² of area.
+The display tessellation of the same face matches OCCT's area. It is an estimator limit, not a topology defect.
+
+### Found, not fixed: cap loops across the kernel
+
+A sweep of the 278 canonical fixtures that export STEP found edges used the same way twice in 230 of them, starting
+with `Basics/box`: `BrepExtrude` and the hand-built box routes (`BrepBooleanBoxCylinderHoleBuilder` and others) wind both
+caps counter-clockwise about +Z, so the bottom cap is clockwise about its outward normal. OCCT's volume is right, and the
+importer re-solves orientation, so nothing in the kernel noticed. Gear routes have hundreds of such edges each. A
+receiving system that trusts the loops (or heals them) sees inverted caps. Fixing it changes every box-derived STEP
+hash and needs its own pass; the test this change adds (`AssertEdgesUsedOnceEachWay`) is the check to extend to those
+builders.
 
 ## Next
 
 - Closed vessels: the cavity is a second shell; the section stack and the revolved shell both need void shells.
 - Apexes and poles in `BrepRevolvedShell` (pointed cones, domed bottoms).
-- Perforation onto the general hollow body instead of its own cylinder builder, which would also retire the
-  inside-out shell above.
+- Perforation onto the general hollow body instead of its own cylinder builder.
+- Cap loop orientation in `BrepExtrude` and the box builders (above).
 - Phases 4 and 5 as planned.

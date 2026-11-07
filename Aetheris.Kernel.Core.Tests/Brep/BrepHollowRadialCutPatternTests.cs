@@ -21,6 +21,7 @@ public sealed class BrepHollowRadialCutPatternTests
         Assert.True(result.IsSuccess, string.Join(" | ", result.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
         var body = result.Value.Body;
         Assert.Equal(9, body.Topology.Faces.Count());
+        MeridianHollowTests.AssertEdgesUsedOnceEachWay(body);
         var tori = body.Geometry.Surfaces.Where(s => s.Value.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Torus)
             .Select(s => s.Value.Torus!.Value).ToArray();
         Assert.Equal(2, tori.Length);

@@ -44,6 +44,53 @@ public sealed class MeridianHollowTests
     }
 
     [Fact]
+    public void BlendedCupLoopsFollowTheOutwardNormal()
+    {
+        // Each edge is used once each way, and the torus faces bound the quarter tube that the wall's arcs sweep. Loops
+        // XOR'd with the surface's sense passed the first check for planes and cylinders, but on a torus the loop picked
+        // the complementary band and the blended cup measured twice its volume.
+        PlanarSpan[] cup = [L(0, 0, 48, 0), new PlanarArc((48, 8), 8, -double.Pi / 2, double.Pi / 2), L(56, 8, 56, 142), L(56, 142, 0, 142), L(0, 142, 0, 0)];
+        var wall = MeridianHollow.Wall(cup, 0.8, openTop: true, openBottom: false);
+        Assert.True(wall.IsSuccess);
+        var shell = BrepRevolvedShell.Build(wall.Value, RevolutionFrame.WorldZ);
+        Assert.True(shell.IsSuccess);
+        AssertEdgesUsedOnceEachWay(shell.Value.Body);
+        AssertSolid(shell.Value.Body, PappusVolume(wall.Value));
+    }
+
+    internal static void AssertEdgesUsedOnceEachWay(BrepBody body)
+    {
+        foreach (var uses in body.Topology.Coedges.GroupBy(c => c.EdgeId))
+        {
+            Assert.Equal(2, uses.Count());
+            Assert.Single(uses, c => c.IsReversed);
+        }
+    }
+
+    /// <summary>The volume a closed meridian sweeps in a full turn: pi times the loop integral of r^2 dz.</summary>
+    private static double PappusVolume(IReadOnlyList<PlanarSpan> meridian)
+    {
+        var sum = 0d;
+        foreach (var span in meridian)
+        {
+            const int steps = 4096;
+            for (var i = 0; i < steps; i++)
+            {
+                var (a, b) = (At(span, (double)i / steps), At(span, (double)(i + 1) / steps));
+                sum += (a.R * a.R + a.R * b.R + b.R * b.R) / 3d * (b.Z - a.Z);
+            }
+        }
+        return double.Abs(double.Pi * sum);
+
+        static (double R, double Z) At(PlanarSpan span, double t) => span switch
+        {
+            PlanarLine line => (line.Start.X + t * (line.End.X - line.Start.X), line.Start.Y + t * (line.End.Y - line.Start.Y)),
+            PlanarArc arc => (arc.Center.X + arc.Radius * double.Cos(arc.StartAngle + t * arc.Sweep), arc.Center.Y + arc.Radius * double.Sin(arc.StartAngle + t * arc.Sweep)),
+            _ => throw new NotSupportedException()
+        };
+    }
+
+    [Fact]
     public void ClosedVesselsAndApexesAreRefused()
     {
         Assert.Contains(MeridianHollow.Wall(Cylinder(20, 50), 2, false, false).Diagnostics, d => d.Message.StartsWith("hollow-closed-vessel-unsupported", StringComparison.Ordinal));

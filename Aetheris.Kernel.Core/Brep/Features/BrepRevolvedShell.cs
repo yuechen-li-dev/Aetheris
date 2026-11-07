@@ -122,13 +122,14 @@ public static class BrepRevolvedShell
                     return Failure("revolve-shell-meridian-invalid", $"Meridian span {i} is not a line or arc.");
             }
             // The circle at the span's start bounds the face counter-clockwise about its outward normal, the circle at
-            // its end clockwise. The stored sense is relative to the surface's own normal.
+            // its end clockwise. Loops follow the face's outward normal, whatever the surface's own normal, so each
+            // circle is walked once each way by the two faces it joins.
             var loops = new List<LoopId>();
             void AddLoop(EdgeId edge, bool reversedAboutOutward)
             {
                 var loopId = builder.AllocateLoopId();
                 var coedge = builder.AllocateCoedgeId();
-                builder.AddCoedge(new Coedge(coedge, edge, loopId, coedge, coedge, reversedAboutOutward ^ !sameSense));
+                builder.AddCoedge(new Coedge(coedge, edge, loopId, coedge, coedge, reversedAboutOutward));
                 builder.AddLoop(new Loop(loopId, [coedge]));
                 loops.Add(loopId);
             }

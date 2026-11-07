@@ -165,6 +165,9 @@ public sealed record PrismaticProfileCompositionFeature(
     IReadOnlyList<PrismaticMaterialOffsetFeature>? MaterialOffsets = null,
     IReadOnlyList<PrismaticCountersinkHoleFeature>? CountersinkHoles = null)
 {
+    /// <summary>Set when the body is declared hollow; normalization derives the cavity from the exterior.</summary>
+    public PrismaticHollowIntent? Hollow { get; init; }
+
     public IEnumerable<(string Name, string StableId, string ProfileReference)> AllSlotProfiles =>
         (CapsuleSlots ?? []).Select(x => (x.Name, x.StableId, x.ProfileReference))
             .Concat((RoundedRectangleSlots ?? []).Select(x => (x.Name, x.StableId, x.ProfileReference)));
@@ -331,8 +334,27 @@ public static class PrismaticProfileCompositionParser
         var authoredProfiles = profiles.Keys.ToHashSet(StringComparer.Ordinal);
         var compose = FirmamentSyntaxTraversal.Declarations(syntax.Document).FirstOrDefault(d => d.Type.Name.Text == "Compose");
         if (compose?.Body is null || compose.Name is null) return new(null, profiles, diagnostics.Append("compose-source-missing-compose").ToArray());
-        if (compose.Clauses.Count > 0 || compose.Type.Arguments.Count > 0)
+        var hollowCompose = compose.Type.Arguments.Count == 1 && FirmamentSyntaxValues.Reference(compose.Type.Arguments[0].Value) == "Hollow";
+        if (compose.Clauses.Count > 0 || compose.Type.Arguments.Count > 0 && !hollowCompose)
             return new(null, profiles, diagnostics.Append("compose-header-unsupported: Declare a supported Placement block inside Compose.").ToArray());
+        PrismaticHollowIntent? hollow = null;
+        if (hollowCompose)
+        {
+            var hollowFields = compose.Body.Statements.OfType<FieldSyntax>().ToArray();
+            var wallField = hollowFields.FirstOrDefault(f => FirmamentSyntaxFields.SameField(f.Name.Text, "WallThickness"));
+            var openingsField = hollowFields.FirstOrDefault(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Openings"));
+            var wall = FirmamentSyntaxValues.TryMeasure(wallField?.Value, "mm", out var w) ? w : double.NaN;
+            if (wallField is null) diagnostics.Add("firmament-v2-hollow-wall-thickness-required: Compose<Hollow> requires wallThickness.");
+            else if (!(wall > 0d)) diagnostics.Add("firmament-v2-hollow-wall-thickness-must-be-positive");
+            var openings = (openingsField?.Value as SequenceSyntax)?.Items.Select(a => FirmamentSyntaxValues.Reference(a.Value)).ToArray() ?? [];
+            if (openings.Any(o => o is not ("Top" or "Bottom")) || openings.Distinct().Count() != openings.Length)
+                diagnostics.Add("firmament-v2-hollow-opening-unsupported: Compose<Hollow> openings are Top and/or Bottom; cut other openings with Modify features.");
+            if (openings.Length == 0)
+                diagnostics.Add("firmament-v2-hollow-closed-vessel-unsupported: A closed hollow needs an inner void shell, which the section stack does not build yet; open Top or Bottom.");
+            foreach (var extra in hollowFields.Where(f => f != wallField && f != openingsField))
+                diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:Compose:{extra.Name.Text}");
+            hollow = new(wall, openings.Contains("Top"), openings.Contains("Bottom"), $"offset:{compose.Span.Start}");
+        }
         var composeBody = source.Substring(compose.Body.Span.Start + 1, compose.Body.Span.Length - 2);
         composeBody = BindExternalModifyFeatures(source, compose.Name.Text, composeBody, diagnostics);
         var beforeAdmission = diagnostics.Count;
@@ -343,6 +365,8 @@ public static class PrismaticProfileCompositionParser
                 diagnostics.Add($"firmament-v2-field-duplicate:{declaration.Type.Name.Text}:{repeated.Key}");
         foreach (var statement in operationsSyntax.Document.Statements)
         {
+            if (hollow is not null && statement is FieldSyntax hollowField
+                && (FirmamentSyntaxFields.SameField(hollowField.Name.Text, "WallThickness") || FirmamentSyntaxFields.SameField(hollowField.Name.Text, "Openings"))) continue;
             if (statement is DeclarationSyntax declared && declared.Type.Name.Text is
                 "Base" or "Add" or "Remove" or "Boss" or "Pocket" or "AddOffset" or "RemoveOffset" or "Hole" or "Slot" or "EdgeFinish" or "Placement" or "Point2" or "Line2" or "Circle2" or "Path" or "Profile" or "Rect2" or "Axis2" or "Plane") continue;
             diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:Compose:{(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}");
@@ -883,7 +907,7 @@ public static class PrismaticProfileCompositionParser
                     diagnostics.Add($"compose-profile-frame-mismatch:{operation.Name}:{operation.ProfileReference}: All operands must use the same construction frame; an explicit Placement cannot override an oriented Profile.");
             }
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Concat(countersinkHoles.Select(h => h.ConeFrom)).Distinct().Order().ToArray();
-        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Name.Text, placement.ProfilePlane, placement.Axis, placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets, materialOffsets, countersinkHoles) : null;
+        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Name.Text, placement.ProfilePlane, placement.Axis, placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets, materialOffsets, countersinkHoles) { Hollow = hollow } : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
     }
 

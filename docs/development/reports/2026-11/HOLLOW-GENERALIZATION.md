@@ -94,3 +94,45 @@ lives; its `Exterior` stops being frustum parameters and becomes any `HollowCons
    sharp like commercial shell? Between slabs, sharp is proposed so the cavity stays a section stack.
 2. **Exterior features.** A boss declared in the exterior program is hollowed with it (proposed);
    a boss added by `Modify` after the hollow stays solid.
+
+## Decisions taken
+
+Both as proposed: in-plane reflex corners round at the wall (constant thickness), slab steps stay sharp; a
+boss in the exterior program is hollowed with it, features added afterwards are not.
+
+## Implementation status
+
+Phases 1 and 2 are in.
+
+- `ProfileInset2D`: exact inset of line/arc regions. Lines parallel, arcs concentric, reflex corners round at t,
+  convex arcs of r ≤ t vanish into sharp corners; reversal, self-contact and hole/outer contact are refused.
+- `PrismaticHollowCavity`: the cavity is the exterior eroded by a cylinder of radius t and half-height t. Bands
+  break at every slab level ± t; each band's section is the inset of the intersection of the exterior sections
+  within t of it. Bands governed by the same section merge into one `Remove`. The result lowers through the
+  unchanged section-stack emitter.
+- `Compose<Hollow>` (`wallThickness`, `openings: [Top|Bottom]`) and `Extrude<Hollow>`, which lowers to a one-`Base`
+  hollow Compose.
+- Closed vessels are refused: the cavity would be a second (void) shell, which the stack emitter rejects as a
+  disconnected solid.
+
+Two defects found and fixed on the way:
+
+- `ProfileArrangementBuilder.ToRegions` gave a hole to every outer loop containing it. An island inside another
+  region's hole (the ring of wall around a pocket inside a hollow body) then shared its hole with the region around
+  it, and the emitter duplicated those walls. Each hole now belongs to the smallest containing outer.
+- `BrepMassProperties`' exact vertical-prism lane decided loop nesting from the average of a loop's vertices. For
+  concentric walls that point lies inside the inner wall, so the outer wall was subtracted; with three loops the
+  wrong sum stayed positive and was reported as an exact volume (29274 mm³ for an 8128 mm³ tray). Nesting now uses a
+  point on the loop against the other loops traced along their arcs. Its arc area also assumed every circle's
+  parameter starts at +X; it now uses chord plus segment.
+
+Evidence: rounded tray, enclosure lid with boss and pocket, and L-bracket tray with a through bore build as single
+valid solids in OCCT, with volumes equal to closed forms (35369.8, 26302.9, 8127.7 mm³). The rounded tray matches
+the bespoke `RoundedBox<Hollow>` planner's volume exactly (26 faces there, 27 here: the stack splits the outer walls
+at the floor level).
+
+## Next
+
+Phase 3 (desugaring `RoundedBox`/`Cylinder<Hollow>` and retiring their planners) is coupled to Perforation, which
+consumes `ThinWalledBodyRealization` directly; it moves with Perforation onto section stacks. `Revolve<Hollow>`
+needs the revolve emitter to accept an axis-touching meridian. Phases 4 and 5 as planned.

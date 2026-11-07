@@ -72,6 +72,42 @@ A Pocket always leaves a floor. Its required floor comes from
 default, and the build fails when the floor would be thinner. Do not mix `depth`
 or a floor requirement with `end: ThroughAll`.
 
+### Hollow bodies
+
+`Compose<Hollow>` and `Extrude<Hollow>` declare a thin-walled body. The cavity is
+built from the exterior's own construction, moved inward by `wallThickness`:
+
+```firmament
+Model EnclosureLid {
+  units: mm
+  Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [100mm, 60mm]; radius: 8mm }
+  Profile tower = RoundedRect2 { center: [-25mm, 0mm]; size: [30mm, 30mm]; radius: 6mm }
+  Compose<Hollow> body {
+    wallThickness: 2mm
+    openings: [Bottom]
+    Base stock { profile: outline; from: 0mm; to: 20mm; role: Stock }
+    Boss tower { on: Top; profile: tower; height: 12mm }
+  }
+}
+```
+
+- Every vertical wall and every closed cap is exactly `wallThickness` thick.
+- Profile arcs stay concentric: an outer corner of radius r becomes r − t inside,
+  and disappears into a sharp inner corner when r ≤ t. An inside corner of the
+  Profile, sharp or rounded, gets an inner round so the wall stays constant.
+- Where the section steps between heights (under a Boss, around a Pocket floor),
+  the inner corner is sharp, so the wall there is thicker, up to √2·t at a right
+  angle.
+- `Base`, `Add`, `Remove`, `Boss` and `Pocket` are the exterior and are hollowed
+  with it. `Hole` and `Slot` are cut through the finished wall.
+- `openings` lists the end caps the cavity runs out through: `[Top]`, `[Bottom]`
+  or `[Top, Bottom]` for a tube. Cut other openings with `Modify` features.
+
+The build refuses a section narrower than twice the wall
+(`hollow-wall-offset-collapse`, naming the band and loop), a Profile with
+ellipse or Bézier spans (`hollow-offset-curve-unsupported`), and a body with no
+opening, whose sealed inner void the section stack does not build yet.
+
 ### Coaxial primitive Compose
 
 A coaxial `Compose` can join positive-radius `Cylinder` and `Frustum` spans without sketches or Boolean union. The first span starts at the local origin along +Z; each later span names the previous span's top support, and their joining radii must match. For example:

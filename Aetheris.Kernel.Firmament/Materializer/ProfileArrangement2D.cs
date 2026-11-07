@@ -124,6 +124,14 @@ public static class ProfileArrangementBuilder
         return Build(frame, sources, p => left.Any(region => InRegion(region, p)) && !right.Any(region => InRegion(region, p)), context, rejectAmbiguousTangencies: false, allowMultipleRegions: true);
     }
 
+    /// <summary>Exact intersection of region sets: the points inside some region of every set.</summary>
+    public static ProfileArrangementResult Intersection(string frame, IReadOnlyList<IReadOnlyList<PrismaticSectionRegion>> sets, string context)
+    {
+        if (sets.Count == 0 || sets.Any(set => set.Count == 0)) return Empty(frame, context);
+        var sources = sets.SelectMany((set, i) => set.SelectMany((region, j) => RegionSources($"set{i}.{j}", region))).ToArray();
+        return Build(frame, sources, p => sets.All(set => set.Any(region => InRegion(region, p))), context, rejectAmbiguousTangencies: false, allowMultipleRegions: true);
+    }
+
     public static ArrangementPointLocation PointInProfile(ResolvedProfile2D profile, (double X, double Y) point)
     {
         // A PrismaticSectionRegion stores each hole as a one-loop profile whose
@@ -405,10 +413,21 @@ public static class ProfileArrangementBuilder
         if (loops.Count == 0) return [];
         var result = new List<PrismaticSectionRegion>();
         var inner = loops.Where(x => !x.IsOuter).ToArray();
-        foreach (var outerLoop in loops.Where(x => x.IsOuter).OrderByDescending(x => x.SignedArea).ThenBy(x => x.Fragments.Min(f => f.Source.StableId), StringComparer.Ordinal))
+        var outerLoops = loops.Where(x => x.IsOuter).OrderByDescending(x => x.SignedArea).ThenBy(x => x.Fragments.Min(f => f.Source.StableId), StringComparer.Ordinal).ToArray();
+        var outerProfiles = outerLoops.Select(loop => ToProfile(loop, "Outer")).ToArray();
+        // An island inside another region's hole is itself an outer loop. Each hole belongs to the smallest outer that
+        // contains it, so a hole of the island is not also taken as a hole of the region around it.
+        var owner = inner.ToDictionary(loop => loop, loop =>
         {
-            var outer = ToProfile(outerLoop, "Outer");
-            var nested = inner.Where(loop => PointInProfile(outer, Ends(loop.Fragments[0].Geometry).Start) == ArrangementPointLocation.Inside).ToArray();
+            var start = Ends(loop.Fragments[0].Geometry).Start;
+            var containing = Enumerable.Range(0, outerLoops.Length).Where(i => PointInProfile(outerProfiles[i], start) == ArrangementPointLocation.Inside).ToArray();
+            return containing.Length == 0 ? -1 : containing.MinBy(i => double.Abs(outerLoops[i].SignedArea));
+        });
+        for (var index = 0; index < outerLoops.Length; index++)
+        {
+            var outerLoop = outerLoops[index];
+            var outer = outerProfiles[index];
+            var nested = inner.Where(loop => owner[loop] == index).ToArray();
             var holes = nested.Select((loop, index) => ToProfile(loop, $"Inner{index}")).ToArray();
             result.Add(new PrismaticSectionRegion(outer, holes, outerLoop.Fragments.Concat(nested.SelectMany(x => x.Fragments))
                 .Select(x => x.Source.StableId).Distinct().OrderBy(x => x, StringComparer.Ordinal).ToArray()));

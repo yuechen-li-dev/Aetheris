@@ -1,0 +1,15 @@
+// An enclosure lid, open underneath. The tower and the recess are part of the
+// exterior, so the cavity follows them at constant wall.
+Model EnclosureLid {
+  units: mm
+  Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [100mm, 60mm]; radius: 8mm }
+  Profile tower = RoundedRect2 { center: [-25mm, 0mm]; size: [30mm, 30mm]; radius: 6mm }
+  Profile notch = Rect2 { center: [30mm, 0mm]; size: [20mm, 24mm] }
+  Compose<Hollow> body {
+    wallThickness: 2mm
+    openings: [Bottom]
+    Base stock { profile: outline; from: 0mm; to: 20mm; role: Stock }
+    Boss tower { on: Top; profile: tower; height: 12mm }
+    Pocket recess { on: Top; profile: notch; depth: 6mm; minimumFloorThickness: 3mm }
+  }
+}

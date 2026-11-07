@@ -87,6 +87,12 @@ public static class PrismaticSectionStackCompiler
     {
         var d = parsed.Diagnostics.ToList();
         if (parsed.Feature is null) { diagnostics = d; return null; }
+        if (parsed.Feature.Hollow is not null)
+        {
+            var hollowed = PrismaticHollowCavity.Derive(parsed, out var hollowDiagnostics);
+            if (hollowed is null) { diagnostics = d.Concat(hollowDiagnostics).Distinct().ToArray(); return null; }
+            parsed = hollowed;
+        }
         // A variable cavity is legal only where its complete footprint lies in
         // actual material. A Base-profile check alone misses pockets, slots,
         // local height changes and disconnected material spans.

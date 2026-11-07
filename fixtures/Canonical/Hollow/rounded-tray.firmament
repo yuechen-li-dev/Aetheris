@@ -1,0 +1,10 @@
+// A rounded tray: the cavity is the exterior inset by the wall, open at the top.
+Model RoundedTray {
+  units: mm
+  Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [120mm, 80mm]; radius: 12mm }
+  Compose<Hollow> body {
+    wallThickness: 2mm
+    openings: [Top]
+    Base stock { profile: outline; from: 0mm; to: 24mm; role: Stock }
+  }
+}

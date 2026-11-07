@@ -1230,13 +1230,22 @@ public static partial class FirmamentV2Parser
     /// Rewrites <c>Extrude X { profile: P; from: a; to: b }</c> as <c>Compose X { Base X { ... } }</c> in the
     /// adapter source. Field text is carried verbatim, so expressions and unknown fields report as they would on Base.
     /// </summary>
+    private static bool IsHollowExtrude(DeclarationSyntax d) => d.Type.Name.Text == "Extrude" && d.Type.Arguments.Count == 1
+        && FirmamentSyntaxValues.Reference(d.Type.Arguments[0].Value) == "Hollow";
+
     private static string ExtrudeAsCompose(string adapterSource, DeclarationSyntax extrude, int shift, string source)
     {
         var start = extrude.Span.Start + shift;
-        var fields = string.Join("; ", (extrude.Body?.Statements.OfType<FieldSyntax>() ?? [])
-            .Select(f => $"{f.Name.Text}: {source.Substring(f.Value.Span.Start, f.Value.Span.Length)}"));
+        // A hollow extrude is a hollow one-slab Compose: its wall fields belong to the Compose.
+        var hollow = IsHollowExtrude(extrude);
+        static bool WallField(FieldSyntax f) => FirmamentSyntaxFields.SameField(f.Name.Text, "WallThickness") || FirmamentSyntaxFields.SameField(f.Name.Text, "Openings");
+        string Fields(IEnumerable<FieldSyntax> items) => string.Join("; ", items.Select(f => $"{f.Name.Text}: {source.Substring(f.Value.Span.Start, f.Value.Span.Length)}"));
+        var all = extrude.Body?.Statements.OfType<FieldSyntax>().ToArray() ?? [];
+        var fields = Fields(all.Where(f => !hollow || !WallField(f)));
         var name = extrude.Name?.Text ?? "Body";
-        var text = $"Compose {name} {{ Base {name} {{ {fields} }} }}";
+        var text = hollow
+            ? $"Compose<Hollow> {name} {{ {Fields(all.Where(WallField))}; Base {name} {{ {fields} }} }}"
+            : $"Compose {name} {{ Base {name} {{ {fields} }} }}";
         if (start < 0 || start + extrude.Span.Length > adapterSource.Length
             || adapterSource.Substring(start, extrude.Span.Length) != source.Substring(extrude.Span.Start, extrude.Span.Length))
             throw new InvalidOperationException("Extrude declaration does not map into the adapter source.");
@@ -1271,8 +1280,8 @@ public static partial class FirmamentV2Parser
         // Compose { Base }; give it that construction so its Modify features are cut.
         // Edge finishes alone keep the plain profile route, which owns them.
         if (declarations.Count(d => d.Type.Name.Text == "Extrude") == 1 && declarations.All(d => d.Type.Name.Text != "Compose")
-            && declarations.Where(d => d.Type.Name.Text == "Modify").SelectMany(d => d.Body?.Statements.OfType<DeclarationSyntax>() ?? [])
-                .Any(d => d.Type.Name.Text != "EdgeFinish"))
+            && (declarations.Where(d => d.Type.Name.Text == "Modify").SelectMany(d => d.Body?.Statements.OfType<DeclarationSyntax>() ?? [])
+                .Any(d => d.Type.Name.Text != "EdgeFinish") || declarations.Any(IsHollowExtrude)))
         {
             var extrude = declarations.Single(d => d.Type.Name.Text == "Extrude");
             adapterSource = ExtrudeAsCompose(adapterSource, extrude, model.Span.Start - bodySpan.Start, source);

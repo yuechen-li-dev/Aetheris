@@ -1520,6 +1520,12 @@ public static class ProfileAuthoringParser
         var to = fields.Take("To");
         fields.CheckUnit("From", from, "mm");
         fields.CheckUnit("To", to, "mm");
+        // Extrude<Hollow> carries its wall; the hollow Compose it lowers to validates the values.
+        if (declaration.Type.Arguments.Count == 1 && FirmamentSyntaxValues.Reference(declaration.Type.Arguments[0].Value) == "Hollow")
+        {
+            fields.CheckUnit("WallThickness", fields.Take("WallThickness"), "mm");
+            fields.Take("Openings");
+        }
         fields.Complete();
         return (profile, from, to);
     }

@@ -227,12 +227,20 @@ That pass exposed builders whose faces declare the wrong outward normal, which t
 - `WireCoils`: the tube's B-spline nets have normals into the wire but were bound aligned. Fixed (bound opposed, loops
   reversed). The STEP importer's B-spline alignment fallback, a polygon-normal test that is meaningless on a face
   turning through more than a right angle, now reads same_sense instead.
-- Still open, now reported by the writer as `step-export-face-normal-inverted` (a warning; the CLI does not print
-  export warnings): 42 fixtures, by planar face count: sheet-metal lowering (most of the 7–20 counts), structural
-  members and joints, PlasticShell rib/standoff faces, `EdgeFinish` end faces of a bounded fillet, the counterbore
-  shoulder, `EquationCurves` arch caps, `Revolve/arbitrary-axis`, one section-chain duct. OCCT reorients these on read
-  and our importer re-solves them, so volumes are right; a receiving system that trusts same_sense sees faces turned
-  inward.
+- Sheet-metal lowering (`SheetMetalAuthoredLowering.Emit`): fixed. It bound the negative skin opposed to a surface
+  whose normal already pointed against the thickness direction, and gave every side and cut wall the normal
+  `edge × thickness`, which faces outward only when the authored contour runs clockwise. Faces are now bound by
+  geometry: a skin faces away from the sheet, a wall away from the region its contour encloses (into a cut), whichever
+  way the contour runs. All 19 sheet-metal fixtures keep their OCCT volumes, and the importer, which derives
+  orientation from geometry alone, now agrees with every same_sense written (it disagreed on 5 of 14 faces of the
+  L-bracket).
+- Still open. The writer reports flat faces as `step-export-face-normal-inverted` (a warning the CLI does not print).
+  Comparing the importer's geometric orientation with the written same_sense over the whole sweep finds disagreements
+  in: structural members and joints, PlasticShell rib/standoff faces, `EdgeFinish` end faces of a bounded fillet, the
+  counterbore shoulder, `EquationCurves` arch caps, `Revolve/arbitrary-axis`, the section-chain and sculpt bodies
+  (cylinders), the freeform `surf-x1`/`surf-x2` housings, `Hollow/bracket-tray` (one cylinder) and the internal spur
+  gear (its linear-extrusion flanks). Some of these may be importer misreadings rather than builder errors; each needs
+  a look. OCCT reorients on read and volumes are right; a receiver that trusts same_sense sees inward faces.
 
 `BrepRevolvedShell` now binds an annulus's larger circle as its outer boundary (the writer had labelled whichever
 circle came first).
@@ -246,5 +254,5 @@ moves to 188525.9 (OCCT 188312.8) with the B-spline fallback.
 - Closed vessels: the cavity is a second shell; the section stack and the revolved shell both need void shells.
 - Apexes and poles in `BrepRevolvedShell` (pointed cones, domed bottoms).
 - Perforation onto the general hollow body instead of its own cylinder builder.
-- Outward normals in the builders listed above.
+- Outward normals in the builders still listed above.
 - Phases 4 and 5 as planned.

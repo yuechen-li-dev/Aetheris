@@ -11,7 +11,11 @@ public sealed record ResolvedRevolve(
     ConceptIrAxisValue Axis,
     double SweepRadians,
     string? AuthoredAlias,
-    string StableId);
+    string StableId)
+{
+    /// <summary>Set for <c>Revolve&lt;Hollow&gt;</c>: a full turn hollowed at constant wall.</summary>
+    public PrismaticHollowIntent? Hollow { get; init; }
+}
 
 /// <summary>Finite semantic binder for Profile + explicit Axis + bounded Angle.</summary>
 public static class RevolveAuthoringParser
@@ -47,8 +51,24 @@ public static class RevolveAuthoringParser
         var profileName = fields.Word("Profile");
         var axisName = fields.Word("About");
         var angleExpression = fields.Take("Angle");
+        var hollowRevolve = feature.Type.Arguments.Count == 1 && FirmamentSyntaxValues.Reference(feature.Type.Arguments[0].Value) == "Hollow";
+        PrismaticHollowIntent? hollow = null;
+        if (hollowRevolve)
+        {
+            var wallExpression = fields.Take("WallThickness");
+            var openingsExpression = fields.Take("Openings");
+            var wall = FirmamentSyntaxValues.TryMeasure(wallExpression, "mm", out var w) ? w : double.NaN;
+            if (wallExpression is null) diagnostics.Add("firmament-v2-hollow-wall-thickness-required: Revolve<Hollow> requires wallThickness.");
+            else if (!(wall > 0d)) diagnostics.Add("firmament-v2-hollow-wall-thickness-must-be-positive");
+            var openings = (openingsExpression as SequenceSyntax)?.Items.Select(a => FirmamentSyntaxValues.Reference(a.Value)).ToArray() ?? [];
+            if (openings.Any(o => o is not ("Top" or "Bottom")) || openings.Distinct().Count() != openings.Length)
+                diagnostics.Add("firmament-v2-hollow-opening-unsupported: Revolve<Hollow> openings are Top and/or Bottom, the flat caps at the ends of the axis.");
+            if (openings.Length == 0)
+                diagnostics.Add("firmament-v2-hollow-closed-vessel-unsupported: A closed hollow needs an inner void shell, which is not built yet; open Top or Bottom.");
+            hollow = new(wall, openings.Contains("Top"), openings.Contains("Bottom"), $"offset:{feature.Span.Start}");
+        }
         fields.Complete();
-        if (feature.Type.Arguments.Count > 0 || feature.Modifiers.Count > 0 || name.Length == 0)
+        if (feature.Type.Arguments.Count > 0 && !hollowRevolve || feature.Modifiers.Count > 0 || name.Length == 0)
             diagnostics.Add(Prefix + "header-invalid:" + name);
         if (profileName is null) diagnostics.Add(Prefix + "profile-not-found:" + name);
         if (axisName is null) diagnostics.Add(Prefix + "axis-not-found:" + name);
@@ -97,6 +117,7 @@ public static class RevolveAuthoringParser
         if (angleExpression is not null && !TryAngle(angleExpression, out sweep, out alias)) diagnostics.Add(Prefix + "angle-invalid:" + name);
         else if (angleExpression is not null && Math.Abs(sweep) <= Tol) diagnostics.Add(Prefix + "zero-angle:" + name);
         else if (angleExpression is not null && Math.Abs(sweep) > 2d * Math.PI + Tol) diagnostics.Add(Prefix + "angle-out-of-range:" + name);
+        else if (hollow is not null && Math.Abs(Math.Abs(sweep) - 2d * Math.PI) > Tol) diagnostics.Add("firmament-v2-hollow-revolve-full-turn-required: Revolve<Hollow> turns a full revolution.");
 
         if (profile is not null && axis is not null)
         {
@@ -113,7 +134,7 @@ public static class RevolveAuthoringParser
 
         reportedDiagnostics = diagnostics.Distinct(StringComparer.Ordinal).ToArray();
         return reportedDiagnostics.Count == 0 && profile is not null && axis is not null
-            ? new(name, profile, axisName!, axis, sweep, alias, "revolve:" + name)
+            ? new(name, profile, axisName!, axis, sweep, alias, "revolve:" + name) { Hollow = hollow }
             : null;
     }
 

@@ -103,6 +103,9 @@ Model EnclosureLid {
 - `openings` lists the end caps the cavity runs out through: `[Top]`, `[Bottom]`
   or `[Top, Bottom]` for a tube. Cut other openings with `Modify` features.
 
+For bodies of revolution, see
+[`Revolve<Hollow>`](../../firmament/revolve.md#hollow-revolutions).
+
 The build refuses a section narrower than twice the wall
 (`hollow-wall-offset-collapse`, naming the band and loop), a Profile with
 ellipse or Bézier spans (`hollow-offset-curve-unsupported`), and a body with no

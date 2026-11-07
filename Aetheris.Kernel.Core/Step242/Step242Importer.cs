@@ -2644,18 +2644,20 @@ public static class Step242Importer
         if (loops.Count == 0) return (true, new Dictionary<LoopId, bool>());
         var outer = loops.SingleOrDefault(loop => loop.IsDeclaredOuter) ?? loops[0];
         var resolved = new Dictionary<LoopId, bool>();
+        IReadOnlyList<UvPoint>? Project(LoopBuildData loop) => surface.Kind switch
+        {
+            SurfaceGeometryKind.Plane => SimplifyClosedPolygon(ProjectLoopToPlane(loop.Samples, surface.Plane!.Value), ContainmentEps),
+            SurfaceGeometryKind.Cylinder => ProjectLoopToCylinder(loop.Samples, surface.Cylinder!.Value),
+            SurfaceGeometryKind.Cone => ProjectLoopToCone(loop.Samples, surface.Cone!.Value),
+            SurfaceGeometryKind.Sphere => ProjectLoopToSphere(loop.Samples, surface.Sphere!.Value),
+            SurfaceGeometryKind.Torus => ProjectLoopToTorus(loop.Samples, surface.Torus!.Value),
+            _ => null,
+        };
+        var projections = loops.ToDictionary(loop => loop.LoopId, Project);
         foreach (var loop in loops)
         {
             var isOuter = loop.LoopId == outer.LoopId;
-            IReadOnlyList<UvPoint>? projected = surface.Kind switch
-            {
-                SurfaceGeometryKind.Plane => SimplifyClosedPolygon(ProjectLoopToPlane(loop.Samples, surface.Plane!.Value), ContainmentEps),
-                SurfaceGeometryKind.Cylinder => ProjectLoopToCylinder(loop.Samples, surface.Cylinder!.Value),
-                SurfaceGeometryKind.Cone => ProjectLoopToCone(loop.Samples, surface.Cone!.Value),
-                SurfaceGeometryKind.Sphere => ProjectLoopToSphere(loop.Samples, surface.Sphere!.Value),
-                SurfaceGeometryKind.Torus => ProjectLoopToTorus(loop.Samples, surface.Torus!.Value),
-                _ => null,
-            };
+            var projected = projections[loop.LoopId];
             var signedArea = projected is null ? 0d : ComputeSignedArea(projected);
             var periodicity = SurfacePeriodicity.Of(surface);
             var boundaryAligned = surface.Kind == SurfaceGeometryKind.Sphere
@@ -2664,7 +2666,7 @@ public static class Step242Importer
                 : surface.Kind != SurfaceGeometryKind.Sphere
                 && projected is not null
                 && TryDeriveFullPeriodTraversalAlignment(projected, periodicity, out var periodicAligned)
-                ? periodicAligned
+                ? FullTurnLoopAlignment(loop, projected, periodicAligned, isOuter)
                 : surface.Kind == SurfaceGeometryKind.Cone
                     && TryDeriveSupportAlignmentFromBoundaryNormal(loop.Samples, surface, out var conicalAligned)
                     ? conicalAligned
@@ -2676,6 +2678,20 @@ public static class Step242Importer
             resolved[loop.LoopId] = isOuter ? boundaryAligned : !boundaryAligned;
         }
         return (resolved[outer.LoopId], resolved);
+
+    // A loop running once round a cylinder or cone says nothing by itself about which side the face lies on. When the
+    // face has another loop, the face lies between them: a loop with the face on its +v side bounds an aligned face
+    // when it runs +u. The answer is the face's, so an inner loop reports it negated, as the caller expects.
+    bool FullTurnLoopAlignment(LoopBuildData loop, IReadOnlyList<UvPoint> projected, bool runsPositiveU, bool isOuter)
+    {
+        if (surface.Kind is not (SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone) || loops.Count < 2) return runsPositiveU;
+        var others = loops.Where(other => other.LoopId != loop.LoopId).Select(other => projections[other.LoopId]).Where(p => p is { Count: > 0 }).ToArray();
+        if (others.Length == 0) return runsPositiveU;
+        var side = others.Average(p => p!.Average(point => point.Y)) - projected.Average(point => point.Y);
+        if (double.Abs(side) <= ContainmentEps) return runsPositiveU;
+        var faceAligned = (side > 0d) == runsPositiveU;
+        return isOuter ? faceAligned : !faceAligned;
+    }
     }
 
     private static bool TryDeriveFullPeriodTraversalAlignment(

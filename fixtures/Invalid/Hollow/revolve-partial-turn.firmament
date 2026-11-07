@@ -1,0 +1,10 @@
+// A hollow revolve turns a full revolution.
+Model HalfCup {
+    units: mm
+    Axis spindle { origin: [0mm, 0mm, 0mm]; direction: [0, 0, 1] }
+    Concept Struct meridian on XZ {
+        Polygon2 section { points: [[0mm, 0mm], [30mm, 0mm], [30mm, 40mm], [0mm, 40mm]] }
+    }
+    Profile outline using meridian { Loop Outer { section |> TraceLoop } }
+    Revolve<Hollow> body { profile: outline; about: spindle; angle: half; wallThickness: 1.5mm; openings: [Top] }
+}

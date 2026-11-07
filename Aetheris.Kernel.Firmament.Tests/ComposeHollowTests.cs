@@ -19,6 +19,9 @@ public sealed class ComposeHollowTests
         },
         // The reflex corner adds the square of the wall less a quarter disc; the bore's tube grows it by the wall.
         { "bracket-tray", (1275 - 9 * double.Pi) * 15 - (891 + 4 - double.Pi - 25 * double.Pi) * 13 },
+        // Revolved walls: Pappus over the wall meridian, computed independently (shapely, 512-segment round erosion).
+        { "bottle-revolve", 22657.640 },
+        { "sleeve-revolve", 18820.424 },
     };
 
     [Theory]
@@ -39,12 +42,35 @@ public sealed class ComposeHollowTests
     [InlineData("narrow-neck", "hollow-wall-offset-collapse")]
     [InlineData("closed-vessel", "firmament-v2-hollow-closed-vessel-unsupported")]
     [InlineData("side-opening", "firmament-v2-hollow-opening-unsupported")]
+    [InlineData("revolve-pointed-tip", "revolve-shell-apex-unsupported")]
+    [InlineData("revolve-partial-turn", "firmament-v2-hollow-revolve-full-turn-required")]
     public void HollowRefusalsNameTheirCause(string fixture, string code)
     {
         var built = FirmamentBuildAndExport.CompileSource(File.ReadAllText(Fixture("Invalid", fixture)));
         Assert.False(built.IsSuccess);
         Assert.Contains(built.Diagnostics, d => d.Message.Contains(code, StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void RoundedBoxPrimitiveHollowsThroughTheSectionStack()
+    {
+        var result = HollowPrimitives.RoundedBox(120, 80, 24, 12, 2);
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics.Select(x => x.Message)));
+        Assert.Equal("InsetRoundedProfile", result.Value.Feature.Witness.Kind);
+        Assert.True(result.Value.Plan.IsAuthoritative);
+        var step = Aetheris.Kernel.Core.Step242.Step242Exporter.ExportBody(result.Value.Body);
+        Assert.True(step.IsSuccess);
+        var imported = Step242Importer.ImportBody(step.Value);
+        var volume = BrepMassProperties.Evaluate(imported.Value, new(0.01d, double.Pi / 90d, 1d, MaximumSegments: 256)).AbsoluteVolume;
+        var expected = RoundedRect(120, 80, 12) * 24 - RoundedRect(116, 76, 10) * 22;
+        Assert.InRange(volume, expected * (1 - 2e-4), expected * (1 + 2e-4));
+    }
+
+    [Theory]
+    [InlineData(120, 80, 24, 12)]
+    [InlineData(120, 80, 2, 2)]
+    public void RoundedBoxPrimitiveRejectsCollapsedInnerBoundary(double width, double depth, double height, double thickness)
+        => Assert.False(HollowPrimitives.RoundedBox(width, depth, height, 12, thickness).IsSuccess);
 
     [Fact]
     public void ConvexArcsNoLargerThanTheWallVanishIntoSharpCorners()

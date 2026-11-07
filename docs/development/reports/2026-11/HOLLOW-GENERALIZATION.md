@@ -131,8 +131,51 @@ valid solids in OCCT, with volumes equal to closed forms (35369.8, 26302.9, 8127
 the bespoke `RoundedBox<Hollow>` planner's volume exactly (26 faces there, 27 here: the stack splits the outer walls
 at the floor level).
 
+## Phase 3: primitives retired, Revolve<Hollow>
+
+- The inset moved to Core as `LineArcInset`, the one offset authority. `ProfileInset2D` adapts Firmament profiles
+  to it and keeps the region-level checks that need the arrangement.
+- `MeridianHollow`: the full axial section is the meridian and its mirror; its inset, cut back to the half-plane,
+  is the cavity. An open cap is pushed out by 2t along the straight wall reaching it before the inset, and the
+  cavity is cut at the cap's plane, so the opening is exact.
+- `BrepRevolvedShell`: a full turn of a closed line/arc meridian with no seam edges. Every face is bounded by the
+  circles its span's endpoints sweep. Only radial spans may meet the axis. This is the topology the bespoke
+  frustum and cylinder builders hand-wrote.
+- `ThinWalledBodyBRepPlanner.CreateFrustum` and `CreateCylinder` (with or without the bottom blend) keep their
+  admission and witnesses but take their bodies from `MeridianHollow` + `BrepRevolvedShell`. The four hand-written
+  builders are deleted. `RoundedBox<Hollow>` moved to `HollowPrimitives.RoundedBox` on the section stack.
+- `Revolve<Hollow>` (`wallThickness`, `openings`, full turn only) maps the Profile into the meridian about its
+  axis and takes the same route.
+
+Evidence: the frustum cups, the cylinder body and the blended utensil holder rebuild with face counts and OCCT
+volumes identical to the bespoke builders; the rounded enclosures keep their volumes (27 faces instead of 26: the
+stack splits the outer walls at the floor level, and `BrepSplitFaceMerge` leaves that body as it is). The bottle and
+sleeve match Pappus volumes computed independently (shapely, 512-segment round erosion) to 6 figures.
+
+A third defect surfaced in the round trip: the STEP importer decided a cylinder's or cone's face side from a loop
+running once round it as if the face always lay on the loop's +v side. That holds for an upright cup's cone, not
+for a bottle's shoulder, whose cone opens downward; the reimported bottle measured 42515 mm³ for 22658. With
+another loop on the face, the importer now takes the side from where that loop lies. Five NIST files re-hash; each
+kernel volume moves towards OCCT's:
+
+| File | Before | After | OCCT |
+| --- | --- | --- | --- |
+| FTC-08 | 505510.6 | 503678.9 | 503633.0 |
+| FTC-11 | 6861.5 | 5271.3 | 5135.1 |
+| STC-10 | 200664.9 | 190412.0 | 188312.8 |
+| CTC-05 | 4837978.1 | 9277231.0 | 12694917.8 |
+| STC-06 | 94655.2 | 179703.7 | 3323540.5 |
+
+CTC-05 and STC-06 are still far from OCCT (STC-06 by a factor of 18), so their kernel volumes have another defect; it is not chased here.
+
+Found, not caused here: the perforated blended utensil holder (`ordning-utensil-holder-blended`) exports with OCCT
+volume −21002 mm³, before and after this change. Its shell is inside out; the Perforation radial-cut builder owns that
+topology.
+
 ## Next
 
-Phase 3 (desugaring `RoundedBox`/`Cylinder<Hollow>` and retiring their planners) is coupled to Perforation, which
-consumes `ThinWalledBodyRealization` directly; it moves with Perforation onto section stacks. `Revolve<Hollow>`
-needs the revolve emitter to accept an axis-touching meridian. Phases 4 and 5 as planned.
+- Closed vessels: the cavity is a second shell; the section stack and the revolved shell both need void shells.
+- Apexes and poles in `BrepRevolvedShell` (pointed cones, domed bottoms).
+- Perforation onto the general hollow body instead of its own cylinder builder, which would also retire the
+  inside-out shell above.
+- Phases 4 and 5 as planned.

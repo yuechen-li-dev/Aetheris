@@ -423,6 +423,7 @@ public static partial class FirmamentBuildAndExport
         if (v2Parse.BoundRevolve is { } boundRevolve)
         {
             var authored = boundRevolve;
+            if (authored.Hollow is { } revolveHollow) return ExportHollowRevolve(authored, revolveHollow);
             var built = ResolvedProfileRevolveEmitter.TryEmit(authored);
             if (!built.Succeeded || built.Body is null || built.Plan is null)
                 return KernelResult<FirmamentStepExportResult>.Failure(built.Diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
@@ -1982,6 +1983,74 @@ public static partial class FirmamentBuildAndExport
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, $"{solid.Name}.{first.Name}.{second.Name}", 0, "air-fillet", "localized-edge-junction-fillet", Air: report, ConceptIr: document.ConceptIr) { MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "EdgeFinish", first.Name, second.Name) });
     }
 
+    /// <summary>
+    /// <c>Revolve&lt;Hollow&gt;</c>: the Profile becomes a meridian about the axis, the general meridian hollow derives
+    /// its constant wall, and the wall turns into a seamless shell of revolution.
+    /// </summary>
+    private static KernelResult<FirmamentStepExportResult> ExportHollowRevolve(ResolvedRevolve authored, PrismaticHollowIntent hollow)
+    {
+        KernelResult<FirmamentStepExportResult> Fail(IEnumerable<string> messages) => KernelResult<FirmamentStepExportResult>.Failure(messages.Select(message =>
+            new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "FirmamentV2.Revolve")).ToArray());
+        var plane = authored.Profile.EffectiveConstructionPlane;
+        var origin = new Point3D(authored.Axis.Origin.X, authored.Axis.Origin.Y, authored.Axis.Origin.Z);
+        var direction = new Vector3D(authored.Axis.Direction.X, authored.Axis.Direction.Y, authored.Axis.Direction.Z);
+        direction = direction * (1d / direction.Length);
+        var local = plane.ToLocal(origin);
+        var d = (X: direction.Dot(plane.AxisX.ToVector()), Y: direction.Dot(plane.AxisY.ToVector()));
+        if (authored.Profile.Loops.Count != 1)
+            return Fail(["firmament-v2-hollow-revolve-meridian-invalid: Revolve<Hollow> turns one outer Profile loop."]);
+        var curves = authored.Profile.Loops[0].Segments.Select(segment => segment.Geometry).ToArray();
+        // The meridian's radius runs away from the axis on the Profile's side.
+        var sample = curves.Select(c => Kernel.Core.Geometry.Planar.LineArcInset.StartPoint(ProfileInset2D.ToPlanar(c)))
+            .Select(p => (p.X - local.X) * -d.Y + (p.Y - local.Y) * d.X).MaxBy(double.Abs);
+        var n = sample >= 0d ? (X: -d.Y, Y: d.X) : (X: d.Y, Y: -d.X);
+        (double R, double Z) Map((double X, double Y) p) => ((p.X - local.X) * n.X + (p.Y - local.Y) * n.Y, (p.X - local.X) * d.X + (p.Y - local.Y) * d.Y);
+        var reflected = n.X * d.Y - n.Y * d.X < 0d;
+        var meridian = new List<Kernel.Core.Geometry.Planar.PlanarSpan>();
+        foreach (var curve in curves)
+        {
+            switch (curve)
+            {
+                case LineArcLineSegment2D line:
+                    meridian.Add(new Kernel.Core.Geometry.Planar.PlanarLine(Map(line.Start), Map(line.End)));
+                    break;
+                case LineArcCircularArc2D arc:
+                {
+                    var center = Map(arc.Center);
+                    var start = Map((arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians)));
+                    meridian.Add(new Kernel.Core.Geometry.Planar.PlanarArc(center, arc.Radius, Math.Atan2(start.Z - center.Z, start.R - center.R),
+                        reflected ? -arc.SweepAngleRadians : arc.SweepAngleRadians));
+                    break;
+                }
+                default:
+                    return Fail(["hollow-offset-curve-unsupported: Revolve<Hollow> meridians are lines and circular arcs."]);
+            }
+        }
+        var wall = Kernel.Core.Brep.Features.MeridianHollow.Wall(meridian, hollow.WallThickness, hollow.OpenTop, hollow.OpenBottom);
+        if (!wall.IsSuccess) return Fail(wall.Diagnostics.Select(x => x.Message));
+        var radial = plane.ToWorldVector(n);
+        var frame = new Kernel.Core.Brep.Features.RevolutionFrame(origin, Direction3D.Create(direction), Direction3D.Create(radial));
+        var shell = Kernel.Core.Brep.Features.BrepRevolvedShell.Build(wall.Value, frame);
+        if (!shell.IsSuccess) return Fail(shell.Diagnostics.Select(x => x.Message));
+        var body = shell.Value.Body;
+        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions { ProductName = authored.Name });
+        if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(reimport.Diagnostics);
+        if (!FirmamentManifoldChecker.IsManifold(reimport.Value)) return Fail([$"firmament-revolve-step-reimport-not-manifold:{authored.Name}"]);
+        var surfaces = body.Topology.Faces.Select(face => body.GetFaceSurface(face.Id).Kind).ToArray();
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))).ToLowerInvariant();
+        var report = new FirmamentRevolveReport(authored.Profile.Name, authored.AxisName, authored.SweepRadians,
+            authored.SweepRadians * 180d / Math.PI, authored.AuthoredAlias, authored.SweepRadians < 0d ? "Negative" : "Positive", "Full", hash,
+            surfaces.Select(kind => kind.ToString()).ToArray(), body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(),
+            surfaces.Count(kind => kind == SurfaceGeometryKind.Plane), surfaces.Count(kind => kind == SurfaceGeometryKind.Cylinder),
+            surfaces.Count(kind => kind == SurfaceGeometryKind.Cone), surfaces.Count(kind => kind == SurfaceGeometryKind.Sphere),
+            surfaces.Count(kind => kind == SurfaceGeometryKind.Torus), surfaces.Count(kind => kind == SurfaceGeometryKind.SurfaceOfRevolution), true, hash);
+        return KernelResult<FirmamentStepExportResult>.Success(new(step.Value, authored.Name, 0, "hollow-revolve", "revolve", Revolve: report,
+            EngineeringFeatures: [new(authored.Name, "Revolve<Hollow>", authored.StableId, authored.Name, authored.Axis.StableId, authored.Profile.Name,
+                hollow.WallThickness, "WallThickness", "Base", PolicySource: "MeridianHollow", MaterializationRoute: "BrepRevolvedShell")]) { RuntimeBodySourceName = authored.Name, RuntimeBody = body });
+    }
+
     private static KernelResult<FirmamentStepExportResult>? TryExportV2HollowBody(FirmamentV2Document document)
     {
         if (document.Solids.Count != 1 || document.Solid.ConstructionPolicy != FirmamentV2ConstructionPolicy.Hollow)
@@ -1995,7 +2064,7 @@ public static partial class FirmamentBuildAndExport
 
         KernelResult<ThinWalledBodyRealization> realization = solid.Primitive switch
         {
-            FirmamentV2RoundedBoxRecord rounded when rounded.Size.Count == 3 => ThinWalledBodyBRepPlanner.CreateRoundedBox(rounded.Size[0], rounded.Size[1], rounded.Size[2], rounded.CornerRadius, solid.Hollow.WallThickness),
+            FirmamentV2RoundedBoxRecord rounded when rounded.Size.Count == 3 => HollowPrimitives.RoundedBox(rounded.Size[0], rounded.Size[1], rounded.Size[2], rounded.CornerRadius, solid.Hollow.WallThickness),
             FirmamentV2FrustumRecord frustum => ThinWalledBodyBRepPlanner.CreateFrustum(frustum.BottomRadius, frustum.TopRadius, frustum.Height, solid.Hollow.WallThickness),
             FirmamentV2CylinderRecord cylinder => ThinWalledBodyBRepPlanner.CreateCylinder(cylinder.Radius, cylinder.Height, solid.Hollow.WallThickness, solid.Hollow.BottomBlendRadius),
             _ => throw new InvalidOperationException("Parser admitted a Hollow policy without a HollowConstructible witness.")

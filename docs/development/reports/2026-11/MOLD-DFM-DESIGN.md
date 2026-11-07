@@ -155,3 +155,30 @@ M0 needs no new geometry and works on parts that already exist, which is why it 
 4. **Draft as a generator parameter** (proposed), exact and consistent with Hollow, rather than a `Modify Draft` that
    tilts finished faces. A Modify Draft can come later for imported parts.
 5. **Parting forms in M0**: `Plane` only. Stepped and contoured parting surfaces and parting from silhouette later.
+
+## Implementation status
+
+M0 is in (`Aetheris.PlasticShell/Mold*.cs`, CLI `build` and `validate`, `docs/public/firmament/mold.md`).
+
+- The Mold block is a top-level declaration beside the part's Model. The part builds through the ordinary compiler
+  with the block blanked out, and is read back from its STEP, so the review sees exactly what ships.
+- Materials are built-in defaults (ABS, PC, PC_ABS, PP, HDPE, PA66, PA66_GF30, POM, PMMA); a typed `Static` named by
+  `policy:` overrides them field by field, and `minimumDraft:` overrides both. A full `InjectionMoldingPolicy` Concept
+  waits for the M3 rules that would use its other fields.
+- Faces are named geometrically, so the review also works on parts whose construction names are not available:
+  `face(±X|Y|Z)` and `side(±pull)`. Construction names (`face(body.Floor)`) need the PMI resolver; later.
+- Side and draft are exact on planes and on cylinders and cones about the pull; elsewhere they are the extremes over
+  the face's mesh. Undercuts are traced from up to 64 mesh samples per face against the part's mesh, bucketed on the
+  plane normal to the pull. Rays start three chord tolerances off the surface, because neighbouring faces may chord a
+  shared curved edge differently: with the default 0.05 mm chords, a 12 mm tray corner first reported a 12–88% false
+  undercut from exactly that overlap.
+- A face parallel to the pull is assigned to the half it can leave towards, and to the half on its side of the parting
+  plane when both are open. This puts a cup's inner wall with the core and its outer wall with the cavity.
+- Draft findings are aggregated into one diagnostic per required angle; a first review of a Compose part otherwise
+  prints one line per vertical wall.
+
+Evidence: a 2° PP cup releases with exact 2.0002° cones and its projected area equals the rim disk to 0.1%; the hollow
+tray releases with every wall at 0° (24 warnings at `Concept`, errors at `Tooling`) and its projected area equals the
+rounded-rectangle outline; a bottle pulled along its axis reports the inside of its shoulder, body and floor as
+undercuts and a parting line from 39.4 to 58 mm, off its rim plane; a grooved pulley reports exactly the groove's two
+faces and floor.

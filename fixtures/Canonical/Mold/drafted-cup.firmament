@@ -1,0 +1,19 @@
+// A turned cup with 2° walls: releases along its axis with no findings.
+Model Cup {
+    units: mm
+    Axis spindle { origin: [0mm, 0mm, 0mm]; direction: [0, 0, 1] }
+    Concept Struct meridian on XZ {
+        Polygon2 section { points: [[0mm, 0mm], [30mm, 0mm], [31.397mm, 40mm], [0mm, 40mm]] }
+    }
+    Profile outline using meridian { Loop Outer { section |> TraceLoop } }
+    Revolve<Hollow> body { profile: outline; about: spindle; angle: full; wallThickness: 1.5mm; openings: [Top] }
+}
+
+Mold CupTool {
+  part: Cup
+  material: PP
+  stage: Tooling
+  pull: +Z
+  parting: Plane { at: face(+Z) }
+  cosmetic: [face(-Z)]
+}

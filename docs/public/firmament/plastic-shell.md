@@ -9,6 +9,8 @@ network identities such as `"perimeter-network"` and `"gate-oriented-fan"`;
 the historical unquoted hyphenated forms remain bounded compatibility aliases.
 Unknown network names reject instead of having no effect.
 
+For checking how any part will mold (pull, draft, undercuts, parting line), see [Mold](mold.md).
+
 `PlasticShell` is Aetheris's manufacturing-first domain for injection-molded product definitions. Wall thickness, tooling direction, parting, and reinforcement intent live in the domain model rather than as a sequence of cleanup features.
 
 For explicitly placed reinforcement on mechanical Box stock, use

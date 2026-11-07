@@ -552,6 +552,8 @@ public static class CliRunner
         }
         if (domain == FirmamentCommandDomain.PlasticShell)
             return RunPlasticShellBuild(sourcePath, outPath, json, stdout, stderr);
+        if (domain == FirmamentCommandDomain.Mold)
+            return RunMoldBuild(sourcePath, outPath, json, stdout, stderr);
         if (domain == FirmamentCommandDomain.SheetMetal)
             return RunSheetMetalAuthoredBuild(sourcePath, outPath, json, stdout, stderr);
         if (domain == FirmamentCommandDomain.Sculpting)
@@ -904,6 +906,40 @@ public static class CliRunner
             }
         }
         return 0;
+    }
+
+    /// <summary>Builds the part as an ordinary model and writes the Mold report beside its STEP. Findings are warnings or
+    /// errors according to the Mold's stage; any error fails the build.</summary>
+    private static int RunMoldBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
+    {
+        var compile = MoldFirmament.CompileFile(sourcePath);
+        var output = compile.PartStep is null ? null : Path.GetFullPath(outPath ?? Path.ChangeExtension(sourcePath, ".step"));
+        string? reportPath = null;
+        if (output is not null)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+            File.WriteAllText(output, compile.PartStep);
+            reportPath = Path.ChangeExtension(output, ".mold.json");
+            File.WriteAllText(reportPath, JsonSerializer.Serialize(new { compile.Report, diagnostics = compile.Diagnostics }, JsonOptions));
+        }
+        if (json)
+            stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = compile.IsSuccess, input = Path.GetFullPath(sourcePath), output, report = reportPath, domain = "Mold",
+                mold = compile.Intent?.MoldName, part = compile.Intent?.PartName, stage = compile.Intent?.Stage.ToString(), summary = compile.Report?.Summary, diagnostics = compile.Diagnostics }, JsonOptions));
+        else
+        {
+            if (compile.Report is { } report)
+            {
+                var s = report.Summary;
+                stdout.WriteLine($"Mold {report.Intent.MoldName} on {report.Intent.PartName} ({report.Intent.Policy.Name}, {report.Intent.Stage}, pull {Format(report.Intent.Pull)})");
+                stdout.WriteLine($"  faces {s.Faces}: {s.PositiveFaces} +pull, {s.NegativeFaces} -pull, {s.VerticalFaces} parallel, {s.StraddlingFaces} straddling; {s.DraftFailures} short of draft, {s.UndercutFaces} undercut");
+                stdout.WriteLine($"  projected area {s.ProjectedArea:0.#} mm², volume {s.Volume:0.#} mm³, shot {s.ShotMass:0.##} g; parting line {report.PartingLine.EdgeIds.Count} edges" + (report.PartingLine.OnDeclaredPlane ? "" : " (off the declared plane)"));
+            }
+            if (output is not null) { stdout.WriteLine($"STEP: {output}"); stdout.WriteLine($"Report: {reportPath}"); }
+            foreach (var d in compile.Diagnostics) (d.Severity == PlasticDiagnosticSeverity.Error ? stderr : stdout).WriteLine($"{d.Severity.ToString().ToLowerInvariant()} {d.Code}: {d.Message}");
+        }
+        return compile.IsSuccess ? 0 : 1;
+
+        static string Format(Aetheris.Kernel.Core.Math.Direction3D d) => $"[{d.X:0.###}, {d.Y:0.###}, {d.Z:0.###}]";
     }
 
     private static int RunPlasticShellBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
@@ -2587,6 +2623,17 @@ Model CanonicalPanel {
             return sceneValid ? 0 : 1;
         }
         validationSource = frontend.Source;
+        if (domain == FirmamentCommandDomain.Mold)
+        {
+            if (parseOnly) return RejectParseOnly("Mold");
+            var mold = MoldFirmament.Compile(validationSource, Path.GetFullPath(sourcePath));
+            var payload = new { source = sourcePath, status = mold.IsSuccess ? "valid" : "invalid", domain = "Mold", validationLevel = mold.IsSuccess ? "Built" : "BuildRejected",
+                summary = new { fatalDiagnosticCount = mold.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Error), warningDiagnosticCount = mold.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Warning), mold.Report?.Summary },
+                diagnostics = mold.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { moldValidation = payload }, JsonOptions));
+            else { stdout.WriteLine($"Mold validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, {payload.summary.warningDiagnosticCount} warning)"); foreach (var d in mold.Diagnostics) stderr.WriteLine($"{d.Severity.ToString().ToLowerInvariant()} {d.Code}: {d.Message}"); }
+            return mold.IsSuccess ? 0 : 1;
+        }
         if (domain == FirmamentCommandDomain.PlasticShell)
         {
             if (parseOnly) return RejectParseOnly("PlasticShell");

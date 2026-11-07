@@ -1,0 +1,18 @@
+// A bottle cannot be core-pulled along its axis: the inside of the shoulder hangs over the cavity.
+Model Bottle {
+    units: mm
+    Axis spindle { origin: [0mm, 0mm, 0mm]; direction: [0, 0, 1] }
+    Concept Struct meridian on XZ {
+        Polygon2 section { points: [[0mm, 0mm], [30mm, 0mm], [32mm, 40mm], [14mm, 58mm], [14mm, 75mm], [0mm, 75mm]] }
+    }
+    Profile outline using meridian { Loop Outer { section |> TraceLoop } }
+    Revolve<Hollow> body { profile: outline; about: spindle; angle: full; wallThickness: 1.5mm; openings: [Top] }
+}
+
+Mold BottleTool {
+  part: Bottle
+  material: PP
+  stage: Prototype
+  pull: +Z
+  parting: Plane { at: face(+Z) }
+}

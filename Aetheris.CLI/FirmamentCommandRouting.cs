@@ -13,7 +13,7 @@ namespace Aetheris.CLI;
 
 internal enum FirmamentCommandDomain
 {
-    Mechanical, Drawing, Analysis, Garment, Assembly, Scene, PlasticShell,
+    Mechanical, Drawing, Analysis, Garment, Assembly, Scene, PlasticShell, Mold,
     Sculpting, Plateau, Piping, Structural, SectionChain, WireForm, Sweep, SheetMetal
 }
 
@@ -29,6 +29,7 @@ internal static class FirmamentCommandRouting
         if (Path.GetExtension(path).Equals(".firmasm", StringComparison.OrdinalIgnoreCase) || FirmamentLanguageAnalysisService.HasAssemblyRoot(source, path)) return FirmamentCommandDomain.Assembly;
         if (Aetheris.Kernel.Firmament.Scene.SceneAuthoring.HasRoot(source)) return FirmamentCommandDomain.Scene;
         if (PlasticShellFirmament.LooksLikePlasticShell(source)) return FirmamentCommandDomain.PlasticShell;
+        if (MoldFirmament.LooksLikeMold(source)) return FirmamentCommandDomain.Mold;
         if (SculptingAuthoring.IsSculptingSource(source)) return FirmamentCommandDomain.Sculpting;
         if (PlateauAuthoring.IsSource(source)) return FirmamentCommandDomain.Plateau;
         if (PipingAuthoring.IsPipingSource(source)) return FirmamentCommandDomain.Piping;

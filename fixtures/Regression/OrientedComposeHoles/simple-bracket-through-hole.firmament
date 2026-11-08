@@ -1,0 +1,16 @@
+// Helios Simple Bracket: unchanged 30 x 40 x 3 mm L section, 20 mm extrusion.
+Model SimpleBracket {
+  units: mm
+  Concept Struct layout on XZ {
+    Polygon2<Explicit> outline {
+      points: [[0mm,0mm], [30mm,0mm], [30mm,3mm], [3mm,3mm], [3mm,40mm], [0mm,40mm]]
+    }
+  }
+  Profile section using layout {
+    Loop Outer { outline |> TraceLoop }
+  }
+  Extrude bracket { profile: section; from: 0mm; to: 20mm }
+  Modify bracket {
+    Hole<Shaft> Mount { on: +Z; center: Point2(1.5mm, 20mm); diameter: 2mm; end: ThroughAll }
+  }
+}

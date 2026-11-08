@@ -134,6 +134,33 @@ This bounded stack rejects arbitrary placements, mismatched joining radii, radia
 
 ## Holes
 
+On an Extrude or Compose in an oriented Profile frame, a simple `Hole<Shaft>`
+with `on: +Z` and `end: ThroughAll` cuts along the Profile's local extrusion
+axis. Center coordinates are in the Profile's own 2D frame. The host and hole
+are transformed together; `+Z` does not mean world Z for an XZ or YZ sketch.
+See the complete [oriented bracket example](../../../../fixtures/Regression/OrientedComposeHoles/simple-bracket-through-hole.firmament).
+For a through hole normal to a planar extrusion side, use a construction-owned
+`On: face(bracket.Side("profile:section.Outer.Vertex2_Vertex3"))` selector.
+The selected side must resolve uniquely to a planar face with a convex straight
+outer boundary and optional circular inner openings. Its frame uses the outward normal and a projected world-axis basis,
+with its origin at the lower local bounds. Center coordinates and diameter must
+leave at least 0.01 mm of clearance at entry, exit and existing holes. Multiple
+holes retain the same support frame and selector. The finite cylinder corridor
+must be clear of other faces. Ambiguous, noncircular, tangent or interacting
+supports reject. See the complete [bracket mounting-hole example](../../../../fixtures/Regression/OrientedComposeHoles/bracket-foot-hole.firmament).
+
+These side supports also admit `Hole<Counterbore>` and `Hole<Countersink>` with
+`End: ThroughAll`. Shaft diameter must be at least 0.02 mm. Outer diameter must
+exceed shaft diameter by at least 0.02 mm.
+Counterbore depth, or the countersink depth derived from diameter and angle,
+must be at least 0.01 mm and leave at least 0.01 mm of shaft before the exit.
+The largest radius reserves a full-depth cylindrical clearance envelope against
+all earlier cavities. This deliberately rejects crossing envelopes instead of
+performing surface/surface intersections. See the [multiple-hole bracket](../../../../fixtures/Regression/OrientedComposeHoles/bracket-multiple-face-holes.firmament).
+
+Blind terminations on these oriented side supports are not admitted. Hole cuts
+that disconnect the remaining solid reject.
+
 | Variant | Fields |
 | --- | --- |
 | `Hole<Shaft>` | `on`, `center`, `diameter`, `end` |

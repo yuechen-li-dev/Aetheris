@@ -20,7 +20,10 @@ public sealed record PrismaticSectionStackFacePlanMapping(
 public sealed record PrismaticSectionStackTopologyPlan(
     string StableId, TopologyModel Topology, BrepGeometryStore Geometry, BrepBindingModel Bindings,
     IReadOnlyDictionary<VertexId, Point3D> VertexPoints, IReadOnlyList<PrismaticSectionStackFacePlanMapping> FaceMappings,
-    SemanticTopologyCorrespondence Correspondence, IReadOnlyList<string> Provenance);
+    SemanticTopologyCorrespondence Correspondence, IReadOnlyList<string> Provenance)
+{
+    public IReadOnlyList<PlanarHoleCavity> FaceHoleCavities { get; init; } = [];
+}
 
 public sealed record PrismaticSectionStackBrepPlan(string Signature, int Vertices, int Edges, int Faces, string Policy, bool Authoritative,
     SemanticTopologyCorrespondence? Correspondence = null, PrismaticSectionStackTopologyPlan? TopologyPlan = null);
@@ -367,7 +370,10 @@ public static class PrismaticSectionStackEmitter
                 if (Math.Abs(z - side.To) <= Tol && topLevels.TryGetValue(profile, out var topLevel) && Math.Abs(z - topLevel) <= Tol) descendants.Add(new($"plan:{stack.Feature.Name}:{side.Construction}:edge:{edge.Id.Value}:top", "Edge", SemanticTopologyRole.TopBoundary, side.Source, Edge: edge.Id, ParentStableId: side.Construction));
                 if (Math.Abs(z - side.From) <= Tol && bottomLevels.TryGetValue(profile, out var bottomLevel) && Math.Abs(z - bottomLevel) <= Tol) descendants.Add(new($"plan:{stack.Feature.Name}:{side.Construction}:edge:{edge.Id.Value}:bottom", "Edge", SemanticTopologyRole.BottomBoundary, side.Source, Edge: edge.Id, ParentStableId: side.Construction));
             }
-            descendants.Add(new($"plan:{stack.Feature.Name}:{side.Construction}:face:{face.Value}", "Face", SemanticTopologyRole.ExtrusionSideFace, side.Source, Face: face, ParentStableId: side.Construction));
+            var selector = sideFaces.Count(s => s.Source == side.Source) == 1 && geometry.Surfaces.Any(s => s.Key == bindings.FaceBindings.Single(b => b.FaceId == face).SurfaceGeometryId && s.Value.Plane is not null)
+                ? $"face({stack.Feature.Name}.Side({System.Text.Json.JsonSerializer.Serialize(side.Source)}))" : null;
+            descendants.Add(new($"plan:{stack.Feature.Name}:{side.Construction}:face:{face.Value}", "Face", SemanticTopologyRole.ExtrusionSideFace, side.Source, Face: face, ParentStableId: side.Construction,
+                FirmamentSelector: selector, Addressability: selector is null ? SemanticTopologyAddressability.RuntimeOnly : SemanticTopologyAddressability.DerivedStable));
         }
         foreach (var fragment in stack.Slabs.Where(s => s.Arrangement is not null).SelectMany(s => s.Arrangement!.AtomicFragments))
         {

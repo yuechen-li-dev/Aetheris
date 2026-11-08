@@ -187,7 +187,7 @@ public class FirmamentSketchTests
     [Theory]
     [InlineData("Remove Cut { profile: Other from: 0mm to: 6mm }", "compose-profile-frame-mismatch")]
     [InlineData("Placement Override { anchor: [0mm,0mm,0mm] profilePlane: XY axis: +Z referenceDirection: +X }", "compose-profile-frame-mismatch")]
-    [InlineData("Hole<Shaft> Drill { on: +Z center: [0mm,0mm] diameter: 2mm end: ThroughAll }", "compose-oriented-feature-not-admitted")]
+    [InlineData("Hole<Shaft> Drill { on: -Z center: [0mm,0mm] diameter: 2mm end: ThroughAll }", "compose-oriented-feature-not-admitted")]
     public void ComposeRejectsConflictingOrUnqualifiedFrameConsumers(string operation, string code)
     {
         var source = $$"""

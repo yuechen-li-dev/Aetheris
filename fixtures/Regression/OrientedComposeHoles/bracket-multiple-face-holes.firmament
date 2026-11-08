@@ -1,0 +1,27 @@
+// Separated bores on the original bracket foot; dimensions are in its stable face frame.
+Model SimpleBracket {
+  units: mm
+  Concept Struct layout on XZ {
+    Polygon2<Explicit> outline {
+      points: [[0mm,0mm], [30mm,0mm], [30mm,3mm], [3mm,3mm], [3mm,40mm], [0mm,40mm]]
+    }
+  }
+  Profile section using layout { Loop Outer { outline |> TraceLoop } }
+  Extrude bracket { profile: section; from: 0mm; to: 20mm }
+  Modify bracket {
+    Hole<Shaft> First {
+      On: face(bracket.Side("profile:section.Outer.Vertex2_Vertex3"))
+      Center: Point2(5mm, 5mm); Diameter: 4mm; End: ThroughAll
+    }
+    Hole<Counterbore> Second {
+      On: face(bracket.Side("profile:section.Outer.Vertex2_Vertex3"))
+      Center: Point2(13mm, 10mm); Diameter: 4mm
+      CounterboreDiameter: 7mm; CounterboreDepth: 1mm; End: ThroughAll
+    }
+    Hole<Countersink> Third {
+      On: face(bracket.Side("profile:section.Outer.Vertex2_Vertex3"))
+      Center: Point2(21mm, 15mm); Diameter: 4mm
+      CountersinkDiameter: 7mm; CountersinkAngle: 90deg; End: ThroughAll
+    }
+  }
+}

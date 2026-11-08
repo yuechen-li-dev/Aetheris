@@ -212,6 +212,7 @@ export class ModelSession {
       semanticTopologyId: range.semanticTopologyId ?? null, topologyKind: range.topologyKind ?? 'Face', outputRole: range.outputRole ?? null, originFeature: range.originFeature ?? null,
       selector: range.selector ?? null, sourceAddressability: range.sourceAddressability ?? 'RuntimeOnly',
       surfaceKind: range.surfaceKind ?? null, diameterMm: range.diameterMm ?? null,
+      support: occurrence.transform.every((v, i) => Math.abs(v - (i % 5 === 0 ? 1 : 0)) < 1e-9) ? range.support ?? null : null,
       selectorReason: range.selectorReason ?? null, source: range.source ?? null, buildRevision: range.buildRevision ?? this.revision } : null;
   }
   describeSelection(definitionId, triangleIndex, occurrenceId) {

@@ -167,11 +167,14 @@ public sealed record PrismaticProfileCompositionFeature(
 {
     /// <summary>Set when the body is declared hollow; normalization derives the cavity from the exterior.</summary>
     public PrismaticHollowIntent? Hollow { get; init; }
+    public IReadOnlyList<PrismaticFaceHoleFeature> FaceHoles { get; init; } = [];
 
     public IEnumerable<(string Name, string StableId, string ProfileReference)> AllSlotProfiles =>
         (CapsuleSlots ?? []).Select(x => (x.Name, x.StableId, x.ProfileReference))
             .Concat((RoundedRectangleSlots ?? []).Select(x => (x.Name, x.StableId, x.ProfileReference)));
 }
+public sealed record PrismaticFaceHoleFeature(string Name, string StableId, string SupportSource, double X, double Y, double Diameter,
+    string Variant = "Shaft", double? RecessDiameter = null, double? RecessDepth = null, double? AngleDegrees = null);
 public sealed record PrismaticSectionRegion(
     ResolvedProfile2D Outer, IReadOnlyList<ResolvedProfile2D> Holes, IReadOnlyList<string> Provenance);
 public sealed record PrismaticSectionSlab(
@@ -419,11 +422,13 @@ public static class PrismaticProfileCompositionParser
             && !SameFrame(stockProfile.EffectiveConstructionPlane, ConstructionPlane.WorldXY))
         {
             placement = placement with { ProfileConstructionPlane = stockProfile.EffectiveConstructionPlane };
-            // These adapters bind supports in world coordinates. Do not let them
-            // reinterpret a local +Z selector as world +Z on an oriented body.
+            // Axial shaft cuts are local 2D profile removals: the section-stack
+            // emitter transports the hole and host together into this frame.
+            // Other adapters still bind world supports and must fail closed.
             foreach (var dependent in operationsSyntax.Document.Statements.OfType<DeclarationSyntax>()
-                .Where(d => d.Type.Name.Text is "Boss" or "Pocket" or "Hole" or "Slot" or "EdgeFinish"))
-                diagnostics.Add($"compose-oriented-feature-not-admitted:{dependent.Type.Name.Text}:{dependent.Name?.Text}: Oriented Compose currently admits Base/Add/Remove in one common Profile frame; this feature's support adapter requires world XY.");
+                .Where(d => d.Type.Name.Text is "Boss" or "Pocket" or "Hole" or "Slot" or "EdgeFinish")
+                .Where(d => !IsAdmittedOrientedHole(d, compose.Name.Text)))
+                diagnostics.Add($"compose-oriented-feature-not-admitted:{dependent.Type.Name.Text}:{dependent.Name?.Text}: Oriented Compose admits Base/Add/Remove, local +Z through shafts, and separated through shafts/counterbores/countersinks on qualified source Side faces; this feature needs another support adapter.");
         }
         if (stock is not null)
         {
@@ -640,6 +645,7 @@ public static class PrismaticProfileCompositionParser
             }
         }
         var shaftHoles = new List<PrismaticShaftHoleFeature>();
+        var faceHoles = new List<PrismaticFaceHoleFeature>();
         var counterboreHoles = new List<PrismaticCounterboreHoleFeature>();
         var countersinkHoles = new List<PrismaticCountersinkHoleFeature>();
         var constructionPlaneBlindDrills = new List<PrismaticConstructionPlaneBlindDrillFeature>();
@@ -694,13 +700,26 @@ public static class PrismaticProfileCompositionParser
             var diameter = ReadFeatureField(fields, composeBody, HoleDiameter, "Diameter"); var end = ReadFeatureField(fields, composeBody, HoleEnd, "End"); var role = ReadFeatureField(fields, composeBody, HoleRole, "Role");
             var counterboreDiameter = ReadFeatureField(fields, composeBody, HoleCounterboreDiameter, "CounterboreDiameter"); var counterboreDepth = ReadFeatureField(fields, composeBody, HoleCounterboreDepth, "CounterboreDepth"); var onExpression = fields.Take("On");
             var onName = FirmamentV2Parser.MechanicalFaceAxis(onExpression, compose.Name.Text) ?? FirmamentSyntaxValues.Reference(onExpression);
+            var sideSource = SideSource(onExpression, compose.Name.Text);
             var on = HoleOn.Match("On: " + onName);
-            if (onExpression is not null && (!on.Success || on.Groups["face"].Value != onName))
+            if (sideSource is null && onExpression is not null && (!on.Success || on.Groups["face"].Value != onName))
                 diagnostics.Add($"compose-hole-support-invalid:{name}: Use a host face or an admitted Span<Plane>.");
             var from = ReadFeatureField(fields, composeBody, HoleFrom, "From"); var depthEnd = ReadFeatureField(fields, composeBody, HoleDepthEnd, "End"); var termination = ReadFeatureField(fields, composeBody, HoleTermination, "Termination");
             var countersinkDiameter = fields.Number("CountersinkDiameter", "mm");
             var countersinkAngle = fields.Number("CountersinkAngle", "deg");
             fields.Complete();
+            if (sideSource is not null)
+            {
+                if (schemaVariant is not ("Shaft" or "Counterbore" or "Countersink") || from.Success || !center.Success || !diameter.Success
+                    || !end.Success || !string.Equals(end.Groups["end"].Value, "ThroughAll", StringComparison.OrdinalIgnoreCase)
+                    || !double.IsFinite(N(diameter, "d")) || N(diameter, "d") <= 0d)
+                    diagnostics.Add($"compose-face-hole-contract:{name}: A planar side supports Shaft, Counterbore or Countersink with a positive diameter and End: ThroughAll.");
+                else if (!names.Add(name)) diagnostics.Add($"compose-duplicate-operation:{name}");
+                else faceHoles.Add(new(name, $"hole:{compose.Name.Text}.{name}", sideSource, N(center, "x"), N(center, "y"), N(diameter, "d"), schemaVariant,
+                    schemaVariant == "Counterbore" ? counterboreDiameter.Success ? N(counterboreDiameter, "d") : null : countersinkDiameter,
+                    counterboreDepth.Success ? N(counterboreDepth, "d") : null, countersinkAngle));
+                continue;
+            }
             if (from.Success)
             {
                 if (Regex.IsMatch(body, @"\bTermination\s*:\s*Flat", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase))
@@ -907,8 +926,27 @@ public static class PrismaticProfileCompositionParser
                     diagnostics.Add($"compose-profile-frame-mismatch:{operation.Name}:{operation.ProfileReference}: All operands must use the same construction frame; an explicit Placement cannot override an oriented Profile.");
             }
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Concat(countersinkHoles.Select(h => h.ConeFrom)).Distinct().Order().ToArray();
-        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Name.Text, placement.ProfilePlane, placement.Axis, placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets, materialOffsets, countersinkHoles) { Hollow = hollow } : null;
+        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Name.Text, placement.ProfilePlane, placement.Axis, placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets, materialOffsets, countersinkHoles) { Hollow = hollow, FaceHoles = faceHoles } : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
+    }
+
+    private static bool IsAdmittedOrientedHole(DeclarationSyntax declaration, string bodyName)
+    {
+        if (declaration.Type.Name.Text != "Hole" || declaration.Body is null) return false;
+        var variant = FirmamentSyntaxValues.Reference(declaration.Type.Arguments.FirstOrDefault()?.Value);
+        var fields = declaration.Body.Statements.OfType<FieldSyntax>().ToArray();
+        return !fields.Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "From"))
+            && fields.Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "On") && (string.Equals(variant, "Shaft", StringComparison.OrdinalIgnoreCase) && FirmamentV2Parser.MechanicalFaceAxis(f.Value, bodyName) == "+Z"
+                || SideSource(f.Value, bodyName) is not null && new[] { "Shaft", "Counterbore", "Countersink" }.Contains(variant, StringComparer.OrdinalIgnoreCase)))
+            && fields.Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "End") && FirmamentSyntaxValues.Reference(f.Value) == "ThroughAll");
+    }
+    private static string? SideSource(ExpressionSyntax? expression, string bodyName)
+    {
+        if (expression is not CallSyntax face || FirmamentSyntaxValues.Reference(face.Target) != "face" || face.Arguments.Count != 1
+            || face.Arguments[0].Value is not CallSyntax side || side.Target is not MemberSyntax member
+            || FirmamentSyntaxValues.Reference(member.Target) != bodyName || member.Member.Text != "Side" || side.Arguments.Count != 1
+            || side.Arguments[0].Value is not LiteralSyntax literal || !literal.Raw.StartsWith('"')) return null;
+        return System.Text.Json.JsonSerializer.Deserialize<string>(literal.Raw);
     }
 
     private static bool SameFrame(ConstructionPlane left, ConstructionPlane right)

@@ -29,6 +29,7 @@ internal static class FirmamentFeatureAccounting
         var receipts = feature.Operations.Where(o => active.Contains(o.Name) && o.SemanticFeatureId is null)
             .Select(o => new FirmamentFeatureReceipt(feature.Name, o.SemanticFeatureKind ?? o.Intent.ToString(), o.Name));
         receipts = receipts.Concat((feature.Bosses ?? []).Where(h => active.Contains(h.Name)).Select(h => new FirmamentFeatureReceipt(feature.Name, "Boss", h.Name)))
+            .Concat(feature.FaceHoles.Where(h => realized.Contains(h.StableId)).Select(h => new FirmamentFeatureReceipt(feature.Name, "Hole", h.Name)))
             .Concat((feature.Pockets ?? []).Where(h => active.Contains(h.Name)).Select(h => new FirmamentFeatureReceipt(feature.Name, "Pocket", h.Name)))
             .Concat((feature.MaterialOffsets ?? []).Where(h => active.Contains(h.Name)).Select(h => new FirmamentFeatureReceipt(feature.Name, h.OperationKind + "Offset", h.Name)))
             .Concat(feature.AllSlotProfiles.Where(h => realized.Contains(h.StableId)).Select(h => new FirmamentFeatureReceipt(feature.Name, "Slot", h.Name)))

@@ -537,6 +537,12 @@ public static partial class FirmamentBuildAndExport
                 return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition")).ToArray());
             if (ApplyConstructionPlaneBlindDrills(stack, emitted, out var drilled) is { } drillFailure) return drillFailure;
             emitted = drilled;
+            foreach (var faceHole in stack.Feature.FaceHoles)
+            {
+                emitted = PlanarFaceThroughHole.Apply(emitted, faceHole);
+                if (emitted.Body is null)
+                    return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.FaceHole")).ToArray());
+            }
             if (materializerSource.Contains("EdgeFinish", StringComparison.Ordinal))
                 return ExportComposedSemanticTopBoundaryChamfer(materializerSource, parsed, stack, emitted, v2Parse.Document);
             // The composition route either retained the checked body above or
@@ -575,7 +581,17 @@ public static partial class FirmamentBuildAndExport
             if (materializerSource.Contains("EdgeFinish", StringComparison.Ordinal))
                 return ExportProfileSemanticTopBoundaryChamfer(materializerSource, parsed.Profile, parsed.Height, emitted, v2Parse.DiagnosticSource);
             var step = Step242Exporter.ExportBody(emitted.Body); if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
-            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, parsed.Profile.Name, 0, "profile-extrude", "line-arc-profile"));
+            var extrusionName = FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(materializerSource).Document.Statements)
+                .FirstOrDefault(d => d.Type.Name.Text == "Extrude")?.Name?.Text ?? parsed.Profile.Name;
+            var profileCorrespondence = emitted.Correspondence is not { } correspondence ? null : correspondence with {
+                // The extrusion plan also carries overlapping edge roles for finish planners.
+                // Publish its unique side-face owners here; edge picking remains unqualified.
+                Descendants = correspondence.Descendants.Where(d => d.Role == SemanticTopologyRole.ExtrusionSideFace).Select(d => d.Face is { } id
+                    && PlanarFaceThroughHole.Support(emitted.Body, id) is not null
+                    ? d with { FirmamentSelector = $"face({extrusionName}.Side({System.Text.Json.JsonSerializer.Serialize(d.SourceStableId)}))", Addressability = SemanticTopologyAddressability.DerivedStable } : d).ToArray()
+            };
+            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, parsed.Profile.Name, 0, "profile-extrude", "line-arc-profile") {
+                RuntimeBody = emitted.Body, RuntimeCorrespondence = profileCorrespondence, RuntimeBodySourceName = extrusionName });
         }
         if (v2Parse.IsSuccess && v2Parse.Document is not null)
         {
@@ -3345,6 +3361,11 @@ public static partial class FirmamentBuildAndExport
             null, "ProfileCompose.Center", null, null, "+Z", item.SourceSpan,
             "PrismaticSectionStack/VariableCircularCavity", "SemanticCountersinkProfile", "Countersink",
             SupportSpan: item.SupportSpan, ParentSupport: item.ParentSupport, SupportBoundaryMargin: item.SupportBoundaryMargin)))
+        .Concat(feature.FaceHoles.Select(item => new FirmamentHoleFeatureReport(
+            item.Name, $"Hole<{item.Variant}>", item.StableId, item.Diameter, item.X, item.Y,
+            null, "PlanarFace.Center", null, null, $"face({feature.Name}.Side({System.Text.Json.JsonSerializer.Serialize(item.SupportSource)}))", null,
+            "PlanarFaceThroughHole", "ConstructionSideSelector", item.Variant,
+            SupportBoundaryMargin: PlanarFaceThroughHole.MinimumClearance)))
         .Select(report =>
         {
             var surfaces = (correspondence?.Descendants ?? []).Where(d => d.SourceStableId == report.FeatureId && d.Face.HasValue)

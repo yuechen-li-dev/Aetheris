@@ -1,0 +1,15 @@
+// Both shafts fit their entry and exit faces, but their finite cavities cross.
+Model CrossingHoles {
+  units: mm
+  Concept Struct layout on XY {
+    Polygon2<Explicit> outline {
+      points: [[0mm,0mm], [20mm,0mm], [20mm,20mm], [10mm,20mm], [0mm,20mm], [0mm,10mm]]
+    }
+  }
+  Profile section using layout { Loop Outer { outline |> TraceLoop } }
+  Extrude stock { profile: section; from: 0mm; to: 20mm }
+  Modify stock {
+    Hole<Shaft> AcrossX { On: face(stock.Side("profile:section.Outer.Vertex1_Vertex2")); Center: Point2(5mm, 10mm); Diameter: 4mm; End: ThroughAll }
+    Hole<Shaft> AcrossY { On: face(stock.Side("profile:section.Outer.Vertex3_Vertex4")); Center: Point2(5mm, 10mm); Diameter: 4mm; End: ThroughAll }
+  }
+}

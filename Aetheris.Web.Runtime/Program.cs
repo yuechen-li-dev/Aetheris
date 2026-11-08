@@ -885,6 +885,8 @@ internal static class WebMeshBuilder
                 sourceAddressability = imported is not null ? "ImportedStable" : semanticFace?.Addressability.ToString() ?? "RuntimeOnly",
                 selector = imported is not null ? $"{importedBodyName}.face(\"#{imported}\")" : semanticFace?.FirmamentSelector,
                 surfaceKind = surface?.Kind.ToString(), diameterMm = surface?.Cylinder is { } cylinder ? (double?)(2 * cylinder.Radius) : null,
+                support = semanticFace?.FirmamentSelector?.Contains(".Side(", StringComparison.Ordinal) == true
+                    ? Aetheris.Kernel.Firmament.Materializer.PlanarFaceThroughHole.Support(body, face.FaceId) : null,
                 selectorReason = imported is not null ? null : semanticFace is null ? "No compiler-owned source topology mapping is available for this display face."
                     : semanticFace.FirmamentSelector is null ? "Construction identity is known, but Firmament has no qualified source selector for this topology." : null,
                 source = semanticFace is null ? null : faceSource, buildRevision });

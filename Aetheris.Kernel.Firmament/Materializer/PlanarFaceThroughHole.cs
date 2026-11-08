@@ -98,7 +98,8 @@ public static class PlanarFaceThroughHole
     /// <summary>Insert a cylindrical cavity between two proven planar supports. No guessed face IDs or Boolean tools.</summary>
     public static PrismaticSectionStackEmissionResult Apply(PrismaticSectionStackEmissionResult emitted, PrismaticFaceHoleFeature hole)
     {
-        PrismaticSectionStackEmissionResult Fail(string reason) => new(null, emitted.Plan, emitted.Diagnostics.Append($"compose-face-hole:{hole.Name}:{reason}").ToArray());
+        // Successful planning receipts are not errors when a later feature is refused.
+        PrismaticSectionStackEmissionResult Fail(string reason) => new(null, emitted.Plan, [$"compose-face-hole:{hole.Name}:{reason}"]);
         var source = emitted.Plan?.TopologyPlan; var body = emitted.Body;
         if (source is null || body is null) return Fail("missing-host-plan");
         var matches = source.FaceMappings.Where(m => m.SourceStableId == hole.SupportSource && m.Kind is "PrismaticSide" or "HostFaceReplacement").ToArray();
@@ -126,7 +127,11 @@ public static class PlanarFaceThroughHole
             recessDepth = (outerRadius - radius) / Math.Tan(angle * Math.PI / 360d);
         }
         if (!double.IsFinite(recessDepth) || hole.Variant != "Shaft" && (recessDepth < MinimumClearance || exit.Depth - recessDepth < MinimumClearance))
-            return Fail("recess-depth-must-leave-at-least-0.01mm-of-shaft");
+        {
+            var action = hole.Variant == "Counterbore" ? "Reduce CounterboreDepth" : "Reduce CountersinkDiameter or increase CountersinkAngle";
+            var message = FormattableString.Invariant($"{hole.Variant} depth is {recessDepth:0.###} mm, but this face has {exit.Depth:0.###} mm of material along the inward cutting direction. Recess depth must be from {MinimumClearance:0.###} to {exit.Depth - MinimumClearance:0.###} mm to retain a through shaft. {action}, or use a plain through hole.");
+            return Fail($"recess-depth-must-leave-at-least-0.01mm-of-shaft: {message}");
+        }
         var clearedWalls = new HashSet<FaceId>();
         foreach (var cavity in source.FaceHoleCavities)
         {

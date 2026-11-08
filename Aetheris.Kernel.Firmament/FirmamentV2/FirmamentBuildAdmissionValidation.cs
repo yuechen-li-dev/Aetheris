@@ -55,6 +55,12 @@ public static class FirmamentBuildAdmissionValidation
 
     public static FirmamentV2ValidationDiagnostic Present(KernelDiagnostic diagnostic, string sourceFile, string? source = null)
     {
+        if (diagnostic.Message.StartsWith("compose-face-hole:", StringComparison.Ordinal)
+            && diagnostic.Message.IndexOf(": ", StringComparison.Ordinal) is var explanation && explanation > 0)
+        {
+            var located = Present(diagnostic with { Message = diagnostic.Message[..explanation] }, sourceFile, source);
+            return located with { Message = diagnostic.Message[(explanation + 2)..] };
+        }
         var separator = diagnostic.Message.IndexOf(':');
         var code = separator > 0 && !diagnostic.Message[..separator].Any(char.IsWhiteSpace)
             ? diagnostic.Message[..separator]

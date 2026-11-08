@@ -31,9 +31,9 @@ public static class FirmamentLanguagePaletteService
         new("hole-blind", "Blind hole", "Holes", "A drilled hole to a depth.", "feature", "BlindHole",
             "Hole<Shaft> BlindHole { On: +Z Center: Point2(0mm, 0mm) Diameter: 6mm End: Blind 5mm }"),
         new("counterbore", "Counterbored hole", "Holes", "A through hole with a flat-bottomed recess for a cap screw head.", "feature", "Counterbore",
-            "Hole<Counterbore> Counterbore { On: +Z Center: Point2(0mm, 0mm) Diameter: 4mm CounterboreDiameter: 7mm CounterboreDepth: 3mm End: ThroughAll }"),
+            "Hole<Counterbore> Counterbore { On: +Z Center: Point2(0mm, 0mm) Diameter: 4mm CounterboreDiameter: 7mm CounterboreDepth: 1mm End: ThroughAll }"),
         new("countersink", "Countersunk hole", "Holes", "A through hole with a conical recess for a flat-head screw.", "feature", "Countersink",
-            "Hole<Countersink> Countersink { On: +Z Center: Point2(0mm, 0mm) Diameter: 6mm CountersinkDiameter: 12mm CountersinkAngle: 90deg End: ThroughAll }"),
+            "Hole<Countersink> Countersink { On: +Z Center: Point2(0mm, 0mm) Diameter: 6mm CountersinkDiameter: 8mm CountersinkAngle: 90deg End: ThroughAll }"),
         new("perforation", "Perforation", "Holes", "A field of round vents across the top face.", "feature", "Vents",
             "Perforation Vents { On: +Z Diameter: 6mm Layout: Hex Pitch: 9mm Margin: 8mm }"),
 

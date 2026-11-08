@@ -445,3 +445,4 @@ FodyWeavers.xsd
 # paths as literal directory names on Linux/macOS, e.g. "obj\Release/".
 obj\\*
 bin\\*
+/Claude outputs

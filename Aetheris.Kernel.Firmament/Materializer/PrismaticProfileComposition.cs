@@ -427,7 +427,7 @@ public static class PrismaticProfileCompositionParser
             // Other adapters still bind world supports and must fail closed.
             foreach (var dependent in operationsSyntax.Document.Statements.OfType<DeclarationSyntax>()
                 .Where(d => d.Type.Name.Text is "Boss" or "Pocket" or "Hole" or "Slot" or "EdgeFinish")
-                .Where(d => !IsAdmittedOrientedHole(d, compose.Name.Text)))
+                .Where(d => !IsAdmittedOrientedHole(d, compose.Name.Text) && !ProfileLongitudinalEdgeFinish.IsLongitudinal(d)))
                 diagnostics.Add($"compose-oriented-feature-not-admitted:{dependent.Type.Name.Text}:{dependent.Name?.Text}: Oriented Compose admits Base/Add/Remove, local +Z through shafts, and separated through shafts/counterbores/countersinks on qualified source Side faces; this feature needs another support adapter.");
         }
         if (stock is not null)

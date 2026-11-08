@@ -38,6 +38,10 @@ public static class BoxConstructionCorrespondence
             $"{bodyStableId}.edge(TopFront)", "Edge", SemanticTopologyRole.BoxEdge,
             bodyStableId, Edge: topology.TopEdges[0], ParentStableId: bodyStableId,
             Addressability: SemanticTopologyAddressability.DerivedStable));
+        descendants.Add(new SemanticTopologyDescendant(
+            $"{bodyStableId}.edge(TopRight)", "Edge", SemanticTopologyRole.BoxEdge,
+            bodyStableId, Edge: topology.TopEdges[1], ParentStableId: bodyStableId,
+            Addressability: SemanticTopologyAddressability.DerivedStable));
         return new(bodyStableId, descendants, ["FirmamentBox", "BrepPrimitives.CreateBox", "BrepExtrudeConstructionTopology"],
             sourceSpan is null ? null : new Dictionary<string, FirmamentV2SourceSpan> { [bodyStableId] = sourceSpan });
     }

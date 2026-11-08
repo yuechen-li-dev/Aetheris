@@ -1,0 +1,26 @@
+// Separated mounting recesses with a full-width inside bend and two outside breaks.
+Model FinishedBracket {
+  units: mm
+  Concept Struct layout on XZ {
+    Polygon2<Explicit> outline {
+      points: [[0mm,0mm], [30mm,0mm], [30mm,3mm], [3mm,3mm], [3mm,40mm], [0mm,40mm]]
+    }
+  }
+  Profile section using layout { Loop Outer { outline |> TraceLoop } }
+  Extrude bracket { profile: section; from: 0mm; to: 20mm }
+  Modify bracket {
+    Hole<Counterbore> FootMount {
+      On: face(bracket.Side("profile:section.Outer.Vertex2_Vertex3"))
+      Center: Point2(13mm,10mm) Diameter: 4mm
+      CounterboreDiameter: 7mm CounterboreDepth: 1mm End: ThroughAll
+    }
+    Hole<Countersink> UprightMount {
+      On: face(bracket.Side("profile:section.Outer.Vertex3_Vertex4"))
+      Center: Point2(10mm,20mm) Diameter: 6mm
+      CountersinkDiameter: 8mm CountersinkAngle: 90deg End: ThroughAll
+    }
+    EdgeFinish Bend { Face: Longitudinal Target: section.Outer.Vertex3_Vertex4.Start Kind: Fillet Radius: 2mm }
+    EdgeFinish FootTop { Face: Longitudinal Target: section.Outer.Vertex2_Vertex3.Start Kind: Chamfer Distance: 0.5mm }
+    EdgeFinish FootBottom { Face: Longitudinal Target: section.Outer.Vertex1_Vertex2.Start Kind: Fillet Radius: 0.5mm }
+  }
+}

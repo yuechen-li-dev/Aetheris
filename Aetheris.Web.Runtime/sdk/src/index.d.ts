@@ -34,6 +34,12 @@ export interface MeshRange { readonly surfaceKind?: string | null; readonly diam
 export interface SelectionDescription { readonly surfaceKind?: string | null; readonly diameterMm?: number | null }
 export interface PlanarFaceSupport { readonly origin: readonly number[]; readonly x: readonly number[]; readonly y: readonly number[]; readonly normal: readonly number[]; readonly boundary: readonly (readonly number[])[]; readonly excludedDisks?: readonly { readonly center: readonly number[]; readonly radius: number }[] }
 export interface SelectionDescription { readonly support?: PlanarFaceSupport | null }
+/** Exactly one source-owned edge. Admission and positive dimensions are checked by Preview. */
+export interface SingleEdgeFinishSelection { readonly body: string; readonly face: string; readonly target: string; readonly label: string; readonly filletSupported?: boolean }
+export interface SelectionDescription { readonly edgeFinish?: SingleEdgeFinishSelection | null }
+export interface SelectionDescription { readonly edgeFinishReason?: string | null }
+export interface DisplayEdgePolyline { readonly edgeFinish?: SingleEdgeFinishSelection | null }
+export interface DisplayEdgePolyline { readonly edgeFinishReason?: string | null }
 export interface MeshRange { readonly support?: PlanarFaceSupport | null }
 export interface DisplayMesh { readonly importedAsset?: { readonly path: string; readonly sha256: string; readonly evidence: string; readonly qualification: { readonly status: string; readonly geometryStatus: string } | null } | null }
 export interface ChangeSet { readonly changedEntityIds: readonly string[]; readonly addedEntityIds: readonly string[]; readonly removedEntityIds: readonly string[]; readonly meshChanged: boolean; readonly diagnosticsChanged: boolean }

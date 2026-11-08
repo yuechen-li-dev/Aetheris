@@ -212,7 +212,7 @@ export class ModelSession {
       semanticTopologyId: range.semanticTopologyId ?? null, topologyKind: range.topologyKind ?? 'Face', outputRole: range.outputRole ?? null, originFeature: range.originFeature ?? null,
       selector: range.selector ?? null, sourceAddressability: range.sourceAddressability ?? 'RuntimeOnly',
       surfaceKind: range.surfaceKind ?? null, diameterMm: range.diameterMm ?? null,
-      support: occurrence.transform.every((v, i) => Math.abs(v - (i % 5 === 0 ? 1 : 0)) < 1e-9) ? range.support ?? null : null,
+      support: (!occurrence.transform || occurrence.transform.every((v, i) => Math.abs(v - (i % 5 === 0 ? 1 : 0)) < 1e-9)) ? range.support ?? null : null,
       selectorReason: range.selectorReason ?? null, source: range.source ?? null, buildRevision: range.buildRevision ?? this.revision } : null;
   }
   describeSelection(definitionId, triangleIndex, occurrenceId) {
@@ -229,6 +229,8 @@ export class ModelSession {
     return { semanticEntityId: edge.semanticEntityId ?? occurrence.semanticEntityId, faceId: edge.edgeId, occurrenceId: occurrence.id, definitionId,
       semanticTopologyId: edge.semanticTopologyId ?? null, topologyKind: 'Edge', outputRole: edge.outputRole ?? null, originFeature: edge.originFeature ?? null,
       selector: edge.selector ?? null, sourceAddressability: edge.sourceAddressability ?? 'RuntimeOnly',
+      edgeFinish: (!occurrence.transform || occurrence.transform.every((v, i) => Math.abs(v - (i % 5 === 0 ? 1 : 0)) < 1e-9)) ? edge.edgeFinish ?? null : null,
+      edgeFinishReason: edge.edgeFinishReason ?? null,
       selectorReason: edge.selectorReason ?? 'This edge has no qualified Firmament source selector.',
       source: edge.source ?? null, buildRevision: edge.buildRevision ?? this.revision,
       sourceAddressable: edge.source != null && ['AuthoredStable', 'DerivedStable'].includes(edge.sourceAddressability) };

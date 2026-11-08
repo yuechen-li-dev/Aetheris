@@ -52,12 +52,12 @@ public sealed class LocalizedPlanarSingleEdgeChamferPipelineTests
         Assert.Equal(7, body.Topology.Faces.Count());
         Assert.Equal(7, body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Plane));
         var points = body.Topology.Vertices.Select(v => body.TryGetVertexPoint(v.Id, out var p) ? p : throw new InvalidOperationException()).ToArray();
-        Assert.Contains(points, p => Math.Abs(p.X - width / 2d) < 1e-9 && Math.Abs(p.Z - (height / 2d - distance)) < 1e-9);
-        Assert.Contains(points, p => Math.Abs(p.X - (width / 2d - distance)) < 1e-9 && Math.Abs(p.Z - height / 2d) < 1e-9);
+        Assert.Contains(points, p => Math.Abs(p.X - width / 2d) < 1e-9 && Math.Abs(p.Z - (height - distance)) < 1e-9);
+        Assert.Contains(points, p => Math.Abs(p.X - (width / 2d - distance)) < 1e-9 && Math.Abs(p.Z - height) < 1e-9);
         Assert.Equal(-width / 2d, points.Min(p => p.X), 9);
         Assert.Equal(width / 2d, points.Max(p => p.X), 9);
-        Assert.Equal(-height / 2d, points.Min(p => p.Z), 9);
-        Assert.Equal(height / 2d, points.Max(p => p.Z), 9);
+        Assert.Equal(0, points.Min(p => p.Z), 9);
+        Assert.Equal(height, points.Max(p => p.Z), 9);
     }
 
     [Theory]

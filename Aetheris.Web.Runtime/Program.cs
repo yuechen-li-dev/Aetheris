@@ -868,6 +868,8 @@ internal static class WebMeshBuilder
         var mapPhase = BuildPerfTrace.Phase("web.mesh-source-map-and-arrays");
         var positions = new List<double>(); var normals = new List<double>(); var indices = new List<int>(); var ranges = new List<object>();
         var sourceMap = correspondence is null ? null : new Aetheris.Kernel.Firmament.Materializer.GeometrySourceMap(correspondence);
+        var edgeFinishes = correspondence is null ? null : Aetheris.Kernel.Firmament.Materializer.SingleEdgeFinishSelection.Index(correspondence);
+        var edgeFinishReason = correspondence is null ? null : Aetheris.Kernel.Firmament.Materializer.SingleEdgeFinishSelection.UnavailableReason(correspondence);
         foreach (var face in tessellation.Value.FacePatches.OrderBy(face => face.FaceId.Value))
         {
             var vertexOffset = positions.Count / 3; var triangleStart = indices.Count / 3;
@@ -886,7 +888,7 @@ internal static class WebMeshBuilder
                 selector = imported is not null ? $"{importedBodyName}.face(\"#{imported}\")" : semanticFace?.FirmamentSelector,
                 surfaceKind = surface?.Kind.ToString(), diameterMm = surface?.Cylinder is { } cylinder ? (double?)(2 * cylinder.Radius) : null,
                 support = semanticFace?.FirmamentSelector?.Contains(".Side(", StringComparison.Ordinal) == true
-                    ? Aetheris.Kernel.Firmament.Materializer.PlanarFaceThroughHole.Support(body, face.FaceId) : null,
+                    ? Aetheris.Kernel.Firmament.Materializer.PlanarFaceThroughHole.Support(body, face.FaceId, semanticFace.SupportOrigin) : null,
                 selectorReason = imported is not null ? null : semanticFace is null ? "No compiler-owned source topology mapping is available for this display face."
                     : semanticFace.FirmamentSelector is null ? "Construction identity is known, but Firmament has no qualified source selector for this topology." : null,
                 source = semanticFace is null ? null : faceSource, buildRevision });
@@ -917,6 +919,8 @@ internal static class WebMeshBuilder
                     return new { edgeId = $"edge:{edge.EdgeId.Value}", points = edge.Points.Select(point => new[] { point.X, point.Y, point.Z }).ToArray(), closed = edge.IsClosed,
                         semanticEntityId = owner, semanticTopologyId = semanticEdge?.StableId, topologyKind = "Edge", outputRole = semanticEdge?.Role.ToString(), originFeature = semanticEdge?.SourceStableId,
                         sourceAddressability = semanticEdge?.Addressability.ToString() ?? "RuntimeOnly", selector = semanticEdge?.FirmamentSelector,
+                        edgeFinish = edgeFinishes?.GetValueOrDefault(edge.EdgeId),
+                        edgeFinishReason = edgeFinishes?.ContainsKey(edge.EdgeId) == true ? null : edgeFinishReason,
                         selectorReason = semanticEdge is null ? "Display BRep edge has no construction-owned source correspondence."
                             : semanticEdge.FirmamentSelector is null ? "Construction identity is known, but Firmament has no qualified source selector for this edge." : null,
                         source = semanticEdge is null ? null : owner == entityId ? source : featureSources![owner], buildRevision };

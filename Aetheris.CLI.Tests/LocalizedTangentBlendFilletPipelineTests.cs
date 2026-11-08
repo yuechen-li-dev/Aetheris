@@ -57,8 +57,8 @@ public sealed class LocalizedTangentBlendFilletPipelineTests
         Assert.Equal(radius, cylinder.Radius, 9);
         Assert.Equal(0, cylinder.Axis.X, 9); Assert.Equal(1, cylinder.Axis.Y, 9); Assert.Equal(0, cylinder.Axis.Z, 9);
         var points = body.Topology.Vertices.Select(v => body.TryGetVertexPoint(v.Id, out var p) ? p : throw new InvalidOperationException()).ToArray();
-        Assert.Contains(points, p => Math.Abs(p.X - width / 2d) < 1e-9 && Math.Abs(p.Z - (height / 2d - radius)) < 1e-9);
-        Assert.Contains(points, p => Math.Abs(p.X - (width / 2d - radius)) < 1e-9 && Math.Abs(p.Z - height / 2d) < 1e-9);
+        Assert.Contains(points, p => Math.Abs(p.X - width / 2d) < 1e-9 && Math.Abs(p.Z - (height - radius)) < 1e-9);
+        Assert.Contains(points, p => Math.Abs(p.X - (width / 2d - radius)) < 1e-9 && Math.Abs(p.Z - height) < 1e-9);
 
         // Removed corner area = R² - πR²/4: the square setback less the retained quarter-disc.
         var removedArea = radius * radius * (1d - Math.PI / 4d);

@@ -78,6 +78,19 @@ test('BRep edges preserve construction metadata without inventing source selecto
   assert.equal(session.geometrySourceMap().filter(item => item.topologyKind === 'Edge').length, 2);
 });
 
+test('single-edge finish bindings survive picking only in their owning identity occurrence', () => {
+  const edgeFinish = { body: 'Body', face: 'Bottom', target: 'Section.Outer.South', label: 'Extrusion end-face edge', filletSupported: false };
+  const identity = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+  const shifted = [...identity]; shifted[12] = 10;
+  const session = new ModelSession({}, { mesh: {
+    definitions: [{ id: 'part', ranges: [], edges: [{ edgeId: 'edge:1', points: [[0,0,0],[20,0,0]], closed: false, edgeFinish }] }],
+    occurrences: [{ id: 'local', definitionId: 'part', transform: identity }, { id: 'placed', definitionId: 'part', transform: shifted }],
+  } });
+  assert.deepEqual(session.describeEdgeSelection('part', 'edge:1', 'local').edgeFinish, edgeFinish);
+  assert.equal(session.describeEdgeSelection('part', 'edge:1', 'placed').edgeFinish, null);
+  assert.equal(session.describeEdgeSelection('part', 'edge:99', 'local'), null);
+});
+
 test('a feature face keeps its owner inside a body occurrence', () => {
   const source = { source: 'hole.firmament', line: 4, column: 2, start: 65, length: 94 };
   const session = new ModelSession({}, { mesh: {

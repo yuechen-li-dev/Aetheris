@@ -529,6 +529,8 @@ public static partial class FirmamentBuildAndExport
         if (v2Parse.BoundComposition is not null || (!v2Parse.OwnsUnifiedAdmission && PrismaticProfileCompositionParser.IsCompositionSource(materializerSource)))
         {
             var parsed = v2Parse.BoundComposition ?? PrismaticProfileCompositionParser.Parse(materializerSource);
+            if (TryExportProfileCornerHost(materializerSource, parsed, v2Parse.DiagnosticSource, v2Parse.Document) is { } cornerHost)
+                return cornerHost;
             var stack = PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics);
             if (stack is null)
                 return KernelResult<FirmamentStepExportResult>.Failure(diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition")).ToArray());
@@ -578,18 +580,14 @@ public static partial class FirmamentBuildAndExport
             if (parsed.Profile is null) return KernelResult<FirmamentStepExportResult>.Failure(parsed.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.Profile")).ToArray());
             var emitted = ResolvedProfile2DValidator.Extrude(parsed.Profile, parsed.Height);
             if (emitted.Status != LineArcProfileExtrudeStatus.Succeeded || emitted.Body is null) return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.Profile")).ToArray());
+            var extrusionName = FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(materializerSource).Document.Statements)
+                .FirstOrDefault(d => d.Type.Name.Text == "Extrude")?.Name?.Text ?? parsed.Profile.Name;
+            if (ProfileLongitudinalEdgeFinish.Requested(materializerSource))
+                return ExportLongitudinalFinish(materializerSource, parsed.Profile, parsed.Height, extrusionName, v2Parse.DiagnosticSource);
             if (materializerSource.Contains("EdgeFinish", StringComparison.Ordinal))
                 return ExportProfileSemanticTopBoundaryChamfer(materializerSource, parsed.Profile, parsed.Height, emitted, v2Parse.DiagnosticSource);
             var step = Step242Exporter.ExportBody(emitted.Body); if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
-            var extrusionName = FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(materializerSource).Document.Statements)
-                .FirstOrDefault(d => d.Type.Name.Text == "Extrude")?.Name?.Text ?? parsed.Profile.Name;
-            var profileCorrespondence = emitted.Correspondence is not { } correspondence ? null : correspondence with {
-                // The extrusion plan also carries overlapping edge roles for finish planners.
-                // Publish its unique side-face owners here; edge picking remains unqualified.
-                Descendants = correspondence.Descendants.Where(d => d.Role == SemanticTopologyRole.ExtrusionSideFace).Select(d => d.Face is { } id
-                    && PlanarFaceThroughHole.Support(emitted.Body, id) is not null
-                    ? d with { FirmamentSelector = $"face({extrusionName}.Side({System.Text.Json.JsonSerializer.Serialize(d.SourceStableId)}))", Addressability = SemanticTopologyAddressability.DerivedStable } : d).ToArray()
-            };
+            var profileCorrespondence = ProfileDisplayCorrespondence(parsed.Profile, emitted, extrusionName);
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, parsed.Profile.Name, 0, "profile-extrude", "line-arc-profile") {
                 RuntimeBody = emitted.Body, RuntimeCorrespondence = profileCorrespondence, RuntimeBodySourceName = extrusionName });
         }
@@ -1869,7 +1867,9 @@ public static partial class FirmamentBuildAndExport
         if (!compiled.Succeeded || compiled.Body is null || compiled.Construction is null || compiled.BRepPlan?.LocalizedEdgeReplacementRealizationPlan is null)
             return AirChamferFailure(compiled.Error?.Code ?? compiled.Feature.AdmissionReason, compiled.Diagnostics);
 
-        var body = compiled.Body;
+        // AIR builds centered kernel stock; publish in the same bottom-anchored frame as the authored Box.
+        var body = FirmamentPrimitiveExecutionTranslation.TranslateBody(compiled.Body,
+            new Vector3D(0, 0, FirmamentStockFrame.ForBox(box.Size[0], box.Size[1], box.Size[2]).KernelCenteredToStockZ));
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return AirChamferFailure("localized-chamfer-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
         if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-chamfer-emitted-body-is-not-manifold");
@@ -2312,7 +2312,9 @@ public static partial class FirmamentBuildAndExport
         if (!compiled.Succeeded || compiled.Body is null || compiled.Construction is null || compiled.BRepPlan?.LocalizedEdgeReplacementRealizationPlan is null)
             return AirChamferFailure(compiled.Error?.Code ?? compiled.Feature.AdmissionReason, compiled.Diagnostics);
 
-        var body = compiled.Body;
+        // AIR builds centered kernel stock; publish in the same bottom-anchored frame as the authored Box.
+        var body = FirmamentPrimitiveExecutionTranslation.TranslateBody(compiled.Body,
+            new Vector3D(0, 0, FirmamentStockFrame.ForBox(box.Size[0], box.Size[1], box.Size[2]).KernelCenteredToStockZ));
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return AirChamferFailure("localized-fillet-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
         if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-fillet-emitted-body-is-not-manifold");

@@ -18,7 +18,20 @@ public static class PlanarFaceThroughHole
 {
     public const double MinimumClearance = .01;
     private const double Tol = 1e-7;
-    public static PlanarFaceSupport? Support(BrepBody body, FaceId id)
+    /// <summary>Reuse the exact profile plan as a host for the existing side-hole planner.</summary>
+    public static PrismaticSectionStackEmissionResult FromProfile(LineArcProfileExtrudeResult emitted, SemanticTopologyCorrespondence correspondence)
+    {
+        var plan = emitted.BRepPlan ?? throw new ArgumentException("An authoritative profile plan is required.", nameof(emitted));
+        var body = emitted.Body!.Clone();
+        var mappings = correspondence.Descendants.Where(d => d.Face is not null && d.Role == SemanticTopologyRole.ExtrusionSideFace)
+            .Select(d => new PrismaticSectionStackFacePlanMapping(d.Face!.Value, "PrismaticSide", d.SourceStableId, d.StableId, null, null, plan.Provenance)).ToArray();
+        var topology = new PrismaticSectionStackTopologyPlan(plan.StableId, body.Topology, body.Geometry, body.Bindings,
+            plan.Vertices.ToDictionary(v => v.Id, v => v.WorldPoint), mappings, correspondence, correspondence.ProvenanceChain);
+        var host = new PrismaticSectionStackBrepPlan(plan.StableId, plan.Vertices.Count, plan.Edges.Count, plan.Faces.Count,
+            "ProfilePlanSideHoleAdapter", true, correspondence, topology);
+        return new(body, host, [], correspondence);
+    }
+    public static PlanarFaceSupport? Support(BrepBody body, FaceId id, double[]? constructionOrigin = null)
     {
         var face = body.Topology.Faces.SingleOrDefault(f => f.Id == id);
         if (face is null || face.LoopIds.Count == 0 || !body.TryGetFaceSurface(id, out var surface) || surface?.Plane is not { } plane
@@ -43,6 +56,14 @@ public static class PlanarFaceThroughHole
         var minU = boundary.Min(p => p[0]); var minV = boundary.Min(p => p[1]);
         var origin = plane.Origin + x * minU + y * minV;
         boundary = boundary.Select(p => new[] { p[0] - minU, p[1] - minV }).ToArray();
+        if (constructionOrigin is { Length: 3 })
+        {
+            var anchored = P(constructionOrigin);
+            if (Math.Abs((anchored - origin).Dot(normal)) > Tol) return null;
+            var offset = origin - anchored;
+            boundary = boundary.Select(p => new[] { p[0] + offset.Dot(x), p[1] + offset.Dot(y) }).ToArray();
+            origin = anchored;
+        }
         var area = boundary.Select((p, i) => p[0] * boundary[(i + 1) % boundary.Length][1] - p[1] * boundary[(i + 1) % boundary.Length][0]).Sum();
         if (area < 0d) Array.Reverse(boundary);
         // Convex supports give exact half-plane clearance; other trims fail closed.
@@ -104,7 +125,9 @@ public static class PlanarFaceThroughHole
         if (source is null || body is null) return Fail("missing-host-plan");
         var matches = source.FaceMappings.Where(m => m.SourceStableId == hole.SupportSource && m.Kind is "PrismaticSide" or "HostFaceReplacement").ToArray();
         if (matches.Length != 1) return Fail("support-must-resolve-to-one-construction-face");
-        var entryId = matches[0].FaceId; var entry = Support(body, entryId);
+        var entryId = matches[0].FaceId;
+        var anchor = source.Correspondence.Descendants.FirstOrDefault(d => d.Face == entryId && d.SupportOrigin is not null)?.SupportOrigin;
+        var entry = Support(body, entryId, anchor);
         if (entry is null) return Fail("support-requires-a-convex-planar-face-with-straight-boundaries");
         var normal = V(entry.Normal); var axis = -normal; var radius = hole.Diameter / 2d;
         var outerRadius = hole.Variant == "Shaft" ? radius : (hole.RecessDiameter ?? double.NaN) / 2d;
@@ -160,9 +183,16 @@ public static class PlanarFaceThroughHole
                 bounds.Add(source.VertexPoints[edge.StartVertexId]); bounds.Add(source.VertexPoints[edge.EndVertexId]);
                 if (curve?.Circle3 is { } circle)
                 {
-                    var n = circle.Normal.ToVector();
-                    var extent = new Vector3D(circle.Radius * Math.Sqrt(Math.Max(0d, 1d - n.X * n.X)), circle.Radius * Math.Sqrt(Math.Max(0d, 1d - n.Y * n.Y)), circle.Radius * Math.Sqrt(Math.Max(0d, 1d - n.Z * n.Z)));
-                    bounds.Add(circle.Center + extent); bounds.Add(circle.Center - extent);
+                    // Bounds belong to the trimmed arc, not its entire supporting circle.
+                    var circleX = circle.XAxis.ToVector(); var circleY = circle.YAxis.ToVector();
+                    var trim = binding.TrimInterval ?? new ParameterInterval(0, 2 * Math.PI);
+                    foreach (var angle in new[] { Math.Atan2(circleY.X, circleX.X), Math.Atan2(circleY.Y, circleX.Y), Math.Atan2(circleY.Z, circleX.Z) })
+                        foreach (var extremum in new[] { angle, angle + Math.PI })
+                        {
+                            var turn = Math.Ceiling((trim.Start - extremum) / (2 * Math.PI));
+                            var parameter = extremum + turn * 2 * Math.PI;
+                            if (parameter <= trim.End + Tol) bounds.Add(circle.Evaluate(parameter));
+                        }
                 }
                 else if (curve?.Kind != CurveGeometryKind.Line3) return Fail("unsupported-corridor-edge-geometry");
             }
@@ -170,7 +200,8 @@ public static class PlanarFaceThroughHole
                 double C(Point3D p) => i == 0 ? p.X : i == 1 ? p.Y : p.Z;
                 var n = i == 0 ? normal.X : i == 1 ? normal.Y : normal.Z;
                 var extent = outerRadius * Math.Sqrt(Math.Max(0d, 1d - n * n));
-                return bounds.Max(C) < Math.Min(C(mouth), C(end)) - extent - MinimumClearance || bounds.Min(C) > Math.Max(C(mouth), C(end)) + extent + MinimumClearance;
+                return bounds.Max(C) <= Math.Min(C(mouth), C(end)) - extent - MinimumClearance + Tol
+                    || bounds.Min(C) >= Math.Max(C(mouth), C(end)) + extent + MinimumClearance - Tol;
             });
             if (!separated) return Fail("tool-corridor-interaction-not-admitted");
         }

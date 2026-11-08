@@ -7,7 +7,7 @@ using Aetheris.Semantics;
 namespace Aetheris.Kernel.Firmament.Materializer;
 
 /// <summary>Stable roles assigned while an authoritative plan is materialized.  These are not geometric queries.</summary>
-public enum SemanticTopologyRole { Unknown, ProfileVertex, VerticalExtrusionEdge, LocalStartBoundary, LocalEndBoundary, LocalStartCapLoop, LocalEndCapLoop, TopBoundary, BottomBoundary, ExtrusionSideFace, TopFaceBoundaryLoop, BottomFaceBoundaryLoop, HoleEntryLoop, HoleExitLoop, HoleWallFace, HoleShaftToDrillPointLoop, HoleShaftToDrillPointEdge, HoleDrillPointFace, HoleTipVertex, HoleCounterboreMouthLoop, HoleCounterboreWallFace, HoleCounterboreShoulderLoop, HoleCounterboreShaftWallFace, SlotEntryLoop, SlotExitLoop, SlotWallFace, SlotStraightWallFace, SlotEndWallFace, ComposeTransition, EdgeFinishReplacementFace, FilletSurface, ConvexJunctionPatch, ReflexJunctionPatch, CapContactEdge, SideContactEdge, JunctionToRollA, JunctionToRollB, JunctionCapContact, JunctionSideAContact, JunctionSideBContact, StartTerminationFace, EndTerminationFace, StartEndpointArc, EndEndpointArc, RetainedStartSharpEdge, RetainedEndSharpEdge, BoxFace, BoxEdge, ThreadRootFace, ThreadLeadingFlank, ThreadTrailingFlank, ThreadCrest, ThreadStartCap, ThreadEndCap, ThreadBoundaryEdge, HoleCountersinkWallFace, PathFeatureFace, HoleCounterboreShoulderFace }
+public enum SemanticTopologyRole { Unknown, ProfileVertex, VerticalExtrusionEdge, LocalStartBoundary, LocalEndBoundary, LocalStartCapLoop, LocalEndCapLoop, TopBoundary, BottomBoundary, ExtrusionSideFace, TopFaceBoundaryLoop, BottomFaceBoundaryLoop, HoleEntryLoop, HoleExitLoop, HoleWallFace, HoleShaftToDrillPointLoop, HoleShaftToDrillPointEdge, HoleDrillPointFace, HoleTipVertex, HoleCounterboreMouthLoop, HoleCounterboreWallFace, HoleCounterboreShoulderLoop, HoleCounterboreShaftWallFace, SlotEntryLoop, SlotExitLoop, SlotWallFace, SlotStraightWallFace, SlotEndWallFace, ComposeTransition, EdgeFinishReplacementFace, FilletSurface, ConvexJunctionPatch, ReflexJunctionPatch, CapContactEdge, SideContactEdge, JunctionToRollA, JunctionToRollB, JunctionCapContact, JunctionSideAContact, JunctionSideBContact, StartTerminationFace, EndTerminationFace, StartEndpointArc, EndEndpointArc, RetainedStartSharpEdge, RetainedEndSharpEdge, BoxFace, BoxEdge, ThreadRootFace, ThreadLeadingFlank, ThreadTrailingFlank, ThreadCrest, ThreadStartCap, ThreadEndCap, ThreadBoundaryEdge, HoleCountersinkWallFace, PathFeatureFace, HoleCounterboreShoulderFace, ConvexLongitudinalEdge, ReflexLongitudinalEdge }
 public enum SemanticTopologyAddressability { AuthoredStable, DerivedStable, ImportedStable, RuntimeOnly, Ambiguous, Unstable }
 public enum SemanticSelectionRequirement { ExactlyOne, OneOrMore, ConnectedChain, ClosedLoop, NonEmptyFaceSet }
 public enum SemanticSelectionFailure { None, SemanticSourceNotFound, NoMaterializedDescendants, AmbiguousBodyContext, SelectionCardinalityMismatch, DescendantsNotConnected, DescendantsBranch, DescendantsDoNotClose, MixedBoundaryRoles, UnsupportedTopologyChange, SelectionConsumerMismatch }
@@ -21,7 +21,9 @@ public sealed record SemanticTopologyDescendant(
     SemanticTopologyAddressability Addressability = SemanticTopologyAddressability.RuntimeOnly,
     // Producers may retain a construction origin alongside a more specific feature
     // owner of the same entity. Aliases remain queryable but do not own viewport picks.
-    bool IsTopologyAlias = false);
+    bool IsTopologyAlias = false,
+    // Authored side coordinates remain anchored to the untrimmed construction face.
+    double[]? SupportOrigin = null);
 
 public sealed record SemanticTopologyCorrespondence(
     string BodyStableId,

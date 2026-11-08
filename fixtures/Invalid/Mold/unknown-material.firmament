@@ -1,0 +1,10 @@
+Model Plate {
+    units: mm
+    Box Base { size: [40mm, 40mm, 3mm] }
+}
+
+Mold PlateTool {
+  part: Plate
+  material: Unobtainium
+  pull: +Z
+}

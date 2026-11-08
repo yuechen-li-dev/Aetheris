@@ -1,0 +1,175 @@
+// NIST CTC-01 (testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp) reconstructed as design intent:
+// a dog-bone plate (two rounded ends and a bridge) with four lugs underneath, a hexagonal boss on top,
+// through holes, slots, side drills, and notches in the long edges. Compare against the original with
+//   aetheris analyze compare <original.stp> <this.step> --shape
+// Every feature of the original is expressed. Each R10 lug-root fillet ends where the plate underside runs into an
+// R25 waist wall; the wall is carried down and cuts the fillet off along an exact cylinder-cylinder curve,
+// exported as a certified B-spline.
+Model Ctc01 {
+    units: mm
+
+    Concept Struct Datums {
+        Center: Plane { origin: [0mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        Midline: Plane { origin: [0mm, 0mm, 0mm]; normal: [0, 1, 0]; up: [0, 0, 1] }
+    }
+    Construction Plane CenterPlane { Trace: Datums.Center }
+    Construction Plane MidPlane { Trace: Datums.Midline }
+
+    // A 60° V-notch with an R10 tip whose centre is 30 mm in from the edge. The flanks meet the tip circle
+    // 35 mm in; flank and tip runs follow from the angle.
+    Static vTip: Length = 10mm
+    Static vTipDepth: Length = 30mm + vTip
+    Static vTangentDepth: Length = 30mm + vTip * Sin(30deg)
+    Static vTipRun: Length = vTip * Cos(30deg)
+    Static vFlankRun: Length = vTangentDepth / Tan(60deg)
+    Template<Center: Length, Owner: ProfilePath>
+    ProfileDelta VNotch {
+        On: Owner
+        Anchor: CenteredAt Center
+        Side: Inward
+        Level Edge { Offset: 0mm; }
+        Level Tangent { Offset: vTangentDepth; }
+        Level Tip { Offset: vTipDepth; }
+        Transition FlankIn { Kind: Diagonal; Run: vFlankRun; To: Tangent; }
+        Transition TipIn { Kind: Round; Run: vTipRun; To: Tip; Radius: vTip; Concave: true; }
+        Transition TipOut { Kind: Round; Run: vTipRun; To: Tangent; Radius: vTip; Concave: true; }
+        Transition FlankOut { Kind: Diagonal; Run: vFlankRun; To: Edge; }
+    }
+
+    // An 85 mm wide, 25 mm deep notch with R10 corners at its floor.
+    Template<Center: Length, Owner: ProfilePath>
+    ProfileDelta SlotNotch {
+        On: Owner
+        Anchor: CenteredAt Center
+        Side: Inward
+        Level Edge { Offset: 0mm; }
+        Level Shoulder { Offset: 15mm; }
+        Level Floor { Offset: 25mm; }
+        Transition WallIn { Kind: Step; To: Shoulder; }
+        Transition CornerIn { Kind: Round; Run: 10mm; To: Floor; Radius: 10mm; Concave: true; }
+        Span Bottom { Run: 65mm; At: Floor; }
+        Transition CornerOut { Kind: Round; Run: 10mm; To: Shoulder; Radius: 10mm; Concave: true; }
+        Transition WallOut { Kind: Step; To: Edge; }
+    }
+
+    Concept Struct Layout on XY {
+        RoundedRect2 LeftEnd { center: [-325mm, 0mm]; size: [150mm, 450mm]; radius: 50mm }
+        RoundedRect2 RightEnd { center: [325mm, 0mm]; size: [150mm, 450mm]; radius: 50mm }
+        Rect2 Bridge { center: [0mm, 0mm]; size: [500mm, 250mm] }
+
+        // The back-right corner is cut at 45 degrees between the right end's straight sides.
+        Point2 ChamferStart { position: [400mm, 175mm] }
+        Point2 ChamferEnd { position: [350mm, 225mm] }
+        Line2 Chamfer { from: ChamferStart; to: ChamferEnd }
+
+        // Lugs hang below each end where it overhangs the bridge, cut off along the bridge's long edges.
+        Point2 LeftLugCutBack { position: [-400mm, 125mm] }
+        Line2 BackLeftLugCut { from: Bridge.TopLeft; to: LeftLugCutBack }
+        Point2 RightLugCutBack { position: [400mm, 125mm] }
+        Line2 BackRightLugCut { from: Bridge.TopRight; to: RightLugCutBack }
+    }
+
+    Profile Plate using Layout {
+        Loop Outer {
+            LeftEnd.Left as LeftOuter
+            |> LeftEnd.BottomLeftCorner as LeftFrontOuterCorner
+            |> LeftEnd.Bottom as LeftFront
+            |> LeftEnd.BottomRightCorner as LeftFrontInnerCorner
+            |> LeftEnd.Right to Bridge.BottomLeft as LeftInnerFront
+            |> Round(25mm) as FrontLeftWaist
+            |> Bridge.Bottom as Front
+            |> Round(25mm) as FrontRightWaist
+            |> RightEnd.Left from Bridge.BottomRight as RightInnerFront
+            |> RightEnd.BottomLeftCorner as RightFrontInnerCorner
+            |> RightEnd.Bottom as RightFront
+            |> RightEnd.BottomRightCorner as RightFrontOuterCorner
+            |> RightEnd.Right as RightOuter
+            |> Chamfer
+            |> RightEnd.Top as RightBack
+            |> RightEnd.TopLeftCorner as RightBackInnerCorner
+            |> RightEnd.Left to Bridge.TopRight as RightInnerBack
+            |> Round(25mm) as BackRightWaist
+            |> Bridge.Top as Back
+            |> Round(25mm) as BackLeftWaist
+            |> LeftEnd.Right from Bridge.TopLeft as LeftInnerBack
+            |> LeftEnd.TopRightCorner as LeftBackInnerCorner
+            |> LeftEnd.Top as LeftBack
+            |> LeftEnd.TopLeftCorner as LeftBackOuterCorner
+            |> Close
+        }
+    }
+    // Notches in the bridge's long edges. After the R25 waists, Front runs from x = -225 to +225 and Back from
+    // +225 to -225; centers are measured from each edge's start.
+    ProfileDelta FrontLeftV = VNotch<Center: 115mm, Owner: Plate.Front>
+    ProfileDelta FrontRightV = VNotch<Center: 335mm, Owner: Plate.Front>
+    ProfileDelta BackRightSlot = SlotNotch<Center: 75mm, Owner: Plate.Back>
+    ProfileDelta BackLeftSlot = SlotNotch<Center: 375mm, Owner: Plate.Back>
+    Profile Notched {
+        From: Plate
+        Apply FrontLeftV
+        Apply FrontRightV
+        Apply BackRightSlot
+        Apply BackLeftSlot
+    }
+
+    // Each lug is traced from its end's own outline, so the end's corners and chamfer are stated once.
+    Profile BackLeftLugOutline using Layout {
+        Loop Outer {
+            LeftEnd.Right from Bridge.TopLeft as Inner
+            |> LeftEnd.TopRightCorner as InnerCorner
+            |> LeftEnd.Top as Back
+            |> LeftEnd.TopLeftCorner as OuterCorner
+            |> LeftEnd.Left to LeftLugCutBack as Outer
+            |> BackLeftLugCut as Cut
+            |> Close
+        }
+    }
+    Mirrored Profile FrontLeftLugOutline from BackLeftLugOutline { across: MidPlane }
+    Mirrored Profile FrontRightLugOutline from FrontLeftLugOutline { across: CenterPlane }
+    Profile BackRightLugOutline using Layout {
+        Loop Outer {
+            BackRightLugCut as Cut
+            |> RightEnd.Right from RightLugCutBack to ChamferStart as Outer
+            |> Chamfer as Chamfer
+            |> RightEnd.Top as Back
+            |> RightEnd.TopLeftCorner as InnerCorner
+            |> RightEnd.Left to Bridge.TopRight as Inner
+            |> Close
+        }
+    }
+
+    Profile HexBoss = RegularPolygon2<6> { center: [0mm, 0mm]; acrossFlats: 100mm; rotation: 30deg }
+    Profile Obround = Slot2 { center: [-285mm, 0mm]; length: 120mm; width: 40mm }
+    Profile Window = RoundedRect2 { center: [285mm, 0mm]; size: [100mm, 50mm]; radius: 10mm }
+
+    Struct Part {
+        Compose Body {
+            Base PlateStock { profile: Notched; from: -50mm; to: 0mm; role: Stock }
+            Add BackLeftLug { profile: BackLeftLugOutline; from: -100mm; to: -50mm; role: Pad }
+            Add FrontLeftLug { profile: FrontLeftLugOutline; from: -100mm; to: -50mm; role: Pad }
+            Add FrontRightLug { profile: FrontRightLugOutline; from: -100mm; to: -50mm; role: Pad }
+            Add BackRightLug { profile: BackRightLugOutline; from: -100mm; to: -50mm; role: Pad }
+            Boss Hex { on: Top; profile: HexBoss; height: 50mm }
+            Pocket ObroundSlot { on: Top; profile: Obround; end: ThroughAll }
+            Pocket RectWindow { on: Top; profile: Window; end: ThroughAll }
+        }
+    }
+
+    Modify Body {
+        Hole<Shaft> BoltBackLeft { on: +Z; center: Point2(-160mm, 45mm); diameter: 25mm; end: ThroughAll }
+        Mirrored Feature BoltBackRight from BoltBackLeft { across: CenterPlane }
+        Mirrored Feature BoltFrontLeft from BoltBackLeft { across: MidPlane }
+        Mirrored Feature BoltFrontRight from BoltBackRight { across: MidPlane }
+        Hole<Shaft> LugHoleBackLeft { on: +Z; center: Point2(-325mm, 175mm); diameter: 35mm; end: ThroughAll }
+        Mirrored Feature LugHoleBackRight from LugHoleBackLeft { across: CenterPlane }
+        Mirrored Feature LugHoleFrontLeft from LugHoleBackLeft { across: MidPlane }
+        Mirrored Feature LugHoleFrontRight from LugHoleBackRight { across: MidPlane }
+        // Two Ø20 blind drilled holes into the front face, 45 mm full-diameter depth with the default 118° point.
+        // The plane is the one the Plate outline's Front edge sweeps; its u axis runs along world -X.
+        Hole<Shaft> SideDrillRight { from: Plate.Front; center: Point2(-30mm, -25mm); diameter: 20mm; end: Blind 45mm }
+        Mirrored Feature SideDrillLeft from SideDrillRight { across: CenterPlane }
+        EdgeFinish<Chamfer> HexTop { on: Top; target: HexBoss.Outer; distance: 5mm }
+        EdgeFinish<Fillet> HexFoot { where: Hex meets PlateStock; radius: 5mm }
+        EdgeFinish<Fillet> LugRoots { where: role Pad meets PlateStock; radius: 10mm }
+    }
+}

@@ -24,6 +24,6 @@ Model ThreadExternalHexBolt {
         MajorDiameter: 8mm
         Pitch: 1.25mm
         Length: 47.5mm
-        StartOffset: 1.5mm
+        StartOffset: 4.3mm
     }
 }

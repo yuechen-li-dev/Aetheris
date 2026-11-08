@@ -20,7 +20,7 @@ public sealed class BrepSurgeryRecipeParityTests
             new AxisAlignedBoxExtents(2d, 4d, 0d, 2d, 0d, 1d),
         ]).Value;
 
-        AssertCanonical(body, 8, 12, 6, "0a1e73060c516eb608c1aef10a4f669b988052d806da441d8fed39bff73d5aed", expectClosedManifold: true);
+        AssertCanonical(body, 8, 12, 6, "9c9f2a15d6743a9cec1f0db076d77f84ce6815f5e0aaadbc9bd74822aab44a3b", expectClosedManifold: true);
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public sealed class BrepSurgeryRecipeParityTests
         var tool = StandardLibraryPrimitives.CreateSlotCut(10d, 4d, 24d, 2d).Value;
         var body = BrepBoolean.Subtract(root, tool).Value;
 
-        AssertCanonical(body, 128, 192, 66, "a7b0cbd24843291d472417b8f6b752dbd2b3f1f361149a853cb829b7de6915fc");
+        AssertCanonical(body, 128, 192, 66, "87385573d3a18d58c5b3e57d30c57db1bc32a8efae69c59f31180fdbe3598ef7");
     }
 
     private static void AssertCanonical(BrepBody body, int vertices, int edges, int faces, string expectedStepSha256, bool expectClosedManifold = false)

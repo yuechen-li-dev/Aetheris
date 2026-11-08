@@ -102,7 +102,9 @@ opens the part in Cadmata.
 ## Try it
 
 - Move the hole to `Point2(25mm, 10mm)` and rebuild.
-- Change `end: ThroughAll` to `end: Blind 5mm` for a 5 mm deep blind hole.
+- Change `end: ThroughAll` to `end: Blind 5mm` for a 5 mm deep drilled hole. It
+  ends in a 118° drill point below the 5 mm of full diameter; add
+  `termination: Flat` for a flat floor.
   The [hole fixtures](../../../fixtures/Canonical/Features/Holes/) show every
   form.
 - Make the hole 60 mm wide, wider than the plate, and read the diagnostic: the

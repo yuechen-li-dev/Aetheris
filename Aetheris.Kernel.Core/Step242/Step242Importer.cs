@@ -117,9 +117,9 @@ public static class Step242Importer
         using var buildPerfPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("step.import-body");
         // BUILD-PERF-M2: one build reimports the same canonical STEP several times (export
         // validation, volume assertions, the assembly definition). Import is a pure function of the
-        // text unless a policy, a diagnostics capture or rational preservation is in effect, so a
-        // recent successful import is replayed as an independent clone of the same body.
-        var memoizable = policy is null && !RationalSurfacesArePreserved && CircularSamplingDiagnosticsSink.Value is null
+        // text and policy (a value record) unless a diagnostics capture or rational preservation is in
+        // effect, so a recent successful import is replayed as an independent clone of the same body.
+        var memoizable = !RationalSurfacesArePreserved && CircularSamplingDiagnosticsSink.Value is null
             && CoedgeGapDiagnosticsSink.Value is null && CylinderProjectionDiagnosticsSink.Value is null
             && TorusProjectionDiagnosticsSink.Value is null && PlanarMultiBoundJudgmentDiagnosticsSink.Value is null;
         if (memoizable)
@@ -128,8 +128,8 @@ public static class Step242Importer
             {
                 for (var i = RecentImports.Count - 1; i >= 0; i--)
                 {
-                    var (text, body, diagnostics) = RecentImports[i];
-                    if (text.Length != stepText.Length || !string.Equals(text, stepText, StringComparison.Ordinal)) continue;
+                    var (text, recentPolicy, body, diagnostics) = RecentImports[i];
+                    if (!Equals(recentPolicy, policy) || text.Length != stepText.Length || !string.Equals(text, stepText, StringComparison.Ordinal)) continue;
                     return KernelResult<BrepBody>.Success(body.Clone(), diagnostics);
                 }
             }
@@ -143,7 +143,7 @@ public static class Step242Importer
             var retained = result.Value.Clone();
             lock (RecentImports)
             {
-                RecentImports.Add((stepText, retained, result.Diagnostics));
+                RecentImports.Add((stepText, policy, retained, result.Diagnostics));
                 if (RecentImports.Count > RecentImportCapacity) RecentImports.RemoveAt(0);
             }
         }
@@ -151,7 +151,7 @@ public static class Step242Importer
     }
 
     private const int RecentImportCapacity = 8;
-    private static readonly List<(string Text, BrepBody Body, IReadOnlyList<Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic> Diagnostics)> RecentImports = [];
+    private static readonly List<(string Text, ImportPolicy? Policy, BrepBody Body, IReadOnlyList<Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic> Diagnostics)> RecentImports = [];
 
     private static KernelResult<BrepBody> ImportAuto(Step242ParsedDocument document)
     {
@@ -671,7 +671,7 @@ public static class Step242Importer
                 faceSameSenseResult.Value,
                 faceEntity.Id,
                 surfaceResult.Value.ReferenceId)));
-            var loopOrientation = DeriveSupportAlignedBoundaries(classifyResult.Value, surfaceGeometry);
+            var loopOrientation = DeriveSupportAlignedBoundaries(classifyResult.Value, surfaceGeometry, faceSameSenseResult.Value);
             supportAlignedBoundary[faceId] = loopOrientation.FaceAligned;
             foreach (var pair in loopOrientation.Loops) supportAlignedLoopBoundary[pair.Key] = pair.Value;
         }
@@ -1118,7 +1118,7 @@ public static class Step242Importer
 
             var trimResult = explicitTrim is { } specified
                 ? KernelResult<ParameterInterval>.Success(specified)
-                : ComputeCircleTrim(circleResult.Value, startPoint, endPoint, edgeSameSense);
+                : ComputeCircleTrim(circleResult.Value, startPoint, endPoint, edgeSameSense, document.SourceDistanceAccuracyMillimetres ?? 0d);
             if (!trimResult.IsSuccess)
             {
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(trimResult.Diagnostics);
@@ -1138,7 +1138,7 @@ public static class Step242Importer
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(ellipseResult.Diagnostics);
             }
 
-            var trimResult = ComputeEllipseTrim(ellipseResult.Value, startPoint, endPoint, edgeSameSense);
+            var trimResult = ComputeEllipseTrim(ellipseResult.Value, startPoint, endPoint, edgeSameSense, document.SourceDistanceAccuracyMillimetres ?? 0d);
             if (!trimResult.IsSuccess)
             {
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(trimResult.Diagnostics);
@@ -1891,17 +1891,20 @@ public static class Step242Importer
                 source)
         ]);
 
-    internal static KernelResult<ParameterInterval> ComputeEllipseTrim(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint, bool edgeSameSense)
+    internal static KernelResult<ParameterInterval> ComputeEllipseTrim(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint, bool edgeSameSense, double sourceAccuracy = 0d)
     {
         var tolerance = ComputeEllipseTrimTolerance(ellipse, startPoint, endPoint);
+        // A vertex need only lie within the source's declared distance accuracy of its curve. That widens the
+        // projection only; empty and full spans keep the geometric tolerance.
+        var projection = double.Max(tolerance, sourceAccuracy);
 
-        var startAngleResult = ProjectPointToEllipseAngle(ellipse, startPoint, tolerance);
+        var startAngleResult = ProjectPointToEllipseAngle(ellipse, startPoint, projection);
         if (!startAngleResult.IsSuccess)
         {
             return KernelResult<ParameterInterval>.Failure(startAngleResult.Diagnostics);
         }
 
-        var endAngleResult = ProjectPointToEllipseAngle(ellipse, endPoint, tolerance);
+        var endAngleResult = ProjectPointToEllipseAngle(ellipse, endPoint, projection);
         if (!endAngleResult.IsSuccess)
         {
             return KernelResult<ParameterInterval>.Failure(endAngleResult.Diagnostics);
@@ -1947,15 +1950,17 @@ public static class Step242Importer
         return System.Math.Max(1e-6d, scale * 1e-8d);
     }
 
-    internal static KernelResult<ParameterInterval> ComputeCircleTrim(Circle3Curve circle, Point3D startPoint, Point3D endPoint, bool edgeSameSense)
+    internal static KernelResult<ParameterInterval> ComputeCircleTrim(Circle3Curve circle, Point3D startPoint, Point3D endPoint, bool edgeSameSense, double sourceAccuracy = 0d)
     {
         var tolerance = ComputeCircleTrimTolerance(circle, startPoint, endPoint);
+        // Vertices within the source's declared accuracy of the circle project; spans keep the geometric tolerance.
+        var projection = double.Max(tolerance, sourceAccuracy);
         if ((startPoint - endPoint).Length <= tolerance)
         {
             // A closed circular edge starts wherever its vertex sits (CAD exporters frequently put the seam
             // vertex away from the circle's parameter origin), so the full-circle trim must begin at that angle or
             // the curve's trim endpoints no longer coincide with the edge's vertices.
-            var seamAngle = ProjectPointToCircleAngle(circle, startPoint, tolerance);
+            var seamAngle = ProjectPointToCircleAngle(circle, startPoint, projection);
             if (seamAngle.IsSuccess && seamAngle.Value > 1e-9d && seamAngle.Value < (2d * double.Pi) - 1e-9d)
             {
                 return KernelResult<ParameterInterval>.Success(new ParameterInterval(seamAngle.Value, seamAngle.Value + (2d * double.Pi)));
@@ -1964,13 +1969,13 @@ public static class Step242Importer
             return KernelResult<ParameterInterval>.Success(new ParameterInterval(0d, 2d * double.Pi));
         }
 
-        var startAngleResult = ProjectPointToCircleAngle(circle, startPoint, tolerance);
+        var startAngleResult = ProjectPointToCircleAngle(circle, startPoint, projection);
         if (!startAngleResult.IsSuccess)
         {
             return KernelResult<ParameterInterval>.Failure(startAngleResult.Diagnostics);
         }
 
-        var endAngleResult = ProjectPointToCircleAngle(circle, endPoint, tolerance);
+        var endAngleResult = ProjectPointToCircleAngle(circle, endPoint, projection);
         if (!endAngleResult.IsSuccess)
         {
             return KernelResult<ParameterInterval>.Failure(endAngleResult.Diagnostics);
@@ -2634,23 +2639,40 @@ public static class Step242Importer
 
     private static (bool FaceAligned, IReadOnlyDictionary<LoopId, bool> Loops) DeriveSupportAlignedBoundaries(
         IReadOnlyList<LoopBuildData> loops,
-        SurfaceGeometry surface)
+        SurfaceGeometry surface,
+        bool sourceSameSense)
     {
         if (loops.Count == 0) return (true, new Dictionary<LoopId, bool>());
-        var outer = loops.SingleOrDefault(loop => loop.IsDeclaredOuter) ?? loops[0];
+        // One loop on a sphere splits it into two caps, and the loop alone cannot say which is the face: the small cap
+        // traversed one way and the large cap the other wind identically. STEP's same_sense with the loop's direction
+        // can, since the loop runs counter-clockwise about the face's outward normal.
+        if (surface.Kind == SurfaceGeometryKind.Sphere && loops.Count == 1)
+            return (sourceSameSense, new Dictionary<LoopId, bool> { [loops[0].LoopId] = sourceSameSense });
+        IReadOnlyList<UvPoint>? Project(LoopBuildData loop) => surface.Kind switch
+        {
+            SurfaceGeometryKind.Plane => SimplifyClosedPolygon(ProjectLoopToPlane(loop.Samples, surface.Plane!.Value), ContainmentEps),
+            SurfaceGeometryKind.Cylinder => ProjectLoopToCylinder(loop.Samples, surface.Cylinder!.Value),
+            SurfaceGeometryKind.Cone => ProjectLoopToCone(loop.Samples, surface.Cone!.Value),
+            SurfaceGeometryKind.Sphere => ProjectLoopToSphere(loop.Samples, surface.Sphere!.Value),
+            SurfaceGeometryKind.Torus => ProjectLoopToTorus(loop.Samples, surface.Torus!.Value),
+            _ => null,
+        };
+        var projections = loops.ToDictionary(loop => loop.LoopId, Project);
+        // The material side follows from the loops' winding, not from which one carries FACE_OUTER_BOUND. Some writers
+        // put that label on a hole (NIST STC-06 does, on 23 planar faces), so on a plane the loop enclosing the most
+        // area is the outer boundary whatever it is called.
+        var outer = surface.Kind == SurfaceGeometryKind.Plane && loops.Count > 1 && loops.All(loop => projections[loop.LoopId] is { Count: >= 3 })
+            ? loops.MaxBy(loop => double.Abs(ComputeSignedArea(projections[loop.LoopId]!)))!
+            : loops.SingleOrDefault(loop => loop.IsDeclaredOuter) ?? loops[0];
+        // Likewise two circles running round a torus bound two bands, the short way round the tube and the long way.
+        if (surface.Kind == SurfaceGeometryKind.Torus && loops.All(loop => projections[loop.LoopId] is { } p
+                && TryDeriveFullPeriodTraversalAlignment(p, SurfacePeriodicity.Of(surface), out _)))
+            return (sourceSameSense, loops.ToDictionary(loop => loop.LoopId, _ => sourceSameSense));
         var resolved = new Dictionary<LoopId, bool>();
         foreach (var loop in loops)
         {
             var isOuter = loop.LoopId == outer.LoopId;
-            IReadOnlyList<UvPoint>? projected = surface.Kind switch
-            {
-                SurfaceGeometryKind.Plane => SimplifyClosedPolygon(ProjectLoopToPlane(loop.Samples, surface.Plane!.Value), ContainmentEps),
-                SurfaceGeometryKind.Cylinder => ProjectLoopToCylinder(loop.Samples, surface.Cylinder!.Value),
-                SurfaceGeometryKind.Cone => ProjectLoopToCone(loop.Samples, surface.Cone!.Value),
-                SurfaceGeometryKind.Sphere => ProjectLoopToSphere(loop.Samples, surface.Sphere!.Value),
-                SurfaceGeometryKind.Torus => ProjectLoopToTorus(loop.Samples, surface.Torus!.Value),
-                _ => null,
-            };
+            var projected = projections[loop.LoopId];
             var signedArea = projected is null ? 0d : ComputeSignedArea(projected);
             var periodicity = SurfacePeriodicity.Of(surface);
             var boundaryAligned = surface.Kind == SurfaceGeometryKind.Sphere
@@ -2659,18 +2681,37 @@ public static class Step242Importer
                 : surface.Kind != SurfaceGeometryKind.Sphere
                 && projected is not null
                 && TryDeriveFullPeriodTraversalAlignment(projected, periodicity, out var periodicAligned)
-                ? periodicAligned
+                ? FullTurnLoopAlignment(loop, projected, periodicAligned, isOuter)
                 : surface.Kind == SurfaceGeometryKind.Cone
                     && TryDeriveSupportAlignmentFromBoundaryNormal(loop.Samples, surface, out var conicalAligned)
                     ? conicalAligned
                 : projected is not null && double.Abs(signedArea) > ComputeAreaTolerance(projected)
                     ? signedArea > 0d
+                // A free-form face can turn through more than a right angle (a swept tube), where the loop's
+                // polygon normal says nothing about the side; the source's same_sense with the loop's direction does.
+                : surface.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots
+                    ? isOuter == sourceSameSense
                 : TryDeriveSupportAlignmentFromBoundaryNormal(loop.Samples, surface, out var aligned)
                     ? aligned
                     : isOuter;
             resolved[loop.LoopId] = isOuter ? boundaryAligned : !boundaryAligned;
         }
         return (resolved[outer.LoopId], resolved);
+
+    // A loop running once round a cylinder or cone says nothing by itself about which side the face lies on. When the
+    // face has another loop, the face lies between them; a lone loop on a cone bounds the side holding the apex: a loop with the face on its +v side bounds an aligned face
+    // when it runs +u. The answer is the face's, so an inner loop reports it negated, as the caller expects.
+    bool FullTurnLoopAlignment(LoopBuildData loop, IReadOnlyList<UvPoint> projected, bool runsPositiveU, bool isOuter)
+    {
+        if (surface.Kind is not (SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone)) return runsPositiveU;
+        var others = loops.Where(other => other.LoopId != loop.LoopId).Select(other => projections[other.LoopId]).Where(p => p is { Count: > 0 }).ToArray();
+        // Alone on a cone (a drill point), the loop bounds the finite side: the face runs to the apex, where v is 0.
+        if (others.Length == 0 && surface.Kind != SurfaceGeometryKind.Cone) return runsPositiveU;
+        var side = (others.Length == 0 ? 0d : others.Average(p => p!.Average(point => point.Y))) - projected.Average(point => point.Y);
+        if (double.Abs(side) <= ContainmentEps) return runsPositiveU;
+        var faceAligned = (side > 0d) == runsPositiveU;
+        return isOuter ? faceAligned : !faceAligned;
+    }
     }
 
     private static bool TryDeriveFullPeriodTraversalAlignment(
@@ -2755,10 +2796,23 @@ public static class Step242Importer
             case SurfaceGeometryKind.Cone:
             {
                 var cone = surface.Cone!.Value;
-                var delta = center - cone.Apex;
-                var radial = delta - (cone.Axis.ToVector() * delta.Dot(cone.Axis.ToVector()));
+                var axis = cone.Axis.ToVector();
+                Vector3D Radial(Point3D p) { var d = p - cone.Apex; return d - axis * d.Dot(axis); }
+                var radial = Radial(center);
+                var reach = points.Average(p => Radial(p).Length);
+                // A loop running right round the cone (a drill point's rim with its seam) has its centroid on the
+                // axis, where the radial direction means nothing: there the cone's normal averaged round the loop
+                // is the reference, whose radial parts cancel and leave the axial one.
+                if (radial.Length < 0.25d * reach)
+                {
+                    supportNormal = Vector3D.Zero;
+                    foreach (var p in points)
+                        if (Radial(p).TryNormalize(out var r)) supportNormal += r - axis * double.Tan(cone.SemiAngleRadians);
+                    if (supportNormal.Length <= 1e-12d) return false;
+                    break;
+                }
                 if (!radial.TryNormalize(out var radialDirection)) return false;
-                supportNormal = radialDirection - (cone.Axis.ToVector() * double.Tan(cone.SemiAngleRadians));
+                supportNormal = radialDirection - (axis * double.Tan(cone.SemiAngleRadians));
                 break;
             }
             case SurfaceGeometryKind.Torus:

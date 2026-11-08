@@ -88,7 +88,9 @@ public sealed class CylinderCylinderIntersectionCurveTests
         var observedHostResidual = 0d;
         var observedToolResidual = 0d;
         Assert.True(result.CertifiedDeviationBoundMm <= ToleranceContext.Default.Linear);
-        Assert.Equal(result.SegmentCount * 4, result.Curve.ControlPoints.Count);
+        // Spans share their joint control points; no interior knot exceeds the degree (readers reject that).
+        Assert.Equal(result.SegmentCount * 3 + 1, result.Curve.ControlPoints.Count);
+        Assert.All(result.Curve.KnotMultiplicities.Skip(1).SkipLast(1), m => Assert.True(m <= result.Curve.Degree));
         var stored = CurveGeometry.FromCertifiedIntersection(result);
         Assert.Same(result, stored.CertifiedIntersection);
         Assert.Equal(result.Curve, stored.BSpline3!.Value);
@@ -169,6 +171,78 @@ public sealed class CylinderCylinderIntersectionCurveTests
             Point3D.Origin, CylinderIntersectionBranch.PositiveCutterAxis, domain).Diagnostics[0].Source);
         Assert.Contains("TangentOrOversize", CylinderCylinderIntersectionCurve.Create(host, tangent,
             Point3D.Origin, CylinderIntersectionBranch.PositiveCutterAxis, domain).Diagnostics[0].Source);
+    }
+
+    // CTC-01's lug root fillet (R10, axis +Y through x = -240, z = -60) cut off by an R25 waist wall (axis +Z through
+    // x = -225, y = 150). The fillet's wall x = -250 is tangent to the waist at y = 150, so the cutter touches the host
+    // from inside: the curve runs from that touching point (t = 0) to the fillet's floor contact (t = pi/2).
+    private static CylinderCylinderIntersectionCurve LugRootEnd(double toolRadius = 10d, double toolX = -240d) =>
+        CylinderCylinderIntersectionCurve.CreateOffset(
+            new CylinderSurface(new Point3D(-225, 150, -50), Z, 25d, X),
+            new CylinderSurface(new Point3D(toolX, 0, -60), Y, toolRadius, Z),
+            CylinderIntersectionBranch.NegativeCutterAxis, new ParameterInterval(0d, double.Pi / 2d)).Value;
+
+    [Fact]
+    public void OffsetTouchingCutter_RunsExactlyFromTheTouchingPointToTheFloor()
+    {
+        var curve = LugRootEnd();
+        Assert.Equal(15d, double.Abs(curve.Offset), 12);
+        Assert.True((curve.Evaluate(0d) - new Point3D(-250, 150, -60)).Length < 1e-12);
+        Assert.True((curve.Evaluate(double.Pi / 2d) - new Point3D(-240, 130, -50)).Length < 1e-12);
+        for (var i = 0; i <= 1024; i++)
+        {
+            var p = curve.Evaluate(double.Pi / 2d * i / 1024d);
+            Assert.True(double.Abs(double.Hypot(p.X + 225, p.Y - 150) - 25d) < 1e-12, $"off the waist at {p}");
+            Assert.True(double.Abs(double.Hypot(p.X + 240, p.Z + 60) - 10d) < 1e-12, $"off the fillet at {p}");
+            // The fillet side of the waist: between the wall and the floor contact, short of the touching line.
+            Assert.InRange(p.Y, 130d - 1e-9, 150d + 1e-9);
+        }
+    }
+
+    [Fact]
+    public void OffsetDerivative_AgreesWithCenteredDifference_IncludingAtTheTouchingPoint()
+    {
+        const double h = 1e-6d;
+        foreach (var curve in new[] { LugRootEnd(), LugRootEnd(toolRadius: 6d, toolX: -238d) })
+        foreach (var t in new[] { h, 0.01d, 0.4d, 1.2d, double.Pi / 2d - h })
+        {
+            var difference = (curve.Evaluate(t + h) - curve.Evaluate(t - h)) / (2d * h);
+            Assert.True((difference - curve.Derivative(t)).Length < 1e-7d, $"t={t}: {difference} vs {curve.Derivative(t)}");
+        }
+        // At the touching point itself the derivative is finite: the curve is analytic through it.
+        Assert.True(double.IsFinite(LugRootEnd().Derivative(0d).Length));
+    }
+
+    [Theory]
+    [InlineData(10d, -240d)] // touching from inside
+    [InlineData(6d, -238d)]  // strictly inside the silhouette (|e| + r = 19 < 25)
+    public void OffsetRealization_IsCertifiedAgainstTheExactCurve(double toolRadius, double toolX)
+    {
+        var curve = LugRootEnd(toolRadius, toolX);
+        var realized = CylinderIntersectionCurveRealizer.Realize(curve, ToleranceContext.Default);
+        Assert.True(realized.IsSuccess, string.Join("; ", realized.Diagnostics.Select(d => d.Message)));
+        var result = realized.Value;
+        Assert.True(result.CertifiedDeviationBoundMm <= ToleranceContext.Default.Linear);
+        Assert.All(result.Curve.KnotMultiplicities.Skip(1).SkipLast(1), m => Assert.True(m <= result.Curve.Degree));
+        var observed = 0d;
+        for (var i = 0; i <= 4096; i++)
+        {
+            var t = double.Pi / 2d * i / 4096d;
+            var deviation = (result.Curve.Evaluate(t) - curve.Evaluate(t)).Length;
+            observed = double.Max(observed, deviation);
+            Assert.True(deviation <= result.CertifiedDeviationBoundMm + 1e-12d, $"t={t}: {deviation} > {result.CertifiedDeviationBoundMm}");
+        }
+        _output.WriteLine($"r={toolRadius} segments={result.SegmentCount} boundMm={result.CertifiedDeviationBoundMm:G6} sampledMaxMm={observed:G6}");
+    }
+
+    [Fact]
+    public void OffsetCutterReachingOutsideTheHost_IsRefused()
+    {
+        var result = CylinderCylinderIntersectionCurve.CreateOffset(
+            new CylinderSurface(new Point3D(-225, 150, -50), Z, 25d, X),
+            new CylinderSurface(new Point3D(-245, 0, -60), Y, 10d, Z),
+            CylinderIntersectionBranch.NegativeCutterAxis, new ParameterInterval(0d, double.Pi / 2d));
+        Assert.Contains("TangentOrOversize", result.Diagnostics[0].Source);
     }
 
     private static CylinderCylinderIntersectionCurve Create(double hostRadius, double toolRadius, CylinderIntersectionBranch branch)

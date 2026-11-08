@@ -60,6 +60,8 @@ internal sealed class FirmamentSyntaxWriter(string? source = null)
         WithSyntax w => WriteExpression(w.Target) + " with " + WriteBlock(w.Body),
         FrameSyntax f => WriteExpression(f.Origin) + " " + string.Join(" ", f.Axes.Select(a => a.Name!.Text + WriteExpression(a.Value))),
         AliasSyntax a => WriteExpression(a.Value) + " as " + a.Name.Text,
+        JunctionOperandSyntax j => (j.Role ? "role " : "") + j.Name.Text,
+        JunctionSyntax j => WriteExpression(j.Left) + " meets " + WriteExpression(j.Right),
         TraceSyntax t => WriteExpression(t.Source) + (t.From is null ? "" : " from " + WriteExpression(t.From)) + (t.To is null ? "" : " to " + WriteExpression(t.To)),
         MemberSetSyntax m => WriteExpression(m.Target) + ".[" + WriteArguments(m.Members) + "]",
         TypedValueSyntax t => WriteExpression(t.Type) + " = " + WriteExpression(t.Value),

@@ -289,10 +289,38 @@ public static partial class FirmamentBuildAndExport
         // Its expansion pipeline runs once in the frontend. Unmigrated domain owners
         // retain their existing expansion boundary until their own cutover.
         sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
+        // Fillets where two Compose operations meet (`where: A meets B`): build the body without them, then round the
+        // edges between the two operations' faces.
+        if (JunctionFilletRoute.Find(sourceText) is { } junction)
+        {
+            var filleted = JunctionFilletRoute.Export(junction, stripped => ExportSource(stripped, sourceDirectory, allowV1Compatibility, explicitSchema, resources, authoredSource), sourceDirectory);
+            return filleted.IsSuccess && filleted.Value.RuntimeAdmissionDocument is null && ParseSemanticSource(junction.Stripped, sourceDirectory).Document is { } admittedJunction
+                ? KernelResult<FirmamentStepExportResult>.Success(filleted.Value with { RuntimeAdmissionDocument = admittedJunction }, filleted.Diagnostics)
+                : filleted;
+        }
         var canonicalParseWatch = System.Diagnostics.Stopwatch.StartNew();
         var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory, null, explicitSchema, resources);
         canonicalParseWatch.Stop();
+        // Fillet every edge on a body no dedicated route takes: the source fails only because of the finish (without
+        // it, it parses), or it parses but the edge-finish lowering refuses the whole-body selector. Build the body
+        // without the finish, then round it whole, or refuse with the rounding's reason, at the finish. The
+        // dedicated Box/Polyhedron builder keeps its own refusals (UniformFillet...).
+        KernelResult<FirmamentStepExportResult> Round(UniformRoundingRoute.Request rounding)
+        {
+            // The admitted document (bodies, assertions) is the one without the finish; assertions then measure the
+            // rounded body.
+            var rounded = UniformRoundingRoute.Export(rounding, stripped => ExportSource(stripped, sourceDirectory, allowV1Compatibility, explicitSchema, resources));
+            return rounded.IsSuccess && rounded.Value.RuntimeAdmissionDocument is null && ParseSemanticSource(rounding.Stripped, sourceDirectory).Document is { } admitted
+                ? KernelResult<FirmamentStepExportResult>.Success(rounded.Value with { RuntimeAdmissionDocument = admitted }, rounded.Diagnostics)
+                : rounded;
+        }
+        if (!v2Parse.IsSuccess && UniformRoundingRoute.Find(sourceText) is { } unparsed
+            && FirmamentV2Parser.Parse(unparsed.Stripped, sourceDirectory, null, explicitSchema, resources).IsSuccess)
+            return Round(unparsed);
         var built = ExportAdmittedSource(sourceText, sourceDirectory, allowV1Compatibility, explicitSchema, resources, v2Parse, canonicalParseWatch);
+        if (!built.IsSuccess && !built.Diagnostics.Any(d => d.Message.StartsWith("UniformFillet", StringComparison.Ordinal))
+            && UniformRoundingRoute.Find(sourceText) is { } unbuilt)
+            return Round(unbuilt);
         if (!built.IsSuccess) return built;
         var accounting = FirmamentFeatureAccounting.Verify(v2Parse, authoredSource, built.Value);
         return accounting.IsSuccess ? KernelResult<FirmamentStepExportResult>.Success(accounting.Value, built.Diagnostics) : accounting;
@@ -395,6 +423,7 @@ public static partial class FirmamentBuildAndExport
         if (v2Parse.BoundRevolve is { } boundRevolve)
         {
             var authored = boundRevolve;
+            if (authored.Hollow is { } revolveHollow) return ExportHollowRevolve(authored, revolveHollow);
             var built = ResolvedProfileRevolveEmitter.TryEmit(authored);
             if (!built.Succeeded || built.Body is null || built.Plan is null)
                 return KernelResult<FirmamentStepExportResult>.Failure(built.Diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
@@ -506,16 +535,8 @@ public static partial class FirmamentBuildAndExport
             var emitted = PrismaticSectionStackEmitter.Emit(stack);
             if (emitted.Body is null)
                 return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition")).ToArray());
-            if ((stack.Feature.ConstructionPlaneBlindDrills?.Count ?? 0) > 0)
-            {
-                var finalPlan = SectionStackBlindDrillComposeBridge.TryApply(stack, emitted.Plan!, out var bridgeDiagnostics, out _);
-                if (finalPlan?.TopologyPlan is null)
-                    return KernelResult<FirmamentStepExportResult>.Failure(bridgeDiagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition.BlindDrill")).ToArray());
-                var materialized = PrismaticSectionStackBrepMaterializer.TryMaterialize(finalPlan.TopologyPlan);
-                if (materialized.Body is null)
-                    return KernelResult<FirmamentStepExportResult>.Failure(materialized.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition.BlindDrill")).ToArray());
-                emitted = new PrismaticSectionStackEmissionResult(materialized.Body, finalPlan, emitted.Diagnostics.Concat(bridgeDiagnostics).ToArray(), finalPlan.Correspondence);
-            }
+            if (ApplyConstructionPlaneBlindDrills(stack, emitted, out var drilled) is { } drillFailure) return drillFailure;
+            emitted = drilled;
             if (materializerSource.Contains("EdgeFinish", StringComparison.Ordinal))
                 return ExportComposedSemanticTopBoundaryChamfer(materializerSource, parsed, stack, emitted, v2Parse.Document);
             // The composition route either retained the checked body above or
@@ -1011,15 +1032,21 @@ public static partial class FirmamentBuildAndExport
         var grooveBottomWidth = feature.PitchMm - rootWidth;
         var start = supportStart + (feature.StartOffsetMm ?? grooveWidth / 2d + 1d);
         var end = start + feature.LengthMm;
-        if (start - grooveWidth / 2d <= supportStart + 1e-6d || end + grooveWidth / 2d >= supportEnd - 1e-6d)
-            return Failure("support-bounds", "Thread footprint requires stock margins inside the HexBolt shank, before the tip chamfer.");
+        // A thread whose footprint reaches the tip chamfer runs out through the tip, as a die-cut thread does, so a
+        // nut can start on it.
+        var runOut = end + grooveWidth / 2d >= supportEnd - 1e-6d;
+        if (start - grooveWidth / 2d <= supportStart + 1e-6d || (runOut && start + grooveWidth / 2d >= supportEnd))
+            return Failure("support-bounds", "Thread footprint requires stock margins inside the HexBolt shank, starting before the tip chamfer.");
         var buildStart = Stopwatch.GetTimestamp();
         var rib = HelicalRibGeometry.Create(new HelicalRibParameters(Point3D.Origin,
             Direction3D.Create(new Vector3D(1d, 0d, 0d)), Direction3D.Create(new Vector3D(0d, 1d, 0d)),
-            supportStart, supportEnd, feature.MajorDiameterMm / 2d, rootRadius, feature.PitchMm,
+            supportStart, runOut ? double.Max(supportEnd, end + grooveWidth) : supportEnd,
+            feature.MajorDiameterMm / 2d, rootRadius, feature.PitchMm,
             start, end, grooveWidth, grooveBottomWidth, Intent: HelicalProfileIntent.RemoveGroove));
         if (!rib.IsSuccess) return Failure("geometry-invalid", string.Join(" | ", rib.Diagnostics.Select(d => d.Message)));
-        var built = BrepHelicalRib.Create(rib.Value, splitStockRims: true);
+        var built = runOut
+            ? BrepHelicalRib.CreateWithTipRunOut(rib.Value, new HelicalTipRunOut(supportEnd, bolt.Spec.Length, bolt.Spec.TipDiameter / 2d))
+            : BrepHelicalRib.Create(rib.Value, splitStockRims: true);
         if (!built.IsSuccess) return Failure("brep-invalid", string.Join(" | ", built.Diagnostics.Select(d => d.Message)));
         HexBoltThreadComposition.Result stitched;
         try { stitched = HexBoltThreadComposition.Create(bolt, built.Value); }
@@ -1068,11 +1095,11 @@ public static partial class FirmamentBuildAndExport
             bolt.DeterministicSignature, authoredPart.Parameters, boltSemantics);
         var report = new FirmamentThreadReport(featureId, $"face({document.Solid.Name}.Shank)",
             feature.MajorDiameterMm, 2d * rootRadius, feature.PitchMm, feature.PitchMm, feature.LengthMm,
-            start - supportStart, start, feature.Hand, "metric-60-degree-truncated", (int)Math.Round(rib.Value.Turns),
+            start - supportStart, start, feature.Hand, "metric-60-degree-truncated", (int)Math.Round(built.Value.Authority.Turns),
             stitched.Body.Topology.Faces.Count(), stitched.Body.Topology.Edges.Count(),
             stitched.Body.Topology.Vertices.Count(), built.Value.SeamSplits, constructionMs, exportMs,
             Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))))
-        { HeadSideLandMm = start - supportStart - grooveWidth / 2d, TipSideLandMm = supportEnd - end - grooveWidth / 2d };
+        { HeadSideLandMm = start - supportStart - grooveWidth / 2d, TipSideLandMm = runOut ? 0d : supportEnd - end - grooveWidth / 2d };
         return ApplyHexBoltMakerMark(new FirmamentStepExportResult(
             step.Value, featureId, 0, "thread-external-hexbolt", "metric-60-degree",
             StandardPart: boltReport, Thread: report)
@@ -1149,6 +1176,23 @@ public static partial class FirmamentBuildAndExport
             "template-exact-construction", "ExactCoaxialPart", ConceptIr: document.ConceptIr, StandardPart: report));
     }
 
+    /// <summary>Applies a section stack's construction-plane blind drills to an emitted plan and materializes the
+    /// result; returns a failure, or null with the drilled emission (unchanged when there are no drills).</summary>
+    private static KernelResult<FirmamentStepExportResult>? ApplyConstructionPlaneBlindDrills(
+        PrismaticSectionStackConstruction stack, PrismaticSectionStackEmissionResult emitted, out PrismaticSectionStackEmissionResult result)
+    {
+        result = emitted;
+        if ((stack.Feature.ConstructionPlaneBlindDrills?.Count ?? 0) == 0) return null;
+        static KernelResult<FirmamentStepExportResult> Failure(IEnumerable<string> codes) => KernelResult<FirmamentStepExportResult>.Failure(codes.Select(x =>
+            new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition.BlindDrill")).ToArray());
+        var finalPlan = SectionStackBlindDrillComposeBridge.TryApply(stack, emitted.Plan!, out var bridgeDiagnostics, out _);
+        if (finalPlan?.TopologyPlan is null) return Failure(bridgeDiagnostics);
+        var materialized = PrismaticSectionStackBrepMaterializer.TryMaterialize(finalPlan.TopologyPlan);
+        if (materialized.Body is null) return Failure(materialized.Diagnostics);
+        result = new PrismaticSectionStackEmissionResult(materialized.Body, finalPlan, emitted.Diagnostics.Concat(bridgeDiagnostics).ToArray(), finalPlan.Correspondence);
+        return null;
+    }
+
     private static KernelResult<FirmamentStepExportResult> ExportComposedSemanticTopBoundaryChamfer(
         string source, PrismaticProfileCompositionParseResult parsed, PrismaticSectionStackConstruction stack, PrismaticSectionStackEmissionResult emitted,
         FirmamentV2Document? canonicalDocument)
@@ -1192,6 +1236,9 @@ public static partial class FirmamentBuildAndExport
             if (adjusted is null) return Fail(planDiagnostics.FirstOrDefault() ?? "ProfileBoundaryChamferComposeTopologyPlanNotMaterialized");
             var plannedEmission = PrismaticSectionStackEmitter.Emit(adjusted);
             if (plannedEmission.Body is null) return Fail(plannedEmission.Diagnostics.FirstOrDefault() ?? "ProfileBoundaryChamferComposeMaterializationFailed");
+            // The chamfer re-emits the adjusted stack, so construction-plane drills apply again to that plan.
+            if (ApplyConstructionPlaneBlindDrills(adjusted, plannedEmission, out var drilledEmission) is { } chamferDrillFailure) return chamferDrillFailure;
+            plannedEmission = drilledEmission;
             if (!FirmamentManifoldChecker.IsManifold(plannedEmission.Body)) return Fail("ProfileBoundaryChamferNonManifold");
             var semanticPmi = Array.Empty<Step242SemanticPmi>();
             if (canonicalDocument is not null)
@@ -1936,6 +1983,74 @@ public static partial class FirmamentBuildAndExport
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, $"{solid.Name}.{first.Name}.{second.Name}", 0, "air-fillet", "localized-edge-junction-fillet", Air: report, ConceptIr: document.ConceptIr) { MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "EdgeFinish", first.Name, second.Name) });
     }
 
+    /// <summary>
+    /// <c>Revolve&lt;Hollow&gt;</c>: the Profile becomes a meridian about the axis, the general meridian hollow derives
+    /// its constant wall, and the wall turns into a seamless shell of revolution.
+    /// </summary>
+    private static KernelResult<FirmamentStepExportResult> ExportHollowRevolve(ResolvedRevolve authored, PrismaticHollowIntent hollow)
+    {
+        KernelResult<FirmamentStepExportResult> Fail(IEnumerable<string> messages) => KernelResult<FirmamentStepExportResult>.Failure(messages.Select(message =>
+            new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "FirmamentV2.Revolve")).ToArray());
+        var plane = authored.Profile.EffectiveConstructionPlane;
+        var origin = new Point3D(authored.Axis.Origin.X, authored.Axis.Origin.Y, authored.Axis.Origin.Z);
+        var direction = new Vector3D(authored.Axis.Direction.X, authored.Axis.Direction.Y, authored.Axis.Direction.Z);
+        direction = direction * (1d / direction.Length);
+        var local = plane.ToLocal(origin);
+        var d = (X: direction.Dot(plane.AxisX.ToVector()), Y: direction.Dot(plane.AxisY.ToVector()));
+        if (authored.Profile.Loops.Count != 1)
+            return Fail(["firmament-v2-hollow-revolve-meridian-invalid: Revolve<Hollow> turns one outer Profile loop."]);
+        var curves = authored.Profile.Loops[0].Segments.Select(segment => segment.Geometry).ToArray();
+        // The meridian's radius runs away from the axis on the Profile's side.
+        var sample = curves.Select(c => Kernel.Core.Geometry.Planar.LineArcInset.StartPoint(ProfileInset2D.ToPlanar(c)))
+            .Select(p => (p.X - local.X) * -d.Y + (p.Y - local.Y) * d.X).MaxBy(double.Abs);
+        var n = sample >= 0d ? (X: -d.Y, Y: d.X) : (X: d.Y, Y: -d.X);
+        (double R, double Z) Map((double X, double Y) p) => ((p.X - local.X) * n.X + (p.Y - local.Y) * n.Y, (p.X - local.X) * d.X + (p.Y - local.Y) * d.Y);
+        var reflected = n.X * d.Y - n.Y * d.X < 0d;
+        var meridian = new List<Kernel.Core.Geometry.Planar.PlanarSpan>();
+        foreach (var curve in curves)
+        {
+            switch (curve)
+            {
+                case LineArcLineSegment2D line:
+                    meridian.Add(new Kernel.Core.Geometry.Planar.PlanarLine(Map(line.Start), Map(line.End)));
+                    break;
+                case LineArcCircularArc2D arc:
+                {
+                    var center = Map(arc.Center);
+                    var start = Map((arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians)));
+                    meridian.Add(new Kernel.Core.Geometry.Planar.PlanarArc(center, arc.Radius, Math.Atan2(start.Z - center.Z, start.R - center.R),
+                        reflected ? -arc.SweepAngleRadians : arc.SweepAngleRadians));
+                    break;
+                }
+                default:
+                    return Fail(["hollow-offset-curve-unsupported: Revolve<Hollow> meridians are lines and circular arcs."]);
+            }
+        }
+        var wall = Kernel.Core.Brep.Features.MeridianHollow.Wall(meridian, hollow.WallThickness, hollow.OpenTop, hollow.OpenBottom);
+        if (!wall.IsSuccess) return Fail(wall.Diagnostics.Select(x => x.Message));
+        var radial = plane.ToWorldVector(n);
+        var frame = new Kernel.Core.Brep.Features.RevolutionFrame(origin, Direction3D.Create(direction), Direction3D.Create(radial));
+        var shell = Kernel.Core.Brep.Features.BrepRevolvedShell.Build(wall.Value, frame);
+        if (!shell.IsSuccess) return Fail(shell.Diagnostics.Select(x => x.Message));
+        var body = shell.Value.Body;
+        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions { ProductName = authored.Name });
+        if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(reimport.Diagnostics);
+        if (!FirmamentManifoldChecker.IsManifold(reimport.Value)) return Fail([$"firmament-revolve-step-reimport-not-manifold:{authored.Name}"]);
+        var surfaces = body.Topology.Faces.Select(face => body.GetFaceSurface(face.Id).Kind).ToArray();
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))).ToLowerInvariant();
+        var report = new FirmamentRevolveReport(authored.Profile.Name, authored.AxisName, authored.SweepRadians,
+            authored.SweepRadians * 180d / Math.PI, authored.AuthoredAlias, authored.SweepRadians < 0d ? "Negative" : "Positive", "Full", hash,
+            surfaces.Select(kind => kind.ToString()).ToArray(), body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(),
+            surfaces.Count(kind => kind == SurfaceGeometryKind.Plane), surfaces.Count(kind => kind == SurfaceGeometryKind.Cylinder),
+            surfaces.Count(kind => kind == SurfaceGeometryKind.Cone), surfaces.Count(kind => kind == SurfaceGeometryKind.Sphere),
+            surfaces.Count(kind => kind == SurfaceGeometryKind.Torus), surfaces.Count(kind => kind == SurfaceGeometryKind.SurfaceOfRevolution), true, hash);
+        return KernelResult<FirmamentStepExportResult>.Success(new(step.Value, authored.Name, 0, "hollow-revolve", "revolve", Revolve: report,
+            EngineeringFeatures: [new(authored.Name, "Revolve<Hollow>", authored.StableId, authored.Name, authored.Axis.StableId, authored.Profile.Name,
+                hollow.WallThickness, "WallThickness", "Base", PolicySource: "MeridianHollow", MaterializationRoute: "BrepRevolvedShell")]) { RuntimeBodySourceName = authored.Name, RuntimeBody = body });
+    }
+
     private static KernelResult<FirmamentStepExportResult>? TryExportV2HollowBody(FirmamentV2Document document)
     {
         if (document.Solids.Count != 1 || document.Solid.ConstructionPolicy != FirmamentV2ConstructionPolicy.Hollow)
@@ -1949,7 +2064,7 @@ public static partial class FirmamentBuildAndExport
 
         KernelResult<ThinWalledBodyRealization> realization = solid.Primitive switch
         {
-            FirmamentV2RoundedBoxRecord rounded when rounded.Size.Count == 3 => ThinWalledBodyBRepPlanner.CreateRoundedBox(rounded.Size[0], rounded.Size[1], rounded.Size[2], rounded.CornerRadius, solid.Hollow.WallThickness),
+            FirmamentV2RoundedBoxRecord rounded when rounded.Size.Count == 3 => HollowPrimitives.RoundedBox(rounded.Size[0], rounded.Size[1], rounded.Size[2], rounded.CornerRadius, solid.Hollow.WallThickness),
             FirmamentV2FrustumRecord frustum => ThinWalledBodyBRepPlanner.CreateFrustum(frustum.BottomRadius, frustum.TopRadius, frustum.Height, solid.Hollow.WallThickness),
             FirmamentV2CylinderRecord cylinder => ThinWalledBodyBRepPlanner.CreateCylinder(cylinder.Radius, cylinder.Height, solid.Hollow.WallThickness, solid.Hollow.BottomBlendRadius),
             _ => throw new InvalidOperationException("Parser admitted a Hollow policy without a HollowConstructible witness.")
@@ -2589,33 +2704,71 @@ public static partial class FirmamentBuildAndExport
             if (!cylindricalStep.IsSuccess || cylindricalStep.Value is null)
                 return Failure("perforation-cylindrical-step-export-failed: " + string.Join(" | ", cylindricalStep.Diagnostics.Select(d => d.Message)));
             var stepExportMilliseconds = Stopwatch.GetElapsedTime(stepExportStart).TotalMilliseconds;
+            // The reimport proves that the STEP text faithfully encodes the body validated above. Openings of a
+            // pattern are congruent (one realization moved rigidly) and proven disjoint at compile time, so a
+            // one- and a two-opening specimen prove the encoding of an opening, alone and sharing host faces; the
+            // full file must then hold exactly the entities N congruent openings add. Re-importing every opening
+            // would re-prove the same opening N times.
+            string? Verify(string stepText, int openings)
+            {
+                var imported = Step242Importer.ImportBody(stepText);
+                if (!imported.IsSuccess || imported.Value is null || !FirmamentManifoldChecker.IsManifold(imported.Value))
+                    return "perforation-cylindrical-step-reimport-invalid: " + string.Join(" | ", imported.Diagnostics.Select(d => d.Message));
+                var importedCylinders = imported.Value.Geometry.Surfaces
+                    .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Cylinder)
+                    .Select(pair => pair.Value.Cylinder!.Value.Radius).ToArray();
+                var importedPlanes = imported.Value.Geometry.Surfaces
+                    .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Plane)
+                    .Select(pair => pair.Value.Plane!.Value.Origin.Z).ToArray();
+                var importedTori = imported.Value.Geometry.Surfaces
+                    .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Torus)
+                    .Select(pair => pair.Value.Torus!.Value).ToArray();
+                if (imported.Value.Topology.Faces.Count() != openings + (hollow.BottomBlendRadius > 0 ? 7 : 5) ||
+                    importedCylinders.Length != openings + 2 ||
+                    importedPlanes.Length != 3 ||
+                    importedTori.Length != (hollow.BottomBlendRadius > 0 ? 2 : 0) ||
+                    (hollow.BottomBlendRadius > 0 &&
+                     (importedTori.Any(torus => System.Math.Abs(torus.MajorRadius - (cylinder.Radius - hollow.BottomBlendRadius)) > 1e-6) ||
+                      !importedTori.Any(torus => System.Math.Abs(torus.MinorRadius - hollow.BottomBlendRadius) < 1e-6) ||
+                      !importedTori.Any(torus => System.Math.Abs(torus.MinorRadius - (hollow.BottomBlendRadius - hollow.WallThickness)) < 1e-6))) ||
+                    !new[] { 0d, hollow.WallThickness, cylinder.Height }.All(z => importedPlanes.Any(p => System.Math.Abs(p - z) < 1e-6)) ||
+                    importedCylinders.Count(r => System.Math.Abs(r - feature.Diameter / 2) < 1e-6) != openings ||
+                    importedCylinders.Count(r => System.Math.Abs(r - cylinder.Radius) < 1e-6) != 1 ||
+                    importedCylinders.Count(r => System.Math.Abs(r - (cylinder.Radius - hollow.WallThickness)) < 1e-6) != 1)
+                    return "perforation-cylindrical-step-reimport-invalid: opening count or analytic radii changed";
+                return null;
+            }
             var stepReimportStart = Stopwatch.GetTimestamp();
-            var cylindricalImport = Step242Importer.ImportBody(cylindricalStep.Value);
-            if (!cylindricalImport.IsSuccess || cylindricalImport.Value is null || !FirmamentManifoldChecker.IsManifold(cylindricalImport.Value))
-                return Failure("perforation-cylindrical-step-reimport-invalid: " + string.Join(" | ", cylindricalImport.Diagnostics.Select(d => d.Message)));
+            string verificationBasis;
+            if (placements.Length <= 2)
+            {
+                if (Verify(cylindricalStep.Value, placements.Length) is { } reimportFailure) return Failure(reimportFailure);
+                verificationBasis = "full-reimport";
+            }
+            else
+            {
+                var specimenCounts = new List<IReadOnlyDictionary<string, int>>();
+                foreach (var openings in new[] { 1, 2 })
+                {
+                    var specimen = BrepHollowRadialCutPattern.Build(hollowBody.Value, placements[..openings]);
+                    var specimenStep = specimen.IsSuccess && specimen.Value is not null
+                        ? Step242Exporter.ExportBody(specimen.Value.Body, new Step242ExportOptions
+                        {
+                            ProductName = cylindricalFeatureId, ApplicationName = "Aetheris.Firmament.Perforation.Cylindrical",
+                            BrepExportPreflightMode = BrepExportPreflightMode.Enforce, BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+                        })
+                        : null;
+                    if (specimenStep is not { IsSuccess: true, Value: { } specimenText })
+                        return Failure($"perforation-cylindrical-specimen-invalid: the {openings}-opening specimen did not build and export");
+                    if (Verify(specimenText, openings) is { } specimenFailure) return Failure(specimenFailure);
+                    specimenCounts.Add(Step242EntityCensus.Count(specimenText));
+                }
+                var full = Step242EntityCensus.Count(cylindricalStep.Value);
+                if (Step242EntityCensus.LinearMismatch(specimenCounts[0], specimenCounts[1], full, placements.Length) is { } mismatch)
+                    return Failure($"perforation-cylindrical-step-congruence-invalid: {mismatch}");
+                verificationBasis = "congruent-specimens";
+            }
             var stepReimportMilliseconds = Stopwatch.GetElapsedTime(stepReimportStart).TotalMilliseconds;
-            var importedCylinders = cylindricalImport.Value.Geometry.Surfaces
-                .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Cylinder)
-                .Select(pair => pair.Value.Cylinder!.Value.Radius).ToArray();
-            var importedPlanes = cylindricalImport.Value.Geometry.Surfaces
-                .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Plane)
-                .Select(pair => pair.Value.Plane!.Value.Origin.Z).ToArray();
-            var importedTori = cylindricalImport.Value.Geometry.Surfaces
-                .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Torus)
-                .Select(pair => pair.Value.Torus!.Value).ToArray();
-            if (cylindricalImport.Value.Topology.Faces.Count() != placements.Length + (hollow.BottomBlendRadius > 0 ? 7 : 5) ||
-                importedCylinders.Length != placements.Length + 2 ||
-                importedPlanes.Length != 3 ||
-                importedTori.Length != (hollow.BottomBlendRadius > 0 ? 2 : 0) ||
-                (hollow.BottomBlendRadius > 0 &&
-                 (importedTori.Any(torus => System.Math.Abs(torus.MajorRadius - (cylinder.Radius - hollow.BottomBlendRadius)) > 1e-6) ||
-                  !importedTori.Any(torus => System.Math.Abs(torus.MinorRadius - hollow.BottomBlendRadius) < 1e-6) ||
-                  !importedTori.Any(torus => System.Math.Abs(torus.MinorRadius - (hollow.BottomBlendRadius - hollow.WallThickness)) < 1e-6))) ||
-                !new[] { 0d, hollow.WallThickness, cylinder.Height }.All(z => importedPlanes.Any(p => System.Math.Abs(p - z) < 1e-6)) ||
-                importedCylinders.Count(r => System.Math.Abs(r - feature.Diameter / 2) < 1e-6) != placements.Length ||
-                importedCylinders.Count(r => System.Math.Abs(r - cylinder.Radius) < 1e-6) != 1 ||
-                importedCylinders.Count(r => System.Math.Abs(r - (cylinder.Radius - hollow.WallThickness)) < 1e-6) != 1)
-                return Failure("perforation-cylindrical-step-reimport-invalid: opening count or analytic radii changed");
             var cylindricalDescendants = placements.SelectMany(placement => new[]
             {
                 new SemanticTopologyDescendant($"material:perforation:{placement.StableId}:wall", "Face", SemanticTopologyRole.HoleWallFace,
@@ -2649,7 +2802,8 @@ public static partial class FirmamentBuildAndExport
                     c.InnerHostPcurveBoundMm, c.InnerToolPcurveBoundMm }.Max()),
                 PatternBuildMilliseconds = patternBuildMilliseconds,
                 StepExportMilliseconds = stepExportMilliseconds,
-                StepReimportMilliseconds = stepReimportMilliseconds
+                StepReimportMilliseconds = stepReimportMilliseconds,
+                VerificationBasis = verificationBasis
             };
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(cylindricalStep.Value,
                 cylindricalFeatureId, 0, "perforation-cylindrical", "local-radial-through-wall", Perforation: cylindricalReport)

@@ -96,6 +96,56 @@ public static class FirmamentV2DiagnosticAdapter
         // Producers write "code[:parameters]: explanation"; the explanation is the message.
         _ when diagnosticCode.IndexOf(": ", StringComparison.Ordinal) is > 0 and var split && !diagnosticCode[..split].Any(char.IsWhiteSpace)
             => diagnosticCode[(split + 2)..],
+        _ when PathMessage(diagnosticCode) is { } path => path,
+        _ when BoundaryMessage(diagnosticCode) is { } boundary => boundary,
         _ => diagnosticCode
     };
+
+    // concept-path-<kind>:<path>[:<step>[:detail...]]
+    private static string? PathMessage(string code)
+    {
+        if (!code.StartsWith("concept-path-", StringComparison.Ordinal)) return null;
+        var parts = code.Split(':');
+        var kind = parts[0]["concept-path-".Length..];
+        var path = parts.ElementAtOrDefault(1) ?? "?";
+        var step = parts.ElementAtOrDefault(2);
+        var where = step is null ? $"Path '{path}'" : $"Step '{step}' of Path '{path}'";
+        return kind switch
+        {
+            "zero-length" => $"{where} has zero length: it ends where it starts. Remove it, or end the path one step earlier.",
+            "unknown-target" => $"{where} goes To '{parts.ElementAtOrDefault(3)}', which is not a named point. Use Start, a Concept point, or an earlier step's End.",
+            "length-invalid" => $"{where} needs a positive length.",
+            "turn-and-heading" => $"{where} sets both turn and heading; give one.",
+            "to-mixed-direction-or-length" => $"{where} combines To with a length, turn or heading. To fixes the endpoint, so give it alone.",
+            "field-unknown" => $"{where} has unknown field '{parts.ElementAtOrDefault(3)}'. Allowed: {parts.ElementAtOrDefault(4)?.Replace("allowed=", "", StringComparison.Ordinal).Replace(",", ", ", StringComparison.Ordinal)}.",
+            "duplicate-step" => $"Path '{path}' has two steps named '{step}'. Step names must be unique within a path.",
+            "name-collision" => $"'{path}' is already declared. Path and step names must not collide with other names.",
+            "start-invalid" => $"{where} needs start: Point2(x, y) with lengths.",
+            "heading-invalid" => $"{where} heading must be an angle, for example 90deg.",
+            _ when kind.EndsWith("-invalid", StringComparison.Ordinal) && step is not null
+                => $"{where} is not a valid {kind[..^"-invalid".Length]} step{(parts.Length > 3 ? ": " + string.Join(":", parts[3..]) : ".")}",
+            _ => null
+        };
+    }
+
+    // firmament-boundary2-<reason>:<name>
+    private static string? BoundaryMessage(string code)
+    {
+        const string prefix = "firmament-boundary2-";
+        if (!code.StartsWith(prefix, StringComparison.Ordinal) || code.LastIndexOf(':') is not (> 0 and var colon)) return null;
+        var reason = code[prefix.Length..colon];
+        var name = code[(colon + 1)..];
+        // A one-line Profile is lowered through a generated "<name>__Boundary" shape; report the authored name.
+        if (name.EndsWith("__Boundary", StringComparison.Ordinal)) name = name[..^"__Boundary".Length];
+        return reason switch
+        {
+            "profile-value-unsupported" => $"Profile '{name}' = ... needs a shape value (Rect2, Circle2, Slot2, RoundedRect2, RegularPolygon2<N>, ...) or the name of a closed Path or shape.",
+            "profile-value-header" => $"Profile '{name}' = value takes no type annotation, parameters or clauses.",
+            "duplicate-name" => $"'{name}' is already declared.",
+            "reserved-value-name" => $"'{name}' is reserved for a generated shape name; choose another name.",
+            "variant-unsupported" => $"Shape '{name}' has a variant this shape does not take; only Triangle2, Polygon2 and RegularPolygon2 take <...>.",
+            "invalid-dimensions" => $"Shape '{name}' has missing or non-positive dimensions. Check its required fields and length units.",
+            _ => $"Shape '{name}' is invalid: {reason.Replace('-', ' ')}."
+        };
+    }
 }

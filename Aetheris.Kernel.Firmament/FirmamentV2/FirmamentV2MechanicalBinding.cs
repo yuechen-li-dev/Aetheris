@@ -439,6 +439,21 @@ public static partial class FirmamentV2Parser
             && FirmamentSyntaxValues.TryMeasure(blind.Arguments[0].Value, "mm", out var depth, compatibilityStock is null ? null : "mm") && depth > 0) termination = new(FirmamentV2SemanticHoleEndKind.Depth, depth);
         if (compatibilityStock is not null && termination is null)
             diagnostics.Add(endExpression is CallSyntax { Target: ReferenceSyntax { Name.Text: "depth" } } ? HoleDepthInvalid : HoleEndMissing);
+        // A blind drilled hole has a drill point unless the author says otherwise; a flat floor is a deliberate
+        // choice (flat-bottom drill or end mill), written Termination: Flat.
+        FirmamentV2SemanticHoleTermination? tip = null;
+        var tipExpression = compatibilityStock is null ? f.Take("Termination") : null;
+        if (tipExpression is not null)
+        {
+            tip = BindHoleTermination(tipExpression, diagnostics);
+            if (tip is null) return null;
+            if (termination?.Kind != FirmamentV2SemanticHoleEndKind.Depth)
+            { diagnostics.Add($"{HoleTerminationConflictsWithExtent}: Termination applies to a Blind hole; a ThroughAll hole has no floor."); return null; }
+            if (variant != FirmamentV2SemanticHoleVariant.Shaft && tip.Kind == FirmamentV2SemanticHoleTerminationKind.DrillPoint)
+            { diagnostics.Add($"{HoleConstructionPlaneExtentUnsupported}: a drill point is admitted on Hole<Shaft> only; blind {variant} holes are flat (Termination: Flat)."); return null; }
+        }
+        else if (compatibilityStock is null && termination?.Kind == FirmamentV2SemanticHoleEndKind.Depth && variant == FirmamentV2SemanticHoleVariant.Shaft)
+            tip = new(FirmamentV2SemanticHoleTerminationKind.DrillPoint, 118d);
         double? cbDiameter = null, cbDepth = null, csDiameter = null, csAngle = null;
         if (variant == FirmamentV2SemanticHoleVariant.Counterbore) { cbDiameter = Diameter("CounterboreDiameter", "Counterbore"); cbDepth = f.Number("CounterboreDepth", "mm"); }
         if (variant == FirmamentV2SemanticHoleVariant.Countersink) { csDiameter = Diameter("CountersinkDiameter", "Countersink");
@@ -452,7 +467,24 @@ public static partial class FirmamentV2Parser
         if (csDiameter is not null && (!(csDiameter > diameter) || !(csAngle > 0 && csAngle < 180))) { diagnostics.Add(HoleCountersinkInvalid); return null; }
         face ??= FirmamentV2FaceTarget.Direct(axis);
         return new(d.Name.Text, variant, face, new(center[0], center[1], FirmamentV2FaceLocalPoint2D.ConventionFor(axis)), diameter, termination,
-            cbDiameter, cbDepth, csDiameter, csAngle, SourceSpan: d.Span, AuthoredFields: f.AuthoredFields);
+            cbDiameter, cbDepth, csDiameter, csAngle, SourceSpan: d.Span, AuthoredFields: f.AuthoredFields, Termination: tip);
+    }
+
+    /// <summary>Termination: Flat | DrillPoint | DrillPoint { PointAngle: 135deg }.</summary>
+    internal static FirmamentV2SemanticHoleTermination? BindHoleTermination(ExpressionSyntax expression, List<string> diagnostics)
+    {
+        if (FirmamentSyntaxValues.Reference(expression) is "Flat" or "FlatBottom") return new(FirmamentV2SemanticHoleTerminationKind.FlatBottom);
+        if (FirmamentSyntaxValues.Reference(expression) == "DrillPoint") return new(FirmamentV2SemanticHoleTerminationKind.DrillPoint, 118d);
+        if (expression is ObjectSyntax { Type: ReferenceSyntax { Name.Text: "DrillPoint" } } point)
+        {
+            var angleField = point.Body.Statements.OfType<FieldSyntax>().SingleOrDefault(field => FirmamentSyntaxFields.SameField(field.Name.Text, "PointAngle"));
+            if (point.Body.Statements.Count == 1 && angleField is not null && FirmamentSyntaxValues.TryMeasure(angleField.Value, "deg", out var angle) && angle > 0 && angle < 180)
+                return new(FirmamentV2SemanticHoleTerminationKind.DrillPoint, angle);
+            diagnostics.Add($"{HoleDrillPointAngleInvalid}: DrillPoint takes one field, PointAngle, between 0deg and 180deg (118deg when omitted).");
+            return null;
+        }
+        diagnostics.Add($"{HoleConstructionPlaneExtentUnsupported}: Termination is Flat, DrillPoint or DrillPoint {{ PointAngle: ... }}.");
+        return null;
     }
 
     private static string? MechanicalFinishKind(FirmamentSyntaxFields fields, List<string> diagnostics)

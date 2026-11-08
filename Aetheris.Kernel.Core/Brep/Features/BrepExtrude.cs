@@ -73,9 +73,11 @@ public static class BrepExtrude
 
         var faces = new List<FaceId>(n + 2)
         {
-            AddFaceWithLoop(builder, bottomEdges.Select(EdgeUse.Forward).ToArray()),
-            // Reversing a boundary reverses both each coedge sense and its cyclic order.
-            AddFaceWithLoop(builder, topEdges.Reverse().Select(EdgeUse.Reversed).ToArray()),
+            // Loops run counter-clockwise about each face's outward normal. The profile is counter-clockwise about the
+            // extrude normal, which is the top's outward normal; the bottom faces the other way, so its loop is the
+            // profile reversed (each coedge's sense and the cyclic order). Each edge is then used once each way.
+            AddFaceWithLoop(builder, bottomEdges.Reverse().Select(EdgeUse.Reversed).ToArray()),
+            AddFaceWithLoop(builder, topEdges.Select(EdgeUse.Forward).ToArray()),
         };
 
         for (var i = 0; i < n; i++)

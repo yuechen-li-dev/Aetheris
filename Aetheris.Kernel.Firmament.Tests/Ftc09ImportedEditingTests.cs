@@ -18,6 +18,8 @@ public sealed class Ftc09ImportedEditingTests
         }
     }
     static string Source(bool remove) => File.ReadAllText(Path.Combine(DirectoryPath, remove ? "ftc09-round-remove.firmament" : "ftc09-round-move.firmament"));
+    // Read-only reuse of one compile of the golden move edit; the placement tests transform copies of its body.
+    static readonly Lazy<FirmamentStepExportResult> GoldenMove = new(() => FirmamentBuildAndExport.CompileSource(Source(false), DirectoryPath).Value);
     static FirmamentV2ValidationReport Validate(string source) => FirmamentBuildAdmissionValidation.Admit(
         FirmamentV2ValidationReportBuilder.Build(FirmamentV2Parser.Parse(source, DirectoryPath), "revision.firmament", sourceText: source), source, DirectoryPath);
 
@@ -65,7 +67,7 @@ public sealed class Ftc09ImportedEditingTests
     [InlineData(2)]
     public void PrincipalXAndZ_UseTheSameCertificateAfterRigidPlacement(int axis)
     {
-        var built = FirmamentBuildAndExport.CompileSource(Source(false), DirectoryPath).Value;
+        var built = GoldenMove.Value;
         var transform = axis == 0 ? Core.Math.Transform3D.CreateRotationZ(double.Pi / 2)
             : Core.Math.Transform3D.CreateRotationX(double.Pi / 2);
         var placed = Aetheris.Kernel.Firmament.Assembly.FirmasmAssemblyExecutor.TransformBody(built.RuntimeBody!, transform);
@@ -111,9 +113,17 @@ public sealed class Ftc09ImportedEditingTests
             "remove-field" => source.Replace("within:", "wthin:"),
             _ => source[..source.LastIndexOf('}')] + "Pmi { HoleDiameter Old { target: Source.region(\"MountHole\"); value: 6.35mm } } }"
         };
+        // Validation admits by running the same compilation in memory, so one compile per case proves the
+        // rejection; BuildAgreesWithValidationOnAnInvalidIntent covers the build entry point once.
         var validation = Validate(source);
         Assert.Equal("invalid", validation.Status);
-        Assert.False(FirmamentBuildAndExport.CompileSource(source, DirectoryPath).IsSuccess);
         Assert.Contains(validation.Diagnostics, d => d.SourceSpan is not null && d.Severity is "error" or "fatal");
+    }
+
+    [Fact]
+    public void BuildAgreesWithValidationOnAnInvalidIntent()
+    {
+        var source = Source(false).Replace("Source.MountHole.diameter", "Source.MountHole.diammeter");
+        Assert.False(FirmamentBuildAndExport.CompileSource(source, DirectoryPath).IsSuccess);
     }
 }

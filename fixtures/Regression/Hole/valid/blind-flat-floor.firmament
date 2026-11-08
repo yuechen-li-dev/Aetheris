@@ -1,0 +1,8 @@
+// A top-face blind hole whose flat floor is stated explicitly.
+Model BlindFlatFloor {
+    units: mm
+    Box Base { size: [60mm, 40mm, 20mm] }
+    Modify Base {
+        Hole<Shaft> Flat { on: +Z; center: Point2(-15mm, 5mm); diameter: 8mm; end: Blind 10mm; termination: Flat }
+    }
+}

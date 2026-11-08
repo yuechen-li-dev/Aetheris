@@ -145,7 +145,7 @@ public static class CliRunner
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> | --views six --llm) --resolution <NxM> [--point <u,v>] [--rank-probes|--evidence-bundle] --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> ((--xy|--xz|--yz) --offset <value>|--origin <x,y,z> --normal <x,y,z>) [--out <section.svg>] [--json]";
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
-    private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
+    private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--shape [--shape-resolution <N>]] [--json]";
     private const string AnalyzeCompoundUsage = "Usage: aetheris analyze compound <file.step> [--json]";
     private const string AnalyzeAssemblyUsage = "Usage: aetheris analyze assembly <file.step> [--json]";
     private const string SectionsUsage = "Usage: aetheris sections <artifact.step> --axis Z --levels <z,...> [--epsilon <mm>] --json";
@@ -552,6 +552,8 @@ public static class CliRunner
         }
         if (domain == FirmamentCommandDomain.PlasticShell)
             return RunPlasticShellBuild(sourcePath, outPath, json, stdout, stderr);
+        if (domain == FirmamentCommandDomain.Mold)
+            return RunMoldBuild(sourcePath, outPath, json, stdout, stderr);
         if (domain == FirmamentCommandDomain.SheetMetal)
             return RunSheetMetalAuthoredBuild(sourcePath, outPath, json, stdout, stderr);
         if (domain == FirmamentCommandDomain.Sculpting)
@@ -904,6 +906,40 @@ public static class CliRunner
             }
         }
         return 0;
+    }
+
+    /// <summary>Builds the part as an ordinary model and writes the Mold report beside its STEP. Findings are warnings or
+    /// errors according to the Mold's stage; any error fails the build.</summary>
+    private static int RunMoldBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
+    {
+        var compile = MoldFirmament.CompileFile(sourcePath);
+        var output = compile.PartStep is null ? null : Path.GetFullPath(outPath ?? Path.ChangeExtension(sourcePath, ".step"));
+        string? reportPath = null;
+        if (output is not null)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+            File.WriteAllText(output, compile.PartStep);
+            reportPath = Path.ChangeExtension(output, ".mold.json");
+            File.WriteAllText(reportPath, JsonSerializer.Serialize(new { compile.Report, diagnostics = compile.Diagnostics }, JsonOptions));
+        }
+        if (json)
+            stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = compile.IsSuccess, input = Path.GetFullPath(sourcePath), output, report = reportPath, domain = "Mold",
+                mold = compile.Intent?.MoldName, part = compile.Intent?.PartName, stage = compile.Intent?.Stage.ToString(), summary = compile.Report?.Summary, diagnostics = compile.Diagnostics }, JsonOptions));
+        else
+        {
+            if (compile.Report is { } report)
+            {
+                var s = report.Summary;
+                stdout.WriteLine($"Mold {report.Intent.MoldName} on {report.Intent.PartName} ({report.Intent.Policy.Name}, {report.Intent.Stage}, pull {Format(report.Intent.Pull)})");
+                stdout.WriteLine($"  faces {s.Faces}: {s.PositiveFaces} +pull, {s.NegativeFaces} -pull, {s.VerticalFaces} parallel, {s.StraddlingFaces} straddling; {s.DraftFailures} short of draft, {s.UndercutFaces} undercut");
+                stdout.WriteLine($"  projected area {s.ProjectedArea:0.#} mm², volume {s.Volume:0.#} mm³, shot {s.ShotMass:0.##} g; parting line {report.PartingLine.EdgeIds.Count} edges" + (report.PartingLine.OnDeclaredPlane ? "" : " (off the declared plane)"));
+            }
+            if (output is not null) { stdout.WriteLine($"STEP: {output}"); stdout.WriteLine($"Report: {reportPath}"); }
+            foreach (var d in compile.Diagnostics) (d.Severity == PlasticDiagnosticSeverity.Error ? stderr : stdout).WriteLine($"{d.Severity.ToString().ToLowerInvariant()} {d.Code}: {d.Message}");
+        }
+        return compile.IsSuccess ? 0 : 1;
+
+        static string Format(Aetheris.Kernel.Core.Math.Direction3D d) => $"[{d.X:0.###}, {d.Y:0.###}, {d.Z:0.###}]";
     }
 
     private static int RunPlasticShellBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
@@ -2587,6 +2623,17 @@ Model CanonicalPanel {
             return sceneValid ? 0 : 1;
         }
         validationSource = frontend.Source;
+        if (domain == FirmamentCommandDomain.Mold)
+        {
+            if (parseOnly) return RejectParseOnly("Mold");
+            var mold = MoldFirmament.Compile(validationSource, Path.GetFullPath(sourcePath));
+            var payload = new { source = sourcePath, status = mold.IsSuccess ? "valid" : "invalid", domain = "Mold", validationLevel = mold.IsSuccess ? "Built" : "BuildRejected",
+                summary = new { fatalDiagnosticCount = mold.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Error), warningDiagnosticCount = mold.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Warning), mold.Report?.Summary },
+                diagnostics = mold.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { moldValidation = payload }, JsonOptions));
+            else { stdout.WriteLine($"Mold validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, {payload.summary.warningDiagnosticCount} warning)"); foreach (var d in mold.Diagnostics) stderr.WriteLine($"{d.Severity.ToString().ToLowerInvariant()} {d.Code}: {d.Message}"); }
+            return mold.IsSuccess ? 0 : 1;
+        }
         if (domain == FirmamentCommandDomain.PlasticShell)
         {
             if (parseOnly) return RejectParseOnly("PlasticShell");
@@ -3426,6 +3473,8 @@ Model CanonicalPanel {
         var json = false;
         var approximateVolume = false;
         int? resolution = null;
+        var shape = false;
+        var shapeResolution = 400;
         for (var i = 2; i < args.Length; i++)
         {
             switch (args[i])
@@ -3433,6 +3482,16 @@ Model CanonicalPanel {
                 case "--json":
                     json = true;
                     break;
+                case "--shape":
+                    shape = true;
+                    break;
+                case "--shape-resolution" when i + 1 < args.Length && int.TryParse(args[++i], out var parsedShape) && parsedShape > 0:
+                    shape = true;
+                    shapeResolution = parsedShape;
+                    break;
+                case "--shape-resolution":
+                    stderr.WriteLine("Analyze compare option --shape-resolution requires a positive integer value.");
+                    return 1;
                 case "--approximate-volume":
                     approximateVolume = true;
                     break;
@@ -3463,6 +3522,20 @@ Model CanonicalPanel {
         var surfaceComparison = CompareSurfaceFamilies(reference.Analysis?.Summary.SurfaceFamilies, candidate.Analysis?.Summary.SurfaceFamilies);
         var volumeComparison = CompareVolumes(reference.Volume, candidate.Volume, approximateVolume, resolution);
         var success = reference.Success && candidate.Success;
+        StepShapeComparison.ShapeComparisonResult? shapeComparison = null;
+        string? shapeError = null;
+        if (shape && success)
+        {
+            try
+            {
+                shapeComparison = StepShapeComparison.Compare(referencePath, candidatePath, shapeResolution);
+            }
+            catch (Exception ex) when (ex is StepAnalysisImportException or InvalidOperationException)
+            {
+                shapeError = ex.Message;
+                success = false;
+            }
+        }
 
         if (json)
         {
@@ -3475,6 +3548,8 @@ Model CanonicalPanel {
                 topologyComparison,
                 surfaceFamilyComparison = surfaceComparison,
                 volumeComparison,
+                shapeComparison,
+                shapeError,
                 notes = new[] { approximateVolume ? "Volume comparison uses explicit voxel approximation when exact fails per-side." : "Volume comparison uses exact path only." }
             }, JsonOptions));
             return success ? 0 : 1;
@@ -3496,6 +3571,32 @@ Model CanonicalPanel {
         stdout.WriteLine($"  Comparison: {JsonSerializer.Serialize(surfaceComparison, JsonOptions)}");
         stdout.WriteLine("Volume:");
         stdout.WriteLine($"  Comparison: {JsonSerializer.Serialize(volumeComparison, JsonOptions)}");
+        if (shapeError is not null) stdout.WriteLine($"Shape comparison failed: {shapeError}");
+        if (shapeComparison is { } sc)
+        {
+            var o = sc.Overlap;
+            stdout.WriteLine("Shape overlap (approximate, tessellated rays):");
+            stdout.WriteLine(FormattableString.Invariant($"  Reference {o.ReferenceVolume:0.###}  Candidate {o.CandidateVolume:0.###}  IoU {o.IntersectionOverUnion:0.######}"));
+            stdout.WriteLine(FormattableString.Invariant($"  Reference only {o.ReferenceOnlyVolume:0.###}  Candidate only {o.CandidateOnlyVolume:0.###}  (grid {o.ColumnsX}x{o.ColumnsY}, cell {o.CellSize:0.####})"));
+            foreach (var r in o.Regions)
+            {
+                stdout.WriteLine(FormattableString.Invariant($"    {r.Side,-15} {r.Volume,12:0.###}  x {r.BoundsMin[0]:0.##}..{r.BoundsMax[0]:0.##}  y {r.BoundsMin[1]:0.##}..{r.BoundsMax[1]:0.##}  z {r.BoundsMin[2]:0.##}..{r.BoundsMax[2]:0.##}"));
+            }
+
+            var c = sc.Carriers;
+            stdout.WriteLine($"Carriers: reference {c.ReferenceCarrierCount}, candidate {c.CandidateCarrierCount}, matched {c.MatchedCarrierCount}");
+            foreach (var (label, groups) in new[] { ("missing", c.MissingFromCandidate), ("extra", c.ExtraInCandidate) })
+            {
+                foreach (var g in groups)
+                {
+                    var where = g.BoundsMin is { } lo && g.BoundsMax is { } hi
+                        ? FormattableString.Invariant($"  [{lo[0]:0.##},{lo[1]:0.##},{lo[2]:0.##}]..[{hi[0]:0.##},{hi[1]:0.##},{hi[2]:0.##}]")
+                        : string.Empty;
+                    stdout.WriteLine($"  {label,-7} {g.Description}  faces {string.Join(',', g.FaceIds)}{where}");
+                }
+            }
+        }
+
         return success ? 0 : 1;
     }
 

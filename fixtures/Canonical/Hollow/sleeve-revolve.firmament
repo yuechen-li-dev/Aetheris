@@ -1,0 +1,10 @@
+// The same meridian open at both ends: a sleeve, with no axis-touching face.
+Model Sleeve {
+    units: mm
+    Axis spindle { origin: [0mm, 0mm, 0mm]; direction: [0, 0, 1] }
+    Concept Struct meridian on XZ {
+        Polygon2 section { points: [[0mm, 0mm], [30mm, 0mm], [32mm, 40mm], [14mm, 58mm], [14mm, 75mm], [0mm, 75mm]] }
+    }
+    Profile outline using meridian { Loop Outer { section |> TraceLoop } }
+    Revolve<Hollow> body { profile: outline; about: spindle; angle: full; wallThickness: 1.5mm; openings: [Top, Bottom] }
+}

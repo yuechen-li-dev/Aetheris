@@ -189,11 +189,7 @@ public static class ResolvedProfileRevolveEmitter
                     Use.Forward(startEdges[i]!.Value), Use.Forward(angularEdges[next]),
                     Use.Reversed(endEdges[i]!.Value), Use.Reversed(angularEdges[i])
                 ])
-                : AddFaceWithLoops(builder,
-                [
-                    [Use.Forward(angularEdges[next])],
-                    [Use.Reversed(angularEdges[i])]
-                ]);
+                : AddAnnulus(builder, bindings, (Use.Forward(angularEdges[next]), radii[next]), (Use.Reversed(angularEdges[i]), radii[i]));
             sideFaces.Add(face);
             semanticFaces["RevolvedSpan:" + segments[i].Name] = face;
             var sid = new SurfaceGeometryId(surfaceId++);
@@ -341,6 +337,17 @@ public static class ResolvedProfileRevolveEmitter
             builder.AddLoop(new Loop(loop, coedges)); loops.Add(loop);
         }
         return builder.AddFace(loops);
+    }
+    /// <summary>A full revolution's planar annulus: the larger circle is the outer boundary, bound as such, whichever
+    /// way the profile runs (a reader takes the face's side from its outer bound).</summary>
+    private static FaceId AddAnnulus(TopologyBuilder builder, BrepBindingModel bindings, (Use Use, double Radius) a, (Use Use, double Radius) b)
+    {
+        var (outer, inner) = a.Radius >= b.Radius ? (a.Use, b.Use) : (b.Use, a.Use);
+        var face = AddFaceWithLoops(builder, [[outer], [inner]]);
+        var loops = builder.Model.GetFace(face).LoopIds;
+        bindings.AddFaceBoundaryRoleBinding(new FaceBoundaryRoleBinding(face, loops[0], FaceBoundaryRole.Outer));
+        bindings.AddFaceBoundaryRoleBinding(new FaceBoundaryRoleBinding(face, loops[1], FaceBoundaryRole.Inner));
+        return face;
     }
     private readonly record struct Use(EdgeId Edge, bool IsReversed)
     {

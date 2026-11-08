@@ -8,6 +8,10 @@ internal static partial class FirmamentNumericEvaluation
 {
     internal readonly record struct Value(double Number, string Unit);
 
+    /// <summary>Intrinsic functions every compile-time expression may call; Function declarations cannot reuse these names.</summary>
+    internal static readonly IReadOnlyList<string> IntrinsicNames = ["Pow", "Sqrt", "Sin", "Cos", "Tan"];
+    internal static readonly IReadOnlySet<string> Intrinsics = new HashSet<string>(IntrinsicNames, StringComparer.Ordinal);
+
     internal static bool TryEvaluate(string source, out Value value,
         IReadOnlyDictionary<string, Value>? variables = null,
         Func<string, IReadOnlyList<Value>, Value>? functions = null, bool typeOnly = false)
@@ -60,12 +64,19 @@ internal static partial class FirmamentNumericEvaluation
                     }
                     if (target.Name.Text == "Pow" && args.Count == 2 && args.All(a => a.Unit.Length == 0))
                         result = new(typeOnly ? 1 : Math.Pow(args[0].Number, args[1].Number), "");
-                    else if (target.Name.Text is "Sin" or "Cos" && args.Count == 1 && args[0].Unit is "" or "rad" or "deg")
+                    else if (target.Name.Text == "Sqrt" && args.Count == 1 && args[0].Unit.Length == 0)
+                    {
+                        if (!typeOnly && args[0].Number < 0) return false;
+                        result = new(typeOnly ? 1 : Math.Sqrt(args[0].Number), "");
+                    }
+                    else if (target.Name.Text is "Sin" or "Cos" or "Tan" && args.Count == 1 && args[0].Unit is "" or "rad" or "deg")
                     {
                         // Bare numbers and explicit rad quantities are radians. An Angle
                         // retains its authored unit until this intrinsic consumes it.
                         var radians = args[0].Unit == "deg" ? args[0].Number * Math.PI / 180 : args[0].Number;
-                        result = new(typeOnly ? 1 : target.Name.Text == "Sin" ? Math.Sin(radians) : Math.Cos(radians), "");
+                        // Tan is undefined at odd multiples of 90°; reject rather than return a huge rounding artifact.
+                        if (!typeOnly && target.Name.Text == "Tan" && Math.Abs(Math.Cos(radians)) < 1e-12) return false;
+                        result = new(typeOnly ? 1 : target.Name.Text switch { "Sin" => Math.Sin(radians), "Cos" => Math.Cos(radians), _ => Math.Tan(radians) }, "");
                     }
                     else if (functions is not null) result = functions(target.Name.Text, args);
                     else return false;

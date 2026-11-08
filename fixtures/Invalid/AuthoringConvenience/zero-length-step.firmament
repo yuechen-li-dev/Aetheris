@@ -1,0 +1,13 @@
+Model ZeroLengthStep {
+    units: mm
+    Path Outline {
+        start: Point2(0mm, 0mm)
+        heading: 0deg
+        Line Back { to: Start }
+        Line A { length: 10mm }
+        Line B { turn: 90deg; length: 10mm }
+        Close Done
+    }
+    Profile Tri from Outline
+    Extrude Body { profile: Tri; from: 0mm; to: 2mm }
+}

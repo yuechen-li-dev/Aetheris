@@ -1,0 +1,19 @@
+// A grooved pulley with a bore, molded along its axis: the groove's upper face looks down onto the lower flange and its floor is
+// hidden from both halves. Molded this way it needs a split cavity (side actions); along a diameter it would not.
+Model Pulley {
+    units: mm
+    Axis spindle { origin: [0mm, 0mm, 0mm]; direction: [0, 0, 1] }
+    Concept Struct meridian on XZ {
+        Polygon2 section { points: [[5mm, 0mm], [20mm, 0mm], [20mm, 5mm], [14mm, 5mm], [14mm, 10mm], [20mm, 10mm], [20mm, 15mm], [5mm, 15mm]] }
+    }
+    Profile outline using meridian { Loop Outer { section |> TraceLoop } }
+    Revolve body { profile: outline; about: spindle; angle: full }
+}
+
+Mold PulleyTool {
+  part: Pulley
+  material: POM
+  stage: Tooling
+  pull: +Z
+  parting: Plane { origin: [0mm, 0mm, 15mm] }
+}

@@ -234,6 +234,11 @@ Scale verification to the claim:
   interfaces, and resolved placements.
 - Geometry: build the actual BRep, inspect topology and contact, and verify
   the relevant STEP export/reimport path.
+- Reconstruction of an existing STEP part: build, then run
+  `aetheris analyze compare <original> <built> --shape`. Extra surfaces mean
+  something is placed or sized wrong; missing surfaces name the features still
+  to model. Iterate until every remaining missing surface is a feature the
+  language cannot express, and report those.
 - Presentation: inspect the actual exported scene and multiple views. Keep
   rendering edits separate from product geometry.
 - Performance, when requested: state cold/warm/cache conditions; separate

@@ -1,0 +1,5 @@
+Model ShapeNegativeSize {
+    units: mm
+    Profile Plate = RoundedRect2 { center: [0mm, 0mm]; size: [-10mm, 5mm]; radius: 1mm }
+    Extrude Body { profile: Plate; from: 0mm; to: 2mm }
+}

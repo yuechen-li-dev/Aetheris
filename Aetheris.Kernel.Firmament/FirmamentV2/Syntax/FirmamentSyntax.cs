@@ -113,6 +113,10 @@ public sealed record ObjectSyntax(ExpressionSyntax? Type, BlockSyntax Body, Firm
 public sealed record WithSyntax(ExpressionSyntax Target, BlockSyntax Body, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record FrameSyntax(ExpressionSyntax Origin, IReadOnlyList<ArgumentSyntax> Axes, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record AliasSyntax(ExpressionSyntax Value, IdentifierSyntax Name, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+/// <summary>One side of a junction: a Compose operation by name, or every operation with a role (<c>role Pad</c>).</summary>
+public sealed record JunctionOperandSyntax(IdentifierSyntax Name, bool Role, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+/// <summary><c>A meets B</c>: where the faces of two Compose operations meet.</summary>
+public sealed record JunctionSyntax(JunctionOperandSyntax Left, JunctionOperandSyntax Right, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record TraceSyntax(ExpressionSyntax Source, ExpressionSyntax? From, ExpressionSyntax? To, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record MemberSetSyntax(ExpressionSyntax Target, IReadOnlyList<ArgumentSyntax> Members, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record TypedValueSyntax(ExpressionSyntax Type, ExpressionSyntax Value, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);

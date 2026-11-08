@@ -1,0 +1,18 @@
+Model RoundedRect {
+    units: mm
+    Path Outline {
+        start: Point2(6mm, 0mm)
+        heading: 0deg
+        Line South { length: 28mm }
+        Arc SE { turn: 90deg; radius: 6mm }
+        Line East { length: 13mm }
+        Arc NE { turn: 90deg; radius: 6mm }
+        Line North { length: 28mm }
+        Arc NW { turn: 90deg; radius: 6mm }
+        Line West { length: 13mm }
+        Arc SW { turn: 90deg; radius: 6mm }
+    }
+    Profile Section from Outline
+    Struct Body { Extrude Stock { profile: Section; from: 0mm; to: 10mm } }
+    Modify Body { EdgeFinish<Fillet> Round { target: AllEdges; radius: 1mm } }
+}

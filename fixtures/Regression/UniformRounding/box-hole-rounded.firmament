@@ -1,0 +1,8 @@
+Model RoundedBlock {
+    units: mm
+    Box stock { size: [20mm, 20mm, 20mm] }
+    Modify stock {
+        Hole<Shaft> Bore { on: +Z; center: [0mm, 0mm]; diameter: 6mm; end: ThroughAll }
+        EdgeFinish<Fillet> Round { target: AllEdges; radius: 1mm }
+    }
+}

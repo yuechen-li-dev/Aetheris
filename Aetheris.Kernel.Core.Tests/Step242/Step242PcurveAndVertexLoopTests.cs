@@ -155,7 +155,7 @@ public sealed class Step242PcurveAndVertexLoopTests
 
     [Trait("Category", "SlowCorpus")]
     [Fact]
-    public void ConeApexVertexLoops_ArePreservedAndStc06RemainsAmbiguous()
+    public void ConeApexVertexLoops_ArePreservedAndStc06Resolves()
     {
         var imported = Import("testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp");
         var apexLoops = imported.Topology.Loops.Where(loop => loop.Kind == LoopKind.Vertex).ToArray();
@@ -165,8 +165,8 @@ public sealed class Step242PcurveAndVertexLoopTests
             var binding = imported.Bindings.GetVertexLoopParameterBinding(loop.Id);
             Assert.Equal(SurfaceGeometryKind.Cone, imported.GetFaceSurface(binding.FaceId).Kind);
         });
-        Assert.Contains(imported.FaceOrientationReport!.Shells,
-            shell => shell.Qualification == FaceOrientationQualification.Ambiguous);
+        Assert.All(imported.FaceOrientationReport!.Shells,
+            shell => Assert.Equal(FaceOrientationQualification.DerivedQualified, shell.Qualification));
 
         var exported = Step242Exporter.ExportBody(imported);
         Assert.True(exported.IsSuccess, string.Join(" | ", exported.Diagnostics.Select(diagnostic => diagnostic.Message)));

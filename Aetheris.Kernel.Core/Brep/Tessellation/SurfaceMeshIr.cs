@@ -1028,7 +1028,9 @@ public static class SurfaceMeshIrTessellator
             HasPeriodicUSeam: true);
     }
 
-    private static SurfacePatch? TryBuildConeApexPatch(
+    /// <summary>A sector of a cone closed at its apex: two generators from the apex and the rim between them, as
+    /// one ring of quads round a central fan.</summary>
+    private static SurfacePatch? TryBuildConeSectorPatch(
         BrepBody body,
         FaceId faceId,
         bool sameSense,
@@ -1097,6 +1099,98 @@ public static class SurfaceMeshIrTessellator
             MaxRefinementLevel: 1,
             HasPeriodicUSeam: false,
             TrimLoopData: [new SurfaceMeshTrimLoop(loops[0], ordered, uv, false, SignedArea(uv))]);
+    }
+
+    private static SurfacePatch? TryBuildConeApexPatch(
+        BrepBody body,
+        FaceId faceId,
+        bool sameSense,
+        ConeSurface cone,
+        IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans,
+        List<SurfaceMeshVertex> vertices,
+        ref int nextVertexId)
+    {
+        // A cone closed at its apex: one loop of the seam (a generator) walked down from the apex and back up, and
+        // the rim between, in one or more arcs. Meshed as rings in (u, v): the apex, then one ring per seam sample
+        // down to the rim. Each ring starts and ends on the seam's own vertex, so the seam stays manifold.
+        var loops = body.GetLoopIds(faceId);
+        if (loops.Count != 1) return null;
+        var coedges = body.GetCoedgeIds(loops[0]).Select(body.Topology.GetCoedge).ToArray();
+        if (coedges.Length < 3) return null;
+        var seamEdges = coedges.GroupBy(c => c.EdgeId).Where(g => g.Count() == 2).Select(g => g.Key).ToArray();
+        // Without a seam the face is a sector between two generators.
+        if (seamEdges.Length == 0) return TryBuildConeSectorPatch(body, faceId, sameSense, cone, plans, vertices, ref nextVertexId);
+        if (seamEdges.Length != 1 || plans[seamEdges[0]].CurveKind != CurveGeometryKind.Line3) return null;
+        if (coedges.Any(c => c.EdgeId != seamEdges[0] && plans[c.EdgeId].CurveKind != CurveGeometryKind.Circle3)) return null;
+        var vertexById = vertices.ToDictionary(vertex => vertex.Id);
+        int[] Ids(Coedge c) { var ids = plans[c.EdgeId].Samples.Select(x => x.Id).ToArray(); if (c.IsReversed) Array.Reverse(ids); return ids; }
+        bool AtApex(int id) => (vertexById[id].Position - cone.Apex).Length <= Epsilon;
+        // Start the loop at the seam walked down from the apex.
+        var down = Array.FindIndex(coedges, c => c.EdgeId == seamEdges[0] && AtApex(Ids(c)[0]));
+        if (down < 0) return null;
+        var ordered = Enumerable.Range(0, coedges.Length).Select(k => coedges[(down + k) % coedges.Length]).ToArray();
+        if (ordered[^1].EdgeId != seamEdges[0]) return null;
+        var seam = Ids(ordered[0]);
+        var rim = new List<int> { seam[^1] };
+        foreach (var arc in ordered[1..^1])
+        {
+            var ids = Ids(arc);
+            if (ids[0] != rim[^1]) return null;
+            rim.AddRange(ids[1..]);
+        }
+        if (rim[^1] != seam[^1] || rim.Count < 4) return null;
+
+        var rimUv = rim.Select(id => TryProjectPointToConeUv(cone, vertexById[id].Position)).ToArray();
+        if (rimUv.Any(value => value is null)) return null;
+        var unwrapped = UnwrapPeriodicU(rimUv.Select(value => value!.Value).ToArray());
+        if (double.Abs(double.Abs(unwrapped[^1].U - unwrapped[0].U) - 2d * double.Pi) > 1e-6) return null;
+        var apexV = cone.AxialParameterFromPoint(cone.Apex);
+        var seamV = seam.Select((id, k) => k == 0 ? apexV : TryProjectPointToConeUv(cone, vertexById[id].Position)?.V).ToArray();
+        if (seamV.Any(v => v is null)) return null;
+
+        // Rows from just below the apex to the rim: row k sits at the seam's k-th sample.
+        var rows = new List<int[]>();
+        for (var k = 1; k < seam.Length; k++)
+        {
+            if (k == seam.Length - 1) { rows.Add(rim.ToArray()); break; }
+            var row = new int[rim.Count];
+            row[0] = row[^1] = seam[k];
+            for (var index = 1; index < rim.Count - 1; index++)
+            {
+                var (u, v) = (unwrapped[index].U, seamV[k]!.Value);
+                row[index] = nextVertexId++;
+                vertices.Add(new SurfaceMeshVertex(row[index], cone.Evaluate(u, v), u, v));
+            }
+            rows.Add(row);
+        }
+        // The trim loop as walked: down the seam at the rim's first u, round the rim, up the seam at its last.
+        var loopIds = new List<int>(); var loopUv = new List<(double U, double V)>();
+        for (var k = 0; k < seam.Length - 1; k++) { loopIds.Add(seam[k]); loopUv.Add((unwrapped[0].U, seamV[k]!.Value)); }
+        for (var index = 0; index < rim.Count - 1; index++) { loopIds.Add(rim[index]); loopUv.Add(unwrapped[index]); }
+        for (var k = seam.Length - 1; k >= 1; k--) { loopIds.Add(seam[k]); loopUv.Add((unwrapped[^1].U, seamV[k]!.Value)); }
+        var uv = loopUv.ToArray();
+        if (double.Abs(SignedArea(uv)) <= Epsilon) return null;
+        // Cells are wound counter-clockwise in (u, v), then turned to the face's sense, as in the other patches: the
+        // loop's own walking direction is not trusted for it (a source file's face sense may disagree with it).
+        var ccw = SignedArea(uv) > 0;
+        int[] Wind(int[] ids) => ccw ? ids : ids.Reverse().ToArray();
+        var cells = new List<SurfaceMeshCell>();
+        var apex = seam[0];
+        for (var index = 0; index < rim.Count - 1; index++)
+            cells.Add(new TriangleCell(Orient(Wind([rows[0][index], rows[0][index + 1], apex]), sameSense), 1));
+        for (var k = 0; k + 1 < rows.Count; k++)
+        for (var index = 0; index < rim.Count - 1; index++)
+            cells.Add(new QuadCell(Orient(Wind([rows[k + 1][index], rows[k + 1][index + 1], rows[k][index + 1], rows[k][index]]), sameSense), 1));
+
+        return new SurfacePatch(
+            faceId,
+            new SurfaceMeshSupport(SurfaceMeshSupportKind.Cone, Cone: cone),
+            loops,
+            cells,
+            sameSense,
+            MaxRefinementLevel: 1,
+            HasPeriodicUSeam: false,
+            TrimLoopData: [new SurfaceMeshTrimLoop(loops[0], loopIds, uv, false, SignedArea(uv))]);
     }
 
     private static SurfacePatch? TryBuildSampledBoundaryBand(
@@ -1392,7 +1486,8 @@ public static class SurfaceMeshIrTessellator
 
     private static SurfacePatch? BuildFourSidedPatch(
         FaceId faceId, bool sameSense, SurfaceMeshSupport support, IReadOnlyList<LoopId> loops, FourSidedBoundary boundary,
-        Func<Point3D, (double U, double V)?> project, Func<double, double, Point3D> evaluate, List<SurfaceMeshVertex> vertices, ref int nextVertexId, bool hasPeriodicUSeam)
+        Func<Point3D, (double U, double V)?> project, Func<double, double, Point3D> evaluate, List<SurfaceMeshVertex> vertices, ref int nextVertexId, bool hasPeriodicUSeam,
+        bool periodicV = false)
     {
         var columns = boundary.Top.Count;
         var rows = boundary.Left.Count;
@@ -1409,7 +1504,8 @@ public static class SurfaceMeshIrTessellator
             {
                 var top = topUv[column]!.Value; var bottom = bottomUv[column]!.Value;
                 var u = InterpolateAngle(top.U, bottom.U, t);
-                var v = top.V + ((bottom.V - top.V) * t);
+                // A torus's V is its minor angle: across a tube that crosses V = 0 the short way round is the patch.
+                var v = periodicV ? InterpolateAngle(top.V, bottom.V, t) : top.V + ((bottom.V - top.V) * t);
                 var point = evaluate(u, v);
                 grid[row, column] = new SurfaceMeshVertex(nextVertexId++, point, u, v);
                 vertices.Add(grid[row, column]);
@@ -1577,8 +1673,9 @@ public static class SurfaceMeshIrTessellator
         List<SurfaceMeshVertex> vertices,
         ref int nextVertexId)
     {
-        // A swept bend has two closed minor rings and one bounded major arc
-        // used twice as a seam. Those rings do not imply a complete torus.
+        // Two closed rings and one bounded arc used twice as a seam: a swept
+        // bend (minor rings, major seam) or a rounded rim (major rings, minor
+        // seam). Those rings do not imply a complete torus.
         for (var offset = 0; offset < 4; offset++)
         {
             if (!TryGetFourSidedBoundary(body, faceId, plans, out var band, offset, allowClosed: true)
@@ -1590,10 +1687,23 @@ public static class SurfaceMeshIrTessellator
             var ring = band.Top.Select(sample => TryProjectPointToTorusUv(torus, sample.Position)).ToArray();
             var seam = band.Left.Select(sample => TryProjectPointToTorusUv(torus, sample.Position)).ToArray();
             if (ring.Any(uv => uv is null) || seam.Any(uv => uv is null)) return null;
-            // Validate ring correspondence before adding any vertices.
-            for (var column = 0; column < ring.Length; column++)
-                if ((torus.Evaluate(seam[^1]!.Value.U, ring[column]!.Value.V) - band.Bottom[column].Position).Length > 1e-7d)
-                    return null;
+            // The rings are minor circles and the seam a major arc (a swept bend), or the rings are major circles
+            // around the axis and the seam a minor arc (a rim rounded all the way round). Each grid point is the
+            // ring's parameter along it and the seam's across.
+            (double U, double V) At(int row, int column, bool majorRings) =>
+                majorRings ? (ring[column]!.Value.U, seam[row]!.Value.V) : (seam[row]!.Value.U, ring[column]!.Value.V);
+            bool? layout = null;
+            foreach (var majorRings in new[] { false, true })
+            {
+                var matches = true;
+                for (var column = 0; column < ring.Length && matches; column++)
+                {
+                    var (u, v) = At(seam.Length - 1, column, majorRings);
+                    matches = (torus.Evaluate(u, v) - band.Bottom[column].Position).Length <= 1e-7d;
+                }
+                if (matches) { layout = majorRings; break; }
+            }
+            if (layout is not { } majorRingLayout) return null;
             var bandGrid = new int[seam.Length, ring.Length];
             for (var row = 0; row < seam.Length; row++)
                 for (var column = 0; column < ring.Length; column++)
@@ -1604,7 +1714,7 @@ public static class SurfaceMeshIrTessellator
                     else if (column == ring.Length - 1) bandGrid[row, column] = band.Right[row].Id;
                     else
                     {
-                        var u = seam[row]!.Value.U; var v = ring[column]!.Value.V;
+                        var (u, v) = At(row, column, majorRingLayout);
                         bandGrid[row, column] = nextVertexId++;
                         vertices.Add(new SurfaceMeshVertex(bandGrid[row, column], torus.Evaluate(u, v), u, v));
                     }
@@ -1614,13 +1724,12 @@ public static class SurfaceMeshIrTessellator
                 for (var column = 0; column < ring.Length - 1; column++)
                 {
                     int[] ids = [bandGrid[row,column],bandGrid[row,column+1],bandGrid[row+1,column+1],bandGrid[row+1,column]];
-                    // Columns follow minor V and rows major U. Their traversal
-                    // can oppose the analytic support orientation; resolve the
-                    // chart winding before applying the authoritative face sign.
-                    var u = seam[row]!.Value.U; var v = ring[column]!.Value.V;
+                    // The traversal can oppose the analytic support orientation; resolve the chart winding before
+                    // applying the authoritative face sign.
+                    var (u, v) = At(row, column, majorRingLayout);
                     var p = torus.Evaluate(u, v);
-                    var cross = (torus.Evaluate(u, ring[column+1]!.Value.V) - p)
-                        .Cross(torus.Evaluate(seam[row+1]!.Value.U, v) - p);
+                    var along = At(row, column + 1, majorRingLayout); var across = At(row + 1, column, majorRingLayout);
+                    var cross = (torus.Evaluate(along.U, along.V) - p).Cross(torus.Evaluate(across.U, across.V) - p);
                     if (cross.Dot(torus.Normal(u, v).ToVector()) < 0) Array.Reverse(ids);
                     bandCells.Add(new QuadCell(Orient(ids, sameSense)));
                 }
@@ -1636,7 +1745,7 @@ public static class SurfaceMeshIrTessellator
         {
             return BuildFourSidedPatch(faceId, sameSense, new SurfaceMeshSupport(SurfaceMeshSupportKind.Torus, Torus: torus), body.GetLoopIds(faceId), bounded,
                 point => TryProjectPointToTorusUv(torus, point), (u, v) => torus.Evaluate(u, v), vertices, ref nextVertexId,
-                hasPeriodicUSeam: false);
+                hasPeriodicUSeam: false, periodicV: true);
         }
         if (body.GetLoopIds(faceId).Count != 1)
         {

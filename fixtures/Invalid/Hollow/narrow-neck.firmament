@@ -1,0 +1,14 @@
+// The 3mm bridge is narrower than two 2mm walls: the cavity would split, so it is refused.
+Model Neck {
+  units: mm
+  Profile a = Rect2 { center: [0mm, 0mm]; size: [40mm, 40mm] }
+  Profile b = Rect2 { center: [30mm, 0mm]; size: [30mm, 3mm] }
+  Profile c = Rect2 { center: [60mm, 0mm]; size: [40mm, 40mm] }
+  Compose<Hollow> body {
+    wallThickness: 2mm
+    openings: [Top]
+    Base stock { profile: a; from: 0mm; to: 10mm; role: Stock }
+    Add bridge { profile: b; from: 0mm; to: 10mm }
+    Add other { profile: c; from: 0mm; to: 10mm }
+  }
+}

@@ -8,5 +8,6 @@ The Core and CLI ConvexStock tests cover actual topology, exact STEP export and
 reimport, full face display, mesh closure/orientation, and validate/build agreement.
 Invalid mutations are tested separately without rewriting these accepted sources.
 
-`AllEdges` applies only to untouched Box and the five regular Polyhedron stocks.
-It does not admit arbitrary-body blending or silently ignore other operations.
+`AllEdges` on Box and the five regular Polyhedron stocks uses the dedicated builder;
+other bodies are rounded after they are built (see `../UniformRounding` and the Firmament
+UniformRoundingRoute tests). It never silently ignores other operations.

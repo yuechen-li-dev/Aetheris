@@ -540,6 +540,57 @@ public static class ProfileAuthoringParser
         _ => double.NaN
     };
 
+    /// <summary>
+    /// The plane a straight Path step, or a named straight outer edge of a traced Profile, sweeps when extruded along
+    /// the sketch normal, written as the explicit Concept plane an author would declare: origin at the foot of the
+    /// sketch origin on the edge's line, normal pointing into the material (to the left of a counter-clockwise loop),
+    /// up along +Z. It is computed from source alone, so the plane moves with the outline and never refers to a body
+    /// face.
+    /// </summary>
+    internal static bool TryDerivePathStepPlane(string source, string path, string step, out ConceptIrPlaneValue? plane, out string? diagnostic)
+    {
+        plane = null; diagnostic = null;
+        var diagnostics = new List<string>();
+        var paths = BindPaths(source, new(StringComparer.Ordinal), new(StringComparer.Ordinal), diagnostics);
+        if (paths.TryGetValue(path, out var bound))
+        {
+            var boundStep = bound.Steps.FirstOrDefault(s => s.Name == step);
+            if (boundStep is null) { diagnostic = $"path-step-plane-step-unknown:{path}.{step}: Path '{path}' has no step '{step}'."; return false; }
+            if (boundStep.Curves is not [LineArcLineSegment2D pathLine]) { diagnostic = $"path-step-plane-not-straight:{path}.{step}: only a straight Line step sweeps a plane."; return false; }
+            var pathCurves = bound.Steps.SelectMany(s => s.Curves).ToArray();
+            if (!IsClosed(pathCurves)) { diagnostic = $"path-step-plane-path-open:{path}.{step}: the Path must be closed for its inside to be known."; return false; }
+            plane = SweptPlane(pathLine, SignedArea(pathCurves) > 0, $"Path step {path}.{step}", $"path-step:{path}.{step}");
+            return true;
+        }
+
+        // A named straight edge of a closed Profile's outer loop (for example one traced with `as Front`)
+        // sweeps the same plane; the Profile must lie in the XY sketch, as an extruded Path does.
+        var profiles = BindPathDerivedProfiles(source, diagnostics);
+        if (!profiles.TryGetValue(path, out var profile))
+        { diagnostic = $"path-step-plane-path-unknown:{path}.{step}: '{path}' is not a Path or a traced Profile in this model."; return false; }
+        if (profile.ConstructionPlane is { } frame && frame != ConstructionPlane.WorldXY)
+        { diagnostic = $"path-step-plane-profile-not-xy:{path}.{step}: only a Profile in the XY sketch sweeps a plane along +Z."; return false; }
+        var outer = profile.Loops.FirstOrDefault(l => l.IsOuter);
+        var segment = outer?.Segments.FirstOrDefault(s => s.Name == step);
+        if (outer is null || segment is null)
+        { diagnostic = $"path-step-plane-step-unknown:{path}.{step}: Profile '{path}' has no outer-loop edge named '{step}'."; return false; }
+        if (segment.Geometry is not LineArcLineSegment2D edgeLine) { diagnostic = $"path-step-plane-not-straight:{path}.{step}: only a straight edge sweeps a plane."; return false; }
+        plane = SweptPlane(edgeLine, SignedArea(outer.Segments.Select(s => s.Geometry)) > 0, $"Profile edge {path}.{step}", $"profile-edge:{path}.{step}");
+        return true;
+    }
+
+    /// <summary>The plane a straight edge sweeps along +Z: origin at the foot of the sketch origin on the edge's line,
+    /// normal into the material (left of a counter-clockwise loop), up +Z.</summary>
+    private static ConceptIrPlaneValue SweptPlane(LineArcLineSegment2D line, bool counterClockwise, string provenance, string stableId)
+    {
+        var dx = line.End.X - line.Start.X; var dy = line.End.Y - line.Start.Y; var length = Math.Sqrt(dx * dx + dy * dy);
+        dx /= length; dy /= length;
+        var inward = counterClockwise ? (X: -dy, Y: dx) : (X: dy, Y: -dx);
+        var along = -(line.Start.X * dx + line.Start.Y * dy);
+        var foot = (X: line.Start.X + dx * along, Y: line.Start.Y + dy * along);
+        return new ConceptIrPlaneValue(stableId, new(foot.X, foot.Y, 0d), new(inward.X, inward.Y, 0d), $"derived from {provenance}", new(0d, 0d, 1d));
+    }
+
     private static IReadOnlyDictionary<string, BoundPath> BindPaths(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics)
     {
         var result = new Dictionary<string, BoundPath>(StringComparer.Ordinal);
@@ -590,6 +641,9 @@ public static class ProfileAuthoringParser
                 var guideName = $"{name}.{step.Name}";
                 var endpointName = $"{guideName}.End";
                 if (guides.ContainsKey(guideName) || points.ContainsKey(endpointName)) { diagnostics.Add($"concept-path-name-collision:{guideName}"); continue; }
+                // A path whose last step already returns to the start needs no closing edge: Close then only marks
+                // the loop closed, adds no segment and names no guide.
+                if (step.Kind == "Close" && path.Steps.Count > 0 && Distance(current, path.Start) <= Tolerance) { points[endpointName] = path.Start; continue; }
                 if (!TryBindStep(name, step, current, ref heading, path.Start, points, out var curves, out var endpoint, out var diagnostic)) { diagnostics.Add(diagnostic!); continue; }
                 if (curves!.Count == 1) guides[guideName] = curves[0];
                 points[endpointName] = endpoint; path.Steps.Add(new BoundPathStep(step.Name, step.Kind == "Line" ? "Span" : step.Kind == "Arc" ? "ArcTransition" : step.Kind, guideName, endpointName, curves, current, endpoint, heading)); current = endpoint;
@@ -963,9 +1017,33 @@ public static class ProfileAuthoringParser
         (double X, double Y)? first = null;
         (double X, double Y)? current = null;
         string? currentIdentity = null;
+        PipelineStage? pendingRound = null;
+        var roundCount = 0;
+        ResolvedProfileSegment2D? Rounded(PipelineStage round, int previousIndex, ref LineArcProfileCurve2D next, int index)
+        {
+            var previous = result[previousIndex];
+            var rounded = ProfileCornerRound.TryRound(previous.Geometry, next, round.Radius!.Value, out var failure);
+            if (rounded is null)
+            {
+                diagnostics.Add($"firmament-pipeline-round-invalid:{loopName}:{previous.Name}: Round({round.Radius.Value:0.###}mm) after '{previous.Name}': {failure}.");
+                return null;
+            }
+            result[previousIndex] = previous with { Geometry = rounded.Previous };
+            next = rounded.Next;
+            var arcName = round.Alias ?? $"{previous.Name}Round{++roundCount}";
+            if (!names.Add(arcName)) { diagnostics.Add($"firmament-profile-pipeline-identity-collision:{arcName}"); return null; }
+            return PipelineSegment(profile, loopName, arcName, rounded.Arc, $"concept:{profile.Frame ?? "XY"}.Round:{arcName}", "Round", false, index, expression.Span.Start + round.Offset);
+        }
         for (var index = 0; index < traceStages.Length; index++)
         {
             var stage = traceStages[index];
+            if (stage.Kind == PipelineStageKind.Round)
+            {
+                if (result.Count == 0 || pendingRound is not null)
+                { diagnostics.Add($"firmament-pipeline-round-invalid:{loopName}: Round must follow a traced stage and precede another stage or Close."); continue; }
+                pendingRound = stage;
+                continue;
+            }
             if (stage.Kind != PipelineStageKind.Trace)
             {
                 diagnostics.Add($"firmament-pipeline-stage-type:{stage.Reference}");
@@ -977,10 +1055,19 @@ public static class ProfileAuthoringParser
                 continue;
             }
             bool reversed;
-            var oriented = stage.To is null
+            // `from P` alone runs from P to the guide's end in its own direction (its start under Reverse);
+            // `to P` alone continues from the current point.
+            var oriented = stage.To is null && stage.From is null
                 ? OrientPipelineCurve(source, stage.Reverse, current, stage.Reference!, points, diagnostics, out reversed)
                 : SelectPipelineSubspan(source, stage, current, points, diagnostics, out reversed);
             if (oriented is null) continue;
+            ResolvedProfileSegment2D? roundArc = null;
+            if (pendingRound is not null)
+            {
+                roundArc = Rounded(pendingRound, result.Count - 1, ref oriented, index);
+                pendingRound = null;
+                if (roundArc is not null) result.Add(roundArc);
+            }
             var start = Start(oriented); var end = End(oriented);
             first ??= start;
             current = end;
@@ -989,6 +1076,24 @@ public static class ProfileAuthoringParser
             var name = stage.Alias ?? inheritedName;
             if (!names.Add(name)) { diagnostics.Add($"firmament-profile-pipeline-identity-collision:{name}"); continue; }
             result.Add(PipelineSegment(profile, loopName, name, oriented, $"concept:{profile.Frame ?? "XY"}.{stage.Reference}", stage.Reference!, reversed, index, expression.Span.Start + stage.Offset));
+        }
+        if (pendingRound is not null)
+        {
+            // A Round before Close fillets the junction where the loop closes, between the last and first stages.
+            if (!close || result.Count < 2)
+                diagnostics.Add($"firmament-pipeline-round-invalid:{loopName}: Round must follow a traced stage and precede another stage or Close.");
+            else
+            {
+                var firstCurve = result[0].Geometry;
+                if (Rounded(pendingRound, result.Count - 1, ref firstCurve, traceStages.Length) is { } closingArc)
+                {
+                    result[0] = result[0] with { Geometry = firstCurve };
+                    result.Add(closingArc);
+                    first = Start(firstCurve);
+                    current = End(closingArc.Geometry);
+                    currentIdentity = DescribeEndpoint(current.Value, points);
+                }
+            }
         }
         if (close && first is not null && current is not null && Distance(first.Value, current.Value) > Tolerance)
             diagnostics.Add($"firmament-pipeline-close-open:{loopName}:first={DescribeEndpoint(first.Value, points)}:current={currentIdentity}");
@@ -1017,7 +1122,9 @@ public static class ProfileAuthoringParser
             if (stage.Kind != PipelineStageKind.Trace) { diagnostics.Add($"firmament-pipeline-stage-type:{stage.Reference}"); continue; }
             if (!guides.TryGetValue(stage.Reference!, out var source)) { diagnostics.Add($"firmament-pipeline-unknown-guide:{stage.Reference}"); continue; }
             bool reversed;
-            var oriented = stage.To is null
+            // `from P` alone runs from P to the guide's end in its own direction (its start under Reverse);
+            // `to P` alone continues from the current point.
+            var oriented = stage.To is null && stage.From is null
                 ? OrientPipelineCurve(source, stage.Reverse, current, stage.Reference!, points, diagnostics, out reversed)
                 : SelectPipelineSubspan(source, stage, current, points, diagnostics, out reversed);
             if (oriented is null) continue;
@@ -1064,7 +1171,10 @@ public static class ProfileAuthoringParser
             diagnostics.Add($"firmament-pipeline-unknown-endpoint:{stage.From}");
             return null;
         }
-        if (stage.To is null || !points.TryGetValue(stage.To, out var end))
+        // `from P` alone runs to the guide's own end (its start under `reverse`).
+        (double X, double Y) end;
+        if (stage.To is null) end = stage.Reverse ? Start(source) : End(source);
+        else if (!points.TryGetValue(stage.To, out end))
         {
             diagnostics.Add($"firmament-pipeline-unknown-endpoint:{stage.To}");
             return null;
@@ -1083,7 +1193,7 @@ public static class ProfileAuthoringParser
         {
             if (!OnBoundedLine(start, line) || !OnBoundedLine(end, line) || Distance(start, end) <= Tolerance)
             {
-                diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To}");
+                diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To ?? DescribeEndpoint(end, points)}");
                 return null;
             }
             var dx = line.End.X - line.Start.X; var dy = line.End.Y - line.Start.Y;
@@ -1094,7 +1204,7 @@ public static class ProfileAuthoringParser
         {
             if (!OnCircle(start, circle.Center, circle.Radius) || !OnCircle(end, circle.Center, circle.Radius) || Distance(start, end) <= Tolerance)
             {
-                diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To}");
+                diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To ?? DescribeEndpoint(end, points)}");
                 return null;
             }
             var startAngle = Math.Atan2(start.Y - circle.Center.Y, start.X - circle.Center.X);
@@ -1116,7 +1226,7 @@ public static class ProfileAuthoringParser
                 return selected;
             }
         }
-        diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To}");
+        diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To ?? DescribeEndpoint(end, points)}");
         return null;
     }
 
@@ -1253,6 +1363,15 @@ public static class ProfileAuthoringParser
             var offset = value.Span.Start - expression.Span.Start;
             if (value is ReferenceSyntax { Name.Text: "Close" }) { stages.Add(new(PipelineStageKind.Close, null, null, false, offset)); return; }
             if (value is ReferenceSyntax { Name.Text: "TraceLoop" }) { stages.Add(new(PipelineStageKind.TraceLoop, null, null, false, offset)); return; }
+            // Round(r) between two stages fillets their junction; `Round(r) as Name` names the arc.
+            var roundAlias = value is AliasSyntax { Value: CallSyntax } aliased ? aliased.Name.Text : null;
+            if ((value is AliasSyntax { Value: CallSyntax } wrapped ? wrapped.Value : value) is CallSyntax { Target: ReferenceSyntax { Name.Text: "Round" } } round)
+            {
+                var measured = round.Arguments.Count == 1 && round.Arguments[0].Name is null
+                    && FirmamentSyntaxValues.TryMeasure(round.Arguments[0].Value, "mm", out var radius) && radius > 0 ? radius : (double?)null;
+                stages.Add(new(measured is null ? PipelineStageKind.Invalid : PipelineStageKind.Round, "Round", roundAlias, false, offset, Radius: measured));
+                return;
+            }
             string? alias = null, from = null, to = null;
             var reverse = false; var valid = true; var traced = false;
             var inner = value;
@@ -1263,7 +1382,7 @@ public static class ProfileAuthoringParser
                 {
                     valid &= !traced; traced = true;
                     from = FirmamentSyntaxValues.Reference(t.From); to = FirmamentSyntaxValues.Reference(t.To);
-                    valid &= (t.From is null || from is not null) && (t.To is null || to is not null) && (from is null || to is not null);
+                    valid &= (t.From is null || from is not null) && (t.To is null || to is not null);
                     inner = t.Source;
                 }
                 else if (inner is UnarySyntax { Operator: UnaryOperator.Reverse } u) { valid &= !reverse; reverse = true; inner = u.Operand; }
@@ -1401,6 +1520,12 @@ public static class ProfileAuthoringParser
         var to = fields.Take("To");
         fields.CheckUnit("From", from, "mm");
         fields.CheckUnit("To", to, "mm");
+        // Extrude<Hollow> carries its wall; the hollow Compose it lowers to validates the values.
+        if (declaration.Type.Arguments.Count == 1 && FirmamentSyntaxValues.Reference(declaration.Type.Arguments[0].Value) == "Hollow")
+        {
+            fields.CheckUnit("WallThickness", fields.Take("WallThickness"), "mm");
+            fields.Take("Openings");
+        }
         fields.Complete();
         return (profile, from, to);
     }
@@ -1490,7 +1615,7 @@ public static class ProfileAuthoringParser
     private sealed record PathStep(string Kind, string Name, string Body, int Index);
     private sealed record BoundPathStep(string Name, string Kind, string GuideName, string EndpointName, IReadOnlyList<LineArcProfileCurve2D> Curves, (double X, double Y) Start, (double X, double Y) End, double Heading, string? SourceReference = null, bool WasReversed = false, int? PipelineIndex = null, string? SourceRange = null);
     private sealed record BoundPath(string Name, (double X, double Y) Start, double InitialHeading, List<BoundPathStep> Steps);
-    private enum PipelineStageKind { Trace, Close, TraceLoop, Invalid }
-    private sealed record PipelineStage(PipelineStageKind Kind, string? Reference, string? Alias, bool Reverse, int Offset, string? From = null, string? To = null);
+    private enum PipelineStageKind { Trace, Close, TraceLoop, Round, Invalid }
+    private sealed record PipelineStage(PipelineStageKind Kind, string? Reference, string? Alias, bool Reverse, int Offset, string? From = null, string? To = null, double? Radius = null);
 
 }

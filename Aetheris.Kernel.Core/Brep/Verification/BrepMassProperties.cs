@@ -400,11 +400,30 @@ public static class BrepMassProperties
                 if (!TrySignedPlanarCurveAreaTwice(body, use.Edge, use.From, out var contribution)) return false;
                 signedArea += contribution / 2d;
             }
-            var probe = new Point3D(candidate.Points.Average(p => p.X), candidate.Points.Average(p => p.Y), candidate.Points[0].Z);
-            var depth = loops.Where((_, index) => index != i).Count(loop => PointInPolygon(probe, loop.Points));
+            // Nesting is decided from a point on this loop against the other loops traced along their arcs: section
+            // loops never cross, so any point of one lies strictly inside or outside another. A vertex average is
+            // not a safe probe: an outer wall's average falls inside a concentric inner wall.
+            var probe = candidate.Points[0];
+            var depth = loops.Where((_, index) => index != i).Count(loop => PointInPolygon(probe, Trace(body, loop.Uses, loop.Points)));
             area += (depth & 1) == 0 ? System.Math.Abs(signedArea) : -System.Math.Abs(signedArea);
         }
         return area > 0d;
+    }
+
+    private static IReadOnlyList<Point3D> Trace(BrepBody body, IReadOnlyList<(EdgeId Edge, VertexId From)> uses, IReadOnlyList<Point3D> vertices)
+    {
+        var points = new List<Point3D>();
+        for (var u = 0; u < uses.Count; u++)
+        {
+            points.Add(vertices[u]);
+            var (edgeId, from) = uses[u];
+            if (!body.Bindings.TryGetEdgeBinding(edgeId, out var binding) || binding.TrimInterval is not { } trim
+                || !body.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve) || curve?.Circle3 is not { } circle) continue;
+            var forward = (body.Topology.GetEdge(edgeId).StartVertexId == from) == binding.OrientedEdgeSense;
+            var (start, end) = forward ? (trim.Start, trim.End) : (trim.End, trim.Start);
+            for (var k = 1; k < 32; k++) points.Add(circle.Evaluate(start + (end - start) * k / 32d));
+        }
+        return points;
     }
 
     private static bool PointInPolygon(Point3D point, IReadOnlyList<Point3D> polygon)
@@ -471,11 +490,11 @@ public static class BrepMassProperties
             }
             case CurveGeometryKind.Circle3 when curve.Circle3 is { } circle && System.Math.Abs(circle.Normal.ToVector().Z) > 1d - 1e-8d:
             {
+                // Chord plus circular segment: independent of where the circle's parameter starts.
                 var sign = circle.Normal.ToVector().Z >= 0d ? 1d : -1d;
-                var a = start * sign; var b = end * sign;
-                areaTwice = (circle.Center.X * circle.Radius * (System.Math.Sin(b) - System.Math.Sin(a)))
-                    - (circle.Center.Y * circle.Radius * (System.Math.Cos(b) - System.Math.Cos(a)))
-                    + (circle.Radius * circle.Radius * (b - a));
+                var sweep = (end - start) * sign;
+                var p = circle.Evaluate(start); var q = circle.Evaluate(end);
+                areaTwice = (p.X * q.Y - q.X * p.Y) + circle.Radius * circle.Radius * (sweep - System.Math.Sin(sweep));
                 return true;
             }
             default:

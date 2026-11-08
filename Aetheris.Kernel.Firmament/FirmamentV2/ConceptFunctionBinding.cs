@@ -26,7 +26,7 @@ internal static partial class ConceptPointAuthoring
                 var type = FirmamentSyntaxValues.Reference(d.ResultType) ?? "";
                 var args = d.Parameters.Select(p => (Name: p.Name?.Text ?? "", Type: FirmamentSyntaxValues.Reference(p.Value) ?? "")).ToArray();
                 if (d.Name is null || d.Type.Arguments.Count != 0 || d.Occurrence || d.Initializer is null || d.Body is not null || d.Modifiers.Count != 0 || d.Clauses.Count != 0 || d.Annotation is not null
-                    || name is "Pow" or "Sin" or "Cos" or "Point2" or "Point3" || !Allowed(type) || args.Length > 16 || args.Any(a => a.Name.Length == 0 || !Allowed(a.Type))
+                    || FirmamentNumericEvaluation.Intrinsics.Contains(name) || name is "Point2" or "Point3" || !Allowed(type) || args.Length > 16 || args.Any(a => a.Name.Length == 0 || !Allowed(a.Type))
                     || args.Select(a => a.Name).Distinct().Count() != args.Length || d.Parameters.Any(p => p.Default is not null)
                     || !functions.TryAdd(name, new(name, args, type, d.Initializer)))
                     error("function-definition-invalid", $"Function '{name}' requires unique typed parameters and one expression result (scalar, Point2, Point3 or a declared Record).", d.Span);
@@ -53,7 +53,7 @@ internal static partial class ConceptPointAuthoring
                     var bodyTree = new DocumentSyntax("function", [new ExpressionStatementSyntax(f.Body, f.Body.Span)], [], f.Body.Span);
                     if (FirmamentSyntaxTraversal.Expressions(bodyTree).OfType<ReferenceSyntax>().Any(r =>
                         !f.Parameters.Any(p => p.Name == r.Name.Text) && !functions.ContainsKey(r.Name.Text)
-                        && r.Name.Text is not ("Point2" or "Point3" or "Sin" or "Cos" or "Pow") && scalars?.IsRecordType(r.Name.Text) != true)) throw new FormatException();
+                        && r.Name.Text is not ("Point2" or "Point3") && !FirmamentNumericEvaluation.Intrinsics.Contains(r.Name.Text) && scalars?.IsRecordType(r.Name.Text) != true)) throw new FormatException();
                     var arguments = f.Parameters.ToDictionary(p => p.Name, p => Placeholder(p.Type, 0), StringComparer.Ordinal);
                     var body = new FirmamentSyntaxSubstitution(arguments).Expression(f.Body);
                     var expanded = new Inline(this, new HashSet<string> { f.Name }).Expression(body);

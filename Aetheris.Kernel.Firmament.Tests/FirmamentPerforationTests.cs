@@ -163,6 +163,8 @@ public sealed class FirmamentPerforationTests
         var report = Assert.IsType<FirmamentPerforationReport>(built.Value.Perforation);
         Assert.Equal(report.Rows * report.Columns, report.InstanceCount);
         Assert.Equal(133, report.InstanceCount);
+        // 133 congruent openings are verified by one- and two-opening STEP round trips plus an exact census.
+        Assert.Equal("congruent-specimens", report.VerificationBasis);
         Assert.Equal(report.InstanceCount * 3, built.Value.RuntimeCorrespondence!.Descendants.Count);
         var first = built.Value.RuntimeCorrespondence.Descendants.Where(d => d.SourceStableId == "perforation:Body.Vents.Row0.Col0").ToArray();
         Assert.Contains(first, d => d.Role == Aetheris.Kernel.Firmament.Materializer.SemanticTopologyRole.HoleWallFace && d.Face is not null);

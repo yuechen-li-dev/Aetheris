@@ -58,11 +58,22 @@ Iterate with the fast lane and gate on the full one:
 
 ```
 dotnet test Aetheris.Kernel.Core.Tests -c Release --no-build --filter "Category!=SlowCorpus"
-dotnet test Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1
+dotnet test Aetheris.slnx -c Release --no-build
 ```
 
-Never report a change as verified on the fast lane alone - it omits the corpus-driven tests,
-which are the ones that catch interchange regressions.
+The full lane runs test projects in parallel; that is the day-to-day gate. Never report a change
+as verified on the fast lane alone - it omits the corpus-driven tests, which are the ones that
+catch interchange regressions.
+
+CI runs the parallel lane on every push and pull request; release qualification runs the serial one.
+
+The serial lane is an optional determinism check, not a daily gate. Run it when a change touches
+shared static state (caches, memos, ambient context), test isolation, or ordering, or when a
+parallel-lane failure looks order-dependent:
+
+```
+dotnet test Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1
+```
 
 When a test needs a STEP corpus file, take it from `Step242Corpus` (`Body`, `Import` or `Text`)
 rather than reading and importing it again. See CONTRIBUTING.md for when a test genuinely needs

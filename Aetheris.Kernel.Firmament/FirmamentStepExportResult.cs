@@ -90,6 +90,9 @@ public sealed record FirmamentPerforationReport(
     public double? PatternBuildMilliseconds { get; init; }
     public double? StepExportMilliseconds { get; init; }
     public double? StepReimportMilliseconds { get; init; }
+    /// <summary>How the STEP text was verified: "full-reimport", or "congruent-specimens" (one- and two-opening
+    /// specimens round-tripped, plus an exact per-entity count of the full file).</summary>
+    public string? VerificationBasis { get; init; }
 }
 
 public sealed record FirmamentGearItemReport(

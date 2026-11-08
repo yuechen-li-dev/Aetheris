@@ -1,0 +1,8 @@
+Model RoundedCounterbore {
+    units: mm
+    Box stock { size: [30mm, 30mm, 20mm] }
+    Modify stock {
+        Hole<Counterbore> Mount { on: +Z; center: [0mm, 0mm]; diameter: 6mm; counterboreDiameter: 12mm; counterboreDepth: 5mm; end: ThroughAll }
+        EdgeFinish<Fillet> Round { target: AllEdges; radius: 1mm }
+    }
+}

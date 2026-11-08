@@ -13,10 +13,14 @@ public static class ProfileSemanticDeclaration { }
 [FirmamentField("Profile", "Profile", FirmamentSchemaValueKind.Profile, Required = true, Description = "Name of the Profile to extrude.")]
 [FirmamentField("From", "From", FirmamentSchemaValueKind.Length, Required = true, Description = "Start height along the layout normal.")]
 [FirmamentField("To", "To", FirmamentSchemaValueKind.Length, Required = true, Description = "End height; greater than From.")]
+[FirmamentField("WallThickness", "WallThickness", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Variants = ["Hollow"], Description = "Extrude<Hollow>: the constant wall of the hollow prism.")]
+[FirmamentField("Openings", "Openings", FirmamentSchemaValueKind.String, Variants = ["Hollow"], Description = "Extrude<Hollow>: end caps the cavity runs out through, [Top], [Bottom] or both; omit for a closed vessel.")]
 public static class ExtrudeSemanticDeclaration { }
 
 [FirmamentConstruct("Compose", "Compose", Context = "Model", Entry = "Compose Plate {\n    Base Stock { Profile: Outline; From: 0mm; To: 8mm; Role: Stock }\n}",
     Description = "A Profile-based body built from a Base and optional Boss, Pocket and Hole operations. A later Modify takes Hole, Slot, Pattern and qualified Profile rim finishes. A constant native-XY Base with disjoint through round holes supports top or bottom fillets/chamfers, including RoundedRect2 corners; other material histories have narrower admission. Round vertical corners in the Profile (RoundedRect2).")]
+[FirmamentField("WallThickness", "WallThickness", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Variants = ["Hollow"], Description = "Compose<Hollow>: the constant wall; the cavity is derived from the whole exterior, including its Boss and Pocket operations.")]
+[FirmamentField("Openings", "Openings", FirmamentSchemaValueKind.String, Variants = ["Hollow"], Description = "Compose<Hollow>: end caps the cavity runs out through, [Top], [Bottom] or both; omit for a closed vessel.")]
 public static class ComposeSemanticDeclaration { }
 
 [FirmamentConstruct("ComposeBase", "Base", Context = "Compose", Entry = "Base Stock { Profile: Outline; From: 0mm; To: 8mm; Role: Stock }",

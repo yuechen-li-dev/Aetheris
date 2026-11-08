@@ -1,0 +1,16 @@
+Model RoundedEll {
+    units: mm
+    Path Outline {
+        start: Point2(0mm, 0mm)
+        heading: 0deg
+        Line A { length: 40mm }
+        Line B { turn: 90deg; length: 15mm }
+        Line C { turn: 90deg; length: 25mm }
+        Line D { turn: -90deg; length: 15mm }
+        Line E { turn: 90deg; length: 15mm }
+        Close F
+    }
+    Profile Section from Outline
+    Struct Body { Extrude Stock { profile: Section; from: 0mm; to: 10mm } }
+    Modify Body { EdgeFinish<Fillet> Round { target: AllEdges; radius: 1mm } }
+}

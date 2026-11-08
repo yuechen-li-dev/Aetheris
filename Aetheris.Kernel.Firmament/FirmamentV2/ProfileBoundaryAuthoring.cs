@@ -179,7 +179,8 @@ internal static class ProfileBoundaryAuthoring
         {
             if (!ids.Add(apply)) { diagnostics.Add($"profile-edit-duplicate-name:{name}.{apply}"); continue; }
             var matches = deltas.Deltas.Where(d => d.Delta.Name == apply).ToArray();
-            if (matches.Length != 1) { diagnostics.Add($"profile-edit-apply-unresolved:{apply}"); continue; }
+            if (matches.Length == 0) { diagnostics.Add($"profile-edit-apply-unresolved:{apply}: no ProfileDelta named '{apply}' is declared."); continue; }
+            if (matches.Length > 1) { diagnostics.Add($"profile-edit-apply-ambiguous:{apply}: {matches.Length} ProfileDelta declarations are named '{apply}'; give each a unique name."); continue; }
             var delta = matches[0];
             var index = FindMember(segments, delta.OwnerPath, owner, localFrom);
             if (index < 0 || segments[index].Geometry is not LineArcLineSegment2D line)

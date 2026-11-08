@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Step242;
@@ -89,12 +90,17 @@ public sealed class Step242PeriodicBoundaryOrientationTests
     }
 
     [Fact]
-    public void Stc06_RemainsExplicitlyAmbiguous()
+    public void Stc06_ResolvesWithMislabelledOuterBoundsCapsAndNotchedBores()
     {
+        // STC-06 puts FACE_OUTER_BOUND on hole loops, has single-loop sphere faces that are large caps, drill-point
+        // cones closed by an apex, and bores whose end is notched. Each once resolved to the wrong side.
         var imported = Step242Corpus.Import(NistPath("STC/nist_stc_06_asme1_ap242-e3.stp"));
         Assert.True(imported.IsSuccess);
-        Assert.Contains(imported.Value.FaceOrientationReport!.Shells,
-            shell => shell.Qualification == FaceOrientationQualification.Ambiguous);
+        Assert.All(imported.Value.FaceOrientationReport!.Shells,
+            shell => Assert.Equal(FaceOrientationQualification.DerivedQualified, shell.Qualification));
+        var volume = BrepMassProperties.Evaluate(imported.Value, new(0.01d, double.Pi / 90d, 1d, MaximumSegments: 256)).SignedVolume;
+        // OCCT: 3323540.5 mm^3 (exact, Gauss-Kronrod and mesh agree).
+        Assert.InRange(volume, 3323540.5 * (1 - 1e-4), 3323540.5 * (1 + 1e-4));
     }
 
     private static string NistPath(string relativePath) => $"testdata/step242/nist/{relativePath}";

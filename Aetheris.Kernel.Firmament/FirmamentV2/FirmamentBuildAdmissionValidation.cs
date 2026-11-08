@@ -9,6 +9,12 @@ public static class FirmamentBuildAdmissionValidation
     public static FirmamentV2ValidationReport Admit(
         FirmamentV2ValidationReport report, string source, string? sourceDirectory = null)
     {
+        // A junction fillet is validated the way build answers it: the body built without it, then filleted.
+        if (JunctionFilletRoute.Find(source) is { } junction && FirmamentV2Parser.Parse(junction.Stripped, sourceDirectory).IsSuccess)
+            return Rounded(report, source, sourceDirectory, JunctionFilletRoute.Code);
+        if (report.Status == "invalid" && UniformRoundingRoute.Find(source) is { } rounding
+            && FirmamentV2Parser.Parse(rounding.Stripped, sourceDirectory).IsSuccess)
+            return Rounded(report, source, sourceDirectory);
         if (report.Status == "invalid") return report;
         var compilation = FirmamentBuildAndExport.CompileSource(source, sourceDirectory);
         var diagnostics = report.Diagnostics.Concat(compilation.Diagnostics.Select(diagnostic =>
@@ -24,6 +30,26 @@ public static class FirmamentBuildAdmissionValidation
                 FatalDiagnosticCount = fatal,
                 WarningDiagnosticCount = diagnostics.Count(diagnostic => diagnostic.Severity == "warning")
             }
+        };
+    }
+
+    /// <summary>An AllEdges fillet that is all that stops the source parsing (the stock route refuses it, or the
+    /// body's construction takes no Modify) is validated the way build answers it: by building the body and
+    /// rounding it.</summary>
+    private static FirmamentV2ValidationReport Rounded(FirmamentV2ValidationReport report, string source, string? sourceDirectory, string route = UniformRoundingRoute.Code)
+    {
+        var built = FirmamentBuildAndExport.CompileSource(source, sourceDirectory);
+        // Only the finish failed the parse, so the parse's diagnostics give way to the build's answer.
+        var diagnostics = report.Diagnostics.Where(d => d.Severity is not ("fatal" or "error"))
+            .Concat(built.Diagnostics.Select(d => Present(d, report.Source, source))).Distinct().ToArray();
+        var fatal = diagnostics.Count(d => d.Severity is "fatal" or "error");
+        return report with
+        {
+            Status = built.IsSuccess && fatal == 0 ? "valid" : "invalid",
+            ValidationLevel = built.IsSuccess ? "Built" : "BuildRejected",
+            ParserRoute = route,
+            Diagnostics = diagnostics,
+            Summary = report.Summary with { FatalDiagnosticCount = fatal, WarningDiagnosticCount = diagnostics.Count(d => d.Severity == "warning") },
         };
     }
 

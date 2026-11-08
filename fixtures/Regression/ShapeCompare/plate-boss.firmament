@@ -1,0 +1,10 @@
+// The same plate and boss as plate-boss-hole.firmament, without the hole.
+Model PlateBoss {
+    units: mm
+    Profile Stock = Rect2 { center: [0mm, 0mm]; size: [60mm, 40mm] }
+    Profile Pad = Rect2 { center: [-15mm, 0mm]; size: [16mm, 16mm] }
+    Compose Body {
+        Base Plate { profile: Stock; from: 0mm; to: 6mm; role: Stock }
+        Boss Block { on: Top; profile: Pad; height: 6mm }
+    }
+}

@@ -1,0 +1,5 @@
+Model RoundedFrustum {
+    units: mm
+    Frustum stock { bottomRadius: 12mm; topRadius: 6mm; height: 15mm }
+    Modify stock { EdgeFinish<Fillet> Round { target: AllEdges; radius: 1.5mm } }
+}

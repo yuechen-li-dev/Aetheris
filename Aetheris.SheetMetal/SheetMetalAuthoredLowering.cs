@@ -785,7 +785,7 @@ internal static class AuthoredSheetMetalLowering
         {
             var b=new TopologyBuilder();var g=new BrepGeometryStore();var bindings=new BrepBindingModel();var points=new Dictionary<VertexId,Point3D>();
             var vertices=new Dictionary<Key,VertexId>();var edges=new Dictionary<EdgeKey,EdgeId>();var edgeGeometry=new Dictionary<EdgeId,EdgeGeometry>();var useCount=new Dictionary<EdgeId,int>();var faces=new List<FaceId>();
-            var boundaryCandidates=new List<(EdgeId Positive,EdgeId Negative,Point3D PA,Point3D PB,Point3D NA,Point3D NB,bool ProfileArc)>();
+            var boundaryCandidates=new List<(EdgeId Positive,EdgeId Negative,Point3D PA,Point3D PB,Point3D NA,Point3D NB,bool ProfileArc,Vector3D Outward)>();
             var cutsByRegion=new Dictionary<string,List<CutBoundary>>(StringComparer.Ordinal);
             VertexId Vertex(Point3D p){var key=Key.Of(p);if(vertices.TryGetValue(key,out var id))return id;id=b.AddVertex();vertices[key]=id;points[id]=p;return id;}
             EdgeId Edge(Point3D a,Point3D q,EdgeGeometry? geometry=null){var key=EdgeKey.Of(a,q);if(edges.TryGetValue(key,out var id))return id;id=b.AddEdge(Vertex(a),Vertex(q));edges[key]=id;edgeGeometry[id]=geometry??Line(a,q);return id;}
@@ -801,7 +801,7 @@ internal static class AuthoredSheetMetalLowering
                 {
                     var j=(i+1)%count;var pg=CurveFor(patch,true,i,patch.Positive[i],patch.Positive[j]);var ng=CurveFor(patch,false,i,patch.Negative[i],patch.Negative[j]);
                     var pe=Edge(patch.Positive[i],patch.Positive[j],pg);var ne=Edge(patch.Negative[i],patch.Negative[j],ng);
-                    boundaryCandidates.Add((pe,ne,patch.Positive[i],patch.Positive[j],patch.Negative[i],patch.Negative[j],patch.Kind==SheetRegionKind.Planar&&pg.Curve.Kind==CurveGeometryKind.Circle3));
+                    boundaryCandidates.Add((pe,ne,patch.Positive[i],patch.Positive[j],patch.Negative[i],patch.Negative[j],patch.Kind==SheetRegionKind.Planar&&pg.Curve.Kind==CurveGeometryKind.Circle3,WallOutward(patch.Positive,patch.Negative,i)));
                 }
             }
             foreach(var candidate in boundaryCandidates)
@@ -810,9 +810,9 @@ internal static class AuthoredSheetMetalLowering
                 var loop=new[]{DirectedEdge(candidate.PA,candidate.PB),DirectedEdge(candidate.PB,candidate.NB),DirectedEdge(candidate.NB,candidate.NA),DirectedEdge(candidate.NA,candidate.PA)};
                 if(candidate.ProfileArc&&edgeGeometry[candidate.Positive].Curve is { Kind:CurveGeometryKind.Circle3,Circle3:{ } arcCircle })
                 {
-                    var axis=Unit(candidate.PA-candidate.NA);Face([loop],SurfaceGeometry.FromCylinder(new CylinderSurface(arcCircle.Center,Direction3D.Create(axis),arcCircle.Radius,Direction3D.Create(candidate.PA-arcCircle.Center))));
+                    var axis=Unit(candidate.PA-candidate.NA);var wall=SurfaceGeometry.FromCylinder(new CylinderSurface(arcCircle.Center,Direction3D.Create(axis),arcCircle.Radius,Direction3D.Create(candidate.PA-arcCircle.Center)));Face([loop],wall,Aligned(wall,Mid(candidate.PA,candidate.PB),candidate.Outward));
                 }
-                else{var u=candidate.PB-candidate.PA;var v=candidate.NA-candidate.PA;var normal=Unit(u.Cross(v));Face([loop],SurfaceGeometry.FromPlane(new PlaneSurface(candidate.PA,Direction3D.Create(normal),Direction3D.Create(Unit(u)))));}
+                else{var u=candidate.PB-candidate.PA;var v=candidate.NA-candidate.PA;var normal=Unit(u.Cross(v));var wall=SurfaceGeometry.FromPlane(new PlaneSurface(candidate.PA,Direction3D.Create(normal),Direction3D.Create(Unit(u))));Face([loop],wall,Aligned(wall,Mid(candidate.PA,candidate.PB),candidate.Outward));}
             }
             AddCutWalls();
             foreach(var (edge,geometry) in edgeGeometry.OrderBy(x=>x.Key.Value)){var cid=new CurveGeometryId(g.Curves.Count()+1);g.AddCurve(cid,geometry.Curve);bindings.AddEdgeBinding(new(edge,cid,geometry.Interval));}
@@ -830,7 +830,9 @@ internal static class AuthoredSheetMetalLowering
                     if(cut.Circle)loops.Add([ExistingEdge(cutEdges[0],points[0])]);
                     else{var cutUses=new List<Use>();for(var i=0;i<points.Count;i++){var original=positive?(points.Count-2-i+points.Count)%points.Count:i;cutUses.Add(ExistingEdge(cutEdges[original],points[i]));}loops.Add(cutUses);}
                 }
-                Face(loops,surface,positive);
+                // A skin faces away from the sheet: the positive skin along the thickness direction, the negative against it.
+                var across=patch.Positive[0]-patch.Negative[0];
+                Face(loops,surface,positive?Aligned(surface,patch.Positive[0],across):Aligned(surface,patch.Negative[0],-across));
             }
             EdgeGeometry CurveFor(Patch patch,bool positive,int index,Point3D a,Point3D q)
             {
@@ -874,15 +876,15 @@ internal static class AuthoredSheetMetalLowering
                     }
                     else for(var i=0;i<cut.Positive.Count;i++)
                     {
-                        var j=(i+1)%cut.Positive.Count;var loop=new[]{ExistingEdge(cut.PositiveEdges[i],cut.Positive[i]),DirectedEdge(cut.Positive[j],cut.Negative[j]),ExistingEdge(cut.NegativeEdges[i],cut.Negative[j]),DirectedEdge(cut.Negative[i],cut.Positive[i])};
+                        var j=(i+1)%cut.Positive.Count;var outward=-WallOutward(cut.Positive,cut.Negative,i);var loop=new[]{ExistingEdge(cut.PositiveEdges[i],cut.Positive[i]),DirectedEdge(cut.Positive[j],cut.Negative[j]),ExistingEdge(cut.NegativeEdges[i],cut.Negative[j]),DirectedEdge(cut.Negative[i],cut.Positive[i])};
                         if(edgeGeometry[cut.PositiveEdges[i]].Curve is { Kind:CurveGeometryKind.Circle3,Circle3:{ } circle })
                         {
                             var axis=Unit(cut.Positive[i]-cut.Negative[i]);var center=circle.Center-axis*(spec.Thickness/2);
-                            Face([loop],SurfaceGeometry.FromCylinder(new CylinderSurface(center,Direction3D.Create(axis),circle.Radius,Direction3D.Create(cut.Positive[i]-circle.Center))));
+                            var wall=SurfaceGeometry.FromCylinder(new CylinderSurface(center,Direction3D.Create(axis),circle.Radius,Direction3D.Create(cut.Positive[i]-circle.Center)));Face([loop],wall,Aligned(wall,Mid(cut.Positive[i],cut.Positive[j]),outward));
                         }
                         else
                         {
-                            var u=cut.Positive[j]-cut.Positive[i];var v=cut.Negative[i]-cut.Positive[i];var normal=Unit(u.Cross(v));Face([loop],SurfaceGeometry.FromPlane(new PlaneSurface(cut.Positive[i],Direction3D.Create(normal),Direction3D.Create(Unit(u)))));
+                            var u=cut.Positive[j]-cut.Positive[i];var v=cut.Negative[i]-cut.Positive[i];var normal=Unit(u.Cross(v));var wall=SurfaceGeometry.FromPlane(new PlaneSurface(cut.Positive[i],Direction3D.Create(normal),Direction3D.Create(Unit(u))));Face([loop],wall,Aligned(wall,Mid(cut.Positive[i],cut.Positive[j]),outward));
                         }
                     }
                 }
@@ -896,6 +898,29 @@ internal static class AuthoredSheetMetalLowering
                     return new(CurveGeometry.FromCircle(new Circle3Curve(center,Direction3D.Create(n),arc.Radius,Direction3D.Create(a-center))),new(0,Math.Abs(arc.SweepAngleRadians)));
                 }
                 return Line(a,q);
+            }
+            // Faces are bound by geometry: a surface is aligned when its normal points out of the material there.
+            static bool Aligned(SurfaceGeometry surface,Point3D at,Vector3D outward)
+            {
+                Vector3D normal=surface.Kind switch
+                {
+                    SurfaceGeometryKind.Plane=>surface.Plane!.Value.Normal.ToVector(),
+                    SurfaceGeometryKind.Cylinder=>Radial(at,surface.Cylinder!.Value.Origin,surface.Cylinder!.Value.Axis.ToVector()),
+                    _=>throw new InvalidOperationException($"Sheet faces are planes and cylinders, not {surface.Kind}.")
+                };
+                return normal.Dot(outward)>0d;
+                static Vector3D Radial(Point3D p,Point3D origin,Vector3D axis){var d=p-origin;return d-axis*d.Dot(axis);}
+            }
+            static Point3D Mid(Point3D a,Point3D q)=>new((a.X+q.X)/2,(a.Y+q.Y)/2,(a.Z+q.Z)/2);
+            // The wall on boundary span i of a contour (positive and negative skins as parallel point loops) faces away
+            // from the region the contour encloses: right of travel when the contour runs counter-clockwise about the
+            // thickness direction.
+            static Vector3D WallOutward(IReadOnlyList<Point3D> positive,IReadOnlyList<Point3D> negative,int i)
+            {
+                var across=Vector3D.Zero;var area=Vector3D.Zero;
+                for(var k=0;k<positive.Count;k++){across+=positive[k]-negative[k];var a=positive[k];var q=positive[(k+1)%positive.Count];area+=new Vector3D(a.Y*q.Z-a.Z*q.Y,a.Z*q.X-a.X*q.Z,a.X*q.Y-a.Y*q.X);}
+                var n=Unit(positive[i]-negative[i]);var u=positive[(i+1)%positive.Count]-positive[i];var right=u.Cross(n);
+                return area.Dot(across)>0d?right:-right;
             }
             EdgeGeometry Line(Point3D a,Point3D q){var d=q-a;return new(CurveGeometry.FromLine(new Line3Curve(a,Direction3D.Create(d))),new(0,d.Length));}
             Point3D ProjectToAxis(Point3D p,Point3D origin,Vector3D axis)=>origin+axis*((p-origin).Dot(axis));

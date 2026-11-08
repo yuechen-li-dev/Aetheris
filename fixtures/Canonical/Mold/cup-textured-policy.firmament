@@ -1,0 +1,30 @@
+// A cup with a typed molding policy: the house rule asks for 1.5° on PP, and the textured outside needs
+// 1° more per 0.025 mm of texture depth. The 2° walls pass the plain rule; the textured outside (the -pull half)
+// falls short.
+Record MoldingPolicySpec {
+  MinimumDraft: Angle
+}
+
+Static HouseRule: MoldingPolicySpec = MoldingPolicySpec {
+  MinimumDraft: 1.5deg
+}
+
+Model Cup {
+    units: mm
+    Axis spindle { origin: [0mm, 0mm, 0mm]; direction: [0, 0, 1] }
+    Concept Struct meridian on XZ {
+        Polygon2 section { points: [[0mm, 0mm], [30mm, 0mm], [31.397mm, 40mm], [0mm, 40mm]] }
+    }
+    Profile outline using meridian { Loop Outer { section |> TraceLoop } }
+    Revolve<Hollow> body { profile: outline; about: spindle; angle: full; wallThickness: 1.5mm; openings: [Top] }
+}
+
+Mold CupTool {
+  part: Cup
+  material: PP
+  policy: HouseRule
+  stage: Concept
+  pull: +Z
+  parting: Plane { at: face(+Z) }
+  texture: { faces: [side(-pull)]; depth: 0.025mm }
+}

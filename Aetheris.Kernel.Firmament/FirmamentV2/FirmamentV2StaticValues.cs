@@ -74,6 +74,13 @@ public static partial class FirmamentV2Parser
             }
             if (ValueExpression(valueSyntax, type) is { } expression)
                 declarations.Add(new(d.Name.Text, type, expression, d.Span, tolerance));
+            else if (FirmamentSyntaxTraversal.Expressions(new DocumentSyntax("static", [new ExpressionStatementSyntax(valueSyntax, valueSyntax.Span)], [], valueSyntax.Span))
+                         .OfType<CallSyntax>().Select(c => FirmamentSyntaxValues.Reference(c.Target))
+                         .FirstOrDefault(n => n is not null && !FirmamentNumericEvaluation.Intrinsics.Contains(n) && n is not ("Point2" or "Point3")) is { } unknown)
+                Error(ExpressionUnsupported, $"Static '{d.Name.Text}' calls '{unknown}', which is not a compile-time intrinsic ({string.Join(", ", FirmamentNumericEvaluation.IntrinsicNames)}) or a declared Function.", valueSyntax.Span, d.Name.Text);
+            else if (FirmamentSyntaxTraversal.Expressions(new DocumentSyntax("static", [new ExpressionStatementSyntax(valueSyntax, valueSyntax.Span)], [], valueSyntax.Span))
+                         .OfType<CallSyntax>().Any(c => FirmamentSyntaxValues.Reference(c.Target) is { } n && FirmamentNumericEvaluation.Intrinsics.Contains(n)))
+                Error(ExpressionUnsupported, $"Static '{d.Name.Text}' calls an intrinsic outside its domain or with the wrong units. Pow and Sqrt take unitless numbers (Sqrt of a nonnegative value); Sin, Cos and Tan take an angle such as 60deg (Tan is undefined at 90deg + k*180deg).", valueSyntax.Span, d.Name.Text);
             else Error(ExpressionUnsupported, "Expected a typed literal, scalar reference or dimensional arithmetic; tol belongs at the end of a Static initializer.", valueSyntax.Span, d.Name.Text);
         }
 
@@ -172,10 +179,13 @@ public static partial class FirmamentV2Parser
             if (e is UnarySyntax { Operator: UnaryOperator.Not } not && ValueExpression(not.Operand, FirmamentV2PrimitiveType.Bool) is { } operand)
                 return new FirmamentV2UnaryExpression("!", operand, text);
             var unit = e is QuantitySyntax q ? q.Unit.Text : e is UnarySyntax { Operand: QuantitySyntax uq } ? uq.Unit.Text : "";
+            // An evaluated value substituted back as a literal keeps the authored span (for example "Sqrt(3)"), so a
+            // literal's Int/Float spelling comes from its own text, not from the span it replaced.
+            var numeral = e is LiteralSyntax { Kind: LiteralKind.Number } numberLiteral ? numberLiteral.Raw : text;
             var inferred = unit switch { "mm" => FirmamentV2PrimitiveType.Length, "deg" => FirmamentV2PrimitiveType.Angle, "s" or "ms" => FirmamentV2PrimitiveType.Time,
                 "" => e is LiteralSyntax { Kind: LiteralKind.Boolean } ? FirmamentV2PrimitiveType.Bool
                     : e is LiteralSyntax { Kind: LiteralKind.String } ? FirmamentV2PrimitiveType.String
-                    : text.Contains('.') || text.Contains('e', StringComparison.OrdinalIgnoreCase) ? FirmamentV2PrimitiveType.Float : FirmamentV2PrimitiveType.Int, _ => (FirmamentV2PrimitiveType?)null };
+                    : numeral.Contains('.') || numeral.Contains('e', StringComparison.OrdinalIgnoreCase) ? FirmamentV2PrimitiveType.Float : FirmamentV2PrimitiveType.Int, _ => (FirmamentV2PrimitiveType?)null };
             if (inferred is null) return null;
             if (inferred is FirmamentV2PrimitiveType.String or FirmamentV2PrimitiveType.Bool)
             {
@@ -189,7 +199,10 @@ public static partial class FirmamentV2Parser
                 }
                 catch (System.Text.Json.JsonException) { return null; }
             }
-            if (!FirmamentSyntaxValues.TryMeasure(e, inferred == FirmamentV2PrimitiveType.Time ? "s" : unit, out var n) || inferred == FirmamentV2PrimitiveType.Int && (n < int.MinValue || n > int.MaxValue || n != Math.Truncate(n))) return null;
+            if (!FirmamentSyntaxValues.TryMeasure(e, inferred == FirmamentV2PrimitiveType.Time ? "s" : unit, out var n)) return null;
+            // An intrinsic call such as Tan(60deg) has no decimal point in its text but a fractional result.
+            if (inferred == FirmamentV2PrimitiveType.Int && e is CallSyntax && n != Math.Truncate(n)) inferred = FirmamentV2PrimitiveType.Float;
+            if (inferred == FirmamentV2PrimitiveType.Int && (n < int.MinValue || n > int.MaxValue || n != Math.Truncate(n))) return null;
             // Float declarations admit integer-written constants, as legacy let did.
             if (inferred == FirmamentV2PrimitiveType.Int && expected == FirmamentV2PrimitiveType.Float) inferred = expected;
             return new FirmamentV2LiteralExpression(new(inferred.Value, inferred == FirmamentV2PrimitiveType.Int ? (object)(int)n : n, n, inferred == FirmamentV2PrimitiveType.Time ? "s" : unit.Length == 0 ? null : unit, text));

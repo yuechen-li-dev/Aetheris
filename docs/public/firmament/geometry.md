@@ -2,8 +2,16 @@
 
 For exact regular solids, ellipsoids and the bounded whole-stock fillet, see
 [regular polyhedra and ellipsoids in the syntax guide](../reference/language/solids-and-features.md#primitives).
-`target: AllEdges` currently applies only to untouched size-based Box and regular
-Polyhedron stock. It does not admit rounding all edges of an arbitrary body.
+`target: AllEdges` rounds every edge of untouched Box and regular Polyhedron
+stock, and of other bodies whose faces are planes, cylinders and cones:
+extruded polygons and line-and-arc profiles, cylinders, frustums, revolved
+stepped parts, blocks with through, blind and counterbored holes. Convex edges
+are rounded off and concave edges filled in, including where flat and curved
+walls meet tangentially and where a concave edge meets convex ones (the inner
+corner of an L). The body is built without the finish and then rounded whole.
+Spline and elliptical edges, corners where two concave edges meet a convex one,
+faces split in two along a plane, and corners where more than three edges meet
+on a curved body are refused at the finish with what was found.
 
 Ellipsoid BRep export uses exact rational quadratic patches and reimports them as
 native exact quadrics. STEP also defines an [`ELLIPSOID` CSG primitive](https://www.steptools.com/docs/stp_aim/html/t_ellipsoid.html);

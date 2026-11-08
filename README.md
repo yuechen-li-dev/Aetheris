@@ -1,3 +1,6 @@
+*Note: Check out [Helios](https://github.com/yuechen-li-dev/HeliosCAD), the reference browser CAD frontend for Aetheris in early alpha, if you want to try Aetheris out for yourself.*
+*Otherwise, tell your LLM agents to clone the repo and start vibe-CADing, because I'm too lazy to add an MCP server to Aetheris.*
+
 <p align="center">
 <img width="256" height="256" alt="image" src="https://github.com/user-attachments/assets/98eac13c-d7b3-4726-979a-877417499f44" />
 </p>

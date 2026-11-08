@@ -52,6 +52,8 @@ public static class BrepHollowRadialCut
         var tol = tolerance ?? ToleranceContext.Default;
         if (hollow.Feature.PrimitiveKind != "Cylinder" || hollow.Feature.Openings.Count != 1 || hollow.Feature.Openings[0] != "Top")
             return Failure("Only a top-open Cylinder<Hollow> authority is admitted.", "Brep.HollowRadialCut.UnsupportedHost");
+        if (hollow.Feature.PrimitiveParameters.GetValueOrDefault("BottomBlendRadius") > 0)
+            return Failure("A bottom-blended host is cut by BrepHollowRadialCutPattern.", "Brep.HollowRadialCut.UnsupportedHost");
         var radius = hollow.Feature.PrimitiveParameters["Radius"];
         var height = hollow.Feature.PrimitiveParameters["Height"];
         var thickness = hollow.Feature.WallThickness;
@@ -118,15 +120,16 @@ public static class BrepHollowRadialCut
         var innerFirst = b.AddEdge(i0, iPi); var innerSecond = b.AddEdge(iPi, i0);
         var toolSeam = b.AddEdge(o0, i0);
 
-        var outerEnvelope = AddLoop(b, [new(outerSeam), new(outerTop), new(outerSeam, true), new(outerBottom, true)]);
+        // Loops run counter-clockwise about the face's outward normal; see BrepHollowRadialCutPattern.
+        var outerEnvelope = AddLoop(b, [new(outerSeam), new(outerTop, true), new(outerSeam, true), new(outerBottom)]);
         var outerOpening = AddLoop(b, [new(outerSecond, true), new(outerFirst, true)]);
         var innerEnvelope = AddLoop(b, [new(innerSeam), new(innerTop), new(innerSeam, true), new(innerBottom, true)]);
         var innerOpening = AddLoop(b, [new(innerFirst), new(innerSecond)]);
         var outerFace = b.AddFace([outerEnvelope.Id, outerOpening.Id]);
         var innerFace = b.AddFace([innerEnvelope.Id, innerOpening.Id]);
-        var bottomOutside = AddLoop(b, [new(outerBottom)]); var outerBottomFace = b.AddFace([bottomOutside.Id]);
+        var bottomOutside = AddLoop(b, [new(outerBottom, true)]); var outerBottomFace = b.AddFace([bottomOutside.Id]);
         var bottomInside = AddLoop(b, [new(innerBottom)]); var innerBottomFace = b.AddFace([bottomInside.Id]);
-        var rimOuter = AddLoop(b, [new(outerTop, true)]);
+        var rimOuter = AddLoop(b, [new(outerTop)]);
         var rimInner = AddLoop(b, [new(innerTop, true)]);
         var rimFace = b.AddFace([rimOuter.Id, rimInner.Id]);
         var wall = AddLoop(b, [new(outerFirst), new(outerSecond), new(toolSeam),
@@ -174,16 +177,17 @@ public static class BrepHollowRadialCut
 
         void Bind(CoedgeId id, FaceId face, int surface, PcurveGeometry uv)
             => bindings.AddPcurveBinding(new CoedgePcurveBinding(id, face, new SurfaceGeometryId(surface), uv));
-        void HostEnvelope((LoopId Id, CoedgeId[] Coedges) loop, FaceId face, int surface, double bottomZ)
+        void HostEnvelope((LoopId Id, CoedgeId[] Coedges) loop, FaceId face, int surface, double bottomZ, bool upAtEnd)
         {
             var length = height - bottomZ;
-            Bind(loop.Coedges[0], face, surface, PcurveGeometry.Line(new(0d, length), new(0d, 0d), new(0d, length)));
+            var (up, down) = upAtEnd ? (2d * double.Pi, 0d) : (0d, 2d * double.Pi);
+            Bind(loop.Coedges[0], face, surface, PcurveGeometry.Line(new(0d, length), new(up, 0d), new(up, length)));
             Bind(loop.Coedges[1], face, surface, PcurveGeometry.Line(full, new(0d, length), new(2d * double.Pi, length)));
-            Bind(loop.Coedges[2], face, surface, PcurveGeometry.Line(new(0d, length), new(2d * double.Pi, 0d), new(2d * double.Pi, length)));
+            Bind(loop.Coedges[2], face, surface, PcurveGeometry.Line(new(0d, length), new(down, 0d), new(down, length)));
             Bind(loop.Coedges[3], face, surface, PcurveGeometry.Line(full, new(0d, 0d), new(2d * double.Pi, 0d)));
         }
-        HostEnvelope(outerEnvelope, outerFace, 1, 0d);
-        HostEnvelope(innerEnvelope, innerFace, 2, thickness);
+        HostEnvelope(outerEnvelope, outerFace, 1, 0d, upAtEnd: true);
+        HostEnvelope(innerEnvelope, innerFace, 2, thickness, upAtEnd: false);
         Bind(outerOpening.Coedges[0], outerFace, 1, PcurveGeometry.Polynomial(second, outerUv.Value.Host));
         Bind(outerOpening.Coedges[1], outerFace, 1, PcurveGeometry.Polynomial(first, outerUv.Value.Host));
         Bind(innerOpening.Coedges[0], innerFace, 2, PcurveGeometry.Polynomial(first, innerUv.Value.Host));

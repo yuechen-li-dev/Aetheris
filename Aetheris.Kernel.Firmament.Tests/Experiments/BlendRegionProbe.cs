@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.Blends;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
@@ -14,7 +15,7 @@ namespace Aetheris.Kernel.Firmament.Tests.Experiments;
 /// </summary>
 internal static class BlendRegionProbe
 {
-    internal sealed record Options(double MaxBlendRadius = 5, double TangentDegrees = 3)
+    internal sealed record Options(double MaxBlendRadius = 5, double TangentDegrees = 3, bool Certificate = true, IReadOnlySet<FaceId>? Keep = null)
     {
         // A 45° chamfer of size c is c·√2 wide; admit chamfers up to the blend-radius limit.
         public double MaxChamferWidth => MaxBlendRadius * Math.Sqrt(2) + 1e-6;
@@ -60,8 +61,26 @@ internal static class BlendRegionProbe
                 .Where(edges.ContainsKey).Select(e => edges[e]).Distinct().ToArray());
 
         var reports = new Dictionary<FaceId, FaceReport>();
+        // The rolling-ball certificate (Core BlendRecognition) decides strips, joiners and anchors; the shape
+        // heuristics below remain for comparison (Options.Certificate = false).
+        var recognized = options.Certificate
+            ? BlendRecognition.Recognize(body, new BlendRecognitionOptions { MaxSize = options.MaxBlendRadius, TangentDegrees = options.TangentDegrees }, options.Keep).ToDictionary(r => r.Face)
+            : null;
         foreach (var face in body.Topology.Faces)
         {
+            if (recognized is not null)
+            {
+                body.TryGetFaceSurfaceGeometry(face.Id, out var g);
+                var mineEdges = faceEdges[face.Id];
+                var r = recognized[face.Id];
+                var tangentCount = mineEdges.Count(e => e.Tangent);
+                var innerLoops = face.LoopIds.Count(l => body.Bindings.FaceBoundaryRoleBindings.Any(b => b.FaceId == face.Id && b.LoopId == l && b.Role == FaceBoundaryRole.Inner));
+                var holeLike = g?.Cylinder is { } cyl && IsConcave(cyl, patches.GetValueOrDefault(face.Id) ?? []);
+                reports[face.Id] = new(face.Id.Value, (g?.Kind ?? SurfaceGeometryKind.Plane).ToString(), r.Role == BlendFaceRole.Primary ? "primary" : "secondary",
+                    r.Role switch { BlendFaceRole.Strip when r.Blend!.Hypothesis.Section == BlendSection.Chamfer => "chamfer-strip", BlendFaceRole.Strip => "round-certified", BlendFaceRole.Joiner => "corner-patch-candidate", _ => holeLike && tangentCount == 0 ? "hole-or-cut-wall" : r.Reason },
+                    r.Blend?.Size, Area(patches.GetValueOrDefault(face.Id) ?? []), tangentCount, mineEdges.Length - tangentCount, innerLoops, holeLike);
+                continue;
+            }
             body.TryGetFaceSurfaceGeometry(face.Id, out var surface);
             var kind = surface?.Kind ?? SurfaceGeometryKind.Plane;
             var mine = faceEdges[face.Id];
@@ -154,7 +173,9 @@ internal static class BlendRegionProbe
             // Per member: distinct primaries it is tangent to (2 = strip, 3 = corner, 0-1 = blend meeting blends).
             // Anchors: the primaries a blend face actually spans. A fillet's are its tangent neighbours;
             // a chamfer's are the neighbours it leans 20-70° against (its end caps meet it near 90°).
-            var faceAnchors = members.OrderBy(f => f.Value).Select(f => faceEdges[f]
+            var faceAnchors = recognized is not null
+                ? members.OrderBy(f => f.Value).Select(f => recognized[f].Blend is { } b ? new[] { b.Hypothesis.AnchorA.Value, b.Hypothesis.AnchorB.Value }.Order().ToArray() : []).ToArray()
+                : members.OrderBy(f => f.Value).Select(f => faceEdges[f]
                 .Where(e => reports[f].Reason == "chamfer-strip" ? e.MaxAngleDegrees is > 20 and < 70 : e.Tangent)
                 .Select(e => e.Faces[0] == f ? e.Faces[1] : e.Faces[0]).Where(n => reports[n].Role == "primary").Distinct().Select(n => n.Value).Order().ToArray()).ToArray();
             var bridges = faceAnchors.Select(a => a.Length).ToArray();

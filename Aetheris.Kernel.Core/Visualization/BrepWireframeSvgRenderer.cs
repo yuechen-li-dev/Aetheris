@@ -115,11 +115,12 @@ public static class BrepWireframeSvgRenderer
         {
             if (!body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding)
                 || !body.Geometry.TryGetSurface(faceBinding.SurfaceGeometryId, out var surface) || surface is null) continue;
-            var loops = TrimLoops(body, face).ToArray();
-            if (loops.Length == 0 || loops.All(loop => loop.Count < 3)) continue;
-            var uv = loops.SelectMany(loop => loop).ToArray();
-            var u0 = uv.Min(point => point.U); var u1 = uv.Max(point => point.U);
-            var v0 = uv.Min(point => point.V); var v1 = uv.Max(point => point.V);
+            var raw = TrimLoops(body, face).ToArray();
+            if (raw.Length == 0 || raw.All(loop => loop.Count < 3)) continue;
+            var chart = TrimChart.Of(raw, SurfacePeriodicity.Of(surface));
+            if (chart is null) continue;
+            var loops = chart.Loops;
+            var (u0, u1, v0, v1) = (chart.U0, chart.U1, chart.V0, chart.V1);
             if (!double.IsFinite(u0) || !double.IsFinite(u1) || !double.IsFinite(v0) || !double.IsFinite(v1)
                 || u1 - u0 <= 1e-12d || v1 - v0 <= 1e-12d) continue;
             if (!CanEvaluate(surface)) { unsupported.Add(surface.Kind.ToString()); continue; }
@@ -127,9 +128,9 @@ public static class BrepWireframeSvgRenderer
             for (var line = 1; line < options.Density; line++)
             {
                 var u = u0 + (u1 - u0) * line / options.Density;
-                AddTrimmedIso(iso, loops, options.CurveSamples, t => new(u, v0 + (v1 - v0) * t), point => Evaluate(surface, point.U, point.V));
+                AddTrimmedIso(iso, chart, options.CurveSamples, t => new(u, v0 + (v1 - v0) * t), point => Evaluate(surface, point.U, point.V));
                 var v = v0 + (v1 - v0) * line / options.Density;
-                AddTrimmedIso(iso, loops, options.CurveSamples, t => new(u0 + (u1 - u0) * t, v), point => Evaluate(surface, point.U, point.V));
+                AddTrimmedIso(iso, chart, options.CurveSamples, t => new(u0 + (u1 - u0) * t, v), point => Evaluate(surface, point.U, point.V));
             }
             if (iso.Count > before) { trimmedFaces++; isoOwners.AddRange(Enumerable.Repeat(face.Id.Value, iso.Count - before)); }
         }
@@ -166,7 +167,7 @@ public static class BrepWireframeSvgRenderer
         }
     }
 
-    private static void AddTrimmedIso(List<IReadOnlyList<Point3D>> output, IReadOnlyList<IReadOnlyList<SurfaceParameterPoint>> loops,
+    private static void AddTrimmedIso(List<IReadOnlyList<Point3D>> output, TrimChart loops,
         int samples, Func<double, SurfaceParameterPoint> parameter, Func<SurfaceParameterPoint, Point3D> evaluate)
     {
         List<Point3D>? run = null;
@@ -174,7 +175,7 @@ public static class BrepWireframeSvgRenderer
         {
             var a = parameter(index / (double)samples); var b = parameter((index + 1d) / samples);
             var midpoint = new SurfaceParameterPoint((a.U + b.U) / 2d, (a.V + b.V) / 2d);
-            if (InsideTrim(midpoint, loops))
+            if (loops.Inside(midpoint))
             {
                 run ??= [];
                 if (run.Count == 0) run.Add(evaluate(a));
@@ -184,6 +185,86 @@ public static class BrepWireframeSvgRenderer
             else run = null;
         }
         if (run is { Count: > 1 }) output.Add(run);
+    }
+
+    /// <summary>
+    /// A face's trim loops in its own parameter window. Each periodic parameter is windowed around the face's
+    /// circular mean. Where a loop runs once round a period (a cylinder's rims, a torus band's rings) the face is a
+    /// band in that parameter: its loops do not close as polygons in the plane, so points are classified by a ray
+    /// along the other parameter, counting the loop segments it crosses with their spans taken modulo the period
+    /// (seams run along the ray and never count). Otherwise the even/odd polygon rule applies in the window.
+    /// </summary>
+    private sealed class TrimChart
+    {
+        public required IReadOnlyList<IReadOnlyList<SurfaceParameterPoint>> Loops { get; init; }
+        public double? UPeriod { get; init; }
+        public double? VPeriod { get; init; }
+        public bool WrapU { get; init; }
+        public bool WrapV { get; init; }
+        public double U0 { get; init; }
+        public double U1 { get; init; }
+        public double V0 { get; init; }
+        public double V1 { get; init; }
+
+        public static TrimChart? Of(IReadOnlyList<IReadOnlyList<SurfaceParameterPoint>> raw, SurfacePeriodicity periodicity)
+        {
+            var all = raw.SelectMany(loop => loop).ToArray();
+            static double Mean(IEnumerable<double> values, double period)
+            {
+                var (c, s) = values.Aggregate((0d, 0d), (sum, x) => (sum.Item1 + double.Cos(x * double.Tau / period), sum.Item2 + double.Sin(x * double.Tau / period)));
+                return double.Atan2(s, c) * period / double.Tau;
+            }
+            var cu = periodicity.UPeriod is { } pu ? Mean(all.Select(p => p.U), pu) : 0d;
+            var cv = periodicity.VPeriod is { } pv ? Mean(all.Select(p => p.V), pv) : 0d;
+            double Window(double x, double centre, double? period) => period is { } t ? centre + Wrap(x - centre, t) : x;
+            // A band: walked continuously, some loop covers a whole period (a rim goes once round; the loop may come
+            // back round the other rim, so its net turn can be zero).
+            bool Wraps(Func<SurfaceParameterPoint, double> axis, double? period) => period is { } t && raw.Any(loop =>
+            {
+                var (x, low, high) = (0d, 0d, 0d);
+                for (var i = 1; i < loop.Count; i++) { x += Wrap(axis(loop[i]) - axis(loop[i - 1]), t); low = double.Min(low, x); high = double.Max(high, x); }
+                return high - low > t * (1 - 1e-6);
+            });
+            var (wrapU, wrapV) = (Wraps(p => p.U, periodicity.UPeriod), Wraps(p => p.V, periodicity.VPeriod));
+            if (wrapU && wrapV) return null; // a whole torus: nothing to trim against in either direction
+            var loops = raw.Select(loop => (IReadOnlyList<SurfaceParameterPoint>)loop.Select(p => new SurfaceParameterPoint(Window(p.U, cu, periodicity.UPeriod), Window(p.V, cv, periodicity.VPeriod))).ToArray()).ToArray();
+            var flat = loops.SelectMany(loop => loop).ToArray();
+            return new TrimChart
+            {
+                Loops = loops, UPeriod = periodicity.UPeriod, VPeriod = periodicity.VPeriod, WrapU = wrapU, WrapV = wrapV,
+                U0 = wrapU ? cu - periodicity.UPeriod!.Value / 2 : flat.Min(p => p.U), U1 = wrapU ? cu + periodicity.UPeriod!.Value / 2 : flat.Max(p => p.U),
+                V0 = wrapV ? cv - periodicity.VPeriod!.Value / 2 : flat.Min(p => p.V), V1 = wrapV ? cv + periodicity.VPeriod!.Value / 2 : flat.Max(p => p.V),
+            };
+        }
+
+        public bool Inside(SurfaceParameterPoint point)
+        {
+            if (WrapU) return Band(point.U, point.V, p => p.U, p => p.V, UPeriod!.Value);
+            if (WrapV) return Band(point.V, point.U, p => p.V, p => p.U, VPeriod!.Value);
+            return InsideTrim(point, Loops);
+        }
+
+        /// <summary>Parity of loop segments crossed by the ray from the point along increasing <paramref name="across"/>.</summary>
+        private bool Band(double along, double across, Func<SurfaceParameterPoint, double> wrapped, Func<SurfaceParameterPoint, double> other, double period)
+        {
+            var crossings = 0;
+            foreach (var loop in Loops)
+                for (var i = 0; i < loop.Count; i++)
+                {
+                    var (a, b) = (loop[i], loop[(i + 1) % loop.Count]);
+                    var delta = Wrap(wrapped(b) - wrapped(a), period);
+                    if (double.Abs(delta) <= 1e-12) continue; // along the ray: a seam or a generator
+                    var (start, span, from, to) = delta > 0 ? (wrapped(a), delta, other(a), other(b)) : (wrapped(b), -delta, other(b), other(a));
+                    var offset = Modulo(along - start, period);
+                    if (offset >= span) continue;
+                    if (from + (to - from) * (offset / span) > across) crossings++;
+                }
+            return crossings % 2 == 1;
+        }
+
+        private static double Wrap(double x, double period) { var y = Modulo(x + period / 2, period) - period / 2; return y; }
+
+        private static double Modulo(double x, double period) { var y = x % period; return y < 0 ? y + period : y; }
     }
 
     private static bool InsideTrim(SurfaceParameterPoint point, IReadOnlyList<IReadOnlyList<SurfaceParameterPoint>> loops)

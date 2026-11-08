@@ -1,0 +1,167 @@
+using System.Text.Json;
+using Aetheris.CLI;
+using Aetheris.Kernel.Core.Step242;
+
+namespace Aetheris.CLI.Tests;
+
+public sealed class ShapeComparisonCliTests
+{
+    private static readonly string RepoRoot = FindRepoRoot();
+    private static readonly Lazy<string> PlateBossHole = new(() => Build("fixtures/Regression/ShapeCompare/plate-boss-hole.firmament"));
+    private static readonly Lazy<string> PlateBoss = new(() => Build("fixtures/Regression/ShapeCompare/plate-boss.firmament"));
+    private static readonly Lazy<string> Ctc01 = new(() => Build("fixtures/Regression/Decompile/ctc-01.firmament"));
+    private static readonly Lazy<string> RoundStages = new(() => Build("fixtures/Regression/AuthoringConvenience/round-stages.firmament"));
+    private static string Ctc01Original => Path.Combine(RepoRoot, "testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp");
+
+    [Fact]
+    public void MissingHoleIsNamedLocatedAndMeasured()
+    {
+        var result = StepShapeComparison.Compare(PlateBossHole.Value, PlateBoss.Value, resolution: 300);
+
+        var missing = Assert.Single(result.Carriers.MissingFromCandidate);
+        Assert.Equal("Cylinder", missing.Kind);
+        Assert.Contains("r=4", missing.Description, StringComparison.Ordinal);
+        Assert.Contains("(15, 5, 0)", missing.Description, StringComparison.Ordinal);
+        Assert.Empty(result.Carriers.ExtraInCandidate);
+
+        var hole = Math.PI * 4 * 4 * 6;
+        Assert.InRange(result.Overlap.CandidateOnlyVolume, hole * 0.97, hole * 1.03);
+        Assert.Equal(0d, result.Overlap.ReferenceOnlyVolume, 3);
+        var region = Assert.Single(result.Overlap.Regions);
+        Assert.Equal("candidate-only", region.Side);
+        Assert.InRange(region.BoundsMin[0], 10.5, 11.5);
+        Assert.InRange(region.BoundsMax[1], 8.5, 9.5);
+        Assert.Equal(0d, region.BoundsMin[2], 6);
+        Assert.Equal(6d, region.BoundsMax[2], 6);
+    }
+
+    [Fact]
+    public void SelfComparisonMatchesEveryCarrierAndAllMaterial()
+    {
+        var result = StepShapeComparison.Compare(Ctc01Original, Ctc01Original, resolution: 200);
+
+        Assert.Empty(result.Carriers.MissingFromCandidate);
+        Assert.Empty(result.Carriers.ExtraInCandidate);
+        Assert.Equal(result.Carriers.ReferenceCarrierCount, result.Carriers.MatchedCarrierCount);
+        Assert.Equal(1d, result.Overlap.IntersectionOverUnion, 9);
+        Assert.Empty(result.Overlap.Regions);
+    }
+
+    [Fact]
+    public void Ctc01ReconstructionMatchesTheOriginal()
+    {
+        var result = StepShapeComparison.Compare(Ctc01Original, Ctc01.Value);
+        // Every analytic surface of the original, and nothing else.
+        Assert.Empty(result.Carriers.MissingFromCandidate);
+        Assert.Empty(result.Carriers.ExtraInCandidate);
+        Assert.Equal(85, result.Carriers.MatchedCarrierCount);
+        Assert.True(result.Overlap.IntersectionOverUnion >= 0.99995, $"IoU {result.Overlap.IntersectionOverUnion}");
+    }
+
+    [Fact]
+    public void Ctc01HasTheOriginalsTopologyClassWithItsSplitFacesMerged()
+    {
+        var stdout = new StringWriter();
+        Assert.Equal(0, CliRunner.Run(["analyze", Ctc01.Value, "--json"], stdout, new StringWriter()));
+        using var report = JsonDocument.Parse(stdout.ToString());
+        var summary = report.RootElement.GetProperty("summary");
+        Assert.Equal("enclosed-manifold", summary.GetProperty("structuralAssessment").GetString());
+        var body = Step242Importer.ImportBody(File.ReadAllText(Ctc01.Value)).Value;
+        var (v, e, f) = (body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count());
+        // The original: 206 vertices, 318 edges, 117 faces (V - E + F = 5). The section stack's split walls and
+        // holes are merged back; the original keeps four more split faces than this.
+        Assert.Equal(5, v - e + f);
+        Assert.Equal(206, v);
+        Assert.InRange(f, 113, 117);
+    }
+
+    [Fact]
+    public void Ctc01LugRootFilletsEndOnTheWaistAlongTheExactCylinderIntersection()
+    {
+        var import = Step242Importer.ImportBody(File.ReadAllText(Ctc01.Value));
+        Assert.True(import.IsSuccess);
+        var body = import.Value;
+        var splines = body.Topology.Edges.Select(e => body.Bindings.TryGetEdgeBinding(e.Id, out var b) && body.Geometry.TryGetCurve(b.CurveGeometryId, out var c) ? c?.BSpline3 : null)
+            .OfType<Aetheris.Kernel.Core.Geometry.Curves.BSpline3Curve>().ToArray();
+        // One cut per lug, where its root fillet meets the R25 waist.
+        Assert.Equal(4, splines.Length);
+        // Interior knots no higher than the degree: other readers (OCCT) drop the whole solid otherwise.
+        Assert.All(splines, spline => Assert.All(spline.KnotMultiplicities.Skip(1).SkipLast(1), m => Assert.True(m <= spline.Degree)));
+        foreach (var spline in splines)
+        {
+            var (t0, t1) = (spline.KnotValues[0], spline.KnotValues[^1]);
+            var start = spline.Evaluate(t0);
+            // The waist centre and the fillet's axis, by symmetry from the lug's quadrant.
+            var (sx, sy) = (double.Sign(start.X), double.Sign(start.Y));
+            for (var i = 0; i <= 200; i++)
+            {
+                var p = spline.Evaluate(t0 + (t1 - t0) * i / 200);
+                Assert.Equal(25d, double.Hypot(p.X - sx * 225, p.Y - sy * 150), 6);
+                Assert.Equal(10d, double.Hypot(p.X - sx * 240, p.Z + 60), 6);
+            }
+        }
+    }
+
+    [Fact]
+    public void RoundStagesBuildTheSameSolidAsRoundedRect2()
+    {
+        var reference = Build("fixtures/Regression/AuthoringConvenience/rounded-rect-reference.firmament");
+        var result = StepShapeComparison.Compare(reference, RoundStages.Value, resolution: 200);
+
+        Assert.Empty(result.Carriers.MissingFromCandidate);
+        Assert.Empty(result.Carriers.ExtraInCandidate);
+        Assert.Equal(10, result.Carriers.ReferenceCarrierCount);
+        Assert.Equal(1d, result.Overlap.IntersectionOverUnion, 9);
+    }
+
+    [Fact]
+    public void BoxMinusHoleVolumeIsNotClaimedForStockThatIsNotTheBoundingBox()
+    {
+        // The rounded rectangle's corner cylinders reach the box sides: they are stock, not holes.
+        foreach (var step in new[] { PlateBossHole.Value, Ctc01.Value, RoundStages.Value })
+        {
+            try
+            {
+                var volume = StepAnalyzer.AnalyzeVolume(step);
+                Assert.NotEqual("analytic-box-minus-z-hole", volume.Method);
+            }
+            catch (InvalidOperationException)
+            {
+                // No exact route for this body is an honest answer; a box formula on a non-box is not.
+            }
+        }
+    }
+
+    [Fact]
+    public void CompareShapeOptionReportsCarriersAndOverlapInJson()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var exit = CliRunner.Run(["analyze", "compare", PlateBossHole.Value, PlateBoss.Value, "--shape", "--shape-resolution", "150", "--json"], stdout, stderr);
+
+        Assert.True(exit == 0, stderr.ToString());
+        using var document = JsonDocument.Parse(stdout.ToString());
+        var shape = document.RootElement.GetProperty("shapeComparison");
+        Assert.Equal(1, shape.GetProperty("carriers").GetProperty("missingFromCandidate").GetArrayLength());
+        Assert.True(shape.GetProperty("overlap").GetProperty("candidateOnlyVolume").GetDouble() > 0);
+    }
+
+    private static string Build(string fixture)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "aetheris-shape-compare", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var step = Path.Combine(directory, Path.GetFileNameWithoutExtension(fixture) + ".step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var exit = CliRunner.Run(["build", Path.Combine(RepoRoot, fixture), "--out", step], stdout, stderr);
+        Assert.True(exit == 0, $"{fixture}: {stderr}");
+        return step;
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Aetheris.slnx"))) directory = directory.Parent;
+        return directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
+    }
+}

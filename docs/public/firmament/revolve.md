@@ -49,6 +49,40 @@ Model RevolvedSphere {
 Pipeline endpoint links prefer `from`/`to`, with `From`/`To` retained as aliases.
 See [Writing Firmament](syntax.md) for the distinction from fields such as `from:`.
 
+## Hollow revolutions
+
+`Revolve<Hollow>` turns a solid meridian into a constant-wall shell of
+revolution. The meridian closes along the axis; `openings` names the flat end
+caps (`Top` is the end farthest along the axis direction) that the cavity runs
+out through.
+
+```firmament
+Model Bottle {
+    units: mm
+    Axis spindle { origin: [0mm, 0mm, 0mm]; direction: [0, 0, 1] }
+    Concept Struct meridian on XZ {
+        Polygon2 section { points: [[0mm, 0mm], [30mm, 0mm], [32mm, 40mm], [14mm, 58mm], [14mm, 75mm], [0mm, 75mm]] }
+    }
+    Profile outline using meridian { Loop Outer { section |> TraceLoop } }
+    Revolve<Hollow> body { profile: outline; about: spindle; angle: full; wallThickness: 1.5mm; openings: [Top] }
+}
+```
+
+- The wall is exact: every face of revolution has a partner at the wall
+  thickness (plane to plane, cylinder to cylinder, cone to a cone of the same
+  angle, torus to a torus with the same centre circle).
+- Outer meridian corners keep their arcs concentric; inside corners get an
+  inner round so the wall stays constant.
+- `[Top, Bottom]` makes a sleeve.
+- An open end must be a flat cap reached by a straight wall.
+- The angle must be `full`.
+- A meridian that runs to a point on the axis (a cone tip or a sphere pole) is
+  refused (`revolve-shell-apex-unsupported`). So is a closed vessel with no
+  opening.
+
+`Cylinder<Hollow>` and `Frustum<Hollow>` are built through this route, and
+`RoundedBox<Hollow>` through the hollow section stack.
+
 ## Angles
 
 Radians are dimensionless numeric values. Degree literals use `deg`. The lowercase semantic aliases `quarter`, `half`, and `full` mean π/2, π, and 2π. All forms lower through one angle path.

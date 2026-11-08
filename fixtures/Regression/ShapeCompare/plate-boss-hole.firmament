@@ -1,0 +1,13 @@
+// A plate with a square boss and one Ø8 through hole: the reference for shape-comparison tests.
+Model PlateBossHole {
+    units: mm
+    Profile Stock = Rect2 { center: [0mm, 0mm]; size: [60mm, 40mm] }
+    Profile Pad = Rect2 { center: [-15mm, 0mm]; size: [16mm, 16mm] }
+    Compose Body {
+        Base Plate { profile: Stock; from: 0mm; to: 6mm; role: Stock }
+        Boss Block { on: Top; profile: Pad; height: 6mm }
+    }
+    Modify Body {
+        Hole<Shaft> Bore { on: +Z; center: Point2(15mm, 5mm); diameter: 8mm; end: ThroughAll }
+    }
+}

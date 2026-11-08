@@ -13,6 +13,8 @@ The renderer draws two kinds of evidence:
 - bright boundary lines sampled from the BRep's authoritative bound 3D edge curves;
 - translucent constant-`u` and constant-`v` lines evaluated on exact face supports and clipped against face-local pcurve loops with the even/odd trim rule.
 
+Faces on periodic supports are clipped in their own parameter window. A face that runs all the way round (a cylinder's side, a bore, a torus around a rounded rim) is a band: its rims do not close as polygons, so its isolines are clipped by counting rim crossings along the other parameter, with seams ignored. Every face of such a part receives isolines. A face that is periodic in both directions at once (a complete torus) is drawn by its edges only.
+
 STEP imports that do not retain usable pcurve bindings are passed through Aetheris's bounded pcurve recovery before rendering. JSON reports the view, density, topology counts, face coverage, isoline/boundary polyline counts, surface-family inventory, pcurve recovery result, unsupported families, and deterministic SVG SHA-256.
 
 The current exact-support evaluator covers planes, cylinders, cones, spheres, tori, linear extrusions, surfaces of revolution, and non-rational B-spline surfaces. A face without usable trim loops remains visible through its topology edges but does not receive speculative interior isolines.

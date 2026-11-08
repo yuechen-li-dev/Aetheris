@@ -488,6 +488,19 @@ public static class FirmamentSyntaxParser
                         left = new ToleranceSyntax(left, plus, minus, Span(toleranceStart), Span(start));
                         continue;
                     }
+                    // `A meets B`, `role X meets B`: the junction of two Compose operations (or every operation with a role).
+                    if (left is ReferenceSyntax { Name.Text: "role" } && Current.Kind == SyntaxTokenKind.Identifier && Peek(1).Text == "meets")
+                    { left = new JunctionOperandSyntax(Identifier(), true, Span(start)); continue; }
+                    if (Current.Text == "meets" && Peek(1).Text != ":" && left is ReferenceSyntax or JunctionOperandSyntax)
+                    {
+                        at++;
+                        var rightStart = Current.Span.Start;
+                        var role = Is("role") && Peek(1).Kind == SyntaxTokenKind.Identifier;
+                        if (role) at++;
+                        var right = new JunctionOperandSyntax(Identifier(), role, Span(rightStart));
+                        var first = left as JunctionOperandSyntax ?? new JunctionOperandSyntax(((ReferenceSyntax)left).Name, false, left.Span);
+                        left = new JunctionSyntax(first, right, Span(start)); continue;
+                    }
                     if (Current.Text is "As" or "as" && Peek(1).Text != ":") { at++; left = new AliasSyntax(left, Identifier(), Span(start)); continue; }
                     if (Current.Text is "From" or "from" or "To" or "to" && Peek(1).Text != ":")
                     {

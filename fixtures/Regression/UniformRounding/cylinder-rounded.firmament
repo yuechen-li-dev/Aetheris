@@ -1,0 +1,5 @@
+Model RoundedCan {
+    units: mm
+    Cylinder stock { radius: 10mm; height: 20mm }
+    Modify stock { EdgeFinish<Fillet> Round { target: AllEdges; radius: 2mm } }
+}

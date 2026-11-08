@@ -126,7 +126,6 @@ public sealed class FirmamentFixtureCorpusTests
         Assert.Contains(fixtures, p => p.EndsWith("Speculative/PMI/future/pmi-datum-flatness-position-v2.valid.firmfixture", StringComparison.Ordinal));
         Assert.Contains(fixtures, p => p.EndsWith("Speculative/PMI/future/pmi-material-surface-finish-v2.valid.firmfixture", StringComparison.Ordinal));
         Assert.Contains(fixtures, p => p.EndsWith("Invalid/PMI/pmi-raw-brep-id-target-v2.invalid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Regression/Decompile/ctc-01-candidate-v2.firmfixture", StringComparison.Ordinal));
 
         foreach (var path in fixtures)
         {

@@ -171,6 +171,22 @@ Pmi {
   face to the second. Faces that are not parallel planes are refused
   (`firmament-v2-imported-pmi-distance-faces`).
 - Every explicit geometric control accepts any proved imported face.
+- A hole recognized on the body is targeted by its region,
+  `part.region("Bore")`, and covers every face of the hole, including a hole the
+  exporting system split into half-cylinders. A recognized hole is one cylinder;
+  faces of different cylinders in one region are refused
+  (`firmament-v2-imported-hole-not-one-cylinder`).
+- `HoleDiameter` and geometric controls accept a list of recognized holes,
+  `target: [Hole1, Hole2, Hole3, Hole4]`: one requirement, exported with quantity 4
+  and shown as `4X`. The holes must have one diameter
+  (`firmament-v2-imported-holes-differ`). The list is what the record says; no
+  pattern is inferred from it.
+
+```firmament
+Recognize part {
+    Region Bore { kind: HoleShaft stepFaceEntities: ["#76", "#177"] }
+}
+```
 - A size whose band does not contain the imported geometry's measured value
   compiles with the warning `pmi-nominal-outside-geometry`, naming the measured
   value. The requirement is exported as written.

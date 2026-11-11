@@ -24,8 +24,19 @@ The AP242 parity check counts `Distance` among dimensions.
 projected for the viewport; the nominal warning for an out-of-band distance and diameter; refusal of non-parallel
 faces. The case that expected a cylinder datum to be rejected now asserts the axis instead.
 
+## Recognized holes (follow-up)
+
+- A `HoleDiameter` or geometric control lists recognized `HoleShaft` regions by name, `target: [Hole1, Hole2]`: the
+  parser maps each name to `part.region("…")`, the record carries every hole's faces and `Quantity` = the count, and
+  the viewport draws `NX`. Every target of a record now contributes its faces, not only the first.
+- `ImportedHoleTargetErrors`: a recognized hole must be one cylinder (split halves are coaxial and equal radius); a
+  list must be holes of one diameter.
+- `ImportedPartPmiTests` cover four Ø35 holes on NIST CTC-01 (each two half-cylinders), a differing hole, and a region
+  spanning two cylinders.
+
 ## Not done
 
-- Angles between faces (`ANGULAR_LOCATION`), sizes on imported edges, `Location` from a datum to an imported hole.
+- Angles between faces (`ANGULAR_LOCATION`), sizes on imported edges, explicit `Location` from a datum to an imported
+  hole (a `Position` to datums carries the model-implied basic location).
 - Location distances are drawn with the same between-planes callout; they are not boxed or merged with basic
   dimensions of position-toleranced holes.

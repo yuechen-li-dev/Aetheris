@@ -92,6 +92,47 @@ public sealed class ImportedPartPmiTests
         Assert.False(built.IsSuccess);
         Assert.Contains(built.Diagnostics, d => d.Message.Contains("imported-pmi-distance-faces"));
     }
+    private static string Ctc01Holes(string h4, string pmi) => $$"""
+        Model Ctc {
+            units: mm
+            InlineStep part { path: "nist_ctc_01_asme1_ap242-e1.stp" textSha256: "341cea888fb316673ed683e59391c11b4f96cff2542d9387e135f06682dbd745" importTolerance: 0.01mm geometryOnly: true }
+            Recognize part {
+                Region H1 { kind: HoleShaft stepFaceEntities: ["#835", "#836"] }
+                Region H2 { kind: HoleShaft stepFaceEntities: ["#837", "#838"] }
+                Region H3 { kind: HoleShaft stepFaceEntities: ["#839", "#840"] }
+                Region H4 { kind: HoleShaft stepFaceEntities: [{{h4}}] }
+            }
+            Pmi {
+                Datum A { target: part.face("#766") }
+                {{pmi}}
+            }
+        }
+        """;
+    [Fact]
+    public void RecognizedHoles_TakeOneQuantityCallout()
+    {
+        // Four Ø35 holes on NIST CTC-01, each exported as two half-cylinders.
+        var built = FirmamentBuildAndExport.CompileSource(Ctc01Holes("\"#853\", \"#854\"", """
+                HoleDiameter Bolt { target: [H1, H2, H3, H4] value: 35mm tolerance: PlusMinus(0.1mm, 0mm) }
+                Position BoltPos { target: [H1, H2, H3, H4] tolerance: 0.2mm zone: Cylindrical datumRefs: [A] }
+            """), Path.Combine(Repo(), "testdata/step242/nist/CTC"));
+        Assert.True(built.IsSuccess, string.Join("; ", built.Diagnostics));
+        var items = Step242SemanticPmiInspector.Inspect(built.Value.StepText).Items;
+        Assert.All(items.Where(i => i.Kind is "Diameter" or "Position"), i => { Assert.Equal(4, i.Quantity); Assert.Equal(8, i.GeometricFaceEntityIds.Count); });
+        Assert.Contains(PmiDisplayProjection.FromStep(built.Value.StepText), a => a.Name == "Bolt" && a.Text.StartsWith("4X", StringComparison.Ordinal));
+    }
+    [Fact]
+    public void RecognizedHoles_MustBeAlikeAndEachOneCylinder()
+    {
+        var differ = FirmamentBuildAndExport.CompileSource(Ctc01Holes("\"#855\", \"#856\"", """
+                HoleDiameter Bolt { target: [H1, H2, H3, H4] value: 35mm tolerance: PlusMinus(0.1mm, 0mm) }
+            """), Path.Combine(Repo(), "testdata/step242/nist/CTC"));
+        Assert.Contains(differ.Diagnostics, d => d.Message.Contains("firmament-v2-imported-holes-differ"));
+        var two = FirmamentBuildAndExport.CompileSource(Ctc01Holes("\"#853\", \"#855\"", """
+                HoleDiameter Bolt { target: part.region("H4") value: 35mm tolerance: PlusMinus(0.1mm, 0mm) }
+            """), Path.Combine(Repo(), "testdata/step242/nist/CTC"));
+        Assert.Contains(two.Diagnostics, d => d.Message.Contains("firmament-v2-imported-hole-not-one-cylinder"));
+    }
     [Fact]
     public void AnOutOfBandDiameter_Warns()
     {

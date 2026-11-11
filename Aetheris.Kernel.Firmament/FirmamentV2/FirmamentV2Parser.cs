@@ -2638,9 +2638,12 @@ public static partial class FirmamentV2Parser
                 diagnostics.Add($"{PmiInvalidTarget}:{r.Name}: only HoleDiameter and geometric controls accept a list of holes");
             else if (listed.Count < 2 || listed.Distinct(StringComparer.Ordinal).Count() != listed.Count)
                 diagnostics.Add($"{PmiInvalidTarget}:{r.Name}: a hole list names two or more distinct holes");
-            foreach (var name in listed.Where(name => !holeNames.Contains(name)))
+            // Holes recognized on an imported body are listed by their region name.
+            var recognizedHoles = regions.Values.Where(region => region.Kind == "holeShaft").GroupBy(region => region.RegionName, StringComparer.Ordinal)
+                .Where(group => group.Count() == 1).ToDictionary(group => group.Key, group => group.Single().TargetSource, StringComparer.Ordinal);
+            foreach (var name in listed.Where(name => !holeNames.Contains(name) && !recognizedHoles.ContainsKey(name)))
                 diagnostics.Add($"{PmiTargetUnresolved}:{r.Name}: '{name}' is not a hole of this part");
-            targets = listed.ToArray();
+            targets = listed.Select(name => holeNames.Contains(name) ? name : recognizedHoles.GetValueOrDefault(name, name)).ToArray();
         }
         var composeWalls = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var t in holeSet ? [] : targets)

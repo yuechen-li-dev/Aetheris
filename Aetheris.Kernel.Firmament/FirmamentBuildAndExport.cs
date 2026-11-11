@@ -2534,6 +2534,7 @@ public static partial class FirmamentBuildAndExport
         }
         var targetValidation = ValidateImportedPmiTargets(semanticPmi, import.Value);
         if (!targetValidation.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(targetValidation.Diagnostics);
+        if (ImportedHoleTargetErrors(document, solid, import.Value).ToArray() is { Length: > 0 } holeErrors) return KernelResult<FirmamentStepExportResult>.Failure(holeErrors);
         var export = Step242Exporter.ExportBody(import.Value, semanticPmi, new Step242ExportOptions
         {
             ProductName = solid.Name,
@@ -3081,8 +3082,10 @@ public static partial class FirmamentBuildAndExport
         {
             if (targetBinding.InlineStep is not null && body is not null)
             {
-                var references = ImportedPmiFaceReferences(document, targetBinding, pmi.Target);
-                if (references.Count > 0)
+                // Every target a record names: one face, a recognized hole, or a list of recognized holes.
+                var references = (boundPmiByName.TryGetValue(pmi.Name, out var boundTargets) && boundTargets.Targets.Count > 0 ? boundTargets.Targets : [pmi.Target])
+                    .SelectMany(target => ImportedPmiFaceReferences(document, targetBinding, target)).Distinct(StringComparer.Ordinal).ToArray();
+                if (references.Length > 0)
                     // The admitted map includes source-to-successor correspondence. Fresh
                     // replacement walls deliberately have no original STEP entity identity.
                     importedFaces[pmi.Name] = references.Select(entity =>
@@ -3307,6 +3310,38 @@ public static partial class FirmamentBuildAndExport
         // Material between: A's outward normal points away from B, and B's away from A.
         var thickness = pa.Normal.Dot(pb.Normal) < 0 && offset < 0;
         return (double.Abs(offset), thickness);
+    }
+
+    /// <summary>A recognized hole is one cylinder (its faces may be split by the exporting system); a list of holes
+    /// ("4X") names holes of one diameter. Anything else would be one requirement over unrelated geometry.</summary>
+    private static IEnumerable<KernelDiagnostic> ImportedHoleTargetErrors(FirmamentV2Document document, FirmamentV2SolidBinding solid, BrepBody body)
+    {
+        var holes = (document.RecognizedRegions ?? []).Where(r => r.BodyName == solid.Name && r.Kind == "holeShaft").ToDictionary(r => r.TargetSource, StringComparer.Ordinal);
+        KernelDiagnostic Error(string code, string message) => new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, $"{code}: {message}", "FirmamentV2.Pmi");
+        foreach (var record in (document.BoundPmi?.Dimensions ?? []).Concat(document.BoundPmi?.Controls ?? []))
+        {
+            var targets = record.Targets.Where(holes.ContainsKey).ToArray();
+            if (targets.Length == 0) continue;
+            var cylinders = new List<CylinderSurface>();
+            foreach (var target in targets)
+            {
+                var surfaces = ImportedBodyFaces(document, solid, body, target)
+                    .Select(id => body.TryGetFaceSurfaceGeometry(new FaceId(id), out var surface) ? surface?.Cylinder : null).ToArray();
+                if (surfaces.Length == 0 || surfaces.Any(c => c is null)) continue; // the face-kind check reports these
+                var first = surfaces[0]!.Value;
+                if (surfaces.Any(c => !SameCylinder(c!.Value, first)))
+                { yield return Error("firmament-v2-imported-hole-not-one-cylinder", $"'{holes[target].RegionName}' lists faces of more than one cylinder; recognize each hole as its own Region."); continue; }
+                cylinders.Add(first);
+            }
+            if (cylinders.Count > 1 && cylinders.Any(c => double.Abs(c.Radius - cylinders[0].Radius) > 1e-6))
+                yield return Error("firmament-v2-imported-holes-differ", $"'{record.Name}' lists holes of different diameters; a quantity callout names alike holes.");
+        }
+        static bool SameCylinder(CylinderSurface a, CylinderSurface b)
+        {
+            var axis = a.Axis.ToVector(); var offset = b.Origin - a.Origin;
+            return double.Abs(a.Radius - b.Radius) <= 1e-6 && double.Abs(double.Abs(axis.Dot(b.Axis.ToVector())) - 1) <= 1e-9
+                && (offset - axis * offset.Dot(axis)).Length <= 1e-6;
+        }
     }
 
     /// <summary>Requirements whose nominal the imported geometry does not meet: a warning, since a model at a

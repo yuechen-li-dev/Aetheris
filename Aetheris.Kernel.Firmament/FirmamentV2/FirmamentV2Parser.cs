@@ -2512,6 +2512,7 @@ public static partial class FirmamentV2Parser
         "Target" => "target",
         "TargetA" => "targetA",
         "TargetB" => "targetB",
+        "Between" => "between",
         "Dimension" => "dimension",
         "Value" => "value",
         "Diameter" => "diameter",
@@ -2540,6 +2541,14 @@ public static partial class FirmamentV2Parser
         {
             foreach (var f in new[] { "origin", "to" }.Where(f => !fields.ContainsKey(f))) diagnostics.Add($"{PmiMissingRequiredField}:{name}: Location requires {f}");
             foreach (var f in fields.Keys.Where(f => f is not ("origin" or "to" or "basic" or "dimension" or "tolerance"))) diagnostics.Add($"{PmiUnknownField}:{name}.{f}");
+            return;
+        }
+        if (kind == "distance" && fields.ContainsKey("between"))
+        {
+            // Distance between two faces: between: [a, b], value: and tolerance:, or dimension: a toleranced Static.
+            string[] size = fields.ContainsKey("dimension") ? ["dimension"] : ["value", "tolerance"];
+            foreach (var f in size.Where(f => !fields.ContainsKey(f))) diagnostics.Add($"{PmiMissingRequiredField}:{name}: Distance requires {f}");
+            foreach (var f in fields.Keys.Where(f => f is not ("between" or "value" or "tolerance" or "dimension"))) diagnostics.Add($"{PmiUnknownField}:{name}.{f}");
             return;
         }
         if (kind == "Note")
@@ -2611,6 +2620,13 @@ public static partial class FirmamentV2Parser
             return true;
         }
         string? target = Field(r,"target"); string? targetA=Field(r,"targetA"); string? targetB=Field(r,"targetB");
+        if (r.Kind == FirmamentV2PmiKind.Distance && Field(r, "between") is { } between)
+        {
+            var ends = TopLevelItems(between);
+            if (ends.Count != 2 || ends[0] == ends[1])
+            { diagnostics.Add($"{PmiInvalidTarget}:{r.Name}: between lists two distinct faces, such as [part.face(\"#12\"), part.face(\"#40\")]"); return false; }
+            (targetA, targetB) = (ends[0], ends[1]);
+        }
         var targets = new[]{target,targetA,targetB}.Where(t=>t is not null).Cast<string>().ToArray();
         FirmamentV2HoleWallSelector? wallTarget = null;
         // A list of holes is one requirement on every listed hole (a "4X" callout).
@@ -2680,6 +2696,25 @@ public static partial class FirmamentV2Parser
             || x.StartsWith("firmament-v2-hole-wall-", StringComparison.Ordinal));
     }
     private static string? Field(FirmamentV2PmiRecord r,string name)=>r.Fields.TryGetValue(name,out var f)?f.Source:null;
+    /// <summary>The items of a bracketed list, split at top-level commas: selectors such as part.face("#1") keep their calls.</summary>
+    private static IReadOnlyList<string> TopLevelItems(string source)
+    {
+        var text = source.Trim();
+        if (text.Length < 2 || text[0] != '[' || text[^1] != ']') return [];
+        var items = new List<string>();
+        var depth = 0; var quoted = false; var start = 1;
+        for (var i = 1; i < text.Length - 1; i++)
+        {
+            var c = text[i];
+            if (c == '"' && text[i - 1] != '\\') quoted = !quoted;
+            else if (quoted) continue;
+            else if (c is '(' or '[') depth++;
+            else if (c is ')' or ']') depth--;
+            else if (c == ',' && depth == 0) { items.Add(text[start..i].Trim()); start = i + 1; }
+        }
+        items.Add(text[start..^1].Trim());
+        return items.Where(item => item.Length > 0).ToArray();
+    }
     private static IReadOnlyList<string> PmiNames(string? source, List<string> diagnostics)
     {
         if (source is null) return [];

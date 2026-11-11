@@ -67,6 +67,7 @@ public static class PmiDisplayProjection
         var specs = new List<Spec>();
         var notes = new List<Step242SemanticPmiInspectionItem>();
         var projected = new List<Step242SemanticPmiInspectionItem>();
+        var between = new List<(Step242SemanticPmiInspectionItem Item, Vector3D Normal, IReadOnlyList<Point3D> A, IReadOnlyList<Point3D> B)>();
         foreach (var item in inspection.Items)
         {
             // Part notes read back as AP242 annotations (material, general tolerances, finish).
@@ -84,6 +85,16 @@ public static class PmiDisplayProjection
             if (targets.Length == 0 || targets.Length != item.GeometricFaceEntityIds.Count)
                 throw new InvalidOperationException($"pmi-display-target-unresolved: '{item.Name}' has no complete geometric face association.");
             var surfaces = targets.Select(t => body.GetFaceSurface(t.FaceId)).ToArray();
+            // An authored distance between two parallel faces is drawn between them, whatever their orientation.
+            if (item.Kind == "Dimension" && item.DimensionKind == "distance" && surfaces.All(s => s.Plane is not null))
+            {
+                var n0 = surfaces[0].Plane!.Value.Normal.ToVector();
+                var sides = targets.Zip(surfaces).GroupBy(t => Math.Round((t.Second.Plane!.Value.Origin - Point3D.Origin).Dot(n0), 6)).ToArray();
+                if (sides.Length != 2 || surfaces.Any(s => s.Plane!.Value.Normal.ToVector().Cross(n0).Length > 1e-7))
+                    throw new InvalidOperationException($"pmi-display-target-multiple-unsupported: '{item.Name}' runs between two parallel planes.");
+                between.Add((item, n0, sides[0].SelectMany(t => t.First.Positions).ToArray(), sides[1].SelectMany(t => t.First.Positions).ToArray()));
+                continue;
+            }
             Feature feature;
             if (surfaces.All(s => s.Plane is not null))
             {
@@ -284,6 +295,17 @@ public static class PmiDisplayProjection
             { TextFill = Fill3D(canvas.Fill, canvas.FillIndices, dimensionPlane, layout.Lift * 2), Panel = Fill3D(canvas.Panel, canvas.PanelIndices, dimensionPlane, -layout.Lift),
               DraftingLines = Draft3D(canvas, dimensionPlane),
               LeaderColor = featureColors.FirstOrDefault(c => c.Key.Split('+').Contains(FeatureKey(item))).Value };
+        }
+        foreach (var (item, normal, a, b) in between)
+        {
+            var text = PmiDrafting.Number(item.Value!.Value) + (item.TolerancePlus is { } plus && item.ToleranceMinus is { } minus
+                ? (Math.Abs(plus - minus) < 1e-12 ? $" ±{PmiDrafting.Number(plus)}" : $" +{PmiDrafting.Number(plus)}/-{PmiDrafting.Number(minus)}") : "");
+            var (canvas, plane) = layout.Between(normal, a, b, text);
+            var anchor = plane.At(canvas.Lines[0][0].X, canvas.Lines[0][0].Y);
+            output[item.EntityId] = new PmiDisplayAnnotation("pmi:" + item.EntityId, "Dimension", item.Name, text, item.Value, item.TolerancePlus, item.ToleranceMinus,
+                item.GeometricFaceEntityIds, P(anchor), P(anchor), height, Lines3D(canvas, plane, 0))
+            { TextFill = Fill3D(canvas.Fill, canvas.FillIndices, plane, layout.Lift * 2), Panel = Fill3D(canvas.Panel, canvas.PanelIndices, plane, -layout.Lift),
+              DraftingLines = Draft3D(canvas, plane) };
         }
         // Records drawn on another record's line keep their own entry, pointing at the same place.
         foreach (var (attached, owner) in attachedTo)
@@ -596,6 +618,31 @@ public static class PmiDisplayProjection
         /// An overall size outside the part: length behind it, width to its right (both in the plane of
         /// the walls' top edges), thickness up its front right corner.
         /// </summary>
+        /// <summary>A dimension between two parallel planes with normal <paramref name="n"/>: drawn in a plane containing
+        /// the normal, beside the part, with extension lines from each face.</summary>
+        public (PmiCanvas Canvas, PmiPlane Plane) Between(Vector3D n, IReadOnlyList<Point3D> a, IReadOnlyList<Point3D> b, string text)
+        {
+            var normal = n * (1 / n.Length);
+            // The world axis least aligned with the normal gives the direction the dimension stands off along.
+            Vector3D[] axes = [new(1, 0, 0), new(0, 1, 0), new(0, 0, 1)];
+            var w = axes.OrderBy(x => Math.Abs(x.Dot(normal))).First();
+            var u = w - normal * w.Dot(normal); u = u * (1 / u.Length);
+            var plane = new PmiPlane(Point3D.Origin, u, normal);
+            Point3D[] corners = [.. from x in new[] { minX, maxX } from y in new[] { minY, maxY } from z in new[] { minZ, maxZ } select new Point3D(x, y, z)];
+            var reach = corners.Max(c => plane.Local(c).X);
+            var (ta, tb) = (plane.Local(a[0]).Y, plane.Local(b[0]).Y);
+            var (ea, eb) = (a.Max(p => plane.Local(p).X), b.Max(p => plane.Local(p).X));
+            var at = reach + 3 * h;
+            var canvas = new PmiCanvas();
+            canvas.Line((ea + .4 * h, ta), (at + .6 * h, ta));
+            canvas.Line((eb + .4 * h, tb), (at + .6 * h, tb));
+            canvas.Line((at, ta), (at, tb));
+            Arrow(canvas, (at, ta), (0, ta - tb)); Arrow(canvas, (at, tb), (0, tb - ta));
+            var label = PmiDrafting.TextBlock(text, h);
+            canvas.Append(label.Canvas, at + .6 * h, (ta + tb) / 2 - label.Height / 2);
+            return (canvas, plane);
+        }
+
         public (PmiCanvas Canvas, PmiPlane Plane) Overall(string kind, Point3D[] points, string text)
         {
             var canvas = new PmiCanvas();

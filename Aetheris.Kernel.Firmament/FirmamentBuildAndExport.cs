@@ -251,7 +251,7 @@ public static partial class FirmamentBuildAndExport
         // counterbore diameter and depth.
         var counterbores = Regex.Matches(source, @"\bHole<Counterbore>\s+(?<name>[A-Za-z_]\w*)").Select(m => m.Groups["name"].Value).ToHashSet(StringComparer.Ordinal);
         var calloutExtras = 2 * (document.BoundPmi?.Dimensions ?? []).Count(b => b.Callout && b.Targets.Any(counterbores.Contains));
-        var expectedDiameters = pmi.Count(record => record.Kind is FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Dimension or FirmamentV2PmiKind.Location)
+        var expectedDiameters = pmi.Count(record => record.Kind is FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Dimension or FirmamentV2PmiKind.Location or FirmamentV2PmiKind.Distance)
             + calloutExtras + export.GeneratedSemanticPmi.OfType<Step242SemanticPmiHole>().Count();
         var expectedControls = pmi.Count(record => Step242GeometricToleranceKinds.Find(record.Kind.ToString()) is not null)
             + export.GeneratedSemanticPmi.OfType<Step242SemanticPmiGeometricTolerance>().Count();
@@ -2560,7 +2560,7 @@ public static partial class FirmamentBuildAndExport
                 InlineStepMigration: InlineStepMigrationReportBuilder.Build(document, solid, emissionStrategy: inlineStep.CanonicalInput ? "canonical-reexport" : "strict-import-reexport", residualSurgery: false),
                 InlineStepReplacementAssist: InlineStepReplacementAssistReportBuilder.Build(document))
                 { RuntimeBody = import.Value, RuntimeBodySourceName = solid.Name, RuntimeAdmissionDocument = document },
-            export.Diagnostics.Concat(inlineStep.GeometryOnly ? [new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
+            export.Diagnostics.Concat(ImportedNominalChecks(document, solid, import.Value)).Concat(inlineStep.GeometryOnly ? [new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
                 "firmament-inline-step-source-semantics-excluded: geometryOnly explicitly excludes source annotations; geometry remains unchanged.", "FirmamentV2.InlineStep")] : []).ToArray());
     }
 
@@ -3045,14 +3045,17 @@ public static partial class FirmamentBuildAndExport
     // owner. A supported record kind does not imply every requested field exports.
     internal static KernelDiagnostic? V2PmiExportRejection(FirmamentV2PmiKind kind, string name, FirmamentV2BoundPmiRecord? bound)
     {
+        var importedDistance = kind == FirmamentV2PmiKind.Distance && bound is { Targets.Count: 2 } && bound.Targets.All(t => ImportedFaceSelector.IsMatch(t));
         var message = kind is not (FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Note or FirmamentV2PmiKind.Dimension or FirmamentV2PmiKind.Location)
-            && kind != FirmamentV2PmiKind.Location && Step242GeometricToleranceKinds.Find(kind.ToString()) is null
+            && !importedDistance && Step242GeometricToleranceKinds.Find(kind.ToString()) is null
             ? $"firmament-v2-pmi-export-deferred: AP242 export for PMI record '{name}' ({kind.ToString().ToLowerInvariant()}) is deferred; use Datum, HoleDiameter or an admitted geometric control."
             : kind == FirmamentV2PmiKind.HoleDiameter && bound?.DatumRefs.Count > 0
                 ? $"firmament-v2-pmi-datum-reference-export-unsupported: HoleDiameter '{name}' requests datum references that native size export cannot preserve. Export Datum separately; datum-referenced geometric controls require a qualified PMI capability."
                 : null;
         return message is null ? null : new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, "FirmamentV2.PmiExport");
     }
+
+    private static readonly Regex ImportedFaceSelector = new("^[A-Za-z_][A-Za-z0-9_]*\\.face\\(\"#[0-9]+\"\\)$", RegexOptions.CultureInvariant);
 
     private static IReadOnlyList<Step242SemanticPmi> BuildV2SemanticPmi(
         FirmamentV2Document document,
@@ -3143,6 +3146,21 @@ public static partial class FirmamentBuildAndExport
                     LocationFaces = location?.Ends
                 });
             }
+            else if (pmi.Kind == FirmamentV2PmiKind.Distance && targetBinding.InlineStep is not null && body is not null
+                && boundPmiByName.TryGetValue(pmi.Name, out var distance) && distance.Targets.Count == 2)
+            {
+                var a = ImportedBodyFaces(document, targetBinding, body, distance.Targets[0]);
+                var b = ImportedBodyFaces(document, targetBinding, body, distance.Targets[1]);
+                var pair = PlanePair(body, a, b);
+                var tolerance = distance.DimensionTolerance;
+                // Material between two opposed faces is a size (thickness); any other pair of parallel faces is a location.
+                result.Add(new Step242SemanticPmiDimension($"{targetSolid}.{pmi.Name}", pmi.Name, "distance", distance.DimensionValue?.NumericValue ?? 0, tolerance?.Plus, tolerance?.Minus)
+                {
+                    StandardKind = pair is null ? "unresolved" : pair.Value.Thickness ? "thickness" : "linear distance",
+                    GeometricFaceIds = pair is null ? [-1] : a.Concat(b).Distinct().Order().ToArray(),
+                    LocationFaces = pair is { Thickness: false } ? (a, b) : null
+                });
+            }
             else if (pmi.Kind == FirmamentV2PmiKind.Note && boundPmiByName.TryGetValue(pmi.Name, out var note) && note.Text is { } text)
             {
                 result.Add(new Step242SemanticPmiNote(pmi.Name, targetSolid, text));
@@ -3150,7 +3168,9 @@ public static partial class FirmamentBuildAndExport
             else if (pmi.Kind == FirmamentV2PmiKind.DatumPlane)
             {
                 var selector = TryResolveV2RecognizedRegionTarget(document, targetBinding, pmi.Target, out var recognizedDatumTarget) ? recognizedDatumTarget : ResolveV2DatumTarget(targetBinding, pmi.Target);
-                result.Add(new Step242SemanticPmiDatum(targetSolid, "plane", pmi.Name, selector)
+                var axis = targetBinding.InlineStep is not null && body is not null && ImportedBodyFaces(document, targetBinding, body, pmi.Target) is { Count: > 0 } datumFaces
+                    && datumFaces.All(id => body.TryGetFaceSurfaceGeometry(new FaceId(id), out var surface) && surface?.Kind == SurfaceGeometryKind.Cylinder);
+                result.Add(new Step242SemanticPmiDatum(targetSolid, axis ? "axis" : "plane", pmi.Name, selector)
                     { GeometricFaceIds = namedFaces?.GetValueOrDefault(pmi.Target) ?? [], RequiresFaceAssociation = true });
             }
             else if (Step242GeometricToleranceKinds.Find(pmi.Kind.ToString()) is { } control && boundPmiByName.TryGetValue(pmi.Name, out var boundControl))
@@ -3240,13 +3260,78 @@ public static partial class FirmamentBuildAndExport
                 return KernelResult<bool>.Failure([new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
                     $"firmament-v2-imported-pmi-target-unresolved: '{item.FeatureId}' requires a proved imported face association.", "FirmamentV2.Pmi")]);
             }
-            var required = item is Step242SemanticPmiDatum ? SurfaceGeometryKind.Plane : SurfaceGeometryKind.Cylinder;
+            if (item is Step242SemanticPmiNote) continue; // a part-level note has no face
+            if (item is Step242SemanticPmiDimension { DimensionKind: "distance" } distance)
+            {
+                if (distance.StandardKind != "unresolved") continue;
+                return KernelResult<bool>.Failure([new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
+                    $"firmament-v2-imported-pmi-distance-faces: '{distance.Name}' measures between two parallel planar faces; choose two such faces.", "FirmamentV2.Pmi")]);
+            }
+            SurfaceGeometryKind[] allowed = item is Step242SemanticPmiDatum ? [SurfaceGeometryKind.Plane, SurfaceGeometryKind.Cylinder] : [SurfaceGeometryKind.Cylinder];
             if (item.GeometricFaceIds.Count == 0 || item.GeometricFaceIds.Any(id =>
-                !body.TryGetFaceSurface(new FaceId(id), out var surface) || surface?.Kind != required))
+                !body.TryGetFaceSurface(new FaceId(id), out var surface) || surface is null || !allowed.Contains(surface.Kind))
+                || item is Step242SemanticPmiDatum && item.GeometricFaceIds.Select(id => body.TryGetFaceSurface(new FaceId(id), out var surface) ? surface?.Kind : null).Distinct().Count() > 1)
                 return KernelResult<bool>.Failure([new(KernelDiagnosticCode.ValidationFailed,
-                    KernelDiagnosticSeverity.Error, $"firmament-v2-imported-pmi-target-kind: '{item.FeatureId}' requires a resolved {required} face. Choose a compatible admitted face.", "FirmamentV2.Pmi")]);
+                    KernelDiagnosticSeverity.Error, $"firmament-v2-imported-pmi-target-kind: '{item.FeatureId}' requires a resolved {(item is Step242SemanticPmiDatum ? "Plane or Cylinder" : "Cylinder")} face. Choose a compatible admitted face.", "FirmamentV2.Pmi")]);
         }
         return KernelResult<bool>.Success(true);
+    }
+
+    /// <summary>The body faces an imported target names (a face selector or a recognized region), through the admitted topology map.</summary>
+    private static IReadOnlyList<int> ImportedBodyFaces(FirmamentV2Document document, FirmamentV2SolidBinding solid, BrepBody body, string target)
+        => ImportedPmiFaceReferences(document, solid, target).Select(entity =>
+                solid.InlineStep!.TopologyMap.TryResolveFaceEntity(entity, out var mapped) && mapped.StartsWith("face-", StringComparison.Ordinal)
+                && int.TryParse(mapped.AsSpan(5), out var id) ? id : 0)
+            .Where(id => body.Topology.Faces.Any(face => face.Id.Value == id)).Distinct().Order().ToArray();
+
+    /// <summary>Two sets of coplanar faces on parallel planes: their separation, and whether the material lies between
+    /// them (outward normals pointing away from each other). Null unless both are planar and parallel within 1e-6 rad.</summary>
+    internal static (double Distance, bool Thickness)? PlanePair(BrepBody body, IReadOnlyList<int> a, IReadOnlyList<int> b)
+    {
+        (Vector3D Normal, Point3D Origin)? Plane(IReadOnlyList<int> faces)
+        {
+            (Vector3D Normal, Point3D Origin)? first = null;
+            foreach (var id in faces)
+            {
+                if (!body.TryGetFaceSurfaceGeometry(new FaceId(id), out var surface) || surface?.Plane is not { } plane) return null;
+                var aligned = !body.Bindings.TryGetFaceBinding(new FaceId(id), out var binding) || binding.Orientation.IsAlignedWithSurface;
+                var normal = plane.Normal.ToVector() * (aligned ? 1d : -1d);
+                if (first is { } f && (f.Normal.Dot(normal) < 1 - 1e-12 || double.Abs((plane.Origin - f.Origin).Dot(f.Normal)) > 1e-6)) return null;
+                first ??= (normal, plane.Origin);
+            }
+            return first;
+        }
+        if (a.Count == 0 || b.Count == 0 || Plane(a) is not { } pa || Plane(b) is not { } pb) return null;
+        if (double.Abs(pa.Normal.Dot(pb.Normal)) < 1 - 1e-12) return null;
+        var offset = (pb.Origin - pa.Origin).Dot(pa.Normal);
+        // Material between: A's outward normal points away from B, and B's away from A.
+        var thickness = pa.Normal.Dot(pb.Normal) < 0 && offset < 0;
+        return (double.Abs(offset), thickness);
+    }
+
+    /// <summary>Requirements whose nominal the imported geometry does not meet: a warning, since a model at a
+    /// non-nominal size can be intended, but never silent.</summary>
+    private static IEnumerable<KernelDiagnostic> ImportedNominalChecks(FirmamentV2Document document, FirmamentV2SolidBinding solid, BrepBody body)
+    {
+        var bound = (document.BoundPmi?.Dimensions ?? []).ToDictionary(r => r.Name, StringComparer.Ordinal);
+        foreach (var record in bound.Values)
+        {
+            if (record.DimensionValue?.NumericValue is not { } nominal || record.DimensionTolerance is not { } tolerance) continue;
+            double? measured = null;
+            if (record.Kind == FirmamentV2PmiKind.Distance && record.Targets.Count == 2)
+                measured = PlanePair(body, ImportedBodyFaces(document, solid, body, record.Targets[0]), ImportedBodyFaces(document, solid, body, record.Targets[1]))?.Distance;
+            else if (record.Kind == FirmamentV2PmiKind.HoleDiameter && record.Targets.Count == 1)
+            {
+                var radii = ImportedBodyFaces(document, solid, body, record.Targets[0])
+                    .Select(id => body.TryGetFaceSurfaceGeometry(new FaceId(id), out var surface) ? surface?.Cylinder?.Radius : null).ToArray();
+                if (radii.Length > 0 && radii.All(r => r.HasValue)) measured = 2 * radii.Max()!.Value;
+            }
+            if (measured is not { } value) continue;
+            const double slack = 1e-6;
+            if (value > nominal + tolerance.Plus + slack || value < nominal - tolerance.Minus - slack)
+                yield return new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
+                    $"pmi-nominal-outside-geometry: '{record.Name}' is {nominal.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)} +{tolerance.Plus.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)}/-{tolerance.Minus.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)} mm, but the imported geometry measures {value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)} mm.", "FirmamentV2.Pmi");
+        }
     }
 
     private static IReadOnlyList<string> ImportedPmiFaceReferences(FirmamentV2Document document, FirmamentV2SolidBinding solid, string target)

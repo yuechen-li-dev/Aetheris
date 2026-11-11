@@ -37,15 +37,67 @@ public sealed class ImportedPartPmiTests
         Assert.False(missing.IsSuccess); // Even an existing disk resource cannot escape an explicit snapshot.
         Assert.Contains(missing.Diagnostics, d => d.Message.Contains(FirmamentV2Parser.InlineStepPathInvalid) || d.Message.Contains(FirmamentV2Parser.InlineStepFileMissing));
     }
-    [Theory]
-    [InlineData("#51", "#191")]
-    [InlineData("#191", "#51")]
-    public void IncompatibleImportedPmiSurface_IsRejected(string from, string to)
+    [Fact]
+    public void ADiameterOnAPlane_IsRejected()
     {
-        var built = FirmamentBuildAndExport.CompileSource(Source().Replace($"face(\"{from}\")", $"face(\"{to}\")"),
+        var built = FirmamentBuildAndExport.CompileSource(Source().Replace("target: part.face(\"#191\")", "target: part.face(\"#51\")"),
             Path.Combine(Repo(), "fixtures/Regression/ImportedPartPmi"));
         Assert.False(built.IsSuccess);
         Assert.Contains(built.Diagnostics, d => d.Message.Contains("imported-pmi-target-kind"));
+    }
+    [Fact]
+    public void ADatumOnACylinder_IsItsAxis()
+    {
+        var built = FirmamentBuildAndExport.CompileSource(Source().Replace("Datum A { target: part.face(\"#51\") }", "Datum A { target: part.face(\"#191\") }"),
+            Path.Combine(Repo(), "fixtures/Regression/ImportedPartPmi"));
+        Assert.True(built.IsSuccess, string.Join("; ", built.Diagnostics));
+        Assert.Contains("semantic datum axis target=", built.Value.StepText);
+        Assert.Equal(1, Step242SemanticPmiInspector.Inspect(built.Value.StepText).DatumCount);
+    }
+    private static string WithPmi(string records) => Source()[..Source().IndexOf("    Pmi {", StringComparison.Ordinal)] + "    Pmi {\n" + records + "\n    }\n}\n";
+    [Fact]
+    public void ADistanceBetweenOpposedFaces_IsAThicknessAndChecksItsNominal()
+    {
+        // The part is 6 mm thick between its bottom (#51) and top (#102).
+        var exact = FirmamentBuildAndExport.CompileSource(WithPmi("""
+                    Distance Thickness { between: [part.face("#102"), part.face("#51")] value: 6mm tolerance: PlusMinus(0.1mm, 0.1mm) }
+                    Note Material { text: "PA12, black" }
+            """), Path.Combine(Repo(), "fixtures/Regression/ImportedPartPmi"));
+        Assert.True(exact.IsSuccess, string.Join("; ", exact.Diagnostics));
+        Assert.DoesNotContain(exact.Diagnostics, d => d.Message.Contains("pmi-nominal-outside-geometry"));
+        Assert.Contains("DIMENSIONAL_SIZE(", exact.Value.StepText);
+        Assert.Contains("'thickness'", exact.Value.StepText);
+        var inspection = Step242SemanticPmiInspector.Inspect(exact.Value.StepText);
+        var thickness = Assert.Single(inspection.Items, i => i.Kind == "Dimension");
+        Assert.Equal(6d, thickness.Value); Assert.Equal(2, thickness.GeometricFaceEntityIds.Count);
+        Assert.Contains(inspection.Items, i => i.Text == "PA12, black");
+
+        // The viewport shows it as a size between the two faces.
+        var shown = Assert.Single(PmiDisplayProjection.FromStep(exact.Value.StepText), a => a.Name == "Thickness");
+        Assert.Equal(6d, shown.Value);
+
+        var off = FirmamentBuildAndExport.CompileSource(WithPmi("""
+                    Distance Thickness { between: [part.face("#102"), part.face("#51")] value: 6.5mm tolerance: PlusMinus(0.1mm, 0.1mm) }
+            """), Path.Combine(Repo(), "fixtures/Regression/ImportedPartPmi"));
+        Assert.True(off.IsSuccess);
+        var warning = Assert.Single(off.Diagnostics, d => d.Message.Contains("pmi-nominal-outside-geometry"));
+        Assert.Contains("measures 6 mm", warning.Message);
+    }
+    [Fact]
+    public void ADistanceNeedsTwoParallelPlanes()
+    {
+        var built = FirmamentBuildAndExport.CompileSource(WithPmi("""
+                    Distance Skew { between: [part.face("#51"), part.face("#191")] value: 6mm tolerance: PlusMinus(0.1mm, 0.1mm) }
+            """), Path.Combine(Repo(), "fixtures/Regression/ImportedPartPmi"));
+        Assert.False(built.IsSuccess);
+        Assert.Contains(built.Diagnostics, d => d.Message.Contains("imported-pmi-distance-faces"));
+    }
+    [Fact]
+    public void AnOutOfBandDiameter_Warns()
+    {
+        var built = FirmamentBuildAndExport.CompileSource(Source().Replace("value: 2mm", "value: 2.5mm"), Path.Combine(Repo(), "fixtures/Regression/ImportedPartPmi"));
+        Assert.True(built.IsSuccess);
+        Assert.Contains(built.Diagnostics, d => d.Message.Contains("pmi-nominal-outside-geometry: 'Bore'"));
     }
     [Fact]
     public void ExistingImportedAnnotations_ArePreservedWithTheirTargets()

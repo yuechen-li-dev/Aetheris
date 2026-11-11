@@ -10,8 +10,9 @@ Native Model export supports planar `Datum`, `HoleDiameter`, `HoleCallout`, the
 explicit geometric controls below, sizes and locations projected from construction
 (`Dimension`, `Location`) and part `Note`s. The diameter record targets a named shaft
 hole; on a counterbore it means the shaft `diameter`, not `counterboreDiameter`.
-Parsed kinds outside the admitted set, including the older `Distance` and
-`Coplanar` forms, remain rejected by normal export rather than silently omitted.
+Parsed kinds outside the admitted set, including `Coplanar` and the older
+`Distance { targetA targetB }` form, remain rejected by normal export rather than
+silently omitted.
 
 Every size is written twice in the AP242 file: in the Aetheris records that
 `aetheris analyze` reports, and in the standard semantic form other CAD and
@@ -145,6 +146,35 @@ CLI `analyze --json` reports `geometricItemEntityIds` for the direct source usag
 items (faces, edges, solids or auxiliary datum geometry). Its
 `geometricFaceEntityIds` is the face projection used for presentation; an edge's
 adjacent faces do not replace its source association identity.
+### Annotating imported faces
+
+Authored records on an imported part target faces by their source entity,
+`part.face("#51")`, or a recognized region, `part.region("bore")`:
+
+```firmament
+Pmi {
+    Datum A { target: part.face("#51") }
+    Datum B { target: part.face("#191") }
+    HoleDiameter Bore { target: part.face("#191") value: 2mm tolerance: PlusMinus(0.1mm, 0.05mm) }
+    Distance Thickness { between: [part.face("#102"), part.face("#51")] value: 6mm tolerance: PlusMinus(0.1mm, 0.1mm) }
+    Position BorePos { target: part.face("#191") tolerance: 0.1mm zone: Cylindrical datumRefs: [A] }
+    Note Material { text: "PA12, black" }
+}
+```
+
+- A `Datum` on a planar face is a datum plane; on a cylindrical face it is the
+  cylinder's axis.
+- `HoleDiameter` targets a cylindrical face.
+- `Distance` measures between two parallel planar faces. When the material lies
+  between them it is a size and exports as `DIMENSIONAL_SIZE` named `thickness`;
+  otherwise it is a location and exports as `DIMENSIONAL_LOCATION` from the first
+  face to the second. Faces that are not parallel planes are refused
+  (`firmament-v2-imported-pmi-distance-faces`).
+- Every explicit geometric control accepts any proved imported face.
+- A size whose band does not contain the imported geometry's measured value
+  compiles with the warning `pmi-nominal-outside-geometry`, naming the measured
+  value. The requirement is exported as written.
+
 Unique retained datum labels are available directly in an authored control's
 `datumRefs`; they bind to the imported AP242 datum entities rather than creating
 duplicate datums. See the complete

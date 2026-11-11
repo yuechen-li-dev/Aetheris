@@ -1,15 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pmiGroup, pmiLines, pmiMeshes, pmiBodyMaterial, disposePmiGroup } from '../dist/pmi.js';
+import { pmiGroup, pmiLines, pmiLabelLines, pmiMeshes, pmiBodyMaterial, disposePmiGroup, pmiMarkerColor } from '../dist/pmi.js';
 
 test('both display adapters retain compiler coordinates and keep PMI outside engineering picks', () => {
   const annotations = [{ id: 'pmi:1', lines: [[[1,2,3], [4,5,6], [7,8,9]]] }];
-  const lines = pmiLines(annotations);
+  const lines = pmiLabelLines(annotations);
   assert.deepEqual(lines[0].points, [1,2,3,4,5,6,7,8,9]);
   assert.equal(lines[0].pickable, false);
   assert.equal(lines[0].includeInFit, true);
   assert.equal(lines[0].depthMode, 'always-on-top');
-  const group = pmiGroup(annotations);
+  // The Drawing style draws the projection's own polylines when no filled presentation is supplied.
+  const group = pmiGroup(annotations, 'drawing');
   const geometry = (group.children[0] as import('three').LineSegments).geometry;
   assert.deepEqual([...geometry.getAttribute('position').array], [1,2,3,4,5,6,4,5,6,7,8,9]);
   assert.equal((group.children[0] as import('three').LineSegments).material instanceof Object, true);
@@ -42,4 +43,18 @@ test('surface witnesses use compiler geometry, depth testing and release every m
   assert.equal(material.opacity, 1);
   assert.equal(pmiBodyMaterial(material, true, true), material);
   assert.equal(pmiBodyMaterial(material, false), material);
+});
+
+test('markers tint each record in its own colour and draw no labels; drawing draws the filled ASME presentation', () => {
+  const target = { kind: 'PlanePatch', positions: [0,0,0,1,0,0,0,1,0], normals: [0,0,1,0,0,1,0,0,1], indices: [0,1,2], lines: [[[0,0,0],[1,0,0]]] };
+  const drawing = { lines: [[[5,5,5],[6,5,5]]], fill: { positions: [0,0,0,1,0,0,0,1,0], indices: [0,1,2] }, panel: { positions: [0,0,0,2,0,0,0,2,0], indices: [0,1,2] } };
+  const annotations = [{ id: 'pmi:A', lines: [[[9,9,9],[9,9,8]]], target, drawing }, { id: 'pmi:B', lines: [], target, drawing: null }];
+  const markers = pmiMeshes(annotations, 'markers');
+  assert.deepEqual(markers.map(m => m.material.baseColor), [[...pmiMarkerColor(0)], [...pmiMarkerColor(1)]]);
+  assert.notDeepEqual(pmiMarkerColor(0), pmiMarkerColor(1));
+  assert.ok(pmiLines(annotations, 'markers').every(l => l.id.includes(':target:')));
+  const drawn = pmiMeshes(annotations, 'drawing');
+  assert.deepEqual(drawn.map(m => m.definition.id), ['pmi:A:panel', 'pmi:A:fill']);
+  assert.deepEqual(pmiLines(annotations, 'drawing').map(l => l.points), [[5,5,5,6,5,5]]);
+  disposePmiGroup(pmiGroup(annotations, 'drawing'));
 });

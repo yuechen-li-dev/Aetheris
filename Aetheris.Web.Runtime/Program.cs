@@ -610,7 +610,7 @@ public static partial class Program
             var meshPhase = BuildPerfTrace.Phase("web.mesh-build");
             IReadOnlyList<Aetheris.Kernel.Firmament.Visualization.PmiDisplayAnnotation> annotations;
             IReadOnlyList<WebDiagnostic> presentationDiagnostics = [];
-            try { annotations = Aetheris.Kernel.Firmament.Visualization.PmiDisplayProjection.FromStep(step, WebMeshBuilder.TessellationOptions); }
+            try { annotations = Aetheris.Kernel.Firmament.Visualization.PmiDisplayProjection.FromStep(step); }
             catch (InvalidOperationException error) when (error.Message.StartsWith("pmi-display-", StringComparison.Ordinal))
             {
                 // A missing presentation adapter cannot invalidate admitted engineering geometry.
@@ -847,7 +847,8 @@ internal static class ParameterInspector
 
 internal static class WebMeshBuilder
 {
-    internal static DisplayTessellationOptions TessellationOptions { get; } = new(double.Pi / 16, .3, 6, 64);
+    /// <summary>Viewport detail scales with the part; see <see cref="DisplayTessellationOptions.ForViewport"/>.</summary>
+    internal static DisplayTessellationOptions TessellationOptions(BrepBody body) => DisplayTessellationOptions.ForViewport(body);
     public static object Build(string name, string definitionId, string entityId, BrepBody body, out AssemblyDisplayMeshDocument exportDisplay,
         Aetheris.Kernel.Firmament.Materializer.SemanticTopologyCorrespondence? correspondence = null,
         WebSourceRef? source = null, int buildRevision = 0, IReadOnlyDictionary<string, WebSourceRef?>? featureSources = null,
@@ -858,7 +859,8 @@ internal static class WebMeshBuilder
         // Browser WASM has no blocking monitor wait. Use the existing synchronous
         // tessellator authority; the Worker transport supplies UI responsiveness.
         var tessPhase = BuildPerfTrace.Phase("web.tessellation");
-        var tessellation = BrepDisplayTessellator.Tessellate(body, TessellationOptions);
+        var options = TessellationOptions(body);
+        var tessellation = BrepDisplayTessellator.Tessellate(body, options);
         tessPhase.Dispose();
         if (!tessellation.IsSuccess) throw new InvalidOperationException(string.Join("; ", tessellation.Diagnostics.Select(item => item.Message)));
         BuildPerfTrace.Count("brep.faces", body.Topology.Faces.Count());
@@ -899,13 +901,24 @@ internal static class WebMeshBuilder
         var transform = new double[] { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
         exportDisplay = new("aetheris/display-mesh/1", name, "mm",
             [new(definitionId, entityId, positionArray, normalArray, indexArray)],
-            [new(entityId + ":occurrence", name, null, definitionId, transform, entityId)]) { Annotations = annotations ?? [], TessellationOptions = TessellationOptions };
+            [new(entityId + ":occurrence", name, null, definitionId, transform, entityId)]) { Annotations = annotations ?? [], TessellationOptions = options };
         return new
         {
             schema = "aetheris/display-mesh/1",
             name,
             units = "mm",
-            annotations = annotations ?? [],
+            // The record fields and, for the Drawing style, the filled ASME presentation the GLB export carries.
+            annotations = (annotations ?? []).Select(a => new
+            {
+                a.Id, a.Kind, a.Name, a.Text, a.Value, a.TolerancePlus, a.ToleranceMinus, a.StepFaceEntities, a.Anchor, a.LabelPosition, a.TextHeight,
+                a.Lines, a.Target,
+                drawing = a.TextFill is null && a.Panel is null ? null : new
+                {
+                    lines = a.DraftingLines ?? a.Lines,
+                    fill = a.TextFill is null ? null : new { positions = a.TextFill.Positions, indices = a.TextFill.Indices },
+                    panel = a.Panel is null ? null : new { positions = a.Panel.Positions, indices = a.Panel.Indices },
+                },
+            }).ToArray(),
             importedAsset = importedAsset is null ? null : new { path = importedAsset.SourcePath, sha256 = importedAsset.ContentHash,
                 evidence = importedAsset.CanonicalEvidence, qualification = body.ImportQualification },
             definitions = new[] { new { id = definitionId, identity = entityId, positions = positionArray, normals = normalArray, indices = indexArray, ranges,

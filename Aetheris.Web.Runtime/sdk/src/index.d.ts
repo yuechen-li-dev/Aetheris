@@ -29,6 +29,10 @@ export interface PmiDisplayAnnotation {
   readonly target?: { readonly kind: 'PlanePatch' | 'CylinderWall'; readonly normal: readonly number[]; readonly stemLength: number; readonly surfaceOffset: number;
     readonly positions: readonly number[]; readonly normals: readonly number[]; readonly indices: readonly number[];
     readonly lines: readonly (readonly (readonly number[])[])[] } | null;
+  /** The ASME drawing presentation (as exported to annotated GLB): drafting lines, filled glyphs and backing panels. */
+  readonly drawing?: { readonly lines: readonly (readonly (readonly number[])[])[];
+    readonly fill: { readonly positions: readonly number[]; readonly indices: readonly number[] } | null;
+    readonly panel: { readonly positions: readonly number[]; readonly indices: readonly number[] } | null } | null;
 }
 export interface MeshRange { readonly surfaceKind?: string | null; readonly diameterMm?: number | null }
 export interface SelectionDescription { readonly surfaceKind?: string | null; readonly diameterMm?: number | null }

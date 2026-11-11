@@ -50,7 +50,8 @@ public static class PmiDisplayProjection
         var imported = Step242Importer.ImportBody(step);
         if (!imported.IsSuccess) throw new InvalidOperationException("pmi-display-body-unavailable");
         var body = imported.Value;
-        var tessellation = BrepDisplayTessellator.Tessellate(body, options ?? DisplayTessellationOptions.Default);
+        // The viewport's own tessellation, so target patches lie on the displayed faces.
+        var tessellation = BrepDisplayTessellator.Tessellate(body, options ?? DisplayTessellationOptions.ForViewport(body));
         if (!tessellation.IsSuccess) throw new InvalidOperationException("pmi-display-target-unavailable");
         var patches = tessellation.Value.FacePatches.ToDictionary(p => p.FaceId.Value);
         var sourceFaces = body.Bindings.FaceBindings.Where(b => b.SourceStepEntityId.HasValue)
@@ -343,7 +344,8 @@ public static class PmiDisplayProjection
         var imported = Step242Importer.ImportBody(step);
         if (!imported.IsSuccess) throw new InvalidOperationException("pmi-display-body-unavailable");
         var body = imported.Value;
-        var tessellation = BrepDisplayTessellator.Tessellate(body, options ?? DisplayTessellationOptions.Default);
+        // The viewport's own tessellation, so target patches lie on the displayed faces.
+        var tessellation = BrepDisplayTessellator.Tessellate(body, options ?? DisplayTessellationOptions.ForViewport(body));
         if (!tessellation.IsSuccess) throw new InvalidOperationException("pmi-display-target-unavailable");
         var faces = body.Topology.Faces.ToDictionary(f => f.Id, f => f.LoopIds.SelectMany(id => body.Topology.GetLoop(id).CoedgeIds)
             .Select(id => body.Topology.GetCoedge(id).EdgeId).ToArray());

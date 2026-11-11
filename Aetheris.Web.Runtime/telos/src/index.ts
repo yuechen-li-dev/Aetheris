@@ -12,4 +12,4 @@ export * from "./temporal.js";
 export * from "./concepts.js";
 export * from "./measurement.js";
 export * from "./sketch.js";
-export { pmiLines, pmiMeshes, pmiGroup, disposePmiGroup, pmiBodyMaterial } from './pmi.js';
+export { pmiLines, pmiLabelLines, pmiMeshes, pmiGroup, disposePmiGroup, pmiBodyMaterial, pmiMarkerColor, PMI_MARKER_COLORS, type PmiStyle } from './pmi.js';

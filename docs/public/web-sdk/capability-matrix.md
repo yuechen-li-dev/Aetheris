@@ -5,7 +5,8 @@
 | Firmament V2 compile from memory | Yes | Yes | Same compiler/materializer |
 | Solid modeling | Yes | Yes | Qualified canonical box-with-hole fixture |
 | Assembly hierarchy and mesh | Yes | Yes | Same assembly pipeline; referenced source files must be supplied in explicit project snapshots |
-| Display mesh | Yes | Yes | Same B-rep tessellator, synchronous browser route |
+| Display mesh | Yes | Yes | Same B-rep tessellator, synchronous browser route. Detail follows part size (chord ≈ 1/600 of the diagonal, ≤ 11.25° per segment); cylinder and cone walls are single quad rows on their rim edges' samples, and faces are split along shared edges so neighbours meet vertex for vertex |
+| PMI presentation | Yes | Yes | Each annotation carries its record fields, target witness and the ASME drawing presentation (`drawing`: drafting lines, filled glyphs, panels); `@aetheris/three-telos` draws it as `markers` (per-record colours) or `drawing` |
 | Face/semantic selection | Yes | Yes | Triangle ranges plus occurrence IDs |
 | Property inspection/edit | Yes | Bounded | Scalar template arguments and canonical box/hole properties |
 | Transactional rebuild | Yes | Yes | Last valid snapshot retained |

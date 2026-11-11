@@ -45,6 +45,39 @@ internal static class CurveSampler
         return points;
     }
 
+    /// <summary>The control-driven samples, refined until every chord is within the options' chord tolerance of the
+    /// curve at its midpoint and turns by no more than the angular tolerance.</summary>
+    public static IReadOnlyList<Point3D> SampleBSpline(BSpline3Curve spline, ParameterInterval interval, DisplayTessellationOptions options)
+    {
+        var coarse = SampleBSpline(spline, interval);
+        var span = interval.End - interval.Start;
+        var result = new List<Point3D> { coarse[0] };
+        var budget = options.MaximumSegments * 4;
+        for (var i = 0; i + 1 < coarse.Count; i++)
+        {
+            var t0 = interval.Start + (span * i / (coarse.Count - 1));
+            var t1 = interval.Start + (span * (i + 1) / (coarse.Count - 1));
+            Refine(t0, coarse[i], t1, coarse[i + 1], 0);
+        }
+        return result;
+
+        void Refine(double ta, Point3D a, double tb, Point3D b, int depth)
+        {
+            var tm = (ta + tb) / 2d;
+            var m = spline.Evaluate(tm);
+            var chord = b - a;
+            var sag = chord.Length <= 1e-12 ? (m - a).Length : (m - a).Cross(chord).Length / chord.Length;
+            var turn = double.Acos(double.Clamp((m - a).Dot(b - m) / double.Max(1e-300, (m - a).Length * (b - m).Length), -1d, 1d));
+            if (depth < 10 && result.Count < budget && (sag > options.ChordTolerance || turn > options.AngularToleranceRadians))
+            {
+                Refine(ta, a, tm, m, depth + 1);
+                Refine(tm, m, tb, b, depth + 1);
+                return;
+            }
+            result.Add(b);
+        }
+    }
+
     public static bool TrySampleTrimmedCircleArc(
         Circle3Curve circle,
         Point3D startPoint,

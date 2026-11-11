@@ -9,6 +9,11 @@ public sealed record DisplayTessellationOptions(
     int MinimumSegments,
     int MaximumSegments)
 {
+    /// <summary>A mesh for people to look at: cylinders and cones as quad bands on their edges' own samples, and faces
+    /// made to meet along shared edges (<see cref="DisplayEdgeConformer"/>). Off for analyses that read each face's
+    /// mesh as samples of its surface and are calibrated against the per-face meshing.</summary>
+    public bool Presentation { get; init; }
+
     public static DisplayTessellationOptions Default { get; } = new(
         AngularToleranceRadians: double.Pi / 12d,
         ChordTolerance: 0.05d,
@@ -24,13 +29,13 @@ public sealed record DisplayTessellationOptions(
                 .SelectMany(row => row) ?? []))
             .Concat(body.Geometry.Curves.SelectMany(c => c.Value.BSpline3?.ControlPoints ?? []))
             .ToArray();
-        if (points.Length < 2) return Default;
+        if (points.Length < 2) return Default with { Presentation = true };
         var diagonal = new Math.Vector3D(points.Max(p => p.X) - points.Min(p => p.X),
             points.Max(p => p.Y) - points.Min(p => p.Y), points.Max(p => p.Z) - points.Min(p => p.Z)).Length;
-        if (!(diagonal > 0d) || !double.IsFinite(diagonal)) return Default;
-        // A bounded fitted-preview budget. Large imported
-        // models have a bounded coarser budget; small parts retain finer silhouettes.
-        return Default with { ChordTolerance = double.Clamp(diagonal / 300d, .01d, .25d), MaximumSegments = 1024 };
+        if (!(diagonal > 0d) || !double.IsFinite(diagonal)) return Default with { Presentation = true };
+        // Detail follows size: the chord tolerance is a fraction of the part, so a large bore gets many columns and a
+        // small hole few, while the angular limit keeps any arc from looking polygonal under smooth shading.
+        return Default with { Presentation = true, AngularToleranceRadians = double.Pi / 16d, ChordTolerance = double.Clamp(diagonal / 600d, .005d, .25d), MinimumSegments = 8, MaximumSegments = 1024 };
     }
 
     public static KernelResult<DisplayTessellationOptions> Create(

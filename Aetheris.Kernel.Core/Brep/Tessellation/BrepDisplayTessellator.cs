@@ -8,7 +8,7 @@ using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Brep.Tessellation;
 
-public static class BrepDisplayTessellator
+public static partial class BrepDisplayTessellator
 {
     private const double LoopEndpointTolerance = 1e-6d;
     private const string PlanarCurveFlatteningUnsupportedSource = "Viewer.Tessellation.PlanarCurveFlatteningUnsupported";
@@ -118,7 +118,7 @@ public static class BrepDisplayTessellator
             }
         }
 
-        return new DisplayTessellationResult(facePatches, edgePolylines, faceDiagnostics);
+        return new DisplayTessellationResult((effectiveOptions.Presentation ? DisplayEdgeConformer.Conform(body, facePatches, edgePolylines, ConformTolerance(effectiveOptions)) : facePatches), edgePolylines, faceDiagnostics);
     }
 
     private static string ExtractPhase(string message)
@@ -193,13 +193,18 @@ public static class BrepDisplayTessellator
             }
             edgePhase.Dispose();
 
-            return KernelResult<DisplayTessellationResult>.Success(new DisplayTessellationResult(facePatches, edgePolylines), accumulatedDiagnostics);
+            return KernelResult<DisplayTessellationResult>.Success(new DisplayTessellationResult(
+                (effectiveOptions.Presentation ? DisplayEdgeConformer.Conform(body, facePatches, edgePolylines, ConformTolerance(effectiveOptions)) : facePatches), edgePolylines), accumulatedDiagnostics);
         }
         catch (DisplayTessellationTimeoutException ex)
         {
             return KernelResult<DisplayTessellationResult>.Failure([CreateValidationError(ex.Message, "Viewer.Tessellation.Timeout")]);
         }
     }
+
+    /// <summary>How far a neighbour's boundary vertex may sit from a face's boundary chord and still be on the same
+    /// edge: the chord sag the options allow, with headroom for the coarser of two samplings.</summary>
+    private static double ConformTolerance(DisplayTessellationOptions options) => double.Max(1e-6, options.ChordTolerance * 1.5);
 
     private static KernelResult<T> ExecuteWithinBudget<T>(
         Func<KernelResult<T>> action,
@@ -723,6 +728,8 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateCylinderFace(BrepBody body, FaceId faceId, CylinderSurface cylinder, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
+        if (options.Presentation && TryTessellateRevolvedBand(body, faceId, cylinder.Origin, cylinder.Axis.ToVector(), cylinder.XAxis.ToVector(), 0d, options, out var band))
+            return KernelResult<DisplayFaceMeshPatch>.Success(band);
         var loopIds = body.GetLoopIds(faceId)
             .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
             .ToArray();
@@ -809,6 +816,8 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateConeFace(BrepBody body, FaceId faceId, ConeSurface cone, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
+        if (options.Presentation && TryTessellateRevolvedBand(body, faceId, cone.Apex, cone.Axis.ToVector(), cone.ReferenceAxis.ToVector(), cone.SemiAngleRadians, options, out var band))
+            return KernelResult<DisplayFaceMeshPatch>.Success(band);
         // A cone-apex VERTEX_LOOP is a preserved zero-dimensional boundary, not an
         // area-trim curve. Only edge loops participate in UV polygon tessellation.
         var loopIds = body.GetLoopIds(faceId)
@@ -4196,7 +4205,9 @@ public static class BrepDisplayTessellator
                         binding.OrientedEdgeSense,
                         out var points,
                         out var isClosed,
-                        out var usedShorterArcFallback))
+                        out var usedShorterArcFallback,
+                        // Presentation edges follow the mesh's own tolerances, so faces sampling them agree.
+                        options.Presentation ? options : null))
                 {
                     return KernelResult<DisplayEdgePolyline>.Failure([
                         CreateInvalidArgument($"Edge {edgeId.Value} failed to resolve circle trim from edge endpoints.", CircleTrimResolveFailedSource)]);
@@ -4215,7 +4226,7 @@ public static class BrepDisplayTessellator
                 var spline = curve.BSpline3!.Value;
                 return KernelResult<DisplayEdgePolyline>.Success(new DisplayEdgePolyline(
                     edgeId,
-                    CurveSampler.SampleBSpline(spline, interval),
+                    options.Presentation ? CurveSampler.SampleBSpline(spline, interval, options) : CurveSampler.SampleBSpline(spline, interval),
                     IsClosed: false));
 
             case CurveGeometryKind.Ellipse3:

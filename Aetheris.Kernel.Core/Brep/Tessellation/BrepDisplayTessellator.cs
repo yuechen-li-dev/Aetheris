@@ -730,6 +730,8 @@ public static partial class BrepDisplayTessellator
     {
         if (options.Presentation && TryTessellateRevolvedBand(body, faceId, cylinder.Origin, cylinder.Axis.ToVector(), cylinder.XAxis.ToVector(), 0d, options, out var band))
             return KernelResult<DisplayFaceMeshPatch>.Success(band);
+        if (options.Presentation && TryTessellateEdgeBound(body, faceId, _ => EdgeBoundSurface.Of(cylinder), options, executionBudget, out var edgeBound))
+            return KernelResult<DisplayFaceMeshPatch>.Success(edgeBound);
         var loopIds = body.GetLoopIds(faceId)
             .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
             .ToArray();
@@ -818,6 +820,8 @@ public static partial class BrepDisplayTessellator
     {
         if (options.Presentation && TryTessellateRevolvedBand(body, faceId, cone.Apex, cone.Axis.ToVector(), cone.ReferenceAxis.ToVector(), cone.SemiAngleRadians, options, out var band))
             return KernelResult<DisplayFaceMeshPatch>.Success(band);
+        if (options.Presentation && TryTessellateEdgeBound(body, faceId, _ => EdgeBoundSurface.Of(cone), options, executionBudget, out var edgeBound))
+            return KernelResult<DisplayFaceMeshPatch>.Success(edgeBound);
         // A cone-apex VERTEX_LOOP is a preserved zero-dimensional boundary, not an
         // area-trim curve. Only edge loops participate in UV polygon tessellation.
         var loopIds = body.GetLoopIds(faceId)
@@ -1110,6 +1114,8 @@ public static partial class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateBSplineSurfaceFace(BrepBody body, FaceId faceId, BSplineSurfaceWithKnots surface, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
+        if (options.Presentation && TryTessellateEdgeBound(body, faceId, _ => EdgeBoundSurface.Of(surface), options, executionBudget, out var edgeBound))
+            return KernelResult<DisplayFaceMeshPatch>.Success(edgeBound);
         executionBudget?.ThrowIfExpired("BSplineSurface.Start", faceId, SurfaceGeometryKind.BSplineSurfaceWithKnots);
         var loopIds = body.GetLoopIds(faceId)
             .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
@@ -1797,6 +1803,29 @@ public static partial class BrepDisplayTessellator
         foreach (var coedge in coedges)
         {
             executionBudget?.ThrowIfExpired("TrimLoopSampling", faceId, surfaceKind);
+            // A presentation mesh puts the shared edge's own samples on its boundary, so neighbours meet vertex for
+            // vertex. The pcurve still decides the chart: each projected point takes the turn nearest the pcurve.
+            if (options.Presentation && preferBoundPcurves && body.Bindings.TryGetPcurveBinding(coedge.Id, out var chart) && chart.FaceId == faceId
+                && TrySampleCoedgeForTrimEvaluation(body, faceId, coedge, vertexPointsResult.Value, options, executionBudget, surfaceKind) is { IsSuccess: true } shared)
+            {
+                var edgeBinding = body.Bindings.GetEdgeBinding(coedge.EdgeId);
+                var flipped = coedge.IsReversed ^ !edgeBinding.OrientedEdgeSense ^ !chart.SameSense;
+                var periodic = surfaceKind is SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone;
+                var anchor = chart.Pcurve.Evaluate(flipped ? chart.Pcurve.Domain.End : chart.Pcurve.Domain.Start);
+                var projected = new List<(double U, double V)>(shared.Value.Count);
+                foreach (var point in shared.Value)
+                {
+                    if (projectPointToUv(point) is not { } uv) { projected.Clear(); break; }
+                    var reference = projected.Count > 0 ? projected[^1].U : uvPoints.Count > 0 ? uvPoints[^1].U : anchor.U;
+                    var u = periodic ? uv.U + 2d * double.Pi * double.Round((reference - uv.U) / (2d * double.Pi)) : uv.U;
+                    projected.Add((u, uv.V));
+                }
+                if (projected.Count == shared.Value.Count)
+                {
+                    foreach (var uv in projected) AppendUniqueUvPoint(uvPoints, uv);
+                    continue;
+                }
+            }
             // Consume the bound face-space authority when available. Numerical 3D
             // reprojection is only the legacy fallback for bodies without pcurves.
             if (preferBoundPcurves && body.Bindings.TryGetPcurveBinding(coedge.Id, out var pc) && pc.FaceId == faceId)
@@ -1999,6 +2028,8 @@ public static partial class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateSphereFace(BrepBody body, FaceId faceId, SphereSurface sphere, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
+        if (options.Presentation && TryTessellateEdgeBound(body, faceId, loops => EdgeBoundSurface.Of(sphere, loops), options, executionBudget, out var edgeBound))
+            return KernelResult<DisplayFaceMeshPatch>.Success(edgeBound);
         var edgeLoops = body.GetLoopIds(faceId).Where(id => body.Topology.GetLoop(id).Kind == LoopKind.Edge).ToArray();
         if (edgeLoops.Length > 0)
         {
@@ -2060,6 +2091,8 @@ public static partial class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateTorusFace(BrepBody body, FaceId faceId, TorusSurface torus, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
+        if (options.Presentation && TryTessellateEdgeBound(body, faceId, _ => EdgeBoundSurface.Of(torus), options, executionBudget, out var edgeBound))
+            return KernelResult<DisplayFaceMeshPatch>.Success(edgeBound);
         var loopIds = body.GetLoopIds(faceId)
             .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
             .ToArray();

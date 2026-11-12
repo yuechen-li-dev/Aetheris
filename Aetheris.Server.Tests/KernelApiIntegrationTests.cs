@@ -268,7 +268,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     }
 
     [Fact]
-    public async Task DisplayPrepare_BoundedBsplineFallback_UsesSoftScaffoldSource()
+    public async Task DisplayPrepare_BoundedBsplineFallback_MeshesTheFaceFromItsEdges()
     {
         var document = await CreateDocumentAsync("/api/v1/documents");
 
@@ -285,8 +285,10 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.Equal("fallback-only", prepared.Data!.Lane);
         Assert.NotNull(prepared.Data.TessellationFallback);
         var patch = Assert.Single(prepared.Data.TessellationFallback!.FacePatches);
-        Assert.Equal("BsplineUvScaffold", patch.Source);
-        Assert.Null(patch.ScaffoldRejectionReason);
+        // The viewport meshes the trimmed spline face from its edges, and the soft UV scaffold does not beat that mesh,
+        // so the tessellator's patch is kept (the scaffold's rejection is recorded).
+        Assert.Equal("Tessellator", patch.Source);
+        Assert.NotEmpty(patch.TriangleIndices);
     }
 
     [Fact]

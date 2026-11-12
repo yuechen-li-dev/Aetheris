@@ -97,14 +97,17 @@ public sealed class DisplayMeshConformanceTests(ITestOutputHelper output)
             Assert.Contains(patch.TriangleIndices.Count / 3, new[] { patch.Positions.Count, patch.Positions.Count - 2 });
     }
 
-    /// <summary>Visible daylight between faces of NIST models: the slivers that remain are on spline, torus and
-    /// sphere faces whose own meshes miss their edges by more than the chord tolerance. Counts are ceilings measured
-    /// when the conformer landed (from 1081, 11650, 2398, 3846 and 1182 before it).</summary>
+    /// <summary>Visible daylight between faces of NIST models. Curved faces are meshed from their edges' own samples,
+    /// so neighbours meet vertex for vertex; what remains is where an imported vertex sits off its edge's end, or a
+    /// face the edge-bound mesher declines (a sphere whose loop runs against its sense). Counts are ceilings with a
+    /// little margin over the measured 0, 0, 0, 3, 0, 3 and 2 (from thousands before the edge-bound mesher).</summary>
     [Theory]
+    [InlineData("CTC/nist_ctc_02_asme1_ap242-e2.stp", 6)]
     [InlineData("CTC/nist_ctc_03_asme1_ap242-e2.stp", 0)]
-    [InlineData("CTC/nist_ctc_04_asme1_ap242-e1.stp", 60)]
+    [InlineData("CTC/nist_ctc_04_asme1_ap242-e1.stp", 4)]
     [InlineData("FTC/nist_ftc_08_asme1_ap242-e2.stp", 0)]
-    [InlineData("STC/nist_stc_08_asme1_ap242-e3.stp", 40)]
+    [InlineData("FTC/nist_ftc_10_asme1_ap242-e2.stp", 8)]
+    [InlineData("STC/nist_stc_08_asme1_ap242-e3.stp", 8)]
     [InlineData("STC/nist_stc_09_asme1_ap242-e3.stp", 0)]
     public void NistModelsShowNoDaylightBetweenFaces(string model, int ceiling)
     {
@@ -114,5 +117,16 @@ public sealed class DisplayMeshConformanceTests(ITestOutputHelper output)
         output.WriteLine($"{model}: {count} open segments, widest {max:G3} mm");
         Assert.InRange(count, 0, ceiling);
     }
-}
 
+    /// <summary>Refinement stops at the tolerances: a fillet-heavy NIST model stays near 100k viewport triangles
+    /// (measured 108k; the general paths it replaced produced 393k).</summary>
+    [Fact]
+    public void CurvedFacesRefineOnlyToTheTolerances()
+    {
+        var body = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(File.ReadAllText(Path.Combine(Repo(), "testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp"))).Value;
+        var mesh = BrepDisplayTessellator.TessellateBoundedPartial(body, DisplayTessellationOptions.ForViewport(body), TimeSpan.FromSeconds(60));
+        var triangles = mesh.FacePatches.Sum(p => p.TriangleIndices.Count / 3);
+        output.WriteLine($"{triangles} triangles");
+        Assert.InRange(triangles, 20_000, 150_000);
+    }
+}

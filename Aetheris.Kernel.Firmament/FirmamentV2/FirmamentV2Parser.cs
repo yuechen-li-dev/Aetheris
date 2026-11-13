@@ -1313,9 +1313,10 @@ public static partial class FirmamentV2Parser
                 [feature.Name] = new FirmamentV2SolidBinding(feature.Name, "Compose", new FirmamentV2AdvancedMaterialRecord("Compose"))
             };
             var (compositionPmi, compositionPmiBlock, compositionBoundPmi) = ParsePmi(
-                source, compositionSolids, [], [], statics, [], diagnostics, (feature.ShaftHoles ?? []).Select(hole => hole.Name).Concat((feature.CounterboreHoles ?? []).Select(hole => hole.Name)).Concat((feature.CountersinkHoles ?? []).Select(hole => hole.Name)),
+                source, compositionSolids, [], [], statics, [], diagnostics, (feature.ShaftHoles ?? []).Select(hole => hole.Name).Concat((feature.CounterboreHoles ?? []).Select(hole => hole.Name)).Concat((feature.CountersinkHoles ?? []).Select(hole => hole.Name))
+                    .Concat((feature.ConstructionPlaneBlindDrills ?? []).Select(drill => drill.Name)),
                 FirmamentBuildAndExport.ComposeOperationCapTargets(feature).Concat(Regex.Matches(body, @"\bEdgeFinish(?:<\w+>)?\s+(?<name>[A-Za-z_]\w*)\s*\{")
-                    .SelectMany(m => new[] { $"param:{m.Groups["name"].Value}.Distance", $"param:{m.Groups["name"].Value}.Radius" })));
+                    .SelectMany(m => new[] { $"param:{m.Groups["name"].Value}.Distance", $"param:{m.Groups["name"].Value}.Radius", $"face-owner:{m.Groups["name"].Value}" })));
             // Geometry capability belongs to the source-bound edge-finish planner;
             // a curved Profile is not a syntax error. Normal validation builds it.
             if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
@@ -2759,7 +2760,7 @@ public static partial class FirmamentV2Parser
         if (ConstructionFaceTargetRegex.Match(target) is { Success: true } construction)
         {
             var owner = construction.Groups["owner"].Value;
-            if (solids.ContainsKey(owner) || holeNames.Contains(owner) || aliases.Contains("op:" + owner)) return;
+            if (solids.ContainsKey(owner) || holeNames.Contains(owner) || aliases.Contains("op:" + owner) || aliases.Contains("face-owner:" + owner)) return;
             diagnostics.Add($"{PmiTargetUnresolved}:{owner}"); return;
         }
         if(!target.Contains(".region(",StringComparison.Ordinal)) { diagnostics.Add(PmiInvalidTarget); diagnostics.Add(PmiTargetUnresolved); } }

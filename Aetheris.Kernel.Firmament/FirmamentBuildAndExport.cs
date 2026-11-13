@@ -552,6 +552,7 @@ public static partial class FirmamentBuildAndExport
             var completedBody = emitted.Body;
             if (completedBody is null)
                 return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, "profile-composition-materialization-missing-body", "FirmamentV2.ProfileComposition")]);
+            var named = emitted.Correspondence is { } stackCorrespondence ? NameComposeFaces(stackCorrespondence, completedBody, stack.Feature) : null;
             var semanticPmi = Array.Empty<Step242SemanticPmi>();
             if (v2Parse.IsSuccess && v2Parse.Document is not null)
             {
@@ -560,17 +561,17 @@ public static partial class FirmamentBuildAndExport
                 var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
                 foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
                 foreach (var hole in stack.Feature.CountersinkHoles ?? []) features[hole.Name] = hole.StableId;
-                semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], stack.Feature.Name, features, emitted.Correspondence, completedBody,
-                    ComposeOperationCapFaces(stack.Feature, completedBody, emitted.Correspondence), stack.Feature).ToArray();
+                semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], stack.Feature.Name, features, named, completedBody,
+                    ComposeOperationCapFaces(stack.Feature, completedBody, named), stack.Feature).ToArray();
             }
             var step = Step242Exporter.ExportBody(completedBody, semanticPmi);
             if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, stack.Feature.Name, 0, "prismatic-section-stack", "line-arc-profile-composition",
                 DatumInspection: v2Parse.Document?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
                 DimensionInspection: v2Parse.Document?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? [],
-                Features: CompositionHoleReports(stack.Feature, completedBody, emitted.Correspondence),
+                Features: CompositionHoleReports(stack.Feature, completedBody, named),
                 EngineeringFeatures: EngineeringFeatureReports(stack.Feature))
-            { RuntimeBody = completedBody, RuntimeCorrespondence = emitted.Correspondence, RuntimeBodySourceName = stack.Feature.Name, MaterializedFeatures = FirmamentFeatureAccounting.Composition(stack, emitted.Correspondence) });
+            { RuntimeBody = completedBody, RuntimeCorrespondence = named, RuntimeBodySourceName = stack.Feature.Name, MaterializedFeatures = FirmamentFeatureAccounting.Composition(stack, named) });
         }
         if (v2Parse.BoundProfile is not null || (!v2Parse.OwnsUnifiedAdmission && ProfileAuthoringParser.IsProfileSource(materializerSource)))
         {
@@ -1264,6 +1265,7 @@ public static partial class FirmamentBuildAndExport
             if (ApplyConstructionPlaneBlindDrills(adjusted, plannedEmission, out var drilledEmission) is { } chamferDrillFailure) return chamferDrillFailure;
             plannedEmission = drilledEmission;
             if (!FirmamentManifoldChecker.IsManifold(plannedEmission.Body)) return Fail("ProfileBoundaryChamferNonManifold");
+            var plannedNamed = plannedEmission.Correspondence is { } plannedCorrespondence ? NameComposeFaces(plannedCorrespondence, plannedEmission.Body, stack.Feature, target.StableId["edgefinish:".Length..]) : null;
             var semanticPmi = Array.Empty<Step242SemanticPmi>();
             if (canonicalDocument is not null)
             {
@@ -1272,8 +1274,8 @@ public static partial class FirmamentBuildAndExport
                 var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
                 foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
                 foreach (var hole in stack.Feature.CountersinkHoles ?? []) features[hole.Name] = hole.StableId;
-                semanticPmi = BuildV2SemanticPmi(canonicalDocument, [], stack.Feature.Name, features, plannedEmission.Correspondence, plannedEmission.Body,
-                    ComposeOperationCapFaces(stack.Feature, plannedEmission.Body, plannedEmission.Correspondence), stack.Feature).ToArray();
+                semanticPmi = BuildV2SemanticPmi(canonicalDocument, [], stack.Feature.Name, features, plannedNamed, plannedEmission.Body,
+                    ComposeOperationCapFaces(stack.Feature, plannedEmission.Body, plannedNamed), stack.Feature).ToArray();
             }
             var plannedStep = Step242Exporter.ExportBody(plannedEmission.Body, semanticPmi, new Step242ExportOptions { ProductName = target.StableId, ApplicationName = "Aetheris.Firmament.ComposedProfileBoundaryChamfer.M3", BrepExportPreflightMode = BrepExportPreflightMode.Enforce, BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute });
             if (!plannedStep.IsSuccess || plannedStep.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(plannedStep.Diagnostics);
@@ -1282,7 +1284,7 @@ public static partial class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(plannedStep.Value, target.StableId, 0, "composed-profile-boundary-chamfer-section-stack", "source-grounded-composed-profile-boundary-chamfer",
                 DatumInspection: canonicalDocument?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
                 DimensionInspection: canonicalDocument?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? [],
-                Features: CompositionHoleReports(stack.Feature, plannedEmission.Body!, plannedEmission.Correspondence),
+                Features: CompositionHoleReports(stack.Feature, plannedEmission.Body!, plannedNamed),
                 EngineeringFeatures: EngineeringFeatureReports(stack.Feature).Append(new FirmamentEngineeringFeatureReport(
                     target.StableId["edgefinish:".Length..],
                     "EdgeFinish",
@@ -1294,7 +1296,7 @@ public static partial class FirmamentBuildAndExport
                     "Distance",
                     "Remove",
                     PolicySource: "Chamfer",
-                    MaterializationRoute: "ComposedProfileBoundaryChamfer")).ToArray()) { MaterializedFeatures = FirmamentFeatureAccounting.Composition(stack, plannedEmission.Correspondence).Concat(FirmamentFeatureAccounting.ProfileFinish(source, target.StableId["edgefinish:".Length..], target.HostBodyId)).ToArray() });
+                    MaterializationRoute: "ComposedProfileBoundaryChamfer")).ToArray()) { RuntimeBody = plannedEmission.Body, RuntimeCorrespondence = plannedNamed, RuntimeBodySourceName = stack.Feature.Name, MaterializedFeatures = FirmamentFeatureAccounting.Composition(stack, plannedNamed).Concat(FirmamentFeatureAccounting.ProfileFinish(source, target.StableId["edgefinish:".Length..], target.HostBodyId)).ToArray() });
         }
         if (emitted.Body is null || emitted.Correspondence is null) return Fail("MissingCorrespondenceEvidence");
         // The legacy rectangular-face compiler below rebuilds a single stock prism.
@@ -3069,7 +3071,7 @@ public static partial class FirmamentBuildAndExport
 
     private static readonly Regex ImportedFaceSelector = new("^[A-Za-z_][A-Za-z0-9_]*\\.face\\(\"#[0-9]+\"\\)$", RegexOptions.CultureInvariant);
 
-    private static IReadOnlyList<Step242SemanticPmi> BuildV2SemanticPmi(
+    internal static IReadOnlyList<Step242SemanticPmi> BuildV2SemanticPmi(
         FirmamentV2Document document,
         IReadOnlyList<Core.Air.AirHoleFeature> semanticHoles,
         string targetSolid,
@@ -3225,7 +3227,7 @@ public static partial class FirmamentBuildAndExport
         // A hole-list target associates one requirement with the shaft walls of every listed hole.
         int[] ShaftFaces(string featureId) => (correspondence?.Descendants ?? [])
             .Where(d => d.Face.HasValue && (d.SourceStableId == featureId || d.ParentStableId == featureId)
-                && d.Role is not (SemanticTopologyRole.HoleCounterboreWallFace or SemanticTopologyRole.HoleCountersinkWallFace))
+                && d.Role is not (SemanticTopologyRole.HoleCounterboreWallFace or SemanticTopologyRole.HoleCountersinkWallFace or SemanticTopologyRole.HoleCounterboreShoulderFace or SemanticTopologyRole.HoleDrillPointFace))
             .Select(d => d.Face!.Value.Value).ToArray();
         var holeSets = boundPmiByName.Values.Where(b => b.Targets.Count > 1 && b.Kind != FirmamentV2PmiKind.Distance)
             .ToDictionary(b => b.Name, b =>
@@ -3257,7 +3259,7 @@ public static partial class FirmamentBuildAndExport
                 // so downstream geometry/requirement checks can diagnose it.
                 // A hole's size and geometric controls apply to its shaft; counterbore
                 // and countersink walls are separate features with their own sizes.
-                .Where(descendant => descendant.Role is not (SemanticTopologyRole.HoleCounterboreWallFace or SemanticTopologyRole.HoleCountersinkWallFace))
+                .Where(descendant => descendant.Role is not (SemanticTopologyRole.HoleCounterboreWallFace or SemanticTopologyRole.HoleCountersinkWallFace or SemanticTopologyRole.HoleCounterboreShoulderFace or SemanticTopologyRole.HoleDrillPointFace))
                 .Select(descendant => descendant.Face!.Value.Value)
                 .Distinct()
                 .Order()

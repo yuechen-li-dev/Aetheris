@@ -78,7 +78,8 @@ internal static class JunctionFilletRoute
         if (!unfinished.IsSuccess) return unfinished;
         // The Compose operations as the build bound them (the regex reader is the fallback for sources the V2 parser
         // does not bind).
-        var composition = FirmamentV2Parser.Parse(request.Stripped, sourceDirectory).BoundComposition ?? PrismaticProfileCompositionParser.Parse(request.Stripped);
+        var parsed = FirmamentV2Parser.Parse(request.Stripped, sourceDirectory);
+        var composition = parsed.BoundComposition ?? PrismaticProfileCompositionParser.Parse(request.Stripped);
         if (composition.Feature is not { } feature)
             return Refuse(request.Finishes[0], "a junction fillet selects edges between the operations of a Compose body, and this source has none"
                 + (composition.Diagnostics.Count > 0 ? $" ({string.Join("; ", composition.Diagnostics.Take(3))})" : ""));
@@ -126,14 +127,29 @@ internal static class JunctionFilletRoute
         // Faces the construction left split on one surface go back together before export.
         body = BrepSplitFaceMerge.Merge(rounded.Value);
         var receipts = request.Finishes.Select(f => new FirmamentFeatureReceipt(request.Host ?? unfinished.Value.ExportedFeatureId, "EdgeFinish", f.Name)).ToList();
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions { ProductName = unfinished.Value.ExportedFeatureId });
+        // Faces the fillet kept are the faces they were; a rounding face belongs to the finish whose radius it has.
+        var correspondence = unfinished.Value.RuntimeCorrespondence is { } before && unfinished.Value.RuntimeBody is { } built
+            ? FaceCorrespondenceTransfer.Transfer(built, before, body, request.Finishes.Max(f => f.Radius), surface =>
+                FaceCorrespondenceTransfer.RoundingRadius(surface) is { } r && request.Finishes.Where(f => Math.Abs(f.Radius - r) < 1e-7).ToArray() is [var only]
+                    ? ($"face({only.Name}.Fillet)", $"edgefinish:{only.Name}") : null)
+            : null;
+        // PMI is written against the filleted body, through the names its faces kept.
+        var pmi = Array.Empty<Step242SemanticPmi>();
+        if (parsed.Document is { Pmi.Count: > 0 } document && correspondence is not null)
+        {
+            var holes = (feature.ShaftHoles ?? []).Select(h => (h.Name, h.StableId)).Concat((feature.CounterboreHoles ?? []).Select(h => (h.Name, h.StableId)))
+                .Concat((feature.CountersinkHoles ?? []).Select(h => (h.Name, h.StableId))).ToDictionary(h => h.Name, h => h.StableId, StringComparer.Ordinal);
+            pmi = FirmamentBuildAndExport.BuildV2SemanticPmi(document, [], feature.Name, holes, correspondence, body,
+                FirmamentBuildAndExport.ComposeOperationCapFaces(feature, body, correspondence), feature).ToArray();
+        }
+        var step = Step242Exporter.ExportBody(body, pmi, new Step242ExportOptions { ProductName = unfinished.Value.ExportedFeatureId });
         if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
         return KernelResult<FirmamentStepExportResult>.Success(unfinished.Value with
         {
             StepText = step.Value,
             RuntimeBody = body,
-            // Correspondence and retained CIR described the body before filleting; they no longer hold.
-            RuntimeCorrespondence = null,
+            RuntimeCorrespondence = correspondence,
+            // Retained CIR described the body before filleting; it no longer holds.
             Cir = null,
             MaterializedFeatures = [.. unfinished.Value.MaterializedFeatures ?? [], .. receipts],
         }, unfinished.Diagnostics);

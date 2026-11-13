@@ -118,6 +118,28 @@ Pmi {
   numbered from `Vertex0`. The caps are `Bottom` (at `from`) and `Top` (at `to`).
   A box's walls are its axis faces, `face(-X)` to `face(+Z)`, while they remain
   single planar faces.
+- On a `Compose` body every face its construction makes has a name:
+  - a profile side is `face(Body.Side("profile:…"))`, and keeps that one name
+    when section levels split it into coplanar pieces; a curved side that is
+    a single face is named the same way;
+  - caps are named by their operation: `face(stock.Top)` and
+    `face(stock.Bottom)` for a `Base`, `face(boss.Top)`, `face(pocket.Floor)`,
+    `face(pad.Top)` and `face(pad.Bottom)` for an `Add` (`Top` for an
+    `AddOffset`), `face(groove.Floor)` for a
+    `Remove` or `RemoveOffset` that stops in material;
+  - a pocket's, boss's or slot's wall carries the name of the profile side it
+    is;
+  - a hole's walls are `face(H.Wall)`; a counterbore adds `face(H.Counterbore)`
+    and `face(H.Shoulder)`, a countersink `face(H.Countersink)`, and a blind
+    drill's point is `face(H.Tip)`;
+  - a chamfer on `Top` or `Bottom` names the inclined faces it leaves after
+    itself, `face(Rim.Side("profile:…"))`;
+  - a hollow body's cavity floors and ceilings are the insides of the caps
+    they follow: `face(stock.TopInside)`, `face(tower.TopInside)`;
+  - after a fillet where two operations meet, the faces it rounded between
+    keep their names and its own faces are `face(Foot.Fillet)` (PMI cannot
+    target a fillet face yet).
+  A coaxial `Compose` of `Cylinder` and `Frustum` spans does not take PMI.
 - The face is found when the part is built. A selector whose owner is not a body
   or feature of the part rejects when parsed; one naming no face of the built
   body rejects at export (`pmi-geometric-target-unresolved`,

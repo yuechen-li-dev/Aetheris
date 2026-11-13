@@ -133,7 +133,8 @@ internal static class SectionStackBlindDrillCavityPlanner
 
         var shell = source.Topology.Shells.Single(); topology.AddShell(new Shell(shell.Id, shell.FaceIds.Where(x => x != mouthHostFaceId).Append(replacementFace).Append(shaftFace).Append(coneFace).ToArray()));
         var body = source.Topology.Bodies.Single(); topology.AddBody(new Body(body.Id, body.ShellIds.ToArray()));
-        var descendants = source.Correspondence.Descendants.Concat(new SemanticTopologyDescendant[]
+        // The host face keeps its construction identity through the replacement that carries the mouth.
+        var descendants = source.Correspondence.Descendants.Select(x => x.Face == mouthHostFaceId ? x with { Face = replacementFace } : x).Concat(new SemanticTopologyDescendant[]
         {
             new($"plan:{input.Hole.FeatureId}:mouth-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, input.Hole.FeatureId, Loop: mouthLoop, ParentStableId: input.Hole.FeatureId),
             new($"plan:{input.Hole.FeatureId}:mouth-edge:a", "Edge", SemanticTopologyRole.TopBoundary, input.Hole.FeatureId, Edge: mouthArcA, ParentStableId: input.Hole.FeatureId),
@@ -294,7 +295,7 @@ internal static class SectionStackBlindDrillCavityPlanner
         var coneFace = Face([coneLoop], SurfaceGeometry.FromCone(new ConeSurface(points[tip], Direction3D.Create(-axis), point!.PointAngleDegrees * Math.PI / 360d, input.Placement.AxisX)), false);
         var shell = source.Topology.Shells.Single(); topology.AddShell(new Shell(shell.Id, shell.FaceIds.Where(id => !faceIds.Contains(id)).Concat(replacementFaces).Append(shaftFace).Append(coneFace).ToArray()));
         var body = source.Topology.Bodies.Single(); topology.AddBody(new Body(body.Id, body.ShellIds.ToArray()));
-        var descendants = source.Correspondence.Descendants.Concat(new SemanticTopologyDescendant[]
+        var descendants = source.Correspondence.Descendants.Select(x => x.Face is { } hostFace && Array.IndexOf(faceIds, hostFace) is var at and >= 0 ? x with { Face = replacementFaces[at] } : x).Concat(new SemanticTopologyDescendant[]
         {
             new($"plan:{input.Hole.FeatureId}:mouth-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, input.Hole.FeatureId, Loop: mouthLoop, ParentStableId: input.Hole.FeatureId, GeometryPreview:"MultiFaceCoplanar"),
             new($"plan:{input.Hole.FeatureId}:mouth-edge:0", "Edge", SemanticTopologyRole.TopBoundary, input.Hole.FeatureId, Edge: ccwArc, ParentStableId: input.Hole.FeatureId),

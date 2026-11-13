@@ -31,6 +31,7 @@ public static partial class FirmamentBuildAndExport
         var planned = ProfileRimCavityRetention.TryPlan(stack, profile, target, amount, fillet, clearance, emitted);
         if (!planned.Succeeded || planned.Body is null || planned.Correspondence is null) return Fail(planned.Diagnostics);
         if (!FirmamentManifoldChecker.IsManifold(planned.Body)) return Fail(["ProfileRimFinishNonManifold"]);
+        var named = NameComposeFaces(planned.Correspondence, planned.Body, stack.Feature, target.StableId["edgefinish:".Length..]);
         var pmi = Array.Empty<Step242SemanticPmi>();
         if (document is not null)
         {
@@ -39,8 +40,8 @@ public static partial class FirmamentBuildAndExport
             var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(h => h.Name, h => h.StableId, StringComparer.Ordinal);
             foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
             foreach (var hole in stack.Feature.CountersinkHoles ?? []) features[hole.Name] = hole.StableId;
-            pmi = BuildV2SemanticPmi(document, [], stack.Feature.Name, features, planned.Correspondence, planned.Body,
-                ComposeOperationCapFaces(stack.Feature, planned.Body, planned.Correspondence), stack.Feature).ToArray();
+            pmi = BuildV2SemanticPmi(document, [], stack.Feature.Name, features, named, planned.Body,
+                ComposeOperationCapFaces(stack.Feature, planned.Body, named), stack.Feature).ToArray();
         }
         var step = Step242Exporter.ExportBody(planned.Body, pmi, new Step242ExportOptions {
             ProductName = stack.Feature.Name, ApplicationName = "Aetheris.ProfileRimFinish", BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
@@ -50,13 +51,13 @@ public static partial class FirmamentBuildAndExport
         if (!imported.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(imported.Diagnostics);
         if (!FirmamentManifoldChecker.IsManifold(imported.Value)) return Fail(["ProfileRimFinishRoundtripNonManifold"]);
         return KernelResult<FirmamentStepExportResult>.Success(new(step.Value, stack.Feature.Name, 0,
-            "profile-rim-cavities", "ProfileRimCavityRetention", Features: CompositionHoleReports(stack.Feature, planned.Body, planned.Correspondence),
+            "profile-rim-cavities", "ProfileRimCavityRetention", Features: CompositionHoleReports(stack.Feature, planned.Body, named),
             EngineeringFeatures: EngineeringFeatureReports(stack.Feature).Append(new FirmamentEngineeringFeatureReport(
                 target.StableId["edgefinish:".Length..], "EdgeFinish", target.StableId, target.HostBodyId, target.Side.ToString(),
                 $"{target.ProfileId}.{target.LoopId}", amount, fillet ? "Radius" : "Distance", "Remove", PolicySource: fillet ? "Fillet" : "Chamfer",
                 MaterializationRoute: "ProfileRimCavityRetention")).ToArray())
         {
-            RuntimeBody = planned.Body, RuntimeCorrespondence = planned.Correspondence, RuntimeBodySourceName = stack.Feature.Name,
+            RuntimeBody = planned.Body, RuntimeCorrespondence = named, RuntimeBodySourceName = stack.Feature.Name,
             EdgeFinishPlanning = planned.PlanningEvidence,
             MaterializedFeatures = FirmamentFeatureAccounting.Composition(stack, planned.Correspondence)
                 .Concat(FirmamentFeatureAccounting.ProfileFinish(source, target.StableId["edgefinish:".Length..], target.HostBodyId)).ToArray()

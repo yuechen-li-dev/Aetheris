@@ -135,7 +135,7 @@ public static class CliRunner
         int? RigidRootCount = null);
     private const string TopLevelUsage = "Usage: aetheris <command> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament|file.firmasm> [--output <path>] [--locked] [--json]";
-    private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.firmasm|file.step> [--format stl|obj|glb|assembly-json|display-json] [--output <path>] [--step-output <path> (display-json only)] [--debug-ir <path>] [--json] (glb: MeshState sources)";
+    private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.firmasm|file.step> [--format stl|obj|glb|assembly-json|display-json] [--output <path>] [--step-output <path> (display-json only)] [--debug-ir <path>] [--json] (glb: MeshState sources, or STEP with its AP242 PMI as callouts)";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--locked] [--forge-pack <path>] [--parse-only] [--explain] [--shadow [--ast]] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
     private const string InspectSpansUsage = "Usage: aetheris inspect-spans <file.firmament> --json";
@@ -1467,9 +1467,28 @@ Model CanonicalPanel {
             if (!exact.IsSuccess) return WriteMeshFailure(exact.Diagnostics.Select(d => d.Code + ": " + d.Message), json, input, stdout, stderr);
             sculptStep = exact.Step;
         }
+        if (string.Equals(format, "glb", StringComparison.OrdinalIgnoreCase) && Path.GetExtension(input).ToLowerInvariant() is ".step" or ".stp")
+        {
+            // A part and the semantic PMI its AP242 file carries, callouts regenerated in millimetres.
+            if (debugIr is not null) { stderr.WriteLine("glb from STEP does not support --debug-ir."); return 1; }
+            var stepPath = Path.GetFullPath(input);
+            if (!File.Exists(stepPath)) return WriteMeshFailure([$"STEP file not found: {stepPath}"], json, stepPath, stdout, stderr);
+            try
+            {
+                var display = Aetheris.Kernel.Firmament.Export.StepPmiPresentation.Display(File.ReadAllText(stepPath), Path.GetFileNameWithoutExtension(stepPath));
+                var glbPath = Path.GetFullPath(output ?? Path.Combine("artifacts", "local", "mesh", Path.GetFileNameWithoutExtension(stepPath) + ".glb"));
+                Directory.CreateDirectory(Path.GetDirectoryName(glbPath)!);
+                File.WriteAllBytes(glbPath, AssemblyGlbExporter.Serialize(display));
+                if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "mesh", success = true, input = stepPath, outputPath = glbPath, format = "glb", units = "mm",
+                    pmiCallouts = display.Annotations.Count, triangles = display.Definitions.Sum(d => d.Indices.Length / 3) }, JsonOptions));
+                else stdout.WriteLine($"GLB written: {glbPath}; {display.Annotations.Count} PMI callouts (mm).");
+                return 0;
+            }
+            catch (InvalidOperationException error) { return WriteMeshFailure([error.Message], json, stepPath, stdout, stderr); }
+        }
         if (!string.Equals(format, "stl", StringComparison.OrdinalIgnoreCase) && !string.Equals(format, "obj", StringComparison.OrdinalIgnoreCase))
         {
-            stderr.WriteLine("Mesh supports binary STL, topology-preserving OBJ, and assembly-json definition/occurrence meshes.");
+            stderr.WriteLine("Mesh supports binary STL, topology-preserving OBJ, assembly-json definition/occurrence meshes, and GLB with PMI callouts from STEP.");
             return 1;
         }
         var fullInput = Path.GetFullPath(input);

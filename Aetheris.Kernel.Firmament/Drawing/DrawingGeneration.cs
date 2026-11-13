@@ -92,13 +92,16 @@ public static partial class FirmamentDrawingCompiler
              || Step242SubsetDecoder.TryGetConstructor(entity.Instance, "DATUM_FEATURE") is not null)
             && !inspected.Items.Any(item => item.EntityId == entity.Id) && !inspected.StandardMirrors.Contains(entity.Id)).Select(entity => $"#{entity.Id}:{entity.Name}").ToArray();
         if (unsupportedPmi.Length > 0) return Failure($"drawing-pmi-family-unsupported: These AP242 semantic entities require a qualified readback adapter: {string.Join(", ", unsupportedPmi)}. They were not omitted from a successful drawing.");
-        if (inspected.Items.Count > 0 && Math.Abs(parsed.Value.SourceMillimetresPerUnit - 1) > 1e-12)
+        // Records read through the AP242 schema (foreign producers) carry every measure converted to millimetres and
+        // radians from its own unit; Aetheris' native subset is read in file units and needs a millimetre file.
+        var schemaRead = inspected.Items.All(i => i.Target.StartsWith("shape-aspect:", StringComparison.Ordinal));
+        if (inspected.Items.Count > 0 && Math.Abs(parsed.Value.SourceMillimetresPerUnit - 1) > 1e-12 && !(options.ReferenceOnly && schemaRead))
             return Failure("drawing-pmi-units-unsupported: Semantic PMI generation currently requires millimetre AP242 measures. Geometry-only reference views can use normalized imported units.");
 
         var body = imported.Value;
         var faceMap = body.FaceOrientationReport?.Faces.Where(f => f.SourceEvidence.SourceEntityId.HasValue)
             .ToDictionary(f => f.SourceEvidence.SourceEntityId!.Value, f => f.FaceId) ?? [];
-        if (ValidateDrawingPmi(inspected.Items, faceMap) is { } pmiError) return Failure(pmiError);
+        if ((options.ReferenceOnly ? ValidateReferencePmi(inspected.Items, faceMap) : ValidateDrawingPmi(inspected.Items, faceMap)) is { } pmiError) return Failure(pmiError);
         if (!options.ReferenceOnly)
             return GenerateDefinedPart(path, source, name, sourceKind, body, inspected.Items, faceMap, signoff, options, outputDirectory);
         BrepWireframeGeometry samples;
@@ -116,6 +119,10 @@ public static partial class FirmamentDrawingCompiler
         var targets = new Dictionary<string, IReadOnlyList<Point3D>>(StringComparer.Ordinal);
         var cylinders = new Dictionary<string, CylinderSurface>(StringComparer.Ordinal);
         var assigned = definitions.ToDictionary(v => v.Name, _ => new List<string>());
+        // Views carry a balloon per requirement; the requirement itself is one row of the PMI schedule, read in one
+        // place instead of along crossing leaders. Datums keep their letter.
+        var schedule = new List<IReadOnlyList<string>>();
+        var balloon = 0;
         foreach (var inspectedItem in inspected.Items)
         {
             var item = inspectedItem with { Name = inspectedItem.AuthoredName ?? inspectedItem.Name };
@@ -134,8 +141,12 @@ public static partial class FirmamentDrawingCompiler
                 "Annotation" => DrawingAnnotationKind.Note,
                 _ => DrawingAnnotationKind.LinearDimension
             };
-            var display = FormatStepPmi(item);
-            pmi.Add(reference, new(reference, kind, display, item.Value, item.Target, $"{path}; STEP #{item.EntityId}; faces {string.Join(",", item.GeometricFaceEntityIds)}; source SHA256 {StableHash(source)}"));
+            var nominalFromModel = item.Kind == "Dimension" && item.Value is null
+                ? Visualization.PmiDisplayProjection.ModelNominal(item, faces.Select(f => body.TryGetFaceSurfaceGeometry(f.Id, out var g) ? g : null).OfType<SurfaceGeometry>().ToArray()) : null;
+            var id = item.Kind == "Datum" ? item.Name : (++balloon).ToString(CultureInfo.InvariantCulture);
+            schedule.Add(ScheduleRow(id, item, nominalFromModel));
+            var display = item.Kind == "Datum" ? item.Name : id;
+            pmi.Add(reference, new(reference, kind, display, item.Value ?? nominalFromModel, item.Target, $"{path}; STEP #{item.EntityId}; faces {string.Join(",", item.GeometricFaceEntityIds)}; source SHA256 {StableHash(source)}"));
             targets.Add(reference, points);
             var first = faces[0];
             body.TryGetFaceSurfaceGeometry(first.Id, out var surface);
@@ -158,11 +169,12 @@ public static partial class FirmamentDrawingCompiler
         var notes = new[] { "DIMENSIONS: mm. PMI VALUES AND TOLERANCES RETAIN SOURCE AUTHORITY.",
             "INCOMPLETE GEOMETRY DEFINITION - NOT FOR MANUFACTURE.",
             FormattableString.Invariant($"REFERENCE ENVELOPE (mm): X ~{envelope.Max(p => p.X) - envelope.Min(p => p.X):0.###} / Y ~{envelope.Max(p => p.Y) - envelope.Min(p => p.Y):0.###} / Z ~{envelope.Max(p => p.Z) - envelope.Min(p => p.Z):0.###}. SAMPLED; NO TOLERANCE."),
-            inspected.Items.Count == 0 ? "NO SUPPORTED SEMANTIC PMI FOUND. GEOMETRY VIEWS ONLY." : "LEADERS IDENTIFY ASSOCIATED FACES; LINEAR CALLOUTS DO NOT INFER MEASUREMENT ENDPOINTS." };
+            inspected.Items.Count == 0 ? "NO SUPPORTED SEMANTIC PMI FOUND. GEOMETRY VIEWS ONLY." : "BALLOONS IDENTIFY ASSOCIATED FACES; EACH REQUIREMENT IS ONE ROW OF THE PMI SCHEDULE.",
+            "VALUES IN PARENTHESES ARE MODEL NOMINALS FOR SIZES THE FILE STATES WITHOUT A VALUE (REFERENCE)." };
         var requested = new List<(string Name, double[] Direction, DrawingProjectionKind Projection, string[] Pmi)>();
         foreach (var view in definitions)
         {
-            var chunks = assigned[view.Name].Chunk(6).ToArray();
+            var chunks = assigned[view.Name].Chunk(12).ToArray();
             foreach (var chunk in chunks) requested.Add((view.Name, view.Direction, DrawingProjectionKind.Orthographic, chunk));
         }
         var pages = new List<DrawingPageIr>();
@@ -207,6 +219,24 @@ public static partial class FirmamentDrawingCompiler
             var info = DrawingTitleBlockLayout.Create(metadata, fields, width, height, new(page, "D5"));
             pages.Add(new(page, DrawingPageOrientation.Landscape, width, height, new(12, 20, 273, 145), [view], ReferenceEnvelope(view), [], notes,
                 scheme, info, LocateNotes(notes, page, scheme, DrawingTitleBlockLayout.NotesArea(width, height))));
+        }
+        // The PMI schedule: one row per requirement, as many sheets as it needs.
+        const int rowsPerSheet = 15;
+        var scheduleSheets = schedule.Chunk(rowsPerSheet).ToArray();
+        var total = pages.Count + scheduleSheets.Length;
+        pages = pages.Select(p => p with { InformationBlock = p.InformationBlock is { } block
+            ? DrawingTitleBlockLayout.Create(metadata, new Dictionary<string, string>(block.Fields) { ["Sheet"] = $"{p.PageNumber}/{total}" }, width, height, new(p.PageNumber, "D5")) : null }).ToList();
+        foreach (var (rows, index) in scheduleSheets.Select((r, i) => (r, i)))
+        {
+            var page = pages.Count + 1; var scheme = Zones(width, height);
+            var table = new DrawingTableIr(scheduleSheets.Length > 1 ? $"PMI SCHEDULE ({index + 1}/{scheduleSheets.Length})" : "PMI SCHEDULE",
+                ["ID", "CHARACTERISTIC", "REQUIREMENT (mm)", "DATUMS", "STEP"], rows, name,
+                "AP242 semantic PMI read through the schema; values converted to millimetres and degrees from each measure's unit.",
+                DrawingTableKind.Design, new(12, 30, 273, 7 * (rows.Length + 1)), new(page, "B2"));
+            var fields = new Dictionary<string, string> { ["Product"] = name, ["Units"] = "mm", ["Scale"] = "-", ["View"] = "PMI SCHEDULE",
+                ["Sheet"] = $"{page}/{total}", ["Status"] = "REFERENCE ONLY" };
+            pages.Add(new(page, DrawingPageOrientation.Landscape, width, height, new(12, 20, 273, 145), [], [], [table], notes, scheme,
+                DrawingTitleBlockLayout.Create(metadata, fields, width, height, new(page, "D5")), LocateNotes(notes, page, scheme, DrawingTitleBlockLayout.NotesArea(width, height))));
         }
         var layout = DrawingAnnotationLayout.Layout(pages, pmi);
         if (layout.Diagnostics.Count > 0) return new(false, null, layout.Diagnostics);
@@ -299,6 +329,51 @@ public static partial class FirmamentDrawingCompiler
         if (view.Identity == "TOP") { Add("X", true); Add("Y", false); }
         if (view.Identity == "FRONT") Add("Z", false);
         return result;
+    }
+
+    /// <summary>Reference sheets need every record located on the part; values may be absent (shown as such).</summary>
+    private static string? ValidateReferencePmi(IReadOnlyList<Step242SemanticPmiInspectionItem> items,
+        IReadOnlyDictionary<int, Aetheris.Kernel.Core.Topology.FaceId> faceMap)
+    {
+        foreach (var item in items.Where(i => i.Kind != "Annotation"))
+            if (!item.GeometricFaceEntityIds.Any(faceMap.ContainsKey))
+                return $"drawing-pmi-target-unlocated: '{item.AuthoredName ?? item.Name}' (STEP #{item.EntityId}, target '{item.Target}') has no imported geometric face association. A model-center leader would be misleading.";
+        return null;
+    }
+
+    /// <summary>One PMI schedule row: ID, characteristic, requirement in millimetres (angles in degrees), datums, source.</summary>
+    private static IReadOnlyList<string> ScheduleRow(string id, Step242SemanticPmiInspectionItem item, double? nominalFromModel)
+    {
+        var angle = item.ValueUnit == "rad";
+        string N(double v) => (angle ? (v * 180 / Math.PI).ToString("0.####", CultureInfo.InvariantCulture) + "°" : v.ToString("0.####", CultureInfo.InvariantCulture));
+        var kind = item.DimensionKind?.ToLowerInvariant();
+        var diameter = item.Kind == "Diameter" || kind is "diameter" or "holediameter";
+        var characteristic = item.Kind switch
+        {
+            "Datum" => "DATUM FEATURE",
+            "Annotation" => "NOTE",
+            "Dimension" or "Diameter" => diameter ? "SIZE (DIAMETER)" : angle ? "ANGLE" : kind is "linear distance" or "distance" ? "DISTANCE" : "SIZE (" + (item.DimensionKind ?? "LINEAR").ToUpperInvariant() + ")",
+            var other => string.Concat(other.Select((c, i) => i > 0 && char.IsUpper(c) ? " " + c : c.ToString())).ToUpperInvariant()
+        };
+        var quantity = item.Quantity is > 1 ? $"{item.Quantity}X " : "";
+        string requirement;
+        if (item.Kind == "Datum") requirement = "-";
+        else if (item.Kind == "Annotation") requirement = item.Text ?? "";
+        else if (item.Value is { } value)
+        {
+            requirement = quantity + (diameter ? "Ø" : "") + N(value);
+            if (item.TolerancePlus is { } plus && item.ToleranceMinus is { } minus)
+                requirement += Math.Abs(plus - minus) < 1e-12 ? " ±" + N(plus)
+                    : $" {(Math.Abs(plus) < 1e-12 ? "0" : "+" + N(plus))}/{(Math.Abs(minus) < 1e-12 ? "0" : "-" + N(minus))}";
+            if (item.Kind is not ("Dimension" or "Diameter"))
+                requirement = (item.ZoneForms.Any(f => f.Contains("cylind", StringComparison.OrdinalIgnoreCase)) ? "Ø" : "") + requirement
+                    + string.Concat(item.Modifiers.Select(m => m switch { "MAXIMUM_MATERIAL_REQUIREMENT" => " (M)", "LEAST_MATERIAL_REQUIREMENT" => " (L)", _ => " " + m }));
+            if (item.Depth is { } depth) requirement += " DEPTH " + N(depth);
+        }
+        else requirement = nominalFromModel is { } model ? $"({quantity}{(diameter ? "Ø" : "")}{N(model)}) NO VALUE IN FILE" : "NO VALUE IN FILE";
+        var datums = item.DatumReferenceFrames.Count > 0 ? string.Join(" | ", item.DatumReferenceFrames.Select(f => string.Join("-", f.Labels)))
+            : item.DatumReferences.Count > 0 ? string.Join(" | ", item.DatumReferences) : "-";
+        return [id, characteristic, requirement, datums, "#" + item.EntityId];
     }
 
     private static string FormatStepPmi(Step242SemanticPmiInspectionItem item)

@@ -126,11 +126,14 @@ internal static class PmiDrafting
     {
         var diameter = item.Kind == "Diameter" || item.DimensionKind?.Equals("diameter", StringComparison.OrdinalIgnoreCase) == true;
         var quantity = item.Quantity is > 1 ? $"{item.Quantity}X " : "";
-        var nominal = (diameter ? "Ø" : "") + Number(item.Value!.Value);
+        // Angles read back in radians and are drawn in degrees.
+        var angle = item.ValueUnit == "rad";
+        string Value(double v) => angle ? Number(v * 180 / Math.PI) + "°" : Number(v);
+        var nominal = (diameter ? "Ø" : "") + Value(item.Value!.Value);
         var plus = item.TolerancePlus; var minus = item.ToleranceMinus;
         if (plus is null || minus is null) return quantity + nominal;
-        if (Math.Abs(plus.Value - minus.Value) < 1e-12) return $"{quantity}{nominal} ±{Number(plus.Value)}";
-        string Signed(double v, bool upper) => v == 0 ? "0" : (upper ? "+" : "-") + Number(v);
+        if (Math.Abs(plus.Value - minus.Value) < 1e-12) return $"{quantity}{nominal} ±{Value(plus.Value)}";
+        string Signed(double v, bool upper) => v == 0 ? "0" : (upper ? "+" : "-") + Value(v);
         return $"{quantity}{nominal} {Signed(plus.Value, true)}/{Signed(minus.Value, false)}";
     }
 

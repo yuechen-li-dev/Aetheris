@@ -21,7 +21,7 @@ internal sealed class Step242ForeignPmiReader
             if (Step242SubsetDecoder.TryGetConstructor(entity.Instance, "SHAPE_ASPECT_RELATIONSHIP") is { } link
                 && Ref(link.Arguments.ElementAtOrDefault(2)) is { } a && Ref(link.Arguments.ElementAtOrDefault(3)) is { } b)
             { Add(aspectLinks, a, b); Add(aspectLinks, b, a); }
-            if (entity.Name == "GEOMETRIC_ITEM_SPECIFIC_USAGE" && Ref(entity.Arguments.ElementAtOrDefault(2)) is { } aspect)
+            if (entity.Name is "GEOMETRIC_ITEM_SPECIFIC_USAGE" or "ITEM_IDENTIFIED_REPRESENTATION_USAGE" && Ref(entity.Arguments.ElementAtOrDefault(2)) is { } aspect)
                 foreach (var geometry in Refs(entity.Arguments.ElementAtOrDefault(4))) Add(aspectGeometry, aspect, geometry);
             if (entity.Name == "DIMENSIONAL_CHARACTERISTIC_REPRESENTATION" && Ref(entity.Arguments.ElementAtOrDefault(0)) is { } dimension && Ref(entity.Arguments.ElementAtOrDefault(1)) is { } representation)
                 dimensionRepresentations[dimension] = representation;
@@ -61,6 +61,9 @@ internal sealed class Step242ForeignPmiReader
         foreach (var entity in entities.Values.OrderBy(e => e.Id))
         {
             if (skip.Contains(entity.Id)) continue;
+            if (entity.Name == "DATUM_FEATURE" && (aspectLinks.GetValueOrDefault(entity.Id) ?? []).Any(id => entities.TryGetValue(id, out var linked)
+                    && Step242SubsetDecoder.TryGetConstructor(linked.Instance, "DATUM") is not null))
+            { Mirrors.Add(entity.Id); continue; }
             if (Step242SubsetDecoder.TryGetConstructor(entity.Instance, "DATUM") is { } datum)
             {
                 var label = Str(datum.Arguments.ElementAtOrDefault(4));
@@ -135,7 +138,10 @@ internal sealed class Step242ForeignPmiReader
     {
         var clause = Step242SubsetDecoder.TryGetConstructor(entity.Instance, "GEOMETRIC_TOLERANCE_WITH_DATUM_REFERENCE");
         var frames = new List<Step242PmiDatumFrame>();
-        var roots = Refs(clause?.Arguments.FirstOrDefault()).ToArray();
+        // A plain subtype instance (PERPENDICULARITY_TOLERANCE(name, description, magnitude, aspect, datums)) carries
+        // the datum system after the four GEOMETRIC_TOLERANCE attributes.
+        var roots = (clause is not null ? Refs(clause.Arguments.FirstOrDefault())
+            : entity.Instance is not Step242ComplexEntityInstance ? Refs(entity.Arguments.ElementAtOrDefault(4)) : []).ToArray();
         // AP214 datum references are a SET ordered by priority; AP242 constituents are a LIST.
         if (roots.All(id => entities.GetValueOrDefault(id)?.Name == "DATUM_REFERENCE"))
             roots = roots.OrderBy(id => (entities[id].Arguments.FirstOrDefault() as Step242NumberValue)?.Value ?? double.MaxValue).ToArray();
@@ -181,7 +187,11 @@ internal sealed class Step242ForeignPmiReader
     private static double? Number(Step242Value? value) => value switch { Step242NumberValue n => n.Value, Step242TypedValue t => t.Arguments.Select(Number).FirstOrDefault(v => v.HasValue), _ => null };
     private static int? Ref(Step242Value? value) => value is Step242EntityReference r ? r.TargetId : null;
     private static string? Str(Step242Value? value) => value is Step242StringValue s ? s.Value : null;
-    private static IEnumerable<int> Refs(Step242Value? value) => value switch { Step242EntityReference r => [r.TargetId], Step242ListValue list => list.Items.SelectMany(Refs), _ => [] };
+    private static IEnumerable<int> Refs(Step242Value? value) => value switch
+    {
+        Step242EntityReference r => [r.TargetId], Step242ListValue list => list.Items.SelectMany(Refs),
+        Step242TypedValue typed => typed.Arguments.SelectMany(Refs), _ => []
+    };
     private static IEnumerable<string> Enums(Step242Value? value) => value switch { Step242EnumValue e => [e.Value], Step242ListValue list => list.Items.SelectMany(Enums), _ => [] };
     private static void Add(Dictionary<int, List<int>> map, int key, int value) { if (!map.TryGetValue(key, out var values)) map[key] = values = []; values.Add(value); }
 }

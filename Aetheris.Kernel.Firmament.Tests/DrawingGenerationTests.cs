@@ -89,14 +89,19 @@ public sealed class DrawingGenerationTests
     }
 
     [Fact]
-    public void LongCalloutUsesItsActualFontWidth()
+    public void ReferenceSheetsBalloonEachRequirementAndListItInTheSchedule()
     {
+        // Views carry short balloons; the requirement is read in the schedule, not along a long leader label.
         using var scratch = new Scratch(); var path = Path.Combine(scratch.Path, "long.firmament");
         File.WriteAllText(path, File.ReadAllText(Fixture()).Replace("Size1 {", "InspectionRequirementForFirstMountingBoreDiameter {", StringComparison.Ordinal));
         var result = FirmamentDrawingCompiler.Generate(path, Path.Combine(scratch.Path, "out"), null, new(ReferenceOnly: true));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
-        var label = result.Artifacts!.Drawing.Pages.SelectMany(p => p.Annotations).Single(a => a.EngineeringDisplay.StartsWith("InspectionRequirement", StringComparison.Ordinal));
-        Assert.True(label.SelectedCandidate.Body.Width > 58);
+        var pages = result.Artifacts!.Drawing.Pages;
+        Assert.All(pages.SelectMany(p => p.Annotations).Where(a => !a.SemanticReference.StartsWith("reference:", StringComparison.Ordinal)),
+            a => Assert.True(a.EngineeringDisplay.Length <= 3, a.EngineeringDisplay));
+        var schedule = Assert.Single(pages.SelectMany(p => p.Tables), t => t.Identity.StartsWith("PMI SCHEDULE", StringComparison.Ordinal));
+        Assert.Equal(["ID", "CHARACTERISTIC", "REQUIREMENT (mm)", "DATUMS", "STEP"], schedule.Columns);
+        Assert.Contains(schedule.Rows, r => r[1] == "SIZE (DIAMETER)" && r[2].StartsWith("Ø", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -105,11 +105,39 @@ forms remain frontend debt.
 aetheris drawing generate model.step --reference-only --out-dir artifacts/local/drawing/reference --json
 ```
 
-This retains the earlier PMI/wireframe review sheets with approximate `REF`
+This draws the PMI a file already carries on wireframe views with approximate `REF`
 envelopes. Sheets are marked **REFERENCE ONLY / NOT FOR MANUFACTURE**, and nominal
 completeness is false. Manufacturing generation options are rejected in this mode.
 Unsupported wireframe geometry also reports a named error. A reference view is not
 a substitute for complete dimensions.
+
+Each requirement is a numbered balloon on the view that shows its faces best
+(datums keep their letter), and one row of the **PMI SCHEDULE** sheets that follow:
+ID, characteristic, requirement, datum reference frame and the STEP entity it came
+from. Reading requirements from a table rather than from leaders that cross the
+part is deliberate, and it keeps every control's datums in one column.
+
+AP242 files from other producers are read through the schema, so their PMI is
+written in millimetres (angles in degrees) whatever unit the file uses: a
+`0.005 in` flatness reads `0.127`. A size or location the file states without a
+value is listed with the model's nominal in parentheses and `NO VALUE IN FILE`;
+the drawing does not present it as a requirement. Every record must be associated
+with faces of the part; one that is not rejects with `drawing-pmi-target-unlocated`.
+Some NIST test-case constructs (composite and group shape aspects, records with
+no face association) still reject instead of being left off the sheets.
+
+The same PMI becomes a 3D model with callouts:
+
+```powershell
+aetheris mesh nist_ctc_01_asme1_ap242-e1.stp --format glb --output artifacts/local/mesh/ctc01.glb --json
+```
+
+The GLB holds the part in millimetres and one callout per requirement, regenerated
+from the semantic records: feature control frames, datum symbols, sizes with their
+limits, angles in degrees. The file's own presentation glyphs are not reused.
+Records whose callout is not supported yet (advanced zone or datum parameters,
+composite frames) reject the GLB with a `pmi-display-` error rather than dropping
+the requirement.
 
 ## Authored drawings and formats
 

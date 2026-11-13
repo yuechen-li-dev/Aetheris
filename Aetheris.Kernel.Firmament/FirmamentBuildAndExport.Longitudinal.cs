@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Step242;
@@ -20,15 +21,31 @@ public static partial class FirmamentBuildAndExport
             && loop.Segments.Single(s => s.Name == j.PredecessorSegmentId).Geometry is LineArcLineSegment2D
             && loop.Segments.Single(s => s.Name == j.SuccessorSegmentId).Geometry is LineArcLineSegment2D)
             .ToDictionary(j => $"profile:{profile.Name}.{j.LoopId}.{j.SuccessorSegmentId}", j => j.Classification);
+        var sideSources = correspondence.Descendants.Where(d => d.Role == SemanticTopologyRole.ExtrusionSideFace && d.Face is not null)
+            .GroupBy(d => d.SourceStableId, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+        // The two caps: the planar faces across the extrusion axis, named like a Compose operation's, Top at its end.
+        var axis = profile.EffectiveConstructionPlane.AxisZ.ToVector();
+        var sideFaces = correspondence.Descendants.Where(d => d.Role == SemanticTopologyRole.ExtrusionSideFace && d.Face is not null).Select(d => d.Face!.Value).ToHashSet();
+        var caps = emitted.Body!.Topology.Faces.Where(f => !sideFaces.Contains(f.Id)).Select(f => (f.Id, Plane: emitted.Body.TryGetFaceSurfaceGeometry(f.Id, out var s) ? s?.Plane : null))
+            .Where(f => f.Plane is { } plane && Math.Abs(Math.Abs(plane.Normal.ToVector().Dot(axis)) - 1) < 1e-9)
+            .Select(f => (f.Id, Height: (f.Plane!.Value.Origin - Point3D.Origin).Dot(axis))).OrderBy(f => f.Height).ToArray();
+        var capDescendants = caps.Length == 2 && caps[1].Height - caps[0].Height > 1e-9
+            ? new[] { (caps[0].Id, Port: "Bottom", Role: SemanticTopologyRole.Unknown), (caps[1].Id, Port: "Top", Role: SemanticTopologyRole.Unknown) }
+                .Select(c => new SemanticTopologyDescendant($"plan:{bodyName}:cap:{c.Port.ToLowerInvariant()}:face:{c.Id.Value}", "Face", c.Role, $"extrude:{bodyName}",
+                    Face: c.Id, FirmamentSelector: $"face({bodyName}.{c.Port})", Addressability: SemanticTopologyAddressability.DerivedStable)).ToArray()
+            : [];
         return correspondence with { BodyStableId = bodyName, Descendants = correspondence.Descendants.Where(d =>
             d.Role is SemanticTopologyRole.ExtrusionSideFace or SemanticTopologyRole.TopBoundary or SemanticTopologyRole.BottomBoundary
             || d.Role == SemanticTopologyRole.VerticalExtrusionEdge && d.StableId.EndsWith(":vertical-start", StringComparison.Ordinal) && corners.ContainsKey(d.SourceStableId))
             .Select(d => d.Role == SemanticTopologyRole.VerticalExtrusionEdge
                 ? d with { Role = corners[d.SourceStableId] == ProfileJunctionKind.ReflexProfileJunction ? SemanticTopologyRole.ReflexLongitudinalEdge : SemanticTopologyRole.ConvexLongitudinalEdge,
                     Addressability = SemanticTopologyAddressability.DerivedStable }
-                : d.Face is { } id && PlanarFaceThroughHole.Support(emitted.Body!, id) is not null
+                // Every planar side face from one profile segment is addressable (PMI, holes); a hole additionally
+                // needs PlanarFaceThroughHole.Support, which inspection reports separately.
+                : d.Face is { } id && d.Role == SemanticTopologyRole.ExtrusionSideFace && sideSources[d.SourceStableId] == 1
+                    && emitted.Body!.TryGetFaceSurfaceGeometry(id, out var surface) && surface?.Plane is not null
                     ? d with { FirmamentSelector = $"face({bodyName}.Side({System.Text.Json.JsonSerializer.Serialize(d.SourceStableId)}))", Addressability = SemanticTopologyAddressability.DerivedStable }
-                    : d).ToArray() };
+                    : d).Concat(capDescendants).ToArray() };
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportLongitudinalFinish(string source, ResolvedProfile2D profile, double height, string bodyName, string? diagnosticSource)

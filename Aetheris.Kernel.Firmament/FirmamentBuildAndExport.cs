@@ -586,9 +586,19 @@ public static partial class FirmamentBuildAndExport
                 return ExportLongitudinalFinish(materializerSource, parsed.Profile, parsed.Height, extrusionName, v2Parse.DiagnosticSource);
             if (materializerSource.Contains("EdgeFinish", StringComparison.Ordinal))
                 return ExportProfileSemanticTopBoundaryChamfer(materializerSource, parsed.Profile, parsed.Height, emitted, v2Parse.DiagnosticSource);
-            var step = Step242Exporter.ExportBody(emitted.Body); if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
             var profileCorrespondence = ProfileDisplayCorrespondence(parsed.Profile, emitted, extrusionName);
-            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, parsed.Profile.Name, 0, "profile-extrude", "line-arc-profile") {
+            // PMI on an extruded profile targets its faces as inspection names them: face(bracket.Side("profile:…")).
+            var profilePmi = Array.Empty<Step242SemanticPmi>();
+            if (v2Parse.Document is { Pmi.Count: > 0 } profileDocument)
+            {
+                var support = ValidateV2PmiExportSupport(profileDocument);
+                if (!support.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(support.Diagnostics);
+                profilePmi = BuildV2SemanticPmi(profileDocument, [], profileDocument.Solids[0].Name, correspondence: profileCorrespondence, body: emitted.Body).ToArray();
+            }
+            var step = Step242Exporter.ExportBody(emitted.Body, profilePmi); if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, parsed.Profile.Name, 0, "profile-extrude", "line-arc-profile",
+                DatumInspection: v2Parse.Document?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
+                DimensionInspection: v2Parse.Document?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? []) {
                 RuntimeBody = emitted.Body, RuntimeCorrespondence = profileCorrespondence, RuntimeBodySourceName = extrusionName });
         }
         if (v2Parse.IsSuccess && v2Parse.Document is not null)
@@ -3046,7 +3056,8 @@ public static partial class FirmamentBuildAndExport
     // owner. A supported record kind does not imply every requested field exports.
     internal static KernelDiagnostic? V2PmiExportRejection(FirmamentV2PmiKind kind, string name, FirmamentV2BoundPmiRecord? bound)
     {
-        var importedDistance = kind == FirmamentV2PmiKind.Distance && bound is { Targets.Count: 2 } && bound.Targets.All(t => ImportedFaceSelector.IsMatch(t));
+        var importedDistance = kind == FirmamentV2PmiKind.Distance && bound is { Targets.Count: 2 }
+            && bound.Targets.All(t => ImportedFaceSelector.IsMatch(t) || t.StartsWith("face(", StringComparison.Ordinal));
         var message = kind is not (FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Note or FirmamentV2PmiKind.Dimension or FirmamentV2PmiKind.Location)
             && !importedDistance && Step242GeometricToleranceKinds.Find(kind.ToString()) is null
             ? $"firmament-v2-pmi-export-deferred: AP242 export for PMI record '{name}' ({kind.ToString().ToLowerInvariant()}) is deferred; use Datum, HoleDiameter or an admitted geometric control."
@@ -3078,6 +3089,24 @@ public static partial class FirmamentBuildAndExport
         var targetBinding = document.Solids.Single(s => string.Equals(s.Name, targetSolid, StringComparison.Ordinal));
         var result = new List<Step242SemanticPmi>();
         var importedFaces = new Dictionary<string, IReadOnlyList<int>>(StringComparer.Ordinal);
+        // The faces a face target names on this body: a named Compose cap, a construction face as inspection names it
+        // (face(bracket.Side("…")), face(stock.Top)), an imported face or region, or an axis face's support plane.
+        int[] TargetFaces(string target)
+        {
+            if (namedFaces?.GetValueOrDefault(target) is { Length: > 0 } named) return named;
+            if (body is null) return [];
+            if (targetBinding.InlineStep is not null) return ImportedBodyFaces(document, targetBinding, body, target).ToArray();
+            if (FirmamentV2Parser.ConstructionFaceTargetRegex.IsMatch(target))
+            {
+                var key = CanonicalSelector(target);
+                return (correspondence?.Descendants ?? []).Where(d => d.Face.HasValue && !d.IsTopologyAlias && d.FirmamentSelector is { } selector && CanonicalSelector(selector) == key)
+                    .Select(d => d.Face!.Value.Value).Where(id => body.Topology.Faces.Any(face => face.Id.Value == id)).Distinct().Order().ToArray();
+            }
+            return target.StartsWith("face(", StringComparison.Ordinal)
+                ? FirmamentSelectorResolver.ResolveSupportPlaneFaces(body, ResolveV2DatumTarget(targetBinding, target)).Select(id => id.Value).ToArray() : [];
+        }
+        bool IsConstructionFace(string target) => targetBinding.InlineStep is null && FirmamentV2Parser.ConstructionFaceTargetRegex.IsMatch(target)
+            && namedFaces?.ContainsKey(target) != true;
         foreach (var pmi in document.Pmi)
         {
             if (targetBinding.InlineStep is not null && body is not null)
@@ -3149,11 +3178,11 @@ public static partial class FirmamentBuildAndExport
                     LocationFaces = location?.Ends
                 });
             }
-            else if (pmi.Kind == FirmamentV2PmiKind.Distance && targetBinding.InlineStep is not null && body is not null
+            else if (pmi.Kind == FirmamentV2PmiKind.Distance && body is not null
                 && boundPmiByName.TryGetValue(pmi.Name, out var distance) && distance.Targets.Count == 2)
             {
-                var a = ImportedBodyFaces(document, targetBinding, body, distance.Targets[0]);
-                var b = ImportedBodyFaces(document, targetBinding, body, distance.Targets[1]);
+                var a = TargetFaces(distance.Targets[0]);
+                var b = TargetFaces(distance.Targets[1]);
                 var pair = PlanePair(body, a, b);
                 var tolerance = distance.DimensionTolerance;
                 // Material between two opposed faces is a size (thickness); any other pair of parallel faces is a location.
@@ -3170,11 +3199,14 @@ public static partial class FirmamentBuildAndExport
             }
             else if (pmi.Kind == FirmamentV2PmiKind.DatumPlane)
             {
-                var selector = TryResolveV2RecognizedRegionTarget(document, targetBinding, pmi.Target, out var recognizedDatumTarget) ? recognizedDatumTarget : ResolveV2DatumTarget(targetBinding, pmi.Target);
-                var axis = targetBinding.InlineStep is not null && body is not null && ImportedBodyFaces(document, targetBinding, body, pmi.Target) is { Count: > 0 } datumFaces
-                    && datumFaces.All(id => body.TryGetFaceSurfaceGeometry(new FaceId(id), out var surface) && surface?.Kind == SurfaceGeometryKind.Cylinder);
+                var construction = IsConstructionFace(pmi.Target);
+                var selector = TryResolveV2RecognizedRegionTarget(document, targetBinding, pmi.Target, out var recognizedDatumTarget) ? recognizedDatumTarget
+                    : construction ? pmi.Target : ResolveV2DatumTarget(targetBinding, pmi.Target);
+                var datumFaces = (targetBinding.InlineStep is not null || construction) && body is not null ? TargetFaces(pmi.Target) : [];
+                // A datum on a cylinder is its axis.
+                var axis = datumFaces.Length > 0 && datumFaces.All(id => body!.TryGetFaceSurfaceGeometry(new FaceId(id), out var surface) && surface?.Kind == SurfaceGeometryKind.Cylinder);
                 result.Add(new Step242SemanticPmiDatum(targetSolid, axis ? "axis" : "plane", pmi.Name, selector)
-                    { GeometricFaceIds = namedFaces?.GetValueOrDefault(pmi.Target) ?? [], RequiresFaceAssociation = true });
+                    { GeometricFaceIds = namedFaces?.GetValueOrDefault(pmi.Target) ?? (construction ? datumFaces : []), RequiresFaceAssociation = true });
             }
             else if (Step242GeometricToleranceKinds.Find(pmi.Kind.ToString()) is { } control && boundPmiByName.TryGetValue(pmi.Name, out var boundControl))
             {
@@ -3182,6 +3214,7 @@ public static partial class FirmamentBuildAndExport
                     : boundControl.HoleWallTarget is { } wall && holeByName.TryGetValue(wall.HoleName, out var wallFeature) ? wallFeature.FeatureId
                     : explicitFeatureIds?.GetValueOrDefault(pmi.Target) ?? $"{targetSolid}.{pmi.Name}";
                 var faces = namedFaces?.GetValueOrDefault(pmi.Target) is { } named ? named
+                    : IsConstructionFace(pmi.Target) ? TargetFaces(pmi.Target)
                     : body is not null && FirmamentSelectorResolver.ResolveSupportPlaneFaces(body, ResolveV2DatumTarget(targetBinding, pmi.Target)) is { Count: > 0 } planarFaces
                     ? planarFaces.Select(id => id.Value).ToArray() : Array.Empty<int>();
                 result.Add(new Step242SemanticPmiGeometricTolerance(feature, pmi.Name, control.Name, boundControl.ControlTolerance!.NumericValue!.Value, boundControl.DatumRefs)
@@ -3230,6 +3263,20 @@ public static partial class FirmamentBuildAndExport
                 .Order()
                 .ToArray()
         }).ToArray();
+    }
+
+    /// <summary>A selector without whitespace outside its quoted arguments, so hand-spaced and inspected spellings compare equal.</summary>
+    private static string CanonicalSelector(string selector)
+    {
+        var text = new StringBuilder(selector.Length);
+        var quoted = false;
+        for (var i = 0; i < selector.Length; i++)
+        {
+            var c = selector[i];
+            if (c == '"' && (i == 0 || selector[i - 1] != '\\')) quoted = !quoted;
+            if (quoted || !char.IsWhiteSpace(c)) text.Append(c);
+        }
+        return text.ToString();
     }
 
     /// <summary>A hole callout's counterbore, projected from construction: diameter and depth on the counterbore walls.</summary>

@@ -257,6 +257,9 @@ public static partial class FirmamentV2Parser
     private static readonly Regex PmiEntryHeaderRegex = new(@"\b(?<kind>[A-Za-z_][A-Za-z0-9_]*)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex TargetRegex = new(@"\btarget\s*:\s*(?<target>[A-Za-z_][A-Za-z0-9_]*\.(?:face|region)\(""[#A-Za-z0-9_]+""\)|[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*\([^)]*\)|face\([^)]+\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
     private static readonly Regex ImportedFaceTargetRegex = new("^(?<body>[A-Za-z_][A-Za-z0-9_]*)\\.face\\(\\\"(?<entity>#[0-9]+)\\\"\\)$", RegexOptions.CultureInvariant);
+    /// <summary>A construction face as the compiler names it in inspection: face(bracket.Side("profile:…")), face(stock.Top).
+    /// The owner is checked here; which face it denotes is resolved from the built body's correspondence at export.</summary>
+    internal static readonly Regex ConstructionFaceTargetRegex = new("^face\\((?<owner>[A-Za-z_][A-Za-z0-9_]*)\\.(?<port>[A-Za-z_][A-Za-z0-9_]*)(?:\\((?<arg>\"(?:[^\"\\\\]|\\\\.)*\")\\))?\\)$", RegexOptions.CultureInvariant);
     private static readonly Regex RecognizedRegionTargetRegex = new("^(?<body>[A-Za-z_][A-Za-z0-9_]*)\\.region\\(\\\"(?<region>[A-Za-z_][A-Za-z0-9_]*)\\\"\\)$", RegexOptions.CultureInvariant);
     private static readonly Regex ValueRegex = new(@"\b(?:value|diameter)\s*:\s*(?<value>[^\s}]+)", RegexOptions.CultureInvariant);
     private static readonly Regex ManufacturingConceptHeaderRegex = new(@"\bmanufacturing\s+(?<family>[A-Za-z_][A-Za-z0-9_]*)\s*<\s*(?<concept>[A-Za-z_][A-Za-z0-9_]*)\s*>\s*\{", RegexOptions.CultureInvariant);
@@ -1358,6 +1361,9 @@ public static partial class FirmamentV2Parser
             {
                 [resolved.Name] = new FirmamentV2SolidBinding(resolved.Name, "Profile", new FirmamentV2AdvancedMaterialRecord("Profile"))
             };
+            // PMI names the extruded body's faces through the Extrude: face(bracket.Side("profile:…")).
+            foreach (var extrude in declarations.Where(d => d.Type.Name.Text == "Extrude" && d.Name is not null))
+                profileSolids.TryAdd(extrude.Name!.Text, profileSolids[resolved.Name] with { Name = extrude.Name.Text });
             var (profilePmi, profilePmiBlock, profileBoundPmi) = ParsePmi(source, profileSolids, [], [], statics, [], diagnostics);
             // Geometry capability belongs to the source-bound edge-finish planner;
             // a curved Profile is not a syntax error. Normal validation builds it.
@@ -2749,7 +2755,14 @@ public static partial class FirmamentV2Parser
         var t=ParseTolerance(FirmamentV2PrimitiveType.Length,s,d); if(t is null){d.Add(PmiToleranceTypeMismatch); return false;} tol=t; return true;
     }
     private static void ValidateTarget(string target,FirmamentV2PmiKind kind,Dictionary<string,FirmamentV2SolidBinding> solids,IReadOnlyDictionary<string,FirmamentV2RecognizedRegion> regions,HashSet<string> aliases,HashSet<string> holeNames,List<string> diagnostics)
-    { if (TryValidateImportedFaceTarget(target, solids, diagnostics)) return; if (RecognizedRegionTargetRegex.IsMatch(target)){ var m=RecognizedRegionTargetRegex.Match(target); var body=m.Groups["body"].Value; if(regions.TryGetValue(target,out var region)){ if((kind==FirmamentV2PmiKind.HoleDiameter&&region.Kind!="holeShaft") || (kind==FirmamentV2PmiKind.DatumPlane&&region.Kind!="datumPlane")) diagnostics.Add(PmiRecognizedRegionKindMismatch); } else if(regions.Values.Any(r=>r.BodyName==body) || diagnostics.Contains(UnknownRecognitionFace)) diagnostics.Add(UnknownRecognitionRegion); return;} if(aliases.Contains(target)||FaceSelectorRegex.IsMatch(target)||holeNames.Contains(target))return; if(!target.Contains(".region(",StringComparison.Ordinal)) { diagnostics.Add(PmiInvalidTarget); diagnostics.Add(PmiTargetUnresolved); } }
+    { if (TryValidateImportedFaceTarget(target, solids, diagnostics)) return; if (RecognizedRegionTargetRegex.IsMatch(target)){ var m=RecognizedRegionTargetRegex.Match(target); var body=m.Groups["body"].Value; if(regions.TryGetValue(target,out var region)){ if((kind==FirmamentV2PmiKind.HoleDiameter&&region.Kind!="holeShaft") || (kind==FirmamentV2PmiKind.DatumPlane&&region.Kind!="datumPlane")) diagnostics.Add(PmiRecognizedRegionKindMismatch); } else if(regions.Values.Any(r=>r.BodyName==body) || diagnostics.Contains(UnknownRecognitionFace)) diagnostics.Add(UnknownRecognitionRegion); return;} if(aliases.Contains(target)||FaceSelectorRegex.IsMatch(target)||holeNames.Contains(target))return;
+        if (ConstructionFaceTargetRegex.Match(target) is { Success: true } construction)
+        {
+            var owner = construction.Groups["owner"].Value;
+            if (solids.ContainsKey(owner) || holeNames.Contains(owner) || aliases.Contains("op:" + owner)) return;
+            diagnostics.Add($"{PmiTargetUnresolved}:{owner}"); return;
+        }
+        if(!target.Contains(".region(",StringComparison.Ordinal)) { diagnostics.Add(PmiInvalidTarget); diagnostics.Add(PmiTargetUnresolved); } }
 
     private static bool TryValidateImportedFaceTarget(string target, Dictionary<string, FirmamentV2SolidBinding> solids, List<string> diagnostics)
     {

@@ -111,7 +111,7 @@ internal static class AirHoleCompositeMaterializer
             Addressability: SemanticTopologyAddressability.DerivedStable)).ToArray();
         var hostId = plans[0].SemanticFeature.TargetBodyId ?? "semantic-hole-host";
         var retained = hostFaces.TryGetValue("-Z", out var bottom) && hostFaces.TryGetValue("+Z", out var top)
-            ? BoxConstructionCorrespondence.RetainedCaps(hostId, bottom, top) : [];
+            ? BoxConstructionCorrespondence.RetainedCaps(hostId, bottom, top, built.Value) : [];
         var correspondence = new SemanticTopologyCorrespondence(hostId,
             [.. descendants, .. retained], ["HoleAIR", "AirHoleCompositeMaterializer", "BrepBooleanBoxCylinderHoleBuilder", "RetainedBoxCaps"]);
         diagnostics.Add("air-hole-x4 composite materialization succeeded through semantic AirHoleFeature plans and safe boolean AP242 BRep composition.");

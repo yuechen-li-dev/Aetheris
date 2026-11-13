@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.FirmamentV2;
@@ -8,13 +9,24 @@ namespace Aetheris.Kernel.Firmament.Materializer;
 public static class BoxConstructionCorrespondence
 {
     /// <summary>The retained world-Z stock caps emitted by the qualified box/hole construction.</summary>
-    public static IReadOnlyList<SemanticTopologyDescendant> RetainedCaps(string bodyStableId, FaceId bottom, FaceId top) =>
+    public static IReadOnlyList<SemanticTopologyDescendant> RetainedCaps(string bodyStableId, FaceId bottom, FaceId top, BrepBody? body = null) =>
     [
         new($"{bodyStableId}.face(-Z)", "Face", SemanticTopologyRole.BoxFace, bodyStableId, Face: bottom, ParentStableId: bodyStableId,
             FirmamentSelector: "face(-Z)", Addressability: SemanticTopologyAddressability.DerivedStable),
         new($"{bodyStableId}.face(+Z)", "Face", SemanticTopologyRole.BoxFace, bodyStableId, Face: top, ParentStableId: bodyStableId,
-            FirmamentSelector: "face(+Z)", Addressability: SemanticTopologyAddressability.DerivedStable)
+            FirmamentSelector: "face(+Z)", Addressability: SemanticTopologyAddressability.DerivedStable),
+        .. body is null ? [] : RetainedSides(bodyStableId, body)
     ];
+
+    /// <summary>The stock's four walls, each named by its axis face when it is the single planar face bounding the part
+    /// in that direction (the meaning face(+X) has in PMI). A wall the construction split or recessed stays unnamed.</summary>
+    public static IReadOnlyList<SemanticTopologyDescendant> RetainedSides(string bodyStableId, BrepBody body) =>
+        new[] { ("-X", "minus_x_face"), ("+X", "plus_x_face"), ("-Y", "minus_y_face"), ("+Y", "plus_y_face") }
+            .Select(side => (side.Item1, Faces: Execution.FirmamentSelectorResolver.ResolveSupportPlaneFaces(body, $"{bodyStableId}.{side.Item2}")))
+            .Where(side => side.Faces.Count == 1)
+            .Select(side => new SemanticTopologyDescendant($"{bodyStableId}.face({side.Item1})", "Face", SemanticTopologyRole.BoxFace, bodyStableId,
+                Face: side.Faces[0], ParentStableId: bodyStableId, FirmamentSelector: $"face({side.Item1})", Addressability: SemanticTopologyAddressability.DerivedStable))
+            .ToArray();
     public static SemanticTopologyCorrespondence Create(string bodyStableId, BrepExtrudeConstructionTopology topology, FirmamentV2SourceSpan? sourceSpan = null)
     {
         ArgumentNullException.ThrowIfNull(topology);

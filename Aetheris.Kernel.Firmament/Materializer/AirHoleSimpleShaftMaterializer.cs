@@ -285,7 +285,7 @@ internal static class AirHoleSimpleShaftMaterializer
             new($"material:{source}:wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: wall.Id, ParentStableId: plan.SemanticFeatureId, Addressability: SemanticTopologyAddressability.DerivedStable)
         };
         var hostId = plan.SemanticFeature.TargetBodyId ?? "semantic-hole-host";
-        return new(hostId, [.. descendants, .. BoxConstructionCorrespondence.RetainedCaps(hostId, bottom.Id, top.Id)],
+        return new(hostId, [.. descendants, .. BoxConstructionCorrespondence.RetainedCaps(hostId, bottom.Id, top.Id, body)],
             ["HoleAIR", "AirHoleSimpleShaftMaterializationPlan", "ThroughHoleConstructionRecipe", "BrepSurgery", "RetainedBoxCaps"]);
     }
 

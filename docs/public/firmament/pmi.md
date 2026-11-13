@@ -57,6 +57,11 @@ Pmi {
   listed hole, written with its quantity ("4X"). It applies to the shaft walls,
   never to a counterbore or countersink wall.
 - An authored datum that resolves to no face rejects.
+- Any face of a native part can be named the way inspection names it, with the
+  selector Helios shows as the face's **Selector**: `face(bracket.Side("profile:section.Outer.Vertex0_Vertex1"))`
+  for a side of an extruded profile, `face(bracket.Top)` and `face(bracket.Bottom)`
+  for its caps, `face(+X)` for a box wall, `face(mount.Wall)` for a hole wall. See
+  [Annotating native faces](#annotating-native-faces).
 
 **`HoleCallout`** takes the same fields as `HoleDiameter` and adds the hole's
 counterbore diameter and depth, projected from its construction:
@@ -87,6 +92,36 @@ They read back as annotations.
 
 Fillet radii, countersink callouts and locations between two features are not yet
 projected. A `Dimension` or `Location` that does not resolve to faces rejects.
+
+## Annotating native faces
+
+The complete buildable example is
+[`extruded-bracket-faces.firmament`](../../../fixtures/Canonical/PMI/extruded-bracket-faces.firmament):
+
+```firmament
+Extrude bracket { profile: section; from: 0mm; to: 20mm }
+Pmi {
+    Datum A { target: face(bracket.Side("profile:section.Outer.Vertex0_Vertex1")) }
+    Datum B { target: face(bracket.Side("profile:section.Outer.Vertex5_Vertex0")) }
+    Distance Thickness { between: [face(bracket.Side("profile:section.Outer.Vertex2_Vertex3")), face(bracket.Side("profile:section.Outer.Vertex0_Vertex1"))] value: 3mm tolerance: PlusMinus(0.1mm, 0.1mm) }
+    Distance Width { between: [face(bracket.Bottom), face(bracket.Top)] value: 20mm tolerance: PlusMinus(0.2mm, 0.2mm) }
+    Parallelism Leg { target: face(bracket.Side("profile:section.Outer.Vertex3_Vertex4")) tolerance: 0.1mm datumRefs: [B] }
+}
+```
+
+- `Datum` and every explicit geometric control accept any named face. A datum on
+  a cylindrical face is the cylinder's axis.
+- `Distance` measures between two parallel planar faces, as on an imported part:
+  a size (`thickness`) when the material lies between them, otherwise a location
+  from the first face to the second.
+- A side of an extruded profile is named by its profile segment; segments are
+  numbered from `Vertex0`. The caps are `Bottom` (at `from`) and `Top` (at `to`).
+  A box's walls are its axis faces, `face(-X)` to `face(+Z)`, while they remain
+  single planar faces.
+- The face is found when the part is built. A selector whose owner is not a body
+  or feature of the part rejects when parsed; one naming no face of the built
+  body rejects at export (`pmi-geometric-target-unresolved`,
+  `pmi-datum-target-unresolved`, `pmi-dimension-target-unresolved`).
 
 ## Explicit GD&T
 

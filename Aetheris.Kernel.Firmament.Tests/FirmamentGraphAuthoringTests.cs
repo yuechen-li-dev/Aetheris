@@ -37,7 +37,8 @@ public sealed class FirmamentGraphAuthoringTests
             var built = FirmamentBuildAndExport.CompileSource(source);
             Assert.True(built.IsSuccess, string.Join('\n', built.Diagnostics.Select(d => d.Message)));
             var caps = built.Value.RuntimeCorrespondence!.Descendants.Where(d => d.Role == SemanticTopologyRole.BoxFace).ToArray();
-            Assert.Equal(2, caps.Length);
+            // The caps, and the four walls each named by its axis.
+            Assert.Equal(["face(+X)", "face(+Y)", "face(+Z)", "face(-X)", "face(-Y)", "face(-Z)"], caps.Select(d => d.FirmamentSelector).Order(StringComparer.Ordinal));
             var top = Assert.Single(caps, d => d.FirmamentSelector == "face(+Z)");
             var body = built.Value.RuntimeBody!;
             var binding = Assert.Single(body.Bindings.FaceBindings, b => b.FaceId == top.Face);

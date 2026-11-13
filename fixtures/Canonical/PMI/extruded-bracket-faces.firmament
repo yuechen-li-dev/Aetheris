@@ -1,0 +1,26 @@
+// PMI on the faces of an extruded profile, named as inspection names them:
+// face(bracket.Side("profile:…")) for each profile segment, face(bracket.Bottom)
+// and face(bracket.Top) for the caps at the extrusion's start and end.
+Model AnnotatedBracket {
+  units: mm
+  Concept Struct layout on XZ {
+    Polygon2<Explicit> outline {
+      points: [[0mm,0mm], [30mm,0mm], [30mm,3mm], [3mm,3mm], [3mm,40mm], [0mm,40mm]]
+    }
+  }
+  Profile section using layout {
+    Loop Outer { outline |> TraceLoop }
+  }
+  Extrude bracket { profile: section; from: 0mm; to: 20mm }
+  Pmi {
+    Datum A { target: face(bracket.Side("profile:section.Outer.Vertex0_Vertex1")) }
+    Datum B { target: face(bracket.Side("profile:section.Outer.Vertex5_Vertex0")) }
+    Distance Reach { between: [face(bracket.Side("profile:section.Outer.Vertex5_Vertex0")), face(bracket.Side("profile:section.Outer.Vertex1_Vertex2"))] value: 30mm tolerance: PlusMinus(0.2mm, 0.2mm) }
+    Distance Thickness { between: [face(bracket.Side("profile:section.Outer.Vertex2_Vertex3")), face(bracket.Side("profile:section.Outer.Vertex0_Vertex1"))] value: 3mm tolerance: PlusMinus(0.1mm, 0.1mm) }
+    Distance Width { between: [face(bracket.Bottom), face(bracket.Top)] value: 20mm tolerance: PlusMinus(0.2mm, 0.2mm) }
+    Flatness Seat { target: face(bracket.Side("profile:section.Outer.Vertex0_Vertex1")) tolerance: 0.05mm }
+    Parallelism Leg { target: face(bracket.Side("profile:section.Outer.Vertex3_Vertex4")) tolerance: 0.1mm datumRefs: [B] }
+    Perpendicularity Upright { target: face(bracket.Side("profile:section.Outer.Vertex5_Vertex0")) tolerance: 0.1mm datumRefs: [A] }
+    Note Material { text: "6061-T6 ALUMINUM, 3 mm SHEET" }
+  }
+}

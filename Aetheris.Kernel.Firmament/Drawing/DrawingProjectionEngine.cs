@@ -16,8 +16,12 @@ internal sealed record DrawingProjectionBody(string OccurrenceIdentity, string D
 internal static class DrawingProjectionEngine
 {
     private readonly record struct CameraPoint(double X, double Y, double Depth);
-    private sealed record RawEdge(string Id, string Occurrence, string Definition, IReadOnlyList<CameraPoint> Points, bool Curved);
-    private sealed record Triangle(CameraPoint A, CameraPoint B, CameraPoint C, string Identity);
+    private sealed record RawEdge(string Id, string Occurrence, string Definition, IReadOnlyList<CameraPoint> Points, bool Curved)
+    {
+        /// <summary>The faces bounding this edge (occurrence:face id): their display triangles never hide it.</summary>
+        public IReadOnlySet<string> OwnFaces { get; init; } = new HashSet<string>();
+    }
+    private sealed record Triangle(CameraPoint A, CameraPoint B, CameraPoint C, string Identity, string Face);
 
     public static DrawingViewIr Project(
         IReadOnlyList<DrawingProjectionBody> bodies,
@@ -46,13 +50,17 @@ internal static class DrawingProjectionEngine
             var body = projectionBody.Body;
             var samples = BrepWireframeSvgRenderer.SampleGeometry(body, new(CurveSamples: 64, Density: 5));
             unsupported.AddRange(samples.Evidence.UnsupportedCurveFamilies.Select(kind => $"{projectionBody.OccurrenceIdentity}:curve:{kind}"));
+            var loopFace = body.Topology.Faces.SelectMany(face => face.LoopIds.Select(loop => (loop, face.Id.Value))).ToDictionary(x => x.loop, x => x.Value);
+            var edgeFaces = body.Topology.Coedges.Where(c => loopFace.ContainsKey(c.LoopId)).GroupBy(c => c.EdgeId.Value)
+                .ToDictionary(g => g.Key, g => g.Select(c => loopFace[c.LoopId]).Distinct().ToArray());
             foreach (var line in samples.Boundaries)
             {
                 var edge = body.Topology.Edges.Single(e => e.Id.Value == line.EdgeId);
                 if (IsInternalSupportEdge(body, edge.Id)) continue;
                 var curved = body.TryGetEdgeCurveGeometry(edge.Id, out var curve) && curve?.Kind != CurveGeometryKind.Line3;
                 var points = curved ? line.Points : new[] { line.Points[0], line.Points[^1] };
-                raw.Add(new(line.Identity, projectionBody.OccurrenceIdentity, projectionBody.DefinitionIdentity, points.Select(Camera).ToArray(), curved));
+                raw.Add(new(line.Identity, projectionBody.OccurrenceIdentity, projectionBody.DefinitionIdentity, points.Select(Camera).ToArray(), curved)
+                { OwnFaces = (edgeFaces.TryGetValue(edge.Id.Value, out var own) ? own : []).Select(f => $"{projectionBody.OccurrenceIdentity}:{f}").ToHashSet() });
             }
             if (hiddenPolicy == DrawingHiddenLinePolicy.Wireframe)
             {
@@ -71,6 +79,35 @@ internal static class DrawingProjectionEngine
                 new DisplayFaceMaterializationDiagnostic(null, null, "Tessellate", diagnostic.Source ?? diagnostic.Code.ToString(), diagnostic.Message)).ToArray());
             foreach (var diagnostic in mesh.FaceDiagnostics ?? [])
                 unsupported.Add($"{projectionBody.OccurrenceIdentity}:face:{diagnostic.FaceId?.Value.ToString(CultureInfo.InvariantCulture) ?? "?"}:{diagnostic.SurfaceKind ?? diagnostic.Code}");
+            // Contours of curved faces (a cylinder's sides seen across its axis) are not B-rep edges, so without them a
+            // rounded end reads as an open shape. Each is where the surface normal turns perpendicular to the view: the
+            // zero crossing of n·d across each display triangle, interpolated from its vertex normals.
+            foreach (var patch in mesh.FacePatches.OrderBy(patch => patch.FaceId.Value))
+            {
+                if (patch.Normals.Count != patch.Positions.Count) continue;
+                if (body.TryGetFaceSurfaceGeometry(patch.FaceId, out var faceSurface) && faceSurface?.Plane is not null) continue;
+                var pieces = new List<(Point3D A, Point3D B)>();
+                for (var index = 0; index + 2 < patch.TriangleIndices.Count; index += 3)
+                {
+                    var corners = new[] { patch.TriangleIndices[index], patch.TriangleIndices[index + 1], patch.TriangleIndices[index + 2] };
+                    var s = corners.Select(c => patch.Normals[c].Dot(direction)).ToArray();
+                    var crossings = new List<Point3D>();
+                    for (var k = 0; k < 3; k++)
+                    {
+                        // Interpolate from the lower vertex index so both triangles sharing an edge produce the same point.
+                        var i = k; var j = (k + 1) % 3;
+                        if (corners[i] > corners[j]) (i, j) = (j, i);
+                        if (s[i] < 0 == s[j] < 0 || Math.Abs(s[i] - s[j]) < 1e-12) continue;
+                        var t = s[i] / (s[i] - s[j]); var p = patch.Positions[corners[i]]; var q = patch.Positions[corners[j]];
+                        crossings.Add(new(p.X + (q.X - p.X) * t, p.Y + (q.Y - p.Y) * t, p.Z + (q.Z - p.Z) * t));
+                    }
+                    if (crossings.Count == 2 && (crossings[0] - crossings[1]).Length > 1e-9) pieces.Add((crossings[0], crossings[1]));
+                }
+                foreach (var (chain, number) in ChainPieces(pieces).Select((c, i) => (c, i)))
+                    raw.Add(new($"contour:face:{patch.FaceId.Value}:{number}", projectionBody.OccurrenceIdentity,
+                        projectionBody.DefinitionIdentity, chain.Select(Camera).ToArray(), true)
+                    { OwnFaces = new HashSet<string> { $"{projectionBody.OccurrenceIdentity}:{patch.FaceId.Value}" } });
+            }
             foreach (var patch in mesh.FacePatches.OrderBy(patch => patch.FaceId.Value))
             for (var index = 0; index + 2 < patch.TriangleIndices.Count; index += 3)
             {
@@ -78,7 +115,7 @@ internal static class DrawingProjectionEngine
                 var b = Camera(patch.Positions[patch.TriangleIndices[index + 1]]);
                 var c = Camera(patch.Positions[patch.TriangleIndices[index + 2]]);
                 if (Math.Abs(Cross(a, b, c)) > 1e-12)
-                    triangles.Add(new(a, b, c, $"{projectionBody.OccurrenceIdentity}:face:{patch.FaceId.Value}:triangle:{index / 3}"));
+                    triangles.Add(new(a, b, c, $"{projectionBody.OccurrenceIdentity}:face:{patch.FaceId.Value}:triangle:{index / 3}", $"{projectionBody.OccurrenceIdentity}:{patch.FaceId.Value}"));
             }
         }
         if (raw.Count == 0) throw new InvalidOperationException("drawing-projection-no-exact-edges");
@@ -103,35 +140,59 @@ internal static class DrawingProjectionEngine
             candidateSegments = raw.Sum(edge => edge.Points.Count - 1);
             visibleSegments = candidateSegments;
         }
-        else foreach (var edge in raw.OrderBy(edge => edge.Occurrence, StringComparer.Ordinal).ThenBy(edge => edge.Id, StringComparer.Ordinal))
-        for (var segment = 1; segment < edge.Points.Count; segment++)
+        else
         {
-            candidateSegments++;
-            var a = edge.Points[segment - 1]; var b = edge.Points[segment];
-            var cuts = new List<double> { 0, 1 };
-            foreach (var triangle in triangles)
+        var grid = new TriangleGrid(triangles);
+        foreach (var edge in raw.OrderBy(edge => edge.Occurrence, StringComparer.Ordinal).ThenBy(edge => edge.Id, StringComparer.Ordinal))
+        {
+            // Contiguous intervals of one kind along an edge are one polyline: a dense part splits its edges at every
+            // triangle they cross, and one primitive per interval made drawings of hundreds of megabytes.
+            var run = new List<CameraPoint>(); DrawingPrimitiveKind? runKind = null; var runs = 0; var interiorEnd = false;
+            void Flush()
             {
-                AddIntersection(a, b, triangle.A, triangle.B, cuts);
-                AddIntersection(a, b, triangle.B, triangle.C, cuts);
-                AddIntersection(a, b, triangle.C, triangle.A, cuts);
+                if (runKind is { } k && run.Count > 1)
+                    primitives.Add(new($"{edge.Occurrence}:{edge.Id}:run:{runs++}:{k}", k, run.Select(Page).ToArray(), edge.Occurrence,
+                        run.Average(p => p.Depth), edge.Definition, edge.Id));
+                run = []; runKind = null; interiorEnd = false;
             }
-            var ordered = cuts.Where(value => value >= 0 && value <= 1).Order().Aggregate(new List<double>(), (values, value) =>
-            { if (values.Count == 0 || Math.Abs(values[^1] - value) > 1e-8) values.Add(value); return values; });
-            splitPoints += Math.Max(0, ordered.Count - 2);
-            for (var interval = 1; interval < ordered.Count; interval++)
+            for (var segment = 1; segment < edge.Points.Count; segment++)
             {
-                var from = ordered[interval - 1]; var to = ordered[interval];
-                if (to - from < 1e-8) continue;
-                var midpoint = Lerp(a, b, (from + to) / 2);
-                var hidden = triangles.Any(triangle => Contains(triangle, midpoint.X, midpoint.Y, out var depth) && depth > midpoint.Depth + 1e-5);
-                if (hidden) hiddenSegments++; else visibleSegments++;
-                if (hidden && hiddenPolicy == DrawingHiddenLinePolicy.VisibleOnly) continue;
-                var start = Lerp(a, b, from); var end = Lerp(a, b, to);
-                var kind = hidden ? DrawingPrimitiveKind.Hidden : edge.Curved ? DrawingPrimitiveKind.Silhouette : DrawingPrimitiveKind.Visible;
-                var stable = $"{edge.Occurrence}:{edge.Id}:segment:{segment - 1}:interval:{interval - 1}:{kind}";
-                primitives.Add(new(stable, kind, [Page(start), Page(end)], edge.Occurrence, (start.Depth + end.Depth) / 2,
-                    edge.Definition, edge.Id));
+                candidateSegments++;
+                var a = edge.Points[segment - 1]; var b = edge.Points[segment];
+                var cuts = new List<double> { 0, 1 };
+                // Only triangles whose bounds meet the segment's can cut or cover it.
+                // An edge lies on its own faces, whose display triangles are chords that can sit a hair in front of it;
+                // they never hide it.
+                var near = grid.Near(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Max(a.X, b.X), Math.Max(a.Y, b.Y))
+                    .Where(t => !edge.OwnFaces.Contains(t.Face)).ToList();
+                foreach (var triangle in near)
+                {
+                    AddIntersection(a, b, triangle.A, triangle.B, cuts);
+                    AddIntersection(a, b, triangle.B, triangle.C, cuts);
+                    AddIntersection(a, b, triangle.C, triangle.A, cuts);
+                }
+                var ordered = cuts.Where(value => value >= 0 && value <= 1).Order().Aggregate(new List<double>(), (values, value) =>
+                { if (values.Count == 0 || Math.Abs(values[^1] - value) > 1e-8) values.Add(value); return values; });
+                splitPoints += Math.Max(0, ordered.Count - 2);
+                for (var interval = 1; interval < ordered.Count; interval++)
+                {
+                    var from = ordered[interval - 1]; var to = ordered[interval];
+                    if (to - from < 1e-8) continue;
+                    var midpoint = Lerp(a, b, (from + to) / 2);
+                    var hidden = near.Any(triangle => Contains(triangle, midpoint.X, midpoint.Y, out var depth) && depth > midpoint.Depth + 1e-5);
+                    if (hidden) hiddenSegments++; else visibleSegments++;
+                    if (hidden && hiddenPolicy == DrawingHiddenLinePolicy.VisibleOnly) { Flush(); continue; }
+                    var start = Lerp(a, b, from); var end = Lerp(a, b, to);
+                    var kind = hidden ? DrawingPrimitiveKind.Hidden : edge.Curved ? DrawingPrimitiveKind.Silhouette : DrawingPrimitiveKind.Visible;
+                    if (runKind != kind) { Flush(); runKind = kind; run.Add(start); }
+                    // A split inside one straight segment adds no shape: extend the last point instead of adding one.
+                    else if (interiorEnd) run[^1] = end;
+                    if (runKind == kind && run[^1] != end) run.Add(end);
+                    interiorEnd = to < 1 - 1e-12;
+                }
             }
+            Flush();
+        }
         }
 
         var geometryBounds = new DrawingRect(originX + minX * scale, originY - maxY * scale, modelWidth * scale, modelHeight * scale);
@@ -145,6 +206,69 @@ internal static class DrawingProjectionEngine
         return new DrawingViewIr(name, projection, hiddenPolicy, new(direction.X, direction.Y), directionSource, viewport, geometryBounds, scale,
             primitives, anchors, pmi, location, evidence)
         { Camera = new([right.X, right.Y, right.Z], [up.X, up.Y, up.Z], originX, originY) };
+    }
+
+    /// <summary>Joins contour pieces that share an end point into polylines, in a deterministic order.</summary>
+    private static List<List<Point3D>> ChainPieces(List<(Point3D A, Point3D B)> pieces)
+    {
+        static (long, long, long) Key(Point3D p) => ((long)Math.Round(p.X * 1e4), (long)Math.Round(p.Y * 1e4), (long)Math.Round(p.Z * 1e4));
+        var at = new Dictionary<(long, long, long), List<int>>();
+        for (var i = 0; i < pieces.Count; i++)
+            foreach (var key in new[] { Key(pieces[i].A), Key(pieces[i].B) })
+                (at.TryGetValue(key, out var list) ? list : at[key] = []).Add(i);
+        var used = new bool[pieces.Count]; var chains = new List<List<Point3D>>();
+        int? Next(Point3D end) => at[Key(end)].Where(i => !used[i]).Select(i => (int?)i).FirstOrDefault();
+        for (var start = 0; start < pieces.Count; start++)
+        {
+            if (used[start]) continue;
+            used[start] = true; var chain = new LinkedList<Point3D>([pieces[start].A, pieces[start].B]);
+            for (var forward = 0; forward < 2; forward++)
+                while (true)
+                {
+                    var end = forward == 0 ? chain.Last!.Value : chain.First!.Value;
+                    if (Next(end) is not { } i) break;
+                    used[i] = true;
+                    var other = Key(pieces[i].A) == Key(end) ? pieces[i].B : pieces[i].A;
+                    if (forward == 0) chain.AddLast(other); else chain.AddFirst(other);
+                }
+            chains.Add([.. chain]);
+        }
+        return chains;
+    }
+
+    /// <summary>Uniform grid over the triangles' projected bounds, so a segment meets only nearby triangles.</summary>
+    private sealed class TriangleGrid
+    {
+        private readonly List<Triangle> triangles; private readonly List<int>[] cells; private readonly int n;
+        private readonly double minX, minY, cellW, cellH;
+        private readonly (double X0, double Y0, double X1, double Y1)[] bounds;
+        public TriangleGrid(List<Triangle> triangles)
+        {
+            this.triangles = triangles;
+            bounds = triangles.Select(t => (Math.Min(t.A.X, Math.Min(t.B.X, t.C.X)), Math.Min(t.A.Y, Math.Min(t.B.Y, t.C.Y)),
+                Math.Max(t.A.X, Math.Max(t.B.X, t.C.X)), Math.Max(t.A.Y, Math.Max(t.B.Y, t.C.Y)))).ToArray();
+            n = Math.Clamp((int)Math.Sqrt(triangles.Count / 2.0), 1, 256);
+            minX = bounds.Length == 0 ? 0 : bounds.Min(b => b.X0); minY = bounds.Length == 0 ? 0 : bounds.Min(b => b.Y0);
+            var maxX = bounds.Length == 0 ? 1 : bounds.Max(b => b.X1); var maxY = bounds.Length == 0 ? 1 : bounds.Max(b => b.Y1);
+            cellW = Math.Max(1e-9, (maxX - minX) / n); cellH = Math.Max(1e-9, (maxY - minY) / n);
+            cells = Enumerable.Range(0, n * n).Select(_ => new List<int>()).ToArray();
+            for (var i = 0; i < bounds.Length; i++)
+            {
+                var (cx0, cy0, cx1, cy1) = Range(bounds[i].X0, bounds[i].Y0, bounds[i].X1, bounds[i].Y1);
+                for (var y = cy0; y <= cy1; y++) for (var x = cx0; x <= cx1; x++) cells[y * n + x].Add(i);
+            }
+        }
+        private (int, int, int, int) Range(double x0, double y0, double x1, double y1) =>
+            (Cell(x0 - 1e-7, minX, cellW), Cell(y0 - 1e-7, minY, cellH), Cell(x1 + 1e-7, minX, cellW), Cell(y1 + 1e-7, minY, cellH));
+        private int Cell(double v, double origin, double size) => Math.Clamp((int)Math.Floor((v - origin) / size), 0, n - 1);
+        public List<Triangle> Near(double x0, double y0, double x1, double y1)
+        {
+            var (cx0, cy0, cx1, cy1) = Range(x0, y0, x1, y1);
+            var found = new HashSet<int>();
+            for (var y = cy0; y <= cy1; y++) for (var x = cx0; x <= cx1; x++) found.UnionWith(cells[y * n + x]);
+            return found.Where(i => bounds[i].X1 >= x0 - 1e-7 && bounds[i].X0 <= x1 + 1e-7 && bounds[i].Y1 >= y0 - 1e-7 && bounds[i].Y0 <= y1 + 1e-7)
+                .Order().Select(i => triangles[i]).ToList();
+        }
     }
 
     private static void AddIntersection(CameraPoint a, CameraPoint b, CameraPoint c, CameraPoint d, List<double> values)

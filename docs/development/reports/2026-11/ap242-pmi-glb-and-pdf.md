@@ -82,3 +82,22 @@ targets and a 3D callout for advanced parameters, each isolated by the diagnosti
   - CTC-01 view sheets have no crossing leaders;
   - FTC-06 has 3, where many requirements share one boss;
   - leaders into the interior of dense parts still cross model edges, which is accepted since the anchors are interior.
+
+## Follow-up: overview sheet
+
+- The overview views are laid out in third-angle alignment at one standard scale fitted to the part's real extents.
+  Before, each view had a fixed quarter of the sheet with 12 mm margins and the scale snapped down from that (CTC-01
+  1:20, now 1:10; FTC-06 now 1:5). Thin plates standing on edge (FTC-09, STC-09) stay at 1:5 since 1:2 does not fit; the scale
+  series is 1/2/5 per decade.
+- The isometric is hidden-line removed and draws curved-face contours (n·d zero crossings of the display mesh, chained
+  per face). It takes the top-right space or the full-height space right of RIGHT, chosen by JudgmentEngine on
+  resulting standard scale.
+- Ortho overview views draw hidden edges thin, grey, dashed, and drop them when their length exceeds the visible
+  edges' (CTC-02/04, FTC-10 were buried in them).
+- An edge is never hidden by its own faces' display triangles (chords in front of a curved edge made FTC-11's rims
+  dashed in the isometric). Visible edges and contours share one weight. Scales read
+  `1:10`, not `×0.1`.
+- Hidden-line removal: a uniform grid over the triangles replaces the all-triangle scan (FTC-06 drawing 7 min → 24 s),
+  and contiguous same-kind intervals of an edge are one polyline with collinear split points dropped (FTC-10 overview
+  1.6 M points → 160 k; it ran out of memory before).
+- Sweep: overview renders 17/17 NIST files.

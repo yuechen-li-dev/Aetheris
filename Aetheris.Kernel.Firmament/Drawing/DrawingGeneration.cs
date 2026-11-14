@@ -254,18 +254,7 @@ public static partial class FirmamentDrawingCompiler
             foreach (var chunk in chunks) requested.Add((view.Name, view.Direction, DrawingProjectionKind.Orthographic, chunk));
         }
         var pages = new List<DrawingPageIr>();
-        var overviewSpecs = new[] { (Name: "TOP", Direction: new double[] { 0, 0, 1 }, Projection: DrawingProjectionKind.Orthographic),
-            (Name: "ISOMETRIC WIREFRAME", Direction: new double[] { 1, 1, 1 }, Projection: DrawingProjectionKind.Isometric),
-            (Name: "FRONT", Direction: new double[] { 0, -1, 0 }, Projection: DrawingProjectionKind.Orthographic),
-            (Name: "RIGHT", Direction: new double[] { 1, 0, 0 }, Projection: DrawingProjectionKind.Orthographic) };
-        var overview = overviewSpecs.Select((spec, i) =>
-        {
-            var allocation = new DrawingRect(12 + i % 2 * 138, 20 + i / 2 * 66, 135, 64);
-            return DrawingProjectionEngine.Project([new(name, name, body)], spec.Name, spec.Projection, DrawingHiddenLinePolicy.Wireframe,
-                spec.Direction, [], new(allocation.X + 5, allocation.Y, allocation.Width - 10, allocation.Height), new(1, "B2")) with { Viewport = allocation };
-        }).ToArray();
-        var commonScale = StandardScale(overview.Where(v => v.Projection == DrawingProjectionKind.Orthographic).Min(v => v.Scale));
-        overview = overview.Select(view => AtScale(view, view.Projection == DrawingProjectionKind.Orthographic ? commonScale : StandardScale(view.Scale))).ToArray();
+        var overview = OverviewViews(name, body);
         var overviewScheme = Zones(width, height);
         pages.Add(new(1, DrawingPageOrientation.Landscape, width, height, new(12, 20, 273, 145), overview, [], [], notes, overviewScheme,
             DrawingTitleBlockLayout.Create(metadata, new Dictionary<string, string> { ["Product"] = name, ["Units"] = "mm", ["Scale"] = "SEE VIEWS",
@@ -307,7 +296,7 @@ public static partial class FirmamentDrawingCompiler
                 return projected.MinBy(p => Math.Pow(p.X - mid.X, 2) + Math.Pow(p.Y - mid.Y, 2));
             }, StringComparer.Ordinal);
             view = view with { Viewport = viewport, SemanticAnchors = anchors };
-            var fields = new Dictionary<string, string> { ["Product"] = name, ["Units"] = "mm", ["Scale"] = view.Scale.ToString("0.###", CultureInfo.InvariantCulture),
+            var fields = new Dictionary<string, string> { ["Product"] = name, ["Units"] = "mm", ["Scale"] = DrawingScaleText.Ratio(view.Scale),
                 ["View"] = request.Name, ["Sheet"] = $"{page}/{requested.Count + 1}", ["Status"] = "REFERENCE ONLY" };
             var info = DrawingTitleBlockLayout.Create(metadata, fields, width, height, new(page, "D5"));
             pages.Add(new(page, DrawingPageOrientation.Landscape, width, height, new(12, 20, 273, 145), [view], [], [], notes,
@@ -413,6 +402,88 @@ public static partial class FirmamentDrawingCompiler
             if (item.Depth is { } depth && (!double.IsFinite(depth) || depth <= 0)) return $"drawing-pmi-value-unavailable: '{name}' has an invalid hole depth.";
         }
         return null;
+    }
+
+    /// <summary>
+    /// The first sheet: TOP over FRONT, RIGHT beside FRONT (third-angle, aligned), at one standard scale fitted to the
+    /// part's real extents in the area above the title block; the isometric takes the free top-right quadrant at its own
+    /// standard scale. Ortho views draw hidden edges thin, grey and dashed so the visible outline dominates, and drop them
+    /// when they outweigh the visible edges; the isometric
+    /// shows visible edges and curved-face contours only, so it reads as a solid rather than a tangle of rear edges.
+    /// </summary>
+    private static DrawingViewIr[] OverviewViews(string name, BrepBody body)
+    {
+        // Area for views: inside the border, above the title block and notes (y 157), with room for each view's label.
+        const double left = 14, top = 22, right = 283, bottom = 154, gap = 14, label = 6;
+        DrawingViewIr Raw(string view, double[] direction, DrawingProjectionKind projection, DrawingHiddenLinePolicy policy) =>
+            DrawingProjectionEngine.Project([new(name, name, body)], view, projection, policy, direction, [], new(0, 0, 124, 124), new(1, "B2"));
+        var topView = Raw("TOP", [0, 0, 1], DrawingProjectionKind.Orthographic, DrawingHiddenLinePolicy.VisibleAndHidden);
+        var front = Raw("FRONT", [0, -1, 0], DrawingProjectionKind.Orthographic, DrawingHiddenLinePolicy.VisibleAndHidden);
+        var side = Raw("RIGHT", [1, 0, 0], DrawingProjectionKind.Orthographic, DrawingHiddenLinePolicy.VisibleAndHidden);
+        var iso = Raw("ISOMETRIC", [1, 1, 1], DrawingProjectionKind.Isometric, DrawingHiddenLinePolicy.VisibleOnly);
+        // Hidden edges help a simple part and bury a dense one: a view whose hidden linework outweighs its visible
+        // linework shows visible edges only.
+        static double Length(IEnumerable<DrawingProjectedPrimitiveIr> ps) =>
+            ps.Sum(p => p.Points.Zip(p.Points.Skip(1), (u, v) => Math.Sqrt(Math.Pow(u.X - v.X, 2) + Math.Pow(u.Y - v.Y, 2))).Sum());
+        DrawingViewIr Declutter(DrawingViewIr v) =>
+            Length(v.Primitives.Where(p => p.Kind == DrawingPrimitiveKind.Hidden)) > Length(v.Primitives.Where(p => p.Kind != DrawingPrimitiveKind.Hidden))
+                ? v with { Primitives = v.Primitives.Where(p => p.Kind != DrawingPrimitiveKind.Hidden).ToArray(), HiddenLinePolicy = DrawingHiddenLinePolicy.VisibleOnly } : v;
+        topView = Declutter(topView); front = Declutter(front); side = Declutter(side);
+        (double W, double H) Model(DrawingViewIr v) => (v.GeometryBounds.Width / v.Scale, v.GeometryBounds.Height / v.Scale);
+        var (topW, topH) = Model(topView); var (frontW, frontH) = Model(front); var (sideW, sideH) = Model(side);
+        // Columns: max(TOP, FRONT) width | RIGHT width. Rows: TOP height | max(FRONT, RIGHT) height. Each row carries a label.
+        var fit = Math.Min((right - left - gap) / (Math.Max(topW, frontW) + sideW),
+            (bottom - top - gap - 2 * label) / (topH + Math.Max(frontH, sideH)));
+        var scale = StandardScale(fit);
+        var column = Math.Max(topW, frontW) * scale; var row = topH * scale; var lower = Math.Max(frontH, sideH) * scale;
+        var x0 = left; var x1 = x0 + column + gap; var sideRight = x1 + sideW * scale;
+        var y0 = top + label; var y1 = y0 + row + gap + label;
+        DrawingViewIr Put(DrawingViewIr view, double s, double centreX, double centreY)
+        {
+            var scaled = AtScale(view, s); var c = scaled.GeometryBounds.Center;
+            return Translate(scaled, centreX - c.X, centreY - c.Y);
+        }
+        var placed = new List<DrawingViewIr> { Put(topView, scale, x0 + column / 2, y0 + row / 2) };
+        // The isometric takes whichever free region shows it largest: beside TOP above RIGHT, or right of RIGHT at full
+        // height (tall or narrow parts leave the second one wider).
+        var (isoW, isoH) = Model(iso);
+        var regions = new[]
+        {
+            (Name: "beside-top", Area: new DrawingRect(x1, top + label, right - x1, y1 - label - gap / 2 - (top + label))),
+            (Name: "right-of-right", Area: new DrawingRect(sideRight + gap, top + label, right - sideRight - gap, bottom - top - label))
+        };
+        double Fit(DrawingRect area) => Math.Min(area.Width / isoW, area.Height / isoH);
+        var chosen = new JudgmentEngine<int>().Evaluate(0, regions.Select((r, i) => new JudgmentCandidate<int>(r.Name,
+            _ => r.Area.Width > 20 && r.Area.Height > 20,
+            // A larger standard scale wins; at equal scale the conventional top-right place does.
+            _ => StandardScale(Math.Max(1e-9, Fit(r.Area))), TieBreakerPriority: i)).ToArray()).Selection?.Candidate.Name;
+        var isoArea = regions.FirstOrDefault(r => r.Name == chosen).Area;
+        if (chosen is not null)
+            placed.Add(Put(iso, StandardScale(Fit(isoArea)), isoArea.X + isoArea.Width / 2, isoArea.Y + isoArea.Height / 2));
+        placed.Add(Put(front, scale, x0 + column / 2, y1 + lower / 2));
+        placed.Add(Put(side, scale, x1 + sideW * scale / 2, y1 + lower / 2));
+        // Centre the whole composition in the area; each label sits just above its geometry.
+        var minX = placed.Min(v => v.GeometryBounds.X); var maxX = placed.Max(v => v.GeometryBounds.Right);
+        var minY = placed.Min(v => v.GeometryBounds.Y) - label; var maxY = placed.Max(v => v.GeometryBounds.Bottom);
+        var dx = (left + right - minX - maxX) / 2; var dy = (top + bottom - minY - maxY) / 2;
+        return placed.Select(v =>
+        {
+            var moved = Translate(v, dx, dy); var g = moved.GeometryBounds;
+            return moved with { Viewport = new(g.X, g.Y - label, Math.Max(g.Width, 40), g.Height + label) };
+        }).ToArray();
+    }
+
+    private static DrawingViewIr Translate(DrawingViewIr view, double dx, double dy)
+    {
+        DrawingPoint2 Move(DrawingPoint2 p) => new(p.X + dx, p.Y + dy);
+        var camera = view.Camera!;
+        return view with
+        {
+            Primitives = view.Primitives.Select(p => p with { Points = p.Points.Select(Move).ToArray() }).ToArray(),
+            GeometryBounds = new(view.GeometryBounds.X + dx, view.GeometryBounds.Y + dy, view.GeometryBounds.Width, view.GeometryBounds.Height),
+            SemanticAnchors = view.SemanticAnchors.ToDictionary(a => a.Key, a => Move(a.Value), StringComparer.Ordinal),
+            Camera = camera with { OriginX = camera.OriginX + dx, OriginY = camera.OriginY + dy }
+        };
     }
 
     private static DrawingViewIr AtScale(DrawingViewIr view, double scale)

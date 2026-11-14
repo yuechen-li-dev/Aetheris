@@ -52,11 +52,17 @@ public static class DrawingVectorPdfWriter
         Text(10, 9, drawing.Metadata.Title, 10); RightText(page.WidthMillimetres - 10, 9, $"{drawing.Metadata.ProductName} · REV {drawing.Metadata.Revision?.ToString() ?? "-"} · {page.PageNumber}/{drawing.Pages.Count}", 7);
         foreach (var view in page.Views)
         {
-            Text(view.Viewport.X, view.Viewport.Y + 3.5, $"{view.Identity}  SCALE ×{view.Scale:0.###}", 7);
+            Text(view.Viewport.X, view.Viewport.Y + 3.5, $"{view.Identity}  SCALE {DrawingScaleText.Ratio(view.Scale)}", 7);
             foreach (var primitive in view.Primitives)
             {
-                b.Append(primitive.Kind == DrawingPrimitiveKind.SurfaceGrid ? "0.58 0.64 0.70 RG\n" : "0.07 0.09 0.12 RG\n");
-                for (var index = 1; index < primitive.Points.Count; index++) Line(primitive.Points[index - 1], primitive.Points[index], primitive.Kind is DrawingPrimitiveKind.SurfaceGrid or DrawingPrimitiveKind.CenterMark ? .12 : primitive.Kind == DrawingPrimitiveKind.Silhouette ? .5 : .35, primitive.Kind is DrawingPrimitiveKind.Hidden or DrawingPrimitiveKind.CenterMark);
+                // Visible edges and contours share one weight; hidden edges and grid lines are thin and grey so they recede.
+                b.Append(primitive.Kind switch { DrawingPrimitiveKind.SurfaceGrid => "0.58 0.64 0.70 RG\n", DrawingPrimitiveKind.Hidden => "0.55 0.60 0.66 RG\n", _ => "0.07 0.09 0.12 RG\n" });
+                var weight = primitive.Kind switch { DrawingPrimitiveKind.SurfaceGrid or DrawingPrimitiveKind.CenterMark => .12, DrawingPrimitiveKind.Hidden => .18, _ => .35 };
+                // One path per primitive, so a dashed polyline keeps its dash phase across its vertices.
+                if (primitive.Points.Count < 2) continue;
+                b.Append($"{F(Pt(weight))} w {(primitive.Kind is DrawingPrimitiveKind.Hidden or DrawingPrimitiveKind.CenterMark ? "[5 3] 0 d" : "[] 0 d")} {F(X(primitive.Points[0].X))} {F(Y(primitive.Points[0].Y))} m");
+                for (var index = 1; index < primitive.Points.Count; index++) b.Append($" {F(X(primitive.Points[index].X))} {F(Y(primitive.Points[index].Y))} l");
+                b.Append(" S [] 0 d\n");
             }
             b.Append("0 0 0 RG\n");
         }

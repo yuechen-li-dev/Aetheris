@@ -111,6 +111,15 @@ Manufacturing generation options are rejected in this mode. Unsupported wirefram
 geometry also reports a named error. A reference view is not a substitute for
 complete dimensions. The part's sampled envelope is stated in the sheet notes.
 
+The first sheet is an overview: TOP above FRONT and RIGHT beside FRONT, aligned in
+third-angle projection at one standard scale (1:1, 1:2, 1:5, 1:10, ...) chosen as
+the largest that fits the part above the title block. Hidden edges are thin, grey
+and dashed; a view whose hidden edges would outweigh its visible ones shows visible
+edges only. The isometric shows visible edges and the outlines of curved faces
+only, at its own standard scale, in the top-right space or, when that is larger,
+the full-height space right of RIGHT. Every view is labelled with its name and
+scale as a ratio, such as `SCALE 1:10`.
+
 Each requirement is a numbered balloon on the view that shows its faces best, and
 one row of the **PMI SCHEDULE** sheets that follow: ID, characteristic,
 requirement, datum reference frame and the STEP entity it came from. Datum features

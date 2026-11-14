@@ -13,6 +13,17 @@ public enum DrawingAnnotationShape { Box, Balloon, DatumFeature }
 public enum DrawingTableKind { Design, BillOfMaterials, HoleCoordinates }
 
 public readonly record struct DrawingPoint2(double X, double Y);
+
+/// <summary>A view scale as drawings write it: 1:20, 1:1, 2:1.</summary>
+public static class DrawingScaleText
+{
+    public static string Ratio(double scale)
+    {
+        if (scale <= 0) return "-";
+        static string N(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        return scale >= 1 ? $"{N(scale)}:1" : $"1:{N(1 / scale)}";
+    }
+}
 public readonly record struct DrawingRect(double X, double Y, double Width, double Height)
 {
     public double Right => X + Width;

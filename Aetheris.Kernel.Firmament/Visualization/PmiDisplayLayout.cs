@@ -124,18 +124,26 @@ internal static class PmiDrafting
 
     public static string Size(Aetheris.Kernel.Core.Step242.Step242SemanticPmiInspectionItem item)
     {
-        var diameter = item.Kind == "Diameter" || item.DimensionKind?.Equals("diameter", StringComparison.OrdinalIgnoreCase) == true;
         var quantity = item.Quantity is > 1 ? $"{item.Quantity}X " : "";
         // Angles read back in radians and are drawn in degrees.
         var angle = item.ValueUnit == "rad";
         string Value(double v) => angle ? Number(v * 180 / Math.PI) + "°" : Number(v);
-        var nominal = (diameter ? "Ø" : "") + Value(item.Value!.Value);
+        var nominal = SizePrefix(item) + Value(item.Value!.Value);
+        var qualified = string.Concat(item.ValueQualifiers.Select(q => " " + q));
         var plus = item.TolerancePlus; var minus = item.ToleranceMinus;
-        if (plus is null || minus is null) return quantity + nominal;
-        if (Math.Abs(plus.Value - minus.Value) < 1e-12) return $"{quantity}{nominal} ±{Value(plus.Value)}";
+        if (plus is null || minus is null) return quantity + nominal + qualified;
+        if (Math.Abs(plus.Value - minus.Value) < 1e-12) return $"{quantity}{nominal} ±{Value(plus.Value)}{qualified}";
         string Signed(double v, bool upper) => v == 0 ? "0" : (upper ? "+" : "-") + Value(v);
-        return $"{quantity}{nominal} {Signed(plus.Value, true)}/{Signed(minus.Value, false)}";
+        return $"{quantity}{nominal} {Signed(plus.Value, true)}/{Signed(minus.Value, false)}{qualified}";
     }
+
+    /// <summary>The symbol a size is written with: Ø diameter, R radius, SØ and SR on a sphere.</summary>
+    public static string SizePrefix(Aetheris.Kernel.Core.Step242.Step242SemanticPmiInspectionItem item) =>
+        item.Kind == "Diameter" ? "Ø" : item.DimensionKind?.ToLowerInvariant() switch
+        {
+            "diameter" or "holediameter" => "Ø", "radius" => "R", "spherical diameter" => "SØ", "spherical radius" => "SR",
+            "toroidal minor diameter" or "toroidal major diameter" => "Ø", "toroidal minor radius" or "toroidal major radius" => "R", _ => ""
+        };
 
     /// <summary>One-line text block, optionally boxed (a basic dimension).</summary>
     public static PmiBlock TextBlock(string text, double h, bool boxed = false)
@@ -194,7 +202,7 @@ internal static class PmiDrafting
 
     /// <summary>A feature control frame: characteristic | zone/tolerance/modifiers | datums.</summary>
     public static PmiBlock ControlFrame(string kind, string zonePrefix, double tolerance, IReadOnlyList<string> modifiers,
-        IReadOnlyList<string> datums, double h)
+        IReadOnlyList<string> datums, double h, IReadOnlyList<string>? parameters = null)
     {
         var c = new PmiCanvas();
         var H = 1.9 * h; var pad = .4 * h;
@@ -211,7 +219,10 @@ internal static class PmiDrafting
             var letter = modifier switch
             {
                 "MAXIMUM_MATERIAL_REQUIREMENT" => "M", "LEAST_MATERIAL_REQUIREMENT" => "L", "FREE_STATE" => "F",
-                "STATISTICAL_TOLERANCE" => "ST", "COMMON_ZONE" => "CZ", _ => throw new InvalidOperationException($"pmi-display-modifier-unsupported: {modifier}")
+                "STATISTICAL_TOLERANCE" => "ST", "COMMON_ZONE" => "CZ", "TANGENT_PLANE" => "T", "RECIPROCITY_REQUIREMENT" => "R",
+                "SEPARATE_REQUIREMENT" => "SEP REQT", "INDEPENDENCY" => "I", "UNION_OF_ALL_FEATURES" => "UF", "ALL_AROUND" => "ALL AROUND",
+                "ALL_OVER" => "ALL OVER", "CONTINUOUS_FEATURE" => "CF", "LINE_ELEMENT" => "LE", "MAJOR_DIAMETER" => "MD",
+                "MINOR_DIAMETER" => "LD", "PITCH_DIAMETER" => "PD", "SPECIFIC_FIXED_DATUM_REFERENCE_FRAME" => "SDRF", _ => throw new InvalidOperationException($"pmi-display-modifier-unsupported: {modifier}")
             };
             x += .25 * h;
             if (letter.Length == 1)
@@ -223,6 +234,8 @@ internal static class PmiDrafting
             }
             else x += c.Text(letter, x, .5 * h, h);
         }
+        // Per-unit, unequally disposed and projected-zone parameters follow as text: /25, U 0.2, P 10.
+        foreach (var parameter in parameters ?? []) { x += .25 * h; x += c.Text(parameter, x, .5 * h, h); }
         x += pad;
         c.Line((x, 0), (x, H));
         foreach (var datum in datums)
@@ -268,6 +281,11 @@ internal static class PmiDrafting
             case "TotalRunout":
                 c.Line((cx - .9 * s, cy - .8 * s), (cx + .1 * s, cy + .8 * s)); c.Line((cx - .2 * s, cy - .8 * s), (cx + .8 * s, cy + .8 * s));
                 c.Line((cx - .9 * s, cy - .8 * s), (cx - .2 * s, cy - .8 * s)); break;
+            case "Symmetry":
+                c.Line((cx - .9 * s, cy), (cx + .9 * s, cy)); c.Line((cx - .55 * s, cy + .55 * s), (cx + .55 * s, cy + .55 * s));
+                c.Line((cx - .55 * s, cy - .55 * s), (cx + .55 * s, cy - .55 * s)); break;
+            case "Concentricity":
+                c.Circle(cx, cy, .8 * s); c.Circle(cx, cy, .4 * s); break;
             default: throw new InvalidOperationException($"pmi-display-kind-unsupported: {kind} has no drafting symbol.");
         }
     }

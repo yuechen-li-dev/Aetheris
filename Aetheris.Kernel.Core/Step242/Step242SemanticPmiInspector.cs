@@ -29,6 +29,13 @@ public sealed record Step242SemanticPmiInspectionItem(
     public IReadOnlyList<string> ZoneForms { get; init; } = [];
     public string ValueUnit { get; init; } = "mm";
     public bool PresentationSupported { get; init; } = true;
+    /// <summary>Tolerance-cell parameters after the value, in millimetres: <c>/25</c> per unit length, <c>/25×25</c> per
+    /// area, <c>U 0.2</c> unequally disposed, <c>P 10</c> projected zone.</summary>
+    public IReadOnlyList<string> ToleranceParameters { get; init; } = [];
+    /// <summary>How a dimension's value is meant: MAX, MIN, AVG, DESIGNED (AP242 type qualifiers).</summary>
+    public IReadOnlyList<string> ValueQualifiers { get; init; } = [];
+    /// <summary>The semantic parameters that make <see cref="PresentationSupported"/> false, named for diagnostics.</summary>
+    public IReadOnlyList<string> PresentationGaps { get; init; } = [];
 }
 
 public sealed record Step242SemanticPmiInspectionResult(
@@ -38,7 +45,7 @@ public sealed record Step242SemanticPmiInspectionResult(
 {
     public int DatumCount => Items.Count(item => item.Kind == "Datum");
     public int DimensionCount => Items.Count(item => item.Kind is "Diameter" or "Dimension");
-    public int GeometricToleranceCount => Items.Count(item => Step242GeometricToleranceKinds.Find(item.Kind) is not null || item.Kind == "GeometricTolerance");
+    public int GeometricToleranceCount => Items.Count(item => Step242GeometricToleranceKinds.Find(item.Kind) is not null || item.Kind is "GeometricTolerance" or "Symmetry" or "Concentricity");
     public int AnnotationCount => Items.Count(item => item.Kind == "Annotation");
     /// <summary>Standard AP242 size/location entities that restate a native record already in <see cref="Items"/>.</summary>
     public IReadOnlyList<int> StandardMirrors { get; init; } = [];
@@ -138,7 +145,7 @@ public static class Step242SemanticPmiInspector
         { Modifiers = detailed.Modifiers, DatumReferenceFrames = detailed.DatumReferenceFrames, DatumReferences = detailed.DatumReferences, ZoneForms = detailed.ZoneForms,
             Target = item.Target.Length > 0 ? item.Target : detailed.Target,
             Value = detailed.Value,
-            PresentationSupported = detailed.PresentationSupported,
+            PresentationSupported = detailed.PresentationSupported, PresentationGaps = detailed.PresentationGaps, ToleranceParameters = detailed.ToleranceParameters,
             GeometricItemEntityIds = detailed.GeometricItemEntityIds,
             GeometricFaceEntityIds = detailed.GeometricFaceEntityIds.Count > 0 ? detailed.GeometricFaceEntityIds : item.GeometricFaceEntityIds } : item);
         return new(true, combined.Concat(foreign.Where(item => native.All(n => n.EntityId != item.EntityId))).OrderBy(item => item.EntityId).ToArray(), [])

@@ -46,3 +46,39 @@ carries, in millimetres, tested on NIST CTC-01.
 
 Success for CTC-01, both outputs. Meaningful progression for the corpus. The next blockers are composite shape-aspect
 targets and a 3D callout for advanced parameters, each isolated by the diagnostics above.
+
+## Follow-up: whole NIST corpus, balloons, authored placement
+
+- Reader:
+  - composite and group datum features are mirrors of their datums;
+  - datum targets link to their datum through `FEATURE_FOR_DATUM_TARGET_RELATIONSHIP`;
+  - tolerance parameters are read in mm: projected zone `P`, unequally disposed `U`, per unit length/area `/`;
+  - common datums (`A-B`), `TYPE_QUALIFIER` (MAX/MIN/AVG) and symmetry/concentricity are read;
+  - a value format qualifier (`NR2 1.3`, decimals in the file's own unit) does not apply to converted values and is
+    ignored;
+  - unread parameters are named in `PresentationGaps`. No NIST record has one now.
+- Auxiliary geometry (`Step242AuxiliaryGeometry`) locates records attached to target points and isolated curves.
+  Points outside the part's envelope (CTC-05 #957, a curve in another frame) are not trusted: the record is listed
+  `NOT LOCATED`.
+- 3D:
+  - multi-face, non-planar and non-Z-hole targets point at their largest face;
+  - a size on alike holes without a quantity is drawn as `NX`, and a size on holes of different diameters still
+    rejects;
+  - unlocated records go to the notes panel;
+  - crowded callouts slide sideways before giving up.
+- Drawing (`--reference-only`):
+  - balloons placed by `DrawingBalloonLayout` on rings around the view (angular order, JudgmentEngine slot choice,
+    crossing swaps);
+  - leaders end in an arrow on edges, a dot on face-on surfaces, and a triangle for datums;
+  - views fill the sheet;
+  - the `REF` envelope dimensions moved to the notes.
+- Authored placement: `Label` entries in the `Pmi` block (`record`, `view`, `side`, `at`), validated by the parser
+  and applied by drawing generation. `#N` resolves through the imported STEP file.
+- PPTX inspection counts slide by slide; concatenating a dense NIST drawing's slides ran out of memory under the
+  parallel lane.
+- Sweep: PDF 17/17, GLB 17/17. A callout count equal to the record count is checked on CTC-01/02/04/05,
+  FTC-07/10.
+- Fresh-eye review:
+  - CTC-01 view sheets have no crossing leaders;
+  - FTC-06 has 3, where many requirements share one boss;
+  - leaders into the interior of dense parts still cross model edges, which is accepted since the anchors are interior.

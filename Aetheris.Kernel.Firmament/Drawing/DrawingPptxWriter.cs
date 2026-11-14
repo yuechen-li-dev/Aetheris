@@ -35,7 +35,8 @@ public static partial class DrawingPptxWriter
     {
         using var archive = ZipFile.OpenRead(path);
         var slides = archive.Entries.Where(entry => Regex.IsMatch(entry.FullName, @"^ppt/slides/slide\d+\.xml$", RegexOptions.CultureInvariant)).OrderBy(entry => entry.FullName, StringComparer.Ordinal).ToArray();
-        var xml = string.Join("\n", slides.Select(Read));
+        // Counted slide by slide: a drawing of a detailed part holds hundreds of megabytes of slide XML.
+        int Count(string pattern) => slides.Sum(slide => Regex.Matches(Read(slide), pattern).Count);
         var presentation = Read(archive.GetEntry("ppt/presentation.xml")!);
         var size = Regex.Match(presentation, "<p:sldSz cx=\"(\\d+)\" cy=\"(\\d+)\"");
         return new
@@ -43,12 +44,12 @@ public static partial class DrawingPptxWriter
             slideCount = slides.Length,
             widthEmu = long.Parse(size.Groups[1].Value, CultureInfo.InvariantCulture),
             heightEmu = long.Parse(size.Groups[2].Value, CultureInfo.InvariantCulture),
-            nativeShapes = Regex.Matches(xml, "<p:sp>").Count,
-            nativeGroups = Regex.Matches(xml, "<p:grpSp>").Count,
-            nativeTables = Regex.Matches(xml, "<a:tbl>").Count,
-            editableTextRuns = Regex.Matches(xml, "<a:t>").Count,
-            rasterImages = Regex.Matches(xml, "<p:pic>").Count,
-            semanticNames = Regex.Matches(xml, "name=\"(?:View|PMI|Table|Metadata|Zone|Review)\\.").Count
+            nativeShapes = Count("<p:sp>"),
+            nativeGroups = Count("<p:grpSp>"),
+            nativeTables = Count("<a:tbl>"),
+            editableTextRuns = Count("<a:t>"),
+            rasterImages = Count("<p:pic>"),
+            semanticNames = Count("name=\"(?:View|PMI|Table|Metadata|Zone|Review)\\.")
         };
     }
 
@@ -94,7 +95,7 @@ public static partial class DrawingPptxWriter
                 foreach (var stroke in DrawingAnnotationGeometry.Strokes(annotation))
                     group.Line($"PMI.{Safe(annotation.Identity)}.Leader.{strokeIndex++}", stroke.Start, stroke.End);
                 var body = annotation.SelectedCandidate.Body;
-                group.Text($"PMI.{Safe(annotation.Identity)}.Text", annotation.EngineeringDisplay, body.X, body.Y, body.Width, body.Height, 3.2, centered: true, border: annotation.Kind is DrawingAnnotationKind.Datum or DrawingAnnotationKind.FeatureControlFrame);
+                group.Text($"PMI.{Safe(annotation.Identity)}.Text", annotation.EngineeringDisplay, body.X, body.Y, body.Width, body.Height, 3.2, centered: true, border: annotation.Shape != DrawingAnnotationShape.Balloon && (annotation.Kind is DrawingAnnotationKind.Datum or DrawingAnnotationKind.FeatureControlFrame || annotation.Shape == DrawingAnnotationShape.DatumFeature));
             });
         foreach (var table in page.Tables) slide.Table($"Table.{(table.Kind == DrawingTableKind.BillOfMaterials ? "BOM" : table.Kind.ToString())}.{Safe(table.Identity)}", table);
         if (page.InformationBlock is not null)

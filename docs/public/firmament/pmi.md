@@ -288,6 +288,13 @@ it never modifies the original STEP file. Imported assembly-wide PMI and
 automatic promotion of part annotations into assembly requirements remain
 outside this single-part transfer path.
 
+## Drawing balloons
+
+A `Pmi` block may also hold `Label` entries. They place a record's balloon on the
+reference drawing (`aetheris drawing generate --reference-only`) and add no
+requirement: `Label TopFlatness { record: "#57" side: Above }`. See
+[Placing balloons by hand](../drawings.md#placing-balloons-by-hand).
+
 ## Project a compile-time tolerance
 
 Declare a requirement once, use its nominal value for construction, and select

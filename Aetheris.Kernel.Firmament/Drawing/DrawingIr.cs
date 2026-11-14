@@ -7,6 +7,9 @@ public enum DrawingProjectionKind { Orthographic, Isometric }
 public enum DrawingHiddenLinePolicy { VisibleOnly, VisibleAndHidden, Wireframe }
 public enum DrawingPrimitiveKind { Visible, Silhouette, Hidden, SurfaceGrid, CenterMark }
 public enum DrawingAnnotationKind { LinearDimension, DiameterDimension, RadiusDimension, Datum, FeatureControlFrame, Note }
+/// <summary>How an annotation's body is drawn: a text box, a numbered balloon (a circle around the number) or a datum
+/// feature symbol (a boxed letter whose leader ends in a filled triangle on the feature).</summary>
+public enum DrawingAnnotationShape { Box, Balloon, DatumFeature }
 public enum DrawingTableKind { Design, BillOfMaterials, HoleCoordinates }
 
 public readonly record struct DrawingPoint2(double X, double Y);
@@ -138,6 +141,11 @@ public sealed record DrawingAnnotationIr(
     DrawingLocationIr? Location = null)
 {
     public IReadOnlyList<DrawingDimensionLineIr> DimensionLines { get; init; } = [];
+    public DrawingAnnotationShape Shape { get; init; } = DrawingAnnotationShape.Box;
+    /// <summary>A balloon's circle radius in millimetres, centred on the body.</summary>
+    public double BalloonRadius { get; init; }
+    /// <summary>The leader ends in a dot on a surface (seen face-on) instead of an arrowhead or triangle on an edge.</summary>
+    public bool DotAnchor { get; init; }
     public IReadOnlyList<DrawingDimensionLineIr> Strokes => DrawingAnnotationGeometry.Strokes(this).ToArray();
 }
 

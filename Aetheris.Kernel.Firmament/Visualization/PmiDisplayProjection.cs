@@ -72,6 +72,19 @@ public static class PmiDisplayProjection
         var projected = new List<Step242SemanticPmiInspectionItem>();
         var between = new List<(Step242SemanticPmiInspectionItem Item, Vector3D Normal, IReadOnlyList<Point3D> A, IReadOnlyList<Point3D> B)>();
         var fromModel = new HashSet<int>();
+        var unlocated = new List<Step242SemanticPmiInspectionItem>();
+        PlanarFeature Lead(DisplayFaceMeshPatch[] faces)
+        {
+            var lead = faces.MaxBy(Area)!;
+            var sum = new Vector3D(0, 0, 0);
+            for (var i = 0; i + 2 < lead.TriangleIndices.Count; i += 3)
+            {
+                var a = lead.Positions[lead.TriangleIndices[i]]; var b = lead.Positions[lead.TriangleIndices[i + 1]]; var c = lead.Positions[lead.TriangleIndices[i + 2]];
+                sum += (b - a).Cross(c - a);
+            }
+            var normal = sum.Length > 1e-12 ? sum / sum.Length : new Vector3D(0, 0, 1);
+            return new PlanarFeature(normal, [lead]);
+        }
         static double Area(DisplayFaceMeshPatch patch)
         {
             var area = 0d;
@@ -91,14 +104,19 @@ public static class PmiDisplayProjection
             // Sizes and locations projected from construction are drawn on their features below.
             if (item.Kind == "Dimension" && item.Target.StartsWith("compose:", StringComparison.Ordinal)) { projected.Add(item); continue; }
             if (!item.PresentationSupported)
-                throw new InvalidOperationException($"pmi-display-parameters-unsupported: '{item.Name}' retains advanced semantic parameters that this 3D label path cannot yet display completely.");
-            if (item.Kind is not ("Datum" or "Diameter" or "Dimension") && Step242GeometricToleranceKinds.Find(item.Kind) is null)
+                throw new InvalidOperationException($"pmi-display-parameters-unsupported: '{item.Name}' retains advanced semantic parameters that this 3D label path cannot yet display completely: {string.Join(", ", item.PresentationGaps)}.");
+            if (item.Kind is not ("Datum" or "Diameter" or "Dimension" or "Symmetry" or "Concentricity") && Step242GeometricToleranceKinds.Find(item.Kind) is null)
                 throw new InvalidOperationException($"pmi-display-kind-unsupported: {item.Kind} '{item.Name}' has no qualified 3D callout yet.");
             var targets = item.GeometricFaceEntityIds.Where(id => sourceFaces.TryGetValue(id, out var face)
                     && patches.TryGetValue(face, out var patch) && patch.Positions.Count > 0 && patch.TriangleIndices.Count >= 3)
                 .Select(id => patches[sourceFaces[id]]).ToArray();
-            if (targets.Length == 0 || targets.Length != item.GeometricFaceEntityIds.Count)
-                throw new InvalidOperationException($"pmi-display-target-unresolved: '{item.Name}' has no complete geometric face association.");
+            // A record the file attaches to no face of the part (auxiliary geometry, or nothing) is listed with the
+            // part's notes, by its callout text, rather than given a leader to a guessed face.
+            if (targets.Length == 0)
+            {
+                unlocated.Add(item);
+                continue;
+            }
             var surfaces = targets.Select(t => body.GetFaceSurface(t.FaceId)).ToArray();
             // A size or location the file states without a value (no characteristic representation) is drawn with the
             // model's nominal, in parentheses: a reference value, not a requirement the file made.
@@ -110,10 +128,12 @@ public static class PmiDisplayProjection
             {
                 var n0 = surfaces[0].Plane!.Value.Normal.ToVector();
                 var sides = targets.Zip(surfaces).GroupBy(t => Math.Round((t.Second.Plane!.Value.Origin - Point3D.Origin).Dot(n0), 6)).ToArray();
-                if (sides.Length != 2 || surfaces.Any(s => s.Plane!.Value.Normal.ToVector().Cross(n0).Length > 1e-7))
-                    throw new InvalidOperationException($"pmi-display-target-multiple-unsupported: '{item.Name}' runs between two parallel planes.");
-                between.Add((item, n0, sides[0].SelectMany(t => t.First.Positions).ToArray(), sides[1].SelectMany(t => t.First.Positions).ToArray()));
-                continue;
+                // Exactly two parallel sides are drawn as a dimension between them; any other set points at a face below.
+                if (sides.Length == 2 && surfaces.All(s => s.Plane!.Value.Normal.ToVector().Cross(n0).Length <= 1e-7))
+                {
+                    between.Add((item, n0, sides[0].SelectMany(t => t.First.Positions).ToArray(), sides[1].SelectMany(t => t.First.Positions).ToArray()));
+                    continue;
+                }
             }
             Feature feature;
             static bool OnePlane(SurfaceGeometry[] faces)
@@ -137,18 +157,26 @@ public static class PmiDisplayProjection
             {
                 // One or more holes (a quantity callout); each hole is one connected wall on one cylinder.
                 var walls = targets.GroupBy(t => CylinderKey(body.GetFaceSurface(t.FaceId).Cylinder!.Value)).Select(g => g.ToArray()).ToArray();
-                if (walls.Any(w => !OneCylindricalWall(body, w)))
-                    throw new InvalidOperationException($"pmi-display-target-multiple-unsupported: '{item.Name}' requires connected cylindrical walls.");
-                // Several holes are one callout only when the record states that quantity and the holes are alike.
-                if (walls.Length > 1 && item.Kind is "Diameter" or "Dimension" && (item.Quantity != walls.Length
-                    || walls.Select(w => Math.Round(body.GetFaceSurface(w[0].FaceId).Cylinder!.Value.Radius, 9)).Distinct().Count() != 1))
-                    throw new InvalidOperationException($"pmi-display-target-multiple-unsupported: '{item.Name}' spans {walls.Length} cylinders without a matching quantity of identical holes.");
-                // A control on several cylinders (a coaxial set, a pattern without a stated quantity) points at the largest.
-                if (walls.Length > 1 && item.Kind is not ("Diameter" or "Dimension") && item.Quantity != walls.Length)
-                    walls = [walls.MaxBy(w => body.GetFaceSurface(w[0].FaceId).Cylinder!.Value.Radius)!];
-                feature = new HoleFeature(walls.Select(w => body.GetFaceSurface(w[0].FaceId).Cylinder!.Value).ToArray(), walls);
+                // A quantity callout covers several alike holes; any other set of cylinders (a coaxial stack, holes of
+                // different sizes, a wall split into pieces that do not connect) points at its largest wall.
+                var sameSize = walls.Select(w => Math.Round(body.GetFaceSurface(w[0].FaceId).Cylinder!.Value.Radius, 9)).Distinct().Count() == 1;
+                // A size on several alike holes is one callout on all of them; when the record states no quantity, the
+                // callout states the number of holes it targets (2X).
+                if (walls.Length > 1 && sameSize && item.Kind is "Diameter" or "Dimension" && item.Quantity is null) item = item with { Quantity = walls.Length };
+                var alike = walls.Length > 1 && item.Quantity == walls.Length && sameSize;
+                // One size cannot hold for cylinders of different sizes: that set is rejected, not drawn on one of them.
+                if (walls.Length > 1 && !alike && item.Kind is "Diameter" or "Dimension"
+                    && walls.Select(w => Math.Round(body.GetFaceSurface(w[0].FaceId).Cylinder!.Value.Radius, 9)).Distinct().Count() > 1)
+                    throw new InvalidOperationException($"pmi-display-target-multiple-unsupported: '{item.Name}' sizes {walls.Length} cylinders of different diameters.");
+                if (walls.Length > 1 && !alike) walls = [walls.MaxBy(w => body.GetFaceSurface(w[0].FaceId).Cylinder!.Value.Radius)!];
+                // Hole callouts are drawn from the rim of a hole drilled along Z; a hole on another axis points at its wall.
+                feature = walls.All(w => OneCylindricalWall(body, w))
+                    && walls.All(w => Math.Abs(Math.Abs(body.GetFaceSurface(w[0].FaceId).Cylinder!.Value.Axis.ToVector().Z) - 1) < 1e-6)
+                    ? new HoleFeature(walls.Select(w => body.GetFaceSurface(w[0].FaceId).Cylinder!.Value).ToArray(), walls)
+                    : Lead(targets);
             }
-            else throw new InvalidOperationException($"pmi-display-target-kind-unsupported: '{item.Name}' requires plane or cylinder supports.");
+            // Cones, tori, spheres and freeform faces: the callout points at the largest face along its mean normal.
+            else feature = Lead(targets);
             specs.Add(new(item, targets, feature));
         }
 
@@ -190,7 +218,8 @@ public static class PmiDisplayProjection
         var basics = BasicDimensions(specs, datumFaces, locations, layout);
         var dimensionPlane = new PmiPlane(new Point3D(0, 0, layout.DimensionLevel), new Vector3D(1, 0, 0), new Vector3D(0, 1, 0));
 
-        var notesBlock = notes.Count > 0 ? PmiDrafting.Notes(notes.Select(n => n.Text ?? "").ToArray(), .8 * height) : null;
+        var noteLines = notes.Select(n => n.Text ?? "").Concat(unlocated.Select(u => "NOT LOCATED ON PART: " + CalloutText(u))).ToArray();
+        var notesBlock = noteLines.Length > 0 ? PmiDrafting.Notes(noteLines, .8 * height) : null;
 
         var attachedTo = new Dictionary<int, int>(); // records drawn as part of another record's line
         // Each feature's leaders and dimensions share a colour, so a callout reads with its feature in 3D.
@@ -208,7 +237,7 @@ public static class PmiDisplayProjection
                 "Datum" => PmiDrafting.DatumBox(s.Item.Name, height),
                 _ => PmiDrafting.ControlFrame(s.Item.Kind, PmiDrafting.ZonePrefix(s.Item.ZoneForms), s.Item.Value!.Value,
                     s.Item.Modifiers, s.Item.DatumReferenceFrames.Count > 0
-                        ? s.Item.DatumReferenceFrames.Select(f => string.Join("-", f.Labels)).ToArray() : s.Item.DatumReferences, height)
+                        ? s.Item.DatumReferenceFrames.Select(f => string.Join("-", f.Labels)).ToArray() : s.Item.DatumReferences, height, s.Item.ToleranceParameters)
             })).ToList();
             // A hole callout's counterbore line sits under its size: ⌴Ø11 ↧6.5.
             var sizeName = ordered.FirstOrDefault(s => s.Item.Kind == "Diameter")?.Item.AuthoredName;
@@ -349,7 +378,7 @@ public static class PmiDisplayProjection
         }
 
         // 4. General notes: one block in the front plane below the part, clear of the datum callouts.
-        if (notes.Count > 0)
+        if (notesBlock is not null)
         {
             var plane = new PmiPlane(new Point3D(0, minY, 0), new Vector3D(1, 0, 0), new Vector3D(0, 0, 1));
             var block = notesBlock!;
@@ -358,8 +387,9 @@ public static class PmiDisplayProjection
             var canvas = new PmiCanvas();
             canvas.Append(block.Canvas, x, top - block.Height);
             var at = P(plane.At(x, top));
-            foreach (var (note, index) in notes.Select((n, k) => (n, k)))
-                output[note.EntityId] = new PmiDisplayAnnotation("pmi:" + note.EntityId, "Note", note.Name, note.Text ?? "",
+            foreach (var (note, index) in notes.Concat(unlocated).Select((n, k) => (n, k)))
+                output[note.EntityId] = new PmiDisplayAnnotation("pmi:" + note.EntityId, note.Kind == "Annotation" ? "Note" : note.Kind, note.Name,
+                    note.Kind == "Annotation" ? note.Text ?? "" : "NOT LOCATED ON PART: " + CalloutText(note),
                     null, null, null, [], at, at, height, index == 0 ? Lines3D(canvas, plane, 0) : [[at, at]])
                 {
                     DraftingLines = index == 0 ? Draft3D(canvas, plane) : null,
@@ -371,6 +401,16 @@ public static class PmiDisplayProjection
             output[id] = output[id] with { Text = $"({output[id].Text})" };
         return inspection.Items.Where(i => output.ContainsKey(i.EntityId)).Select(i => output[i.EntityId]).ToArray();
     }
+
+    /// <summary>One-line text of a record, as its callout reads.</summary>
+    private static string CalloutText(Step242SemanticPmiInspectionItem item) => item.Kind switch
+    {
+        "Datum" => "DATUM " + item.Name,
+        "Diameter" or "Dimension" => item.Value is null ? item.Name + " (no value in file)" : PmiDrafting.Size(item),
+        _ => $"{item.Kind} {PmiDrafting.ZonePrefix(item.ZoneForms)}{(item.Value is { } v ? PmiDrafting.Number(v) : "?")}"
+            + string.Concat(item.ToleranceParameters.Select(p => " " + p))
+            + (item.DatumReferenceFrames.Count > 0 ? " | " + string.Join(" | ", item.DatumReferenceFrames.Select(f => string.Join("-", f.Labels))) : "")
+    };
 
     /// <summary>The nominal a size or location the file states without a value has on the model: a cylinder's
     /// diameter, or the separation of parallel planes. Null when the faces do not determine one.</summary>
@@ -799,9 +839,14 @@ public static class PmiDisplayProjection
                 anchor = new[] { .72, .5, .85, .3, .62, .4, .15, .92 }.Select(Along).FirstOrDefault(Clear, Along(.72));
                 constrain = z < maxZ - 1e-6;
             }
-            for (var reach = 1.6 * h; reach < 80 * h; reach += .5 * h)
+            // Straight out along the face normal first; on a crowded part, the block slides sideways in steps of its own
+            // size (the leader then runs obliquely) and reaches further, before giving up.
+            var dirLength = Math.Max(1e-9, Math.Sqrt(dir.X * dir.X + dir.Y * dir.Y));
+            var across = (X: -dir.Y / dirLength, Y: dir.X / dirLength);
+            var slides = new[] { 0d }.Concat(Enumerable.Range(1, 24).SelectMany(k => new[] { k, -k }).Select(k => k * (Math.Abs(across.X) > .5 ? width : height) * 1.1));
+            foreach (var (reach, slide) in slides.SelectMany(sl => Enumerable.Range(0, sl == 0 ? 157 : 60).Select(i => (1.6 * h + i * .5 * h * (sl == 0 ? 1 : 3), sl))))
             {
-                var end = (X: anchor.X + dir.X * reach, Y: anchor.Y + dir.Y * reach);
+                var end = (X: anchor.X + dir.X * reach + across.X * slide, Y: anchor.Y + dir.Y * reach + across.Y * slide);
                 // The block attaches by the middle of its near edge.
                 var x = dir.X > .5 ? end.X : dir.X < -.5 ? end.X - width : end.X - (datum ? 0 : width / 2) - (datum ? width / 2 : 0);
                 var y = dir.Y > .5 ? end.Y : dir.Y < -.5 ? end.Y - height : end.Y - height / 2;

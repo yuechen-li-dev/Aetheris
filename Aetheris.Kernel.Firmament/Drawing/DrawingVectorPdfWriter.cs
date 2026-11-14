@@ -63,9 +63,11 @@ public static class DrawingVectorPdfWriter
         foreach (var annotation in page.Annotations)
         {
             foreach (var stroke in DrawingAnnotationGeometry.Strokes(annotation)) Line(stroke.Start, stroke.End, .25);
-            b.Append("1 1 1 rg "); b.Append($"{F(X(annotation.SelectedCandidate.Body.X))} {F(Y(annotation.SelectedCandidate.Body.Bottom))} {F(X(annotation.SelectedCandidate.Body.Width))} {F(X(annotation.SelectedCandidate.Body.Height))} re f\n");
+            // A balloon's body only positions its number; its circle is among the strokes and must not be painted over.
+            if (annotation.Shape != DrawingAnnotationShape.Balloon)
+            { b.Append("1 1 1 rg "); b.Append($"{F(X(annotation.SelectedCandidate.Body.X))} {F(Y(annotation.SelectedCandidate.Body.Bottom))} {F(X(annotation.SelectedCandidate.Body.Width))} {F(X(annotation.SelectedCandidate.Body.Height))} re f\n"); }
             b.Append("0 0 0 rg\n");
-            if (annotation.Kind is DrawingAnnotationKind.Datum or DrawingAnnotationKind.FeatureControlFrame) Rect(annotation.SelectedCandidate.Body); Text(annotation.SelectedCandidate.Body.X + 1, annotation.SelectedCandidate.Body.Y + 4.2, annotation.EngineeringDisplay, 3.2 * PointsPerMillimetre);
+            if (annotation.Shape == DrawingAnnotationShape.DatumFeature || annotation.Shape == DrawingAnnotationShape.Box && annotation.Kind is DrawingAnnotationKind.Datum or DrawingAnnotationKind.FeatureControlFrame) Rect(annotation.SelectedCandidate.Body); Text(annotation.SelectedCandidate.Body.X + 1, annotation.SelectedCandidate.Body.Y + 4.2, annotation.EngineeringDisplay, 3.2 * PointsPerMillimetre);
         }
         foreach (var table in page.Tables) RenderTable(table, page.ContentRect, b, Rect, Text);
         foreach (var note in page.LocatedNotes ?? []) Text(note.Bounds.X, note.Bounds.Y + 3, note.Text, 7);

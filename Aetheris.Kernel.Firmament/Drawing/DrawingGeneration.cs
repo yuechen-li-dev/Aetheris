@@ -117,12 +117,52 @@ public static partial class FirmamentDrawingCompiler
         };
         var pmi = new Dictionary<string, PmiPresentation>(StringComparer.Ordinal);
         var targets = new Dictionary<string, IReadOnlyList<Point3D>>(StringComparer.Ordinal);
+        var interiors = new Dictionary<string, (Vector3D Normal, IReadOnlyList<Point3D> Points)[]>(StringComparer.Ordinal);
+        var surfaceAnchors = new HashSet<(int Page, string Reference)>();
+        var patches = new Dictionary<int, Aetheris.Kernel.Core.Brep.Tessellation.DisplayFaceMeshPatch>();
+        if (options.ReferenceOnly && Aetheris.Kernel.Core.Brep.Tessellation.BrepDisplayTessellator.Tessellate(body,
+                Aetheris.Kernel.Core.Brep.Tessellation.DisplayTessellationOptions.ForViewport(body)) is { IsSuccess: true } tessellated)
+            foreach (var patch in tessellated.Value.FacePatches) patches[patch.FaceId.Value] = patch;
+        static Point3D[] Centres(Aetheris.Kernel.Core.Brep.Tessellation.DisplayFaceMeshPatch patch) => Enumerable.Range(0, patch.TriangleIndices.Count / 3)
+            .Select(t => { var a = patch.Positions[patch.TriangleIndices[3 * t]]; var b = patch.Positions[patch.TriangleIndices[3 * t + 1]]; var c = patch.Positions[patch.TriangleIndices[3 * t + 2]];
+                return new Point3D((a.X + b.X + c.X) / 3, (a.Y + b.Y + c.Y) / 3, (a.Z + b.Z + c.Z) / 3); }).ToArray();
         var cylinders = new Dictionary<string, CylinderSurface>(StringComparer.Ordinal);
         var assigned = definitions.ToDictionary(v => v.Name, _ => new List<string>());
         // Views carry a balloon per requirement; the requirement itself is one row of the PMI schedule, read in one
         // place instead of along crossing leaders. Datums keep their letter.
         var schedule = new List<IReadOnlyList<string>>();
         var balloon = 0;
+        // Authored balloon placement (Label records in the source's Pmi block), keyed by each PMI reference.
+        var labelDiagnostics = new List<string>();
+        var directives = sourceKind == "AP242" ? [] : DrawingLabelDirectives.Read(source, labelDiagnostics);
+        if (labelDiagnostics.Count > 0) return Failure(string.Join("; ", labelDiagnostics));
+        var labels = new Dictionary<string, (string? View, DrawingLabelPlacement Placement)>(StringComparer.Ordinal);
+        // "#N" names an entity of an imported STEP file; the exported part renumbers entities, so the record is
+        // found again by its kind and name.
+        var importedItems = directives.Any(d => d.Record.StartsWith('#'))
+            ? FirmamentV2.FirmamentV2Parser.Parse(source, Path.GetDirectoryName(path)).Document?.Solids.Select(s => s.InlineStep?.SourceText).OfType<string>()
+                .SelectMany(text => Step242SemanticPmiInspector.Inspect(text).Items).ToArray() ?? []
+            : [];
+        foreach (var directive in directives)
+        {
+            var origin = directive.Record.StartsWith('#') ? importedItems.Where(i => $"#{i.EntityId}" == directive.Record).ToArray() : [];
+            var matches = inspected.Items.Where(i => directive.Record.StartsWith('#')
+                ? origin.Length == 1 && i.Kind == origin[0].Kind && i.Name == origin[0].Name
+                : (i.AuthoredName ?? i.Name) == directive.Record).ToArray();
+            if (matches.Length == 0 && origin.Length == 1)
+            {
+                // A record the producer left unnamed carries a name made from its entity number, which the export
+                // renumbers; such records keep their order among records of their kind.
+                bool Same(Step242SemanticPmiInspectionItem i) => i.Kind == origin[0].Kind && i.DimensionKind == origin[0].DimensionKind;
+                var ordinal = importedItems.Where(Same).ToList().IndexOf(origin[0]);
+                var candidates = inspected.Items.Where(Same).ToArray();
+                if (ordinal >= 0 && candidates.Length == importedItems.Count(Same) && candidates[ordinal].Value == origin[0].Value) matches = [candidates[ordinal]];
+            }
+            if (matches.Length != 1) return Failure($"drawing-label-record-unresolved: Label '{directive.Name}' names '{directive.Record}', which {(matches.Length == 0 ? "is not a" : "is more than one")} PMI record of the exported part.");
+            var item = matches[0];
+            labels[$"step:{item.EntityId}:{item.AuthoredName ?? item.Name}"] = (directive.View is { } v ? DrawingLabelDirectives.Views[v] : null,
+                new(directive.Side is { } side ? Enum.Parse<DrawingBalloonSide>(side, true) : null, directive.At is { } at ? new DrawingPoint2(at.X, at.Y) : null));
+        }
         foreach (var inspectedItem in inspected.Items)
         {
             var item = inspectedItem with { Name = inspectedItem.AuthoredName ?? inspectedItem.Name };
@@ -132,6 +172,36 @@ public static partial class FirmamentDrawingCompiler
             var edges = faces.SelectMany(f => f.LoopIds).Select(body.Topology.GetLoop).SelectMany(l => l.CoedgeIds)
                 .Select(body.Topology.GetCoedge).Select(c => c.EdgeId.Value).ToHashSet();
             var points = samples.Boundaries.Where(line => line.EdgeId is { } id && edges.Contains(id)).SelectMany(line => line.Points).ToArray();
+            // A record attached to auxiliary geometry (datum target points, isolated centre lines) is located by it.
+            // Auxiliary geometry carried in its own representation can sit in another frame; points that fall outside
+            // the part's envelope do not locate anything on it and are treated as no location.
+            var auxiliary = faces.Length == 0 && options.ReferenceOnly
+                ? item.GeometricItemEntityIds.SelectMany(g => Step242AuxiliaryGeometry.Points(parsed.Value, g)).ToArray() : [];
+            if (auxiliary.Length > 0)
+            {
+                var all = samples.Boundaries.SelectMany(l => l.Points).ToArray();
+                var margin = .1 * Math.Max(all.Max(p => p.X) - all.Min(p => p.X), Math.Max(all.Max(p => p.Y) - all.Min(p => p.Y), all.Max(p => p.Z) - all.Min(p => p.Z)));
+                if (auxiliary.Any(p => p.X < all.Min(q => q.X) - margin || p.X > all.Max(q => q.X) + margin || p.Y < all.Min(q => q.Y) - margin
+                        || p.Y > all.Max(q => q.Y) + margin || p.Z < all.Min(q => q.Z) - margin || p.Z > all.Max(q => q.Z) + margin))
+                    auxiliary = [];
+            }
+            if (faces.Length == 0 && options.ReferenceOnly)
+            {
+                var id0 = item.Kind == "Datum" ? item.Name : (++balloon).ToString(CultureInfo.InvariantCulture);
+                if (auxiliary.Length == 0)
+                {
+                    // Nothing in the file says where it applies: listed, not ballooned. A guessed leader would mislead.
+                    schedule.Add([.. ScheduleRow(id0, item, null).Take(4), $"#{item.EntityId} NOT LOCATED"]);
+                    continue;
+                }
+                schedule.Add(ScheduleRow(id0, item, null));
+                var auxReference = $"step:{item.EntityId}:{item.Name}";
+                pmi.Add(auxReference, new(auxReference, item.Kind == "Datum" ? DrawingAnnotationKind.Datum : DrawingAnnotationKind.Note, id0, item.Value, item.Target,
+                    $"{path}; STEP #{item.EntityId}; auxiliary geometry {string.Join(",", item.GeometricItemEntityIds)}; source SHA256 {StableHash(source)}"));
+                targets.Add(auxReference, auxiliary);
+                assigned[labels.TryGetValue(auxReference, out var auxLabel) && auxLabel.View is { } auxView ? auxView : definitions[0].Name].Add(auxReference);
+                continue;
+            }
             if (points.Length == 0) return Failure($"drawing-pmi-target-unprojectable: '{item.Name}' has no supported bound edge samples.");
             var kind = dimensionKind is "holediameter" or "diameter" ? DrawingAnnotationKind.DiameterDimension : item.Kind switch
             {
@@ -148,6 +218,11 @@ public static partial class FirmamentDrawingCompiler
             var display = item.Kind == "Datum" ? item.Name : id;
             pmi.Add(reference, new(reference, kind, display, item.Value ?? nominalFromModel, item.Target, $"{path}; STEP #{item.EntityId}; faces {string.Join(",", item.GeometricFaceEntityIds)}; source SHA256 {StableHash(source)}"));
             targets.Add(reference, points);
+            // Points inside each planar target face (its tessellation's triangle centres): a leader to a surface seen
+            // face-on ends on the surface with a dot, not on an edge of it.
+            interiors[reference] = faces.Select(f => (Face: f, Surface: body.TryGetFaceSurfaceGeometry(f.Id, out var g) ? g : null))
+                .Where(f => f.Surface?.Plane is not null && patches.ContainsKey(f.Face.Id.Value))
+                .Select(f => (Normal: f.Surface!.Plane!.Value.Normal.ToVector(), Points: (IReadOnlyList<Point3D>)Centres(patches[f.Face.Id.Value]))).ToArray();
             var first = faces[0];
             body.TryGetFaceSurfaceGeometry(first.Id, out var surface);
             var axis = surface?.Cylinder?.Axis.ToVector() ?? surface?.Plane?.Normal.ToVector();
@@ -157,7 +232,8 @@ public static partial class FirmamentDrawingCompiler
             var candidates = definitions.Select((view, i) => new JudgmentCandidate<int>(view.Name, _ => true,
                 _ => axis is { } a ? Math.Abs(a.X * view.Direction[0] + a.Y * view.Direction[1] + a.Z * view.Direction[2]) : 0,
                 TieBreakerPriority: i)).ToArray();
-            var selected = new JudgmentEngine<int>().Evaluate(0, candidates).Selection!.Value.Candidate.Name;
+            var selected = labels.TryGetValue(reference, out var authored) && authored.View is { } authoredView
+                ? authoredView : new JudgmentEngine<int>().Evaluate(0, candidates).Selection!.Value.Candidate.Name;
             assigned[selected].Add(reference);
         }
 
@@ -174,7 +250,7 @@ public static partial class FirmamentDrawingCompiler
         var requested = new List<(string Name, double[] Direction, DrawingProjectionKind Projection, string[] Pmi)>();
         foreach (var view in definitions)
         {
-            var chunks = assigned[view.Name].Chunk(12).ToArray();
+            var chunks = assigned[view.Name].Chunk(18).ToArray();
             foreach (var chunk in chunks) requested.Add((view.Name, view.Direction, DrawingProjectionKind.Orthographic, chunk));
         }
         var pages = new List<DrawingPageIr>();
@@ -200,8 +276,9 @@ public static partial class FirmamentDrawingCompiler
             var page = pages.Count + 1;
             var scheme = Zones(width, height);
             var viewport = new DrawingRect(12, 20, 273, 134);
-            // Reserve a real callout column rather than squeezing every label around a full-width model.
-            var geometryViewport = new DrawingRect(18, 26, 175, 117);
+            // Balloons ring the geometry, so the view takes the sheet's middle with one balloon ring of margin on every
+            // side (26..271 x 41..140 mm); the projection keeps 12 mm of its own inside the rectangle it is given.
+            var geometryViewport = new DrawingRect(14, 29, 269, 123);
             var view = DrawingProjectionEngine.Project([new(name, name, body)], request.Name, request.Projection,
                 DrawingHiddenLinePolicy.Wireframe, request.Direction, request.Pmi, geometryViewport, new(page, "B2"));
             view = AtScale(view, StandardScale(view.Scale));
@@ -211,13 +288,29 @@ public static partial class FirmamentDrawingCompiler
                 return new(c.OriginX + view.Scale * (p.X * c.Right[0] + p.Y * c.Right[1] + p.Z * c.Right[2]),
                     c.OriginY - view.Scale * (p.X * c.Up[0] + p.Y * c.Up[1] + p.Z * c.Up[2]));
             }
-            var anchors = request.Pmi.ToDictionary(reference => reference, reference => targets[reference].Select(Project)
-                .OrderByDescending(p => p.X).ThenBy(p => p.Y).First(), StringComparer.Ordinal);
+            // A leader ends on the feature where it reads best: the sample of its outline nearest the outline's middle
+            // (a hole's rim, the middle of an edge-on face), not an arbitrary extreme point.
+            var anchors = request.Pmi.ToDictionary(reference => reference, reference =>
+            {
+                var d = request.Direction;
+                var facing = interiors.GetValueOrDefault(reference)?.Where(f => Math.Abs(f.Normal.X * d[0] + f.Normal.Y * d[1] + f.Normal.Z * d[2]) > .9)
+                    .SelectMany(f => f.Points).Select(Project).ToArray() ?? [];
+                if (facing.Length > 0)
+                {
+                    // Inside the face, near its middle.
+                    var centre = new DrawingPoint2(facing.Average(p => p.X), facing.Average(p => p.Y));
+                    surfaceAnchors.Add((page, reference));
+                    return facing.MinBy(p => Math.Pow(p.X - centre.X, 2) + Math.Pow(p.Y - centre.Y, 2));
+                }
+                var projected = targets[reference].Select(Project).ToArray();
+                var mid = new DrawingPoint2(projected.Average(p => p.X), projected.Average(p => p.Y));
+                return projected.MinBy(p => Math.Pow(p.X - mid.X, 2) + Math.Pow(p.Y - mid.Y, 2));
+            }, StringComparer.Ordinal);
             view = view with { Viewport = viewport, SemanticAnchors = anchors };
             var fields = new Dictionary<string, string> { ["Product"] = name, ["Units"] = "mm", ["Scale"] = view.Scale.ToString("0.###", CultureInfo.InvariantCulture),
                 ["View"] = request.Name, ["Sheet"] = $"{page}/{requested.Count + 1}", ["Status"] = "REFERENCE ONLY" };
             var info = DrawingTitleBlockLayout.Create(metadata, fields, width, height, new(page, "D5"));
-            pages.Add(new(page, DrawingPageOrientation.Landscape, width, height, new(12, 20, 273, 145), [view], ReferenceEnvelope(view), [], notes,
+            pages.Add(new(page, DrawingPageOrientation.Landscape, width, height, new(12, 20, 273, 145), [view], [], [], notes,
                 scheme, info, LocateNotes(notes, page, scheme, DrawingTitleBlockLayout.NotesArea(width, height))));
         }
         // The PMI schedule: one row per requirement, as many sheets as it needs.
@@ -238,8 +331,35 @@ public static partial class FirmamentDrawingCompiler
             pages.Add(new(page, DrawingPageOrientation.Landscape, width, height, new(12, 20, 273, 145), [], [], [table], notes, scheme,
                 DrawingTitleBlockLayout.Create(metadata, fields, width, height, new(page, "D5")), LocateNotes(notes, page, scheme, DrawingTitleBlockLayout.NotesArea(width, height))));
         }
+        // Balloons for each view sheet; the general layout then audits them with everything else on the sheet.
+        var balloonDiagnostics = new List<string>();
+        var assignedByView = new Dictionary<(int, string), IReadOnlyList<string>>();
+        pages = pages.Select(page =>
+        {
+            if (page.PageNumber == 1 || page.Views.Count != 1 || page.Views[0].AssignedPmi.Count == 0) return page;
+            var view = page.Views[0];
+            assignedByView[(page.PageNumber, view.Identity)] = view.AssignedPmi;
+            var keepouts = new List<DrawingRect> { new(view.Viewport.X, view.Viewport.Y, view.Viewport.Width, 6) };
+            keepouts.AddRange((page.LocatedNotes ?? []).Select(n => n.Bounds));
+            if (page.InformationBlock is { } info) keepouts.Add(info.Bounds);
+            keepouts.AddRange(page.Annotations.Select(a => a.SelectedCandidate.Body));
+            var strokes = page.Annotations.SelectMany(a => a.Strokes).ToArray();
+            var requests = view.AssignedPmi.Select(reference =>
+            {
+                var semantic = pmi[reference];
+                var placement = labels.TryGetValue(reference, out var label) && (label.Placement.Side is not null || label.Placement.At is not null) ? label.Placement : null;
+                return new DrawingBalloonLayout.Request(reference, semantic.Display, semantic.Kind, semantic.Provenance, semantic.Kind == DrawingAnnotationKind.Datum, placement)
+                    { SurfaceAnchor = surfaceAnchors.Contains((page.PageNumber, reference)) };
+            }).ToArray();
+            var (balloons, problems) = DrawingBalloonLayout.Place(view, requests, keepouts, strokes);
+            balloonDiagnostics.AddRange(problems);
+            return page with { Annotations = [.. page.Annotations, .. balloons], Views = [view with { AssignedPmi = [] }] };
+        }).ToList();
+        if (balloonDiagnostics.Count > 0) return new(false, null, balloonDiagnostics);
         var layout = DrawingAnnotationLayout.Layout(pages, pmi);
         if (layout.Diagnostics.Count > 0) return new(false, null, layout.Diagnostics);
+        layout = layout with { Pages = layout.Pages.Select(page => page with { Views = page.Views.Select(v =>
+            assignedByView.TryGetValue((page.PageNumber, v.Identity), out var assignedPmi) ? v with { AssignedPmi = assignedPmi } : v).ToArray() }).ToArray() };
         var dimensioned = layout.Pages.Select(page => page with
         {
             Annotations = page.Annotations.Select(annotation =>
@@ -307,39 +427,16 @@ public static partial class FirmamentDrawingCompiler
             Camera = camera with { OriginX = origin.X, OriginY = origin.Y } };
     }
 
-    private static IReadOnlyList<DrawingAnnotationIr> ReferenceEnvelope(DrawingViewIr view)
-    {
-        var result = new List<DrawingAnnotationIr>(); var b = view.GeometryBounds;
-        void Add(string axis, bool horizontal)
-        {
-            var text = FormattableString.Invariant($"~{(horizontal ? b.Width : b.Height) / view.Scale:0.###} mm REF ({axis})");
-            var width = DrawingInterFont.Load().MeasureMillimetres(text, 3.2) + 3;
-            var body = horizontal ? new DrawingRect(b.Center.X - width / 2, b.Bottom + 5, width, 6)
-                : new DrawingRect(b.Right - width, b.Bottom + 15, width, 6);
-            var start = horizontal ? new DrawingPoint2(b.X, b.Bottom + 8) : new DrawingPoint2(b.Right + 6, b.Y);
-            var end = horizontal ? new DrawingPoint2(b.Right, b.Bottom + 8) : new DrawingPoint2(b.Right + 6, b.Bottom);
-            var lines = horizontal
-                ? new DrawingDimensionLineIr[] { new(start, end, true, true), new(new(b.X, b.Bottom + 1), new(b.X, b.Bottom + 10)), new(new(b.Right, b.Bottom + 1), new(b.Right, b.Bottom + 10)) }
-                : new DrawingDimensionLineIr[] { new(start, end, true, true), new(new(b.Right + 1, b.Y), new(b.Right + 8, b.Y)), new(new(b.Right + 1, b.Bottom), new(b.Right + 8, b.Bottom)) };
-            var leader = horizontal ? Array.Empty<DrawingPoint2>() : new[] { end, new DrawingPoint2(b.Right + 6, body.Center.Y), new DrawingPoint2(body.Right, body.Center.Y) };
-            var candidate = new DrawingAnnotationCandidateIr("reference-envelope", body, leader, "reference", 0, 0, []);
-            result.Add(new($"reference:{view.Identity}:{axis}", $"reference:{axis}", view.Identity, DrawingAnnotationKind.LinearDimension, text, start, candidate, [candidate],
-                "Sampled projected-curve envelope; approximate reference only; no tolerance or manufacturing authority") { DimensionLines = lines });
-        }
-        if (view.Identity == "TOP") { Add("X", true); Add("Y", false); }
-        if (view.Identity == "FRONT") Add("Z", false);
-        return result;
-    }
-
-    /// <summary>Reference sheets need every record located on the part; values may be absent (shown as such).</summary>
+    /// <summary>Reference sheets list every record; location and values may be absent and are shown as such.</summary>
     private static string? ValidateReferencePmi(IReadOnlyList<Step242SemanticPmiInspectionItem> items,
         IReadOnlyDictionary<int, Aetheris.Kernel.Core.Topology.FaceId> faceMap)
     {
-        foreach (var item in items.Where(i => i.Kind != "Annotation"))
-            if (!item.GeometricFaceEntityIds.Any(faceMap.ContainsKey))
-                return $"drawing-pmi-target-unlocated: '{item.AuthoredName ?? item.Name}' (STEP #{item.EntityId}, target '{item.Target}') has no imported geometric face association. A model-center leader would be misleading.";
+        // Records without faces are located by auxiliary geometry, or listed as not located; none is dropped.
+        _ = items; _ = faceMap;
         return null;
     }
+
+    private static string SizePrefix(Step242SemanticPmiInspectionItem item) => Visualization.PmiDrafting.SizePrefix(item);
 
     /// <summary>One PMI schedule row: ID, characteristic, requirement in millimetres (angles in degrees), datums, source.</summary>
     private static IReadOnlyList<string> ScheduleRow(string id, Step242SemanticPmiInspectionItem item, double? nominalFromModel)
@@ -361,16 +458,19 @@ public static partial class FirmamentDrawingCompiler
         else if (item.Kind == "Annotation") requirement = item.Text ?? "";
         else if (item.Value is { } value)
         {
-            requirement = quantity + (diameter ? "Ø" : "") + N(value);
+            requirement = quantity + SizePrefix(item) + N(value);
             if (item.TolerancePlus is { } plus && item.ToleranceMinus is { } minus)
                 requirement += Math.Abs(plus - minus) < 1e-12 ? " ±" + N(plus)
                     : $" {(Math.Abs(plus) < 1e-12 ? "0" : "+" + N(plus))}/{(Math.Abs(minus) < 1e-12 ? "0" : "-" + N(minus))}";
             if (item.Kind is not ("Dimension" or "Diameter"))
                 requirement = (item.ZoneForms.Any(f => f.Contains("cylind", StringComparison.OrdinalIgnoreCase)) ? "Ø" : "") + requirement
-                    + string.Concat(item.Modifiers.Select(m => m switch { "MAXIMUM_MATERIAL_REQUIREMENT" => " (M)", "LEAST_MATERIAL_REQUIREMENT" => " (L)", _ => " " + m }));
+                    + string.Concat(item.Modifiers.Select(m => m switch { "MAXIMUM_MATERIAL_REQUIREMENT" => " (M)", "LEAST_MATERIAL_REQUIREMENT" => " (L)",
+                        "FREE_STATE" => " (F)", "STATISTICAL_TOLERANCE" => " (ST)", "COMMON_ZONE" => " CZ", "TANGENT_PLANE" => " (T)", _ => " " + m }))
+                    + string.Concat(item.ToleranceParameters.Select(p => " " + p));
+            requirement += string.Concat(item.ValueQualifiers.Select(q => " " + q));
             if (item.Depth is { } depth) requirement += " DEPTH " + N(depth);
         }
-        else requirement = nominalFromModel is { } model ? $"({quantity}{(diameter ? "Ø" : "")}{N(model)}) NO VALUE IN FILE" : "NO VALUE IN FILE";
+        else requirement = nominalFromModel is { } model ? $"({quantity}{SizePrefix(item)}{N(model)}) NO VALUE IN FILE" : "NO VALUE IN FILE";
         var datums = item.DatumReferenceFrames.Count > 0 ? string.Join(" | ", item.DatumReferenceFrames.Select(f => string.Join("-", f.Labels)))
             : item.DatumReferences.Count > 0 ? string.Join(" | ", item.DatumReferences) : "-";
         return [id, characteristic, requirement, datums, "#" + item.EntityId];

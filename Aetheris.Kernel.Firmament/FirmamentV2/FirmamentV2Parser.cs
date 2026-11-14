@@ -2421,6 +2421,8 @@ public static partial class FirmamentV2Parser
 
         foreach (Match em in PmiEntryHeaderRegex.Matches(body))
         {
+            // A Label places a record's drawing balloon; it is presentation, read below, not a requirement.
+            if (em.Groups["kind"].Value == "Label") continue;
             var kindRaw = NormalizePmiKind(em.Groups["kind"].Value);
             var name = em.Groups["name"].Value;
             if (!TryPmiKind(kindRaw, out var kind)) { diagnostics.Add(PmiUnknownRecordKind); diagnostics.Add(PmiKindUnknown); continue; }
@@ -2448,6 +2450,11 @@ public static partial class FirmamentV2Parser
                 legacy.Add(new FirmamentV2PmiDecl(name, kind, b.Targets[0], b.DimensionValue?.NumericValue ?? b.ControlTolerance?.NumericValue));
         }
 
+        var importedNames = solids.Values.Select(s => s.InlineStep).OfType<FirmamentV2InlineStepRecord>().Where(s => !s.GeometryOnly && s.SourceText is not null)
+            .SelectMany(s => Aetheris.Kernel.Core.Step242.Step242SemanticPmiInspector.Inspect(s.SourceText!).Items).Select(i => i.Name).ToHashSet(StringComparer.Ordinal);
+        foreach (var label in Drawing.DrawingLabelDirectives.Read(source, diagnostics))
+            if (!label.Record.StartsWith('#') && !recordNames.Contains(label.Record) && !importedNames.Contains(label.Record))
+                diagnostics.Add($"{Drawing.DrawingLabelDirectives.Invalid}:{label.Name}: record '{label.Record}' is not a PMI record of this part");
         var block = new FirmamentV2PmiBlock(records, new FirmamentV2SourceSpan(match.Index, close - match.Index + 1));
         var boundBlock = new FirmamentV2BoundPmiBlock(bound.Where(r => r.Kind == FirmamentV2PmiKind.DatumPlane).ToArray(), bound.Where(r => r.Kind is FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Distance or FirmamentV2PmiKind.Dimension or FirmamentV2PmiKind.Location).ToArray(), bound.Where(r => r.Kind is not (FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Distance or FirmamentV2PmiKind.Dimension or FirmamentV2PmiKind.Location)).ToArray(), diagnostics.Where(d => d.StartsWith("firmament-v2-pmi-", StringComparison.Ordinal)).ToArray());
         return (legacy, block, boundBlock);

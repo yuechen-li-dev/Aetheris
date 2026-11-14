@@ -1,0 +1,27 @@
+// Drawing balloon placement for the NIST CTC-01 part's own PMI. Labels move balloons; they add no requirement.
+Model NistCtc01Labels {
+    units: mm
+    InlineStep Source {
+        path: "../../../testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp"
+        textSha256: "341cea888fb316673ed683e59391c11b4f96cff2542d9387e135f06682dbd745"
+        importTolerance: 0.1mm
+    }
+    Pmi {
+        // The flatness of the top face reads best above the plan view, clear of the hex boss.
+        Label TopFlatness {
+            record: "#57"
+            side: Above
+        }
+        // Datum A beside it, at an exact place on the sheet.
+        Label DatumA {
+            record: A
+            at: [120mm, 34mm]
+        }
+        // The slot location shows in the front view rather than the right view.
+        Label SlotLocation {
+            record: "#24"
+            view: Front
+            side: Below
+        }
+    }
+}

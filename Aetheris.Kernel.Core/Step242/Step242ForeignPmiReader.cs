@@ -21,6 +21,10 @@ internal sealed class Step242ForeignPmiReader
             if (Step242SubsetDecoder.TryGetConstructor(entity.Instance, "SHAPE_ASPECT_RELATIONSHIP") is { } link
                 && Ref(link.Arguments.ElementAtOrDefault(2)) is { } a && Ref(link.Arguments.ElementAtOrDefault(3)) is { } b)
             { Add(aspectLinks, a, b); Add(aspectLinks, b, a); }
+            // A datum target (a point, line or area on the part) is the feature its datum is established from.
+            if (entity.Name == "FEATURE_FOR_DATUM_TARGET_RELATIONSHIP"
+                && Ref(entity.Arguments.ElementAtOrDefault(2)) is { } feature && Ref(entity.Arguments.ElementAtOrDefault(3)) is { } datumTarget)
+            { Add(aspectLinks, feature, datumTarget); Add(aspectLinks, datumTarget, feature); }
             if (entity.Name is "GEOMETRIC_ITEM_SPECIFIC_USAGE" or "ITEM_IDENTIFIED_REPRESENTATION_USAGE" && Ref(entity.Arguments.ElementAtOrDefault(2)) is { } aspect)
                 foreach (var geometry in Refs(entity.Arguments.ElementAtOrDefault(4))) Add(aspectGeometry, aspect, geometry);
             if (entity.Name == "DIMENSIONAL_CHARACTERISTIC_REPRESENTATION" && Ref(entity.Arguments.ElementAtOrDefault(0)) is { } dimension && Ref(entity.Arguments.ElementAtOrDefault(1)) is { } representation)
@@ -61,7 +65,9 @@ internal sealed class Step242ForeignPmiReader
         foreach (var entity in entities.Values.OrderBy(e => e.Id))
         {
             if (skip.Contains(entity.Id)) continue;
-            if (entity.Name == "DATUM_FEATURE" && (aspectLinks.GetValueOrDefault(entity.Id) ?? []).Any(id => entities.TryGetValue(id, out var linked)
+            // A datum feature (simple, or composite: several faces as one feature) is read through the datum it establishes.
+            if (Step242SubsetDecoder.TryGetConstructor(entity.Instance, "DATUM_FEATURE") is not null
+                && Step242SubsetDecoder.TryGetConstructor(entity.Instance, "DATUM") is null && (aspectLinks.GetValueOrDefault(entity.Id) ?? []).Any(id => entities.TryGetValue(id, out var linked)
                     && Step242SubsetDecoder.TryGetConstructor(linked.Instance, "DATUM") is not null))
             { Mirrors.Add(entity.Id); continue; }
             if (Step242SubsetDecoder.TryGetConstructor(entity.Instance, "DATUM") is { } datum)
@@ -80,12 +86,40 @@ internal sealed class Step242ForeignPmiReader
                 var frames = DatumFrames(entity);
                 var modifiers = Step242SubsetDecoder.TryGetConstructor(entity.Instance, "GEOMETRIC_TOLERANCE_WITH_MODIFIERS") is { } modified ? Enums(modified.Arguments.FirstOrDefault()).ToArray() : [];
                 var constructors = entity.Instance is Step242ComplexEntityInstance complex ? complex.Constructors : [entity.Instance.PrimaryConstructor];
-                var basic = kind is not null && constructors.All(c => c.Name == kind.Entity || c.Name is "GEOMETRIC_TOLERANCE" or "GEOMETRIC_TOLERANCE_WITH_DATUM_REFERENCE" or "GEOMETRIC_TOLERANCE_WITH_MODIFIERS")
-                    && frames.All(f => f.PresentationSupported) && !advancedZones.Contains(entity.Id)
-                    && (zoneForms.GetValueOrDefault(entity.Id) ?? []).All(form => Step242GeometricToleranceKinds.ZoneForms.Values.Contains(form))
-                    && !entities.Values.Any(e => e.Name == "TOLERANCE_ZONE" && advancedZones.Contains(e.Id) && Refs(e.Arguments.ElementAtOrDefault(4)).Contains(entity.Id));
-                result.Add(Item(entity.Id, kind?.Name ?? "GeometricTolerance", Str(geometric.Arguments.ElementAtOrDefault(0)) ?? $"tolerance-{entity.Id}", target, value) with
-                { DatumReferences = frames.SelectMany(frame => frame.Labels).ToArray(), DatumReferenceFrames = frames, Modifiers = modifiers, ZoneForms = zoneForms.GetValueOrDefault(entity.Id) ?? [], PresentationSupported = basic });
+                // Controls ASME Y14.5-2018 withdrew still arrive from producers; they are read and drawn by name.
+                var legacy = Step242SubsetDecoder.TryGetConstructor(entity.Instance, "SYMMETRY_TOLERANCE") is not null ? "Symmetry"
+                    : Step242SubsetDecoder.TryGetConstructor(entity.Instance, "CONCENTRICITY_TOLERANCE") is not null ? "Concentricity" : null;
+                var parameters = new List<string>();
+                string Mm(int? id) => id is { } m && Measure(m) is { } v ? Number(v) : "?";
+                if (Step242SubsetDecoder.TryGetConstructor(entity.Instance, "GEOMETRIC_TOLERANCE_WITH_DEFINED_UNIT") is { } perUnit)
+                {
+                    var first = Mm(Ref(perUnit.Arguments.FirstOrDefault()));
+                    var area = Step242SubsetDecoder.TryGetConstructor(entity.Instance, "GEOMETRIC_TOLERANCE_WITH_DEFINED_AREA_UNIT");
+                    var shape = area?.Arguments.FirstOrDefault() is Step242EnumValue e ? e.Value : null;
+                    var second = area is not null && Ref(area.Arguments.ElementAtOrDefault(1)) is { } b ? Mm(b) : first;
+                    parameters.Add(area is null ? "/" + first : shape == "CIRCULAR" ? "/Ø" + first : "/" + first + "×" + second);
+                }
+                if (Step242SubsetDecoder.TryGetConstructor(entity.Instance, "UNEQUALLY_DISPOSED_GEOMETRIC_TOLERANCE") is { } unequal)
+                    parameters.Add("U " + Mm(Ref(unequal.Arguments.FirstOrDefault())));
+                var zones = entities.Values.Where(e => e.Name == "TOLERANCE_ZONE" && Refs(e.Arguments.ElementAtOrDefault(4)).Contains(entity.Id)).Select(e => e.Id).ToHashSet();
+                var definitions = entities.Values.Where(e => e.Name.EndsWith("ZONE_DEFINITION", StringComparison.Ordinal) && Ref(e.Arguments.FirstOrDefault()) is { } z && zones.Contains(z)).ToArray();
+                foreach (var projected in definitions.Where(d => d.Name == "PROJECTED_ZONE_DEFINITION"))
+                    parameters.Add("P " + Mm(Ref(projected.Arguments.ElementAtOrDefault(3))));
+                var readable = new HashSet<string>(StringComparer.Ordinal) { "GEOMETRIC_TOLERANCE", "GEOMETRIC_TOLERANCE_WITH_DATUM_REFERENCE", "GEOMETRIC_TOLERANCE_WITH_MODIFIERS",
+                    "GEOMETRIC_TOLERANCE_WITH_DEFINED_UNIT", "GEOMETRIC_TOLERANCE_WITH_DEFINED_AREA_UNIT", "UNEQUALLY_DISPOSED_GEOMETRIC_TOLERANCE", "SYMMETRY_TOLERANCE", "CONCENTRICITY_TOLERANCE" };
+                if (kind is not null) readable.Add(kind.Entity);
+                var forms = zoneForms.GetValueOrDefault(entity.Id) ?? [];
+                var gaps = constructors.Where(c => !readable.Contains(c.Name)).Select(c => c.Name)
+                    .Concat(kind is null && legacy is null ? ["kind:" + entity.Name] : [])
+                    .Concat(frames.Where(f => !f.PresentationSupported).Select(f => "datum-frame:" + string.Join("-", f.Labels)))
+                    .Concat(definitions.Where(d => d.Name != "PROJECTED_ZONE_DEFINITION").Select(d => d.Name))
+                    .Concat(advancedZones.Contains(entity.Id) ? ["advanced-zone"] : [])
+                    .Concat(forms.Where(form => !Step242GeometricToleranceKinds.ZoneForms.Values.Contains(form) && form != "within a cylinder").Select(f => "zone-form:" + f)).ToArray();
+                result.Add(Item(entity.Id, kind?.Name ?? legacy ?? "GeometricTolerance", Str(geometric.Arguments.ElementAtOrDefault(0)) ?? $"tolerance-{entity.Id}", target, value) with
+                { DatumReferences = frames.SelectMany(frame => frame.Labels).ToArray(), DatumReferenceFrames = frames, Modifiers = modifiers,
+                    // "within a cylinder" is the cylindrical zone under another producer's name.
+                    ZoneForms = forms.Select(f => f == "within a cylinder" ? "cylindrical or circular" : f).ToArray(),
+                    ToleranceParameters = parameters.Distinct().ToArray(), PresentationSupported = gaps.Length == 0, PresentationGaps = gaps });
                 continue;
             }
             if (entity.Name is "DIMENSIONAL_SIZE" or "ANGULAR_SIZE" or "DIMENSIONAL_LOCATION" or "ANGULAR_LOCATION" or "DIRECTED_DIMENSIONAL_LOCATION")
@@ -108,11 +142,19 @@ internal sealed class Step242ForeignPmiReader
                     upper = Ref(tolerance.Arguments.ElementAtOrDefault(1)) is { } hi ? Measure(hi) : null;
                 }
                 var dimensionKind = Str(definition.Arguments.ElementAtOrDefault(location ? 0 : 1)) ?? "Length";
+                var qualifiers = measureIds.Select(id => entities.GetValueOrDefault(id)).OfType<Step242ParsedEntity>()
+                    .Select(m => Step242SubsetDecoder.TryGetConstructor(m.Instance, "QUALIFIED_REPRESENTATION_ITEM")).OfType<Step242EntityConstructor>()
+                    .SelectMany(q => Refs(q.Arguments.FirstOrDefault())).Select(id => entities.GetValueOrDefault(id)).OfType<Step242ParsedEntity>().ToArray();
                 var name = targets.Select(id => entities.GetValueOrDefault(id)?.Arguments.FirstOrDefault()).OfType<Step242StringValue>().Select(s => s.Value).FirstOrDefault(s => s.Length > 0) ?? $"dimension-{entity.Id}";
                 result.Add(Item(entity.Id, "Dimension", name, targets.FirstOrDefault(), measured) with
                 { DimensionKind = dimensionKind, ValueUnit = entity.Name is "ANGULAR_SIZE" or "ANGULAR_LOCATION" ? "rad" : "mm", GeometricFaceEntityIds = targets.SelectMany(Faces).Distinct().Order().ToArray(),
                     GeometricItemEntityIds = targets.SelectMany(GeometryItems).Distinct().Order().ToArray(), TolerancePlus = upper, ToleranceMinus = lower.HasValue ? -lower.Value : null,
-                    PresentationSupported = !measureIds.Any(id => entities.TryGetValue(id, out var measure) && Step242SubsetDecoder.TryGetConstructor(measure.Instance, "QUALIFIED_REPRESENTATION_ITEM") is not null) });
+                    // A value format (NR2 1.3) states decimals for the file's own unit; values are written converted, so
+                    // it does not apply. A type qualifier says what the value is (a maximum, an average) and is kept.
+                    ValueQualifiers = qualifiers.Where(q => q.Name == "TYPE_QUALIFIER").Select(q => (Str(q.Arguments.FirstOrDefault()) ?? "").ToLowerInvariant() switch
+                        { "maximum" => "MAX", "minimum" => "MIN", "average" => "AVG", var other => other.ToUpperInvariant() }).Distinct().ToArray(),
+                    PresentationGaps = qualifiers.Where(q => q.Name is not ("TYPE_QUALIFIER" or "VALUE_FORMAT_TYPE_QUALIFIER")).Select(q => q.Name).ToArray(),
+                    PresentationSupported = qualifiers.All(q => q.Name is "TYPE_QUALIFIER" or "VALUE_FORMAT_TYPE_QUALIFIER") });
             }
         }
         return result;
@@ -160,7 +202,6 @@ internal sealed class Step242ForeignPmiReader
                     { if (Str(definition.Arguments.ElementAtOrDefault(4)) is { } label) labels.Add(label); return; }
                     if (datum.Name == "DATUM_REFERENCE_MODIFIER_WITH_VALUE") { supported = false; return; }
                     if (datum.Name is not ("DATUM_REFERENCE" or "DATUM_REFERENCE_COMPARTMENT" or "DATUM_REFERENCE_ELEMENT" or "COMMON_DATUM")) return;
-                    if (datum.Name is "COMMON_DATUM" or "DATUM_REFERENCE_ELEMENT") supported = false;
                     modifiers.AddRange(datum.Arguments.SelectMany(Enums));
                     foreach (var child in Step242PmiTransfer.References(datum.Instance)) Walk(child);
                 }
@@ -192,6 +233,7 @@ internal sealed class Step242ForeignPmiReader
         Step242EntityReference r => [r.TargetId], Step242ListValue list => list.Items.SelectMany(Refs),
         Step242TypedValue typed => typed.Arguments.SelectMany(Refs), _ => []
     };
+    private static string Number(double value) => System.Math.Round(value, 4).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
     private static IEnumerable<string> Enums(Step242Value? value) => value switch { Step242EnumValue e => [e.Value], Step242ListValue list => list.Items.SelectMany(Enums), _ => [] };
     private static void Add(Dictionary<int, List<int>> map, int key, int value) { if (!map.TryGetValue(key, out var values)) map[key] = values = []; values.Add(value); }
 }

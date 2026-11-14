@@ -105,26 +105,81 @@ forms remain frontend debt.
 aetheris drawing generate model.step --reference-only --out-dir artifacts/local/drawing/reference --json
 ```
 
-This draws the PMI a file already carries on wireframe views with approximate `REF`
-envelopes. Sheets are marked **REFERENCE ONLY / NOT FOR MANUFACTURE**, and nominal
-completeness is false. Manufacturing generation options are rejected in this mode.
-Unsupported wireframe geometry also reports a named error. A reference view is not
-a substitute for complete dimensions.
+This draws the PMI a file already carries on wireframe views. Sheets are marked
+**REFERENCE ONLY / NOT FOR MANUFACTURE**, and nominal completeness is false.
+Manufacturing generation options are rejected in this mode. Unsupported wireframe
+geometry also reports a named error. A reference view is not a substitute for
+complete dimensions. The part's sampled envelope is stated in the sheet notes.
 
-Each requirement is a numbered balloon on the view that shows its faces best
-(datums keep their letter), and one row of the **PMI SCHEDULE** sheets that follow:
-ID, characteristic, requirement, datum reference frame and the STEP entity it came
-from. Reading requirements from a table rather than from leaders that cross the
-part is deliberate, and it keeps every control's datums in one column.
+Each requirement is a numbered balloon on the view that shows its faces best, and
+one row of the **PMI SCHEDULE** sheets that follow: ID, characteristic,
+requirement, datum reference frame and the STEP entity it came from. Datum features
+keep their letter in a box. Reading requirements from a table rather than from
+leaders that cross the part is deliberate, and it keeps every control's datums in
+one column.
+
+Balloons sit on rings around the view, never on the geometry. Each takes the free
+place nearest the direction of its feature from the view's centre, so leaders stay
+short and in order; a place whose leader would cross another leader or many model
+edges costs more, and crossing pairs are swapped when that removes the crossing. A
+leader to an edge or hole ends in an arrowhead; a leader to a surface seen face-on
+ends in a dot inside that surface; a datum feature's leader ends in a filled
+triangle. Each view sheet holds up to 18 balloons; more continue on another sheet
+of the same view. A balloon with no free place rejects with
+`drawing-layout-impossible`, naming the balloon, its anchor and the view.
 
 AP242 files from other producers are read through the schema, so their PMI is
 written in millimetres (angles in degrees) whatever unit the file uses: a
-`0.005 in` flatness reads `0.127`. A size or location the file states without a
-value is listed with the model's nominal in parentheses and `NO VALUE IN FILE`;
-the drawing does not present it as a requirement. Every record must be associated
-with faces of the part; one that is not rejects with `drawing-pmi-target-unlocated`.
-Some NIST test-case constructs (composite and group shape aspects, records with
-no face association) still reject instead of being left off the sheets.
+`0.005 in` flatness per `0.25 in` square reads `0.127 /6.35×6.35`. Projected
+zones (`P 10.795`), unequally disposed profiles (`U 0.5`), per-unit controls
+(`/15`, `/Ø25.4`), common datums (`A-B`), MAX/MIN/AVG value qualifiers and
+symmetry and concentricity controls are written as such. Sizes use Ø, R, SØ and SR.
+A size or location the file states without a value is listed with the model's
+nominal in parentheses and `NO VALUE IN FILE`; the drawing does not present it as a
+requirement.
+
+Records attached to auxiliary geometry instead of faces (datum target points,
+isolated centre lines) are ballooned at that geometry. A record with no location
+on the part (no face, and no auxiliary geometry inside the part's envelope) is
+listed in the schedule as `NOT LOCATED` and gets no balloon; it is never dropped.
+
+### Placing balloons by hand
+
+A `Label` in the model's `Pmi` block moves one balloon. It changes where the
+balloon is drawn, never the requirement. From
+[`fixtures/Canonical/PMI/nist-ctc01-drawing-labels.firmament`](../../fixtures/Canonical/PMI/nist-ctc01-drawing-labels.firmament):
+
+```firmament
+Pmi {
+    Label TopFlatness {
+        record: "#57"
+        side: Above
+    }
+    Label DatumA {
+        record: A
+        at: [120mm, 34mm]
+    }
+    Label SlotLocation {
+        record: "#24"
+        view: Front
+        side: Below
+    }
+}
+```
+
+- `record` names the PMI record: `"#N"` is entity N of an imported STEP file (the
+  STEP column of the schedule), any other value is a record name, such as a datum
+  letter or a record declared in this `Pmi` block.
+- `view` is `Top`, `Front` or `Right`: the view sheet that shows the balloon.
+- `side` is `Left`, `Right`, `Above` or `Below` its view; the balloon takes the
+  best free place on that side.
+- `at` is the balloon's centre in millimetres from the sheet's top-left corner;
+  it is used as written.
+
+A Label sets at least one of `view`, `side` and `at`. An unknown field, an invalid
+value or a record the part does not have rejects with
+`firmament-v2-pmi-label-invalid` and the reason; a record that does not survive
+export rejects drawing generation with `drawing-label-record-unresolved`.
 
 The same PMI becomes a 3D model with callouts:
 
@@ -134,10 +189,15 @@ aetheris mesh nist_ctc_01_asme1_ap242-e1.stp --format glb --output artifacts/loc
 
 The GLB holds the part in millimetres and one callout per requirement, regenerated
 from the semantic records: feature control frames, datum symbols, sizes with their
-limits, angles in degrees. The file's own presentation glyphs are not reused.
-Records whose callout is not supported yet (advanced zone or datum parameters,
-composite frames) reject the GLB with a `pmi-display-` error rather than dropping
-the requirement.
+limits, angles in degrees, and the parameters above. The file's own presentation
+glyphs are not reused. A requirement on several faces, or on a cone, torus or
+freeform face, points at its largest face; a hole whose axis is not Z points at its
+wall. A size on several alike holes that states no quantity is drawn as one `2X`
+callout on all of them; one size on holes of different diameters rejects with
+`pmi-display-target-multiple-unsupported`. Records with no face on the part are listed in the notes panel as
+`NOT LOCATED ON PART`. On a crowded part a callout slides sideways along its face
+before reaching further out; one with no free place rejects with
+`pmi-display-layout-no-space`.
 
 ## Authored drawings and formats
 

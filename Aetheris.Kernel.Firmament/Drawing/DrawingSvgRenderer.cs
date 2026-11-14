@@ -86,8 +86,9 @@ public static class DrawingSvgRenderer
         builder.AppendLine($"<g data-annotation=\"{E(annotation.Identity)}\" data-semantic-reference=\"{E(annotation.SemanticReference)}\">");
         foreach (var stroke in DrawingAnnotationGeometry.Strokes(annotation))
             builder.AppendLine($"<path class=\"leader\" d=\"M {F(stroke.Start.X)} {F(stroke.Start.Y)} L {F(stroke.End.X)} {F(stroke.End.Y)}\"/>");
-        builder.AppendLine($"<rect x=\"{F(annotation.SelectedCandidate.Body.X)}\" y=\"{F(annotation.SelectedCandidate.Body.Y)}\" width=\"{F(annotation.SelectedCandidate.Body.Width)}\" height=\"{F(annotation.SelectedCandidate.Body.Height)}\" fill=\"white\" stroke=\"{(annotation.Kind is DrawingAnnotationKind.Datum or DrawingAnnotationKind.FeatureControlFrame ? "#374151" : "none")}\" stroke-width=\".18\"/>");
-        builder.AppendLine($"<text class=\"annotation\" x=\"{F(annotation.SelectedCandidate.Body.X + 1.2)}\" y=\"{F(annotation.SelectedCandidate.Body.Y + 4)}\">{E(annotation.EngineeringDisplay)}</text>");
+        if (annotation.Shape != DrawingAnnotationShape.Balloon)
+            builder.AppendLine($"<rect x=\"{F(annotation.SelectedCandidate.Body.X)}\" y=\"{F(annotation.SelectedCandidate.Body.Y)}\" width=\"{F(annotation.SelectedCandidate.Body.Width)}\" height=\"{F(annotation.SelectedCandidate.Body.Height)}\" fill=\"white\" stroke=\"{(annotation.Shape == DrawingAnnotationShape.DatumFeature || annotation.Shape == DrawingAnnotationShape.Box && annotation.Kind is DrawingAnnotationKind.Datum or DrawingAnnotationKind.FeatureControlFrame ? "#374151" : "none")}\" stroke-width=\".18\"/>");
+        builder.AppendLine($"<text class=\"annotation\" x=\"{F(annotation.SelectedCandidate.Body.X + (annotation.Shape == DrawingAnnotationShape.Box ? 1.2 : 1))}\" y=\"{F(annotation.SelectedCandidate.Body.Y + (annotation.Shape == DrawingAnnotationShape.Box ? 4 : 4.2))}\">{E(annotation.EngineeringDisplay)}</text>");
         builder.AppendLine("</g>");
     }
 

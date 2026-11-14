@@ -130,6 +130,22 @@ public sealed class ComposedHoleFamilyTests
         var faces = body.Topology.Faces.Where(f => body.GetFaceSurface(f.Id).Kind == SurfaceGeometryKind.Cylinder).Select(f => f.Id.Value).ToArray();
         var step = Step242Exporter.ExportBody(body, [new Step242SemanticPmiHole("group", 6d, null, "test", .1, .1) { GeometricFaceIds = faces }]);
         Assert.True(step.IsSuccess);
+        // Separate alike holes are one callout on all of them, stating how many; they are not drawn as one wall.
+        var callout = Assert.Single(PmiDisplayProjection.FromStep(step.Value));
+        var holes = body.Topology.Faces.Where(f => body.GetFaceSurface(f.Id).Kind == SurfaceGeometryKind.Cylinder)
+            .Select(f => body.GetFaceSurface(f.Id).Cylinder!.Value).Select(c => (Math.Round(c.Origin.X, 6), Math.Round(c.Origin.Y, 6))).Distinct().Count();
+        Assert.StartsWith($"{holes}X Ø6", callout.Text, StringComparison.Ordinal);
+        Assert.True(callout.Lines.Count >= holes);
+    }
+
+    [Fact]
+    public void OneSizeOnHolesOfDifferentSizes_IsRejected()
+    {
+        var source = Source.Replace("        Hole<Countersink>", "Hole<Shaft> Other { on: +Z; center: Point2(-30mm, 20mm); diameter: 4mm; end: ThroughAll }\n        Hole<Countersink>");
+        var product = Admit(source, true); var body = product.RuntimeBody!;
+        var faces = body.Topology.Faces.Where(f => body.GetFaceSurface(f.Id).Kind == SurfaceGeometryKind.Cylinder).Select(f => f.Id.Value).ToArray();
+        var step = Step242Exporter.ExportBody(body, [new Step242SemanticPmiHole("group", 6d, null, "test", .1, .1) { GeometricFaceIds = faces }]);
+        Assert.True(step.IsSuccess);
         var failure = Assert.Throws<InvalidOperationException>(() => PmiDisplayProjection.FromStep(step.Value));
         Assert.StartsWith("pmi-display-target-multiple-unsupported:", failure.Message);
     }

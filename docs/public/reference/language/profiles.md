@@ -88,6 +88,14 @@ polygon with an inner circle.
 
 ### Tracing with `|>`
 
+For a dimension-driven part, give the Concept guides the dimensions that define
+the shape. The [traced angle bracket](../../../../fixtures/Regression/OrientedComposeHoles/parametric-traced-bracket-finished.firmament)
+uses two rectangles and a shared heel point. Changing the wall thickness moves
+both leg guides and the heel together. Traced spans such as `FootSeat` retain
+their names, so a hole or edge finish can still reference the same surface after
+a resize. The named spans also leave a clear place to insert a shape-defining
+`Round(r)` in the profile.
+
 `|>` joins guide segments in source order:
 
 - The first stage sets its own direction; each later stage orients itself to

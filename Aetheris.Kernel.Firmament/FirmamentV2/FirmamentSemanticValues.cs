@@ -45,9 +45,13 @@ public static class FirmamentSemanticValues
     }
 
     public static IReadOnlyList<SemanticValue> FromProfilesAndConceptPaths(string source, string sourceIdentity = "<memory>", ICollection<string>? reportedDiagnostics = null)
+        => FromProfilesAndConceptPaths(source, sourceIdentity, reportedDiagnostics, null);
+
+    internal static IReadOnlyList<SemanticValue> FromProfilesAndConceptPaths(string source, string sourceIdentity,
+        ICollection<string>? reportedDiagnostics, FirmamentCompileTimeValues? compileTime)
     {
         var expansionDiagnostics = new List<string>();
-        var compileTime = new FirmamentCompileTimeValues(source);
+        compileTime ??= new FirmamentCompileTimeValues(source);
         var expansion = FirmamentV2TemplateExpansion.Expand(source, expansionDiagnostics, compileTime);
         foreach (var diagnostic in expansionDiagnostics) reportedDiagnostics?.Add(diagnostic);
         var expanded = expansion?.Source ?? source;

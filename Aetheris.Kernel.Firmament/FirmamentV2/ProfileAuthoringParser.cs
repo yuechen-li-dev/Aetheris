@@ -49,7 +49,9 @@ public static class ProfileAuthoringParser
     public static bool IsProfileSource(string source) => Regex.IsMatch(source, @"\bProfile\s+[A-Za-z_]\w*", RegexOptions.CultureInvariant);
 
     /// <summary>Inspects first-class geometric views without materializing independent guides.</summary>
-    public static GeometricSpanInspection InspectGeometricSpans(string source)
+    public static GeometricSpanInspection InspectGeometricSpans(string source) => InspectGeometricSpans(source, null);
+
+    internal static GeometricSpanInspection InspectGeometricSpans(string source, FirmamentCompileTimeValues? compileTime)
     {
         ArgumentNullException.ThrowIfNull(source);
         var diagnostics = new List<string>();
@@ -60,7 +62,8 @@ public static class ProfileAuthoringParser
         if (staticExpansion is not null) source = staticExpansion.Source;
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
         var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
-        AddOrdinaryGuides(source, points, guides, diagnostics, applySpans: false);
+        AddOrdinaryGuides(source, points, guides, diagnostics, applySpans: false,
+            bind: compileTime is null ? null : compileTime.NominalExpression);
         var spans = ApplyGeometricSpans(source, points, guides, diagnostics, addGuides: false);
         return new(spans, diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
     }

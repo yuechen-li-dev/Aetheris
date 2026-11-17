@@ -1,0 +1,41 @@
+// Parametric traced section with a named face bore and a named longitudinal edge break.
+Model SimpleBracket {
+  units: mm
+
+  Static footLength: Length = 30mm
+  Static uprightHeight: Length = 40mm
+  Static wall: Length = 3mm
+  Static width: Length = 20mm
+  Require proportions => wall > 0mm && footLength > wall && uprightHeight > wall && width > 0mm
+
+  // The two leg envelopes share the heel. Change the dimensions above to
+  // move the named construction edges together.
+  Concept Struct layout on XZ {
+    Rect2 foot { center: [footLength / 2, wall / 2]; size: [footLength, wall] }
+    Rect2 upright { center: [wall / 2, uprightHeight / 2]; size: [wall, uprightHeight] }
+    Point2 heel { position: [wall, wall] }
+  }
+  Profile section using layout {
+    Loop Outer {
+      foot.Bottom as FootOutside
+        |> foot.Right as Toe
+        |> foot.Top from foot.TopRight to heel as FootSeat
+        |> upright.Right from heel to upright.TopRight as UprightSeat
+        |> upright.Top as Crown
+        |> upright.Left to foot.BottomLeft as Back
+        |> Close
+    }
+  }
+  Extrude bracket { profile: section; from: 0mm; to: width }
+  Modify bracket {
+    Hole<Counterbore> mount {
+      on: face(bracket.Side("profile:section.Outer.FootSeat"))
+      center: Point2(13mm, 10mm)
+      diameter: 4mm
+      counterboreDiameter: 7mm
+      counterboreDepth: 1mm
+      end: ThroughAll
+    }
+    EdgeFinish FootBreak { Face: Longitudinal Target: section.Outer.FootSeat.Start Kind: Chamfer Distance: 0.5mm }
+  }
+}

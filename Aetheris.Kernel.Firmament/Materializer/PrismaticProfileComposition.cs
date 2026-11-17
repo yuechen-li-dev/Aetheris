@@ -242,7 +242,9 @@ public static class PrismaticProfileCompositionParser
 
     public static bool IsCompositionSource(string source) => FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).Any(d => d.Type.Name.Text == "Compose");
 
-    public static PrismaticProfileCompositionParseResult Parse(string source)
+    public static PrismaticProfileCompositionParseResult Parse(string source) => Parse(source, null);
+
+    internal static PrismaticProfileCompositionParseResult Parse(string source, FirmamentCompileTimeValues? compileTime)
     {
         var expansion = StaticGeometryExpansion.Expand(source);
         if (expansion.Diagnostics.Count > 0) return new(null, new Dictionary<string, ResolvedProfile2D>(), expansion.Diagnostics, expansion.Evidence);
@@ -314,7 +316,7 @@ public static class PrismaticProfileCompositionParser
         // Profile is the capability boundary. Concept Path is normalized by the
         // canonical profile binder before Compose resolves its operands, so the
         // section-stack compiler never needs a path-specific lowering branch.
-        foreach (var semantic in FirmamentSemanticValues.FromProfilesAndConceptPaths(source, reportedDiagnostics: diagnostics))
+        foreach (var semantic in FirmamentSemanticValues.FromProfilesAndConceptPaths(source, "<memory>", diagnostics, compileTime))
         {
             if (!semantic.Capabilities.Supports<ComposeOperandCapability>()) continue;
             var consumed = ProfileSemanticConsumer.RequireProfile(new(semantic, [], SemanticSourceSpan.Generated("Compose")), "Compose");
@@ -329,7 +331,9 @@ public static class PrismaticProfileCompositionParser
         foreach (var declaration in FirmamentSyntaxTraversal.Declarations(syntax.Document).Where(d => d.Type.Name.Text == "Profile" && d.Name is not null))
         {
             if (profiles.ContainsKey(declaration.Name!.Text)) continue;
-            var resolved = ProfileAuthoringParser.ResolveNamedProfile(source, declaration.Name.Text, out var reported);
+            var resolved = compileTime is null
+                ? ProfileAuthoringParser.ResolveNamedProfile(source, declaration.Name.Text, out var reported)
+                : ProfileAuthoringParser.ResolveNamedProfileCore(source, declaration.Name.Text, new(StringComparer.Ordinal), out reported, compileTime);
             diagnostics.AddRange(reported);
             if (resolved is not null && reported.Count == 0) profiles.Add(declaration.Name.Text, resolved);
         }
@@ -375,7 +379,7 @@ public static class PrismaticProfileCompositionParser
             diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:Compose:{(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}");
         }
         if (diagnostics.Count > beforeAdmission) return new(null, profiles, diagnostics);
-        var spanInspection = ProfileAuthoringParser.InspectGeometricSpans(source);
+        var spanInspection = ProfileAuthoringParser.InspectGeometricSpans(source, compileTime);
         diagnostics.AddRange(spanInspection.Diagnostics);
         var surfaceSpans = spanInspection.Spans.Where(span => span.SpanType == "Plane").ToDictionary(span => span.SpanId, StringComparer.Ordinal);
         var placements = operationsSyntax.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Placement").ToArray();

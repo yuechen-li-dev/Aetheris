@@ -6,6 +6,36 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class CompositionLanguageTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ConcreteWireFormsUseTheirOwningValidator(bool standalone)
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/WireForm/paperclip.firmament");
+        if (standalone)
+        {
+            var syntax = FirmamentV2.Syntax.FirmamentSyntaxParser.Parse(source);
+            var wire = Assert.Single(FirmamentV2.Syntax.FirmamentSyntaxTraversal.Declarations(syntax.Document),
+                d => d.Type.Name.Text == "WireForm");
+            source = "schema WireForm\n\n" + source.Substring(wire.Span.Start, wire.Span.Length);
+        }
+
+        Assert.Empty(FirmamentLanguageAnalysisService.Analyze(source, "paperclip.firmament", "1").Diagnostics);
+        var project = new FirmamentProjectSnapshot("paperclip.firmament", new Dictionary<string, string> { ["paperclip.firmament"] = source });
+        Assert.Empty(FirmamentLanguageAnalysisService.Analyze(project, "paperclip.firmament", "1").Diagnostics);
+
+        var invalid = source.ReplaceRequired("Diameter: 1mm", "Diameter: 0mm");
+        Assert.Contains(FirmamentLanguageAnalysisService.Analyze(invalid, "paperclip.firmament", "2").Diagnostics,
+            d => d.Severity == "error" && d.Message.Contains("wireform-diameter-invalid", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DeclarationOnlyModulesStillRequireProjectContext()
+    {
+        var result = FirmamentLanguageAnalysisService.Analyze("Material Steel { Density: 7850 }", "materials.firmament", "1");
+        Assert.Contains(result.Diagnostics, d => d.Code == "firmament-language-project-context-required");
+    }
+
+    [Theory]
     [InlineData("WireRoute Lead {\n Min", "WireRoute", "MinimumBendRadius")]
     [InlineData("WireRoute Lead { Path { Follow Groove {\n Cur", "Follow", "Curve")]
     [InlineData("Section Station { Frame: Plane { Origin: [0mm,0mm,0mm]; }\n Pro", "Section", "Profile")]

@@ -80,6 +80,31 @@ public sealed class BoxRuntimeCorrespondenceTests
     }
 
     [Fact]
+    public void MultipleBoxHolesRefuseDrillPointsAndPreserveExplicitFlatBottoms()
+    {
+        const string blind = "Hole<Shaft> BlindHole { on: face(+Z); center: Point2(8mm, 5mm); diameter: 4mm; end: Blind(4mm) }";
+        const string through = "Hole<Shaft> ThroughHole { on: face(+Z); center: Point2(-8mm, -5mm); diameter: 4mm; end: ThroughAll }";
+        var singleSource = Source.Replace(" } }", " } Modify Body { " + blind + " } }", StringComparison.Ordinal);
+        var single = FirmamentBuildAndExport.CompileSource(singleSource);
+        Assert.True(single.IsSuccess, string.Join("; ", single.Diagnostics.Select(d => d.Message)));
+        Assert.Contains("CONICAL_SURFACE(", single.Value.StepText);
+
+        var combinedSource = singleSource.Replace(blind, blind + " " + through, StringComparison.Ordinal);
+        var blocked = FirmamentBuildAndExport.CompileSource(combinedSource);
+        Assert.False(blocked.IsSuccess);
+        var diagnostic = Assert.Single(blocked.Diagnostics, d => d.Message.StartsWith("firmament-v2-hole-drill-point-composition:", StringComparison.Ordinal));
+        Assert.Contains("Body.BlindHole", diagnostic.Message);
+        Assert.Contains("Through all", diagnostic.Message);
+
+        var flatSource = combinedSource.Replace("end: Blind(4mm)", "end: Blind(4mm); Termination: Flat", StringComparison.Ordinal);
+        var flat = FirmamentBuildAndExport.CompileSource(flatSource);
+        Assert.True(flat.IsSuccess, string.Join("; ", flat.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(2, flat.Value.MaterializedFeatures!.Count);
+        Assert.DoesNotContain("CONICAL_SURFACE(", flat.Value.StepText);
+        Assert.True(Step242Importer.ImportBody(flat.Value.StepText).IsSuccess);
+    }
+
+    [Fact]
     public void FormattedTopFaceIsAcceptedByExistingFirmamentPmiBinder()
     {
         var source = Source.Replace(" } }", " } Pmi { Datum A { Target: face(+Z) } } }", StringComparison.Ordinal);

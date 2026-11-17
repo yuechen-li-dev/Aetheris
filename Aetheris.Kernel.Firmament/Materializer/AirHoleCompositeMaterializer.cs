@@ -27,6 +27,11 @@ internal static class AirHoleCompositeMaterializer
             diagnostics.Add("air-hole-x4 rejected: composite materialization requires at least one semantic AirHoleFeature.");
             return new(false, null, [], diagnostics);
         }
+        if (features.Count > 1 && features.FirstOrDefault(feature => feature.Termination is AirHoleTermination.DrillPoint) is { } drilled)
+        {
+            diagnostics.Add($"firmament-v2-hole-drill-point-composition: Hole '{drilled.FeatureId}' has a drill point. Keep it as the only hole on this block, set its End to Through all, or use Termination: Flat for a flat-bottom hole.");
+            return new(false, null, [], diagnostics);
+        }
 
         // Classify every hole before planning any: one tangent hole rejects the set with its own reason, and one hole
         // that breaks out moves the whole set onto the section-stack route, which resolves all of them together.

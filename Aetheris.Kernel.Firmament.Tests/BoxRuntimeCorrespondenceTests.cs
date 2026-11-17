@@ -57,6 +57,28 @@ public sealed class BoxRuntimeCorrespondenceTests
         Assert.DoesNotContain(renamed.Descendants, item => item.StableId == "Body.face(+Z)");
     }
 
+    [Theory]
+    [InlineData("Blind(4mm)")]
+    [InlineData("ThroughAll")]
+    public void PickedTopHoleFrameUsesAuthoredCoordinatesAndRetainsExistingOpening(string end)
+    {
+        var source = Source.Replace(" } }", " } Modify Body { Hole<Shaft> bore { on: face(+Z); center: Point2(8mm, 5mm); diameter: 4mm; end: " + end + " } } }", StringComparison.Ordinal);
+        var build = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(build.IsSuccess, string.Join("; ", build.Diagnostics.Select(item => item.Message)));
+        var body = build.Value.RuntimeBody!;
+        var descendants = build.Value.RuntimeCorrespondence!.Descendants;
+        var top = Assert.Single(descendants, face => face.FirmamentSelector == "face(+Z)");
+        var frame = Assert.IsType<PlanarFaceSupport>(PlanarFaceThroughHole.SupportForSelection(body, top));
+        Assert.Equal([0d, 0d, 10d], frame.Origin);
+        Assert.Equal([1d, 0d, 0d], frame.X);
+        Assert.Equal([0d, 1d, 0d], frame.Y);
+        var opening = Assert.Single(frame.ExcludedDisks);
+        Assert.Equal([8d, 5d], opening.Center);
+        Assert.Equal(2d, opening.Radius);
+        Assert.All(descendants.Where(face => face.Role == SemanticTopologyRole.BoxFace && face != top),
+            face => Assert.Null(PlanarFaceThroughHole.SupportForSelection(body, face)));
+    }
+
     [Fact]
     public void FormattedTopFaceIsAcceptedByExistingFirmamentPmiBinder()
     {

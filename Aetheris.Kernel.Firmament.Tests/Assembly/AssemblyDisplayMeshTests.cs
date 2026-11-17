@@ -6,6 +6,19 @@ namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 public sealed class AssemblyDisplayMeshTests
 {
     [Fact]
+    public void ExternalDefinitionRejectsAnExpiredMeshingBudgetWithoutReturningAPartialMesh()
+    {
+        var fixture = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Assembly/annular-pair.firmament");
+        var compilation = new AssemblyM1Pipeline().CompileFile(fixture);
+        Assert.True(compilation.IsSuccess, string.Join("\n", compilation.Diagnostics.Select(d => d.Message)));
+        var body = Assert.Single(compilation.Geometry!.DefinitionBodies).Value;
+        var error = Assert.Throws<InvalidOperationException>(() => AssemblyDisplayMeshExporter.PrepareDefinition(
+            "part", "sleeve", body, externalStep: true, executionTimeout: TimeSpan.Zero));
+        Assert.Contains("assembly-mesh-definition-failed:sleeve:", error.Message);
+        Assert.Contains("bounded execution budget", error.Message);
+    }
+
+    [Fact]
     public void AnnularDefinitionsRetainSeamsCapsIdentityAndDeterministicMeshes()
     {
         var fixture = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Assembly/annular-pair.firmament");

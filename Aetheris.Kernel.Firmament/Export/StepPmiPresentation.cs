@@ -11,6 +11,10 @@ namespace Aetheris.Kernel.Firmament.Export;
 /// </summary>
 public static class StepPmiPresentation
 {
+    // Batch interchange export can mesh hundreds of imported faces. Keep it bounded,
+    // with a separate budget from the interactive viewport's five-second default.
+    private static readonly TimeSpan MeshingBudget = TimeSpan.FromSeconds(30);
+
     /// <summary>The single part of an AP242 file as a display document, in millimetres, with its PMI callouts.</summary>
     public static AssemblyDisplayMeshDocument Display(string step, string name)
     {
@@ -18,7 +22,8 @@ public static class StepPmiPresentation
         if (!imported.IsSuccess || imported.Value is null)
             throw new InvalidOperationException("step-pmi-import-failed: " + string.Join("; ", imported.Diagnostics.Select(d => d.Message)));
         var options = DisplayTessellationOptions.ForViewport(imported.Value);
-        var definition = AssemblyDisplayMeshExporter.PrepareDefinition("part", name, imported.Value, options, externalStep: true);
+        var definition = AssemblyDisplayMeshExporter.PrepareDefinition("part", name, imported.Value, options,
+            externalStep: true, executionTimeout: MeshingBudget);
         var occurrence = new AssemblyDisplayMeshOccurrence("part", name, null, "part", [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], name) { Kind = "Part" };
         var annotations = Visualization.PmiDisplayProjection.FromStep(step, options);
         return new AssemblyDisplayMeshDocument("aetheris/assembly-display-mesh/1", name, "mm", [definition], [occurrence])

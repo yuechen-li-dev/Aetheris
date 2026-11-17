@@ -74,6 +74,16 @@ retaining the structured polygon representation.
 
 ## Assembly display meshes
 
+An AP242 part can be exported with its existing semantic PMI as GLB callouts:
+
+```sh
+aetheris mesh part.step --format glb --output artifacts/local/part.glb --json
+```
+
+Geometry and callouts use millimetres. Imported-part meshing has a bounded
+30-second batch budget, separate from the interactive viewport's five-second
+default. A meshing timeout rejects the export before writing the GLB.
+
 For a standalone BRep part, use
 `aetheris mesh part.firmament --format display-json --output artifacts/local/part.display.json --step-output artifacts/local/part.step --json`.
 This exports the shared display schema in millimetres with one definition and

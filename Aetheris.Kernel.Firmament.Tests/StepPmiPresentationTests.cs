@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament.Drawing;
 using Aetheris.Kernel.Firmament.Export;
 
@@ -98,7 +99,12 @@ public sealed class StepPmiPresentationTests
     {
         var step = File.ReadAllText(Nist(file));
         var count = Step242SemanticPmiInspector.Inspect(step).Items.Count;
-        Assert.Equal(count, StepPmiPresentation.Display(step, "part").Annotations.Count);
+        var display = StepPmiPresentation.Display(step, "part");
+        Assert.Equal(count, display.Annotations.Count);
+        var definition = Assert.Single(display.Definitions);
+        Assert.NotEmpty(definition.Indices);
+        Assert.NotEmpty(definition.Ranges!);
+        Assert.Equal("glTF"u8.ToArray(), AssemblyGlbExporter.Serialize(display)[..4]);
         using var scratch = new Scratch();
         var result = FirmamentDrawingCompiler.Generate(Nist(file), scratch.Path, null, new(ReferenceOnly: true));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));

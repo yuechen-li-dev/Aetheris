@@ -104,7 +104,7 @@ public static class AssemblyDisplayMeshExporter
     }
 
     public static AssemblyDisplayMeshDefinition PrepareDefinition(string id, string identity, Aetheris.Kernel.Core.Brep.BrepBody body,
-        DisplayTessellationOptions? options = null, bool externalStep = false)
+        DisplayTessellationOptions? options = null, bool externalStep = false, TimeSpan? executionTimeout = null)
     {
             var effectiveOptions = options ?? new DisplayTessellationOptions(double.Pi / 16, .3, 6, 64);
             // Reuse the OBJ export's shared-boundary mesher for planar/cylindrical
@@ -121,7 +121,7 @@ public static class AssemblyDisplayMeshExporter
                 ? Aetheris.Kernel.Core.Results.KernelResult<DisplayTessellationResult>.Success(structuredSpline)
                 : useSurfaceMeshIr
                 ? BrepDisplayTessellator.TessellateSurfaceMeshIr(body, effectiveOptions)
-                : BrepDisplayTessellator.TessellateBounded(body, effectiveOptions);
+                : BrepDisplayTessellator.TessellateBounded(body, effectiveOptions, executionTimeout);
             if (!tessellation.IsSuccess || tessellation.Value.FacePatches.Count != body.Topology.Faces.Count())
                 throw new InvalidOperationException($"assembly-mesh-definition-failed:{identity}:" + string.Join(";", tessellation.Diagnostics.Select(d => d.Message)));
             var positions = new List<double>(); var normals = new List<double>(); var indices = new List<int>();

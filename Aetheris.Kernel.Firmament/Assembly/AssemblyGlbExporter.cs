@@ -193,10 +193,10 @@ public static class AssemblyGlbExporter
             }
             if (annotation.Panel is { Indices.Length: > 0 } panel)
             {
-                // Backing panels stay readable over a translucent part; emissive keeps them white under any lighting.
+                // Opaque backing keeps through-part construction lines out of the lettering.
                 materials.Add(new { name = "PMI panel " + annotation.Name, doubleSided = true,
-                    pbrMetallicRoughness = new { baseColorFactor = new[] { 1d, 1d, 1d, .92 }, metallicFactor = 0, roughnessFactor = 1 },
-                    emissiveFactor = new[] { .85, .87, .9 }, alphaMode = "BLEND" });
+                    pbrMetallicRoughness = new { baseColorFactor = new[] { 1d, 1d, 1d, 1d }, metallicFactor = 0, roughnessFactor = 1 },
+                    emissiveFactor = new[] { .85, .87, .9 } });
                 primitives.Add(new { attributes = new Dictionary<string, object> { ["POSITION"] = Floats(panel.Positions, 3, true) },
                     indices = Indices(panel.Indices), mode = 4, material = materials.Count - 1 });
             }

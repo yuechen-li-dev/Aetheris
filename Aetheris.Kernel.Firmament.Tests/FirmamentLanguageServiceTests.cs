@@ -4,6 +4,18 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class FirmamentLanguageServiceTests
 {
+    [Theory]
+    [InlineData("Model Part { Hole Mount { center: Point2(2mm, |", "Point2", "y")]
+    [InlineData("Function Shift(p: Point2, height: Length) -> Point3 => Point3(0mm, 0mm, height)\nStatic corner: Point3 = Shift(Point2(4mm, 5mm), |", "Shift", "height")]
+    [InlineData("Function Shift(p: Point2, height: Length) -> Point3 => Point3(0mm, 0mm, height)\nStatic corner: Point3 = Shift(height: |", "Shift", "height")]
+    public void SignatureHelp_TracksIncompleteNestedAndNamedArguments(string witness, string name, string active)
+    {
+        var result = FirmamentLanguageService.Complete(witness.Replace("|", ""), "part.firmament", "ready", witness.IndexOf('|'));
+        var signature = Assert.IsType<FirmamentCallSignature>(result.Signature);
+        Assert.Equal(name, signature.Name);
+        Assert.Equal(active, signature.Parameters[signature.ActiveParameter].Name);
+    }
+
     [Fact]
     public void IncompleteHelix_OffersOwnerFieldsAndMissingRequiredFields()
     {

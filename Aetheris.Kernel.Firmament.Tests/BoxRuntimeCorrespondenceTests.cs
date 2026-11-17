@@ -8,6 +8,23 @@ public sealed class BoxRuntimeCorrespondenceTests
 {
     private const string Source = "Model BoxWitness { Units: mm Box Body { Size: [30mm, 20mm, 10mm] } }";
 
+    [Theory]
+    [InlineData("Fillet", "Radius")]
+    [InlineData("Chamfer", "Distance")]
+    public void LocalizedFinish_PreservesPartNoteInStep(string kind, string field)
+    {
+        var withNote = Source[..^1] + $$"""
+            Modify Body { EdgeFinish Round { Face: +X Target: SharedEdgePlusZ Kind: {{kind}} {{field}}: 1mm } }
+            Pmi { Note Finish { text: "Deburr the operator's side." } }
+            }
+            """;
+        var build = FirmamentBuildAndExport.CompileSource(withNote);
+        Assert.True(build.IsSuccess, string.Join(" | ", build.Diagnostics.Select(item => item.Message)));
+        var note = Assert.Single(Step242SemanticPmiInspector.Inspect(build.Value.StepText).Items, item => item.Kind == "Annotation");
+        Assert.Equal("Finish", note.Name);
+        Assert.Equal("Deburr the operator's side.", note.Text);
+    }
+
     [Fact]
     public void BoxFacesRetainConstructionIdentityForDirectDisplay()
     {

@@ -263,6 +263,11 @@ public static partial class FirmamentBuildAndExport
             expectedDatums += original.DatumCount; expectedDiameters += original.DimensionCount; expectedControls += original.GeometricToleranceCount;
         }
         var inspection = Step242SemanticPmiInspector.Inspect(export.StepText);
+        var authoredNotes = document.BoundPmi?.Controls.Where(record => record.Kind == FirmamentV2PmiKind.Note).ToArray() ?? [];
+        if (inspection.Success && authoredNotes.Any(note => !inspection.Items.Any(item => item.Kind == "Annotation" &&
+            item.Name == note.Name && item.Text == note.Text)))
+            return KernelResult<bool>.Failure([new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
+                "firmament-v2-pmi-note-export-missing: The STEP export did not preserve every authored part note.", "FirmamentV2.PmiExportParity")]);
         if (inspection.Success && inspection.DatumCount == expectedDatums && inspection.DimensionCount == expectedDiameters && inspection.GeometricToleranceCount == expectedControls)
             return KernelResult<bool>.Success(true);
 
@@ -1830,7 +1835,7 @@ public static partial class FirmamentBuildAndExport
         var manifold = FirmamentManifoldChecker.IsManifold(compiled.Body);
         if (!manifold) return AirChamferFailure("air-chamfer-emitted-body-is-not-manifold", compiled.Diagnostics);
 
-        var step = Step242Exporter.ExportBody(compiled.Body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(compiled.Body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Feature.FeatureName,
             ApplicationName = AirTopFaceBoundaryChamferCompileResult.ProductionRoute,
@@ -1885,7 +1890,7 @@ public static partial class FirmamentBuildAndExport
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return AirChamferFailure("localized-chamfer-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
         if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-chamfer-emitted-body-is-not-manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Feature.FeatureName,
             ApplicationName = AirLocalizedPlanarReplacementChamferCompileResult.ProductionRoute,
@@ -1933,7 +1938,7 @@ public static partial class FirmamentBuildAndExport
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return AirChamferFailure("localized-junction-chamfer-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
         if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-junction-chamfer-emitted-body-is-not-manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Construction.ConstructionId,
             ApplicationName = AirLocalizedEdgeJunctionChamferCompileResult.ProductionRoute,
@@ -1980,7 +1985,7 @@ public static partial class FirmamentBuildAndExport
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return AirChamferFailure("localized-fillet-junction-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
         if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-fillet-junction-emitted-body-is-not-manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Construction.ConstructionId,
             ApplicationName = AirLocalizedEdgeJunctionFilletCompileResult.ProductionRoute,
@@ -2102,7 +2107,7 @@ public static partial class FirmamentBuildAndExport
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return HollowFailure("VerificationFailure");
         if (!FirmamentManifoldChecker.IsManifold(body)) return HollowFailure("VerificationFailure: vessel boundary is not a closed manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = solid.Name,
             ApplicationName = "Aetheris.Firmament.Primitive<Hollow>",
@@ -2215,7 +2220,7 @@ public static partial class FirmamentBuildAndExport
         if (!realization.IsSuccess || realization.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(realization.Diagnostics);
         var body = realization.Value.Body; var plan = realization.Value.Plan;
         if (!FirmamentManifoldChecker.IsManifold(body)) return RoundedBoxFailure("VerificationFailure: rounded-box body is not manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = solid.Name,
             ApplicationName = "AIR-ROUNDED-BOX-M6",
@@ -2279,7 +2284,7 @@ public static partial class FirmamentBuildAndExport
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return AirChamferFailure("localized-trihedral-fillet-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
         if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-trihedral-fillet-emitted-body-is-not-manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Construction.ConstructionId,
             ApplicationName = AirLocalizedTrihedralFilletCompileResult.ProductionRoute,
@@ -2330,7 +2335,7 @@ public static partial class FirmamentBuildAndExport
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return AirChamferFailure("localized-fillet-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
         if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-fillet-emitted-body-is-not-manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Feature.FeatureName,
             ApplicationName = AirLocalizedTangentBlendFilletCompileResult.ProductionRoute,
@@ -2383,7 +2388,7 @@ public static partial class FirmamentBuildAndExport
 
         var manifold = FirmamentManifoldChecker.IsManifold(compiled.Body);
         if (!manifold) return AirChamferFailure("chamfer-backend-circular-rim-body-is-not-manifold", compiled.Diagnostics);
-        var step = Step242Exporter.ExportBody(compiled.Body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(compiled.Body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Feature.FeatureName,
             ApplicationName = AirCylinderTopRimChamferCompileResult.ProductionRoute,
@@ -3070,6 +3075,10 @@ public static partial class FirmamentBuildAndExport
     }
 
     private static readonly Regex ImportedFaceSelector = new("^[A-Za-z_][A-Za-z0-9_]*\\.face\\(\"#[0-9]+\"\\)$", RegexOptions.CultureInvariant);
+
+    private static Step242SemanticPmiNote[] PartNotes(FirmamentV2Document document, string body) =>
+        (document.BoundPmi?.Controls ?? []).Where(note => note.Kind == FirmamentV2PmiKind.Note && note.Text is not null)
+            .Select(note => new Step242SemanticPmiNote(note.Name, body, note.Text!)).ToArray();
 
     internal static IReadOnlyList<Step242SemanticPmi> BuildV2SemanticPmi(
         FirmamentV2Document document,

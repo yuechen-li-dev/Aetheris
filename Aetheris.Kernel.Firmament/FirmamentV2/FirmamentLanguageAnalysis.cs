@@ -81,7 +81,7 @@ public static class FirmamentLanguageAnalysisService
             var section = SectionChainAuthoringParser.Compile(source, materialize: false);
             return new(document, revision, tokens, section.Diagnostics.Select(d => LocateDiagnostic(source, lexemes, d)).ToArray());
         }
-        if (Materializer.WireRouteAuthoring.IsSource(source) && !lexemes.Any(t => t.Shape == "identifier" && t.Text == "Template"))
+        if (Materializer.WireFormAuthoring.IsWireFormSource(source) && !lexemes.Any(t => t.Shape == "identifier" && t.Text == "Template"))
         {
             var route = Materializer.WireFormAuthoring.Parse(source);
             return new(document, revision, tokens, route.Diagnostics.Select(d => new FirmamentLanguageDiagnostic("error", d.Source, d.Message, 0, 0)).ToArray());

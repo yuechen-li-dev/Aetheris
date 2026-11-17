@@ -14,10 +14,10 @@ internal static class AssemblyStackupSyntax
         var result = new List<ToleranceStackupAssertSource>();
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var declaration in owner.Body?.Statements.OfType<DeclarationSyntax>()
-            .Where(d => d.Modifiers.Any(m => m.Name.Text == "Assert")) ?? [])
+            .Where(FirmamentAssertionSyntax.IsAssertion) ?? [])
         {
             var name = declaration.Name?.Text ?? "";
-            if (declaration.Type.Name.Text != "ToleranceStackup")
+            if (FirmamentAssertionSyntax.IsNear(declaration) || declaration.Type.Name.Text != "ToleranceStackup")
             { Error("assembly-assert-kind-unsupported", "Assembly assertions require ToleranceStackup.", declaration.Span); continue; }
             if (name.Length == 0 || declaration.Body is null || !names.Add(name))
             { Error("assembly-tolerance-assert-invalid", "ToleranceStackup requires a unique name and a field body.", declaration.Span); continue; }

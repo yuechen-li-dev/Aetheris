@@ -40,17 +40,23 @@ add PMI, or specify a manufacturing tolerance. Normal `validate` and `build` bot
 enforce them. A failed assertion or an assertion that cannot be verified rejects
 the build; it is never a successful build with a hidden `passed: false` result.
 
-**Complete file — exact dimensions and topology:**
+Use `Assert.Near Volume` and `Assert.Near Bounds` for comparisons with an
+explicit positive tolerance. Volume uses `mm^3` and bounds use `mm`. Pick the
+tolerance from the design's verification needs. The compiler uses the same
+final-body measurements and rejects missing, zero or wrongly dimensioned
+tolerances. Topology counts remain exact.
+
+**Complete file with volume, bounds and topology checks:**
 
 ```firmament
 Model CheckedBox {
     units: mm
     Box Body { size: [10mm, 8mm, 6mm] }
-    Assert Volume Body { expected: 480mm^3; tolerance: 0mm^3 }
-    Assert Bounds Body {
+    Assert.Near Volume Body { expected: 480mm^3; tolerance: 0.001mm^3 }
+    Assert.Near Bounds Body {
         min: [-5mm, -4mm, 0mm]
         max: [5mm, 4mm, 6mm]
-        tolerance: 0mm
+        tolerance: 0.001mm
     }
     Assert Topology Body { faces: 6; edges: 12; vertices: 8; shells: 1 }
 }

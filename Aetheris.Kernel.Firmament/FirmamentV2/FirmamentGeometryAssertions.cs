@@ -10,9 +10,17 @@ public sealed record FirmamentGeometryAssertionResult(string AssertionId, string
 
 internal static class FirmamentAssertionSyntax
 {
+    internal static bool IsAssertion(DeclarationSyntax declaration) =>
+        declaration.Modifiers.Any(m => IsAssertionModifier(m.Name.Text));
+
+    internal static bool IsAssertionModifier(string text) => text is "Assert" or "Assert.Near";
+
+    internal static bool IsNear(DeclarationSyntax declaration) =>
+        declaration.Modifiers.Any(m => m.Name.Text == "Assert.Near");
+
     internal static IReadOnlyList<DeclarationSyntax> Declarations(string source) =>
         FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements)
-            .Where(d => d.Modifiers.Any(m => m.Name.Text == "Assert")).ToArray();
+            .Where(IsAssertion).ToArray();
 
     internal static (IReadOnlyList<FirmamentV2VolumeAssertion> Volume, IReadOnlyList<FirmamentGeometryAssertion> Geometry) Parse(
         string source, List<string> diagnostics)
@@ -23,6 +31,12 @@ internal static class FirmamentAssertionSyntax
         {
             var kind = declaration.Type.Name.Text;
             var target = declaration.Name?.Text ?? "";
+            var near = IsNear(declaration);
+            if (near && kind is not ("Volume" or "Bounds"))
+            {
+                diagnostics.Add($"firmament-v2-assert-near-kind-unsupported:{kind}:{target}: Assert.Near admits Volume and Bounds.");
+                continue;
+            }
             if (kind is not ("Volume" or "Bounds" or "Topology"))
             { diagnostics.Add($"{FirmamentV2Parser.AssertVolumeKindUnsupported}:{kind}:{target}"); continue; }
             if (declaration.Body is null || target.Length == 0)
@@ -39,19 +53,22 @@ internal static class FirmamentAssertionSyntax
                 if (!expectedOk) diagnostics.Add($"{FirmamentV2Parser.AssertVolumeExpectedDimensionMismatch}:{target}:Volume");
                 if (!toleranceOk) diagnostics.Add($"{FirmamentV2Parser.AssertVolumeToleranceDimensionMismatch}:{target}:Volume");
                 if (tolerance < 0) diagnostics.Add($"{FirmamentV2Parser.AssertVolumeToleranceNegative}:{target}");
+                if (near && toleranceOk && tolerance == 0) diagnostics.Add(NearTolerance(target));
                 if (expected < 0) diagnostics.Add($"{FirmamentV2Parser.AssertVolumeMalformed}:{target}:negative-expected");
-                if (expectedOk && toleranceOk && expected >= 0 && tolerance >= 0)
+                if (expectedOk && toleranceOk && expected >= 0 && (near ? tolerance > 0 : tolerance >= 0))
                     volume.Add(new(id, target, expected, tolerance, note, declaration.Span));
             }
             else if (kind == "Bounds")
             {
-                var minimum = fields.Take("Min"); var maximum = fields.Take("Max"); var tolerance = fields.Number("Tolerance", "mm", 0);
+                var minimum = fields.Take("Min"); var maximum = fields.Take("Max");
+                var tolerance = near ? fields.Number("Tolerance", "mm") : fields.Number("Tolerance", "mm", 0);
+                if (near && tolerance == 0) diagnostics.Add(NearTolerance(target));
                 var valid = FirmamentSyntaxValues.Vector(minimum, "mm", out var min) && min.Length == 3;
                 valid &= FirmamentSyntaxValues.Vector(maximum, "mm", out var max) && max.Length == 3;
                 valid &= double.IsFinite(tolerance) && tolerance >= 0;
                 if (valid && Enumerable.Range(0, 3).Any(i => min[i] > max[i])) valid = false;
                 if (!valid) diagnostics.Add($"firmament-v2-assert-bounds-malformed:{target}:expected-Min-Max-length-vectors-and-nonnegative-Tolerance");
-                else geometry.Add(new(id, kind, target, min, max, tolerance, null, note, declaration.Span));
+                else if (!near || tolerance > 0) geometry.Add(new(id, kind, target, min, max, tolerance, null, note, declaration.Span));
             }
             else
             {
@@ -70,6 +87,9 @@ internal static class FirmamentAssertionSyntax
         }
         return (volume, geometry);
     }
+
+    private static string NearTolerance(string target) =>
+        $"firmament-v2-assert-near-tolerance-invalid:{target}: Assert.Near requires an explicit positive tolerance.";
 
     private static bool Volume(ExpressionSyntax? expression, string source, out double value)
     {

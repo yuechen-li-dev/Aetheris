@@ -72,7 +72,7 @@ public static partial class FirmamentV2Parser
         BindMaterialDomainScope(new("inline", remainder, [], model.Span), "Compose", diagnostics);
         foreach (var unsupported in declarations.Where(d => d.Type.Name.Text is "Pmi" or "Selection" or "Thread" or "Assert"
             or "Boss" or "Pocket" or "AddOffset" or "RemoveOffset" or "Recognize" or "Replace" or "Remove" or "Pattern"
-            || d.Modifiers.Any(m => m.Name.Text == "Assert")))
+            || FirmamentAssertionSyntax.IsAssertion(d)))
             Error(prefix + "consumer-unsupported", $"Coaxial Compose does not yet consume '{unsupported.Type.Name.Text}'; remove it or use a qualified owner.", unsupported.Span);
         var chamfers = new List<CoaxialRimChamfer>();
         var ends = new HashSet<string>(StringComparer.Ordinal);

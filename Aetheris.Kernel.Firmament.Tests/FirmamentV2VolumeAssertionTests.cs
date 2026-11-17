@@ -98,6 +98,41 @@ public sealed class FirmamentV2VolumeAssertionTests
         }
     }
 
+    [Theory]
+    [InlineData("479.9999mm^3", "0.001mm^3", true)]
+    [InlineData("479mm^3", "0.001mm^3", false)]
+    public void NearVolumeUsesTheExplicitFinalBodyTolerance(string expected, string tolerance, bool succeeds)
+    {
+        var source = Source(expected, tolerance).Replace("Assert Volume", "Assert.Near Volume", StringComparison.Ordinal);
+        var build = FirmamentBuildAndExport.CompileSource(source);
+        Assert.Equal(succeeds, build.IsSuccess);
+        if (succeeds) Assert.True(Assert.Single(build.Value.Assertions!).Passed);
+        else Assert.Contains(build.Diagnostics, d => d.Message.StartsWith("firmament-v2-assert-volume-failed:", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("Volume", "expected: 480mm^3", false)]
+    [InlineData("Volume", "expected: 480mm^3; tolerance: 0mm^3", false)]
+    [InlineData("Volume", "expected: 480mm^3; tolerance: 1mm", false)]
+    [InlineData("Bounds", "min: [-5mm,-4mm,0mm]; max: [5.0001mm,4mm,6mm]; tolerance: 0.001mm", true)]
+    [InlineData("Bounds", "min: [-5mm,-4mm,0mm]; max: [5.1mm,4mm,6mm]; tolerance: 0.001mm", false)]
+    [InlineData("Bounds", "min: [-5mm,-4mm,0mm]; max: [5mm,4mm,6mm]", false)]
+    [InlineData("Bounds", "min: [-5mm,-4mm,0mm]; max: [5mm,4mm,6mm]; tolerance: 0mm", false)]
+    [InlineData("Topology", "shells: 1; tolerance: 1", false)]
+    public void NearChecksOnlyAdmittedMeasurementsWithPositiveTolerance(string kind, string fields, bool succeeds)
+    {
+        var source = $$"""
+            Model CheckedBox {
+                units: mm
+                Box Body { size: [10mm, 8mm, 6mm] }
+                Assert.Near {{kind}} Body { {{fields}} }
+            }
+            """;
+        var build = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(build.IsSuccess == succeeds, string.Join(Environment.NewLine, build.Diagnostics.Select(d => d.Message)));
+        if (succeeds) Assert.True(Assert.Single(build.Value.GeometryAssertions!).Passed);
+    }
+
     private static string Source(string expected, string tolerance) => $$"""
         Model AssertBox {
             Units: mm

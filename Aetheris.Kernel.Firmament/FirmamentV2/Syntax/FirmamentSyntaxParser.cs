@@ -167,10 +167,10 @@ public static class FirmamentSyntaxParser
                 }
                 // A call or a pipeline is an expression statement. A bare name in an
                 // Enum/Loop is also syntax, never implicitly an admitted declaration.
-                if (Is("Reverse") || Peek(1).Text == "-" && Peek(2).Text == ">" || Peek(1).Text is "(" or "." or "|" or "[" or "As" or "as"
+                if (!IsNearAssertionPrefix() && (Is("Reverse") || Peek(1).Text == "-" && Peek(2).Text == ">" || Peek(1).Text is "(" or "." or "|" or "[" or "As" or "as"
                     || Peek(1).Text is "From" or "from" or "To" or "to" && Peek(2).Kind == SyntaxTokenKind.Identifier
                         && (Peek(3).Text is "." or "To" or "to" or "As" or "as" or "|" or ";" or "}" || Peek(3).Kind == SyntaxTokenKind.End)
-                    || Peek(1).Text is ";" or "}" || Peek(1).Kind == SyntaxTokenKind.End)
+                    || Peek(1).Text is ";" or "}" || Peek(1).Kind == SyntaxTokenKind.End))
                     {
                     var expression = Expression();
                     // Selector aliases historically used =>; retain it as the
@@ -193,12 +193,15 @@ public static class FirmamentSyntaxParser
             throw Fail("firmament-syntax-statement", $"Expected a declaration, field or expression; found '{Current.Text}'.");
         }
 
+        private bool IsNearAssertionPrefix() => Is("Assert") && Peek(1).Text == "."
+            && Peek(2).Text == "Near" && Peek(3).Kind == SyntaxTokenKind.Identifier;
+
         private DeclarationSyntax Declaration(bool occurrence)
         {
             var start = Current.Span.Start;
             if (occurrence) Expect("<");
             var modifiers = new List<TypeSyntax>();
-            var type = Type();
+            var type = Type(qualified: IsNearAssertionPrefix());
             // A declaration alias retains its authored token span. It is the
             // same nominal type declaration, not source-text preprocessing.
             if (type.Name.Text == "Options") type = type with { Name = type.Name with { Text = "Enum" } };
@@ -207,7 +210,7 @@ public static class FirmamentSyntaxParser
                 && Current.Kind == SyntaxTokenKind.Identifier && (Peek(1).Kind == SyntaxTokenKind.Identifier || Peek(1).Text == "<"))
                 || type.Name.Text == "Static" && Is("Table")
                 || type.Name.Text == "Inventory" && Is("Record")
-                || type.Name.Text is "Assert" or "Analysis" or "analysis" or "Construct" or "Extend" or "Comptime" or "proposes" or "manufacturing" && Current.Kind == SyntaxTokenKind.Identifier)
+                || type.Name.Text is "Assert" or "Assert.Near" or "Analysis" or "analysis" or "Construct" or "Extend" or "Comptime" or "proposes" or "manufacturing" && Current.Kind == SyntaxTokenKind.Identifier)
             {
                 modifiers.Add(type); type = Type(qualified: type.Name.Text == "Construct");
             }

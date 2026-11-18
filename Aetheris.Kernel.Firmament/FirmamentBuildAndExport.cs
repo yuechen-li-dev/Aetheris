@@ -263,6 +263,11 @@ public static partial class FirmamentBuildAndExport
             expectedDatums += original.DatumCount; expectedDiameters += original.DimensionCount; expectedControls += original.GeometricToleranceCount;
         }
         var inspection = Step242SemanticPmiInspector.Inspect(export.StepText);
+        var authoredNotes = document.BoundPmi?.Controls.Where(record => record.Kind == FirmamentV2PmiKind.Note).ToArray() ?? [];
+        if (inspection.Success && authoredNotes.Any(note => !inspection.Items.Any(item => item.Kind == "Annotation" &&
+            item.Name == note.Name && item.Text == note.Text)))
+            return KernelResult<bool>.Failure([new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
+                "firmament-v2-pmi-note-export-missing: The STEP export did not preserve every authored part note.", "FirmamentV2.PmiExportParity")]);
         if (inspection.Success && inspection.DatumCount == expectedDatums && inspection.DimensionCount == expectedDiameters && inspection.GeometricToleranceCount == expectedControls)
             return KernelResult<bool>.Success(true);
 
@@ -728,12 +733,15 @@ public static partial class FirmamentBuildAndExport
             if (executedPrimitive.Kind == FirmamentLoweredPrimitiveKind.Box
                 && executedPrimitive.BoxConstructionTopology is { } boxTopology
                 && v2Parse.Document.Solids.Count == 1
+                && v2Parse.Document.Solids[0].Primitive is FirmamentV2BoxRecord authoredBox
                 && execution.Value.ExecutedBooleans.Count == 0)
                 primitiveExport = primitiveExport with
                 {
                     RuntimeBody = executedPrimitive.Body,
-                    RuntimeCorrespondence = BoxConstructionCorrespondence.Create(executedPrimitive.FeatureId, boxTopology,
-                        v2Parse.Document.Solids.Single(s => s.Name == executedPrimitive.FeatureId).SourceSpan)
+                    RuntimeCorrespondence = BoxConstructionCorrespondence.WithStockEdges(
+                        BoxConstructionCorrespondence.Create(executedPrimitive.FeatureId, boxTopology,
+                            v2Parse.Document.Solids.Single(s => s.Name == executedPrimitive.FeatureId).SourceSpan),
+                        executedPrimitive.Body, authoredBox.Size)
                 };
             return KernelResult<FirmamentStepExportResult>.Success(primitiveExport);
         }
@@ -1552,9 +1560,9 @@ public static partial class FirmamentBuildAndExport
             return null;
         }
 
-        if (modifies.Count != 1 || modifies[0].Regions.Count != 0)
+        if (modifies.Select(m => m.TargetSolid).Distinct(StringComparer.Ordinal).Count() != 1 || modifies.Any(m => m.Regions.Count != 0))
         {
-            return CombinedFailure("CombinedFeatureHostUnsupported: Put the holes and one top-boundary finish in one Modify on a Box, without Region operations.", sourceSpan: holesDeclared[0].SourceSpan);
+            return CombinedFailure("CombinedFeatureHostUnsupported: Put the holes and any face rim finish on the same Box, without Region operations.", sourceSpan: holesDeclared[0].SourceSpan);
         }
 
         var modify = modifies[0];
@@ -1564,18 +1572,20 @@ public static partial class FirmamentBuildAndExport
             return CombinedFailure($"CombinedFeatureHostUnsupported: Modify target '{modify.TargetSolid}' must resolve to an admitted Box for combined holes and a boundary finish.", sourceSpan: solid?.SourceSpan ?? holesDeclared[0].SourceSpan);
         }
 
-        if (finishes.Length > 1 || finishes.Length == 0 && !allowUnfinished)
+        if (finishes.Length > 1)
         {
-            return CombinedFailure($"CombinedFeatureThirdFamilyUnsupported: This Box plan admits one top-boundary EdgeFinish (actual={finishes.Length}).", sourceSpan: finishes[1].SourceSpan);
+            return CombinedFailure($"CombinedFeatureThirdFamilyUnsupported: This Box with holes admits one EdgeFinish (actual={finishes.Length}).", sourceSpan: finishes[1].SourceSpan);
         }
 
         var finish = finishes.SingleOrDefault();
         var finishSpan = finish?.SourceSpan ?? holesDeclared[0].SourceSpan;
         var finishName = finish?.Name ?? "UnfinishedStock";
-        if (finish is not null && (!string.Equals(finish.FaceAxis, "+Z", StringComparison.Ordinal) || !string.Equals(finish.Target, "Boundary", StringComparison.Ordinal)
+        var edgePair = finish is null ? null : BoxEdgeFacePair.Parse(finish.FaceAxis, finish.Target);
+        var orientedFrame = finish is { Target: "Boundary" } ? BoxBoundaryFrame(finish.FaceAxis, box) : null;
+        if (finish is not null && (edgePair is null && (finish.Target != "Boundary" || finish.FaceAxis != "+Z" && orientedFrame is null)
             || finish.Kind is not ("Chamfer" or "Fillet")))
         {
-            return CombinedFailure($"CombinedFeatureSelectionLost: EdgeFinish '{finishName}' must select the +Z outer Boundary with Kind Chamfer or Fillet. Other combined selectors are not admitted.", sourceSpan: finishSpan);
+            return CombinedFailure($"CombinedFeatureSelectionLost: EdgeFinish '{finishName}' must select a Box face rim or one edge shared by two perpendicular Box faces.", sourceSpan: finishSpan);
         }
 
         var holes = FirmamentV2SemanticHoleLowering.LowerSemanticHoles(document);
@@ -1613,7 +1623,7 @@ public static partial class FirmamentBuildAndExport
 
         // Preserve the existing chamfer admission and realization unchanged. Fillet
         // admission is owned by the same bounded final plan that realizes its cylinders.
-        if (finish?.Kind == "Chamfer")
+        if (finish is { Kind: "Chamfer", FaceAxis: "+Z", Target: "Boundary" })
         {
             var compiledFinish = AirTopFaceBoundaryChamferCompiler.Compile(new(
                 solid.Name, $"{solid.Name}.{finishName}", finish.Name,
@@ -1630,29 +1640,63 @@ public static partial class FirmamentBuildAndExport
             finish is null ? ["HostBRepPlan", "HoleChangedBRepPlan"] : ["HostBRepPlan", "HoleChangedBRepPlan", "EdgeFinishChangedBRepPlan"],
             box.Size[0], box.Size[1], host.ZMin, host.ZMax, finish?.Distance ?? 0, combinedHoles,
             finish is null ? TopBoundaryEdgeFinishKind.None : finish.Kind == "Fillet" ? TopBoundaryEdgeFinishKind.Fillet : TopBoundaryEdgeFinishKind.Chamfer);
-        var materialized = CombinedTopBoundaryEdgeFinishThroughHoleBuilder.Build(finalPlan);
-        if (!materialized.IsSuccess || materialized.Value is null)
+        var holeRemoved = combinedHoles.Sum(h => h.RemovedVolume(host.ZMax - host.ZMin));
+        BrepBody body;
+        SemanticTopologyCorrespondence correspondence;
+        double finalVolume;
+        if (edgePair is not null && finish is not null)
         {
-            return CombinedFailure("CombinedFeatureInteractionUnsupported: the combined Hole and EdgeFinish plan was rejected.", materialized.Diagnostics.Select(d => d.Message), finishSpan);
+            var (stockBody, removed, buildDiagnostics) = BuildBoxSingleEdgeStock(document, solid, box, finish, edgePair);
+            if (stockBody is null)
+                return CombinedFailure("BoxSingleEdgeSizeRejected: The finish must fit both faces at the selected corner.", buildDiagnostics, finishSpan);
+            var emitted = AttachBoxTopHoles(stockBody, finalPlan.PlanId, solid.Name, host.ZMax, holes,
+                [BoxSingleEdgeReplacement(finish)], BoxSingleEdgeRoute,
+                allowConvexRoundedCorner: finish.Kind == "Fillet" && edgePair.First[1] != 'Z' && edgePair.Second[1] != 'Z');
+            if (emitted.Body is null || emitted.Correspondence is null)
+                return CombinedFailure("CombinedFeatureInteractionUnsupported: The holes need clearance from the finished edge.", emitted.Diagnostics, finishSpan);
+            body = emitted.Body;
+            correspondence = emitted.Correspondence;
+            finalVolume = box.Size[0] * box.Size[1] * box.Size[2] - holeRemoved - removed;
+        }
+        else if (orientedFrame is { } frame)
+        {
+            var orientedPlan = finalPlan with { Width = frame.Width, Depth = frame.Depth, ZMin = 0, ZMax = frame.Height, Holes = [] };
+            var emitted = BuildOrientedBoxRimWithHoles(orientedPlan, Transform3D.FromRowMajor(frame.Matrix), solid.Name, finishName, host.ZMax, holes);
+            if (emitted.Body is null || emitted.Correspondence is null)
+                return CombinedFailure("CombinedFeatureInteractionUnsupported: The holes need clearance from the finished rim.", emitted.Diagnostics, finishSpan);
+            body = emitted.Body;
+            correspondence = emitted.Correspondence;
+            finalVolume = orientedPlan.AnalyticVolume - holeRemoved;
+        }
+        else
+        {
+            var materialized = CombinedTopBoundaryEdgeFinishThroughHoleBuilder.Build(finalPlan);
+            if (!materialized.IsSuccess || materialized.Value is null)
+                return CombinedFailure("CombinedFeatureInteractionUnsupported: the Box hole and rim plan was rejected.", materialized.Diagnostics.Select(d => d.Message), finishSpan);
+            body = materialized.Value;
+            correspondence = BoxThroughHoleCorrespondence(body, solid.Name, holes, combinedHoles, finish);
+            finalVolume = finalPlan.AnalyticVolume;
         }
 
-        var body = materialized.Value;
-        if (finish?.Kind == "Fillet")
+        if (finish?.Kind == "Fillet" || edgePair is not null)
         {
             var preflight = BrepExportPreflight.Validate(body);
             if (!preflight.IsValid)
-                return CombinedFailure("CombinedFeatureMaterializerDiverged: fillet boundary failed analytic export preflight.", preflight.Diagnostics.Select(d => d.Message), finishSpan);
+                return CombinedFailure("CombinedFeatureMaterializerDiverged: the finished boundary failed analytic export preflight.", preflight.Diagnostics.Select(d => d.Message), finishSpan);
         }
         if (!FirmamentManifoldChecker.IsManifold(body))
         {
             return CombinedFailure("CombinedFeaturePlanChainInvalid: final combined plan did not produce one enclosed manifold body.");
         }
+        if (finish is null)
+            correspondence = BoxThroughHolePickEdges(correspondence, body, solid, box, holes) ?? correspondence;
+        correspondence = AnnotateBoxHoleCorrespondence(correspondence, document, solid, holes);
         var pmiSupport = ValidateV2PmiExportSupport(document);
         if (!pmiSupport.IsSuccess)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(pmiSupport.Diagnostics);
         }
-        var semanticPmi = BuildV2SemanticPmi(document, holes, solid.Name, body: body);
+        var semanticPmi = BuildV2SemanticPmi(document, holes, solid.Name, correspondence: correspondence, body: body);
         var step = Step242Exporter.ExportBody(body, semanticPmi);
         if (!step.IsSuccess || step.Value is null)
         {
@@ -1664,54 +1708,82 @@ public static partial class FirmamentBuildAndExport
             return CombinedFailure("CombinedFeatureMaterializerDiverged: final STEP reimport did not preserve one enclosed manifold body.", reimport.Diagnostics.Select(d => d.Message));
         }
 
-        var descendants = new List<SemanticTopologyDescendant>();
-        var finalTop = body.Topology.Faces.Single(f => f.Id.Value == 2);
-        var finalBottom = body.Topology.Faces.Single(f => f.Id.Value == 1);
-        // The builder emits the counterbore wall and shoulder before the shaft.
-        var wallFaceId = finish is null ? 7 : 11;
-        for (var i = 0; i < holes.Count; i++)
-        {
-            var source = $"hole:{holes[i].FeatureId}";
-            descendants.Add(new($"combined:{source}:mouth-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, source, Loop: finalTop.LoopIds[i + 1], ParentStableId: holes[i].FeatureId));
-            descendants.Add(new($"combined:{source}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, source, Loop: finalBottom.LoopIds[i + 1], ParentStableId: holes[i].FeatureId));
-            if (combinedHoles[i].IsCounterbore)
-            {
-                descendants.Add(new($"combined:{source}:counterbore-wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: new FaceId(wallFaceId++), ParentStableId: holes[i].FeatureId));
-                wallFaceId++; // annular shoulder, not a shaft wall
-            }
-            if (combinedHoles[i].IsCountersink)
-                descendants.Add(new($"combined:{source}:countersink-wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: new FaceId(wallFaceId++), ParentStableId: holes[i].FeatureId));
-            descendants.Add(new($"combined:{source}:shaft-wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: new FaceId(wallFaceId++), ParentStableId: holes[i].FeatureId));
-        }
-        for (var side = 0; finish is not null && side < 4; side++)
-            descendants.Add(new($"combined:edgefinish:{finishName}:replacement:{side}", "Face", SemanticTopologyRole.EdgeFinishReplacementFace,
-                $"edgefinish:{finishName}", Face: new FaceId(4 + 2 * side), ParentStableId: finishName));
-        var correspondence = new SemanticTopologyCorrespondence(solid.Name, descendants, ["HostBRepPlan", "HoleChangedBRepPlan", "EdgeFinishChangedBRepPlan", "AuthoritativeBRepPlan"]);
         if (correspondence.Descendants.Count(d => d.Role == SemanticTopologyRole.HoleEntryLoop) != holes.Count || correspondence.Descendants.Count(d => d.Role == SemanticTopologyRole.HoleExitLoop) != holes.Count)
         {
             return CombinedFailure("CombinedFeaturePlanChainInvalid: final plan lost Hole mouth or exit correspondence.");
         }
 
-        var holeRemoved = combinedHoles.Sum(h => h.RemovedVolume(host.ZMax - host.ZMin));
+        var descendants = correspondence.Descendants;
+        var featureKind = finish is null ? "BoxThroughHoles" : "CombinedHoleEdgeFinish";
         var report = new FirmamentCombinedFeaturePlanReport(
-            "CombinedHoleEdgeFinish", "Succeeded", finalPlan.ParentHostPlanId!, finalPlan.AppliedFeatureIds, finalPlan.PlanId, "Disjoint",
+            featureKind, "Succeeded", finalPlan.ParentHostPlanId!, finalPlan.AppliedFeatureIds, finalPlan.PlanId, "Disjoint",
             descendants.Count(d => d.SourceStableId.StartsWith("hole:", StringComparison.Ordinal)),
             descendants.Count(d => d.Role == SemanticTopologyRole.EdgeFinishReplacementFace),
-            box.Size[0] * box.Size[1] * (host.ZMax - host.ZMin), holeRemoved, finalPlan.AnalyticVolume,
+            box.Size[0] * box.Size[1] * (host.ZMax - host.ZMin), holeRemoved, finalVolume,
             Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(),
             body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Plane), body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Cylinder), true, true);
-        var featureReports = holes.Select(h => new FirmamentHoleFeatureReport(h.Name, "Hole", h.FeatureId, h.Shaft.Diameter, h.Placement.U, h.Placement.V, null, null, null, null, "top", null, nameof(AirHoleSimpleShaftMaterializer), "HoleChangedBRepPlan", h.Stack.Kind.ToString(), "CombinedHoleEdgeFinish", h.Stack.Kind==AirHoleStackKind.Counterbore?2:1, h.Stack.Kind==AirHoleStackKind.Countersink?1:0, h.Stack.Kind==AirHoleStackKind.Counterbore?1:0, report.StepSha256, true)).ToArray();
+        var featureReports = holes.Select(h => new FirmamentHoleFeatureReport(h.Name, "Hole", h.FeatureId, h.Shaft.Diameter, h.Placement.U, h.Placement.V, null, null, null, null, "top", null, nameof(AirHoleSimpleShaftMaterializer), "HoleChangedBRepPlan", h.Stack.Kind.ToString(), featureKind, h.Stack.Kind==AirHoleStackKind.Counterbore?2:1, h.Stack.Kind==AirHoleStackKind.Countersink?1:0, h.Stack.Kind==AirHoleStackKind.Counterbore?1:0, report.StepSha256, true)).ToArray();
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
             step.Value,
             document.ModelName,
             0,
-            "combined-hole-edgefinish",
-            "CombinedHoleEdgeFinish",
+            finish is null ? "box-through-holes" : "combined-hole-edgefinish",
+            featureKind,
             DatumInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
             DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-semantic-pmi", p.Name)).ToArray() ?? [],
             ConceptIr: document.ConceptIr,
             Features: featureReports,
             Combined: report) { RuntimeBody = body, RuntimeCorrespondence = correspondence, MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "Hole", holes.Select(h => h.Name).ToArray()).Concat(finish is null ? [] : new[] { new FirmamentFeatureReceipt(solid.Name, "EdgeFinish", finish.Name) }).ToArray() });
+    }
+
+    private static SemanticTopologyCorrespondence BoxThroughHoleCorrespondence(BrepBody body, string solid, IReadOnlyList<AirHoleFeature> holes,
+        IReadOnlyList<CombinedTopBoundaryEdgeFinishThroughHole> planHoles, FirmamentV2EdgeFinishDecl? finish)
+    {
+        var finalTop = body.Topology.GetFace(new FaceId(2));
+        var finalBottom = body.Topology.GetFace(new FaceId(1));
+        var descendants = BoxConstructionCorrespondence.RetainedCaps(solid, finalBottom.Id, finalTop.Id, body).ToList();
+        // The builder emits the relief wall and any shoulder before the shaft.
+        var faceId = finish is null ? 7 : 11;
+        for (var i = 0; i < holes.Count; i++)
+        {
+            var hole = holes[i];
+            var source = $"hole:{hole.FeatureId}";
+            descendants.Add(new($"combined:{source}:mouth-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, source, Loop: finalTop.LoopIds[i + 1], ParentStableId: hole.FeatureId));
+            descendants.Add(new($"combined:{source}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, source, Loop: finalBottom.LoopIds[i + 1], ParentStableId: hole.FeatureId));
+            if (planHoles[i].IsCounterbore)
+            {
+                AddFace("counterbore-wall", finish is null ? SemanticTopologyRole.HoleCounterboreWallFace : SemanticTopologyRole.HoleWallFace);
+                if (finish is null) AddFace("shoulder", SemanticTopologyRole.HoleCounterboreShoulderFace);
+                else faceId++; // The established top-rim route exposes the cavity walls as one set.
+            }
+            if (planHoles[i].IsCountersink)
+                AddFace("countersink-wall", finish is null ? SemanticTopologyRole.HoleCountersinkWallFace : SemanticTopologyRole.HoleWallFace);
+            AddFace("shaft-wall", SemanticTopologyRole.HoleWallFace);
+
+            void AddFace(string name, SemanticTopologyRole role) =>
+                descendants.Add(new($"combined:{source}:{name}", "Face", role, source, Face: new FaceId(faceId++), ParentStableId: hole.FeatureId));
+        }
+        if (finish is not null) descendants.AddRange(BoxRimFinishFaces(finish.Name));
+        return new(solid, descendants, finish is null ? ["HostBRepPlan", "HoleChangedBRepPlan", "AuthoritativeBRepPlan"]
+            : ["HostBRepPlan", "HoleChangedBRepPlan", "EdgeFinishChangedBRepPlan", "AuthoritativeBRepPlan"]);
+    }
+
+    private static SemanticTopologyCorrespondence AnnotateBoxHoleCorrespondence(SemanticTopologyCorrespondence correspondence,
+        FirmamentV2Document document, FirmamentV2SolidBinding stock, IReadOnlyList<AirHoleFeature> holes)
+    {
+        var sourceSpans = new Dictionary<string, FirmamentV2SourceSpan>(StringComparer.Ordinal);
+        if (stock.SourceSpan is { } bodySpan) sourceSpans[stock.Name] = bodySpan;
+        foreach (var modify in document.ModifyBlocks ?? [])
+            foreach (var hole in modify.SemanticHoles)
+                if (hole.SourceSpan is { } holeSpan) sourceSpans[$"{modify.TargetSolid}.{hole.Name}"] = holeSpan;
+        var ownerBySource = holes.ToDictionary(hole => $"hole:{hole.FeatureId}", StringComparer.Ordinal);
+        return correspondence with
+        {
+            SourceSpans = sourceSpans,
+            Descendants = correspondence.Descendants.Select(descendant =>
+                ownerBySource.TryGetValue(descendant.SourceStableId, out var hole) && FirmamentV2HoleWallSelector.Format(descendant, hole.Name, hole.FeatureId) is { } selector
+                    ? descendant with { FirmamentSelector = selector } : descendant).ToArray()
+        };
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportV2TopBoundaryFillet(
@@ -1803,6 +1875,8 @@ public static partial class FirmamentBuildAndExport
 
         if (finish.Target == "Boundary" && finish.FaceAxis != "+Z" && finish.Kind is "Chamfer" or "Fillet")
             return ExportV2BoxFaceBoundaryFinish(document, solid, finish, box);
+        if (BoxEdgeFacePair.Parse(finish.FaceAxis, finish.Target) is { IsOriginalAirPair: false } pair && finish.Kind is "Chamfer" or "Fillet")
+            return ExportV2BoxSingleEdge(document, solid, box, finish, pair);
 
         // AIR-FILLET-LOCALIZED-M1: semantic support-face selection only; emitted BRep IDs never enter Firmament.
         if (string.Equals(finish.Kind, "Fillet", StringComparison.Ordinal))
@@ -1830,7 +1904,7 @@ public static partial class FirmamentBuildAndExport
         var manifold = FirmamentManifoldChecker.IsManifold(compiled.Body);
         if (!manifold) return AirChamferFailure("air-chamfer-emitted-body-is-not-manifold", compiled.Diagnostics);
 
-        var step = Step242Exporter.ExportBody(compiled.Body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(compiled.Body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Feature.FeatureName,
             ApplicationName = AirTopFaceBoundaryChamferCompileResult.ProductionRoute,
@@ -1885,7 +1959,7 @@ public static partial class FirmamentBuildAndExport
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return AirChamferFailure("localized-chamfer-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
         if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-chamfer-emitted-body-is-not-manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Feature.FeatureName,
             ApplicationName = AirLocalizedPlanarReplacementChamferCompileResult.ProductionRoute,
@@ -1933,7 +2007,7 @@ public static partial class FirmamentBuildAndExport
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return AirChamferFailure("localized-junction-chamfer-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
         if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-junction-chamfer-emitted-body-is-not-manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Construction.ConstructionId,
             ApplicationName = AirLocalizedEdgeJunctionChamferCompileResult.ProductionRoute,
@@ -1980,7 +2054,7 @@ public static partial class FirmamentBuildAndExport
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return AirChamferFailure("localized-fillet-junction-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
         if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-fillet-junction-emitted-body-is-not-manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Construction.ConstructionId,
             ApplicationName = AirLocalizedEdgeJunctionFilletCompileResult.ProductionRoute,
@@ -2102,7 +2176,7 @@ public static partial class FirmamentBuildAndExport
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return HollowFailure("VerificationFailure");
         if (!FirmamentManifoldChecker.IsManifold(body)) return HollowFailure("VerificationFailure: vessel boundary is not a closed manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = solid.Name,
             ApplicationName = "Aetheris.Firmament.Primitive<Hollow>",
@@ -2215,7 +2289,7 @@ public static partial class FirmamentBuildAndExport
         if (!realization.IsSuccess || realization.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(realization.Diagnostics);
         var body = realization.Value.Body; var plan = realization.Value.Plan;
         if (!FirmamentManifoldChecker.IsManifold(body)) return RoundedBoxFailure("VerificationFailure: rounded-box body is not manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = solid.Name,
             ApplicationName = "AIR-ROUNDED-BOX-M6",
@@ -2279,7 +2353,7 @@ public static partial class FirmamentBuildAndExport
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return AirChamferFailure("localized-trihedral-fillet-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
         if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-trihedral-fillet-emitted-body-is-not-manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Construction.ConstructionId,
             ApplicationName = AirLocalizedTrihedralFilletCompileResult.ProductionRoute,
@@ -2330,7 +2404,7 @@ public static partial class FirmamentBuildAndExport
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid) return AirChamferFailure("localized-fillet-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
         if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-fillet-emitted-body-is-not-manifold");
-        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Feature.FeatureName,
             ApplicationName = AirLocalizedTangentBlendFilletCompileResult.ProductionRoute,
@@ -2383,7 +2457,7 @@ public static partial class FirmamentBuildAndExport
 
         var manifold = FirmamentManifoldChecker.IsManifold(compiled.Body);
         if (!manifold) return AirChamferFailure("chamfer-backend-circular-rim-body-is-not-manifold", compiled.Diagnostics);
-        var step = Step242Exporter.ExportBody(compiled.Body, new Step242ExportOptions
+        var step = Step242Exporter.ExportBody(compiled.Body, PartNotes(document, solid.Name), new Step242ExportOptions
         {
             ProductName = compiled.Feature.FeatureName,
             ApplicationName = AirCylinderTopRimChamferCompileResult.ProductionRoute,
@@ -2915,6 +2989,11 @@ public static partial class FirmamentBuildAndExport
             return null;
         }
 
+        if (semanticHoles.Count > 1 && semanticHoles.Any(h => h.Stack.Kind is AirHoleStackKind.Counterbore or AirHoleStackKind.Countersink)
+            && semanticHoles.All(h => h.EndCondition is AirHoleEndCondition.ThroughAll && h.Axis.Direction.Z >= 1d - 1e-9)
+            && document.ModifyBlocks.All(m => m.Regions.Count == 0))
+            return ExportV2BoxThroughHoleStock(document, allowUnfinished: true);
+
         var feature = semanticHoles[0];
         // The stock frame is authored by the Box, never inferred from ConceptIr presence.
         var host = FirmamentStockFrame.ForBox(box.Size[0], box.Size[1], box.Size[2]).CreateHoleHost();
@@ -2944,27 +3023,9 @@ public static partial class FirmamentBuildAndExport
             }
         }
 
+        runtimeCorrespondence = BoxThroughHolePickEdges(runtimeCorrespondence, body, targetSolid, box, semanticHoles);
         if (runtimeCorrespondence is not null)
-        {
-            var sourceSpans = new Dictionary<string, FirmamentV2SourceSpan>(StringComparer.Ordinal);
-            if (targetSolid.SourceSpan is { } bodySpan) sourceSpans[modifyTargets[0]] = bodySpan;
-            foreach (var modify in document.ModifyBlocks)
-                foreach (var hole in modify.SemanticHoles)
-                    if (hole.SourceSpan is { } holeSpan) sourceSpans[$"{modify.TargetSolid}.{hole.Name}"] = holeSpan;
-            runtimeCorrespondence = runtimeCorrespondence with
-            {
-                SourceSpans = sourceSpans,
-                Descendants = runtimeCorrespondence.Descendants.Select(descendant =>
-                {
-                    var owner = semanticHoles.FirstOrDefault(hole => descendant.SourceStableId == $"hole:{hole.FeatureId}");
-                    return descendant with
-                    {
-                        FirmamentSelector = owner is null ? descendant.FirmamentSelector
-                            : FirmamentV2HoleWallSelector.Format(descendant, owner.Name, owner.FeatureId) ?? descendant.FirmamentSelector
-                    };
-                }).ToArray()
-            };
-        }
+            runtimeCorrespondence = AnnotateBoxHoleCorrespondence(runtimeCorrespondence, document, targetSolid, semanticHoles);
         foreach (var pmi in document.BoundPmi?.Dimensions ?? [])
         {
             if (pmi.HoleWallTarget is not { } selector) continue;
@@ -3070,6 +3131,10 @@ public static partial class FirmamentBuildAndExport
     }
 
     private static readonly Regex ImportedFaceSelector = new("^[A-Za-z_][A-Za-z0-9_]*\\.face\\(\"#[0-9]+\"\\)$", RegexOptions.CultureInvariant);
+
+    private static Step242SemanticPmiNote[] PartNotes(FirmamentV2Document document, string body) =>
+        (document.BoundPmi?.Controls ?? []).Where(note => note.Kind == FirmamentV2PmiKind.Note && note.Text is not null)
+            .Select(note => new Step242SemanticPmiNote(note.Name, body, note.Text!)).ToArray();
 
     internal static IReadOnlyList<Step242SemanticPmi> BuildV2SemanticPmi(
         FirmamentV2Document document,

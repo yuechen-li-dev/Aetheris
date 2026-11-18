@@ -26,6 +26,7 @@ export interface PmiDisplayAnnotation {
   readonly stepFaceEntities: readonly number[]; readonly anchor: readonly number[];
   readonly labelPosition: readonly number[]; readonly textHeight: number;
   readonly lines: readonly (readonly (readonly number[])[])[];
+  readonly placement?: PmiLabelPlacement | null;
   readonly target?: { readonly kind: 'PlanePatch' | 'CylinderWall'; readonly normal: readonly number[]; readonly stemLength: number; readonly surfaceOffset: number;
     readonly positions: readonly number[]; readonly normals: readonly number[]; readonly indices: readonly number[];
     readonly lines: readonly (readonly (readonly number[])[])[] } | null;
@@ -34,6 +35,21 @@ export interface PmiDisplayAnnotation {
     readonly fill: { readonly positions: readonly number[]; readonly indices: readonly number[] } | null;
     readonly panel: { readonly positions: readonly number[]; readonly indices: readonly number[] } | null } | null;
 }
+/** World-space label bounds and movable spans in the drawing buffers. */
+export interface PmiLabelPlacement {
+  readonly key: string;
+  readonly normal: readonly number[];
+  readonly bounds: readonly (readonly number[])[] | null;
+  readonly lineStart: number;
+  readonly lineCount: number;
+  readonly glyphStart: number;
+  readonly glyphCount: number;
+  readonly fillVertices: number;
+  readonly panelVertices: number;
+  readonly leaderLine: number | null;
+  readonly alias: boolean;
+}
+export type PmiOffsets = Readonly<Record<string, readonly [number, number, number]>>;
 export interface MeshRange { readonly surfaceKind?: string | null; readonly diameterMm?: number | null }
 export interface SelectionDescription { readonly surfaceKind?: string | null; readonly diameterMm?: number | null }
 export interface PlanarFaceSupport { readonly origin: readonly number[]; readonly x: readonly number[]; readonly y: readonly number[]; readonly normal: readonly number[]; readonly boundary: readonly (readonly number[])[]; readonly excludedDisks?: readonly { readonly center: readonly number[]; readonly radius: number }[] }
@@ -57,7 +73,8 @@ export interface LanguageOptions { readonly sourceName?: string; readonly source
 export interface LanguageField { readonly name: string; readonly spelling?: string; readonly type: string; readonly required: boolean; readonly meaning: string; readonly default?: string | null; readonly choices?: readonly string[] | null }
 export interface LanguageEntry { readonly constructId: string; readonly name: string; readonly context: string; readonly source: string; readonly insertText?: string | null; readonly snippet?: string | null }
 export interface LanguageSymbol { readonly name: string; readonly kind: string; readonly detail: string; readonly start: number; readonly length: number }
-export interface LanguageCompletion { readonly document: string; readonly revision: string; readonly context: string; readonly replaceStart: number; readonly replaceLength: number; readonly fields: readonly LanguageField[]; readonly missingRequiredFields: readonly string[]; readonly entries?: readonly LanguageEntry[] | null; readonly values?: readonly string[] | null; readonly symbols?: readonly LanguageSymbol[] | null }
+export interface LanguageCompletion { readonly document: string; readonly revision: string; readonly context: string; readonly replaceStart: number; readonly replaceLength: number; readonly fields: readonly LanguageField[]; readonly missingRequiredFields: readonly string[]; readonly entries?: readonly LanguageEntry[] | null; readonly values?: readonly string[] | null; readonly symbols?: readonly LanguageSymbol[] | null; readonly signature?: LanguageCallSignature | null }
+export interface LanguageCallSignature { readonly name: string; readonly result?: string | null; readonly parameters: readonly { readonly name: string; readonly type: string }[]; readonly activeParameter: number }
 export interface LanguageToken { readonly start: number; readonly length: number; readonly kind: 'keyword' | 'construct' | 'type' | 'identifier' | 'field' | 'number' | 'unit' | 'string' | 'comment' | 'punctuation' | 'selector' | 'value' }
 export interface LanguageAnalysis { readonly document: string; readonly revision: string; readonly tokens: readonly LanguageToken[]; readonly diagnostics: readonly Diagnostic[] }
 export interface OutlineSpan { readonly start: number; readonly length: number }
@@ -149,7 +166,7 @@ export class ModelSession {
   readonly measurementAvailable?: boolean;
   readonly exportFormats: readonly ExportFormatOption[];
   /** One format returns its file; multiple formats return one ZIP. Rejected exports produce no files. */
-  exportArtifacts(formats: readonly ExportFormat[], options?: OperationOptions): Promise<readonly ExportFile[]>;
+  exportArtifacts(formats: readonly ExportFormat[], options?: OperationOptions & { readonly pmiOffsets?: PmiOffsets }): Promise<readonly ExportFile[]>;
   readonly motions: readonly MotionClip[];
   sampleMotion(motion: string, timeSeconds: number, options?: OperationOptions & { readonly preserveEndpoint?: boolean }): Promise<MotionPose>;
   measure(request: MeasurementRequest, options?: OperationOptions): Promise<MeasurementResult>;

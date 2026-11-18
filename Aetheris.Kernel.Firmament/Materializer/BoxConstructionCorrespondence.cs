@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Features;
+using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 
@@ -8,6 +9,38 @@ namespace Aetheris.Kernel.Firmament.Materializer;
 /// <summary>Maps the IDs captured by the Box extrusion itself to existing axis selectors.</summary>
 public static class BoxConstructionCorrespondence
 {
+    /// <summary>Expose full straight edges between retained stock planes. A broken-out or split
+    /// edge cannot be promoted to the original Box edge by its position alone.</summary>
+    public static SemanticTopologyCorrespondence WithStockEdges(SemanticTopologyCorrespondence correspondence,
+        BrepBody body, IReadOnlyList<double> size)
+    {
+        var stockFaces = correspondence.Descendants
+            .Where(face => face.Role == SemanticTopologyRole.BoxFace && face.Face is not null && face.FirmamentSelector is { Length: 8 })
+            .Select(face => (Axis: face.FirmamentSelector![5..7], Outer: body.Topology.GetFace(face.Face!.Value).LoopIds[0]))
+            .Select(face => (face.Axis, Edges: body.Topology.GetLoop(face.Outer).CoedgeIds.Select(id => body.Topology.GetCoedge(id).EdgeId).ToHashSet()))
+            .ToArray();
+        var descendants = correspondence.Descendants.ToList();
+        for (var i = 0; i < stockFaces.Length; i++)
+        for (var j = i + 1; j < stockFaces.Length; j++)
+        {
+            var pair = BoxEdgeFacePair.FromFaces(stockFaces[i].Axis, stockFaces[j].Axis);
+            if (pair is null) continue;
+            var shared = stockFaces[i].Edges.Intersect(stockFaces[j].Edges).ToArray();
+            if (shared.Length != 1 || !body.TryGetEdgeCurveGeometry(shared[0], out var curve) || curve?.Kind != CurveGeometryKind.Line3) continue;
+            var edge = body.Topology.GetEdge(shared[0]);
+            var worldAxis = "XYZ".Single(axis => axis != pair.First[1] && axis != pair.Second[1]);
+            if (!body.TryGetVertexPoint(edge.StartVertexId, out var start) || !body.TryGetVertexPoint(edge.EndVertexId, out var end)
+                || Math.Abs((end - start).Length - size[worldAxis - 'X']) > 1e-7) continue;
+
+            var index = descendants.FindIndex(item => item.Role == SemanticTopologyRole.BoxEdge && item.Edge == edge.Id);
+            if (index >= 0) descendants[index] = descendants[index] with { FirmamentSelector = pair.Selector };
+            else descendants.Add(new($"{correspondence.BodyStableId}.{pair.Selector}", "Edge", SemanticTopologyRole.BoxEdge,
+                correspondence.BodyStableId, Edge: edge.Id, ParentStableId: correspondence.BodyStableId, FirmamentSelector: pair.Selector,
+                Addressability: SemanticTopologyAddressability.DerivedStable));
+        }
+        return correspondence with { Descendants = descendants };
+    }
+
     /// <summary>The retained world-Z stock caps emitted by the qualified box/hole construction.</summary>
     public static IReadOnlyList<SemanticTopologyDescendant> RetainedCaps(string bodyStableId, FaceId bottom, FaceId top, BrepBody? body = null) =>
     [

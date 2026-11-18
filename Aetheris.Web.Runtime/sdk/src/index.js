@@ -269,7 +269,7 @@ export class ModelSession {
   async exportArtifacts(formats, options = {}) {
     return this.serial(async () => {
       throwIfAborted(options.signal);
-      const result = await this.transport.request({ operation: 'exportArtifacts', sessionId: this.id, buildRevision: this.revision, formats });
+      const result = await this.transport.request({ operation: 'exportArtifacts', sessionId: this.id, buildRevision: this.revision, formats, pmiOffsets: options.pmiOffsets });
       throwIfAborted(options.signal);
       if (result.revision !== this.revision) throw new AetherisError('export-stale-revision', 'The export belongs to a different build revision.');
       return result.files.map(file => {

@@ -69,7 +69,6 @@ public sealed class LocalizedTangentBlendFilletPipelineTests
     [InlineData(0d, "+X", "SharedEdgePlusZ", "localized-fillet-radius-must-be-positive")]
     [InlineData(6d, "+X", "SharedEdgePlusZ", "localized-fillet-radius-too-large")]
     [InlineData(1d, "+Z", "SharedEdgePlusZ", "localized-fillet-unsupported-selection")]
-    [InlineData(1d, "+X", "SharedEdgePlusY", "localized-fillet-unsupported-selection")]
     public void LocalizedTangentBlend_InvalidInput_FailsBeforeExport(double radius, string face, string target, string expected)
     {
         var run = Run(Source(10, 8, 6, radius, face, target));

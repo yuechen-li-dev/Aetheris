@@ -1557,9 +1557,9 @@ public static partial class FirmamentBuildAndExport
             return null;
         }
 
-        if (modifies.Count != 1 || modifies[0].Regions.Count != 0)
+        if (modifies.Select(m => m.TargetSolid).Distinct(StringComparer.Ordinal).Count() != 1 || modifies.Any(m => m.Regions.Count != 0))
         {
-            return CombinedFailure("CombinedFeatureHostUnsupported: Put the holes and one top-boundary finish in one Modify on a Box, without Region operations.", sourceSpan: holesDeclared[0].SourceSpan);
+            return CombinedFailure("CombinedFeatureHostUnsupported: Put the holes and any face rim finish on the same Box, without Region operations.", sourceSpan: holesDeclared[0].SourceSpan);
         }
 
         var modify = modifies[0];
@@ -1569,18 +1569,19 @@ public static partial class FirmamentBuildAndExport
             return CombinedFailure($"CombinedFeatureHostUnsupported: Modify target '{modify.TargetSolid}' must resolve to an admitted Box for combined holes and a boundary finish.", sourceSpan: solid?.SourceSpan ?? holesDeclared[0].SourceSpan);
         }
 
-        if (finishes.Length > 1 || finishes.Length == 0 && !allowUnfinished)
+        if (finishes.Length > 1)
         {
-            return CombinedFailure($"CombinedFeatureThirdFamilyUnsupported: This Box plan admits one top-boundary EdgeFinish (actual={finishes.Length}).", sourceSpan: finishes[1].SourceSpan);
+            return CombinedFailure($"CombinedFeatureThirdFamilyUnsupported: This Box plan admits one face rim EdgeFinish (actual={finishes.Length}).", sourceSpan: finishes[1].SourceSpan);
         }
 
         var finish = finishes.SingleOrDefault();
         var finishSpan = finish?.SourceSpan ?? holesDeclared[0].SourceSpan;
         var finishName = finish?.Name ?? "UnfinishedStock";
-        if (finish is not null && (!string.Equals(finish.FaceAxis, "+Z", StringComparison.Ordinal) || !string.Equals(finish.Target, "Boundary", StringComparison.Ordinal)
+        var orientedFrame = finish is not null && finish.FaceAxis != "+Z" ? BoxBoundaryFrame(finish.FaceAxis, box) : null;
+        if (finish is not null && (finish.FaceAxis != "+Z" && orientedFrame is null || !string.Equals(finish.Target, "Boundary", StringComparison.Ordinal)
             || finish.Kind is not ("Chamfer" or "Fillet")))
         {
-            return CombinedFailure($"CombinedFeatureSelectionLost: EdgeFinish '{finishName}' must select the +Z outer Boundary with Kind Chamfer or Fillet. Other combined selectors are not admitted.", sourceSpan: finishSpan);
+            return CombinedFailure($"CombinedFeatureSelectionLost: EdgeFinish '{finishName}' must select the outer Boundary of a principal Box face with Kind Chamfer or Fillet.", sourceSpan: finishSpan);
         }
 
         var holes = FirmamentV2SemanticHoleLowering.LowerSemanticHoles(document);
@@ -1618,7 +1619,7 @@ public static partial class FirmamentBuildAndExport
 
         // Preserve the existing chamfer admission and realization unchanged. Fillet
         // admission is owned by the same bounded final plan that realizes its cylinders.
-        if (finish?.Kind == "Chamfer")
+        if (finish is { Kind: "Chamfer", FaceAxis: "+Z" })
         {
             var compiledFinish = AirTopFaceBoundaryChamferCompiler.Compile(new(
                 solid.Name, $"{solid.Name}.{finishName}", finish.Name,
@@ -1635,13 +1636,30 @@ public static partial class FirmamentBuildAndExport
             finish is null ? ["HostBRepPlan", "HoleChangedBRepPlan"] : ["HostBRepPlan", "HoleChangedBRepPlan", "EdgeFinishChangedBRepPlan"],
             box.Size[0], box.Size[1], host.ZMin, host.ZMax, finish?.Distance ?? 0, combinedHoles,
             finish is null ? TopBoundaryEdgeFinishKind.None : finish.Kind == "Fillet" ? TopBoundaryEdgeFinishKind.Fillet : TopBoundaryEdgeFinishKind.Chamfer);
-        var materialized = CombinedTopBoundaryEdgeFinishThroughHoleBuilder.Build(finalPlan);
-        if (!materialized.IsSuccess || materialized.Value is null)
+        var holeRemoved = combinedHoles.Sum(h => h.RemovedVolume(host.ZMax - host.ZMin));
+        BrepBody body;
+        SemanticTopologyCorrespondence correspondence;
+        double finalVolume;
+        if (orientedFrame is { } frame)
         {
-            return CombinedFailure("CombinedFeatureInteractionUnsupported: the combined Hole and EdgeFinish plan was rejected.", materialized.Diagnostics.Select(d => d.Message), finishSpan);
+            var orientedPlan = finalPlan with { Width = frame.Width, Depth = frame.Depth, ZMin = 0, ZMax = frame.Height, Holes = [] };
+            var emitted = BuildOrientedBoxRimWithHoles(orientedPlan, Transform3D.FromRowMajor(frame.Matrix), solid.Name, finishName, host.ZMax, holes);
+            if (emitted.Body is null || emitted.Correspondence is null)
+                return CombinedFailure("CombinedFeatureInteractionUnsupported: The holes need clearance from the finished rim.", emitted.Diagnostics, finishSpan);
+            body = emitted.Body;
+            correspondence = emitted.Correspondence;
+            finalVolume = orientedPlan.AnalyticVolume - holeRemoved;
+        }
+        else
+        {
+            var materialized = CombinedTopBoundaryEdgeFinishThroughHoleBuilder.Build(finalPlan);
+            if (!materialized.IsSuccess || materialized.Value is null)
+                return CombinedFailure("CombinedFeatureInteractionUnsupported: the Box hole and rim plan was rejected.", materialized.Diagnostics.Select(d => d.Message), finishSpan);
+            body = materialized.Value;
+            correspondence = BoxThroughHoleCorrespondence(body, solid.Name, holes, combinedHoles, finish);
+            finalVolume = finalPlan.AnalyticVolume;
         }
 
-        var body = materialized.Value;
         if (finish?.Kind == "Fillet")
         {
             var preflight = BrepExportPreflight.Validate(body);
@@ -1652,12 +1670,13 @@ public static partial class FirmamentBuildAndExport
         {
             return CombinedFailure("CombinedFeaturePlanChainInvalid: final combined plan did not produce one enclosed manifold body.");
         }
+        correspondence = AnnotateBoxHoleCorrespondence(correspondence, document, solid, holes);
         var pmiSupport = ValidateV2PmiExportSupport(document);
         if (!pmiSupport.IsSuccess)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(pmiSupport.Diagnostics);
         }
-        var semanticPmi = BuildV2SemanticPmi(document, holes, solid.Name, body: body);
+        var semanticPmi = BuildV2SemanticPmi(document, holes, solid.Name, correspondence: correspondence, body: body);
         var step = Step242Exporter.ExportBody(body, semanticPmi);
         if (!step.IsSuccess || step.Value is null)
         {
@@ -1669,54 +1688,81 @@ public static partial class FirmamentBuildAndExport
             return CombinedFailure("CombinedFeatureMaterializerDiverged: final STEP reimport did not preserve one enclosed manifold body.", reimport.Diagnostics.Select(d => d.Message));
         }
 
-        var descendants = new List<SemanticTopologyDescendant>();
-        var finalTop = body.Topology.Faces.Single(f => f.Id.Value == 2);
-        var finalBottom = body.Topology.Faces.Single(f => f.Id.Value == 1);
-        // The builder emits the counterbore wall and shoulder before the shaft.
-        var wallFaceId = finish is null ? 7 : 11;
-        for (var i = 0; i < holes.Count; i++)
-        {
-            var source = $"hole:{holes[i].FeatureId}";
-            descendants.Add(new($"combined:{source}:mouth-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, source, Loop: finalTop.LoopIds[i + 1], ParentStableId: holes[i].FeatureId));
-            descendants.Add(new($"combined:{source}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, source, Loop: finalBottom.LoopIds[i + 1], ParentStableId: holes[i].FeatureId));
-            if (combinedHoles[i].IsCounterbore)
-            {
-                descendants.Add(new($"combined:{source}:counterbore-wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: new FaceId(wallFaceId++), ParentStableId: holes[i].FeatureId));
-                wallFaceId++; // annular shoulder, not a shaft wall
-            }
-            if (combinedHoles[i].IsCountersink)
-                descendants.Add(new($"combined:{source}:countersink-wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: new FaceId(wallFaceId++), ParentStableId: holes[i].FeatureId));
-            descendants.Add(new($"combined:{source}:shaft-wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: new FaceId(wallFaceId++), ParentStableId: holes[i].FeatureId));
-        }
-        for (var side = 0; finish is not null && side < 4; side++)
-            descendants.Add(new($"combined:edgefinish:{finishName}:replacement:{side}", "Face", SemanticTopologyRole.EdgeFinishReplacementFace,
-                $"edgefinish:{finishName}", Face: new FaceId(4 + 2 * side), ParentStableId: finishName));
-        var correspondence = new SemanticTopologyCorrespondence(solid.Name, descendants, ["HostBRepPlan", "HoleChangedBRepPlan", "EdgeFinishChangedBRepPlan", "AuthoritativeBRepPlan"]);
         if (correspondence.Descendants.Count(d => d.Role == SemanticTopologyRole.HoleEntryLoop) != holes.Count || correspondence.Descendants.Count(d => d.Role == SemanticTopologyRole.HoleExitLoop) != holes.Count)
         {
             return CombinedFailure("CombinedFeaturePlanChainInvalid: final plan lost Hole mouth or exit correspondence.");
         }
 
-        var holeRemoved = combinedHoles.Sum(h => h.RemovedVolume(host.ZMax - host.ZMin));
+        var descendants = correspondence.Descendants;
+        var featureKind = finish is null ? "BoxThroughHoles" : "CombinedHoleEdgeFinish";
         var report = new FirmamentCombinedFeaturePlanReport(
-            "CombinedHoleEdgeFinish", "Succeeded", finalPlan.ParentHostPlanId!, finalPlan.AppliedFeatureIds, finalPlan.PlanId, "Disjoint",
+            featureKind, "Succeeded", finalPlan.ParentHostPlanId!, finalPlan.AppliedFeatureIds, finalPlan.PlanId, "Disjoint",
             descendants.Count(d => d.SourceStableId.StartsWith("hole:", StringComparison.Ordinal)),
             descendants.Count(d => d.Role == SemanticTopologyRole.EdgeFinishReplacementFace),
-            box.Size[0] * box.Size[1] * (host.ZMax - host.ZMin), holeRemoved, finalPlan.AnalyticVolume,
+            box.Size[0] * box.Size[1] * (host.ZMax - host.ZMin), holeRemoved, finalVolume,
             Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(),
             body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Plane), body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Cylinder), true, true);
-        var featureReports = holes.Select(h => new FirmamentHoleFeatureReport(h.Name, "Hole", h.FeatureId, h.Shaft.Diameter, h.Placement.U, h.Placement.V, null, null, null, null, "top", null, nameof(AirHoleSimpleShaftMaterializer), "HoleChangedBRepPlan", h.Stack.Kind.ToString(), "CombinedHoleEdgeFinish", h.Stack.Kind==AirHoleStackKind.Counterbore?2:1, h.Stack.Kind==AirHoleStackKind.Countersink?1:0, h.Stack.Kind==AirHoleStackKind.Counterbore?1:0, report.StepSha256, true)).ToArray();
+        var featureReports = holes.Select(h => new FirmamentHoleFeatureReport(h.Name, "Hole", h.FeatureId, h.Shaft.Diameter, h.Placement.U, h.Placement.V, null, null, null, null, "top", null, nameof(AirHoleSimpleShaftMaterializer), "HoleChangedBRepPlan", h.Stack.Kind.ToString(), featureKind, h.Stack.Kind==AirHoleStackKind.Counterbore?2:1, h.Stack.Kind==AirHoleStackKind.Countersink?1:0, h.Stack.Kind==AirHoleStackKind.Counterbore?1:0, report.StepSha256, true)).ToArray();
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
             step.Value,
             document.ModelName,
             0,
-            "combined-hole-edgefinish",
-            "CombinedHoleEdgeFinish",
+            finish is null ? "box-through-holes" : "combined-hole-edgefinish",
+            featureKind,
             DatumInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
             DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-semantic-pmi", p.Name)).ToArray() ?? [],
             ConceptIr: document.ConceptIr,
             Features: featureReports,
             Combined: report) { RuntimeBody = body, RuntimeCorrespondence = correspondence, MaterializedFeatures = FirmamentFeatureAccounting.Receipts(solid.Name, "Hole", holes.Select(h => h.Name).ToArray()).Concat(finish is null ? [] : new[] { new FirmamentFeatureReceipt(solid.Name, "EdgeFinish", finish.Name) }).ToArray() });
+    }
+
+    private static SemanticTopologyCorrespondence BoxThroughHoleCorrespondence(BrepBody body, string solid, IReadOnlyList<AirHoleFeature> holes,
+        IReadOnlyList<CombinedTopBoundaryEdgeFinishThroughHole> planHoles, FirmamentV2EdgeFinishDecl? finish)
+    {
+        var finalTop = body.Topology.GetFace(new FaceId(2));
+        var finalBottom = body.Topology.GetFace(new FaceId(1));
+        var descendants = BoxConstructionCorrespondence.RetainedCaps(solid, finalBottom.Id, finalTop.Id, body).ToList();
+        // The builder emits the relief wall and any shoulder before the shaft.
+        var faceId = finish is null ? 7 : 11;
+        for (var i = 0; i < holes.Count; i++)
+        {
+            var hole = holes[i];
+            var source = $"hole:{hole.FeatureId}";
+            descendants.Add(new($"combined:{source}:mouth-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, source, Loop: finalTop.LoopIds[i + 1], ParentStableId: hole.FeatureId));
+            descendants.Add(new($"combined:{source}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, source, Loop: finalBottom.LoopIds[i + 1], ParentStableId: hole.FeatureId));
+            if (planHoles[i].IsCounterbore)
+            {
+                AddFace("counterbore-wall", SemanticTopologyRole.HoleCounterboreWallFace);
+                AddFace("shoulder", SemanticTopologyRole.HoleCounterboreShoulderFace);
+            }
+            if (planHoles[i].IsCountersink)
+                AddFace("countersink-wall", SemanticTopologyRole.HoleCountersinkWallFace);
+            AddFace("shaft-wall", SemanticTopologyRole.HoleWallFace);
+
+            void AddFace(string name, SemanticTopologyRole role) =>
+                descendants.Add(new($"combined:{source}:{name}", "Face", role, source, Face: new FaceId(faceId++), ParentStableId: hole.FeatureId));
+        }
+        if (finish is not null) descendants.AddRange(BoxRimFinishFaces(finish.Name));
+        return new(solid, descendants, finish is null ? ["HostBRepPlan", "HoleChangedBRepPlan", "AuthoritativeBRepPlan"]
+            : ["HostBRepPlan", "HoleChangedBRepPlan", "EdgeFinishChangedBRepPlan", "AuthoritativeBRepPlan"]);
+    }
+
+    private static SemanticTopologyCorrespondence AnnotateBoxHoleCorrespondence(SemanticTopologyCorrespondence correspondence,
+        FirmamentV2Document document, FirmamentV2SolidBinding stock, IReadOnlyList<AirHoleFeature> holes)
+    {
+        var sourceSpans = new Dictionary<string, FirmamentV2SourceSpan>(StringComparer.Ordinal);
+        if (stock.SourceSpan is { } bodySpan) sourceSpans[stock.Name] = bodySpan;
+        foreach (var modify in document.ModifyBlocks ?? [])
+            foreach (var hole in modify.SemanticHoles)
+                if (hole.SourceSpan is { } holeSpan) sourceSpans[$"{modify.TargetSolid}.{hole.Name}"] = holeSpan;
+        var ownerBySource = holes.ToDictionary(hole => $"hole:{hole.FeatureId}", StringComparer.Ordinal);
+        return correspondence with
+        {
+            SourceSpans = sourceSpans,
+            Descendants = correspondence.Descendants.Select(descendant =>
+                ownerBySource.TryGetValue(descendant.SourceStableId, out var hole) && FirmamentV2HoleWallSelector.Format(descendant, hole.Name, hole.FeatureId) is { } selector
+                    ? descendant with { FirmamentSelector = selector } : descendant).ToArray()
+        };
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportV2TopBoundaryFillet(
@@ -2920,6 +2966,11 @@ public static partial class FirmamentBuildAndExport
             return null;
         }
 
+        if (semanticHoles.Count > 1 && semanticHoles.Any(h => h.Stack.Kind is AirHoleStackKind.Counterbore or AirHoleStackKind.Countersink)
+            && semanticHoles.All(h => h.EndCondition is AirHoleEndCondition.ThroughAll && h.Axis.Direction.Z >= 1d - 1e-9)
+            && document.ModifyBlocks.All(m => m.Regions.Count == 0))
+            return ExportV2BoxThroughHoleStock(document, allowUnfinished: true);
+
         var feature = semanticHoles[0];
         // The stock frame is authored by the Box, never inferred from ConceptIr presence.
         var host = FirmamentStockFrame.ForBox(box.Size[0], box.Size[1], box.Size[2]).CreateHoleHost();
@@ -2950,26 +3001,7 @@ public static partial class FirmamentBuildAndExport
         }
 
         if (runtimeCorrespondence is not null)
-        {
-            var sourceSpans = new Dictionary<string, FirmamentV2SourceSpan>(StringComparer.Ordinal);
-            if (targetSolid.SourceSpan is { } bodySpan) sourceSpans[modifyTargets[0]] = bodySpan;
-            foreach (var modify in document.ModifyBlocks)
-                foreach (var hole in modify.SemanticHoles)
-                    if (hole.SourceSpan is { } holeSpan) sourceSpans[$"{modify.TargetSolid}.{hole.Name}"] = holeSpan;
-            runtimeCorrespondence = runtimeCorrespondence with
-            {
-                SourceSpans = sourceSpans,
-                Descendants = runtimeCorrespondence.Descendants.Select(descendant =>
-                {
-                    var owner = semanticHoles.FirstOrDefault(hole => descendant.SourceStableId == $"hole:{hole.FeatureId}");
-                    return descendant with
-                    {
-                        FirmamentSelector = owner is null ? descendant.FirmamentSelector
-                            : FirmamentV2HoleWallSelector.Format(descendant, owner.Name, owner.FeatureId) ?? descendant.FirmamentSelector
-                    };
-                }).ToArray()
-            };
-        }
+            runtimeCorrespondence = AnnotateBoxHoleCorrespondence(runtimeCorrespondence, document, targetSolid, semanticHoles);
         foreach (var pmi in document.BoundPmi?.Dimensions ?? [])
         {
             if (pmi.HoleWallTarget is not { } selector) continue;

@@ -184,7 +184,7 @@ For geometry that already exposes named spans, prefer the finite [Profile pipeli
 
 Sheet Metal has its own `Hole Name` syntax for planar circular openings; countersink and counterbore forms are Model-domain features and deliberately fail in Sheet Metal rather than being ignored.
 
-## Box top fillet with holes
+## Box face rims with holes
 
 ```firmament
 Model Mount {
@@ -203,16 +203,17 @@ the existing direct-intersection two-edge fillet construction. The vertical
 corners stay sharp; this does not request a spherical whole-box corner blend.
 The stock remains centered in XY with its bottom at Z=0.
 
-The same finish works without holes. With holes, the bounded combination admits
-one Box, one Modify, one complete `+Z` `Boundary` finish and top `ThroughAll`
-shaft/counterbore holes. No Region operations participate. For finish size `r`,
-the entry circle must satisfy `abs(x) + entryRadius < width/2 - r` and
-`abs(y) + entryRadius < depth/2 - r`, with kernel tolerance applied. A counterbore
-uses its larger entry radius. Hole entry circles must also be mutually disjoint.
-Touching or overlapping requests fail; neither the hole nor the finish is dropped.
-The radius must be positive, smaller than the height, and smaller than half the
-width and depth. Other combined selectors, blind holes, countersinks, mixed
-finishes and hole/fillet intersections remain outside this qualified combination.
+Use any of the six axis faces for one complete `Boundary` fillet or chamfer.
+A Box can mix `+Z` `ThroughAll` shafts, counterbores and countersinks with or
+without a rim finish. Allow at least 0.01 mm between openings and between
+each opening and the retained outer edge. Clearance uses the larger entry
+diameter for counterbores and countersinks. With a side or bottom rim, the
+planner also checks the exit and the full cutting path against the finished rim.
+
+The radius must be positive, smaller than the stock depth measured from the
+selected face, and smaller than half the face width and height. Mixed blind or
+side-entry holes, multiple rim finishes, Region operations, and intersections
+between holes and the finished rim are outside this combination.
 
 The [shaft/counterbore witness](../../../fixtures/Regression/Fillet/top-boundary-with-counterbore.firmament)
 uses the ordinary authoring and AP242 paths. Explicit supported PMI is retained.

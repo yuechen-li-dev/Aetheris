@@ -76,6 +76,7 @@ public sealed record CombinedTopBoundaryEdgeFinishThroughHolePlan(
 public static class CombinedTopBoundaryEdgeFinishThroughHoleBuilder
 {
     private const double Tol = 1e-9;
+    private const double MinimumOpeningClearance = .01d;
 
     public static KernelResult<BrepBody> Build(CombinedTopBoundaryEdgeFinishThroughHolePlan plan)
     {
@@ -323,15 +324,17 @@ public static class CombinedTopBoundaryEdgeFinishThroughHoleBuilder
                 || hole.CountersinkAngleDegrees is not { } angle || !double.IsFinite(angle) || angle <= 0d || angle >= 180d
                 || hole.ReliefDepth is not { } depth || !double.IsFinite(depth) || depth <= Tol || depth >= plan.ZMax-plan.ZMin-Tol))
                 return Failure($"CombinedFeaturePlanChainInvalid: countersink '{hole.FeatureId}' must have a finite relief entirely above a positive shaft span.");
-            if (System.Math.Abs(hole.CenterX) + hole.EntryRadius >= plan.Width / 2d - plan.FinishSize - Tol || System.Math.Abs(hole.CenterY) + hole.EntryRadius >= plan.Depth / 2d - plan.FinishSize - Tol)
-                return Failure($"CombinedFeatureInteractionUnsupported: hole '{hole.FeatureId}' intersects or splits the selected outer top-boundary finish band; move the hole inward or reduce its entry radius or the finish size.");
+            if (System.Math.Abs(hole.CenterX) + hole.EntryRadius + MinimumOpeningClearance > plan.Width / 2d - plan.FinishSize + Tol
+                || System.Math.Abs(hole.CenterY) + hole.EntryRadius + MinimumOpeningClearance > plan.Depth / 2d - plan.FinishSize + Tol)
+                return Failure($"CombinedFeatureInteractionUnsupported: hole '{hole.FeatureId}' needs at least 0.01 mm of clearance from the outer boundary or finish band.");
         }
         for (var i = 0; i < plan.Holes.Count; i++)
         for (var j = i + 1; j < plan.Holes.Count; j++)
         {
             var a = plan.Holes[i]; var b = plan.Holes[j];
-            if (System.Math.Sqrt(System.Math.Pow(a.CenterX - b.CenterX, 2d) + System.Math.Pow(a.CenterY - b.CenterY, 2d)) <= a.EntryRadius + b.EntryRadius + Tol)
-                return Failure($"CombinedFeatureInteractionUnsupported: holes '{a.FeatureId}' and '{b.FeatureId}' overlap.");
+            if (System.Math.Sqrt(System.Math.Pow(a.CenterX - b.CenterX, 2d) + System.Math.Pow(a.CenterY - b.CenterY, 2d))
+                < a.EntryRadius + b.EntryRadius + MinimumOpeningClearance - Tol)
+                return Failure($"CombinedFeatureInteractionUnsupported: holes '{a.FeatureId}' and '{b.FeatureId}' need at least 0.01 mm between openings.");
         }
         return KernelResult<bool>.Success(true);
 

@@ -1,6 +1,7 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
@@ -27,7 +28,7 @@ public sealed class CombinedFilletHoleTests
             var binding = body.Bindings.FaceBindings.Single(b => b.FaceId == replacement.Face);
             Assert.Equal(SurfaceGeometryKind.Cylinder, body.Geometry.GetSurface(binding.SurfaceGeometryId).Kind);
         }
-        var walls = correspondence.Descendants.Where(d => d.Role == SemanticTopologyRole.HoleWallFace).ToArray();
+        var walls = correspondence.Descendants.Where(d => d.Role is SemanticTopologyRole.HoleWallFace or SemanticTopologyRole.HoleCounterboreWallFace).ToArray();
         var shaftRadii = new List<double>();
         foreach (var wall in walls)
         {
@@ -96,7 +97,7 @@ public sealed class CombinedFilletHoleTests
 
     [Theory]
     [InlineData("shaft-tangent", "CombinedFeaturePlanChainInvalid", 5)]
-    [InlineData("unsupported-selector", "CombinedFeatureSelectionLost", 6)]
+    [InlineData("side-rim-intersects-hole", "CombinedFeatureInteractionUnsupported", 6)]
     [InlineData("overlapping-holes", "CombinedFeatureInteractionUnsupported", 7)]
     public void UnadmittedCombinations_KeepActionableLocatedDiagnostics(string variant, string code, int line)
     {
@@ -104,7 +105,7 @@ public sealed class CombinedFilletHoleTests
         source = variant switch
         {
             "shaft-tangent" => source.Replace("Point2(0mm, 0mm)", "Point2(26mm, 0mm)"),
-            "unsupported-selector" => source.Replace("Face: +Z", "Face: +X"),
+            "side-rim-intersects-hole" => source.Replace("Face: +Z", "Face: +X").Replace("Point2(0mm, 0mm)", "Point2(25.5mm, 0mm)"),
             _ => source.Replace("    EdgeFinish", "    Hole<Shaft> Other { on: +Z; center: [1mm,0mm]; diameter: 4mm; end: ThroughAll }\n    EdgeFinish")
         };
         AdmitAndBuild(source, false);
@@ -112,6 +113,57 @@ public sealed class CombinedFilletHoleTests
         var diagnostics = build.Diagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(d, "test.firmament", source)).ToArray();
         Assert.Contains(diagnostics, d => d.Code == code && d.Line == line && d.SourceSpan is not null);
     }
+
+    [Theory]
+    [InlineData("+Z", 0, 0, 1)]
+    [InlineData("-Z", 0, 0, -1)]
+    [InlineData("+X", 1, 0, 0)]
+    [InlineData("-X", -1, 0, 0)]
+    [InlineData("+Y", 0, 1, 0)]
+    [InlineData("-Y", 0, -1, 0)]
+    public void PrincipalBoxRims_AreExactAndRetainMixedThroughHoles(string axis, int x, int y, int z)
+    {
+        var source = MixedHoles().Replace("face: +Z; target: Boundary", $"face: {axis}; target: Boundary");
+        var product = AdmitAndBuild(source, true);
+        var result = Step242Importer.ImportBody(product.StepText);
+        Assert.True(result.IsSuccess, string.Join(" | ", result.Diagnostics.Select(d => d.Message)));
+        var body = result.Value;
+        Assert.True(BrepExportPreflight.Validate(body).IsValid);
+        Assert.True(BrepMassProperties.Evaluate(body).IsEnclosed);
+        Assert.Equal(16, body.Topology.Faces.Count());
+        var normal = new Vector3D(x, y, z);
+        var cylinders = body.Geometry.Surfaces.Select(s => s.Value.Cylinder).OfType<Aetheris.Kernel.Core.Geometry.Surfaces.CylinderSurface>().ToArray();
+        Assert.Equal(4, cylinders.Count(c => Math.Abs(c.Radius - 1) < 1e-8 && Math.Abs(c.Axis.ToVector().Dot(normal)) < 1e-8));
+        Assert.Equal(4, cylinders.Count(c => c.Radius >= 2 && Math.Abs(c.Axis.Z) > .999999));
+        Assert.Single(body.Geometry.Surfaces, s => s.Value.Kind == SurfaceGeometryKind.Cone);
+        Assert.Equal(4, body.Geometry.Curves.Count(c => c.Value.Kind == CurveGeometryKind.Ellipse3));
+        Assert.Equal(3, product.RuntimeCorrespondence!.Descendants.Count(d => d.Role == SemanticTopologyRole.HoleEntryLoop));
+        Assert.Equal(3, product.RuntimeCorrespondence.Descendants.Count(d => d.Role == SemanticTopologyRole.HoleExitLoop));
+    }
+
+    [Theory]
+    [InlineData("[0mm, -10mm]", true)]
+    [InlineData("[-8mm, 0mm]", false)]
+    [InlineData("[-4.995mm, 0mm]", false)] // a 0.005 mm ligament between the two entries
+    public void PlainAndRecessedBoxHoles_UseTheirLargerEntryDiametersForClearance(string center, bool accepted)
+    {
+        var source = MixedHoles().Replace("[0mm, -10mm]", center)
+            .Replace("    EdgeFinish<Fillet> TopEdge { face: +Z; target: Boundary; radius: 1mm }\n", "");
+        var product = AdmitAndBuild(source, accepted);
+        if (!accepted) return;
+        Assert.Equal("BoxThroughHoles", product.ExportedFeatureKind);
+        Assert.Equal(12, product.RuntimeBody!.Topology.Faces.Count());
+        Assert.Contains(product.RuntimeCorrespondence!.Descendants, d => d.Role == SemanticTopologyRole.HoleCountersinkWallFace);
+        Assert.Contains(product.RuntimeCorrespondence.Descendants, d => d.Role == SemanticTopologyRole.HoleCounterboreShoulderFace);
+    }
+
+    private static string MixedHoles() => Source("Regression/Fillet/top-boundary-with-counterbore.firmament").Replace("\r\n", "\n")
+        .Replace("    EdgeFinish<Fillet>", """
+              Hole<Countersink> Flush {
+                on: +Z; center: [0mm, -10mm]; diameter: 6mm; end: ThroughAll
+                countersinkDiameter: 8mm; countersinkAngle: 90deg
+              }
+          """ + "\n    EdgeFinish<Fillet>");
 
     [Fact]
     public void CounterboreEntryRadius_DeterminesFinishClearance()

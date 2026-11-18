@@ -196,19 +196,21 @@ public static class PlanarFaceThroughHole
                 var edge = body.Topology.Edges.Single(t => t.Id == id);
                 if (!body.Bindings.TryGetEdgeBinding(id, out var binding) || !body.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve)) return Fail("missing-corridor-edge-geometry");
                 bounds.Add(source.VertexPoints[edge.StartVertexId]); bounds.Add(source.VertexPoints[edge.EndVertexId]);
-                if (curve?.Circle3 is { } circle)
+                void IncludeExtrema(Vector3D u, Vector3D v, ParameterInterval trim, Func<double, Point3D> evaluate)
                 {
-                    // Bounds belong to the trimmed arc, not its entire supporting circle.
-                    var circleX = circle.XAxis.ToVector(); var circleY = circle.YAxis.ToVector();
-                    var trim = binding.TrimInterval ?? new ParameterInterval(0, 2 * Math.PI);
-                    foreach (var angle in new[] { Math.Atan2(circleY.X, circleX.X), Math.Atan2(circleY.Y, circleX.Y), Math.Atan2(circleY.Z, circleX.Z) })
+                    foreach (var angle in new[] { Math.Atan2(v.X, u.X), Math.Atan2(v.Y, u.Y), Math.Atan2(v.Z, u.Z) })
                         foreach (var extremum in new[] { angle, angle + Math.PI })
                         {
                             var turn = Math.Ceiling((trim.Start - extremum) / (2 * Math.PI));
                             var parameter = extremum + turn * 2 * Math.PI;
-                            if (parameter <= trim.End + Tol) bounds.Add(circle.Evaluate(parameter));
+                            if (parameter <= trim.End + Tol) bounds.Add(evaluate(parameter));
                         }
                 }
+                // Rectangle rim fillets meet along trimmed ellipse arcs.
+                if (curve?.Circle3 is { } circle)
+                    IncludeExtrema(circle.XAxis.ToVector(), circle.YAxis.ToVector(), binding.TrimInterval ?? new(0, 2 * Math.PI), circle.Evaluate);
+                else if (curve?.Ellipse3 is { } ellipse && binding.TrimInterval is { } trim)
+                    IncludeExtrema(ellipse.XAxis.ToVector() * ellipse.MajorRadius, ellipse.YAxis.ToVector() * ellipse.MinorRadius, trim, ellipse.Evaluate);
                 else if (curve?.Kind != CurveGeometryKind.Line3) return Fail("unsupported-corridor-edge-geometry");
             }
             var separated = Enumerable.Range(0, 3).Any(i => {

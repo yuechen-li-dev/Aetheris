@@ -64,7 +64,6 @@ public sealed class LocalizedPlanarSingleEdgeChamferPipelineTests
     [InlineData(0d, "+X", "SharedEdgePlusZ", "localized-chamfer-distance-must-be-positive")]
     [InlineData(6d, "+X", "SharedEdgePlusZ", "localized-chamfer-distance-too-large")]
     [InlineData(1d, "+Z", "SharedEdgePlusZ", "air-chamfer-unsupported-selection-rejected")]
-    [InlineData(1d, "+X", "SharedEdgePlusY", "air-chamfer-unsupported-face-rejected")]
     public void LocalizedPlanarReplacement_InvalidInput_FailsBeforeExport(double distance, string face, string target, string expected)
     {
         var run = Run(Source(10, 8, 6, distance, face, target));

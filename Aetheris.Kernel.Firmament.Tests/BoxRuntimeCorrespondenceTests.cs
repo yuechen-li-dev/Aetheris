@@ -60,7 +60,9 @@ public sealed class BoxRuntimeCorrespondenceTests
             var component = axis switch { 'X' => normal.X, 'Y' => normal.Y, 'Z' => normal.Z, _ => throw new InvalidOperationException() };
             Assert.Equal(expected, component, 10);
         }
-        Assert.Contains(correspondence.Descendants, item => item.Kind == "Edge" && item.Edge.HasValue && item.FirmamentSelector is null);
+        var front = Assert.Single(correspondence.Descendants, item => item.StableId == "Body.edge(TopFront)");
+        Assert.Equal("SharedEdge(-Y,+Z)", front.FirmamentSelector);
+        Assert.True(front.Edge.HasValue);
     }
 
     [Fact]

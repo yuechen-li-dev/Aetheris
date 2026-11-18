@@ -26,6 +26,7 @@ export interface PmiDisplayAnnotation {
   readonly stepFaceEntities: readonly number[]; readonly anchor: readonly number[];
   readonly labelPosition: readonly number[]; readonly textHeight: number;
   readonly lines: readonly (readonly (readonly number[])[])[];
+  readonly placement?: PmiLabelPlacement | null;
   readonly target?: { readonly kind: 'PlanePatch' | 'CylinderWall'; readonly normal: readonly number[]; readonly stemLength: number; readonly surfaceOffset: number;
     readonly positions: readonly number[]; readonly normals: readonly number[]; readonly indices: readonly number[];
     readonly lines: readonly (readonly (readonly number[])[])[] } | null;
@@ -34,6 +35,21 @@ export interface PmiDisplayAnnotation {
     readonly fill: { readonly positions: readonly number[]; readonly indices: readonly number[] } | null;
     readonly panel: { readonly positions: readonly number[]; readonly indices: readonly number[] } | null } | null;
 }
+/** World-space label bounds and movable spans in the drawing buffers. */
+export interface PmiLabelPlacement {
+  readonly key: string;
+  readonly normal: readonly number[];
+  readonly bounds: readonly (readonly number[])[] | null;
+  readonly lineStart: number;
+  readonly lineCount: number;
+  readonly glyphStart: number;
+  readonly glyphCount: number;
+  readonly fillVertices: number;
+  readonly panelVertices: number;
+  readonly leaderLine: number | null;
+  readonly alias: boolean;
+}
+export type PmiOffsets = Readonly<Record<string, readonly [number, number, number]>>;
 export interface MeshRange { readonly surfaceKind?: string | null; readonly diameterMm?: number | null }
 export interface SelectionDescription { readonly surfaceKind?: string | null; readonly diameterMm?: number | null }
 export interface PlanarFaceSupport { readonly origin: readonly number[]; readonly x: readonly number[]; readonly y: readonly number[]; readonly normal: readonly number[]; readonly boundary: readonly (readonly number[])[]; readonly excludedDisks?: readonly { readonly center: readonly number[]; readonly radius: number }[] }
@@ -150,7 +166,7 @@ export class ModelSession {
   readonly measurementAvailable?: boolean;
   readonly exportFormats: readonly ExportFormatOption[];
   /** One format returns its file; multiple formats return one ZIP. Rejected exports produce no files. */
-  exportArtifacts(formats: readonly ExportFormat[], options?: OperationOptions): Promise<readonly ExportFile[]>;
+  exportArtifacts(formats: readonly ExportFormat[], options?: OperationOptions & { readonly pmiOffsets?: PmiOffsets }): Promise<readonly ExportFile[]>;
   readonly motions: readonly MotionClip[];
   sampleMotion(motion: string, timeSeconds: number, options?: OperationOptions & { readonly preserveEndpoint?: boolean }): Promise<MotionPose>;
   measure(request: MeasurementRequest, options?: OperationOptions): Promise<MeasurementResult>;

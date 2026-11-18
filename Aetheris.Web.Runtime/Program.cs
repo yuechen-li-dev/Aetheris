@@ -314,6 +314,7 @@ public static partial class Program
         int? Bridge = null, IReadOnlyList<FirmamentLanguageEditOperation>? Operations = null,
         string? Motion = null, double? TimeSeconds = null, bool PreserveEndpoint = false,
         IReadOnlyList<string>? Formats = null, Aetheris.Geometry.MeasurementRequest? Measurement = null,
+        IReadOnlyDictionary<string, double[]>? PmiOffsets = null,
         string? Node = null, FirmamentSketchEditRequest? SketchEdit = null);
 
     /// <summary>
@@ -363,10 +364,11 @@ public static partial class Program
         {
             RequireExportRevision(request.BuildRevision);
             var formats = request.Formats ?? [];
-            var needsStep = formats.Any(f => f is not ("glb" or "usda")) || formats.Contains("glb") && _expectedPmi.Count > 0;
+            var needsStep = formats.Any(f => f is not ("glb" or "usda")) ||
+                formats.Contains("glb") && (_expectedPmi.Count > 0 || request.PmiOffsets is { Count: > 0 });
             try
             {
-                var files = ProductArtifactExporter.Export(new(Name, needsStep ? StepText : null, _exportDisplay!, _assembly, _scene, _expectedPmi, _sourceName),
+                var files = ProductArtifactExporter.Export(new(Name, needsStep ? StepText : null, _exportDisplay!, _assembly, _scene, _expectedPmi, _sourceName, request.PmiOffsets),
                     formats, Path.GetTempPath());
                 var file = ProductArtifactExporter.Package(files);
                 return new { revision = Revision, files = new[] { new { file.FileName, file.MediaType, base64 = Convert.ToBase64String(file.Bytes) } } };
@@ -911,10 +913,10 @@ internal static class WebMeshBuilder
             annotations = (annotations ?? []).Select(a => new
             {
                 a.Id, a.Kind, a.Name, a.Text, a.Value, a.TolerancePlus, a.ToleranceMinus, a.StepFaceEntities, a.Anchor, a.LabelPosition, a.TextHeight,
-                a.Lines, a.Target,
-                drawing = a.TextFill is null && a.Panel is null ? null : new
+                a.Lines, a.Target, a.Placement,
+                drawing = a.TextFill is null && a.Panel is null && a.Placement is not { Alias: true } ? null : new
                 {
-                    lines = a.DraftingLines ?? a.Lines,
+                    lines = a.Placement is { Alias: true } ? [] : a.DraftingLines ?? a.Lines,
                     fill = a.TextFill is null ? null : new { positions = a.TextFill.Positions, indices = a.TextFill.Indices },
                     panel = a.Panel is null ? null : new { positions = a.Panel.Positions, indices = a.Panel.Indices },
                 },

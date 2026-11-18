@@ -28,7 +28,7 @@ public sealed class CombinedFilletHoleTests
             var binding = body.Bindings.FaceBindings.Single(b => b.FaceId == replacement.Face);
             Assert.Equal(SurfaceGeometryKind.Cylinder, body.Geometry.GetSurface(binding.SurfaceGeometryId).Kind);
         }
-        var walls = correspondence.Descendants.Where(d => d.Role is SemanticTopologyRole.HoleWallFace or SemanticTopologyRole.HoleCounterboreWallFace).ToArray();
+        var walls = correspondence.Descendants.Where(d => d.Role == SemanticTopologyRole.HoleWallFace).ToArray();
         var shaftRadii = new List<double>();
         foreach (var wall in walls)
         {

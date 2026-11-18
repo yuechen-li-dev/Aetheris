@@ -1732,11 +1732,12 @@ public static partial class FirmamentBuildAndExport
             descendants.Add(new($"combined:{source}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, source, Loop: finalBottom.LoopIds[i + 1], ParentStableId: hole.FeatureId));
             if (planHoles[i].IsCounterbore)
             {
-                AddFace("counterbore-wall", SemanticTopologyRole.HoleCounterboreWallFace);
-                AddFace("shoulder", SemanticTopologyRole.HoleCounterboreShoulderFace);
+                AddFace("counterbore-wall", finish is null ? SemanticTopologyRole.HoleCounterboreWallFace : SemanticTopologyRole.HoleWallFace);
+                if (finish is null) AddFace("shoulder", SemanticTopologyRole.HoleCounterboreShoulderFace);
+                else faceId++; // The established top-rim route exposes the cavity walls as one set.
             }
             if (planHoles[i].IsCountersink)
-                AddFace("countersink-wall", SemanticTopologyRole.HoleCountersinkWallFace);
+                AddFace("countersink-wall", finish is null ? SemanticTopologyRole.HoleCountersinkWallFace : SemanticTopologyRole.HoleWallFace);
             AddFace("shaft-wall", SemanticTopologyRole.HoleWallFace);
 
             void AddFace(string name, SemanticTopologyRole role) =>

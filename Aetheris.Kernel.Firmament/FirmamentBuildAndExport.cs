@@ -733,12 +733,15 @@ public static partial class FirmamentBuildAndExport
             if (executedPrimitive.Kind == FirmamentLoweredPrimitiveKind.Box
                 && executedPrimitive.BoxConstructionTopology is { } boxTopology
                 && v2Parse.Document.Solids.Count == 1
+                && v2Parse.Document.Solids[0].Primitive is FirmamentV2BoxRecord authoredBox
                 && execution.Value.ExecutedBooleans.Count == 0)
                 primitiveExport = primitiveExport with
                 {
                     RuntimeBody = executedPrimitive.Body,
-                    RuntimeCorrespondence = BoxConstructionCorrespondence.Create(executedPrimitive.FeatureId, boxTopology,
-                        v2Parse.Document.Solids.Single(s => s.Name == executedPrimitive.FeatureId).SourceSpan)
+                    RuntimeCorrespondence = BoxConstructionCorrespondence.WithStockEdges(
+                        BoxConstructionCorrespondence.Create(executedPrimitive.FeatureId, boxTopology,
+                            v2Parse.Document.Solids.Single(s => s.Name == executedPrimitive.FeatureId).SourceSpan),
+                        executedPrimitive.Body, authoredBox.Size)
                 };
             return KernelResult<FirmamentStepExportResult>.Success(primitiveExport);
         }
@@ -1571,17 +1574,18 @@ public static partial class FirmamentBuildAndExport
 
         if (finishes.Length > 1)
         {
-            return CombinedFailure($"CombinedFeatureThirdFamilyUnsupported: This Box plan admits one face rim EdgeFinish (actual={finishes.Length}).", sourceSpan: finishes[1].SourceSpan);
+            return CombinedFailure($"CombinedFeatureThirdFamilyUnsupported: This Box with holes admits one EdgeFinish (actual={finishes.Length}).", sourceSpan: finishes[1].SourceSpan);
         }
 
         var finish = finishes.SingleOrDefault();
         var finishSpan = finish?.SourceSpan ?? holesDeclared[0].SourceSpan;
         var finishName = finish?.Name ?? "UnfinishedStock";
-        var orientedFrame = finish is not null && finish.FaceAxis != "+Z" ? BoxBoundaryFrame(finish.FaceAxis, box) : null;
-        if (finish is not null && (finish.FaceAxis != "+Z" && orientedFrame is null || !string.Equals(finish.Target, "Boundary", StringComparison.Ordinal)
+        var edgePair = finish is null ? null : BoxEdgeFacePair.Parse(finish.FaceAxis, finish.Target);
+        var orientedFrame = finish is { Target: "Boundary" } ? BoxBoundaryFrame(finish.FaceAxis, box) : null;
+        if (finish is not null && (edgePair is null && (finish.Target != "Boundary" || finish.FaceAxis != "+Z" && orientedFrame is null)
             || finish.Kind is not ("Chamfer" or "Fillet")))
         {
-            return CombinedFailure($"CombinedFeatureSelectionLost: EdgeFinish '{finishName}' must select the outer Boundary of a principal Box face with Kind Chamfer or Fillet.", sourceSpan: finishSpan);
+            return CombinedFailure($"CombinedFeatureSelectionLost: EdgeFinish '{finishName}' must select a Box face rim or one edge shared by two perpendicular Box faces.", sourceSpan: finishSpan);
         }
 
         var holes = FirmamentV2SemanticHoleLowering.LowerSemanticHoles(document);
@@ -1619,7 +1623,7 @@ public static partial class FirmamentBuildAndExport
 
         // Preserve the existing chamfer admission and realization unchanged. Fillet
         // admission is owned by the same bounded final plan that realizes its cylinders.
-        if (finish is { Kind: "Chamfer", FaceAxis: "+Z" })
+        if (finish is { Kind: "Chamfer", FaceAxis: "+Z", Target: "Boundary" })
         {
             var compiledFinish = AirTopFaceBoundaryChamferCompiler.Compile(new(
                 solid.Name, $"{solid.Name}.{finishName}", finish.Name,
@@ -1640,7 +1644,21 @@ public static partial class FirmamentBuildAndExport
         BrepBody body;
         SemanticTopologyCorrespondence correspondence;
         double finalVolume;
-        if (orientedFrame is { } frame)
+        if (edgePair is not null && finish is not null)
+        {
+            var (stockBody, removed, buildDiagnostics) = BuildBoxSingleEdgeStock(document, solid, box, finish, edgePair);
+            if (stockBody is null)
+                return CombinedFailure("BoxSingleEdgeSizeRejected: The finish must fit both faces at the selected corner.", buildDiagnostics, finishSpan);
+            var emitted = AttachBoxTopHoles(stockBody, finalPlan.PlanId, solid.Name, host.ZMax, holes,
+                [BoxSingleEdgeReplacement(finish)], BoxSingleEdgeRoute,
+                allowConvexRoundedCorner: finish.Kind == "Fillet" && edgePair.First[1] != 'Z' && edgePair.Second[1] != 'Z');
+            if (emitted.Body is null || emitted.Correspondence is null)
+                return CombinedFailure("CombinedFeatureInteractionUnsupported: The holes need clearance from the finished edge.", emitted.Diagnostics, finishSpan);
+            body = emitted.Body;
+            correspondence = emitted.Correspondence;
+            finalVolume = box.Size[0] * box.Size[1] * box.Size[2] - holeRemoved - removed;
+        }
+        else if (orientedFrame is { } frame)
         {
             var orientedPlan = finalPlan with { Width = frame.Width, Depth = frame.Depth, ZMin = 0, ZMax = frame.Height, Holes = [] };
             var emitted = BuildOrientedBoxRimWithHoles(orientedPlan, Transform3D.FromRowMajor(frame.Matrix), solid.Name, finishName, host.ZMax, holes);
@@ -1660,16 +1678,18 @@ public static partial class FirmamentBuildAndExport
             finalVolume = finalPlan.AnalyticVolume;
         }
 
-        if (finish?.Kind == "Fillet")
+        if (finish?.Kind == "Fillet" || edgePair is not null)
         {
             var preflight = BrepExportPreflight.Validate(body);
             if (!preflight.IsValid)
-                return CombinedFailure("CombinedFeatureMaterializerDiverged: fillet boundary failed analytic export preflight.", preflight.Diagnostics.Select(d => d.Message), finishSpan);
+                return CombinedFailure("CombinedFeatureMaterializerDiverged: the finished boundary failed analytic export preflight.", preflight.Diagnostics.Select(d => d.Message), finishSpan);
         }
         if (!FirmamentManifoldChecker.IsManifold(body))
         {
             return CombinedFailure("CombinedFeaturePlanChainInvalid: final combined plan did not produce one enclosed manifold body.");
         }
+        if (finish is null)
+            correspondence = BoxThroughHolePickEdges(correspondence, body, solid, box, holes) ?? correspondence;
         correspondence = AnnotateBoxHoleCorrespondence(correspondence, document, solid, holes);
         var pmiSupport = ValidateV2PmiExportSupport(document);
         if (!pmiSupport.IsSuccess)
@@ -1855,6 +1875,8 @@ public static partial class FirmamentBuildAndExport
 
         if (finish.Target == "Boundary" && finish.FaceAxis != "+Z" && finish.Kind is "Chamfer" or "Fillet")
             return ExportV2BoxFaceBoundaryFinish(document, solid, finish, box);
+        if (BoxEdgeFacePair.Parse(finish.FaceAxis, finish.Target) is { IsOriginalAirPair: false } pair && finish.Kind is "Chamfer" or "Fillet")
+            return ExportV2BoxSingleEdge(document, solid, box, finish, pair);
 
         // AIR-FILLET-LOCALIZED-M1: semantic support-face selection only; emitted BRep IDs never enter Firmament.
         if (string.Equals(finish.Kind, "Fillet", StringComparison.Ordinal))
@@ -3001,6 +3023,7 @@ public static partial class FirmamentBuildAndExport
             }
         }
 
+        runtimeCorrespondence = BoxThroughHolePickEdges(runtimeCorrespondence, body, targetSolid, box, semanticHoles);
         if (runtimeCorrespondence is not null)
             runtimeCorrespondence = AnnotateBoxHoleCorrespondence(runtimeCorrespondence, document, targetSolid, semanticHoles);
         foreach (var pmi in document.BoundPmi?.Dimensions ?? [])

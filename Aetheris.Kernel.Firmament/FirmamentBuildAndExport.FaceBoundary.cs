@@ -77,31 +77,41 @@ public static partial class FirmamentBuildAndExport
         var stock = CombinedTopBoundaryEdgeFinishThroughHoleBuilder.Build(plan with { Holes = [] });
         if (!stock.IsSuccess) return new(null, null, stock.Diagnostics.Select(d => d.Message).ToArray());
         var body = FirmasmAssemblyExecutor.TransformBody(stock.Value, toWorld);
-        var tops = FirmamentSelectorResolver.ResolveSupportPlaneFaces(body, "top_face");
-        var bottoms = FirmamentSelectorResolver.ResolveSupportPlaneFaces(body, "bottom_face");
+        return AttachBoxTopHoles(body, plan.PlanId, bodyName, stockHeight, holes, BoxRimFinishFaces(finishName), "BoxFaceBoundaryFinish");
+    }
+
+    private static PrismaticSectionStackEmissionResult AttachBoxTopHoles(BrepBody body, string planId, string bodyName,
+        double stockHeight, IReadOnlyList<AirHoleFeature> holes, IEnumerable<SemanticTopologyDescendant> finishFaces,
+        string finishRoute, bool allowConvexRoundedCorner = false)
+    {
+        // The oriented Box emitter produces one cap for each world-Z direction. A fillet
+        // trim may reference a larger circle whose untrimmed extent lies outside the stock.
+        var tops = FirmamentSelectorResolver.ResolveUniquePlanarFace(body, "top_face");
+        var bottoms = FirmamentSelectorResolver.ResolveUniquePlanarFace(body, "bottom_face");
         if (tops.Count != 1 || bottoms.Count != 1)
-            return new(null, null, ["BoxRimHoleSupportLost: Expected one retained top and bottom plane."]);
+            return new(null, null, ["BoxFinishHoleSupportLost: Expected one retained top and bottom plane."]);
 
         var caps = BoxConstructionCorrespondence.RetainedCaps(bodyName, bottoms[0], tops[0], body);
         var entry = caps.Single(face => face.Face == tops[0]);
         var descendants = caps.Select(face => face == entry ? face with { SupportOrigin = [0d, 0d, stockHeight] } : face);
         var correspondence = new SemanticTopologyCorrespondence(bodyName,
-            [.. descendants, .. BoxRimFinishFaces(finishName)], ["BoxFaceBoundaryFinish", "OrientedBoxRim"]);
+            [.. descendants, .. finishFaces], [finishRoute, "OrientedBoxStock"]);
         var mapping = new PrismaticSectionStackFacePlanMapping(tops[0], "PrismaticSide", entry.StableId, entry.StableId,
             null, null, correspondence.ProvenanceChain);
         var points = body.Topology.Vertices.ToDictionary(vertex => vertex.Id, vertex =>
             body.TryGetVertexPoint(vertex.Id, out var point) ? point : throw new InvalidOperationException("Missing Box rim vertex."));
-        var topology = new PrismaticSectionStackTopologyPlan(plan.PlanId, body.Topology, body.Geometry, body.Bindings, points,
+        var topology = new PrismaticSectionStackTopologyPlan(planId, body.Topology, body.Geometry, body.Bindings, points,
             [mapping], correspondence, correspondence.ProvenanceChain);
-        var emitted = new PrismaticSectionStackEmissionResult(body, new(plan.PlanId, points.Count, body.Topology.Edges.Count(),
-            body.Topology.Faces.Count(), "BoxFaceBoundaryFinish", true, correspondence, topology), [], correspondence);
+        var emitted = new PrismaticSectionStackEmissionResult(body, new(planId, points.Count, body.Topology.Edges.Count(),
+            body.Topology.Faces.Count(), finishRoute, true, correspondence, topology), [], correspondence);
         foreach (var hole in holes)
         {
             var counterbore = hole.Stack.Components.OfType<AirHoleCounterboreComponent>().SingleOrDefault();
             var countersink = hole.Stack.Components.OfType<AirHoleCountersinkComponent>().SingleOrDefault();
             emitted = PlanarFaceThroughHole.Apply(emitted, new(hole.Name, $"hole:{hole.FeatureId}", entry.StableId,
                 hole.Placement.U, hole.Placement.V, hole.Shaft.Diameter, hole.Stack.Kind == AirHoleStackKind.SimpleShaft ? "Shaft" : hole.Stack.Kind.ToString(),
-                countersink?.EntryDiameter ?? counterbore?.Radius * 2d, counterbore?.Depth, countersink?.AngleDegrees));
+                countersink?.EntryDiameter ?? counterbore?.Radius * 2d, counterbore?.Depth, countersink?.AngleDegrees),
+                allowConvexRoundedCorner);
             if (emitted.Body is null) return emitted;
         }
         return emitted;

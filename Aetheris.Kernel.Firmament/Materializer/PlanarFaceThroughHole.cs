@@ -46,7 +46,10 @@ public static class PlanarFaceThroughHole
         return Support(body, face, [0d, 0d, plane.Origin.Z]);
     }
 
-    public static PlanarFaceSupport? Support(BrepBody body, FaceId id, double[]? constructionOrigin = null)
+    public static PlanarFaceSupport? Support(BrepBody body, FaceId id, double[]? constructionOrigin = null) =>
+        Support(body, id, constructionOrigin, allowConvexRoundedCorner: false);
+
+    private static PlanarFaceSupport? Support(BrepBody body, FaceId id, double[]? constructionOrigin, bool allowConvexRoundedCorner)
     {
         var face = body.Topology.Faces.SingleOrDefault(f => f.Id == id);
         if (face is null || face.LoopIds.Count == 0 || !body.TryGetFaceSurface(id, out var surface) || surface?.Plane is not { } plane
@@ -62,7 +65,10 @@ public static class PlanarFaceThroughHole
         {
             var coedge = body.Topology.Coedges.Single(c => c.Id == cid);
             var edge = body.Topology.Edges.Single(e => e.Id == coedge.EdgeId);
-            if (!body.Bindings.TryGetEdgeBinding(edge.Id, out var eb) || !body.Geometry.TryGetCurve(eb.CurveGeometryId, out var curve) || curve?.Kind != CurveGeometryKind.Line3) return null;
+            if (!body.Bindings.TryGetEdgeBinding(edge.Id, out var eb) || !body.Geometry.TryGetCurve(eb.CurveGeometryId, out var curve)) return null;
+            // The localized Box emitter owns one outward, convex quarter-circle
+            // on each end of a vertical fillet. Its chord is an inner bound.
+            if (curve?.Kind != CurveGeometryKind.Line3 && !(allowConvexRoundedCorner && curve?.Kind == CurveGeometryKind.Circle3)) return null;
             if (!body.TryGetVertexPoint(coedge.IsReversed ? edge.EndVertexId : edge.StartVertexId, out var p)) return null;
             points.Add(p);
         }
@@ -132,7 +138,11 @@ public static class PlanarFaceThroughHole
     }
 
     /// <summary>Insert a cylindrical cavity between two proven planar supports. No guessed face IDs or Boolean tools.</summary>
-    public static PrismaticSectionStackEmissionResult Apply(PrismaticSectionStackEmissionResult emitted, PrismaticFaceHoleFeature hole)
+    public static PrismaticSectionStackEmissionResult Apply(PrismaticSectionStackEmissionResult emitted, PrismaticFaceHoleFeature hole) =>
+        Apply(emitted, hole, allowConvexRoundedCorner: false);
+
+    internal static PrismaticSectionStackEmissionResult Apply(PrismaticSectionStackEmissionResult emitted, PrismaticFaceHoleFeature hole,
+        bool allowConvexRoundedCorner)
     {
         // Successful planning receipts are not errors when a later feature is refused.
         PrismaticSectionStackEmissionResult Fail(string reason) => new(null, emitted.Plan, [$"compose-face-hole:{hole.Name}:{reason}"]);
@@ -142,7 +152,7 @@ public static class PlanarFaceThroughHole
         if (matches.Length != 1) return Fail("support-must-resolve-to-one-construction-face");
         var entryId = matches[0].FaceId;
         var anchor = source.Correspondence.Descendants.FirstOrDefault(d => d.Face == entryId && d.SupportOrigin is not null)?.SupportOrigin;
-        var entry = Support(body, entryId, anchor);
+        var entry = Support(body, entryId, anchor, allowConvexRoundedCorner);
         if (entry is null) return Fail("support-requires-a-convex-planar-face-with-straight-boundaries");
         var normal = V(entry.Normal); var axis = -normal; var radius = hole.Diameter / 2d;
         var outerRadius = hole.Variant == "Shaft" ? radius : (hole.RecessDiameter ?? double.NaN) / 2d;
@@ -150,7 +160,7 @@ public static class PlanarFaceThroughHole
             || hole.Variant != "Shaft" && outerRadius - radius < MinimumClearance) return Fail("invalid-shaft-or-recess-diameter");
         var mouth = P(entry.Origin) + V(entry.X) * hole.X + V(entry.Y) * hole.Y;
         if (!double.IsFinite(hole.X) || !double.IsFinite(hole.Y) || !Contains(entry, mouth, outerRadius)) return Fail("entry-or-existing-hole-clearance-must-be-at-least-0.01mm");
-        var exits = body.Topology.Faces.Where(f => f.Id != entryId).Select(f => (f.Id, Frame: Support(body, f.Id)))
+        var exits = body.Topology.Faces.Where(f => f.Id != entryId).Select(f => (f.Id, Frame: Support(body, f.Id, null, allowConvexRoundedCorner)))
             .Where(f => f.Frame is not null && V(f.Frame.Normal).Dot(normal) < -1d + 1e-7)
             .Select(f => (f.Id, Frame: f.Frame!, Depth: (P(f.Frame!.Origin) - mouth).Dot(axis)))
             .Where(f => f.Depth > MinimumClearance && Contains(f.Frame, mouth + axis * f.Depth, radius)).OrderBy(f => f.Depth).ToArray();

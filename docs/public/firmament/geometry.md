@@ -218,6 +218,24 @@ between holes and the finished rim are outside this combination.
 The [shaft/counterbore witness](../../../fixtures/Regression/Fillet/top-boundary-with-counterbore.firmament)
 uses the ordinary authoring and AP242 paths. Explicit supported PMI is retained.
 
+### Finish one Box edge
+
+Every original straight Box edge is identified by its two perpendicular
+stock faces. In Helios, switch to **Edges**, click that line, and choose
+**Fillet selected edge** or **Chamfer selected edge**. For example, this replaces
+the complete rim finish in the model above with a single fillet at the
+intersection of `-Y` and `+Z`:
+
+```firmament
+EdgeFinish<Fillet> FrontEdge { face: -Y; target: SharedEdgePlusZ; radius: 1mm }
+```
+
+Use `SharedEdgePlusX`, `SharedEdgeMinusX`, and the corresponding Y or Z targets
+to name the second face. A Box with top-entry through holes accepts one such
+finish when its full cut stays clear of the shaft and recesses. Preview refuses
+an oversized finish, a finish that reaches a hole, and a second finish on the
+drilled Box.
+
 ## Intentional Boolean boundary
 
 Sphere remains a supported standalone analytic solid. Pocket is a supported finite prismatic profile feature. Subtracting a Sphere from a block, a hemispherical arbitrary cavity, public `Union` / `Subtract` / `Intersect`, and general CSG trees are not Preview 3 Firmament features. A future `SphericalSeat`, `Dish`, or tool-profile feature would require an engineering contract; geometric possibility alone is not one.

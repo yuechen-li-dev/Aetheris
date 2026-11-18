@@ -6,9 +6,14 @@ namespace Aetheris.Kernel.Firmament.Materializer;
 /// <summary>A compiler-owned EdgeFinish binding for exactly one construction edge.</summary>
 public sealed record SingleEdgeFinishSelection(string Body, string Face, string Target, string Label, bool FilletSupported = true)
 {
-    public static string? UnavailableReason(SemanticTopologyCorrespondence correspondence) => correspondence.ProvenanceChain.Contains("PlanarFaceThroughHole")
-        && !correspondence.ProvenanceChain.Contains("ProfileCornerFinishHost")
-        ? "Full-length corner finishes on a body with picked-face holes are not supported yet. The current geometry and source are unchanged." : null;
+    public static string? UnavailableReason(SemanticTopologyCorrespondence correspondence)
+    {
+        if (correspondence.ProvenanceChain.Contains("BoxSingleEdgeFinish"))
+            return "This Box already has a single-edge finish. Select the finish in Graph to edit its size.";
+        return correspondence.ProvenanceChain.Contains("PlanarFaceThroughHole") && !correspondence.ProvenanceChain.Contains("ProfileCornerFinishHost")
+            && !correspondence.ProvenanceChain.Contains("BoxFaceBoundaryFinish")
+            ? "Full-length corner finishes on a body with picked-face holes are not supported yet." : null;
+    }
     public static SingleEdgeFinishSelection? Resolve(SemanticTopologyCorrespondence correspondence, EdgeId edge)
         => Index(correspondence).GetValueOrDefault(edge);
 
@@ -39,10 +44,10 @@ public sealed record SingleEdgeFinishSelection(string Body, string Face, string 
         foreach (var edge in correspondence.Descendants.Where(d => d.Edge is not null && d.Role is SemanticTopologyRole.ConvexLongitudinalEdge or SemanticTopologyRole.ReflexLongitudinalEdge))
             output[edge.Edge!.Value] = new(correspondence.BodyStableId, "Longitudinal", edge.SourceStableId["profile:".Length..] + ".Start",
                 edge.Role == SemanticTopologyRole.ReflexLongitudinalEdge ? "Inside bend · full length" : "Outside corner · full length");
-        // The existing localized Box route owns this exact face pair.
-        foreach (var edge in correspondence.Descendants.Where(d => d.Edge is not null && d.Role == SemanticTopologyRole.BoxEdge
-            && d.StableId == $"{correspondence.BodyStableId}.edge(TopRight)"))
-            output[edge.Edge!.Value] = new(correspondence.BodyStableId, "+X", "SharedEdgePlusZ", "Shared edge · +X / +Z");
+        if (!correspondence.ProvenanceChain.Contains("ExactPlanarInterface"))
+            foreach (var edge in correspondence.Descendants.Where(d => d.Edge is not null && d.Role == SemanticTopologyRole.BoxEdge))
+                if (BoxEdgeFacePair.FromSelector(edge.FirmamentSelector) is { } pair)
+                    output[edge.Edge!.Value] = new(correspondence.BodyStableId, pair.First, pair.Target, $"Shared edge · {pair.First} / {pair.Second}");
         return output;
     }
 }

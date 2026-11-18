@@ -273,11 +273,12 @@ public static class PmiDisplayProjection
                 var canvas = new PmiCanvas();
                 canvas.Append(block.Canvas, placed.X, y);
                 if (i == 0) canvas.Append(placed.Leader, 0, 0);
-                y -= gap;
                 var emitted = Emit(spec, canvas, placed.Plane, placed.Anchor, height, layout.Lift,
                     basics.GetValueOrDefault(spec.Item.EntityId), dimensionPlane, groupColor);
                 var dropCount = i == 0 && placed.Drop > 1e-6 ? 1 : 0;
-                emitted = emitted with { Placement = placement.ForRow(block.Canvas, canvas, i == 0, dropCount, i == 0) };
+                emitted = emitted with { LabelPosition = P(placed.Plane.At(placed.X + block.Width / 2, y + block.Height / 2)),
+                    Placement = placement.ForRow(block.Canvas, canvas, i == 0, dropCount, i == 0) };
+                y -= gap;
                 if (dropCount != 0)
                 {
                     double[][] drop = [P(placed.Anchor), P(placed.Anchor + new Vector3D(0, 0, placed.Drop))];
@@ -333,12 +334,11 @@ public static class PmiDisplayProjection
             var y = placed.Y + stackHeight;
             for (var k = 0; k < blocks.Length; k++)
             {
-                y -= blocks[k].Block.Height;
+                var (item, block) = blocks[k];
+                y -= block.Height;
                 var canvas = new PmiCanvas();
-                canvas.Append(blocks[k].Block.Canvas, placed.X, y);
+                canvas.Append(block.Canvas, placed.X, y);
                 if (k == 0) canvas.Append(placed.Leader, 0, 0);
-                y -= gap;
-                var item = blocks[k].Item;
                 var lines3 = Lines3D(canvas, placed.Plane, 0).ToList();
                 var drafting = Draft3D(canvas, placed.Plane).ToList();
                 var dropCount = k == 0 && placed.Drop > 1e-6 ? 1 : 0;
@@ -348,10 +348,12 @@ public static class PmiDisplayProjection
                     lines3.Insert(0, drop); drafting.Insert(0, drop);
                 }
                 output[item.EntityId] = new PmiDisplayAnnotation("pmi:" + item.EntityId, "Dimension", item.Name, blocks[k].Block is var _ ? lines[k].Text.Replace("{DEPTH}", "↧").Replace("{CB}", "⌴") : "",
-                    item.Value, item.TolerancePlus, item.ToleranceMinus, item.GeometricFaceEntityIds, P(placed.Anchor), P(placed.Plane.At(placed.X, y)), height, lines3)
+                    item.Value, item.TolerancePlus, item.ToleranceMinus, item.GeometricFaceEntityIds, P(placed.Anchor),
+                    P(placed.Plane.At(placed.X + block.Width / 2, y + block.Height / 2)), height, lines3)
                 { TextFill = Fill3D(canvas.Fill, canvas.FillIndices, placed.Plane, layout.Lift * 2), Panel = Fill3D(canvas.Panel, canvas.PanelIndices, placed.Plane, -layout.Lift),
                   DraftingLines = drafting, LeaderColor = featureColor,
-                  Placement = placement.ForRow(blocks[k].Block.Canvas, canvas, k == 0, dropCount, k == 0) };
+                  Placement = placement.ForRow(block.Canvas, canvas, k == 0, dropCount, k == 0) };
+                y -= gap;
             }
         }
         foreach (var item in projected.Where(p => p.DimensionKind?.StartsWith("location ", StringComparison.Ordinal) == true))

@@ -5,6 +5,7 @@ using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament.Drawing;
 using Aetheris.Kernel.Firmament.Scene;
+using Aetheris.Kernel.Firmament.Visualization;
 
 namespace Aetheris.Kernel.Firmament.Export;
 
@@ -12,7 +13,8 @@ public sealed record ProductExportOption(string Format, string Label, string Des
 public sealed record ProductExportFile(string FileName, string MediaType, byte[] Bytes);
 public sealed record ProductExportSource(string Name, string? StepText, AssemblyDisplayMeshDocument Display,
     AssemblyIr? Assembly = null, CompiledScene? Scene = null,
-    IReadOnlyList<string>? ExpectedPmi = null, string? SourceDocument = null);
+    IReadOnlyList<string>? ExpectedPmi = null, string? SourceDocument = null,
+    IReadOnlyDictionary<string, double[]>? PmiOffsets = null);
 
 /// <summary>Download adapters over the existing engineering and presentation exporters.
 /// Scratch files belong to this invocation and are removed even when an exporter rejects a product.</summary>
@@ -73,7 +75,11 @@ public static class ProductArtifactExporter
                         var annotatedDisplay = source.StepText is not null && source.Assembly is null && source.Scene is null
                             ? source.Display with { Annotations = Visualization.PmiDisplayProjection.FromStep(source.StepText, source.Display.TessellationOptions) } : source.Display;
                         if (annotatedDisplay.Annotations.Count > 0)
-                            annotatedDisplay = annotatedDisplay with { EdgeLines = Visualization.PmiDisplayProjection.EdgeLines(source.StepText!, source.Display.TessellationOptions) };
+                            annotatedDisplay = annotatedDisplay with
+                            {
+                                Annotations = PmiLabelPlacement.Apply(annotatedDisplay.Annotations, source.PmiOffsets),
+                                EdgeLines = Visualization.PmiDisplayProjection.EdgeLines(source.StepText!, source.Display.TessellationOptions),
+                            };
                         bytes = source.Scene is { } scene ? SceneExport.Glb(scene) : AssemblyGlbExporter.Serialize(annotatedDisplay,
                             occurrenceLooks: source.Assembly?.Instances.Where(i => i.Appearance is not null)
                                 .ToDictionary(i => i.StableId, i => i.Appearance!, StringComparer.Ordinal));

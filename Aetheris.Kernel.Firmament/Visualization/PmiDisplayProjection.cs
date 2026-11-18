@@ -25,6 +25,7 @@ public sealed record PmiDisplayAnnotation(string Id, string Kind, string Name, s
     [System.Text.Json.Serialization.JsonIgnore] public IReadOnlyList<double[][]>? DraftingLines { get; init; }
     /// <summary>Leader colour (linear RGB) tying a callout to its feature; null draws the default ink.</summary>
     [System.Text.Json.Serialization.JsonIgnore] public double[]? LeaderColor { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore] public PmiLabelPlacement? Placement { get; init; }
 }
 
 /// <summary>Triangles in Z-up millimetres; three coordinates per position.</summary>
@@ -263,6 +264,7 @@ public static class PmiDisplayProjection
                 _ => throw new InvalidOperationException()
             };
             var groupColor = group[0].Feature is HoleFeature ? palette[nextColor++ % palette.Length] : null;
+            var placement = placed.LabelPlacement("callout:" + blocks[0].Spec.Item.Name, stackWidth, stackHeight);
             var y = placed.Y + stackHeight;
             for (var i = 0; i < blocks.Length; i++)
             {
@@ -274,7 +276,9 @@ public static class PmiDisplayProjection
                 y -= gap;
                 var emitted = Emit(spec, canvas, placed.Plane, placed.Anchor, height, layout.Lift,
                     basics.GetValueOrDefault(spec.Item.EntityId), dimensionPlane, groupColor);
-                if (i == 0 && placed.Drop > 1e-6)
+                var dropCount = i == 0 && placed.Drop > 1e-6 ? 1 : 0;
+                emitted = emitted with { Placement = placement.ForRow(block.Canvas, canvas, i == 0, dropCount, i == 0) };
+                if (dropCount != 0)
                 {
                     double[][] drop = [P(placed.Anchor), P(placed.Anchor + new Vector3D(0, 0, placed.Drop))];
                     emitted = emitted with { Lines = [drop, .. emitted.Lines], DraftingLines = [drop, .. emitted.DraftingLines!] };
@@ -324,6 +328,7 @@ public static class PmiDisplayProjection
             var diameterFaces = items.Where(i => i.DimensionKind == "diameter").SelectMany(Patches).ToArray();
             var round = diameterFaces.Select(f => body.GetFaceSurface(f.FaceId).Cylinder).FirstOrDefault(c => c is not null);
             var placed = layout.PlaceFeatureCallout(faces, items, center, stackWidth, stackHeight, points, round);
+            var placement = placed.LabelPlacement("callout:" + blocks[0].Item.Name, stackWidth, stackHeight);
             var featureColor = featureColors[feature.Key] = palette[nextColor++ % palette.Length];
             var y = placed.Y + stackHeight;
             for (var k = 0; k < blocks.Length; k++)
@@ -336,7 +341,8 @@ public static class PmiDisplayProjection
                 var item = blocks[k].Item;
                 var lines3 = Lines3D(canvas, placed.Plane, 0).ToList();
                 var drafting = Draft3D(canvas, placed.Plane).ToList();
-                if (k == 0 && placed.Drop > 1e-6)
+                var dropCount = k == 0 && placed.Drop > 1e-6 ? 1 : 0;
+                if (dropCount != 0)
                 {
                     double[][] drop = [P(placed.Anchor), P(placed.Anchor + new Vector3D(0, 0, placed.Drop))];
                     lines3.Insert(0, drop); drafting.Insert(0, drop);
@@ -344,7 +350,8 @@ public static class PmiDisplayProjection
                 output[item.EntityId] = new PmiDisplayAnnotation("pmi:" + item.EntityId, "Dimension", item.Name, blocks[k].Block is var _ ? lines[k].Text.Replace("{DEPTH}", "↧").Replace("{CB}", "⌴") : "",
                     item.Value, item.TolerancePlus, item.ToleranceMinus, item.GeometricFaceEntityIds, P(placed.Anchor), P(placed.Plane.At(placed.X, y)), height, lines3)
                 { TextFill = Fill3D(canvas.Fill, canvas.FillIndices, placed.Plane, layout.Lift * 2), Panel = Fill3D(canvas.Panel, canvas.PanelIndices, placed.Plane, -layout.Lift),
-                  DraftingLines = drafting, LeaderColor = featureColor };
+                  DraftingLines = drafting, LeaderColor = featureColor,
+                  Placement = placement.ForRow(blocks[k].Block.Canvas, canvas, k == 0, dropCount, k == 0) };
             }
         }
         foreach (var item in projected.Where(p => p.DimensionKind?.StartsWith("location ", StringComparison.Ordinal) == true))
@@ -374,7 +381,8 @@ public static class PmiDisplayProjection
         {
             var host = output[owner]; var item = inspection.Items.Single(i => i.EntityId == attached);
             output[attached] = host with { Id = "pmi:" + attached, Kind = "Dimension", Name = item.Name, Value = item.Value, TolerancePlus = item.TolerancePlus,
-                ToleranceMinus = item.ToleranceMinus, StepFaceEntities = item.GeometricFaceEntityIds, Lines = [[host.Anchor, host.LabelPosition]], DraftingLines = [], TextFill = null, Panel = null, Target = null };
+                ToleranceMinus = item.ToleranceMinus, StepFaceEntities = item.GeometricFaceEntityIds, Lines = [[host.Anchor, host.LabelPosition]], DraftingLines = [], TextFill = null, Panel = null, Target = null,
+                Placement = host.Placement?.AsAlias() };
         }
 
         // 4. General notes: one block in the front plane below the part, clear of the datum callouts.
@@ -387,6 +395,8 @@ public static class PmiDisplayProjection
             var canvas = new PmiCanvas();
             canvas.Append(block.Canvas, x, top - block.Height);
             var at = P(plane.At(x, top));
+            var placement = LabelPlacement("notes", plane, x, top - block.Height, block.Width, block.Height)
+                .ForRow(block.Canvas, canvas, false, 0, true);
             foreach (var (note, index) in notes.Concat(unlocated).Select((n, k) => (n, k)))
                 output[note.EntityId] = new PmiDisplayAnnotation("pmi:" + note.EntityId, note.Kind == "Annotation" ? "Note" : note.Kind, note.Name,
                     note.Kind == "Annotation" ? note.Text ?? "" : "NOT LOCATED ON PART: " + CalloutText(note),
@@ -394,7 +404,8 @@ public static class PmiDisplayProjection
                 {
                     DraftingLines = index == 0 ? Draft3D(canvas, plane) : null,
                     TextFill = index == 0 ? Fill3D(canvas.Fill, canvas.FillIndices, plane, layout.Lift * 2) : null,
-                    Panel = index == 0 ? Fill3D(canvas.Panel, canvas.PanelIndices, plane, -layout.Lift) : null
+                    Panel = index == 0 ? Fill3D(canvas.Panel, canvas.PanelIndices, plane, -layout.Lift) : null,
+                    Placement = index == 0 ? placement : placement.AsAlias()
                 };
         }
         foreach (var id in fromModel.Where(output.ContainsKey).Where(id => !output[id].Text.StartsWith('(')))
@@ -474,7 +485,14 @@ public static class PmiDisplayProjection
     {
         /// <summary>Vertical distance from the annotation plane down to the anchor on the support.</summary>
         public double Drop { get; init; }
+
+        public PmiLabelPlacement LabelPlacement(string key, double width, double height) =>
+            PmiDisplayProjection.LabelPlacement(key, Plane, X, Y, width, height);
     }
+
+    private static PmiLabelPlacement LabelPlacement(string key, PmiPlane plane, double x, double y, double width, double height) =>
+        new(key, V(plane.N), [P(plane.At(x, y)), P(plane.At(x + width, y)),
+            P(plane.At(x + width, y + height)), P(plane.At(x, y + height))]);
 
     private static string CylinderKey(CylinderSurface c)
     {

@@ -116,6 +116,25 @@ public sealed class BracketEdgeFinishRobustnessTests
         }
     }
 
+    [Theory]
+    [InlineData(30, 40, 3, 20)]
+    [InlineData(36, 45, 4, 26)]
+    public void ParametricTracedLegsRetainTheirNamedFaceAndEdgeAfterResize(int foot, int upright, int wall, int width)
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/OrientedComposeHoles/parametric-traced-bracket-finished.firmament")
+            .Replace("= 30mm", $"= {foot}mm").Replace("= 40mm", $"= {upright}mm")
+            .Replace("= 3mm", $"= {wall}mm").Replace("= 20mm", $"= {width}mm");
+        var result = Build(source);
+        Assert.Single(result.Features!);
+        Assert.Single(result.EngineeringFeatures!);
+        var stock = wall * (foot + upright - wall) * width;
+        var counterbore = Math.PI * (4 * (wall - 1) + 3.5 * 3.5);
+        var chamfer = 0.5 * 0.5 / 2 * width;
+        var body = Step242Importer.ImportBody(result.StepText).Value;
+        var mass = BrepMassProperties.Evaluate(body);
+        Assert.InRange(Math.Abs(mass.AbsoluteVolume - (stock - counterbore - chamfer)), 0, Math.Max(mass.ErrorBound ?? 0, 1e-6));
+    }
+
     [Fact]
     public void AllSixOriginalCornersCanBeFinishedWithoutBecomingAChainSelection()
     {

@@ -1293,7 +1293,7 @@ public static partial class FirmamentV2Parser
 
         if (declarations.Any(d => d.Type.Name.Text == "Compose"))
         {
-            var composition = PrismaticProfileCompositionParser.Parse(adapterSource);
+            var composition = PrismaticProfileCompositionParser.Parse(adapterSource, compileTime);
             if (composition.Feature is null)
             {
                 diagnostics.AddRange(composition.Diagnostics);

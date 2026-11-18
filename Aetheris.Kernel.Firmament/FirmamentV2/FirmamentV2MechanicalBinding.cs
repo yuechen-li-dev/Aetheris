@@ -635,7 +635,7 @@ public static partial class FirmamentV2Parser
             {
                 diagnostics.Add(CanonicalDeclarationUnrecognized); continue;
             }
-            if (declaration.Modifiers.Any(m => m.Name.Text == "Assert")) continue;
+            if (FirmamentAssertionSyntax.IsAssertion(declaration)) continue;
             switch (declaration.Type.Name.Text)
             {
                 case "Static":

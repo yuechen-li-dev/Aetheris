@@ -166,10 +166,10 @@ public static class FirmamentLanguageOutlineService
         };
 
     internal static bool NameIsUse(DeclarationSyntax declaration) =>
-        declaration.Type.Name.Text is "Modify" or "modify" or "Recognize" || declaration.Modifiers.Any(m => m.Name.Text == "Assert");
+        declaration.Type.Name.Text is "Modify" or "modify" or "Recognize" || FirmamentAssertionSyntax.IsAssertion(declaration);
 
     private static bool NameIsUseKind(FirmamentOutlineNode node) =>
-        node.Kind is "Modify" or "modify" or "Recognize" || node.Modifiers.Contains("Assert");
+        node.Kind is "Modify" or "modify" or "Recognize" || node.Modifiers.Any(FirmamentAssertionSyntax.IsAssertionModifier);
 
     private static IEnumerable<Entry> Flatten(IEnumerable<Entry> entries) =>
         entries.SelectMany(e => new[] { e }.Concat(Flatten(e.Children)));
@@ -480,7 +480,7 @@ public static class FirmamentLanguageOutlineService
     }
 
     private static bool NameIsUse(Entry entry) =>
-        entry.Kind is "Modify" or "modify" or "Recognize" || entry.Syntax.Modifiers.Any(m => m.Name.Text == "Assert");
+        entry.Kind is "Modify" or "modify" or "Recognize" || FirmamentAssertionSyntax.IsAssertion(entry.Syntax);
 
     private static string UseKind(Entry entry) => entry.Kind switch
     {

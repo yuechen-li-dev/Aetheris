@@ -214,6 +214,16 @@ public static partial class BrepDisplayTessellator
         SurfaceGeometryKind? surfaceKind = null,
         TimeSpan? timeoutOverride = null)
     {
+        // The browser worker cannot block on Task.Run. The synchronous mesher
+        // still checks the same deadline inside its bounded face work.
+        if (OperatingSystem.IsBrowser())
+        {
+            executionBudget.ThrowIfExpired(phase, faceId, surfaceKind);
+            var result = action();
+            executionBudget.ThrowIfExpired(phase, faceId, surfaceKind);
+            return result;
+        }
+
         try
         {
             return Task.Run(action)

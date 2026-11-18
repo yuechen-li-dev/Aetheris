@@ -173,6 +173,14 @@ public static class AssemblyGlbExporter
         var pmiJsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         foreach (var annotation in display.Annotations)
         {
+            var metadata = new { pmi = JsonSerializer.SerializeToElement(Metadata(annotation), pmiJsonOptions) };
+            if (annotation.Placement is { Alias: true })
+            {
+                // These records share a rendered row with their host. Keep the semantic record without a duplicate leader.
+                roots.Add(nodes.Count);
+                nodes.Add(new { name = annotation.Text, extras = metadata });
+                continue;
+            }
             // Filled text needs no glyph outline in a GLB; line-only consumers keep them in Lines.
             var drawn = annotation.TextFill is not null && annotation.DraftingLines is { } drafting ? drafting : annotation.Lines;
             var positions = drawn.SelectMany(line => line.Zip(line.Skip(1), (a, b) => new[] { a, b })
@@ -215,7 +223,7 @@ public static class AssemblyGlbExporter
             meshes.Add(new { name = annotation.Id, primitives,
                 extras = new { role = "PMI presentation", annotationId = annotation.Id } });
             roots.Add(nodes.Count);
-            nodes.Add(new { name = annotation.Text, mesh = meshes.Count - 1, extras = new { pmi = JsonSerializer.SerializeToElement(Metadata(annotation), pmiJsonOptions) } });
+            nodes.Add(new { name = annotation.Text, mesh = meshes.Count - 1, extras = metadata });
         }
         if (display.EdgeLines.Count > 0)
         {

@@ -914,9 +914,9 @@ internal static class WebMeshBuilder
             {
                 a.Id, a.Kind, a.Name, a.Text, a.Value, a.TolerancePlus, a.ToleranceMinus, a.StepFaceEntities, a.Anchor, a.LabelPosition, a.TextHeight,
                 a.Lines, a.Target, a.Placement,
-                drawing = a.TextFill is null && a.Panel is null ? null : new
+                drawing = a.TextFill is null && a.Panel is null && a.Placement is not { Alias: true } ? null : new
                 {
-                    lines = a.DraftingLines ?? a.Lines,
+                    lines = a.Placement is { Alias: true } ? [] : a.DraftingLines ?? a.Lines,
                     fill = a.TextFill is null ? null : new { positions = a.TextFill.Positions, indices = a.TextFill.Indices },
                     panel = a.Panel is null ? null : new { positions = a.Panel.Positions, indices = a.Panel.Indices },
                 },

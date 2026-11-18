@@ -57,6 +57,53 @@ public sealed class BoxRuntimeCorrespondenceTests
         Assert.DoesNotContain(renamed.Descendants, item => item.StableId == "Body.face(+Z)");
     }
 
+    [Theory]
+    [InlineData("Blind(4mm)")]
+    [InlineData("ThroughAll")]
+    public void PickedTopHoleFrameUsesAuthoredCoordinatesAndRetainsExistingOpening(string end)
+    {
+        var source = Source.Replace(" } }", " } Modify Body { Hole<Shaft> bore { on: face(+Z); center: Point2(8mm, 5mm); diameter: 4mm; end: " + end + " } } }", StringComparison.Ordinal);
+        var build = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(build.IsSuccess, string.Join("; ", build.Diagnostics.Select(item => item.Message)));
+        var body = build.Value.RuntimeBody!;
+        var descendants = build.Value.RuntimeCorrespondence!.Descendants;
+        var top = Assert.Single(descendants, face => face.FirmamentSelector == "face(+Z)");
+        var frame = Assert.IsType<PlanarFaceSupport>(PlanarFaceThroughHole.SupportForSelection(body, top));
+        Assert.Equal([0d, 0d, 10d], frame.Origin);
+        Assert.Equal([1d, 0d, 0d], frame.X);
+        Assert.Equal([0d, 1d, 0d], frame.Y);
+        var opening = Assert.Single(frame.ExcludedDisks);
+        Assert.Equal([8d, 5d], opening.Center);
+        Assert.Equal(2d, opening.Radius);
+        Assert.All(descendants.Where(face => face.Role == SemanticTopologyRole.BoxFace && face != top),
+            face => Assert.Null(PlanarFaceThroughHole.SupportForSelection(body, face)));
+    }
+
+    [Fact]
+    public void MultipleBoxHolesRefuseDrillPointsAndPreserveExplicitFlatBottoms()
+    {
+        const string blind = "Hole<Shaft> BlindHole { on: face(+Z); center: Point2(8mm, 5mm); diameter: 4mm; end: Blind(4mm) }";
+        const string through = "Hole<Shaft> ThroughHole { on: face(+Z); center: Point2(-8mm, -5mm); diameter: 4mm; end: ThroughAll }";
+        var singleSource = Source.Replace(" } }", " } Modify Body { " + blind + " } }", StringComparison.Ordinal);
+        var single = FirmamentBuildAndExport.CompileSource(singleSource);
+        Assert.True(single.IsSuccess, string.Join("; ", single.Diagnostics.Select(d => d.Message)));
+        Assert.Contains("CONICAL_SURFACE(", single.Value.StepText);
+
+        var combinedSource = singleSource.Replace(blind, blind + " " + through, StringComparison.Ordinal);
+        var blocked = FirmamentBuildAndExport.CompileSource(combinedSource);
+        Assert.False(blocked.IsSuccess);
+        var diagnostic = Assert.Single(blocked.Diagnostics, d => d.Message.StartsWith("firmament-v2-hole-drill-point-composition:", StringComparison.Ordinal));
+        Assert.Contains("Body.BlindHole", diagnostic.Message);
+        Assert.Contains("Through all", diagnostic.Message);
+
+        var flatSource = combinedSource.Replace("end: Blind(4mm)", "end: Blind(4mm); Termination: Flat", StringComparison.Ordinal);
+        var flat = FirmamentBuildAndExport.CompileSource(flatSource);
+        Assert.True(flat.IsSuccess, string.Join("; ", flat.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(2, flat.Value.MaterializedFeatures!.Count);
+        Assert.DoesNotContain("CONICAL_SURFACE(", flat.Value.StepText);
+        Assert.True(Step242Importer.ImportBody(flat.Value.StepText).IsSuccess);
+    }
+
     [Fact]
     public void FormattedTopFaceIsAcceptedByExistingFirmamentPmiBinder()
     {

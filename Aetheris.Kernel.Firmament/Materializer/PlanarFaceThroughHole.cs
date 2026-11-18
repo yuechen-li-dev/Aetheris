@@ -31,6 +31,21 @@ public static class PlanarFaceThroughHole
             "ProfilePlanSideHoleAdapter", true, correspondence, topology);
         return new(body, host, [], correspondence);
     }
+
+    /// <summary>Projects face picks to the authored Center frame used by the existing hole routes.</summary>
+    public static PlanarFaceSupport? SupportForSelection(BrepBody body, SemanticTopologyDescendant selected)
+    {
+        if (selected.Face is not { } face || selected.FirmamentSelector is not { } selector) return null;
+        if (selector.Contains(".Side(", StringComparison.Ordinal))
+            return Support(body, face, selected.SupportOrigin);
+        if (selected.Role != SemanticTopologyRole.BoxFace || selector != "face(+Z)"
+            || !body.TryGetFaceSurface(face, out var surface) || surface?.Plane is not { } plane) return null;
+
+        // Box +Z hole centers use the authored world X/Y coordinates.
+        // Keep that origin even when prior holes trim the cap.
+        return Support(body, face, [0d, 0d, plane.Origin.Z]);
+    }
+
     public static PlanarFaceSupport? Support(BrepBody body, FaceId id, double[]? constructionOrigin = null)
     {
         var face = body.Topology.Faces.SingleOrDefault(f => f.Id == id);

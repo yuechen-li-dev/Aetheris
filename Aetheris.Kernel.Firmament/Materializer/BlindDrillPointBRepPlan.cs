@@ -103,8 +103,8 @@ internal static class BlindDrillPointBRepPlanner
         var shaftSurface = Surface("plan:surface:shaft", SurfaceGeometry.FromCylinder(new CylinderSurface(World(placement.LocalCenterX, placement.LocalCenterY, 0d), frame.AxisZ, feature.Shaft.Radius, frame.AxisX)), false, ProfileExtrusionPlanRole.SideFace);
         var coneSurface = Surface("plan:surface:drill-point", SurfaceGeometry.FromCone(new ConeSurface(tip.WorldPoint, Direction3D.Create(-frame.AxisZ.ToVector()), point.PointAngleDegrees * Math.PI / 360d, frame.AxisX)), false, ProfileExtrusionPlanRole.SideFace);
 
-        Face("plan:face:mouth", mouthSurface, true, ProfileExtrusionPlanRole.LocalStartCapFace, mouthOuter, mouthLoop);
-        Face("plan:face:far", farSurface, true, ProfileExtrusionPlanRole.LocalEndCapFace, farOuter);
+        var mouthFace = Face("plan:face:mouth", mouthSurface, true, ProfileExtrusionPlanRole.LocalStartCapFace, mouthOuter, mouthLoop);
+        var farFace = Face("plan:face:far", farSurface, true, ProfileExtrusionPlanRole.LocalEndCapFace, farOuter);
         for (var i = 0; i < 4; i++) Face("plan:face:box-side:" + i, sideSurfaces[i], true, ProfileExtrusionPlanRole.SideFace, sideLoops[i]);
         var shaftFace = Face("plan:face:shaft", shaftSurface, false, ProfileExtrusionPlanRole.SideFace, shaftLoop);
         var drillPointFace = Face("plan:face:drill-point", coneSurface, false, ProfileExtrusionPlanRole.SideFace, pointLoop);
@@ -123,7 +123,14 @@ internal static class BlindDrillPointBRepPlanner
         var shell = new ProfileExtrusionPlanShell("plan:shell:0", new ShellId(1), faces.Select(x => x.Id).ToArray());
         var body = new ProfileExtrusionPlanBody("plan:body:0", new BodyId(1), [shell.Id]);
         var construction = new ProfileExtrusionConstructionAir("air:" + source, source, frame, 0d, bounds.ZMax, [], ["HoleAIR", "DrillPoint", "AuthoritativeBRepPlan"]);
-        var correspondence = new SemanticTopologyCorrespondence(feature.TargetBodyId ?? "semantic-hole-host", descendants, ["HoleAIR", "ConstructionPlanePlacement", "LocalFrameHoleBRepPlan", "ConeSurface", "AuthoritativeBRepPlan"]);
+        var hostId = feature.TargetBodyId ?? "semantic-hole-host";
+        var worldZ = frame.AxisZ.ToVector().Z;
+        var retained = Math.Abs(worldZ) >= 1d - tol
+            ? worldZ < 0
+                ? BoxConstructionCorrespondence.RetainedCaps(hostId, farFace.Id, mouthFace.Id)
+                : BoxConstructionCorrespondence.RetainedCaps(hostId, mouthFace.Id, farFace.Id)
+            : [];
+        var correspondence = new SemanticTopologyCorrespondence(hostId, [.. descendants, .. retained], ["HoleAIR", "ConstructionPlanePlacement", "LocalFrameHoleBRepPlan", "ConeSurface", "AuthoritativeBRepPlan"]);
         var plan = new ProfileExtrusionBRepPlan("brep-plan:blind-drill-point:" + source + ":" + placement.ConstructionPlaneId, construction, vertices, curves, edges, loops, surfaces, faces, shell, body, correspondence, correspondence.ProvenanceChain,
             ["LocalFrameHoleBRepPlan", "BlindDrillPoint", "CylinderSurface", "ConeSurface", "TipVertex", "AuthoritativeBRepPlan"]);
         return new(true, plan, plan.Diagnostics);

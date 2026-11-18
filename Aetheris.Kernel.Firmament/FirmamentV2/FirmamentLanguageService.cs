@@ -9,7 +9,10 @@ public sealed record FirmamentLanguageCompletion(
     IReadOnlyList<string> MissingRequiredFields,
     IReadOnlyList<FirmamentLanguageEntry>? Entries = null,
     IReadOnlyList<string>? Values = null,
-    IReadOnlyList<FirmamentLanguageSymbol>? Symbols = null);
+    IReadOnlyList<FirmamentLanguageSymbol>? Symbols = null,
+    FirmamentCallSignature? Signature = null);
+public sealed record FirmamentCallSignature(string Name, string? Result, IReadOnlyList<FirmamentCallParameter> Parameters, int ActiveParameter);
+public sealed record FirmamentCallParameter(string Name, string Type);
 public sealed record FirmamentLanguageEntry(string ConstructId, string Name, string Context, string Source)
 {
     public string? InsertText { get; init; }
@@ -48,6 +51,7 @@ public static class FirmamentLanguageService
 
         var syntax = FirmamentSyntaxParser.Parse(source).Document;
         var owner = OwnerAt(syntax, offset);
+        var signature = SignatureAt(source, syntax, owner, offset);
         var context = owner?.SchemaName ?? "Document";
         if (FirmamentSyntaxTraversal.Declarations(syntax).Any(d => d.Name is { } name &&
             start >= name.Span.Start && offset <= name.Span.Start + name.Span.Length &&
@@ -66,7 +70,7 @@ public static class FirmamentLanguageService
             var field = fields.FirstOrDefault(f => FirmamentSyntaxFields.SameField(activeName, f.Name));
             return new(document, revision, "Value", start, end - start, [], [], Values:
                 field?.Choices?.Where(c => c.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToArray(),
-                Symbols: VisibleSymbols(source, syntax, owner, offset, prefix, values: true));
+                Symbols: VisibleSymbols(source, syntax, owner, offset, prefix, values: true), Signature: signature);
         }
         // Fields after the caret still count, except the field currently being edited.
         var present = directFields.Where(f => !(f.Name.Span.Start <= offset && offset <= f.Name.Span.Start + f.Name.Span.Length))
@@ -83,7 +87,61 @@ public static class FirmamentLanguageService
         var entries = Entries.Where(e => e.Schema.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && LegalScope(e, owner))
             .Select(e => EntryFor(e, owner)).ToArray();
         return new(document, revision, owner?.Name is "Model" or "Struct" && candidates.Length == 0 && entries.Length > 0 ? "ConstructEntry" : context, start, end - start, candidates, missing, entries,
-            Symbols: VisibleSymbols(source, syntax, owner, offset, prefix, values: false));
+            Symbols: VisibleSymbols(source, syntax, owner, offset, prefix, values: false), Signature: signature);
+    }
+
+    private static FirmamentCallSignature? SignatureAt(string source, DocumentSyntax syntax, Owner? owner, int offset)
+    {
+        // Use compiler tokens so incomplete calls, nested delimiters, comments, and string commas
+        // have the same boundaries during typing as they do during binding.
+        var tokens = syntax.Tokens.TakeWhile(t => t.Span.Start < offset)
+            .Where(t => t.Kind is not (SyntaxTokenKind.Whitespace or SyntaxTokenKind.Comment)).ToArray();
+        var stack = new List<(string Open, int At, int Slot, int Start)>();
+        for (var i = 0; i < tokens.Length; i++)
+        {
+            if (tokens[i].Kind != SyntaxTokenKind.Punctuation) continue;
+            var op = tokens[i].Text;
+            if (op is "(" or "[" or "{") stack.Add((op, i, 0, i + 1));
+            else if (stack.Count > 0 && (stack[^1].Open, op) is ("(", ")") or ("[", "]") or ("{", "}"))
+                stack.RemoveAt(stack.Count - 1);
+            else if (stack.Count > 0 && op == "," && stack[^1].Open == "(")
+            {
+                var active = stack[^1];
+                stack[^1] = active with { Slot = active.Slot + 1, Start = i + 1 };
+            }
+        }
+        foreach (var call in stack.AsEnumerable().Reverse())
+        {
+            if (call.Open != "(" || call.At < 1 || tokens[call.At - 1].Kind != SyntaxTokenKind.Identifier) continue;
+            var name = tokens[call.At - 1];
+            if (call.At >= 2 && tokens[call.At - 2].Text == ".") continue;
+            var declarations = FirmamentSyntaxTraversal.Declarations(syntax);
+            if (declarations.Any(d => d.Name?.Span.Start == name.Span.Start)) continue;
+            var (parameters, result) = name.Text switch
+            {
+                "Point2" => (new FirmamentCallParameter[] { new("x", "Length"), new("y", "Length") }, "Point2"),
+                "Point3" => ([new("x", "Length"), new("y", "Length"), new("z", "Length")], "Point3"),
+                "PlusMinus" => ([new("upper", "Length"), new("lower", "Length")], "Tolerance"),
+                "Blind" => ([new("depth", "Length")], "Hole end"),
+                _ => (Array.Empty<FirmamentCallParameter>(), null)
+            };
+            if (parameters.Length == 0)
+            {
+                var visible = VisibleSymbols(source, syntax, owner, offset, name.Text, values: true)
+                    .FirstOrDefault(symbol => symbol.Name == name.Text && symbol.Kind == "function");
+                if (visible is null) continue;
+                var declaration = declarations.First(d => d.Name?.Span.Start == visible.Start);
+                string TextAt(ExpressionSyntax value) => source.Substring(value.Span.Start, value.Span.Length);
+                parameters = declaration.Parameters.Where(p => p.Name is not null)
+                    .Select(p => new FirmamentCallParameter(p.Name!.Text, TextAt(p.Value))).ToArray();
+                result = declaration.ResultType is { } type ? TextAt(type) : null;
+            }
+            if (parameters.Length == 0) continue;
+            var named = call.Start + 1 < tokens.Length && tokens[call.Start + 1].Text == ":"
+                ? Array.FindIndex(parameters, p => p.Name == tokens[call.Start].Text) : -1;
+            return new(name.Text, result, parameters, named >= 0 ? named : Math.Min(call.Slot, parameters.Length - 1));
+        }
+        return null;
     }
 
     private static bool IdentifierPart(char value) => char.IsLetterOrDigit(value) || value == '_';

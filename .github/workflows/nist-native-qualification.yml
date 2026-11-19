@@ -1,0 +1,66 @@
+name: Collect native NIST hashes
+on:
+  push:
+    branches: [codex/nist-native-qualification]
+permissions:
+  contents: read
+jobs:
+  snapshots:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win-x64
+          - os: macos-15
+            platform: osx-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Recompute and verify native hashes
+        shell: pwsh
+        env:
+          NIST_PLATFORM: ${{ matrix.platform }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $dir = 'testdata/step242/manifests'
+          $baselinePath = "$dir/nist.v0.report.json"
+          $platformPath = "$dir/nist.v0.canonical-$env:NIST_PLATFORM.json"
+          $baselineText = Get-Content $baselinePath -Raw
+          $baseline = $baselineText | ConvertFrom-Json
+          $platform = Get-Content $platformPath -Raw | ConvertFrom-Json -AsHashtable
+          $env:AETHERIS_UPDATE_STEP242_SNAPSHOT = '1'
+          dotnet test Aetheris.Kernel.Core.Tests -c Release -m:1 -nr:false -p:UseSharedCompilation=false --filter 'FullyQualifiedName~NistCorpus_SnapshotCoversEveryFile'
+          Remove-Item Env:AETHERIS_UPDATE_STEP242_SNAPSHOT
+          $actual = @{}
+          Get-Content $baselinePath -Raw | ConvertFrom-Json | ForEach-Object { $actual[$_.path] = $_ }
+          if ($actual.Count -ne $baseline.Count) { throw 'NIST record count changed' }
+          foreach ($expected in $baseline) {
+            $row = $actual[$expected.path]
+            if (-not $row) { throw "Missing NIST result for $($expected.path)" }
+            foreach ($property in $expected.PSObject.Properties) {
+              if ($property.Name -eq 'canonicalSha256') { continue }
+              if (($property.Value | ConvertTo-Json -Depth 20 -Compress) -cne ($row.($property.Name) | ConvertTo-Json -Depth 20 -Compress)) {
+                throw "NIST field changed on $($expected.path): $($property.Name)"
+              }
+            }
+            if ($row.canonicalSha256 -eq $expected.canonicalSha256) { if ($platform.Contains($expected.path)) { $platform.Remove($expected.path) } }
+            else {
+              if ($row.canonicalSha256 -notmatch '^[0-9a-f]{64}$') { throw "Missing canonical export for $($expected.path)" }
+              $platform[$expected.path] = $row.canonicalSha256
+            }
+          }
+          $updated = [ordered]@{}
+          foreach ($key in ($platform.Keys | Sort-Object)) { $updated[$key] = $platform[$key] }
+          Set-Content -LiteralPath $platformPath -Value ($updated | ConvertTo-Json) -Encoding utf8
+          git restore -- $baselinePath
+          dotnet test Aetheris.Kernel.Core.Tests -c Release --no-build --filter 'FullyQualifiedName~NistCorpus_PerFile_AuditReport_MatchesSnapshot'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nist-${{ matrix.platform }}
+          path: testdata/step242/manifests/nist.v0.canonical-${{ matrix.platform }}.json
+          if-no-files-found: error
+

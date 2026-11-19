@@ -116,10 +116,46 @@ public sealed class Step242PcurveConventionTests
     }
 
     [Fact]
-    public void APcurveOffItsEdge_IsStillRefused()
+    public void APcurveOffItsEdge_IsSetAsideAndRebuiltFromTheEdge_AndSaysSo()
     {
-        // The seam's pcurves run along u = 0.1 and 0.1 + 2pi: a generator, but not the seam's.
+        // The seam's pcurves run along u = 0.1 and 0.1 + 2pi: a generator, but not the seam's. The seam and the cone
+        // agree, so the pcurves are rebuilt from the seam; the import discloses it. The circle's pcurve on the cone
+        // is right but no longer closes the loop against the seam's, so it is rebuilt too: three.
         var imported = Step242Importer.ImportBody(WithPcurves(ExactDiskCircle, AxialPerSlant, seamU: 0.1));
+        Assert.True(imported.IsSuccess, string.Join("\n", imported.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
+        var qualification = imported.Value.ImportQualification!;
+        Assert.True(qualification.Repairs.Any(r => r.Code == "step-import-source-pcurves-rebuilt" && r.Message.StartsWith("3 ", StringComparison.Ordinal)),
+            string.Join("\n", qualification.Repairs.Select(r => r.Code + ": " + r.Message)));
+        Assert.Empty(qualification.Tolerances);
+        AssertConeVolume(imported.Value);
+    }
+
+    /// <summary>The disk's plane moved along its normal: its edge circle is then off it by that much.</summary>
+    private static string WithDiskOffset(double millimetres) => WithPcurves(ExactDiskCircle, AxialPerSlant)
+        .Replace("#31 = CARTESIAN_POINT('',(0.,0.,0.));",
+            $"#31 = CARTESIAN_POINT('',(0.,{(-millimetres).ToString("0.0########", CultureInfo.InvariantCulture)},0.));", StringComparison.Ordinal);
+
+    [Fact]
+    public void AGapUnderTheTolerantBudget_IsMeasuredAndDisclosed_NotClosed()
+    {
+        // 5 µm, beyond the declared 1e-7 mm accuracy but under the 10 µm tolerant budget.
+        var imported = Step242Importer.ImportBody(WithDiskOffset(0.005));
+        Assert.True(imported.IsSuccess, string.Join("\n", imported.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
+        var qualification = imported.Value.ImportQualification!;
+        var tolerance = Assert.Single(qualification.Tolerances);
+        Assert.Equal("tolerant-edges", tolerance.Code);
+        Assert.Contains("0.005 mm", tolerance.Message);
+        Assert.Contains(qualification.Repairs, r => r.Code == "step-import-source-pcurves-rebuilt");
+        // Nothing moved: the disk's plane is still 5 µm off its edge.
+        var gap = imported.Value.Bindings.PcurveBindings.Single(b => b.Qualification is { MaximumLiftDeviationMillimetres: > 1e-6 })
+            .Qualification!.MaximumLiftDeviationMillimetres;
+        Assert.Equal(0.005, gap, 9);
+    }
+
+    [Fact]
+    public void AGapOverTheTolerantBudget_IsRefused()
+    {
+        var imported = Step242Importer.ImportBody(WithDiskOffset(0.05));
         Assert.False(imported.IsSuccess);
         Assert.Contains(imported.Diagnostics, d => d.Source == "Importer.Pcurve.Consistency");
     }

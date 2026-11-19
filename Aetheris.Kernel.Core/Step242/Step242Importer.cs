@@ -14,6 +14,9 @@ namespace Aetheris.Kernel.Core.Step242;
 
 public static class Step242Importer
 {
+    private static readonly System.Text.RegularExpressions.Regex CoedgeInDiagnostic =
+        new(@"^surf-pcurve-invalid:coedge=(\d+):", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
     /// <summary>
     /// Imports every exact rigid B-rep root without assigning part or assembly semantics.
     /// This is the inspection boundary for compound serialization; <see cref="ImportBody(string)"/>
@@ -765,6 +768,8 @@ public static class Step242Importer
         }
 
         BrepPcurveEvidence? qualificationEvidence = null;
+        HashSet<CoedgeId> setAsideSourcePcurves = [];
+        KernelResult<BrepBody>? setAsideFailure = null;
         if (orientation.Value.Bindings.PcurveBindings.Any())
         {
             var pcurveTolerance = double.Max(1e-6d, document.SourceDistanceAccuracyMillimetres ?? 0d);
@@ -775,11 +780,31 @@ public static class Step242Importer
             qualificationEvidence = pcurveEvidence;
             if (!pcurveEvidence.IsValid)
             {
-                return KernelResult<BrepBody>.Failure(pcurveEvidence.Diagnostics.Select(message => new KernelDiagnostic(
+                var consistencyFailure = KernelResult<BrepBody>.Failure(pcurveEvidence.Diagnostics.Select(message => new KernelDiagnostic(
                     KernelDiagnosticCode.ValidationFailed,
                     KernelDiagnosticSeverity.Error,
                     message,
                     "Importer.Pcurve.Consistency")).ToArray());
+                // A source pcurve that disagrees with its edge is redundant evidence that has failed; the edge and
+                // the surface remain. It is set aside and rebuilt from the edge below, where the edge's real gap to
+                // the surface is measured and, within the tolerant budget, recorded. Nothing is moved.
+                var failing = pcurveEvidence.Diagnostics
+                    .Select(message => CoedgeInDiagnostic.Match(message))
+                    .Where(match => match.Success)
+                    .Select(match => new CoedgeId(int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)))
+                    .ToHashSet();
+                if (failing.Count == 0 || failing.Any(coedge => !orientation.Value.Bindings.TryGetPcurveBinding(coedge, out var binding)
+                        || binding.SourceStepPcurveEntityId is null))
+                    return consistencyFailure;
+                foreach (var coedge in failing) orientation.Value.Bindings.RemovePcurveBinding(coedge);
+                var remaining = BrepPcurveValidator.Validate(orientation.Value, pcurveTolerance,
+                    sourceTopology: document.SourceDistanceAccuracyMillimetres is > 0d and var remainingAccuracy
+                        ? new BrepPcurveTopologyEvidence(orientation.Value.Topology.Vertices.ToDictionary(v => v.Id, _ => remainingAccuracy), new HashSet<(CoedgeId, CoedgeId)>())
+                        : null);
+                if (!remaining.IsValid) return consistencyFailure;
+                setAsideSourcePcurves = failing;
+                setAsideFailure = consistencyFailure;
+                qualificationEvidence = remaining;
             }
         }
 
@@ -794,7 +819,7 @@ public static class Step242Importer
             var recovery = BrepPcurveRecovery.Populate(
                 orientation.Value.Topology, orientation.Value.Geometry, orientation.Value.Bindings,
                 tolerance: document.PcurveQualificationToleranceMillimetres,
-                sourceTolerance: document.SourceDistanceAccuracyMillimetres is > 0d and var declared ? declared : 0.01d);
+                sourceTolerance: double.Max(document.SourceDistanceAccuracyMillimetres ?? 0d, BrepPcurveRecovery.TolerantGapFloorMillimetres));
             // Vertices only need to lie within the source's declared distance accuracy of their curves.
             var sourceVertexTolerance = document.SourceDistanceAccuracyMillimetres is > 0d and var accuracy
                 ? new BrepPcurveTopologyEvidence(orientation.Value.Topology.Vertices.ToDictionary(v => v.Id, _ => accuracy), new HashSet<(CoedgeId, CoedgeId)>())
@@ -802,6 +827,14 @@ public static class Step242Importer
             var pcurveEvidence = BrepPcurveValidator.Validate(orientation.Value,
                 document.PcurveQualificationToleranceMillimetres, requireEveryCoedge: true, sourceTopology: sourceVertexTolerance);
             qualificationEvidence = pcurveEvidence;
+            // A set-aside source pcurve must come back: rebuilt from its edge within the tolerant budget, and valid.
+            if (setAsideFailure is not null && setAsideSourcePcurves.Any(coedge =>
+                    !orientation.Value.Bindings.TryGetPcurveBinding(coedge, out _)
+                    || pcurveEvidence.Diagnostics.Any(message => CoedgeInDiagnostic.Match(message) is { Success: true } match
+                        && match.Groups[1].Value == coedge.Value.ToString(System.Globalization.CultureInfo.InvariantCulture))))
+                return KernelResult<BrepBody>.Failure(setAsideFailure.Diagnostics.Concat(recovery.Diagnostics
+                    .Where(d => setAsideSourcePcurves.Any(coedge => d.Entity == coedge.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+                    .Select(d => new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, d.Message, "Importer.Pcurve.Recovery"))).ToArray());
             orientation.Value.PcurveRecoveryReport = pcurveEvidence.IsValid ? recovery : recovery with
             {
                 IsSuccess = false,
@@ -819,8 +852,11 @@ public static class Step242Importer
                 .Concat(orientation.Diagnostics));
         }
 
+        if (setAsideSourcePcurves.Count > 0)
+            importRepairs.Add(new("step-import-source-pcurves-rebuilt",
+                $"{setAsideSourcePcurves.Count} source pcurve(s) disagreed with their edges beyond the source's declared accuracy; each was set aside and rebuilt from its edge, whose own gap to the surface was measured."));
         orientation.Value.ImportQualification = BrepImportQualification.Evaluate(orientation.Value, faceEntityIds.Count,
-            document.SourceDistanceAccuracyMillimetres, document.PcurveQualificationToleranceMillimetres, qualificationEvidence) with { Repairs = importRepairs };
+            document.SourceDistanceAccuracyMillimetres, document.PcurveQualificationToleranceMillimetres, qualificationEvidence) with { Repairs = importRepairs, Tolerances = TolerantEdgeDisclosure(orientation.Value, document.SourceDistanceAccuracyMillimetres) };
         return KernelResult<BrepBody>.Success(orientation.Value, validation.Diagnostics
             .Concat(shellRoleDiagnostics)
             .Concat(surfaceBindingDiagnostics)
@@ -2748,7 +2784,8 @@ public static class Step242Importer
                     ? signedArea > 0d
                 // A free-form face can turn through more than a right angle (a swept tube), where the loop's
                 // polygon normal says nothing about the side; the source's same_sense with the loop's direction does.
-                : surface.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots
+                // A swept face (extrusion, revolution) has no closed-form projection here either, and the same holds.
+                : surface.Kind is SurfaceGeometryKind.BSplineSurfaceWithKnots or SurfaceGeometryKind.LinearExtrusion or SurfaceGeometryKind.SurfaceOfRevolution
                     ? isOuter == sourceSameSense
                 : TryDeriveSupportAlignmentFromBoundaryNormal(loop.Samples, surface, out var aligned)
                     ? aligned
@@ -3633,6 +3670,23 @@ public static class Step242Importer
             if (distance(evaluate(a), target) <= distance(evaluate(b), target)) hi = b; else lo = a;
         }
         return double.Min(bestDistance, distance(evaluate((lo + hi) / 2d), target));
+    }
+
+    /// <summary>
+    /// Tolerant edges, said out loud: trims built here whose edge is off its surface by more than the source's
+    /// declared accuracy (or 1e-6 mm when it declares none), how many, and the largest gap.
+    /// </summary>
+    private static IReadOnlyList<Aetheris.Kernel.Core.Import.ImportQualificationReason> TolerantEdgeDisclosure(BrepBody body, double? declaredAccuracy)
+    {
+        var accuracy = double.Max(1e-6d, declaredAccuracy ?? 0d);
+        var tolerant = body.Bindings.PcurveBindings
+            .Where(b => b.Qualification is { Origin: not PcurveBindingOrigin.SourceValidated } q && q.MaximumLiftDeviationMillimetres > accuracy)
+            .ToArray();
+        if (tolerant.Length == 0) return [];
+        var edges = tolerant.Select(b => body.Topology.GetCoedge(b.CoedgeId).EdgeId).Distinct().Count();
+        var largest = tolerant.Max(b => b.Qualification!.MaximumLiftDeviationMillimetres);
+        return [new("tolerant-edges",
+            $"{edges} edge(s) ({tolerant.Length} face-local trims) are off their surfaces by up to {largest:G3} mm, beyond the source's declared accuracy of {accuracy:G3} mm; the gaps are measured and kept, not closed.")];
     }
 
     private static double RawUvDistance(SurfaceParameterPoint left, SurfaceParameterPoint right)

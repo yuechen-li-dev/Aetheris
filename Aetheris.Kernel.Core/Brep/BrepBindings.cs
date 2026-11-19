@@ -283,6 +283,7 @@ public sealed class BrepBindingModel
 
     public void AddFaceBinding(FaceGeometryBinding binding) => _faceBindings.Add(binding.FaceId, binding);
     public void AddPcurveBinding(CoedgePcurveBinding binding) => _pcurveBindings.Add(binding.CoedgeId, binding);
+    public bool RemovePcurveBinding(CoedgeId coedgeId) => _pcurveBindings.Remove(coedgeId);
     public void AddFaceBoundaryRoleBinding(FaceBoundaryRoleBinding binding) => _faceBoundaryRoleBindings.Add(binding.LoopId, binding);
     public void AddVertexLoopParameterBinding(VertexLoopParameterBinding binding) => _vertexLoopParameterBindings.Add(binding.LoopId, binding);
 

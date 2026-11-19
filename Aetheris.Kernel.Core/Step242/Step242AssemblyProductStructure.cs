@@ -254,8 +254,13 @@ public static class Step242AssemblyImporter
                     flatOccurrences.Add(new($"step-occurrence:{root.Id}", name, null, stableId, Identity(), root.Id));
                 }
                 var importedAt = Stopwatch.GetTimestamp();
+                // Only solids are imported here. Surface models are not solids, and leaving them out is said, not silent.
+                var surfaceModels = document.Entities.Count(entity => entity.Name is "SHELL_BASED_SURFACE_MODEL" or "FACE_BASED_SURFACE_MODEL");
                 return KernelResult<Step242ProductStructure>.Success(new("aetheris:recovered-multibody-assembly", flatDefinitions,
-                    flatOccurrences, "RecoveredMultiBodyAssembly", Timing(started, parsedAt, importedAt, importedAt)));
+                    flatOccurrences, "RecoveredMultiBodyAssembly", Timing(started, parsedAt, importedAt, importedAt)),
+                    surfaceModels == 0 ? null : [new(KernelDiagnosticCode.Unknown, KernelDiagnosticSeverity.Warning,
+                        $"{surfaceModels} surface model(s) (SHELL_BASED_SURFACE_MODEL/FACE_BASED_SURFACE_MODEL) were not imported: this import reads solids only.",
+                        "Importer.Assembly.SurfaceModelsNotImported")]);
             }
         }
         var products = document.Entities.Where(entity => entity.Name == "PRODUCT").ToDictionary(entity => entity.Id);

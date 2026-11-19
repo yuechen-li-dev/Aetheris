@@ -30,6 +30,8 @@ public sealed record BrepImportQualificationReport(
     public IReadOnlyList<ImportQualificationReason> DisplayReasons { get; init; } = [];
     /// <summary>Disclosed deterministic source repairs, separate from qualification failures.</summary>
     public IReadOnlyList<ImportQualificationReason> Repairs { get; init; } = [];
+    /// <summary>Disclosed tolerant edges: measured gaps accepted as they are, nothing moved.</summary>
+    public IReadOnlyList<ImportQualificationReason> Tolerances { get; init; } = [];
 }
 
 /// <summary>Import evidence is separate from parser success and from display preparation.</summary>

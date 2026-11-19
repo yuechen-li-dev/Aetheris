@@ -59,7 +59,7 @@ public static class Step242ProductionNormalization
         if (source.ImportQualification is { } report)
         {
             body.ImportQualification = BrepImportQualification.Evaluate(body, report.ExpectedFaces,
-                report.SourceDistanceAccuracyMillimetres, tolerance, evidence) with { Repairs = report.Repairs };
+                report.SourceDistanceAccuracyMillimetres, tolerance, evidence) with { Repairs = report.Repairs, Tolerances = report.Tolerances };
             if (body.ImportQualification.Shells.Any(shell => !shell.Enclosed))
                 return Failure("Normalized engineering topology is not an enclosed manifold.");
         }

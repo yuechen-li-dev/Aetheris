@@ -95,14 +95,21 @@ public sealed class Step242TolerantEdgeTests
         Assert.Equal(Aetheris.Kernel.Core.Import.ImportQualificationStatus.Qualified, body.ImportQualification.GeometryStatus);
     }
 
-    /// <summary>FTC-11: three edges sit within the declared 5 µm and are kept; three sit 14 µm off and still fail.</summary>
+    /// <summary>
+    /// FTC-11 declares 5 µm. Three trims sit within it; two sit 5.2 and 8.3 µm off, within the 10 µm tolerant floor,
+    /// and are kept at their measured gaps; one sits 14 µm off, beyond both, and still fails.
+    /// </summary>
     [Fact]
-    public void GapsBeyondDeclaredAccuracy_StillFail()
+    public void GapsBeyondTheTolerantBudget_StillFail()
     {
         var body = Step242Corpus.Body("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp");
-        Assert.Equal(3, Tolerant(body).Length);
+        var tolerant = Tolerant(body);
+        Assert.Equal(5, tolerant.Length);
+        Assert.All(tolerant, b => Assert.True(b.Qualification!.MaximumLiftDeviationMillimetres <= BrepPcurveRecovery.TolerantGapFloorMillimetres));
+        Assert.Equal(2, tolerant.Count(b => b.Qualification!.MaximumLiftDeviationMillimetres > 0.005));
         Assert.False(body.PcurveRecoveryReport!.IsSuccess);
-        Assert.Equal(3, body.Topology.Coedges.Count(c => !body.Bindings.TryGetPcurveBinding(c.Id, out _)));
+        Assert.Equal(1, body.Topology.Coedges.Count(c => !body.Bindings.TryGetPcurveBinding(c.Id, out _)));
+        Assert.Single(body.ImportQualification!.Tolerances);
     }
 
     [Fact]

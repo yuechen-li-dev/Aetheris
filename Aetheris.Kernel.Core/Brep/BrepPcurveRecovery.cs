@@ -14,6 +14,13 @@ public static class BrepPcurveRecovery
 {
     /// <summary>Tag on qualifications accepted at the source's measured gap rather than the policy tolerance.</summary>
     public const string SourceTolerantMethod = "SourceTolerant";
+    /// <summary>
+    /// The largest curve-surface gap accepted as a tolerant edge when a file declares a tighter distance accuracy,
+    /// or none: 10 µm. Writers whose modellers keep per-edge tolerances routinely leave sub-micron gaps; a file's
+    /// global accuracy is not a promise about every edge, and declaring one must not make a file read worse
+    /// than declaring nothing. Gaps are measured and recorded, never closed.
+    /// </summary>
+    public const double TolerantGapFloorMillimetres = 0.01d;
 
     /// <param name="sourceTolerance">When set, an imported edge whose 3D curve lies off its surface by more than
     /// <paramref name="tolerance"/> but no more than this is accepted as a tolerant edge: its pcurve is kept, its
@@ -75,6 +82,15 @@ public static class BrepPcurveRecovery
                     && bound <= qualificationTolerance;
                 var liftSamples = boundaryBounded ? 0 : surface.BSplineSurfaceWithKnots is null ? 1025 : 8193;
                 var liftResidual = boundaryBounded ? bound : MaximumResidual(surface, curve, built.Pcurve, interval, liftSamples);
+                // An exact construction (a plane's projection) always yields a trace; the edge's own gap to the
+                // surface is then its lift residual, admitted as tolerant within the source budget, never closed.
+                if (!tolerant && double.IsFinite(liftResidual) && liftResidual > qualificationTolerance
+                    && sourceTolerance is { } budget && budget > qualificationTolerance && liftResidual <= budget
+                    && WithinDomain(surface, built.Pcurve))
+                {
+                    tolerant = true;
+                    qualificationTolerance = budget;
+                }
                 if (!double.IsFinite(liftResidual) || liftResidual > qualificationTolerance)
                 {
                     diagnostics.Add(new("surf-pcurve-invalid",
@@ -563,16 +579,8 @@ public static class BrepPcurveRecovery
         {
             var parameter = interval.Start + ((interval.End - interval.Start) * index / (count - 1d));
             var uv = pcurve.Evaluate(parameter);
-            var onSurface = surface.Kind switch
-            {
-                SurfaceGeometryKind.Plane => surface.Plane!.Value.Evaluate(uv.U, uv.V),
-                SurfaceGeometryKind.Cylinder => surface.Cylinder!.Value.Evaluate(uv.U, uv.V),
-                SurfaceGeometryKind.Cone => surface.Cone!.Value.Evaluate(uv.U, uv.V),
-                SurfaceGeometryKind.Sphere => surface.Sphere!.Value.Evaluate(uv.U, uv.V),
-                SurfaceGeometryKind.Torus => surface.Torus!.Value.Evaluate(uv.U, uv.V),
-                SurfaceGeometryKind.BSplineSurfaceWithKnots => surface.BSplineSurfaceWithKnots!.Evaluate(uv.U, uv.V),
-                _ => throw new InvalidOperationException()
-            };
+            // One evaluator for every support the pcurve check knows; an unknown one cannot be proved.
+            if (BrepPcurveValidator.Evaluate(surface, uv) is not { } onSurface) return double.PositiveInfinity;
             maximum = double.Max(maximum, (onSurface - EvaluateCurve(curve, parameter)).Length);
         }
         return maximum;

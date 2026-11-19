@@ -5187,7 +5187,11 @@ Model CanonicalPanel {
         stdout.WriteLine("Success: yes");
         stdout.WriteLine($"Structural assessment: {summary.StructuralAssessment} ({summary.StructuralAssessmentBasis})");
         if (summary.ImportQualification is { } qualification)
+        {
             stdout.WriteLine($"Import qualification: {qualification.Status}; geometry={qualification.GeometryStatus}; display not assessed; missing pcurves={qualification.MissingPcurves}.");
+            foreach (var repair in qualification.Repairs) stdout.WriteLine($"Import repair: {repair.Code}: {repair.Message}");
+            foreach (var tolerance in qualification.Tolerances) stdout.WriteLine($"Import tolerance: {tolerance.Code}: {tolerance.Message}");
+        }
         stdout.WriteLine($"Length unit: {summary.LengthUnit} ({summary.LengthUnitBasis})");
         stdout.WriteLine($"Bodies: {summary.BodyCount}");
         stdout.WriteLine($"Shells: {summary.ShellCount}");
@@ -5403,12 +5407,22 @@ Model CanonicalPanel {
                 maximum = new[] { points.Max(p => p.X), points.Max(p => p.Y), points.Max(p => p.Z) }
             },
             performance = structure.Performance,
-            definitions = structure.Definitions.Select(item => new { item.StableId, item.Name, hasGeometry = item.Geometry is not null, item.ProductDefinitionEntityId }).ToArray(),
+            warnings = result.Diagnostics.Where(d => d.Severity == Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Warning).Select(d => new { d.Source, d.Message }).ToArray(),
+            definitions = structure.Definitions.Select(item => new { item.StableId, item.Name, hasGeometry = item.Geometry is not null, item.ProductDefinitionEntityId,
+                repairs = item.Geometry?.ImportQualification?.Repairs ?? [], tolerances = item.Geometry?.ImportQualification?.Tolerances ?? [] }).ToArray(),
             occurrences = structure.Occurrences.Select(item => new { item.StableId, item.Name, item.ParentStableId, item.DefinitionStableId,
                 item.LocalTransform, worldTransform = World(item).ToRowMajor(), item.StepEntityId }).ToArray(),
             result.Value.FirmasmSha256
         };
         stdout.WriteLine(json ? JsonSerializer.Serialize(report, JsonOptions) : $"Imported AP242 assembly '{assemblyName}' to {result.Value.FirmasmPath} ({report.definitionCount} definitions, {report.occurrenceCount} occurrences, {report.subassemblyCount} subassemblies; bbox {string.Join(",", report.assemblyBoundingBox?.minimum ?? [])} to {string.Join(",", report.assemblyBoundingBox?.maximum ?? [])}).");
+        if (!json)
+        {
+            foreach (var warning in report.warnings) stdout.WriteLine($"Warning: {warning.Source}: {warning.Message}");
+            var repaired = report.definitions.Count(d => d.repairs.Count > 0);
+            var tolerant = report.definitions.Count(d => d.tolerances.Count > 0);
+            if (repaired > 0 || tolerant > 0)
+                stdout.WriteLine($"{repaired} definition(s) carry disclosed import repairs and {tolerant} carry tolerant edges; --json lists them.");
+        }
         return 0;
     }
 

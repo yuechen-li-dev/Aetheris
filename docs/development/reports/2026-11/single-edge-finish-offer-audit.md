@@ -55,3 +55,43 @@ probes); 47% of offers are refused by rules the offer did not consult. Next:
    the typed reason, and clamps the size control to the range.
 3. The probe becomes a test: every admitted edge builds at a size inside its range.
 4. Then the 33 construction failures, and accepting `Radius:` for Box fillets.
+
+## Follow-up: offer equals build
+
+- Admission is a trial build (`SingleEdgeFinishTrial`): the finish is inserted through the editor's own palette
+  template and `insertFeature` edit, then the document compiles. An edge is offered only when that succeeds; a
+  refusal carries the compiler's code and a plain explanation keyed by it. The size range comes from bisection on the
+  selected edge, rounded inward to 0.01 mm.
+- Cost: median 160 ms per part natively for both kinds over the Canonical fixtures (p90 1 s, max 12 s); the web
+  runtime caches per revision and stops after 20 s with an explicit not-checked reason.
+- Web runtime: `edgeFinishAdmission` and `edgeFinishRange` session requests; SDK `edgeFinishAdmission(kind)` and
+  `edgeFinishRange(kind, edgeId)`.
+- Helios: Fillet an edge… / Chamfer an edge… light the admitted edges (gold, other edges faded, both renderers); a
+  click on a lit edge starts sizing with its range; a click on a dark edge says why per finish; sizes outside the
+  range are refused before compiling.
+- Contract: every one of the 825 admitted Canonical finishes built at 25, 50 and 75% of its range (2475 builds, no
+  failure). `SingleEdgeFinishTrialTests.EveryOfferedFinish_BuildsInsideItsRange` keeps it on four fixtures.
+- Fixed while there:
+  - Box fillets on concept-bounded stock accept `Radius:` (the editor template's field), not only `Distance:`.
+  - An open chamfer run ending on a slanted neighbour placed its end square to the chamfered edge, off the
+    neighbour's line: bottom chamfers failed export preflight (0.08 to 0.36 mm off plane) and top chamfers bent the
+    neighbour's side face. The end now slides along the neighbour, past the vertex at a reflex corner. Checked
+    exactly: the rhombus plate's chamfer volume matches the closed form to 1e-6 mm³, by Aetheris and by an
+    independent kernel's reader.
+
+## What still should be finishable
+
+Judged by what a person picking the edge expects, not by what the routes cover:
+
+| Refusal | Count | Verdict |
+|---|---|---|
+| Fillet on one end-face edge (`EdgeFinishFilletNotOffered`) | 906 | Should work. The existing cap fillet stops one radius short of each corner, which is not what picking an edge means; a full-length end needs new termination topology (the end quarter-disc lying in a square neighbour's side). Its STEP also fails an independent reader: two end faces' loops run the wrong way. Next task. |
+| Second finish on a Profile body (`SequenceUnsupported`) | 132 | Should work; basic use. |
+| End-face chamfer after other operations (`RimFinishHistoryUnsupported`, `ComposeOpenChainUnsupported`) | 396 | Mostly should work when the operations stay clear of the edge. |
+| Profiles with openings, equation curves, curved edges | 216 | Should work eventually; outer-edge chamfers on a plate with a hole first. |
+| The part's own Assert or PMI would break | 88 | Correct refusals. |
+
+142 further refusals have no code prefix (`EdgeFinishRefused`) and are not yet classified.
+
+Verdict: meaningful progression. The offer can no longer disagree with the build, and what it offers builds across
+its range. The next blocker is coverage, isolated above, led by full-length fillets on end-face edges.

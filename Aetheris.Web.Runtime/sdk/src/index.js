@@ -188,6 +188,28 @@ export class ModelSession {
       return reply.measurement;
     });
   }
+  /** Which picked-edge finishes this build takes: each offered edge admitted or refused by a trial build. */
+  async edgeFinishAdmission(finishKind, options = {}) {
+    return this.serial(async () => {
+      throwIfAborted(options.signal);
+      const reply = await this.transport.request({ operation: 'edgeFinishAdmission', sessionId: this.id, buildRevision: this.revision, finishKind });
+      throwIfAborted(options.signal);
+      if (reply.revision !== this.revision) throw new AetherisError('edge-finish-stale-revision', 'The edge finish check belongs to a different build revision.');
+      return reply;
+    });
+  }
+  /** The sizes the finish on one admitted edge builds at. */
+  async edgeFinishRange(finishKind, edgeTopologyId, options = {}) {
+    const edgeId = Number(/^edge:(\d+)$/.exec(edgeTopologyId)?.[1]);
+    if (!Number.isInteger(edgeId)) throw new AetherisError('edge-finish-request-invalid', `Not an edge topology id: ${edgeTopologyId}`);
+    return this.serial(async () => {
+      throwIfAborted(options.signal);
+      const reply = await this.transport.request({ operation: 'edgeFinishRange', sessionId: this.id, buildRevision: this.revision, finishKind, edgeId });
+      throwIfAborted(options.signal);
+      if (reply.revision !== this.revision) throw new AetherisError('edge-finish-stale-revision', 'The edge finish range belongs to a different build revision.');
+      return reply;
+    });
+  }
   async describeConstruct(semanticId, options = {}) {
     throwIfAborted(options.signal);
     return this.transport.request({ operation: 'describeConstruct', sessionId: this.id, constructSemanticId: semanticId });

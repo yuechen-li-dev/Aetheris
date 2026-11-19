@@ -170,6 +170,10 @@ export class ModelSession {
   readonly motions: readonly MotionClip[];
   sampleMotion(motion: string, timeSeconds: number, options?: OperationOptions & { readonly preserveEndpoint?: boolean }): Promise<MotionPose>;
   measure(request: MeasurementRequest, options?: OperationOptions): Promise<MeasurementResult>;
+  /** Which picked-edge finishes this build takes: each offered edge admitted or refused by a trial build of that finish. */
+  edgeFinishAdmission(finishKind: EdgeFinishKind, options?: OperationOptions): Promise<EdgeFinishAdmission>;
+  /** The sizes the finish on one admitted edge builds at. */
+  edgeFinishRange(finishKind: EdgeFinishKind, edgeTopologyId: string, options?: OperationOptions): Promise<EdgeFinishRange>;
   readonly id: string; readonly name: string; readonly revision: number; readonly source: string; readonly sourceName: string;
   readonly tree: ModelTree; readonly properties: readonly EditableProperty[]; readonly mesh: DisplayMesh; readonly diagnostics: readonly Diagnostic[]; readonly changes: ChangeSet;
   readonly timings?: { readonly compileMilliseconds: number; readonly meshMilliseconds?: number; readonly totalBeforeSnapshotMilliseconds?: number; readonly profile?: { readonly phases: readonly { readonly name: string; readonly inclusiveMilliseconds: number; readonly exclusiveMilliseconds: number; readonly allocatedBytes: number }[]; readonly counts: Readonly<Record<string, number>>; readonly gc0: number; readonly gc1: number; readonly gc2: number } };
@@ -197,6 +201,18 @@ export type ExportFormat = 'step' | 'glb' | 'usda' | 'stl' | 'obj' | 'pdf' | 'sv
 export interface ExportFormatOption { readonly format: ExportFormat; readonly label: string; readonly description: string; readonly available: boolean; readonly reason?: string | null }
 export interface ExportFile { readonly fileName: string; readonly mediaType: string; readonly bytes: Uint8Array }
 
+export type EdgeFinishKind = 'fillet' | 'chamfer';
+/** One finish address the build offers, shared by its edges; refused ones carry the compiler's code and a reason. */
+export interface EdgeFinishCandidate {
+  /** Display topology ids, as `DisplayEdgePolyline.edgeId` (`edge:12`). */
+  edgeIds: string[]; body: string; face: string; target: string; label: string;
+  admitted: boolean; probeMm: number | null; code: string | null; reason: string | null;
+}
+export interface EdgeFinishAdmission { revision: number; kind: 'Fillet' | 'Chamfer'; edges: EdgeFinishCandidate[] }
+export interface EdgeFinishRange {
+  revision: number; kind: 'Fillet' | 'Chamfer'; edgeId: string;
+  minimumMm: number | null; maximumMm: number | null; maximumIsSearchLimit: boolean;
+}
 export type MeasurementMode = 'points' | 'planes' | 'axes';
 export interface MeasurementPick { occurrenceId: string | null; faceId: number | null; rayOrigin: number[]; rayDirection: number[] }
 export interface MeasurementRequest { mode: MeasurementMode; first: MeasurementPick; second?: MeasurementPick; allowApproximate: boolean }

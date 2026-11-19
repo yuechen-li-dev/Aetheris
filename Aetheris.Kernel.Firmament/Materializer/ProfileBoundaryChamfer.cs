@@ -410,9 +410,30 @@ public static class ProfileBoundaryChamferPlanner
             }
             else
             {
+                // An open run ends on its unselected neighbour: the inset vertex slides along that
+                // neighbour's line to where the chamfered edge's offset line meets it, so the
+                // neighbour's side face stays one plane. Offsetting square to the chamfered edge
+                // is the same point only at a right-angle corner.
                 var line = previousSelected ? lines[previous] : lines[next];
+                var neighbour = previousSelected ? lines[next] : lines[previous];
                 var (nx, ny) = InwardNormal(line, signedArea);
-                result[vertex] = (original.X + nx * distance, original.Y + ny * distance);
+                var offsetStart = (X: line.Start.X + nx * distance, Y: line.Start.Y + ny * distance);
+                var r = (X: line.End.X - line.Start.X, Y: line.End.Y - line.Start.Y);
+                var s = (X: neighbour.End.X - neighbour.Start.X, Y: neighbour.End.Y - neighbour.Start.Y);
+                var cross = r.X * s.Y - r.Y * s.X;
+                if (Math.Abs(cross) <= Tol * Math.Sqrt((r.X * r.X + r.Y * r.Y) * (s.X * s.X + s.Y * s.Y)))
+                {
+                    // A neighbour continuing the chamfered edge's line: no corner to slide along.
+                    result[vertex] = (original.X + nx * distance, original.Y + ny * distance);
+                    continue;
+                }
+                var q = (X: offsetStart.X - neighbour.Start.X, Y: offsetStart.Y - neighbour.Start.Y);
+                var u = (q.X * r.Y - q.Y * r.X) / -cross; // offsetStart + t·r = neighbour.Start + u·s
+                // The neighbour may lengthen past the shared vertex (a reflex corner) but must keep some
+                // of its own length: the end point stays short of the neighbour's far end.
+                var keepsNeighbour = previousSelected ? u < 1 - Tol : u > Tol;
+                if (!keepsNeighbour) { diagnostic = "ProfileBoundaryChamferInsetCollapse"; return null; }
+                result[vertex] = (neighbour.Start.X + u * s.X, neighbour.Start.Y + u * s.Y);
             }
         }
         for (var i = 0; i < count; i++)

@@ -72,6 +72,8 @@ public static partial class Program
                 "snapshot" => Session(request).Snapshot,
                 "sampleMotion" => Session(request).SampleMotion(request),
                 "measure" => Session(request).Measure(request),
+                "edgeFinishAdmission" => Session(request).EdgeFinishAdmission(request),
+                "edgeFinishRange" => Session(request).EdgeFinishRange(request),
                 "setProperty" => SetProperty(request),
                 "setSource" => SetSource(request),
                 "rebuild" => Rebuild(request),
@@ -315,7 +317,8 @@ public static partial class Program
         string? Motion = null, double? TimeSeconds = null, bool PreserveEndpoint = false,
         IReadOnlyList<string>? Formats = null, Aetheris.Geometry.MeasurementRequest? Measurement = null,
         IReadOnlyDictionary<string, double[]>? PmiOffsets = null,
-        string? Node = null, FirmamentSketchEditRequest? SketchEdit = null);
+        string? Node = null, FirmamentSketchEditRequest? SketchEdit = null,
+        string? FinishKind = null, int? EdgeId = null);
 
     /// <summary>
     /// BUILD-PERF-M3 response bridge (request <c>bridge: 1</c>, sent by the SDK). Large numeric arrays
@@ -379,7 +382,7 @@ public static partial class Program
                 throw new WebRuntimeException(separator > 0 ? error.Message[..separator] : "export-failed", error.Message);
             }
         }
-        public void Dispose() { _measurementTargets = []; _pendingMeasurementTargets = []; _assembly = null; _pendingAssembly = null; _scene = null; _pendingScene = null; _exportDisplay = null; _compilationSession.Dispose(); _sceneSession.Dispose(); }
+        public void Dispose() { _measurementTargets = []; _pendingMeasurementTargets = []; _finishContext = null; _pendingFinishContext = null; _admissions.Clear(); _assembly = null; _pendingAssembly = null; _scene = null; _pendingScene = null; _exportDisplay = null; _compilationSession.Dispose(); _sceneSession.Dispose(); }
         internal object SampleMotion(WebRequest request)
         {
             if (_assembly is null || request.Motion is null || request.TimeSeconds is null)
@@ -495,6 +498,7 @@ public static partial class Program
             _pendingAssembly = null;
             _pendingScene = null;
             _pendingMeasurementTargets = [];
+            _pendingFinishContext = null;
             _dirty = true;
             var nextProperties = sourceProperties;
             foreach (var (propertyId, value) in _overrides)
@@ -513,6 +517,7 @@ public static partial class Program
 
             Revision++;
             _measurementTargets = _pendingMeasurementTargets;
+            _finishContext = _pendingFinishContext;
             _assembly = _pendingAssembly;
             _scene = _pendingScene;
             _exportDisplay = compiled.ExportDisplay ?? (AssemblyDisplayMeshDocument)compiled.Mesh!;
@@ -580,6 +585,8 @@ public static partial class Program
             var entityId = build.Value.RuntimeCorrespondence?.BodyStableId
                 ?? (string.IsNullOrWhiteSpace(build.Value.ExportedFeatureId) ? Id + ":body" : build.Value.ExportedFeatureId);
             _pendingMeasurementTargets = [new(entityId + ":occurrence", displayBody, Aetheris.Kernel.Core.Math.Transform3D.Identity)];
+            _pendingFinishContext = build.Value.RuntimeCorrespondence is { } finishCorrespondence
+                ? new(effective, Path.GetDirectoryName(_sourceName), project?.Documents, finishCorrespondence) : null;
             var sourceMap = build.Value.RuntimeCorrespondence is { } correspondence
                 ? new Aetheris.Kernel.Firmament.Materializer.GeometrySourceMap(correspondence) : null;
             WebSourceRef? CompilerSource(string symbol) =>

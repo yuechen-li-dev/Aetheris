@@ -369,10 +369,16 @@ internal static class ConceptIrResolver
             }
             var target = EdgeField("Target");
             var kind = EdgeField("Kind");
-            var distanceSource = EdgeField("Distance");
+            // A fillet's size is its Radius and a chamfer's its Distance; either spelling is one size, as in
+            // the general EdgeFinish binder. Both at once is ambiguous.
+            var authoredDistance = EdgeField("Distance");
+            var authoredRadius = EdgeField("Radius");
             edgeFields.Complete();
+            if (authoredDistance.Length > 0 && authoredRadius.Length > 0) { diagnostics.Add(FirmamentV2Parser.Phase3EdgeFinishSyntaxInvalid); return null; }
+            var sizeField = authoredRadius.Length > 0 ? "Radius" : "Distance";
+            var distanceSource = authoredRadius.Length > 0 ? authoredRadius : authoredDistance;
             var distance = ParseLength(distanceSource);
-            var distanceProvenance = $"{materialized.Groups["name"].Value}.{edge.Groups["name"].Value}.Distance";
+            var distanceProvenance = $"{materialized.Groups["name"].Value}.{edge.Groups["name"].Value}.{sizeField}";
             var distanceRef = Regex.Match(distanceSource, @"^(?<instance>[A-Za-z_][A-Za-z0-9_]*)\.(?<member>[A-Za-z_][A-Za-z0-9_]*)$", RegexOptions.CultureInvariant);
             if (distanceRef.Success && TryMember(allInstances, distanceRef, out ConceptIrLengthValue? resolvedDistance, diagnostics))
             {
@@ -384,7 +390,7 @@ internal static class ConceptIrResolver
             finishes.Add(new(edge.Groups["name"].Value, faceAxis, target, kind, distance, new(edgeStart, edgeClose - edgeStart + 1),
                 new Dictionary<string, string>(StringComparer.Ordinal) { ["Face"] = faceProvenance, ["Distance"] = distanceProvenance }));
             bindings.Add(new($"{materialized.Groups["name"].Value}.{edge.Groups["name"].Value}.Face", faceSource, faceProvenance, "Plane"));
-            bindings.Add(new($"{materialized.Groups["name"].Value}.{edge.Groups["name"].Value}.Distance", distanceSource, distanceProvenance, "Length"));
+            bindings.Add(new($"{materialized.Groups["name"].Value}.{edge.Groups["name"].Value}.{sizeField}", distanceSource, distanceProvenance, "Length"));
         }
 
         var modifyBody = source[(modifyOpen + 1)..modifyClose];

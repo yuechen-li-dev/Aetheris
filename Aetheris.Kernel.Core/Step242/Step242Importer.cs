@@ -595,6 +595,8 @@ public static class Step242Importer
                 return KernelResult<BrepBody>.Failure(classifyResult.Diagnostics);
             }
 
+            surfaceBindingDiagnostics.AddRange(classifyResult.Diagnostics);
+
             // A face bound is authored topology.  Normalization may adjust
             // winding/order, but it must never silently remove a declared loop
             // (for example a closed single-edge circular bound whose sampling
@@ -2164,6 +2166,21 @@ public static class Step242Importer
         }
         if (declaredOuterCount > 1)
         {
+            // A band of a cylinder or cone bounded by two full circles has no outer loop: neither bounds the
+            // other, and the schema's at-most-one rule gives a writer nothing to choose by. Some writers (STEP
+            // Tools' ST-Developer among them) declare both FACE_OUTER_BOUND. The declarations carry no role
+            // there: the bounds keep their source order and traversal, the first declared stays outer (so the
+            // body, and its export, has exactly one), and nothing else is accepted.
+            if (AreFullRevolutionRings(loops, surface))
+            {
+                var first = loops.First(loop => loop.IsDeclaredOuter).LoopId;
+                var kept = loops.Select(loop => loop.IsDeclaredOuter && loop.LoopId != first ? loop with { IsDeclaredOuter = false } : loop).ToArray();
+                return KernelResult<IReadOnlyList<LoopBuildData>>.Success(kept,
+                    [new KernelDiagnostic(KernelDiagnosticCode.Unknown, KernelDiagnosticSeverity.Info,
+                        $"FACE #{faceEntityId} declares {declaredOuterCount} FACE_OUTER_BOUNDs; each is a full circle of a {surface.Kind.ToString().ToLowerInvariant()} band, where no bound is outer, so they are kept as written.",
+                        $"Importer.LoopRole.BandRingsBothDeclaredOuter.Face:{faceEntityId}")]);
+            }
+
             return LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                 $"FACE has {declaredOuterCount} FACE_OUTER_BOUND declarations; exactly one is required.",
                 $"Importer.LoopRole.DuplicateDeclaredOuter.Face:{faceEntityId}");
@@ -2183,6 +2200,24 @@ public static class Step242Importer
                 $"Importer.LoopRole.UnsupportedSurfaceForHoles.{surface.Kind}")
         };
     }
+
+    /// <summary>Every loop circles the whole axis of a cylinder or cone at one axial station.</summary>
+    private static bool AreFullRevolutionRings(IReadOnlyList<LoopBuildData> loops, SurfaceGeometry surface) => surface.Kind switch
+    {
+        SurfaceGeometryKind.Cylinder => loops.All(loop =>
+        {
+            var projected = ProjectLoopToCylinder(loop.Samples, surface.Cylinder!.Value);
+            return AnalyzeCylindricalProjection(CountUniquePoints(projected, ContainmentEps), ComputeSignedArea(projected), projected)
+                .Degeneracy == CylinderProjectionDegeneracy.FullRevolutionConstantAxial;
+        }),
+        SurfaceGeometryKind.Cone => loops.All(loop =>
+        {
+            var projected = ProjectLoopToCone(loop.Samples, surface.Cone!.Value);
+            return AnalyzeConicalProjection(CountUniquePoints(projected, ContainmentEps), ComputeSignedArea(projected), projected)
+                .Degeneracy == ConeProjectionDegeneracy.FullRevolutionConstantAxial;
+        }),
+        _ => false
+    };
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizePlanarLoops(
         IReadOnlyList<LoopBuildData> loops,

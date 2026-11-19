@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Step242;
 
@@ -11,6 +12,7 @@ namespace Aetheris.Kernel.Firmament.Assembly;
 
 public sealed record FirmasmComponentPackageItem(string DefinitionStableId, string RelativePath, string Sha256);
 public sealed record FirmasmImportPackageResult(string FirmasmPath, string ManifestPath, Step242ProductStructure ProductStructure, IReadOnlyList<FirmasmComponentPackageItem> Components, string FirmasmSha256);
+public sealed record FirmasmImportWorkspace(string Root, IReadOnlyDictionary<string, string> Documents, IReadOnlyList<FirmasmComponentPackageItem> Components);
 
 public static class Step242FirmasmPackageImporter
 {
@@ -18,22 +20,16 @@ public static class Step242FirmasmPackageImporter
     {
         var structure = Step242AssemblyImporter.Import(File.ReadAllText(sourceStepPath));
         if (!structure.IsSuccess) return KernelResult<FirmasmImportPackageResult>.Failure(structure.Diagnostics);
+        var prepared = Prepare(structure.Value, Path.GetFileName(sourceStepPath));
+        if (!prepared.IsSuccess) return KernelResult<FirmasmImportPackageResult>.Failure(prepared.Diagnostics);
         var output = Path.GetFullPath(outputDirectory); var componentsDirectory = Path.Combine(output, "components");
         Directory.CreateDirectory(componentsDirectory);
-        var componentItems = new List<FirmasmComponentPackageItem>();
-        var componentByDefinition = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var (definition, index) in structure.Value.Definitions.Where(item => item.Geometry is not null).OrderBy(item => item.StableId, StringComparer.Ordinal).Select((item, index) => (item, index)))
+        foreach (var (path, text) in prepared.Value.Documents)
         {
-            var relative = $"components/{index + 1:D4}-{Identifier(definition.Name).ToLowerInvariant()}.step";
-            var export = Step242Exporter.ExportBody(definition.Geometry!, options: new Step242ExportOptions { ProductId = definition.StableId, ProductName = definition.Name });
-            if (!export.IsSuccess) return KernelResult<FirmasmImportPackageResult>.Failure(export.Diagnostics);
-            var path = Path.Combine(output, relative.Replace('/', Path.DirectorySeparatorChar));
-            File.WriteAllText(path, export.Value, new UTF8Encoding(false));
-            var hash = Sha(export.Value); componentItems.Add(new(definition.StableId, relative, hash)); componentByDefinition[definition.StableId] = relative;
+            File.WriteAllText(Path.Combine(output, path.Replace('/', Path.DirectorySeparatorChar)), text, new UTF8Encoding(false));
         }
-        var source = GenerateSource(structure.Value, componentByDefinition, Path.GetFileName(sourceStepPath));
-        var firmasmPath = Path.Combine(output, Identifier(Path.GetFileNameWithoutExtension(sourceStepPath)) + ".firmasm");
-        File.WriteAllText(firmasmPath, source, new UTF8Encoding(false));
+        var componentItems = prepared.Value.Components;
+        var firmasmPath = Path.Combine(output, prepared.Value.Root);
         var manifestPath = Path.Combine(output, "component-package.json");
         var manifest = new
         {
@@ -46,7 +42,37 @@ public static class Step242FirmasmPackageImporter
             components = componentItems
         };
         File.WriteAllText(manifestPath, JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }), new UTF8Encoding(false));
-        return KernelResult<FirmasmImportPackageResult>.Success(new(firmasmPath, manifestPath, structure.Value, componentItems, Sha(source)), structure.Diagnostics);
+        return KernelResult<FirmasmImportPackageResult>.Success(new(firmasmPath, manifestPath, structure.Value, componentItems, Sha(prepared.Value.Documents[prepared.Value.Root])), structure.Diagnostics);
+    }
+
+    public static KernelResult<FirmasmImportWorkspace> Prepare(Step242ProductStructure structure, string sourceName, int maximumBytes = int.MaxValue)
+    {
+        var documents = new Dictionary<string, string>(StringComparer.Ordinal);
+        var components = new List<FirmasmComponentPackageItem>();
+        var componentByDefinition = new Dictionary<string, string>(StringComparer.Ordinal);
+        long bytes = 0;
+        foreach (var (definition, index) in structure.Definitions.Where(item => item.Geometry is not null)
+            .OrderBy(item => item.StableId, StringComparer.Ordinal).Select((item, index) => (item, index)))
+        {
+            var relative = $"components/{index + 1:D4}-{Identifier(definition.Name).ToLowerInvariant()}.step";
+            var export = Step242Exporter.ExportBody(definition.Geometry!, options: new Step242ExportOptions { ProductId = definition.StableId, ProductName = definition.Name });
+            if (!export.IsSuccess) return KernelResult<FirmasmImportWorkspace>.Failure(export.Diagnostics);
+            bytes += Encoding.UTF8.GetByteCount(export.Value);
+            if (bytes > maximumBytes) return TooLarge();
+            documents[relative] = export.Value;
+            components.Add(new(definition.StableId, relative, Sha(export.Value)));
+            componentByDefinition[definition.StableId] = relative;
+        }
+        var provenance = Path.GetFileName(sourceName).Replace('\r', ' ').Replace('\n', ' ');
+        var root = Identifier(Path.GetFileNameWithoutExtension(provenance)) + ".firmasm";
+        var source = GenerateSource(structure, componentByDefinition, provenance);
+        if (bytes + Encoding.UTF8.GetByteCount(source) > maximumBytes) return TooLarge();
+        documents[root] = source;
+        return KernelResult<FirmasmImportWorkspace>.Success(new(root, documents, components));
+
+        static KernelResult<FirmasmImportWorkspace> TooLarge() => KernelResult<FirmasmImportWorkspace>.Failure([
+            new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
+                "The imported solids exceed the workspace size limit. Export a smaller group of components and try again.", "Importer.Assembly.WorkspaceSize")]);
     }
 
     public static string GenerateSource(Step242ProductStructure structure, IReadOnlyDictionary<string, string> componentByDefinition, string provenance, bool componentReferences = false)

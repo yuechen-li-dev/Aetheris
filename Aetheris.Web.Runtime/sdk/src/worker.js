@@ -8,6 +8,10 @@ self.addEventListener('message', async event => {
   try {
     if (version !== 1) throw new Error(`Unsupported Aetheris worker protocol ${version}.`);
     const invoke = await (runtimePromise ??= createRuntime(runtimeBase ? new URL(runtimeBase) : undefined));
+    if (request.operation === 'prepareStepAssembly' && request.sourceFile instanceof Blob) {
+      request.source = await request.sourceFile.text();
+      delete request.sourceFile;
+    }
     const started = performance.now();
     const result = invoke(request);
     const executionMilliseconds = performance.now() - started;

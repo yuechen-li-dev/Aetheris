@@ -110,6 +110,11 @@ export class Aetheris {
     return this.transport instanceof WorkerTransport ? { ...info, capabilities: { ...info.capabilities, worker: true } } : info;
   }
   async capabilities() { return (await this.info()).capabilities; }
+  async prepareStepAssembly(source, sourceName) {
+    if (typeof source !== 'string' && this.transport instanceof WorkerTransport)
+      return this.transport.request({ operation: 'prepareStepAssembly', sourceFile: source, sourceName });
+    return this.transport.request({ operation: 'prepareStepAssembly', source: typeof source === 'string' ? source : await source.text(), sourceName });
+  }
   async compile(source, options = {}) {
     throwIfAborted(options.signal);
     const result = await this.transport.request({ operation: 'compile', source, sourceName: options.sourceName, sourceRevision: options.sourceRevision, performance: options.performance, projectDocuments: options.projectDocuments });

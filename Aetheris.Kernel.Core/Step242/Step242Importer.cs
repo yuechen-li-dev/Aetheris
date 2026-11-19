@@ -3476,6 +3476,8 @@ public static class Step242Importer
             return KernelResult<IReadOnlyList<CoedgePcurveBinding>>.Success([]);
 
         var uses = loop.Coedges.Where(coedge => loop.PcurveCandidates.ContainsKey(coedge.Id)).ToArray();
+        var edgeUseCounts = loop.Coedges.GroupBy(use => use.EdgeId).ToDictionary(group => group.Key, group => group.Count());
+        var periodicity = SurfacePeriodicity.Of(surface);
         var solutions = new List<(double Score, ImportedStepPcurve[] Selection)>();
         var selected = new ImportedStepPcurve[uses.Length];
         var usedByEdge = new Dictionary<EdgeId, HashSet<int>>();
@@ -3514,11 +3516,9 @@ public static class Step242Importer
         var ordered = solutions.OrderBy(solution => solution.Score).ToArray();
         var best = ordered[0];
         var scale = System.Math.Max(1d, best.Score);
-        if (ordered.Length > 1 && System.Math.Abs(ordered[1].Score - best.Score) <= 1e-12d * scale
-            && !ordered[1].Selection.Select(candidate => candidate.PcurveEntityId)
-                .SequenceEqual(best.Selection.Select(candidate => candidate.PcurveEntityId))
-            && !ordered[1].Selection.Zip(best.Selection)
-                .All(pair => EquivalentPcurveUse(pair.First, pair.Second)))
+        if (ordered.Skip(1).TakeWhile(solution => solution.Score - best.Score <= 1e-12d * scale)
+            .Any(solution => Enumerable.Range(0, uses.Length).Any(index =>
+                !EquivalentPcurveUse(uses[index], solution.Selection[index], best.Selection[index]))))
             return OrientationFailure<IReadOnlyList<CoedgePcurveBinding>>(
                 $"Loop {loop.LoopId.Value} has ambiguous seam-side pcurve assignment; no source flag was used to guess.",
                 "Importer.Pcurve.SeamAssignmentAmbiguous");
@@ -3551,9 +3551,32 @@ public static class Step242Importer
             return use.IsReversed ^ !edge.OrientedEdgeSense ^ !candidate.SameSense ? (end, start) : (start, end);
         }
 
-        bool EquivalentPcurveUse(ImportedStepPcurve left, ImportedStepPcurve right)
+        bool EquivalentPcurveUse(Coedge use, ImportedStepPcurve left, ImportedStepPcurve right)
         {
+            if (left.PcurveEntityId == right.PcurveEntityId) return true;
             if (left.SameSense != right.SameSense) return false;
+            // A singly used line may have two lifts of the same complete trace on a
+            // periodic chart. Preserve the separate chart sides of repeated seam uses.
+            if (edgeUseCounts[use.EdgeId] == 1 && periodicity.IsPeriodic
+                && left.Geometry.Kind == PcurveGeometryKind.Line && right.Geometry.Kind == PcurveGeometryKind.Line
+                && left.Geometry.Domain == right.Geometry.Domain)
+            {
+                var startLeft = left.Geometry.Points[0];
+                var startRight = right.Geometry.Points[0];
+                var endLeft = left.Geometry.Points[1];
+                var endRight = right.Geometry.Points[1];
+                const double chartTolerance = 1e-10;
+                var du = startLeft.U - startRight.U;
+                var dv = startLeft.V - startRight.V;
+                if (SameChartCoordinate(du, periodicity.UPeriod) && SameChartCoordinate(dv, periodicity.VPeriod)
+                    && double.Abs((endLeft.U - endRight.U) - du) <= chartTolerance
+                    && double.Abs((endLeft.V - endRight.V) - dv) <= chartTolerance)
+                    return true;
+
+                static bool SameChartCoordinate(double delta, double? period) => period is { } value
+                    ? SurfacePeriodicity.EquivalentModuloPeriod(delta, 0d, value, chartTolerance)
+                    : double.Abs(delta) <= chartTolerance;
+            }
             for (var index = 0; index < 3; index++)
             {
                 var fraction = index / 2d;

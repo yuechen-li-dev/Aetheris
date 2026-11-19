@@ -65,7 +65,7 @@ export interface DisplayMesh { readonly importedAsset?: { readonly path: string;
 export interface ChangeSet { readonly changedEntityIds: readonly string[]; readonly addedEntityIds: readonly string[]; readonly removedEntityIds: readonly string[]; readonly meshChanged: boolean; readonly diagnosticsChanged: boolean }
 export interface RebuildResult { readonly success: boolean; readonly revision: number; readonly diagnostics: readonly Diagnostic[]; readonly retainedPreviousGeometry: boolean; readonly changes?: ChangeSet }
 export interface RuntimeCapabilities { readonly compile: boolean; readonly solidModeling: boolean; readonly assembly: boolean; readonly displayMesh: boolean; readonly propertyInspection: boolean; readonly parameterRebuild: boolean; readonly stepExport: boolean; readonly artifactExport?: boolean; readonly sheetMetal: boolean; readonly fea: boolean; readonly externalStepImport: boolean; readonly forgeSubprocess: boolean; readonly cancellation: boolean; readonly worker: boolean }
-export interface RuntimeInfo { readonly packageVersion: string; readonly runtimeVersion: string; readonly contractVersion: 'aetheris/web-editor-contract/1'; readonly language: 'Firmament'; readonly capabilities: RuntimeCapabilities }
+export interface RuntimeInfo { readonly packageVersion: string; readonly runtimeVersion: string; readonly sourceRevision?: string | null; readonly execution?: 'wasm' | 'dotnet'; readonly contractVersion: 'aetheris/web-editor-contract/1'; readonly language: 'Firmament'; readonly capabilities: RuntimeCapabilities }
 export interface WorkerTiming { readonly operation: string; readonly executionMilliseconds: number; readonly transportMilliseconds: number; readonly payloadBytes: number; readonly initialization?: { readonly moduleImportMilliseconds: number; readonly runtimeCreateMilliseconds: number; readonly assemblyExportsMilliseconds: number } | null }
 export interface OperationOptions { readonly signal?: AbortSignal; readonly sourceRevision?: string; readonly performance?: boolean }
 export interface CompileOptions extends OperationOptions { readonly sourceName?: string; readonly projectDocuments?: Readonly<Record<string, string>> }
@@ -149,6 +149,7 @@ export interface FieldRewrite { readonly source: string; readonly sourceRevision
 export interface SelectorCandidate { readonly selector: string; readonly kind: string; readonly semanticKey: string | null; readonly outputRole: string | null; readonly source: SourceReference; readonly qualification: SourceAddressability; readonly buildRevision: number }
 export interface AetherisOptions { readonly worker?: boolean; readonly wasmUrl?: string | URL; readonly diagnostics?: (diagnostics: readonly Diagnostic[]) => void }
 export class AetherisError extends Error { readonly code: string; readonly details?: string }
+export interface StepAssemblyWorkspace { readonly root: string; readonly documents: Record<string, string>; readonly solidCount: number; readonly warnings: readonly string[] }
 export class Aetheris {
   static create(options?: AetherisOptions): Promise<Aetheris>;
   readonly runtimeInfo: RuntimeInfo;
@@ -156,6 +157,7 @@ export class Aetheris {
   readonly language: { patterns(source: string, options: LanguageOptions): Promise<PatternProjection>; sketch(source: string, node: string | null, options: LanguageOptions): Promise<SketchProjection>; sketchEdit(source: string, edit: SketchEditRequest, options: LanguageOptions): Promise<LanguageEdit>; complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion>; analyze(source: string, options: LanguageOptions): Promise<LanguageAnalysis>; outline(source: string, options: LanguageOptions): Promise<LanguageOutline>; edit(source: string, operations: readonly LanguageEditOperation[], options: LanguageOptions): Promise<LanguageEdit>; palette(): Promise<LanguagePalette>; hover(source: string, offset: number, options: LanguageOptions): Promise<LanguageHover | null>; definition(source: string, offset: number, options: LanguageOptions): Promise<SourceReference | null>; format(source: string, options: LanguageOptions): Promise<LanguageFormat>; schema(): Promise<SemanticSchema> };
   info(): Promise<RuntimeInfo>;
   capabilities(): Promise<RuntimeCapabilities>;
+  prepareStepAssembly(source: string | Blob, sourceName: string): Promise<StepAssemblyWorkspace | null>;
   compile(source: string, options?: CompileOptions): Promise<{ model: ModelSession | null; diagnostics: readonly Diagnostic[] }>;
   dispose(): Promise<void>;
   terminate(): void;

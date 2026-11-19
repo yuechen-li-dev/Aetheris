@@ -217,7 +217,15 @@ public static class Step242AssemblyExporter
 
 public static class Step242AssemblyImporter
 {
+    public const string SinglePart = "Importer.Assembly.SinglePart";
+
     public static KernelResult<Step242ProductStructure> Import(string stepText, ImportPolicy? policy = null)
+        => ImportCore(stepText, policy, allowSinglePartFallback: false);
+
+    public static KernelResult<Step242ProductStructure> ImportForWorkspace(string stepText)
+        => ImportCore(stepText, null, allowSinglePartFallback: true);
+
+    private static KernelResult<Step242ProductStructure> ImportCore(string stepText, ImportPolicy? policy, bool allowSinglePartFallback)
     {
         var started = Stopwatch.GetTimestamp();
         var parsed = Step242SubsetParser.Parse(stepText);
@@ -233,6 +241,11 @@ public static class Step242AssemblyImporter
                 policy.RecoveryToleranceMillimetres);
             document.AllowBoundedNearCoincidentInnerLoop = policy.AllowBoundedNearCoincidentInnerLoop;
         }
+        if (allowSinglePartFallback
+            && !document.Entities.Any(entity => entity.Name == "NEXT_ASSEMBLY_USAGE_OCCURRENCE")
+            && Step242RigidRootClassifier.Classify(document).RigidRoots.Count <= 1)
+            return KernelResult<Step242ProductStructure>.Failure([
+                new(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Info, "Use the single-part STEP import path.", SinglePart)]);
         if (!document.Entities.Any(entity => entity.Name == "NEXT_ASSEMBLY_USAGE_OCCURRENCE")
             && document.Entities.Count(entity => entity.Name == "PRODUCT_DEFINITION") <= 1)
         {

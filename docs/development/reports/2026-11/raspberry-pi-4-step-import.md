@@ -126,5 +126,21 @@ separate step that reports what is wrong and asks before changing anything.
   14 µm still fails. Five NIST canonical hashes changed. None of the five has a platform override, so the shared
   snapshot covers every platform.
 
-Verdict: success. The reported file imports in full, with every compromise disclosed. Surface models remain out of
-scope and are reported as such.
+### Follow-up: reopening the exported solids
+
+Native import wrote all 89 solids, but Aetheris could not reopen the package it had just written.
+Exported Body 33 (source solid `#256033`) had two equivalent linear trims for a
+singly used edge on a cylinder. They differed by one complete period of the
+surface chart. The importer now accepts this tie when both directed lines have
+the same parameter interval and the full difference is a constant chart period.
+Repeated seam uses still require distinct sides, and an ambiguous assignment
+of different traces still fails.
+
+The isolated component now reopens. The complete generated package reopened
+and exported to GLB with all 89 solid definitions. The production browser build
+also opened the original file, displayed the 1,978 skipped surface models in
+its import warning, and saved and reopened the resulting workspace.
+
+Native Windows x64 and Apple Silicon runners regenerated canonical hash
+overrides and passed the strict NIST corpus snapshot check with snapshot updates
+disabled. All other report fields matched before the overrides were written.

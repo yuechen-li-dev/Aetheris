@@ -42,7 +42,7 @@ public static partial class SingleEdgeFinishTrial
         {
             var outline = FirmamentLanguageOutlineService.Outline(source, "trial", "0");
             var body = outline.Nodes.FirstOrDefault(n => n.Name == selection.Body && n.Kind is not ("Modify" or "modify") && !n.Call);
-            if (body is null) return (null, $"The body '{selection.Body}' is not declared in this document.");
+            if (body is null) return (null, $"EdgeFinishBodyNotInDocument: The body '{selection.Body}' is not declared in this document.");
             var name = UniqueName(source, kind == "Fillet" ? "EdgeFillet" : "EdgeChamfer");
             var inserted = FirmamentLanguageEditService.Apply(source, "trial", "0",
                 [new("insertFeature") { Node = body.Id, Source = palette.Source, Name = name }]);
@@ -171,6 +171,13 @@ public static partial class SingleEdgeFinishTrial
             "ProfileBoundaryChamferArcMaterializationNotImplemented" =>
                 "Chamfers on curved edges are not supported yet.",
             "longitudinal-edge-finish" => detail.Contains(':') ? detail[(detail.IndexOf(':') + 1)..].Trim() : detail,
+            // The compiler's text tells an author to add EndClearance; a person picking the edge needs the cause.
+            "ProfileBoundaryFilletFullLengthCornerUnsupported" => detail.Contains("inside corner", StringComparison.Ordinal)
+                ? "This edge runs into an inside corner, where a fillet along the whole edge is not supported yet. A chamfer works here."
+                : "This edge meets a neighbouring edge at an angle that is not square, where a fillet along the whole edge is not supported yet. A chamfer works here.",
+            "ProfileBoundaryFilletRadiusExceedsNeighbour" => detail,
+            "EdgeFinishBodyNotInDocument" =>
+                $"This edge belongs to a body made by a library part or template, so a {finish} cannot be written here. Finish it where that part is defined.",
             _ => message
         };
     }

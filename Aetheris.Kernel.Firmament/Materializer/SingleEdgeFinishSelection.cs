@@ -39,7 +39,7 @@ public sealed record SingleEdgeFinishSelection(string Body, string Face, string 
             // A split descendant is only part of a source segment. Never promote it to a whole segment or chain.
             if (counts[(source, face)] != 1) continue;
             var target = source["profile:".Length..];
-            output[group.Key] = new(correspondence.BodyStableId, face, target, "Extrusion end-face edge", FilletSupported: false);
+            output[group.Key] = new(correspondence.BodyStableId, face, target, "Extrusion end-face edge");
         }
         foreach (var edge in correspondence.Descendants.Where(d => d.Edge is not null && d.Role is SemanticTopologyRole.ConvexLongitudinalEdge or SemanticTopologyRole.ReflexLongitudinalEdge))
             output[edge.Edge!.Value] = new(correspondence.BodyStableId, "Longitudinal", edge.SourceStableId["profile:".Length..] + ".Start",

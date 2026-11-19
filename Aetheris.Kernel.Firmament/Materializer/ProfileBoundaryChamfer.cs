@@ -166,8 +166,12 @@ public static class ProfileBoundaryChamferSourceBinder
 
         if (closed && clearanceMatch.Success) { diagnostic = "ProfileBoundaryFilletEndClearanceRequiresOpenChain: Closed loops have no endpoint clearance; remove endClearance."; return false; }
 
-        endClearance = clearanceMatch.Success && double.TryParse(clearanceMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var explicitClearance) ? explicitClearance : radius;
-        if (!double.IsFinite(endClearance) || endClearance <= 0d) { diagnostic = "ProfileBoundaryFilletEndClearanceMustBePositive"; return false; }
+        // One edge's round runs its whole length unless EndClearance stops it short of the corners; a chain's
+        // ends stop one radius short by default.
+        var singleSegment = chainKind == ProfileBoundaryChamferChainKind.SingleSegment;
+        endClearance = clearanceMatch.Success && double.TryParse(clearanceMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var explicitClearance)
+            ? explicitClearance : singleSegment ? 0d : radius;
+        if (!double.IsFinite(endClearance) || endClearance < 0d || endClearance <= 0d && !singleSegment) { diagnostic = "ProfileBoundaryFilletEndClearanceMustBePositive"; return false; }
         var reflexJunctionMatch = fields.Read("ReflexJunction", ReflexJunction);
         var reflexJunctionStyle = ProfileReflexJunctionStyle.ToroidalRolling;
         if (reflexJunctionMatch.Success && (!Enum.TryParse(reflexJunctionMatch.Groups["value"].Value, ignoreCase: false, out reflexJunctionStyle) ||
@@ -739,6 +743,17 @@ public static class ProfileStraightEdgeFilletPlanner
         var frame = profile.EffectiveConstructionPlane;
         var tangent = Direction3D.Create(frame.ToWorldDirection(new Vector3D(dx / length, dy / length, 0d)));
         var inward2 = signedArea > 0d ? (-dy / length, dx / length) : (dy / length, -dx / length);
+        if (clearance <= Tol)
+        {
+            // A full-length round ends in its neighbours' side planes. At a square convex corner the neighbour
+            // runs along the inward normal, so the round's end section lies in that plane and the neighbour
+            // keeps one planar face. Any other corner needs a different end.
+            var count = loop.Segments.Count;
+            var previous = (LineArcLineSegment2D)loop.Segments[(index + count - 1) % count].Geometry;
+            var following = (LineArcLineSegment2D)loop.Segments[(index + 1) % count].Geometry;
+            if (FullLengthCornerProblem(previous, inward2, radius, atStart: true) is { } startProblem) return Fail(startProblem);
+            if (FullLengthCornerProblem(following, inward2, radius, atStart: false) is { } endProblem) return Fail(endProblem);
+        }
         var inward = Direction3D.Create(frame.ToWorldDirection(new Vector3D(inward2.Item1, inward2.Item2, 0d)));
         var axis = frame.AxisZ;
         var station = target.Side == ProfileBoundaryChamferSide.Top ? end : start;
@@ -758,8 +773,27 @@ public static class ProfileStraightEdgeFilletPlanner
         return BuildBody(profile, loop, index, plan, start, end);
     }
 
+    /// <summary>Why a full-length round cannot end at this neighbour, or null when the corner is square and convex.</summary>
+    private static string? FullLengthCornerProblem(LineArcLineSegment2D neighbour, (double X, double Y) inward, double radius, bool atStart)
+    {
+        var nx = neighbour.End.X - neighbour.Start.X; var ny = neighbour.End.Y - neighbour.Start.Y; var length = Math.Sqrt(nx * nx + ny * ny);
+        // Leaving the round's start, the previous edge arrives against the inward normal; at its end the next edge leaves along it.
+        var along = (nx * inward.X + ny * inward.Y) / length * (atStart ? -1d : 1d);
+        var end = atStart ? "start" : "end";
+        if (along < -1e-9)
+            return $"ProfileBoundaryFilletFullLengthCornerUnsupported: The edge's {end} runs into an inside corner; a round along the whole edge cannot end there yet. Add EndClearance to stop short of the corners.";
+        if (Math.Abs(along - 1d) > 1e-9)
+            return $"ProfileBoundaryFilletFullLengthCornerUnsupported: The edge's {end} meets its neighbour at {Math.Acos(Math.Clamp(along, -1d, 1d)) * 180d / Math.PI + 90d:0.#}°, not square; a round along the whole edge needs square corners so far. Add EndClearance to stop short of the corners.";
+        if (length <= radius + Tol)
+            return $"ProfileBoundaryFilletRadiusExceedsNeighbour: The edge at the {end} is {length:0.###} mm long; the radius must be shorter.";
+        return null;
+    }
+
     private static ProfileStraightEdgeFilletPlanResult BuildBody(ResolvedProfile2D profile, ResolvedProfileLoop2D loop, int selected, ProfileStraightEdgeFilletPlan plan, double start, double end)
     {
+        // A full-length round (no end clearance) ends in its square neighbours' side planes: the cap loses its
+        // two corners, each neighbour's side takes the round's end arc, and there are no end faces.
+        var full = plan.EndClearance <= Tol;
         ProfileStraightEdgeFilletPlanResult Fail(string code) => new(false, null, null, plan, [code]);
         var builder = new TopologyBuilder(); var geometry = new BrepGeometryStore(); var bindings = new BrepBindingModel(); var points = new Dictionary<VertexId, Point3D>();
         var vertices = new Dictionary<string, VertexId>(StringComparer.Ordinal); var edges = new Dictionary<(VertexId, VertexId), EdgeId>(); var descendants = new List<SemanticTopologyDescendant>();
@@ -808,7 +842,7 @@ public static class ProfileStraightEdgeFilletPlanner
             var line = (LineArcLineSegment2D)loop.Segments[i].Geometry;
             lower[i] = Vertex($"lower:{i}", frame.ToWorld(line.Start, start)); upper[i] = Vertex($"upper:{i}", frame.ToWorld(line.Start, end));
         }
-        var sharpStart = Vertex("sharp-start", plan.SpanStart); var sharpEnd = Vertex("sharp-end", plan.SpanEnd);
+        var sharpStart = full ? default : Vertex("sharp-start", plan.SpanStart); var sharpEnd = full ? default : Vertex("sharp-end", plan.SpanEnd);
         var capStart = Vertex("cap-start", plan.CapContactStart); var capEnd = Vertex("cap-end", plan.CapContactEnd);
         var sideStart = Vertex("side-start", plan.SideContactStart); var sideEnd = Vertex("side-end", plan.SideContactEnd);
         var isTop = plan.Target.Side == ProfileBoundaryChamferSide.Top;
@@ -818,8 +852,9 @@ public static class ProfileStraightEdgeFilletPlanner
         var capBoundary = new List<(VertexId Vertex, bool Arc, Point3D? Center)>();
         for (var i = 0; i < n; i++)
         {
-            capBoundary.Add(L(isTop ? upper[i] : lower[i]));
-            if (i == selected) capBoundary.AddRange([L(sharpStart), L(capStart), L(capEnd), L(sharpEnd)]);
+            var corner = i == selected || i == (selected + 1) % n;
+            if (!full || !corner) capBoundary.Add(L(isTop ? upper[i] : lower[i]));
+            if (i == selected) capBoundary.AddRange(full ? [L(capStart), L(capEnd)] : [L(sharpStart), L(capStart), L(capEnd), L(sharpEnd)]);
         }
         Face(isTop ? $"{plan.Target.StableId}:top-cap" : $"{plan.Target.StableId}:bottom-cap", (isTop ? capBoundary : capBoundary.AsEnumerable().Reverse()).ToArray(), capPlane, isTop ? SemanticTopologyRole.TopFaceBoundaryLoop : SemanticTopologyRole.BottomFaceBoundaryLoop, $"profile:{profile.Name}.{loop.Name}", plan.Target.StableId);
         Face(isTop ? $"{plan.Target.StableId}:bottom-cap" : $"{plan.Target.StableId}:top-cap", (isTop ? lower.Reverse() : upper).Select(L).ToArray(), otherCapPlane, isTop ? SemanticTopologyRole.BottomFaceBoundaryLoop : SemanticTopologyRole.TopFaceBoundaryLoop, $"profile:{profile.Name}.{loop.Name}", plan.Target.StableId);
@@ -831,8 +866,28 @@ public static class ProfileStraightEdgeFilletPlanner
             var outNormal = Direction3D.Create(frame.ToWorldDirection(new Vector3D(localDy / localLength, -localDx / localLength, 0d)));
             var localTangent = Direction3D.Create(frame.ToWorldDirection(new Vector3D(localDx / localLength, localDy / localLength, 0d)));
             var surface = SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld(line.Start, start), outNormal, localTangent));
-            if (i != selected)
+            if (full && next == selected)
+            {
+                // The previous neighbour's side takes the round's start arc in place of its far corner.
+                var previousSide = isTop ? new[] { L(lower[i]), L(lower[next]), A(sideStart, plan.CylinderCenterlineStart), L(capStart), L(upper[i]) }
+                    : new[] { L(lower[i]), A(capStart, plan.CylinderCenterlineStart), L(sideStart), L(upper[next]), L(upper[i]) };
+                Face($"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}:side", previousSide, surface, SemanticTopologyRole.ExtrusionSideFace, $"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}", plan.Target.StableId);
+            }
+            else if (full && i == (selected + 1) % n)
+            {
+                // The next neighbour's side takes the round's end arc in place of its near corner.
+                var nextSide = isTop ? new[] { L(sideEnd), L(lower[i]), L(lower[next]), L(upper[next]), A(capEnd, plan.CylinderCenterlineEnd) }
+                    : new[] { L(capEnd), L(lower[next]), L(upper[next]), L(upper[i]), A(sideEnd, plan.CylinderCenterlineEnd) };
+                Face($"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}:side", nextSide, surface, SemanticTopologyRole.ExtrusionSideFace, $"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}", plan.Target.StableId);
+            }
+            else if (i != selected)
                 Face($"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}:side", [L(lower[i]), L(lower[next]), L(upper[next]), L(upper[i])], surface, SemanticTopologyRole.ExtrusionSideFace, $"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}");
+            else if (full)
+            {
+                var trimmed = isTop ? new[] { L(lower[i]), L(lower[next]), L(sideEnd), L(sideStart) }
+                    : new[] { L(sideStart), L(sideEnd), L(upper[next]), L(upper[i]) };
+                Face($"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}:trimmed-side", trimmed, surface, SemanticTopologyRole.ExtrusionSideFace, $"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}", plan.Target.StableId);
+            }
             else
             {
                 var a = isTop ? new[] { L(lower[i]), L(lower[next]), L(upper[next]), L(sharpEnd), L(sideEnd), L(sideStart), L(sharpStart), L(upper[i]) }
@@ -842,10 +897,15 @@ public static class ProfileStraightEdgeFilletPlanner
         }
         var cylinder = SurfaceGeometry.FromCylinder(new CylinderSurface(plan.CylinderCenterlineStart, plan.Tangent, plan.Radius, isTop ? plan.ExtrusionAxis : Direction3D.Create(-plan.ExtrusionAxis.ToVector())));
         Face($"{plan.Target.StableId}:FilletSurface", [L(capStart), A(capEnd, plan.CylinderCenterlineEnd), L(sideEnd), A(sideStart, plan.CylinderCenterlineStart)], cylinder, SemanticTopologyRole.FilletSurface, plan.Target.StableId, plan.Target.StableId);
-        var startTerm = SurfaceGeometry.FromPlane(new PlaneSurface(plan.SpanStart, Direction3D.Create(-plan.Tangent.ToVector()), isTop ? plan.ExtrusionAxis : Direction3D.Create(-plan.ExtrusionAxis.ToVector())));
-        var endTerm = SurfaceGeometry.FromPlane(new PlaneSurface(plan.SpanEnd, plan.Tangent, isTop ? plan.ExtrusionAxis : Direction3D.Create(-plan.ExtrusionAxis.ToVector())));
-        Face($"{plan.Target.StableId}:StartTerminationFace", [L(sharpStart), A(capStart, plan.CylinderCenterlineStart), L(sideStart)], startTerm, SemanticTopologyRole.StartTerminationFace, plan.Target.StableId, plan.Target.StableId);
-        Face($"{plan.Target.StableId}:EndTerminationFace", [L(sharpEnd), A(sideEnd, plan.CylinderCenterlineEnd), L(capEnd)], endTerm, SemanticTopologyRole.EndTerminationFace, plan.Target.StableId, plan.Target.StableId);
+        // An end wall faces into the groove: material lies before the round's start and after its end, so the
+        // start wall's outward normal runs along the edge and the end wall's against it.
+        var startTerm = SurfaceGeometry.FromPlane(new PlaneSurface(plan.SpanStart, plan.Tangent, isTop ? plan.ExtrusionAxis : Direction3D.Create(-plan.ExtrusionAxis.ToVector())));
+        var endTerm = SurfaceGeometry.FromPlane(new PlaneSurface(plan.SpanEnd, Direction3D.Create(-plan.Tangent.ToVector()), isTop ? plan.ExtrusionAxis : Direction3D.Create(-plan.ExtrusionAxis.ToVector())));
+        if (!full)
+        {
+            Face($"{plan.Target.StableId}:StartTerminationFace", [L(sharpStart), A(capStart, plan.CylinderCenterlineStart), L(sideStart)], startTerm, SemanticTopologyRole.StartTerminationFace, plan.Target.StableId, plan.Target.StableId);
+            Face($"{plan.Target.StableId}:EndTerminationFace", [L(sharpEnd), A(sideEnd, plan.CylinderCenterlineEnd), L(capEnd)], endTerm, SemanticTopologyRole.EndTerminationFace, plan.Target.StableId, plan.Target.StableId);
+        }
 
         var shell = builder.AddShell(builder.Model.Faces.Select(x => x.Id).ToArray()); builder.AddBody([shell]);
         var body = new BrepBody(builder.Model, geometry, bindings, points);
@@ -855,10 +915,14 @@ public static class ProfileStraightEdgeFilletPlanner
         AddEdgeDescendant("SideContactEdge", LineEdge(sideStart, sideEnd), SemanticTopologyRole.SideContactEdge);
         AddEdgeDescendant("StartEndpointArc", ArcEdge(capStart, sideStart, plan.CylinderCenterlineStart), SemanticTopologyRole.StartEndpointArc);
         AddEdgeDescendant("EndEndpointArc", ArcEdge(capEnd, sideEnd, plan.CylinderCenterlineEnd), SemanticTopologyRole.EndEndpointArc);
-        AddEdgeDescendant("RetainedStartSharpEdge", LineEdge(sourceStart, sharpStart), SemanticTopologyRole.RetainedStartSharpEdge);
-        AddEdgeDescendant("RetainedEndSharpEdge", LineEdge(sharpEnd, sourceEnd), SemanticTopologyRole.RetainedEndSharpEdge);
+        if (!full)
+        {
+            AddEdgeDescendant("RetainedStartSharpEdge", LineEdge(sourceStart, sharpStart), SemanticTopologyRole.RetainedStartSharpEdge);
+            AddEdgeDescendant("RetainedEndSharpEdge", LineEdge(sharpEnd, sourceEnd), SemanticTopologyRole.RetainedEndSharpEdge);
+        }
         var correspondence = new SemanticTopologyCorrespondence(plan.Target.HostBodyId, descendants, ["ResolvedProfile2D", "ProfileStraightEdgeFilletPlan", "FilletSpanInset", "AuthoritativeBRepPlan"]);
-        return new(true, body, correspondence, plan, ["ProfileStraightEdgeFilletPlan", "ProfileBoundaryFilletExactQuarterCylinder", "ProfileBoundaryFilletEndpointTerminationFaces"]);
+        return new(true, body, correspondence, plan, ["ProfileStraightEdgeFilletPlan", "ProfileBoundaryFilletExactQuarterCylinder",
+            full ? "ProfileBoundaryFilletFullLengthSquareEnds" : "ProfileBoundaryFilletEndpointTerminationFaces"]);
 
         void AddEdgeDescendant(string name, EdgeId edge, SemanticTopologyRole role) => descendants.Add(new($"{plan.Target.StableId}:{name}", "Edge", role, plan.Target.StableId, Edge: edge, ParentStableId: plan.Target.StableId));
     }

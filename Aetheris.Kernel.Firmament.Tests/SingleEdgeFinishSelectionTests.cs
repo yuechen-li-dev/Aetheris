@@ -19,16 +19,18 @@ public sealed class SingleEdgeFinishSelectionTests
     [InlineData("Bottom", "Fillet")]
     [InlineData("Top", "Chamfer")]
     [InlineData("Bottom", "Chamfer")]
-    public void LegacyCapFeature_RemainsBuildable_WithoutAdvertisingAFullEdgeFillet(string side, string kind)
+    public void CapEdgeFinish_StopShortOfItsCorners_RemainsBuildable(string side, string kind)
     {
         var original = FirmamentBuildAndExport.CompileSource(Bracket).Value;
         var correspondence = original.RuntimeCorrespondence!;
         var role = side == "Top" ? SemanticTopologyRole.TopBoundary : SemanticTopologyRole.BottomBoundary;
         var descendant = Assert.Single(correspondence.Descendants, d => d.Role == role && d.SourceStableId == "profile:section.Outer.Vertex2_Vertex3");
         var selected = SingleEdgeFinishSelection.Resolve(correspondence, descendant.Edge!.Value)!;
-        Assert.Equal(new("bracket", side, "section.Outer.Vertex2_Vertex3", "Extrusion end-face edge", FilletSupported: false), selected);
-        var field = kind == "Fillet" ? "Radius" : "Distance";
-        var source = Bracket[..Bracket.LastIndexOf('}')] + $"Modify {selected.Body} {{ EdgeFinish Picked {{ Face: {selected.Face} Target: {selected.Target} Kind: {kind} {field}: 0.5mm }} }} }}";
+        Assert.Equal(new("bracket", side, "section.Outer.Vertex2_Vertex3", "Extrusion end-face edge"), selected);
+        // This edge runs into the inside bend, so a fillet along its whole length is refused (see
+        // SingleEdgeFinishTrialTests); EndClearance keeps the round short of both corners.
+        var size = kind == "Fillet" ? "Radius: 0.5mm EndClearance: 0.5mm" : "Distance: 0.5mm";
+        var source = Bracket[..Bracket.LastIndexOf('}')] + $"Modify {selected.Body} {{ EdgeFinish Picked {{ Face: {selected.Face} Target: {selected.Target} Kind: {kind} {size} }} }} }}";
         var result = FirmamentBuildAndExport.CompileSource(source);
         Assert.True(result.IsSuccess, string.Join(";", result.Diagnostics.Select(d => d.Message)));
         var mass = BrepMassProperties.Evaluate(result.Value.RuntimeBody!);

@@ -95,3 +95,21 @@ Judged by what a person picking the edge expects, not by what the routes cover:
 
 Verdict: meaningful progression. The offer can no longer disagree with the build, and what it offers builds across
 its range. The next blocker is coverage, isolated above, led by full-length fillets on end-face edges.
+
+## Follow-up: full-length fillets on end-face edges
+
+- A fillet on one Top or Bottom edge with no `EndClearance` runs the whole edge. At square outside corners the
+  round's end section lies in the neighbour's side plane: the cap loses its two corners, each neighbour's side face
+  takes the end arc, and there are no end walls. Inside, slanted and too-short neighbours reject naming the end.
+  Explicit `EndClearance` keeps the stop-short round; chains keep stopping one radius short.
+- The stop-short round's end walls faced into the material. Its STEP reread at a different volume (4019.857 against
+  4019.570 mm³ on the bracket foot) and an independent reader rejected both faces. They now face the groove.
+- Evidence: bracket foot end, r = 1 mm, top and bottom: 4019.356194 mm³ against the closed form 4019.3561945, by an
+  independent kernel reading the STEP, no issues; stop-short 4019.570796 against 4019.5707963. Canonical admission
+  rose from 825 to 958 finishes; all 958 build at 25, 50 and 75% of their range. 142 refusals on library-part bodies
+  now carry `EdgeFinishBodyNotInDocument`.
+- Remaining cap-fillet refusals: composed bodies (276), a body that already has a finish (264), and profiles holding
+  any arc, even away from the edge (154).
+
+Verdict: success for the motivating case: picking a square-cornered end-face edge and choosing Fillet rounds it
+end to end, in Helios and in source.

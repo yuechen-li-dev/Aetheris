@@ -1,4 +1,6 @@
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Verification;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Materializer;
 
@@ -44,11 +46,11 @@ public sealed class SingleEdgeFinishTrialTests
         var fillets = SingleEdgeFinishTrial.Admit(source, directory, null, correspondence, "Fillet");
         var chamfers = SingleEdgeFinishTrial.Admit(source, directory, null, correspondence, "Chamfer");
         Assert.All(fillets.Where(a => a.Face == "Longitudinal"), a => Assert.True(a.Admitted, a.Reason));
+        // An end-face edge takes a round along its whole length where both its corners are square and
+        // convex; the others say which corner stops it.
         Assert.All(fillets.Where(a => a.Face is "Top" or "Bottom"), a =>
-        {
-            Assert.False(a.Admitted);
-            Assert.Equal("EdgeFinishFilletNotOffered", a.Code);
-        });
+            Assert.True(a.Admitted || a.Code == "ProfileBoundaryFilletFullLengthCornerUnsupported", $"{a.Target}: {a.Reason}"));
+        Assert.Contains(fillets, a => a.Face is "Top" or "Bottom" && a.Admitted);
         Assert.All(chamfers, a => Assert.True(a.Admitted, a.Reason));
         Assert.All(fillets.Concat(chamfers), a => Assert.NotEmpty(a.EdgeIds));
     }
@@ -89,6 +91,62 @@ public sealed class SingleEdgeFinishTrialTests
         var imported = Step242Importer.ImportBody(build.Value.StepText);
         Assert.True(imported.IsSuccess, string.Join(";", imported.Diagnostics.Select(d => d.Message)));
         Assert.Equal(expected, BrepMassProperties.Evaluate(imported.Value).AbsoluteVolume, 6);
+    }
+
+    /// <summary>The foot's end edge has square corners at both ends: its round runs the whole edge.</summary>
+    [Theory]
+    [InlineData("Top")]
+    [InlineData("Bottom")]
+    public void FilletOnOneEndFaceEdge_RunsItsWholeLength(string face)
+    {
+        var body = BuildBracketFillet(face, "section.Outer.Vertex1_Vertex2", "Radius: 1mm");
+        // 4020 mm³ less (1 - π/4) r² along the 3 mm edge; the neighbours keep one planar face each.
+        AssertVolume(4020d - (1d - Math.PI / 4d) * 3d, body);
+        Assert.Equal(9, body.Topology.Faces.Count());
+    }
+
+    [Theory]
+    [InlineData("Top")]
+    [InlineData("Bottom")]
+    /// <summary>
+    /// The end walls once faced into the material: the STEP reread with a different volume and other readers
+    /// rejected the faces. Rereading the export at the native volume is the check that catches it.
+    /// </summary>
+    public void FilletStoppingShortOfItsCorners_HasEndWallsFacingTheGroove(string face)
+    {
+        var body = BuildBracketFillet(face, "section.Outer.Vertex1_Vertex2", "Radius: 1mm EndClearance: 0.5mm");
+        AssertVolume(4020d - (1d - Math.PI / 4d) * 2d, body);
+    }
+
+    [Fact]
+    public void FilletOnAnEdgeRunningIntoAnInsideCorner_SaysSo()
+    {
+        var (source, _, correspondence) = Built(Bracket);
+        var admission = SingleEdgeFinishTrial.Admit(source, null, null, correspondence, "Fillet")
+            .Single(a => a.Face == "Top" && a.Target == "section.Outer.Vertex2_Vertex3");
+        Assert.False(admission.Admitted);
+        Assert.Equal("ProfileBoundaryFilletFullLengthCornerUnsupported", admission.Code);
+        Assert.Contains("inside corner", SingleEdgeFinishTrial.Explain(admission.Code!, admission.Reason!, "Fillet"));
+    }
+
+    /// <summary>Curved bodies' volume is integrated; it must hold the closed form within its own error bound.</summary>
+    private static void AssertVolume(double expected, BrepBody body)
+    {
+        var mass = BrepMassProperties.Evaluate(body);
+        Assert.True(mass.IsEnclosed); Assert.True(mass.IsOrientationConsistent);
+        var bound = Math.Max(1e-6, mass.ErrorBound ?? 0d);
+        Assert.True(Math.Abs(mass.AbsoluteVolume - expected) <= bound, $"volume {mass.AbsoluteVolume} against {expected} ± {bound} ({mass.EvaluationMethod})");
+    }
+
+    private static BrepBody BuildBracketFillet(string face, string target, string size)
+    {
+        var source = Bracket[..Bracket.LastIndexOf('}')] + $"Modify bracket {{ EdgeFinish Round {{ Face: {face} Target: {target} Kind: Fillet {size} }} }} }}";
+        var build = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(build.IsSuccess, string.Join(";", build.Diagnostics.Select(d => d.Message)));
+        var imported = Step242Importer.ImportBody(build.Value.StepText);
+        Assert.True(imported.IsSuccess, string.Join(";", imported.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(BrepMassProperties.Evaluate(build.Value.RuntimeBody!).AbsoluteVolume, BrepMassProperties.Evaluate(imported.Value).AbsoluteVolume, 6);
+        return build.Value.RuntimeBody!;
     }
 
     [Fact]

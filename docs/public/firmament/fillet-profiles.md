@@ -61,6 +61,19 @@ Non-right-angle reflex fillets and interacting/collapsing finishes are not
 silently approximated. `endClearance` applies to an open chain, and is rejected
 on a closed loop, which has no endpoints.
 
+A fillet on one edge of a Top or Bottom face runs the whole edge unless
+`endClearance` stops it short of the corners:
+
+```firmament
+Modify bracket { EdgeFinish ToeRound { Face: Top Target: section.Outer.Toe Kind: Fillet Radius: 1mm } }
+```
+
+The round ends in its neighbouring edges' side faces, so both corners must be
+square outside corners. An edge that runs into an inside corner, or meets a
+neighbour at another angle, is rejected and names that end; add `endClearance`
+to keep the round short of both corners instead. A chain of two or more edges
+stops one radius short of its ends unless `endClearance` says otherwise.
+
 General surface blending remains a low-level sculpting operation with explicit
 supports, trims and continuity contracts. It is not a prerequisite for these
 ordinary CAD finishes. See [sculpting](sculpting.md) for that separate authority.

@@ -352,7 +352,9 @@ The details that trip people up:
   all-edge chamfer is refused.
 - **Size.** A finish must leave a non-collapsing cap. Straight polygon corners
   need not be right angles; tangent line/arc rims and arcs closed by a chord also
-  work. `endClearance` is for open chains and rejects on closed loops.
+  work. `endClearance` is for open chains and rejects on closed loops. A fillet on
+  one Top or Bottom edge runs the whole edge when both its corners are square
+  outside corners; otherwise set `endClearance` to stop short of them.
 
 The [fillet and chamfer guide](../../firmament/fillet-profiles.md) has
 executable examples and explains how the planner chooses a construction.

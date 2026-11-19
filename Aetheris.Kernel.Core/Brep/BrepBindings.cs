@@ -101,6 +101,25 @@ public sealed record PcurveGeometry
         return new(PcurveGeometryKind.Polynomial, domain, []) { PolynomialCurve = curve };
     }
 
+    /// <summary>The same trace moved by (du, dv) in parameter space, at the same parameter.</summary>
+    public PcurveGeometry Translated(double du, double dv)
+    {
+        if (du == 0d && dv == 0d) return this;
+        SurfaceParameterPoint Move(SurfaceParameterPoint p) => new(p.U + du, p.V + dv);
+        if (PolynomialCurve is { } spline)
+        {
+            // Affine maps commute with (rational) B-spline evaluation on Euclidean control points.
+            var moved = new BSpline3Curve(spline.Degree, spline.ControlPoints.Select(p => new Math.Point3D(p.X + du, p.Y + dv, 0d)).ToArray(),
+                spline.KnotMultiplicities, spline.KnotValues, spline.CurveForm, spline.ClosedCurve, spline.SelfIntersect, spline.KnotSpec);
+            return RationalWeights is { } weights ? RationalPolynomial(Domain, moved, weights) : Polynomial(Domain, moved);
+        }
+        return Kind switch
+        {
+            PcurveGeometryKind.Circle or PcurveGeometryKind.Ellipse => new(Kind, Domain, [Move(Points[0]), .. Points.Skip(1)]),
+            _ => new(Kind, Domain, Points.Select(Move).ToArray())
+        };
+    }
+
     public static PcurveGeometry RationalPolynomial(ParameterInterval domain, BSpline3Curve curve, IReadOnlyList<double> weights)
     {
         if (weights.Count != curve.ControlPoints.Count || weights.Any(weight => !double.IsFinite(weight) || weight <= 0d))

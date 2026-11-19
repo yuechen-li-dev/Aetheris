@@ -63,6 +63,12 @@ public readonly record struct ConeSurface
 
     public double PlacementRadius { get; }
 
+    /// <summary>
+    /// STEP's CONICAL_SURFACE measures v along the axis from its placement, where the radius is
+    /// <see cref="PlacementRadius"/>; this surface measures it from the apex. Internal v is STEP v plus this.
+    /// </summary>
+    public double StepVOffset => PlacementRadius / double.Tan(SemiAngleRadians);
+
     public double AxialParameterFromPoint(Point3D point)
     {
         var offset = PlacementRadius / double.Tan(SemiAngleRadians);

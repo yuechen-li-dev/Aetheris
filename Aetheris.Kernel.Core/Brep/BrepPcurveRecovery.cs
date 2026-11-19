@@ -98,6 +98,25 @@ public static class BrepPcurveRecovery
         return new(diagnostics.Count == 0, count, maximum, diagnostics);
     }
 
+    /// <summary>
+    /// The pcurve of an edge on its support, running at the edge's parameter, built as a missing pcurve is
+    /// built and proved the same way (its lift stays within <paramref name="tolerance"/> of the edge), or null.
+    /// </summary>
+    internal static PcurveGeometry? TryBuildAtEdgeParameter(SurfaceGeometry surface, CurveGeometry curve, ParameterInterval interval, double tolerance)
+    {
+        try
+        {
+            var built = Build(surface, curve, interval, tolerance, 129);
+            if (built.Pcurve is null) return null;
+            var samples = surface.BSplineSurfaceWithKnots is null ? 1025 : 8193;
+            return MaximumResidual(surface, curve, built.Pcurve, interval, samples) <= tolerance ? built.Pcurve : null;
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
     private static bool WithinDomain(SurfaceGeometry surface, PcurveGeometry pcurve)
     {
         if (surface.BSplineSurfaceWithKnots is not { } spline) return true;

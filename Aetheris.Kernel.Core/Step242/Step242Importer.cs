@@ -193,6 +193,7 @@ public static class Step242Importer
             return Step242ImportSharedUtilities.NotImplementedFailure<BrepBody>($"Entity #{rigidRootEntityId} is not an exact rigid BRep root.", "Importer.Assembly.ProductDefinitionGeometry");
         var shellRoleDiagnostics = new List<KernelDiagnostic>();
         var importRepairs = new List<Aetheris.Kernel.Core.Import.ImportQualificationReason>();
+        var reparameterizedPcurves = 0;
         // Surface binding reports what it did with each spline face (recovered as a primitive, or retained); those
         // findings are the record of how faithfully the file was read, so they travel with the imported body.
         var surfaceBindingDiagnostics = new List<KernelDiagnostic>();
@@ -639,7 +640,22 @@ public static class Step242Importer
                 var pcurveBindings = ResolveLoopPcurveBindings(loop, faceId, surfaceGeometryId, surfaceGeometry, bindings,
                     double.Max(1e-6d, document.SourceDistanceAccuracyMillimetres ?? 0d));
                 if (!pcurveBindings.IsSuccess) return KernelResult<BrepBody>.Failure(pcurveBindings.Diagnostics);
-                foreach (var pcurve in pcurveBindings.Value) bindings.AddPcurveBinding(pcurve);
+                foreach (var pcurve in pcurveBindings.Value)
+                {
+                    var edgeBinding = bindings.GetEdgeBinding(loop.Coedges.First(c => c.Id == pcurve.CoedgeId).EdgeId);
+                    var kept = pcurve;
+                    // A STEP cone's v starts at its placement circle; ours starts at the apex.
+                    if (surfaceGeometry.Cone is { } cone && cone.StepVOffset != 0d)
+                        kept = kept with { Pcurve = kept.Pcurve.Translated(0d, cone.StepVOffset) };
+                    if (edgeBinding.TrimInterval is { } trim && geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var edgeCurve) && edgeCurve is not null
+                        && TrySameParameterTrace(kept, surfaceGeometry, edgeCurve, trim,
+                            double.Max(1e-6d, document.SourceDistanceAccuracyMillimetres ?? 0d), out var reparameterized))
+                    {
+                        kept = reparameterized;
+                        reparameterizedPcurves++;
+                    }
+                    bindings.AddPcurveBinding(kept);
+                }
             }
             var hasDeclaredOuter = classifyResult.Value.Any(loop => loop.IsDeclaredOuter)
                 || vertexLoopData.Any(loop => loop.IsDeclaredOuter);
@@ -738,6 +754,14 @@ public static class Step242Importer
             return KernelResult<BrepBody>.Failure(shellRoleDiagnostics
                 .Concat(surfaceBindingDiagnostics)
                 .Concat(orientation.Diagnostics));
+        }
+
+        if (reparameterizedPcurves > 0)
+        {
+            var message = $"{reparameterizedPcurves} pcurve(s) trace their edge but run at a different parameter speed; each was replaced by the pcurve built from the edge, which runs at the edge's own parameter.";
+            importRepairs.Add(new("step-import-pcurve-reparameterized", message));
+            surfaceBindingDiagnostics.Add(new(KernelDiagnosticCode.Unknown, KernelDiagnosticSeverity.Info,
+                "step-import-pcurve-reparameterized: " + message, "Importer.Pcurve.Reparameterized"));
         }
 
         BrepPcurveEvidence? qualificationEvidence = null;
@@ -3507,6 +3531,108 @@ public static class Step242Importer
             }
             return true;
         }
+    }
+
+    /// <summary>
+    /// A pcurve must run at its edge's parameter: point t of the trim is point t of the edge. Some writers keep a
+    /// pcurve's trace but not its speed. A circle's pcurve written as a rational B-spline (three 120° arcs,
+    /// weights 1/2, knots in radians) is not angle-uniform, so point t lands up to 0.039 rad (2.2°) along the
+    /// circle from the edge's; a cone generator's pcurve may advance v by its slant length, not its axial
+    /// length; a spline edge's pcurve may be parameterized independently of it. The trace is what the face
+    /// uses, so when the source pcurve's whole trace lies on the edge's curve and covers the trimmed edge, it is
+    /// replaced by the pcurve built from the edge, which runs at the edge's own parameter and whose lift is
+    /// proved to stay on the edge. A trace off the edge's curve is a gap, and is left to the consistency check.
+    /// </summary>
+    private static bool TrySameParameterTrace(CoedgePcurveBinding binding, SurfaceGeometry surface, CurveGeometry curve,
+        ParameterInterval trim, double tolerance, out CoedgePcurveBinding reparameterized)
+    {
+        reparameterized = binding;
+        var source = binding.Pcurve;
+        Point3D? Lift(SurfaceParameterPoint uv) => BrepPcurveValidator.Evaluate(surface, uv);
+        SurfaceParameterPoint SourceAtEdge(double t) => source.Evaluate(binding.SameSense ? t : trim.End - (t - trim.Start));
+
+        const int samples = 33;
+        var atSpeed = 0d;
+        for (var i = 0; i < samples; i++)
+        {
+            var t = trim.Start + (trim.End - trim.Start) * i / (samples - 1d);
+            if (Lift(SourceAtEdge(t)) is not { } lifted || BrepPcurveValidator.Evaluate(curve, t) is not { } onCurve) return false;
+            atSpeed = double.Max(atSpeed, (lifted - onCurve).Length);
+        }
+        if (atSpeed <= tolerance) return false;
+
+        // The source traces the edge's curve over its whole domain ...
+        ParameterInterval? curveDomain = curve.Kind switch
+        {
+            CurveGeometryKind.BSpline3 => new ParameterInterval(curve.BSpline3!.Value.DomainStart, curve.BSpline3!.Value.DomainEnd),
+            CurveGeometryKind.Ellipse3 => new ParameterInterval(0d, double.Tau),
+            _ => null
+        };
+        double? OffCurve(Point3D point)
+        {
+            if (curve.Line3 is { } line)
+            {
+                var d = point - line.Origin; var axis = line.Direction.ToVector();
+                return (d - axis * d.Dot(axis)).Length;
+            }
+            if (curve.Circle3 is { } circle)
+            {
+                var offset = point - circle.Center; var normal = circle.Normal.ToVector();
+                var axial = offset.Dot(normal);
+                var radial = (offset - normal * axial).Length - circle.Radius;
+                return double.Sqrt(radial * radial + axial * axial);
+            }
+            if (curveDomain is not { } domain) return null;
+            return NearestDistance(t => BrepPcurveValidator.Evaluate(curve, t)!.Value, domain, point, (a, b) => (a - b).Length);
+        }
+        const int dense = 513;
+        var traced = new SurfaceParameterPoint[dense];
+        for (var i = 0; i < dense; i++)
+        {
+            traced[i] = source.Evaluate(source.Domain.Start + (source.Domain.End - source.Domain.Start) * i / (dense - 1d));
+            if (Lift(traced[i]) is not { } lifted || OffCurve(lifted) is not { } off || off > tolerance) return false;
+        }
+
+        var built = BrepPcurveRecovery.TryBuildAtEdgeParameter(surface, curve, trim, tolerance);
+        if (built is null) return false;
+        double Nearest(SurfaceParameterPoint target) => NearestDistance(source.Evaluate, source.Domain, target, RawUvDistance);
+
+        // ... on the same turn of a periodic support ...
+        var periodicU = surface.Kind is SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus;
+        var periodicV = surface.Kind is SurfaceGeometryKind.Torus;
+        var middle = built.Evaluate((trim.Start + trim.End) / 2d);
+        var shifts = (from du in periodicU ? new[] { 0d, double.Tau, -double.Tau } : [0d]
+                      from dv in periodicV ? new[] { 0d, double.Tau, -double.Tau } : [0d]
+                      select (du, dv)).ToArray();
+        var (shiftU, shiftV) = shifts.MinBy(shift => Nearest(new(middle.U + shift.du, middle.V + shift.dv)));
+        built = built.Translated(shiftU, shiftV);
+
+        // ... and covers the trimmed edge, not just some of the curve.
+        for (var i = 0; i < 9; i++)
+            if (Nearest(built.Evaluate(trim.Start + (trim.End - trim.Start) * i / 8d)) > tolerance) return false;
+
+        reparameterized = binding with { Pcurve = built, SameSense = true };
+        return true;
+    }
+
+    /// <summary>The distance from <paramref name="target"/> to a curve over <paramref name="domain"/>: a dense scan, then ternary refinement.</summary>
+    private static double NearestDistance<T>(Func<double, T> evaluate, ParameterInterval domain, T target, Func<T, T, double> distance)
+    {
+        const int dense = 513;
+        var step = (domain.End - domain.Start) / (dense - 1d);
+        var best = 0; var bestDistance = double.PositiveInfinity;
+        for (var i = 0; i < dense; i++)
+        {
+            var d = distance(evaluate(domain.Start + step * i), target);
+            if (d < bestDistance) { bestDistance = d; best = i; }
+        }
+        var lo = domain.Start + step * double.Max(0, best - 1); var hi = domain.Start + step * double.Min(dense - 1, best + 1);
+        for (var k = 0; k < 80; k++)
+        {
+            var a = lo + (hi - lo) / 3d; var b = hi - (hi - lo) / 3d;
+            if (distance(evaluate(a), target) <= distance(evaluate(b), target)) hi = b; else lo = a;
+        }
+        return double.Min(bestDistance, distance(evaluate((lo + hi) / 2d), target));
     }
 
     private static double RawUvDistance(SurfaceParameterPoint left, SurfaceParameterPoint right)

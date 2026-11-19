@@ -1266,6 +1266,9 @@ public static class Step242Exporter
                     ? binding with { Pcurve = ReparameterizeLinePcurve(binding.Pcurve,
                         new ParameterInterval(binding.Pcurve.Domain.Start + periodShift, binding.Pcurve.Domain.End + periodShift)) }
                     : binding)
+                // A STEP cone's v starts at its placement circle; ours starts at the apex.
+                .Select(binding => body.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var support) && support?.Cone is { } cone
+                    && cone.StepVOffset != 0d ? binding with { Pcurve = binding.Pcurve.Translated(0d, -cone.StepVOffset) } : binding)
                 .Select(binding => BuildStepPcurve(writer, binding, surfaceIds, pcurveContextId,
                     curve.Kind == CurveGeometryKind.Line3 && binding.Qualification is
                         { Origin: PcurveBindingOrigin.RecoveredAnalytic or PcurveBindingOrigin.RecoveredSpline or PcurveBindingOrigin.DerivedAnalytic or PcurveBindingOrigin.ConstructedBoundary }

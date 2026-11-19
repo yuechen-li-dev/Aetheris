@@ -221,7 +221,7 @@ public static class BrepPcurveValidator
 
     private static bool FiniteOrdered(ParameterInterval interval) => double.IsFinite(interval.Start) && double.IsFinite(interval.End) && interval.End >= interval.Start;
 
-    private static Point3D? Evaluate(SurfaceGeometry surface, SurfaceParameterPoint uv) => surface.Kind switch
+    internal static Point3D? Evaluate(SurfaceGeometry surface, SurfaceParameterPoint uv) => surface.Kind switch
     {
         SurfaceGeometryKind.Plane => surface.Plane!.Value.Evaluate(uv.U, uv.V),
         SurfaceGeometryKind.Cylinder => surface.Cylinder!.Value.Evaluate(uv.U, uv.V),
@@ -230,6 +230,9 @@ public static class BrepPcurveValidator
         SurfaceGeometryKind.Torus => surface.Torus!.Value.Evaluate(uv.U, uv.V),
         SurfaceGeometryKind.Ellipsoid => surface.Ellipsoid!.Evaluate(uv.U, uv.V),
         SurfaceGeometryKind.BSplineSurfaceWithKnots => surface.BSplineSurfaceWithKnots!.Evaluate(uv.U, uv.V),
+        // ISO 10303-42: the directrix at u, moved v times the extrusion vector.
+        SurfaceGeometryKind.LinearExtrusion => Evaluate(surface.LinearExtrusion!.Value.Directrix, uv.U) is { } onDirectrix
+            ? onDirectrix + surface.LinearExtrusion!.Value.ExtrusionVector * uv.V : null,
         _ => null
     };
 

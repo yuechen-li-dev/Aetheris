@@ -27,6 +27,18 @@ internal sealed class Step242ForeignPmiReader
             { Add(aspectLinks, feature, datumTarget); Add(aspectLinks, datumTarget, feature); }
             if (entity.Name is "GEOMETRIC_ITEM_SPECIFIC_USAGE" or "ITEM_IDENTIFIED_REPRESENTATION_USAGE" && Ref(entity.Arguments.ElementAtOrDefault(2)) is { } aspect)
                 foreach (var geometry in Refs(entity.Arguments.ElementAtOrDefault(4))) Add(aspectGeometry, aspect, geometry);
+            // A shape aspect may also carry its geometry as its own shape: SHAPE_DEFINITION_REPRESENTATION of a
+            // PROPERTY_DEFINITION of the aspect, whose representation lists the faces (STEP Tools' Boxy datums).
+            if (entity.Name == "SHAPE_DEFINITION_REPRESENTATION"
+                && Ref(entity.Arguments.ElementAtOrDefault(0)) is { } property && entities.TryGetValue(property, out var propertyEntity)
+                && propertyEntity.Name == "PROPERTY_DEFINITION"
+                && Ref(propertyEntity.Arguments.ElementAtOrDefault(2)) is { } shapeAspect && entities.TryGetValue(shapeAspect, out var aspectEntity)
+                && Step242SubsetDecoder.TryGetConstructor(aspectEntity.Instance, "PRODUCT_DEFINITION_SHAPE") is null
+                && Ref(entity.Arguments.ElementAtOrDefault(1)) is { } aspectShape && entities.TryGetValue(aspectShape, out var aspectRepresentation)
+                && aspectRepresentation.Name == "SHAPE_REPRESENTATION")
+                foreach (var item in Refs(aspectRepresentation.Arguments.ElementAtOrDefault(1)))
+                    if (entities.TryGetValue(item, out var geometryItem) && geometryItem.Name is "ADVANCED_FACE" or "EDGE_CURVE")
+                        Add(aspectGeometry, shapeAspect, item);
             if (entity.Name == "DIMENSIONAL_CHARACTERISTIC_REPRESENTATION" && Ref(entity.Arguments.ElementAtOrDefault(0)) is { } dimension && Ref(entity.Arguments.ElementAtOrDefault(1)) is { } representation)
                 dimensionRepresentations[dimension] = representation;
             if (entity.Name == "PLUS_MINUS_TOLERANCE" && Ref(entity.Arguments.ElementAtOrDefault(0)) is { } tolerance && Ref(entity.Arguments.ElementAtOrDefault(1)) is { } controlled)

@@ -50,6 +50,17 @@ public sealed class Step242BandRingOuterBoundTests
         Assert.Equal(body.Geometry.Surfaces.Select(s => s.Value.Kind).Order(), reimported.Value.Geometry.Surfaces.Select(s => s.Value.Kind).Order());
     }
 
+    /// <summary>Boxy names each datum's face through the datum feature's own shape (a shape definition of the aspect).</summary>
+    [Fact]
+    public void DatumsLocatedThroughTheirFeaturesShape_FindTheirFaces()
+    {
+        var inspection = Step242SemanticPmiInspector.Inspect(Step242Corpus.Text(Boxy));
+        var datums = inspection.Items.Where(item => item.Kind == "Datum").ToArray();
+        Assert.Equal(3, datums.Length);
+        Assert.All(datums, datum => Assert.Single(datum.GeometricFaceEntityIds));
+        Assert.Equal([2009, 2014, 2019], datums.Select(d => d.GeometricFaceEntityIds.Single()).Order());
+    }
+
     [Fact]
     public void PlanarFaceWithTwoOuterBounds_IsStillRefused()
     {

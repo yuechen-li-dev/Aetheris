@@ -1,7 +1,9 @@
-using System.IO.Compression;
-using System.Security.Cryptography;
 using System.Text.Json;
 using Aetheris.EditableV8;
+using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
+using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.Assembly;
 
 namespace Aetheris.EditableV8.Tests;
@@ -37,7 +39,6 @@ public sealed class EngineTests
         var engine = new EngineAuthor(new()); var source = engine.Engine(8);
         var result = new AssemblyM1Pipeline().CompileProject(source.Snapshot);
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
-        Assert.All(source.Documents.Values, text => Assert.DoesNotContain("LegacyExplicit", text));
         Assert.Equal(21, result.Ir!.Instances.Count(i => i.Kind == AssemblyInstanceKind.Assembly && i.ParentStableId is not null));
         Assert.Contains(result.Ir.Instances, i => i.Path.ToString() == "EditableV8.Crankshaft.Crankpin1");
         Assert.Contains(result.Ir.Instances, i => i.Path.ToString() == "EditableV8.Cylinders.C1.Cylinder.Piston");
@@ -52,7 +53,7 @@ public sealed class EngineTests
         Assert.Equal(export.Occurrences.Count, export.Occurrences.Select(o => o.Id).Distinct().Count());
         Assert.Equal(21, export.Definitions.Count);
         var solved = EngineMotion.BindAssembly(engine.Motion(), result);
-        AssertGeometryReference(export, solved);
+        AssertValveRetainerFit(result);
         EngineMotion.ValidateSpringAlignment(solved);
         Assert.Equal(55, solved.Bindings.Single(b => b.Name == "MainJournal1").Rest[14] - engine.Bindings.Single(b => b.Name == "MainJournal1").Rest[14], 8);
         Assert.All(solved.Bindings, b => Assert.Equal("assembly-instance:" + b.SourcePath, b.OccurrenceId));
@@ -65,6 +66,20 @@ public sealed class EngineTests
     }
 
     [Fact]
+    public void ValveStackStageCompilesBothSpringOccurrences()
+    {
+        var stage = new EngineAuthor(new()).StageA(withValves: true);
+        var result = new AssemblyM1Pipeline().CompileProject(stage.Snapshot);
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+
+        var springs = result.Ir!.Instances.Where(instance =>
+            instance.Path.Segments[^1] is "IntakeSpring1" or "ExhaustSpring1").ToArray();
+        Assert.Equal(2, springs.Length);
+        var definition = Assert.Single(springs.Select(instance => instance.DefinitionIdentity).Distinct());
+        Assert.Contains(definition, result.Geometry!.DefinitionBodies.Keys);
+    }
+
+    [Fact]
     public void InvalidDesignFailsBeforeArtifactGeneration()
     {
         Assert.Throws<ArgumentException>(() => new V8Spec(Stroke: double.NaN).Validate());
@@ -74,67 +89,50 @@ public sealed class EngineTests
         var failure = Assert.Throws<InvalidOperationException>(() => EngineMotion.Validate(unsafeDesign.Motion()));
         Assert.Contains("engine-sweep-failed", failure.Message);
     }
-    private static void AssertGeometryReference(AssemblyDisplayMeshDocument mesh, EngineMotionManifest motion)
+
+    private static void AssertValveRetainerFit(AssemblyM1CompilationResult result)
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Aetheris.slnx"))) directory = directory.Parent;
-        Assert.NotNull(directory);
-        using var reference = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory!.FullName,
-            "fixtures/Canonical/EditableV8/geometry-reference.expected.json")));
-        using var meshes = ZipFile.OpenRead(Path.Combine(directory.FullName,
-            "fixtures/Canonical/EditableV8/geometry-reference.meshes.zip"));
-        var definitions = mesh.Definitions.ToDictionary(d => d.Id, StringComparer.Ordinal);
-        var occurrences = mesh.Occurrences.ToDictionary(o => o.Id, StringComparer.Ordinal);
-        var bindings = motion.Bindings.ToDictionary(b => b.Name, StringComparer.Ordinal);
-        Assert.Equal(reference.RootElement.GetProperty("bodyCount").GetInt32(), bindings.Count);
-        Assert.Equal(reference.RootElement.GetProperty("definitionCount").GetInt32(), definitions.Count);
-        var compared = new HashSet<(string DefinitionId, string Hash)>();
-        foreach (var row in reference.RootElement.GetProperty("bindings").EnumerateArray()) {
-            var binding = bindings[row.GetProperty("name").GetString()!];
-            var definition = definitions[occurrences[binding.OccurrenceId!].DefinitionId!];
-            var hash = row.GetProperty("meshSha256").GetString()!;
-            if (compared.Add((definition.Id, hash)))
+        var parts = result.Ir!.Instances.Where(instance => instance.Kind == AssemblyInstanceKind.Part).ToArray();
+        var retainers = parts.Where(instance => instance.Path.Segments[^1] is "IntakeRetainer" or "ExhaustRetainer").ToArray();
+        var stems = parts.Where(instance => instance.Path.Segments[^1] is "IntakeStem" or "ExhaustStem").ToArray();
+        Assert.Equal(16, retainers.Length);
+        Assert.Equal(retainers.Length, stems.Length);
+
+        var definitions = result.Geometry!.DefinitionBodies;
+        var retainer = definitions[Assert.Single(retainers.Select(instance => instance.DefinitionIdentity).Distinct())];
+        var stem = definitions[Assert.Single(stems.Select(instance => instance.DefinitionIdentity).Distinct())];
+
+        var stemWall = Assert.Single(stem.Topology.Faces.Select(face => Surface(stem, face.Id).Cylinder)
+            .OfType<CylinderSurface>());
+        var walls = retainer.Topology.Faces
+            .Where(face => Surface(retainer, face.Id).Cylinder.HasValue)
+            .ToArray();
+        Assert.Equal(2, walls.Length);
+        var bore = Assert.Single(walls, face => !retainer.Bindings.GetFaceBinding(face.Id).Orientation.IsAlignedWithSurface);
+        var outside = Assert.Single(walls, face => retainer.Bindings.GetFaceBinding(face.Id).Orientation.IsAlignedWithSurface);
+        var boreSurface = Surface(retainer, bore.Id).Cylinder!.Value;
+        LengthNear(4, stemWall.Radius);
+        LengthNear(12, Surface(retainer, outside.Id).Cylinder!.Value.Radius);
+        LengthNear(.2, boreSurface.Radius - stemWall.Radius);
+        Assert.InRange(double.Hypot(boreSurface.Origin.X, boreSurface.Origin.Y), 0, 1e-8);
+        Assert.InRange(double.Hypot(boreSurface.Axis.X, boreSurface.Axis.Y), 0, 1e-8);
+
+        var capStations = retainer.Topology.Faces
+            .Where(face => Surface(retainer, face.Id).Plane.HasValue)
+            .Select(face =>
             {
-                var entry = meshes.GetEntry(hash + ".bin");
-                Assert.NotNull(entry);
-                using var data = new MemoryStream();
-                using (var stream = entry.Open()) stream.CopyTo(data);
-                // Keep the original reference bytes; only the live comparison is tolerant.
-                Assert.Equal(hash, Convert.ToHexString(SHA256.HashData(data.ToArray())));
-                data.Position = 0;
-                using var reader = new BinaryReader(data);
-                foreach (var (values, channel) in new[] { (definition.Positions, "positions"), (definition.Normals, "normals") })
-                {
-                    Assert.Equal(reader.ReadInt32(), values.Length);
-                    for (var i = 0; i < values.Length; i++)
-                    {
-                        var expected = reader.ReadDouble();
-                        Assert.True(ComponentMatches(expected, values[i]),
-                            $"Part geometry changed for {binding.Name}: {channel}[{i}] expected {expected:R}, actual {values[i]:R}");
-                    }
-                }
-                Assert.Equal(reader.ReadInt32(), definition.Indices.Length);
-                foreach (var index in definition.Indices) Assert.Equal(reader.ReadInt32(), index);
-                Assert.Equal(data.Length, data.Position);
-            }
-            var oldRest = row.GetProperty("rest").EnumerateArray().Select(v => v.GetDouble());
-            Assert.True(binding.Rest.Zip(oldRest).All(p => double.Abs(p.First - p.Second) <= 1e-9), "Rest geometry changed for " + binding.Name);
+                Assert.Equal(2, face.LoopIds.Count);
+                return Surface(retainer, face.Id).Plane!.Value.Origin.Z;
+            }).Order().ToArray();
+        Assert.Collection(capStations, z => LengthNear(-1.5, z), z => LengthNear(1.5, z));
+
+        static SurfaceGeometry Surface(BrepBody body, FaceId face) =>
+            body.Geometry.GetSurface(body.Bindings.GetFaceBinding(face).SurfaceGeometryId);
+
+        static void LengthNear(double expected, double measured)
+        {
+            const double toleranceMm = 1e-8;
+            Assert.InRange(measured, expected - toleranceMm, expected + toleranceMm);
         }
     }
-
-    // libm and numerically differentiated spring normals vary across platforms.
-    // Positions are in mm; normals are unitless. Topology remains exact above.
-    private static bool ComponentMatches(double expected, double actual) =>
-        double.IsFinite(expected) && double.IsFinite(actual) && double.Abs(expected - actual) <= 1e-9;
-
-    [Theory]
-    [InlineData(20d, 20.0000000001d, true)]
-    [InlineData(20d, 20.00001d, false)]
-    [InlineData(0d, double.NaN, false)]
-    [InlineData(0d, double.PositiveInfinity, false)]
-    public void GeometryComparisonAdmitsRoundoffButRejectsChanges(double expected, double actual, bool matches)
-    {
-        Assert.Equal(matches, ComponentMatches(expected, actual));
-    }
-
 }

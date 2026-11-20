@@ -1,10 +1,14 @@
-include "../design";
 include "../construction";
+include "valve-hardware-dimensions";
 
 Struct ValveStem {
-  Struct Stock = DiscStock<r: 4mm, zmin: -30mm, zmax: 30mm>
+  Struct Stock = DiscStock<r: valveStemDiameter / 2, zmin: -30mm, zmax: 30mm>
 
-  expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; Dimension Diameter = 8mm; } }
-
-
+  expose {
+    Semantic Mount {
+      Axis Axis = [0,0,0] -> [0,0,1];
+      DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1];
+      Dimension Diameter = valveStemDiameter;
+    }
+  }
 }

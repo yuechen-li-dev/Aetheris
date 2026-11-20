@@ -875,7 +875,10 @@ public static class Step242Importer
         var shellEntity = shellEntityResult.Value;
         if (string.Equals(shellEntity.Name, "ORIENTED_CLOSED_SHELL", StringComparison.OrdinalIgnoreCase))
         {
-            var orientedRefResult = Step242SubsetDecoder.ReadReference(shellEntity, 1, "ORIENTED_CLOSED_SHELL shell");
+            // Part 21 includes the derived cfs_faces attribute. Earlier Aetheris exports omit it.
+            var referenceIndex = shellEntity.Arguments is [_, Step242OmittedValue { IsDerived: true }, _, Step242BooleanValue]
+                ? 2 : 1;
+            var orientedRefResult = Step242SubsetDecoder.ReadReference(shellEntity, referenceIndex, "ORIENTED_CLOSED_SHELL shell");
             if (!orientedRefResult.IsSuccess)
             {
                 return KernelResult<IReadOnlyList<int>>.Failure(orientedRefResult.Diagnostics);
@@ -2543,20 +2546,20 @@ public static class Step242Importer
     {
         const string nonNormalizableSource = "Importer.LoopRole.ConeNonNormalizableDegenerateProjection";
 
-        var degenerate = loops
+        var bounds = loops
             .Select(loop =>
             {
                 var projected = ProjectLoopToCone(loop.Samples, cone);
                 var uniqueCount = CountUniquePoints(projected, ContainmentEps);
                 var area = ComputeSignedArea(projected);
-                return (Loop: loop, Analysis: AnalyzeConicalProjection(uniqueCount, area, projected));
+                return (Loop: loop, Projected: projected, Analysis: AnalyzeConicalProjection(uniqueCount, area, projected));
             })
             .OrderBy(d => d.Loop.LoopId.Value)
             .ToArray();
 
-        if (degenerate.All(d => d.Analysis.Degeneracy == ConeProjectionDegeneracy.FullRevolutionConstantAxial))
+        if (bounds.All(d => d.Analysis.Degeneracy == ConeProjectionDegeneracy.FullRevolutionConstantAxial))
         {
-            var preservedUses = degenerate
+            var preservedUses = bounds
                 .OrderByDescending(d => d.Analysis.AxialMean)
                 .ThenBy(d => d.Loop.LoopId.Value)
                 .Select(d => d.Loop)
@@ -2564,7 +2567,23 @@ public static class Step242Importer
             return KernelResult<IReadOnlyList<LoopBuildData>>.Success(preservedUses);
         }
 
-        var primary = degenerate
+        // A full circular rim can close a cone against a non-circular cut. The
+        // unwrapped trims bound a strip when each travels one turn without
+        // doubling back and their axial ranges are strictly separated.
+        if (bounds.Length == 2
+            && bounds.Count(bound => bound.Analysis.Degeneracy == ConeProjectionDegeneracy.FullRevolutionConstantAxial) == 1
+            && TryGetMonotoneConeTurn(bounds[0].Projected, out var first)
+            && TryGetMonotoneConeTurn(bounds[1].Projected, out var second)
+            && first.Direction != second.Direction
+            && double.Min(first.MinAxial, second.MinAxial) > ContainmentEps)
+        {
+            if (first.MinAxial - second.MaxAxial > ContainmentEps)
+                return KernelResult<IReadOnlyList<LoopBuildData>>.Success([bounds[0].Loop, bounds[1].Loop]);
+            if (second.MinAxial - first.MaxAxial > ContainmentEps)
+                return KernelResult<IReadOnlyList<LoopBuildData>>.Success([bounds[1].Loop, bounds[0].Loop]);
+        }
+
+        var primary = bounds
             .OrderByDescending(d => (int)d.Analysis.Degeneracy)
             .ThenBy(d => d.Loop.LoopId.Value)
             .First();
@@ -2580,6 +2599,34 @@ public static class Step242Importer
         return LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
             $"Cone loop normalization failed: faceId={faceEntityId}, apex=({cone.Apex.X:G17},{cone.Apex.Y:G17},{cone.Apex.Z:G17}), placementRadius={cone.PlacementRadius:G17}, semiAngle={cone.SemiAngleRadians:G17}, loopCount={loops.Count}, primaryLoopId={primary.Loop.LoopId.Value}, primaryDegeneracy={primary.Analysis.Degeneracy}.",
             explicitSource);
+    }
+
+    private static bool TryGetMonotoneConeTurn(IReadOnlyList<UvPoint> projected,
+        out (int Direction, double MinAxial, double MaxAxial) turn)
+    {
+        turn = default;
+        // The projection appends a closing chord for area calculations. The
+        // preceding sample is the end of the actual unwrapped traversal.
+        if (projected.Count < 4 || (projected[0] - projected[^1]).Length > ContainmentEps)
+            return false;
+        var last = projected.Count - 2;
+        var span = projected[last].X - projected[0].X;
+        if (double.Abs(double.Abs(span) - double.Tau) > AngleUnwrapEps
+            || double.Abs(projected[last].Y - projected[0].Y) > ContainmentEps)
+            return false;
+        var direction = span > 0d ? 1 : -1;
+        var min = projected[0].Y;
+        var max = min;
+        for (var index = 1; index <= last; index++)
+        {
+            var point = projected[index];
+            if (direction * (point.X - projected[index - 1].X) < -AngleUnwrapEps)
+                return false;
+            min = double.Min(min, point.Y);
+            max = double.Max(max, point.Y);
+        }
+        turn = (direction, min, max);
+        return true;
     }
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeToroidalLoops(

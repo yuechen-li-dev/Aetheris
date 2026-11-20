@@ -249,6 +249,38 @@ public static partial class FirmamentV2Parser
             diagnostics.Add($"{CanonicalDeclarationUnknown}:{type}:header");
         return FirmamentSyntaxFields.Object(obj.Type is null ? obj with { Type = new ReferenceSyntax(new(type, obj.Span), obj.Span) } : obj, null, diagnostics);
     }
+    private static FirmamentV2EdgeFinishDecl? BindImportedFinish(FirmamentSyntaxFields fields,
+        List<string> diagnostics, string solid)
+    {
+        var kind = MechanicalFinishKind(fields, diagnostics);
+        var target = fields.Word("Target");
+        var selection = fields.Take("On");
+        var radius = fields.Take("Radius");
+        var distance = fields.Take("Distance");
+        var clearance = fields.Number("Clearance", "mm", .1);
+        var sizeExpression = kind == "Fillet" && distance is null ? radius
+            : kind == "Chamfer" && radius is null ? distance : null;
+        if (fields.Declaration.Name is not { } name || !FirmamentSyntaxValues.TryMeasure(sizeExpression, "mm", out var size))
+        {
+            diagnostics.Add("firmament-imported-finish-size: Use radius for a fillet or distance for a chamfer.");
+            return null;
+        }
+
+        var memberName = target == "Boundary" ? "Face" : "Edge";
+        if (target is not ("SingleEdge" or "Boundary")
+            || selection is not CallSyntax { Target: MemberSyntax { Target: ReferenceSyntax owner } member, Arguments.Count: 1 } call
+            || owner.Name.Text != solid || !string.Equals(member.Member.Text, memberName, StringComparison.OrdinalIgnoreCase)
+            || call.Arguments[0].Name is not null || StringValue(call.Arguments[0].Value) is not { } entity
+            || entity.Length < 2 || entity[0] != '#' || !int.TryParse(entity.AsSpan(1),
+                System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var number) || number <= 0)
+        {
+            diagnostics.Add("firmament-imported-finish-selector: Use on: Body.Edge(\"#123\") with target: SingleEdge, or Body.Face(\"#456\") with target: Boundary.");
+            return null;
+        }
+        return new(name.Text, "", target, kind!, size, fields.Declaration.Span)
+            { ImportedTarget = new(number, target == "Boundary", clearance) };
+    }
+
     private static string? StringValue(ExpressionSyntax? value) => value is LiteralSyntax { Kind: LiteralKind.String } literal
         ? System.Text.Json.JsonSerializer.Deserialize(literal.Raw, FirmamentJsonContext.Default.String) : null;
     private static Point3D? Point(ExpressionSyntax? value) => value is CallSyntax { Target: ReferenceSyntax { Name.Text: "Point3" } }

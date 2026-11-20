@@ -661,7 +661,7 @@ public static partial class Program
             }
             var mesh = WebMeshBuilder.Build(Name, definitionId, entityId, displayBody, out var exportDisplay,
                 build.Value.RuntimeCorrespondence, boxSource, Revision + 1, featureSources, build.Value.Cir, Aetheris.Kernel.Firmament.Visualization.ConceptDisplayProjection.Project(build.Value),
-                build.Value.ExportedBodyCategory == "inline-step" ? entityId : null, annotations,
+                build.Value.ExportedBodyCategory is "inline-step" or "inline-step-edge-finish" ? entityId : null, annotations,
                 parsed.Document?.Solids.SingleOrDefault()?.InlineStep);
             meshPhase.Dispose();
             var meshMs = watch.Elapsed.TotalMilliseconds;
@@ -970,12 +970,16 @@ internal static class WebMeshBuilder
                     Aetheris.Kernel.Firmament.Materializer.SemanticTopologyDescendant? semanticEdge = null;
                     if (sourceMap is not null && sourceMap.TryGetByBrepEdge(edge.EdgeId, out var mappedEdge)) semanticEdge = mappedEdge;
                     var owner = semanticEdge?.ParentStableId is { } parent && featureSources?.ContainsKey(parent) == true ? parent : entityId;
+                    var imported = importedBodyName is not null && body.Bindings.TryGetEdgeBinding(edge.EdgeId, out var binding)
+                        ? binding.SourceStepEntityId : null;
                     return new { edgeId = $"edge:{edge.EdgeId.Value}", points = edge.Points.Select(point => new[] { point.X, point.Y, point.Z }).ToArray(), closed = edge.IsClosed,
-                        semanticEntityId = owner, semanticTopologyId = semanticEdge?.StableId, topologyKind = "Edge", outputRole = semanticEdge?.Role.ToString(), originFeature = semanticEdge?.SourceStableId,
-                        sourceAddressability = semanticEdge?.Addressability.ToString() ?? "RuntimeOnly", selector = semanticEdge?.FirmamentSelector,
+                        semanticEntityId = owner, semanticTopologyId = semanticEdge?.StableId ?? (imported is { } importedEntity ? importedBodyName + ":#" + importedEntity : null),
+                        topologyKind = "Edge", outputRole = semanticEdge?.Role.ToString(), originFeature = semanticEdge?.SourceStableId,
+                        sourceAddressability = imported is not null ? "ImportedStable" : semanticEdge?.Addressability.ToString() ?? "RuntimeOnly",
+                        selector = imported is not null ? $"{importedBodyName}.edge(\"#{imported}\")" : semanticEdge?.FirmamentSelector,
                         edgeFinish = edgeFinishes?.GetValueOrDefault(edge.EdgeId),
                         edgeFinishReason = edgeFinishes?.ContainsKey(edge.EdgeId) == true ? null : edgeFinishReason,
-                        selectorReason = semanticEdge is null ? "Display BRep edge has no construction-owned source correspondence."
+                        selectorReason = imported is not null ? null : semanticEdge is null ? "Display BRep edge has no construction-owned source correspondence."
                             : semanticEdge.FirmamentSelector is null ? "Construction identity is known, but Firmament has no qualified source selector for this edge." : null,
                         source = semanticEdge is null ? null : owner == entityId ? source : featureSources![owner], buildRevision };
                 }).ToArray() } },

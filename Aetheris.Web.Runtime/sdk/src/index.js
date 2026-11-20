@@ -258,7 +258,7 @@ export class ModelSession {
       selector: edge.selector ?? null, sourceAddressability: edge.sourceAddressability ?? 'RuntimeOnly',
       edgeFinish: (!occurrence.transform || occurrence.transform.every((v, i) => Math.abs(v - (i % 5 === 0 ? 1 : 0)) < 1e-9)) ? edge.edgeFinish ?? null : null,
       edgeFinishReason: edge.edgeFinishReason ?? null,
-      selectorReason: edge.selectorReason ?? 'This edge has no qualified Firmament source selector.',
+      selectorReason: edge.selectorReason ?? (edge.selector ? null : 'This edge has no qualified Firmament source selector.'),
       source: edge.source ?? null, buildRevision: edge.buildRevision ?? this.revision,
       sourceAddressable: edge.source != null && ['AuthoredStable', 'DerivedStable'].includes(edge.sourceAddressability) };
   }

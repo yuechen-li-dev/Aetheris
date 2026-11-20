@@ -626,6 +626,9 @@ public static partial class FirmamentBuildAndExport
             if (v2Parse.Document.PathFeatures.Count > 0)
                 return ExportPathFeatures(v2Parse.Document);
 
+            if (v2Parse.Document.ModifyBlocks?.Any(block => block.EdgeFinishes?.Any(finish => finish.ImportedTarget is not null) == true) == true)
+                return ExportImportedEdgeFinishes(v2Parse.Document);
+
             if (v2Parse.Document.Solids.Any(s => s.InlineStep?.SourceHashPin is not null)
                 && (v2Parse.Document.Solids.Count != 1 || v2Parse.Document.Replacements is { Count: > 0 } || v2Parse.Document.Removals.Count > 0
                     || v2Parse.Document.ModifyBlocks is { Count: > 0 }))

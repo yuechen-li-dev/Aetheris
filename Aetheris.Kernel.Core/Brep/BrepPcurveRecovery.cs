@@ -46,7 +46,7 @@ public static class BrepPcurveRecovery
                 var qualificationTolerance = ResolveQualificationTolerance(surface, curve, tolerance);
                 if (bindings.TryGetPcurveBinding(coedge.Id, out var retained))
                 {
-                    var residual = MaximumResidual(surface, curve, retained.Pcurve, interval, sampleCount);
+                    var residual = MaximumResidual(surface, curve, retained.Pcurve, interval, sampleCount, retained.SameSense);
                     if (retained.FaceId != face.Id || retained.SurfaceGeometryId != faceBinding.SurfaceGeometryId || residual > qualificationTolerance)
                         diagnostics.Add(new("surf-pcurve-invalid", "Retained pcurve has inconsistent ownership or geometry.", coedge.Id.Value.ToString()));
                     maximum = double.Max(maximum, residual); count++; continue;
@@ -572,13 +572,14 @@ public static class BrepPcurveRecovery
     private static IReadOnlyList<SurfaceParameterPoint> Sample(ParameterInterval interval, int count, Func<double, SurfaceParameterPoint> evaluator)
         => Enumerable.Range(0, count).Select(index => evaluator(interval.Start + ((interval.End - interval.Start) * index / (count - 1d)))).ToArray();
 
-    private static double MaximumResidual(SurfaceGeometry surface, CurveGeometry curve, PcurveGeometry pcurve, ParameterInterval interval, int count)
+    private static double MaximumResidual(SurfaceGeometry surface, CurveGeometry curve, PcurveGeometry pcurve,
+        ParameterInterval interval, int count, bool sameSense = true)
     {
         var maximum = 0d;
         for (var index = 0; index < count; index++)
         {
             var parameter = interval.Start + ((interval.End - interval.Start) * index / (count - 1d));
-            var uv = pcurve.Evaluate(parameter);
+            var uv = pcurve.Evaluate(sameSense ? parameter : interval.End - (parameter - interval.Start));
             // One evaluator for every support the pcurve check knows; an unknown one cannot be proved.
             if (BrepPcurveValidator.Evaluate(surface, uv) is not { } onSurface) return double.PositiveInfinity;
             maximum = double.Max(maximum, (onSurface - EvaluateCurve(curve, parameter)).Length);

@@ -24,7 +24,7 @@ public sealed class ExplicitGdtTests
         var sourceText = File.ReadAllText(Fixture(relativePath));
         var normalized = sourceText.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
         var pin = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(normalized))).ToLowerInvariant();
-        var program = $"Model CorpusPart {{ units: mm InlineStep Source {{ path: \"{relativePath}\" textSha256: \"{pin}\" importTolerance: 0.1mm }} }}";
+        var program = $"Model CorpusPart {{ units: mm InlineStep Source {{ path: \"{relativePath}\" textSha256: \"{pin}\" }} }}";
         var result = FirmamentBuildAndExport.CompileSource(program, Fixture("."));
         if (relativePath.EndsWith("-tg.stp", StringComparison.Ordinal))
         {
@@ -36,6 +36,18 @@ public sealed class ExplicitGdtTests
         Assert.Equal(before.DatumCount, after.DatumCount); Assert.Equal(before.DimensionCount, after.DimensionCount);
         Assert.Equal(before.GeometricToleranceCount, after.GeometricToleranceCount);
         Assert.True(BrepExportPreflight.Validate(result.Value.RuntimeBody!, .1).IsValid);
+    }
+    [Fact]
+    public void ExplicitInlineStepToleranceCanBeTighterThanTheDeclaredAccuracy()
+    {
+        const string path = "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp";
+        const string pin = "6cb05ae481fca54d251b5e63e84aa14860a6bfd8543ac442aff341e1cc1f68a1";
+        var source = $"Model Ctc02 {{ units: mm InlineStep part {{ path: \"{path}\" textSha256: \"{pin}\" importTolerance: 0.001mm }} }}";
+
+        var result = FirmamentBuildAndExport.CompileSource(source, Fixture("."));
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("brep-preflight-trim-off-surface", StringComparison.Ordinal));
     }
     [Fact]
     public void ImportedNistPmiSurvivesAndAuthoredControlReusesItsExistingDatums()

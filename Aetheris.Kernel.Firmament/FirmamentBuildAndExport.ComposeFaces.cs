@@ -293,7 +293,7 @@ public static partial class FirmamentBuildAndExport
                      .GroupBy(x => x.D.SourceStableId, StringComparer.Ordinal))
         {
             var faces = group.Select(x => x.D.Face!.Value).Distinct().ToArray();
-            var source = System.Text.Json.JsonSerializer.Serialize(group.Key);
+            var source = System.Text.Json.JsonSerializer.Serialize(group.Key, FirmamentJsonContext.Default.String);
             var upright = faces.Where(Upright).ToArray(); var inclined = faces.Except(upright).ToArray();
             void NameAll(IReadOnlyList<FaceId> members, string selector)
             {

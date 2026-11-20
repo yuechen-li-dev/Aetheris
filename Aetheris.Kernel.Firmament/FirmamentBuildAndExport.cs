@@ -3602,7 +3602,7 @@ public static partial class FirmamentBuildAndExport
             SupportSpan: item.SupportSpan, ParentSupport: item.ParentSupport, SupportBoundaryMargin: item.SupportBoundaryMargin)))
         .Concat(feature.FaceHoles.Select(item => new FirmamentHoleFeatureReport(
             item.Name, $"Hole<{item.Variant}>", item.StableId, item.Diameter, item.X, item.Y,
-            null, "PlanarFace.Center", null, null, $"face({feature.Name}.Side({System.Text.Json.JsonSerializer.Serialize(item.SupportSource)}))", null,
+            null, "PlanarFace.Center", null, null, $"face({feature.Name}.Side({System.Text.Json.JsonSerializer.Serialize(item.SupportSource, FirmamentJsonContext.Default.String)}))", null,
             "PlanarFaceThroughHole", "ConstructionSideSelector", item.Variant,
             SupportBoundaryMargin: PlanarFaceThroughHole.MinimumClearance)))
         .Select(report =>

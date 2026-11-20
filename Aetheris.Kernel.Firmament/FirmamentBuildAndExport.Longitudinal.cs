@@ -44,7 +44,7 @@ public static partial class FirmamentBuildAndExport
                 // needs PlanarFaceThroughHole.Support, which inspection reports separately.
                 : d.Face is { } id && d.Role == SemanticTopologyRole.ExtrusionSideFace && sideSources[d.SourceStableId] == 1
                     && emitted.Body!.TryGetFaceSurfaceGeometry(id, out var surface) && surface?.Plane is not null
-                    ? d with { FirmamentSelector = $"face({bodyName}.Side({System.Text.Json.JsonSerializer.Serialize(d.SourceStableId)}))", Addressability = SemanticTopologyAddressability.DerivedStable }
+                    ? d with { FirmamentSelector = $"face({bodyName}.Side({System.Text.Json.JsonSerializer.Serialize(d.SourceStableId, FirmamentJsonContext.Default.String)}))", Addressability = SemanticTopologyAddressability.DerivedStable }
                     : d).Concat(capDescendants).ToArray() };
     }
 

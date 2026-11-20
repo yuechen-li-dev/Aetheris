@@ -85,15 +85,19 @@ internal static partial class BrepImportedEdgeFinish
             return KernelResult<ImportedEdgeFinishWitness>.Failure([new(KernelDiagnosticCode.ValidationFailed,
                 KernelDiagnosticSeverity.Error, error.Message, "Brep.ImportedEdgeFinish.Region")]);
         }
+    }
 
-        static JudgmentOption<PlanOption> Propose(string name, Func<(int Faces, Func<ImportedEdgeFinishWitness> Emit)> plan)
+    private static JudgmentOption<PlanOption> Propose(string name, Func<(int Faces, Func<ImportedEdgeFinishWitness> Emit)> plan)
+    {
+        try
         {
-            try
-            {
-                var planned = plan();
-                return new(name, new(planned.Emit, planned.Faces, "Local adjacency, clearance and analytic boundaries proved."));
-            }
-            catch (Exception error) when (IsPlanFailure(error)) { return new(name, new(null, 0, error.Message)); }
+            var planned = plan();
+            return new(name, new(planned.Emit, planned.Faces, "Local adjacency, clearance and analytic boundaries proved."));
+        }
+        catch (Exception error)
+        {
+            if (!IsPlanFailure(error)) throw;
+            return new(name, new(null, 0, error.Message));
         }
     }
 

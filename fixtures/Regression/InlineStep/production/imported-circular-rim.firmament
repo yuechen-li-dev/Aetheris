@@ -1,0 +1,16 @@
+Model ImportedRim {
+    units: mm
+    InlineStep Stock {
+        path: "../../../../testdata/step242/handcrafted/baseline/cylinder.step"
+        textSha256: "f8dd25aa06306aa7a9b6ce004eaa2238f8940586c628f9d3790a201c08f8890c"
+        geometryOnly: true
+    }
+    Modify Stock {
+        EdgeFinish<Chamfer> BreakEdge {
+            on: Stock.Face("#59")
+            target: Boundary
+            distance: 0.1mm
+            clearance: 0.02mm
+        }
+    }
+}

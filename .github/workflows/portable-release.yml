@@ -37,6 +37,37 @@ env:
   MSBUILDDISABLENODEREUSE: '1'
 
 jobs:
+  candidate-reference:
+    # A pull request qualifies its own source. A manual extension still uses
+    # the existing release archive and checks its immutable source identity.
+    if: github.event_name == 'pull_request' && !inputs.frontend_run_id
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: ./.github/actions/prepare-tspack
+      - uses: ./.github/actions/prepare-managed-wgsl
+      - name: Build same-revision Windows reference
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          [xml]$props = Get-Content Directory.Build.props
+          $version = [string]$props.Project.PropertyGroup.Version
+          ./scripts/package-release.ps1 -Version $version -OutputDirectory artifacts/local/candidate-reference
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candidate-portable-reference
+          path: |
+            artifacts/local/candidate-reference/Aetheris-*-win-x64.zip
+            artifacts/local/candidate-reference/SHA256SUMS.txt
+          if-no-files-found: error
+
   frontend:
     if: ${{ !inputs.frontend_run_id }}
     runs-on: ubuntu-24.04
@@ -61,8 +92,8 @@ jobs:
           path: artifacts/local/qualified-frontend
           if-no-files-found: error
   bundle:
-    needs: frontend
-    if: ${{ always() && !cancelled() && (needs.frontend.result == 'success' || needs.frontend.result == 'skipped') }}
+    needs: [frontend, candidate-reference]
+    if: ${{ always() && !cancelled() && (needs.frontend.result == 'success' || needs.frontend.result == 'skipped') && (needs.candidate-reference.result == 'success' || needs.candidate-reference.result == 'skipped') }}
     strategy:
       fail-fast: false
       matrix:
@@ -76,7 +107,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.product_ref || inputs.release_tag || 'v2.0.0' }}
+          ref: ${{ inputs.product_ref || (github.event_name == 'pull_request' && github.sha) || inputs.release_tag || 'v2.0.0' }}
           path: artifacts/local/product-source
           persist-credentials: false
       - uses: actions/setup-dotnet@v4
@@ -90,12 +121,18 @@ jobs:
         with:
           name: cadmata-qualified-frontend
           path: artifacts/local/qualified-frontend
+      - uses: actions/download-artifact@v4
+        if: needs.candidate-reference.result == 'success'
+        with:
+          name: candidate-portable-reference
+          path: artifacts/local/reference
       - name: Read product version and qualified frontend
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           FRONTEND_RUN: ${{ inputs.frontend_run_id }}
           RELEASE_TAG: ${{ inputs.release_tag || 'v2.0.0' }}
+          CANDIDATE_REFERENCE: ${{ needs.candidate-reference.result }}
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true
@@ -113,7 +150,7 @@ jobs:
           if ($productionChanges.Count) { throw "Qualification and product code differ: $($productionChanges -join ', ')" }
           if ($env:FRONTEND_RUN) {
             gh run download $env:FRONTEND_RUN --name aetheris-release --dir artifacts/local/reference
-          } else {
+          } elseif ($env:CANDIDATE_REFERENCE -ne 'success') {
             if ($env:RELEASE_TAG -ne "v$version") { throw 'Source tag and product version disagree.' }
             gh release download $env:RELEASE_TAG --pattern "Aetheris-$version-win-x64.zip" --pattern SHA256SUMS.txt --dir artifacts/local/reference
           }

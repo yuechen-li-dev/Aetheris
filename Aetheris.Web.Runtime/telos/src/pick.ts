@@ -121,9 +121,8 @@ export class TelosPick {
     const faceHit = closest ? this.hit(closest) : null;
     if (overlay?.object.userData.item.depthMode === "always-on-top")
       return faceHit;
-    let hit: TelosHit | null = null,
-      distance = Infinity,
-      priority = -1;
+    const edges: { hit: TelosHit; pixels: number }[] = [];
+    let closestPixels = Infinity, priority = -1;
     for (const line of [...this.dynamicLines, ...this.lines]) {
       if (
         line.visible === false || line.pickable === false ||
@@ -169,32 +168,36 @@ export class TelosPick {
           pixel[0] - pa[0] - t * dx,
           pixel[1] - pa[1] - t * dy,
         );
+        if (pixels > Math.max(4, (line.widthPixels ?? 1) / 2 + 2)) continue;
         const onRay = new Vector3(),
           onSegment = new Vector3();
         this.raycaster.ray.distanceSqToSegment(a, b, onRay, onSegment);
         const d = onRay.distanceTo(ray.origin);
         const tolerance =
           Math.max(this.camera.span / this.camera.height, d * 0.001) * 3;
-        if (
-          pixels <= Math.max(4, (line.widthPixels ?? 1) / 2 + 2) &&
-          (linePriority > priority ||
-            (linePriority === priority && d < distance)) &&
-          (line.depthMode === "always-on-top" ||
-            !closest ||
-            d <= closest.distance + tolerance)
-        ) {
-          distance = d;
+        if (line.depthMode !== "always-on-top" && closest && d > closest.distance + tolerance)
+          continue;
+        if (linePriority < priority) continue;
+        if (linePriority > priority) {
+          edges.length = 0;
+          closestPixels = Infinity;
           priority = linePriority;
-          hit = {
+        }
+        closestPixels = Math.min(closestPixels, pixels);
+        edges.push({
+          pixels,
+          hit: {
             ...line.identity,
             worldPosition: onSegment.toArray(),
             worldNormal: null,
             distance: d,
-          };
-        }
+          },
+        });
       }
     }
-    return hit ?? (mode === "edge" ? null : faceHit);
+    const edge = edges.filter(candidate => candidate.pixels <= closestPixels + 0.5)
+      .sort((a, b) => a.hit.distance - b.hit.distance || a.pixels - b.pixels)[0];
+    return edge?.hit ?? (mode === "edge" ? null : faceHit);
   }
   hit(hit: Intersection): TelosHit {
     const { item, definition } = hit.object.userData as {

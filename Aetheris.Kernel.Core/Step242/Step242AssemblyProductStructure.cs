@@ -217,7 +217,15 @@ public static class Step242AssemblyExporter
 
 public static class Step242AssemblyImporter
 {
+    public const string SinglePart = "Importer.Assembly.SinglePart";
+
     public static KernelResult<Step242ProductStructure> Import(string stepText, ImportPolicy? policy = null)
+        => ImportCore(stepText, policy, allowSinglePartFallback: false);
+
+    public static KernelResult<Step242ProductStructure> ImportForWorkspace(string stepText)
+        => ImportCore(stepText, null, allowSinglePartFallback: true);
+
+    private static KernelResult<Step242ProductStructure> ImportCore(string stepText, ImportPolicy? policy, bool allowSinglePartFallback)
     {
         var started = Stopwatch.GetTimestamp();
         var parsed = Step242SubsetParser.Parse(stepText);
@@ -233,6 +241,11 @@ public static class Step242AssemblyImporter
                 policy.RecoveryToleranceMillimetres);
             document.AllowBoundedNearCoincidentInnerLoop = policy.AllowBoundedNearCoincidentInnerLoop;
         }
+        if (allowSinglePartFallback
+            && !document.Entities.Any(entity => entity.Name == "NEXT_ASSEMBLY_USAGE_OCCURRENCE")
+            && Step242RigidRootClassifier.Classify(document).RigidRoots.Count <= 1)
+            return KernelResult<Step242ProductStructure>.Failure([
+                new(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Info, "Use the single-part STEP import path.", SinglePart)]);
         if (!document.Entities.Any(entity => entity.Name == "NEXT_ASSEMBLY_USAGE_OCCURRENCE")
             && document.Entities.Count(entity => entity.Name == "PRODUCT_DEFINITION") <= 1)
         {
@@ -275,14 +288,18 @@ public static class Step242AssemblyImporter
             .ToDictionary(group => group.Key, group => group.Select(entity => Ref(entity, 1)!.Value).Distinct().ToArray());
 
         var importedDefinitions = new List<Step242ImportedProductDefinition>();
+        var usedDefinitionIds = new HashSet<string>(StringComparer.Ordinal);
         var stableByPd = new Dictionary<int, string>();
         var splitDefinitionsByPd = new Dictionary<int, Step242ImportedProductDefinition[]>();
         foreach (var definition in definitionsByEntity.Values.OrderBy(entity => entity.Id))
         {
             var formationId = Ref(definition, 2); if (formationId is null || !formations.TryGetValue(formationId.Value, out var formation)) continue;
             var productId = Ref(formation, 2); if (productId is null || !products.TryGetValue(productId.Value, out var product)) continue;
-            var stableId = Text(product, 0) ?? $"step-product:{product.Id}";
-            var name = Text(product, 1) ?? stableId;
+            // Foreign writers can repeat PRODUCT labels across distinct definitions.
+            // Occurrence relationships reference the definition entity, which disambiguates them.
+            var productLabel = Text(product, 0) ?? $"step-product:{product.Id}";
+            var stableId = ReserveDefinitionId(productLabel, definition.Id);
+            var name = Text(product, 1) ?? productLabel;
             stableByPd[definition.Id] = stableId;
             int? representationId = shapeByDefinition.TryGetValue(definition.Id, out var shapeId) && representationsByShape.TryGetValue(shapeId, out var repIds)
                 ? repIds.FirstOrDefault(repId => document.TryGetEntity(repId).Value.Arguments.ElementAtOrDefault(1) is Step242ListValue items
@@ -302,7 +319,8 @@ public static class Step242AssemblyImporter
                         return KernelResult<Step242ProductStructure>.Failure(geometry.Diagnostics.Prepend(new(KernelDiagnosticCode.ValidationFailed,
                             KernelDiagnosticSeverity.Error, $"Product '{name}' component #{rootId} could not import.", "Importer.Assembly.MultiBodyComponent")).ToArray());
                     var componentName = Text(document.TryGetEntity(rootId).Value, 0);
-                    components.Add(new($"{stableId}/body:{rootId}", string.IsNullOrWhiteSpace(componentName) ? $"{name} Body {index + 1}" : componentName,
+                    var componentId = ReserveDefinitionId($"{stableId}/body:{rootId}", rootId);
+                    components.Add(new(componentId, string.IsNullOrWhiteSpace(componentName) ? $"{name} Body {index + 1}" : componentName,
                         definition.Id, representationId, rootId, geometry.Value, null));
                 }
                 splitDefinitionsByPd[definition.Id] = components.ToArray();
@@ -403,6 +421,17 @@ public static class Step242AssemblyImporter
         }
         return KernelResult<Step242ProductStructure>.Success(new(stableByPd[rootPd], importedDefinitions, occurrences,
             "SourceAssembly", Timing(started, parsedAt, geometryAt, Stopwatch.GetTimestamp())));
+
+        string ReserveDefinitionId(string preferred, int entityId)
+        {
+            if (!string.IsNullOrWhiteSpace(preferred) && usedDefinitionIds.Add(preferred))
+                return preferred;
+
+            var fallback = $"step-definition:{entityId}";
+            for (var suffix = 1; !usedDefinitionIds.Add(fallback); suffix++)
+                fallback = $"step-definition:{entityId}:{suffix}";
+            return fallback;
+        }
     }
 
     private static IReadOnlyDictionary<string, double> Timing(long started, long parsedAt, long geometryAt, long completed) =>

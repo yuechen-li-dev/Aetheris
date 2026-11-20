@@ -1,5 +1,7 @@
 # Imported through-hole revisions
 
+For chamfers and fillets, see [edge finishes on imported STEP](#edge-finishes-on-imported-step).
+
 Firmament can move or remove one isolated round through-hole in a pinned imported STEP
 body, retaining the actual residual BRep. A move retains the
 hole diameter and depth; removal fills its proved material column. It does not reverse-engineer the
@@ -195,7 +197,8 @@ vendor's original dimensions, datums or GD&T.
 
 The current family is one isolated round principal-axis (X, Y or Z) through-hole, unchanged diameter
 and depth, between two parallel planar supports in one qualified closed oriented
-body. Blind, intersecting, breakout, threaded, blended-entry, counterbore,
+body. Imported through-hole authoring starts with an existing recognized hole
+that can be moved or removed. Blind, intersecting, breakout, threaded, blended-entry, counterbore,
 countersink, slot and oblique-axis revisions reject. Unknown fields and placements reject.
 No arbitrary-body Boolean fallback or general healing is performed. An unedited
 pinned body can be re-exported through the qualified import owner; a pin does not
@@ -264,3 +267,53 @@ for ownership and limits.
 
 See the [recovery-assistance qualification](../../development/reports/2026-10/IMPORTED-FEATURE-ASSISTANCE-2026-10-21.md)
 for the cross-boss revision and admission evidence.
+
+## Edge finishes on imported STEP
+
+A pinned `InlineStep` can accept an `EdgeFinish` in `Modify`. Firmament resolves
+the named STEP entity in the current solid, proves local clearance, and
+exports the edited BRep as STEP. The [single-edge fixture](../../../fixtures/Regression/InlineStep/production/imported-single-edge.firmament)
+builds this model from the supplied FreeCAD block.
+
+```firmament
+Model ImportedEdge {
+    units: mm
+    InlineStep Stock {
+        path: "../../../../testdata/step242/handcrafted/baseline/block-basic.step"
+        textSha256: "c1aa53be306ea90a9b3af53fb807fb532ecd7a22fbbd5ff086a0ee7d9d817f9b"
+        geometryOnly: true
+    }
+    Modify Stock {
+        EdgeFinish<Fillet> BreakEdge {
+            on: Stock.Edge("#21")
+            target: SingleEdge
+            radius: 0.1mm
+            clearance: 0.02mm
+        }
+    }
+}
+```
+
+- `SingleEdge` selects one `EDGE_CURVE` from the pinned file through `Stock.Edge`.
+  Eligible selections include straight convex edges between planar faces with
+  perpendicular planar end caps, and complete circular outer rims.
+- `Boundary` selects the whole outer loop of an `ADVANCED_FACE` through `Stock.Face`.
+  It accepts a complete circular rim at a planar cap on an exterior cylinder,
+  or a convex polygon cap with perpendicular planar sides and straight axial
+  corner edges. Polygon loops use mitered corner joins. See the [circular](../../../fixtures/Regression/InlineStep/production/imported-circular-rim.firmament)
+  and [polygon](../../../fixtures/Regression/InlineStep/production/imported-polygon-rim.firmament) fixtures.
+- `EdgeFinish<Chamfer>` takes equal `distance` on the supports. `EdgeFinish<Fillet>`
+  takes `radius`. Optional `clearance` defaults to `0.1mm` and must exceed
+  `importTolerance`. Clearance is conservative, so a close configuration can
+  require a smaller size even when the intended finish would fit.
+- Use a STEP source pin or lock receipt and `geometryOnly: true` to exclude the
+  imported annotation layer. A finish revision works on a single qualified solid.
+  You can apply disjoint finishes in source order while their original STEP
+  selectors still resolve.
+
+Reentrant edges, oblique single-edge caps, split circular rims, concave polygon
+loops, and intersecting finishes are refused. Select a smaller finish when the
+diagnostic reports clearance, or select a supported edge when the endpoint or
+support geometry is outside the admitted family. `aetheris analyze stock.step --json`
+reports imported STEP entity references. Review those references whenever the
+source pin changes.

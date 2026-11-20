@@ -1,10 +1,17 @@
-include "../design";
 include "../construction";
+include "valve-hardware-dimensions";
 
 Struct SpringRetainer {
-  Struct Stock = AnnulusStock<rout: 12mm, rin: 4.2mm, zmin: -1.5mm, zmax: 1.5mm>
+  Static outsideDiameter: Length = 24mm
+  Static radialStemClearance: Length = 0.2mm
+  Static thickness: Length = 3mm
+  Static halfThickness: Length = thickness / 2
+  Struct Stock = AnnulusStock<rout: outsideDiameter / 2, rin: valveStemDiameter / 2 + radialStemClearance, zmin: 0mm - halfThickness, zmax: halfThickness>
 
-  expose { Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } }
-
-
+  expose {
+    Semantic Mount {
+      Axis Axis = [0,0,0] -> [0,0,1];
+      DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1];
+    }
+  }
 }

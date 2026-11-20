@@ -159,7 +159,7 @@ public static class PlanarPolygonTriangulator
                 return false;
             }
 
-            holeEntries.Add(new HoleEntry(holeIndex, holeNode, SelectBridgeHoleVertex(holeNode)));
+            holeEntries.Add(new HoleEntry(holeNode, SelectBridgeHoleVertex(holeNode)));
         }
 
         if (HoleIntersectsBoundary(outerNode, holeEntries.Select(entry => entry.RingStart).ToArray()))
@@ -168,12 +168,17 @@ public static class PlanarPolygonTriangulator
             return false;
         }
 
-        foreach (var holeEntry in holeEntries
-                     .OrderByDescending(entry => entry.Anchor.Point.X)
-                     .ThenBy(entry => entry.Anchor.Point.Y)
-                     .ThenBy(entry => entry.Anchor.Index))
+        var orderedHoles = holeEntries
+            .OrderByDescending(entry => entry.Anchor.Point.X)
+            .ThenBy(entry => entry.Anchor.Point.Y)
+            .ThenBy(entry => entry.Anchor.Index)
+            .ToArray();
+        for (var index = 0; index < orderedHoles.Length; index++)
         {
-            var candidate = FindDeterministicBridgeVertex(outerNode, holeEntry.Anchor, holeEntries);
+            var holeEntry = orderedHoles[index];
+            // A joined hole is now part of outerNode. Its old ring start can
+            // have been removed by FilterPoints, so it cannot delimit a scan.
+            var candidate = FindDeterministicBridgeVertex(outerNode, holeEntry.Anchor, orderedHoles.AsSpan(index + 1));
             if (candidate is null)
             {
                 failure = PlanarPolygonTriangulationFailure.TriangulationFailed;
@@ -244,10 +249,7 @@ public static class PlanarPolygonTriangulator
             var anchor = SelectBridgeHoleVertex(hole);
             var candidates = EnumerateNodes(outer)
                 .Where(candidate => IsBridgeVisible(candidate, anchor, outer, hole, []))
-                .OrderBy(candidate => DistanceSquared(anchor.Point, candidate.Point))
-                .ThenBy(candidate => candidate.Point.X)
-                .ThenBy(candidate => candidate.Point.Y)
-                .ThenBy(candidate => candidate.Index)
+                .OrderBy(candidate => BridgeScore(candidate, anchor))
                 .ToArray();
             if (candidateRank >= candidates.Length) break;
 
@@ -453,46 +455,27 @@ public static class PlanarPolygonTriangulator
     private static Node? FindDeterministicBridgeVertex(
         Node outerRing,
         Node holeAnchor,
-        IReadOnlyList<HoleEntry> holes)
+        ReadOnlySpan<HoleEntry> remainingHoles)
     {
-        var bridgeMidpointHoles = holes
-            .Where(entry => entry.Anchor != holeAnchor)
-            .Select(entry => entry.RingStart)
-            .ToArray();
-
-        Node? best = null;
-        var bestScore = (DistanceSquared: double.PositiveInfinity, X: double.PositiveInfinity, Y: double.PositiveInfinity, Index: int.MaxValue);
-
-        var candidate = outerRing;
-        do
+        // Visibility scans the rings. Once a candidate clears them, no lower-ranked
+        // vertex can win, even on a face with hundreds of holes.
+        foreach (var candidate in EnumerateNodes(outerRing).OrderBy(candidate => BridgeScore(candidate, holeAnchor)))
         {
-            if (IsBridgeVisible(candidate, holeAnchor, outerRing, holeAnchor, bridgeMidpointHoles))
-            {
-                var score = (
-                    DistanceSquared(holeAnchor.Point, candidate.Point),
-                    candidate.Point.X,
-                    candidate.Point.Y,
-                    candidate.Index);
-
-                if (score.CompareTo(bestScore) < 0)
-                {
-                    best = candidate;
-                    bestScore = score;
-                }
-            }
-
-            candidate = candidate.Next!;
-        } while (candidate != outerRing);
-
-        return best;
+            if (IsBridgeVisible(candidate, holeAnchor, outerRing, holeAnchor, remainingHoles))
+                return candidate;
+        }
+        return null;
     }
+
+    private static (double Distance, double X, double Y, int Index) BridgeScore(Node candidate, Node anchor)
+        => (DistanceSquared(anchor.Point, candidate.Point), candidate.Point.X, candidate.Point.Y, candidate.Index);
 
     private static bool IsBridgeVisible(
         Node outerCandidate,
         Node holeAnchor,
         Node outerRing,
         Node currentHoleRing,
-        IReadOnlyList<Node> otherHoleRings)
+        ReadOnlySpan<HoleEntry> remainingHoles)
     {
         if (PointsAlmostEqual(outerCandidate.Point, holeAnchor.Point))
         {
@@ -509,9 +492,9 @@ public static class PlanarPolygonTriangulator
             return false;
         }
 
-        for (var i = 0; i < otherHoleRings.Count; i++)
+        foreach (var hole in remainingHoles)
         {
-            if (!BridgeClearsRing(outerCandidate, holeAnchor, otherHoleRings[i]))
+            if (!BridgeClearsRing(outerCandidate, holeAnchor, hole.RingStart))
             {
                 return false;
             }
@@ -927,7 +910,7 @@ public static class PlanarPolygonTriangulator
         public Node? Next { get; set; }
     }
 
-    private readonly record struct HoleEntry(int Order, Node RingStart, Node Anchor);
+    private readonly record struct HoleEntry(Node RingStart, Node Anchor);
 
     private readonly record struct Point2(double X, double Y);
 }

@@ -58,6 +58,36 @@ and topology counts still use the common snapshot. When refreshing these specime
 qualify both Windows and Linux exports and refresh the companion explicitly. All other
 specimens retain the common byte hash on both platforms.
 
+### Smoke-test external STEP imports
+
+After building the Release CLI, run the opt-in [step.parts](https://github.com/earthtojake/step.parts)
+sample with Python 3.10 or later:
+
+```powershell
+python scripts/smoke-step-parts.py --output artifacts/local/step-parts/my-sample
+python scripts/smoke-step-parts.py --replay artifacts/local/step-parts/my-sample/manifest.json
+```
+
+The sampler aims for 32 files: 8 repeat cases, 20 rotating cases spread across
+categories, families, and file sizes, and 4 stress cases. It downloads only the
+selected STEP assets, checks their SHA-256, and caches them by digest. The
+default seed rotates each UTC week. Use `--seed` for another draw or
+`--replay` to retest the exact same bytes, including offline when cached.
+
+Two CLI workers share a five-minute budget and each import has 25 seconds.
+The defaults allow 64 MiB per file and 96 MiB across the sample. Up to two
+qualified small parts are exported and reopened to compare topology, bounds,
+surface families, and volume where available. The run saves a pinned manifest, per-file CLI evidence,
+and a grouped `report.json` under ignored `artifacts/local/step-parts/`.
+Refusals, repairs, and timeouts are observations in the report. Crashes and CLI
+errors exit 1, and fetch or runner failures exit 2. When assembly admission
+fails, the runner records the reason and checks whether part or compound
+analysis can still read the geometry within the same per-file budget.
+
+For a confirmed defect, add the smallest fixture that reproduces it to the
+regular suite. Check the model's individual license and preserve attribution
+before copying third-party content into the repository.
+
 ### Importing corpus files in tests
 
 Do not call `File.ReadAllText` + `Step242Importer.ImportBody` directly in a test. Use the shared

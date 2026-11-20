@@ -1,11 +1,15 @@
 {
   "testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp": "ccc7a1f3b931b138478ffc5ed72e5523ccf8bbd421ce98d768002874f018462b",
-  "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp": "7c37e322c0ea9638b984dca6cfd192de9cbed9df8bdfa5685b14e5f628ac0804",
+  "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp": "a10be89ed534d9194fe2dd93a326a27afb69b8ad4ae7cdb76b5fc3397539991d",
   "testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp": "eb2a3fc04352cb73a830e1393db93e4a9e211cd42651052dca90560a428b9e21",
-  "testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp": "5d9cfa0b86d3f68853fb15ec98bc4253ea3b6ae3336845725da935371a1d4e6b",
-  "testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp": "7d0cd7a3aeb0b55e3e4f7e1e7e370d102f67adeaddfa13de09f16d08c3624a6f",
-  "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp": "0a0a8747c900ee2d6f02e8e8875a88d02fdb9072fd23c0f5c2d1a44a5a38ce90",
-  "testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp": "adfd8a899a70b9afbf3e4b5d3c78c31d3b09bdb133297eeefa4ca64e9296afe0",
-  "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp": "8fdbc717e0c4c9c8a643c195824058a71cb4943bb6dd9dd5a22d4338fa9184e1",
-  "testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp": "b3fb5bcde54db2da0ee7f2d536b448c5f7892ea063100ac5e45ff913992262e7"
+  "testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp": "2574b7617f472c05a3be7fd017a86a1d8d49dcff48cce2d62ed3a611c389a516",
+  "testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp": "c83a6935ee5e4a2aaec14a78f338ee2658cfcc2b7d3bfcfc41f30e7478b3ce7e",
+  "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp": "508b33bc35e811715e09a029b7634fe17f426531c7c860cedc0deacab3c3337e",
+  "testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp": "03c1a8425d492eddfded218e656a615821544fbf36d84108f26aa2e142533ea3",
+  "testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp": "5c7be2b142111988d6419690b7a25367497969e12e7d92b6c279694a014bd9b9",
+  "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp": "bbe9184d37c62e66d74b99861b17a3c0785c68e416635f167eebbc73a489faaf",
+  "testdata/step242/nist/STC/nist_stc_07_asme1_ap242-e3.stp": "835e7a233588441121203f25c99bf85dfb747b737a6e4d6f7e67faa59d35f901",
+  "testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp": "b3fb5bcde54db2da0ee7f2d536b448c5f7892ea063100ac5e45ff913992262e7",
+  "testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp": "89c0a8036cdfb41f9b6fb34e4d2a661e7c24f1c3962b25ec2cda78ad0acfeee4",
+  "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp": "7e4183203f41c948a0d71394f8951ea1dc0c245ced421822806c53b42bf5c60d"
 }

@@ -9,6 +9,28 @@ import {
 } from "../dist/index.js";
 import type { TelosScene } from "../dist/index.js";
 
+test("edge picking prefers the nearer edge when projections coincide", () => {
+  const camera = new TelosCamera();
+  camera.mode = "orthographic";
+  camera.resize(200, 200);
+  camera.span = 10;
+  camera.position.set(0, 0, 10);
+  camera.target.set(0, 0, 0);
+  camera.up.set(0, 1, 0);
+  const picker = new TelosPick(camera);
+  const lines = [
+    { id: "near", points: [-1, 0, 2, 1, 0, 2], identity: { occurrenceId: "part", edgeId: "near" } },
+    { id: "far", points: [-1, 0, -2, 1, 0, -2], identity: { occurrenceId: "part", edgeId: "far" } },
+  ];
+  picker.setScene({ meshes: [], lines, fields: [] });
+  camera.update();
+  assert.equal(picker.pick([100, 100], "edge")?.edgeId, "near");
+  camera.position.set(0, 0, -10);
+  camera.update();
+  assert.equal(picker.pick([100, 100], "edge")?.edgeId, "far");
+  picker.dispose();
+});
+
 test("orbit crosses both world poles without a guard, singularity or lost pan basis", () => {
   const camera = new TelosCamera();
   camera.position.set(0, -10, 0); camera.target.set(0, 0, 0); camera.up.set(0, 0, 1); camera.update();

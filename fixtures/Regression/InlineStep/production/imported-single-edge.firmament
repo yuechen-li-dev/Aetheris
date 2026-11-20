@@ -1,0 +1,16 @@
+Model ImportedEdge {
+    units: mm
+    InlineStep Stock {
+        path: "../../../../testdata/step242/handcrafted/baseline/block-basic.step"
+        textSha256: "c1aa53be306ea90a9b3af53fb807fb532ecd7a22fbbd5ff086a0ee7d9d817f9b"
+        geometryOnly: true
+    }
+    Modify Stock {
+        EdgeFinish<Fillet> BreakEdge {
+            on: Stock.Edge("#21")
+            target: SingleEdge
+            radius: 0.1mm
+            clearance: 0.02mm
+        }
+    }
+}

@@ -875,7 +875,10 @@ public static class Step242Importer
         var shellEntity = shellEntityResult.Value;
         if (string.Equals(shellEntity.Name, "ORIENTED_CLOSED_SHELL", StringComparison.OrdinalIgnoreCase))
         {
-            var orientedRefResult = Step242SubsetDecoder.ReadReference(shellEntity, 1, "ORIENTED_CLOSED_SHELL shell");
+            // Part 21 includes the derived cfs_faces attribute. Earlier Aetheris exports omit it.
+            var referenceIndex = shellEntity.Arguments is [_, Step242OmittedValue { IsDerived: true }, _, Step242BooleanValue]
+                ? 2 : 1;
+            var orientedRefResult = Step242SubsetDecoder.ReadReference(shellEntity, referenceIndex, "ORIENTED_CLOSED_SHELL shell");
             if (!orientedRefResult.IsSuccess)
             {
                 return KernelResult<IReadOnlyList<int>>.Failure(orientedRefResult.Diagnostics);
@@ -1997,13 +2000,15 @@ public static class Step242Importer
 
         var normalizedMajor = majorComponent / ellipse.MajorRadius;
         var normalizedMinor = minorComponent / ellipse.MinorRadius;
-        var radialError = double.Abs((normalizedMajor * normalizedMajor) + (normalizedMinor * normalizedMinor) - 1d);
-        if (radialError > System.Math.Max(1e-8d, tolerance / System.Math.Max(1d, ellipse.MajorRadius)))
+        var angle = double.Atan2(normalizedMinor, normalizedMajor);
+        // Qualify the curve point in model units, including the out-of-plane residual.
+        var deviation = (point - ellipse.Evaluate(angle)).Length;
+        if (!double.IsFinite(deviation) || deviation > tolerance)
         {
-            return FailureEllipseTrimAngle($"Unable to project elliptical trim point: normalized radial deviation {radialError:G17} exceeds tolerance.", "Importer.Geometry.EllipseTrim.OffRadius");
+            return FailureEllipseTrimAngle($"Unable to project elliptical trim point: curve deviation {deviation:G17} mm exceeds tolerance {tolerance:G17} mm.", "Importer.Geometry.EllipseTrim.OffRadius");
         }
 
-        return KernelResult<double>.Success(double.Atan2(normalizedMinor, normalizedMajor));
+        return KernelResult<double>.Success(angle);
     }
 
     private static double ComputeEllipseTrimTolerance(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint)
@@ -2543,20 +2548,20 @@ public static class Step242Importer
     {
         const string nonNormalizableSource = "Importer.LoopRole.ConeNonNormalizableDegenerateProjection";
 
-        var degenerate = loops
+        var bounds = loops
             .Select(loop =>
             {
                 var projected = ProjectLoopToCone(loop.Samples, cone);
                 var uniqueCount = CountUniquePoints(projected, ContainmentEps);
                 var area = ComputeSignedArea(projected);
-                return (Loop: loop, Analysis: AnalyzeConicalProjection(uniqueCount, area, projected));
+                return (Loop: loop, Projected: projected, Analysis: AnalyzeConicalProjection(uniqueCount, area, projected));
             })
             .OrderBy(d => d.Loop.LoopId.Value)
             .ToArray();
 
-        if (degenerate.All(d => d.Analysis.Degeneracy == ConeProjectionDegeneracy.FullRevolutionConstantAxial))
+        if (bounds.All(d => d.Analysis.Degeneracy == ConeProjectionDegeneracy.FullRevolutionConstantAxial))
         {
-            var preservedUses = degenerate
+            var preservedUses = bounds
                 .OrderByDescending(d => d.Analysis.AxialMean)
                 .ThenBy(d => d.Loop.LoopId.Value)
                 .Select(d => d.Loop)
@@ -2564,7 +2569,23 @@ public static class Step242Importer
             return KernelResult<IReadOnlyList<LoopBuildData>>.Success(preservedUses);
         }
 
-        var primary = degenerate
+        // A full circular rim can close a cone against a non-circular cut. The
+        // unwrapped trims bound a strip when each travels one turn without
+        // doubling back and their axial ranges are strictly separated.
+        if (bounds.Length == 2
+            && bounds.Count(bound => bound.Analysis.Degeneracy == ConeProjectionDegeneracy.FullRevolutionConstantAxial) == 1
+            && TryGetMonotoneConeTurn(bounds[0].Projected, out var first)
+            && TryGetMonotoneConeTurn(bounds[1].Projected, out var second)
+            && first.Direction != second.Direction
+            && double.Min(first.MinAxial, second.MinAxial) > ContainmentEps)
+        {
+            if (first.MinAxial - second.MaxAxial > ContainmentEps)
+                return KernelResult<IReadOnlyList<LoopBuildData>>.Success([bounds[0].Loop, bounds[1].Loop]);
+            if (second.MinAxial - first.MaxAxial > ContainmentEps)
+                return KernelResult<IReadOnlyList<LoopBuildData>>.Success([bounds[1].Loop, bounds[0].Loop]);
+        }
+
+        var primary = bounds
             .OrderByDescending(d => (int)d.Analysis.Degeneracy)
             .ThenBy(d => d.Loop.LoopId.Value)
             .First();
@@ -2580,6 +2601,34 @@ public static class Step242Importer
         return LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
             $"Cone loop normalization failed: faceId={faceEntityId}, apex=({cone.Apex.X:G17},{cone.Apex.Y:G17},{cone.Apex.Z:G17}), placementRadius={cone.PlacementRadius:G17}, semiAngle={cone.SemiAngleRadians:G17}, loopCount={loops.Count}, primaryLoopId={primary.Loop.LoopId.Value}, primaryDegeneracy={primary.Analysis.Degeneracy}.",
             explicitSource);
+    }
+
+    private static bool TryGetMonotoneConeTurn(IReadOnlyList<UvPoint> projected,
+        out (int Direction, double MinAxial, double MaxAxial) turn)
+    {
+        turn = default;
+        // The projection appends a closing chord for area calculations. The
+        // preceding sample is the end of the actual unwrapped traversal.
+        if (projected.Count < 4 || (projected[0] - projected[^1]).Length > ContainmentEps)
+            return false;
+        var last = projected.Count - 2;
+        var span = projected[last].X - projected[0].X;
+        if (double.Abs(double.Abs(span) - double.Tau) > AngleUnwrapEps
+            || double.Abs(projected[last].Y - projected[0].Y) > ContainmentEps)
+            return false;
+        var direction = span > 0d ? 1 : -1;
+        var min = projected[0].Y;
+        var max = min;
+        for (var index = 1; index <= last; index++)
+        {
+            var point = projected[index];
+            if (direction * (point.X - projected[index - 1].X) < -AngleUnwrapEps)
+                return false;
+            min = double.Min(min, point.Y);
+            max = double.Max(max, point.Y);
+        }
+        turn = (direction, min, max);
+        return true;
     }
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeToroidalLoops(
@@ -3476,6 +3525,8 @@ public static class Step242Importer
             return KernelResult<IReadOnlyList<CoedgePcurveBinding>>.Success([]);
 
         var uses = loop.Coedges.Where(coedge => loop.PcurveCandidates.ContainsKey(coedge.Id)).ToArray();
+        var edgeUseCounts = loop.Coedges.GroupBy(use => use.EdgeId).ToDictionary(group => group.Key, group => group.Count());
+        var periodicity = SurfacePeriodicity.Of(surface);
         var solutions = new List<(double Score, ImportedStepPcurve[] Selection)>();
         var selected = new ImportedStepPcurve[uses.Length];
         var usedByEdge = new Dictionary<EdgeId, HashSet<int>>();
@@ -3514,11 +3565,9 @@ public static class Step242Importer
         var ordered = solutions.OrderBy(solution => solution.Score).ToArray();
         var best = ordered[0];
         var scale = System.Math.Max(1d, best.Score);
-        if (ordered.Length > 1 && System.Math.Abs(ordered[1].Score - best.Score) <= 1e-12d * scale
-            && !ordered[1].Selection.Select(candidate => candidate.PcurveEntityId)
-                .SequenceEqual(best.Selection.Select(candidate => candidate.PcurveEntityId))
-            && !ordered[1].Selection.Zip(best.Selection)
-                .All(pair => EquivalentPcurveUse(pair.First, pair.Second)))
+        if (ordered.Skip(1).TakeWhile(solution => solution.Score - best.Score <= 1e-12d * scale)
+            .Any(solution => Enumerable.Range(0, uses.Length).Any(index =>
+                !EquivalentPcurveUse(uses[index], solution.Selection[index], best.Selection[index]))))
             return OrientationFailure<IReadOnlyList<CoedgePcurveBinding>>(
                 $"Loop {loop.LoopId.Value} has ambiguous seam-side pcurve assignment; no source flag was used to guess.",
                 "Importer.Pcurve.SeamAssignmentAmbiguous");
@@ -3551,9 +3600,32 @@ public static class Step242Importer
             return use.IsReversed ^ !edge.OrientedEdgeSense ^ !candidate.SameSense ? (end, start) : (start, end);
         }
 
-        bool EquivalentPcurveUse(ImportedStepPcurve left, ImportedStepPcurve right)
+        bool EquivalentPcurveUse(Coedge use, ImportedStepPcurve left, ImportedStepPcurve right)
         {
+            if (left.PcurveEntityId == right.PcurveEntityId) return true;
             if (left.SameSense != right.SameSense) return false;
+            // A singly used line may have two lifts of the same complete trace on a
+            // periodic chart. Preserve the separate chart sides of repeated seam uses.
+            if (edgeUseCounts[use.EdgeId] == 1 && periodicity.IsPeriodic
+                && left.Geometry.Kind == PcurveGeometryKind.Line && right.Geometry.Kind == PcurveGeometryKind.Line
+                && left.Geometry.Domain == right.Geometry.Domain)
+            {
+                var startLeft = left.Geometry.Points[0];
+                var startRight = right.Geometry.Points[0];
+                var endLeft = left.Geometry.Points[1];
+                var endRight = right.Geometry.Points[1];
+                const double chartTolerance = 1e-10;
+                var du = startLeft.U - startRight.U;
+                var dv = startLeft.V - startRight.V;
+                if (SameChartCoordinate(du, periodicity.UPeriod) && SameChartCoordinate(dv, periodicity.VPeriod)
+                    && double.Abs((endLeft.U - endRight.U) - du) <= chartTolerance
+                    && double.Abs((endLeft.V - endRight.V) - dv) <= chartTolerance)
+                    return true;
+
+                static bool SameChartCoordinate(double delta, double? period) => period is { } value
+                    ? SurfacePeriodicity.EquivalentModuloPeriod(delta, 0d, value, chartTolerance)
+                    : double.Abs(delta) <= chartTolerance;
+            }
             for (var index = 0; index < 3; index++)
             {
                 var fraction = index / 2d;

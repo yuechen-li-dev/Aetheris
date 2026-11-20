@@ -54,6 +54,7 @@ public static partial class Program
             object? result = request.Operation switch
             {
                 "info" => Info(),
+                "prepareStepAssembly" => PrepareStepAssembly(request),
                 "compile" => Compile(request),
                 "languageComplete" => LanguageComplete(request),
                 "languageAnalyze" => LanguageAnalyze(request),
@@ -99,21 +100,52 @@ public static partial class Program
         }
     }
 
-    private static object Info() => new
+    private static object Info()
     {
-        packageVersion = typeof(Program).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
-            .Cast<System.Reflection.AssemblyInformationalVersionAttribute>().Single().InformationalVersion.Split('+')[0],
-        runtimeVersion = typeof(Program).Assembly.GetName().Version?.ToString() ?? "2.0.0",
-        contractVersion = ContractVersion,
-        language = "Firmament",
-        capabilities = new
+        var assembly = typeof(Program).Assembly;
+        var version = assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .Cast<System.Reflection.AssemblyInformationalVersionAttribute>().Single().InformationalVersion.Split('+', 2);
+        return new
         {
-            compile = true, solidModeling = true, assembly = true, displayMesh = true,
-            propertyInspection = true, parameterRebuild = true, stepExport = true, artifactExport = true,
-            sheetMetal = false, fea = false, externalStepImport = true, forgeSubprocess = false,
-            cancellation = false, worker = false
+            packageVersion = version[0],
+            sourceRevision = version.Length == 2 ? version[1].Split('.').LastOrDefault(part => part.Length == 40 && part.All(Uri.IsHexDigit)) : null,
+            execution = OperatingSystem.IsBrowser() ? "wasm" : "dotnet",
+            runtimeVersion = assembly.GetName().Version?.ToString() ?? "2.0.0",
+            contractVersion = ContractVersion,
+            language = "Firmament",
+            capabilities = new
+            {
+                compile = true, solidModeling = true, assembly = true, displayMesh = true,
+                propertyInspection = true, parameterRebuild = true, stepExport = true, artifactExport = true,
+                sheetMetal = false, fea = false, externalStepImport = true, forgeSubprocess = false,
+                cancellation = false, worker = false
+            }
+        };
+    }
+
+    private const int LocalWorkspaceLimit = 64 * 1024 * 1024;
+
+    private static object? PrepareStepAssembly(WebRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Source) || Encoding.UTF8.GetByteCount(request.Source) > LocalWorkspaceLimit)
+            throw new WebRuntimeException("step-import-size", "Choose a nonempty STEP file up to 64 MiB.");
+        var structure = Step242AssemblyImporter.ImportForWorkspace(request.Source);
+        if (!structure.IsSuccess)
+        {
+            if (structure.Diagnostics.Any(item => item.Source == Step242AssemblyImporter.SinglePart)) return null;
+            throw new WebRuntimeException("step-assembly-import", string.Join(" ", structure.Diagnostics.Select(item => item.Message)));
         }
-    };
+        var prepared = Step242FirmasmPackageImporter.Prepare(structure.Value, request.SourceName ?? "Imported.step", LocalWorkspaceLimit);
+        if (!prepared.IsSuccess)
+            throw new WebRuntimeException("step-assembly-package", string.Join(" ", prepared.Diagnostics.Select(item => item.Message)));
+        return new
+        {
+            prepared.Value.Root,
+            prepared.Value.Documents,
+            solidCount = prepared.Value.Components.Count,
+            warnings = structure.Diagnostics.Where(item => item.Severity == KernelDiagnosticSeverity.Warning).Select(item => item.Message).ToArray()
+        };
+    }
 
     private static object Compile(WebRequest request)
     {
@@ -629,7 +661,7 @@ public static partial class Program
             }
             var mesh = WebMeshBuilder.Build(Name, definitionId, entityId, displayBody, out var exportDisplay,
                 build.Value.RuntimeCorrespondence, boxSource, Revision + 1, featureSources, build.Value.Cir, Aetheris.Kernel.Firmament.Visualization.ConceptDisplayProjection.Project(build.Value),
-                build.Value.ExportedBodyCategory == "inline-step" ? entityId : null, annotations,
+                build.Value.ExportedBodyCategory is "inline-step" or "inline-step-edge-finish" ? entityId : null, annotations,
                 parsed.Document?.Solids.SingleOrDefault()?.InlineStep);
             meshPhase.Dispose();
             var meshMs = watch.Elapsed.TotalMilliseconds;
@@ -938,12 +970,16 @@ internal static class WebMeshBuilder
                     Aetheris.Kernel.Firmament.Materializer.SemanticTopologyDescendant? semanticEdge = null;
                     if (sourceMap is not null && sourceMap.TryGetByBrepEdge(edge.EdgeId, out var mappedEdge)) semanticEdge = mappedEdge;
                     var owner = semanticEdge?.ParentStableId is { } parent && featureSources?.ContainsKey(parent) == true ? parent : entityId;
+                    var imported = importedBodyName is not null && body.Bindings.TryGetEdgeBinding(edge.EdgeId, out var binding)
+                        ? binding.SourceStepEntityId : null;
                     return new { edgeId = $"edge:{edge.EdgeId.Value}", points = edge.Points.Select(point => new[] { point.X, point.Y, point.Z }).ToArray(), closed = edge.IsClosed,
-                        semanticEntityId = owner, semanticTopologyId = semanticEdge?.StableId, topologyKind = "Edge", outputRole = semanticEdge?.Role.ToString(), originFeature = semanticEdge?.SourceStableId,
-                        sourceAddressability = semanticEdge?.Addressability.ToString() ?? "RuntimeOnly", selector = semanticEdge?.FirmamentSelector,
+                        semanticEntityId = owner, semanticTopologyId = semanticEdge?.StableId ?? (imported is { } importedEntity ? importedBodyName + ":#" + importedEntity : null),
+                        topologyKind = "Edge", outputRole = semanticEdge?.Role.ToString(), originFeature = semanticEdge?.SourceStableId,
+                        sourceAddressability = imported is not null ? "ImportedStable" : semanticEdge?.Addressability.ToString() ?? "RuntimeOnly",
+                        selector = imported is not null ? $"{importedBodyName}.edge(\"#{imported}\")" : semanticEdge?.FirmamentSelector,
                         edgeFinish = edgeFinishes?.GetValueOrDefault(edge.EdgeId),
                         edgeFinishReason = edgeFinishes?.ContainsKey(edge.EdgeId) == true ? null : edgeFinishReason,
-                        selectorReason = semanticEdge is null ? "Display BRep edge has no construction-owned source correspondence."
+                        selectorReason = imported is not null ? null : semanticEdge is null ? "Display BRep edge has no construction-owned source correspondence."
                             : semanticEdge.FirmamentSelector is null ? "Construction identity is known, but Firmament has no qualified source selector for this edge." : null,
                         source = semanticEdge is null ? null : owner == entityId ? source : featureSources![owner], buildRevision };
                 }).ToArray() } },

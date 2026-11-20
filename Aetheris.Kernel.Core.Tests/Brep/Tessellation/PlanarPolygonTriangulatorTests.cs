@@ -57,6 +57,35 @@ public sealed class PlanarPolygonTriangulatorTests
     }
 
     [Fact]
+    public void TryTriangulateWithHoles_JoinedHoleLosesItsRingStart_PreservesBothHoles()
+    {
+        var outer = Rectangle(0d, 0d, 10d, 10d);
+        // The nearest bridge to (0,0) is collinear with the first hole's
+        // starting edge, so splicing filters out that ring's start.
+        Point3D[] triangle = [new(1d, 1d, 0d), new(2d, 2d, 0d), new(3d, 2d, 0d)];
+        var holes = new[] { triangle, Rectangle(6d, 6d, 8d, 8d) };
+
+        var result = TryTriangulateWithHoles(outer, holes);
+        var repeated = TryTriangulateWithHoles(outer, holes);
+        Assert.Equal(result.Points, repeated.Points);
+        Assert.Equal(result.Indices, repeated.Indices);
+
+        var area = 0d;
+        for (var index = 0; index < result.Indices.Count; index += 3)
+        {
+            var a = result.Points[result.Indices[index]];
+            var b = result.Points[result.Indices[index + 1]];
+            var c = result.Points[result.Indices[index + 2]];
+            var signedArea = (b - a).Cross(c - a).Z * 0.5d;
+            Assert.True(signedArea > 0d);
+            area += signedArea;
+        }
+        Assert.Equal(95.5d, area, 8);
+        Assert.All(GetTriangleCentroids(result.Points, result.Indices), centroid =>
+            Assert.DoesNotContain(holes, hole => PointInPolygon2D(centroid, hole)));
+    }
+
+    [Fact]
     public void TryTriangulate_SimpleSingleLoop_RegressionPathRemainsValid()
     {
         var polygon = new[]

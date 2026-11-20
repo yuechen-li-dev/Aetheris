@@ -1,4 +1,11 @@
-# Editable V8 geometry reference
+# Editable V8
+
+The live assembly test checks shared part definitions, solved mates, dimensional
+fits and spring motion through the Firmament assembly pipeline. The stem diameter
+drives both the stem and retainer bore. The test reads the compiled analytic
+surfaces to check the radial clearance, concentric bore and retainer thickness.
+
+## Historical geometry reference
 
 `geometry-reference.expected.json` retains the original implementation's 171
 binding names and solved world matrices, together with 21 qualified display-mesh
@@ -9,14 +16,14 @@ pre-refactor provenance; `meshReferenceRevision` identifies its display projecti
 fingerprints. Each entry is named `<SHA-256>.bin` and contains
 little-endian position and normal arrays (Int32 length, then Float64 elements),
 followed by indices (Int32 length and elements). Signed zero is normalized.
-The test verifies each entry against its declared fingerprint.
+The original test verified each entry against its declared fingerprint.
 
-The numeric golden is necessary because a byte hash cannot distinguish geometry
+The numeric golden was created because a byte hash cannot distinguish geometry
 changes from platform math roundoff. Windows/Linux comparison on 2026-10-16 found
 identical array lengths and indices, maximum position delta `1.013e-13 mm`, and
-maximum normal-component delta `2.267e-10` (spring normals). The live test allows
-`1e-9 mm` per position component and `1e-9` per normal component, requires finite
-values, and compares indices exactly. World matrices retain their `1e-9` bound.
+maximum normal-component delta `2.267e-10` (spring normals). The original test used
+`1e-9 mm` per position component and `1e-9` per normal component, required finite
+values, and compared indices exactly. World matrices had a `1e-9` bound.
 The analytic-edge export correction on 2026-10-24 changed display sampling on four
 definitions. Symmetric quad diagonals also gained a rounding-scale deterministic
 tie-break. Before refreshing these display fingerprints, all 21 definitions'
@@ -24,7 +31,7 @@ surfaces, curves, trim bindings, vertices and topology were compared with the pr
 qualified kernel within `1e-9`; all 171 world matrices were preserved. The prior
 kernel's meshes first passed the original frozen reference. The new Windows and
 Linux meshes have identical indices and array lengths, with maximum position
-and normal differences within the existing component bounds. No design dimensions
+and normal differences within the original component bounds. No design dimensions
 or exact construction geometry changed.
 
 On 2026-11-06 the STEP writer began deriving loop direction (each edge used once each
@@ -45,9 +52,7 @@ repository root:
 python scripts/freeze-editable-v8-reference.py path/to/baseline.mesh.json
 ```
 
-The command writes under ignored `artifacts/local/v8-ci/`. It refuses any input
-whose meshes do not exactly match all declared fingerprints; it cannot rebaseline
-changed geometry. The checked-in archive uses the qualified Windows projection
-with all 21 hashes verified. It is a compressed durable regression golden,
-not a per-run mesh export. Its full numeric arrays permit tolerance comparisons
-without the boundary failures introduced by rounding and hashing floats.
+The command writes under ignored `artifacts/local/v8-ci/` and requires an exact
+match to all 21 recorded fingerprints. The checked-in archive preserves the
+qualified projection for historical comparisons. The live assembly test permits
+changes in triangle ordering and sampling.

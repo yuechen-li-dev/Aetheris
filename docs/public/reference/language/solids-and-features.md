@@ -241,6 +241,12 @@ In a Compose body, all three variants are supported on the `+Z` support with
 ## Edge finishes
 
 `EdgeFinish<Chamfer>` takes `distance`; `EdgeFinish<Fillet>` takes `radius`.
+
+For a pinned `InlineStep` body, `Modify` also admits `target: SingleEdge` with
+`on: Stock.Edge("#21")`, or `target: Boundary` with `on: Stock.Face("#153")`.
+Use the STEP entity IDs from that source, and see
+[edge finishes on imported STEP](../../firmament/imported-feature-recognition.md#edge-finishes-on-imported-step)
+for the complete model and eligible geometry.
 `kind: Chamfer` and `kind: Fillet` are older spellings; if both a variant and
 `kind` are given, they must agree. A bare `Fillet name { ... }` is not an edge
 finish.

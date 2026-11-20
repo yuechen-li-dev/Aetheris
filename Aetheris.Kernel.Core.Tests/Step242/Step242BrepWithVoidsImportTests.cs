@@ -15,14 +15,21 @@ public sealed class Step242BrepWithVoidsImportTests
         Assert.Contains("at least one void shell", diagnostic.Message, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void Import_BrepWithVoids_MinimalOuterAndVoidShells_PreservesShellRepresentation()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Import_BrepWithVoids_MinimalOuterAndVoidShells_PreservesShellRepresentation(bool explicitDerivedFaces)
     {
-        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "golden", "firmament-v1", "boolean_box_sphere_cavity_basic.step");
-        var stepText = File.ReadAllText(fixturePath);
+        const string fixturePath = "testdata/step242/golden/firmament-v1/boolean_box_sphere_cavity_basic.step";
+        var stepText = Step242Corpus.Text(fixturePath);
         Assert.Contains("BREP_WITH_VOIDS", stepText, StringComparison.Ordinal);
+        if (explicitDerivedFaces)
+        {
+            Assert.Contains("ORIENTED_CLOSED_SHELL($,", stepText, StringComparison.Ordinal);
+            stepText = stepText.Replace("ORIENTED_CLOSED_SHELL($,", "ORIENTED_CLOSED_SHELL('',*,", StringComparison.Ordinal);
+        }
 
-        var import = Step242Importer.ImportBody(stepText);
+        var import = explicitDerivedFaces ? Step242Importer.ImportBody(stepText) : Step242Corpus.Import(fixturePath);
         Assert.True(import.IsSuccess, string.Join(Environment.NewLine, import.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
         Assert.NotNull(import.Value.ShellRepresentation);
         Assert.Single(import.Value.Topology.Bodies);

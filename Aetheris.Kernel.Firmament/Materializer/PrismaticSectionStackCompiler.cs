@@ -371,7 +371,7 @@ public static class PrismaticSectionStackEmitter
                 if (Math.Abs(z - side.From) <= Tol && bottomLevels.TryGetValue(profile, out var bottomLevel) && Math.Abs(z - bottomLevel) <= Tol) descendants.Add(new($"plan:{stack.Feature.Name}:{side.Construction}:edge:{edge.Id.Value}:bottom", "Edge", SemanticTopologyRole.BottomBoundary, side.Source, Edge: edge.Id, ParentStableId: side.Construction));
             }
             var selector = sideFaces.Count(s => s.Source == side.Source) == 1 && geometry.Surfaces.Any(s => s.Key == bindings.FaceBindings.Single(b => b.FaceId == face).SurfaceGeometryId && s.Value.Plane is not null)
-                ? $"face({stack.Feature.Name}.Side({System.Text.Json.JsonSerializer.Serialize(side.Source)}))" : null;
+                ? $"face({stack.Feature.Name}.Side({System.Text.Json.JsonSerializer.Serialize(side.Source, FirmamentJsonContext.Default.String)}))" : null;
             descendants.Add(new($"plan:{stack.Feature.Name}:{side.Construction}:face:{face.Value}", "Face", SemanticTopologyRole.ExtrusionSideFace, side.Source, Face: face, ParentStableId: side.Construction,
                 FirmamentSelector: selector, Addressability: selector is null ? SemanticTopologyAddressability.RuntimeOnly : SemanticTopologyAddressability.DerivedStable));
         }

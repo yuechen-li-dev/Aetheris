@@ -182,7 +182,10 @@ public static partial class FirmamentV2Parser
                         if (BindMechanicalHole(fields, diagnostics, ownerName: solid.Name) is { } hole) holes.Add(hole);
                         break;
                     case "EdgeFinish":
-                        if (BindMechanicalFinish(fields, diagnostics) is { } finish) finishes.Add(finish);
+                        var finish = solid.InlineStep is not null
+                            ? BindImportedFinish(fields, diagnostics, solid.Name)
+                            : BindMechanicalFinish(fields, diagnostics);
+                        if (finish is not null) finishes.Add(finish);
                         break;
                     case "Perforation":
                         if (BindMechanicalPerforation(fields, diagnostics) is { } perforation) perforations.Add(perforation);

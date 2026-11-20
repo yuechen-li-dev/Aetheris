@@ -232,7 +232,11 @@ public sealed record FirmamentV2EdgeFinishDecl(
     string Kind,
     double Distance,
     FirmamentV2SourceSpan SourceSpan,
-    IReadOnlyDictionary<string, string>? Provenance = null);
+    IReadOnlyDictionary<string, string>? Provenance = null)
+{
+    internal FirmamentV2ImportedFinishTarget? ImportedTarget { get; init; }
+}
+internal sealed record FirmamentV2ImportedFinishTarget(int StepEntity, bool IsBoundary, double Clearance);
 public sealed record FirmamentV2RegionDecl(string Name, string Kind, FirmamentV2FaceTarget Attachment, FirmamentV2CutOperation Cut);
 public sealed record FirmamentV2CutOperation(string OperationKind, FirmamentV2CylinderTool Tool);
 public sealed record FirmamentV2CylinderTool(string ToolType, double Radius, FirmamentV2FaceLocalPoint2D? Center, FirmamentV2FaceTarget Through);

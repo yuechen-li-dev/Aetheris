@@ -11,10 +11,13 @@ or a direct path. An optional generated dependency lock supplies its source pin,
 so authors do not need to write SHA-256 strings. See the Inventory guide for lock
 commands, metadata and assembly imports' explicit source-PMI exclusion policy.
 
-Helios also provides **Import STEP** for the bounded canonical `InlineStep` part
-workflow described below. It retains the input as an immutable text asset and
-creates a Firmament annotation layer. This is not arbitrary vendor STEP or
-assembly import: the existing canonical-input and importer checks still apply.
+Helios **Import STEP** opens supported single solids as `InlineStep` parts and
+admits assemblies with qualified solid components. A single-solid workspace
+keeps the original as an immutable text asset, pins foreign STEP files, and
+creates a Firmament annotation layer. An explicit assembly occurrence backed only by an open
+surface can block assembly import. Use `aetheris analyze compound file.step --json`
+to inspect the solid roots of such a file without reconstructing the hierarchy
+or applying its occurrence placements.
 
 In Helios, select an imported planar face to **Add datum**, or a cylindrical face
 to **Add diameter**. Diameter authoring shows the measured value separately from
@@ -80,9 +83,14 @@ For bound geometry, `pcurveQualification` reports the face-edge use count, sourc
 An unchanged `InlineStep` can be annotated and re-exported when strict production
 output checks pass, even when optional UV recovery is incomplete. Source pins
 prove the identity of the imported data; they do not select a stricter operation.
-Export checks topology/bindings, imported shell enclosure, canonical representation
-and 3D boundary consistency within the declared budget, capped at 0.1 mm. This is
-a recovery allowance, not a machining tolerance. Invalid UV traces are omitted
+Export checks topology bindings, imported shell enclosure, canonical representation
+and 3D boundary consistency. If a trim exceeds the default 0.001 mm budget,
+the refusal reports the measured deviation and the allowed distance. Set
+`importTolerance` on the pinned `InlineStep` when the source accuracy supports
+that deviation and the intended use can accept it. For example,
+`importTolerance: 0.002mm` admits a deviation up to 0.002 mm. The budget is capped
+at 0.1 mm and applies to geometry qualification. Export retains the geometry
+and writes its distance accuracy. Invalid UV traces are omitted
 with `step-export-recovered-pcurves-omitted`; STEP uses its 3D edge curves and
 vertices to define those boundaries. The source qualification report is retained.
 `Remove`/`Replace` operations that depend on face-local trims keep their own

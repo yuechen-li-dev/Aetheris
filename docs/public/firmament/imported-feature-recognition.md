@@ -197,7 +197,8 @@ vendor's original dimensions, datums or GD&T.
 
 The current family is one isolated round principal-axis (X, Y or Z) through-hole, unchanged diameter
 and depth, between two parallel planar supports in one qualified closed oriented
-body. Blind, intersecting, breakout, threaded, blended-entry, counterbore,
+body. Imported through-hole authoring starts with an existing recognized hole
+that can be moved or removed. Blind, intersecting, breakout, threaded, blended-entry, counterbore,
 countersink, slot and oblique-axis revisions reject. Unknown fields and placements reject.
 No arbitrary-body Boolean fallback or general healing is performed. An unedited
 pinned body can be re-exported through the qualified import owner; a pin does not

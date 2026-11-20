@@ -2000,13 +2000,15 @@ public static class Step242Importer
 
         var normalizedMajor = majorComponent / ellipse.MajorRadius;
         var normalizedMinor = minorComponent / ellipse.MinorRadius;
-        var radialError = double.Abs((normalizedMajor * normalizedMajor) + (normalizedMinor * normalizedMinor) - 1d);
-        if (radialError > System.Math.Max(1e-8d, tolerance / System.Math.Max(1d, ellipse.MajorRadius)))
+        var angle = double.Atan2(normalizedMinor, normalizedMajor);
+        // Qualify the curve point in model units, including the out-of-plane residual.
+        var deviation = (point - ellipse.Evaluate(angle)).Length;
+        if (!double.IsFinite(deviation) || deviation > tolerance)
         {
-            return FailureEllipseTrimAngle($"Unable to project elliptical trim point: normalized radial deviation {radialError:G17} exceeds tolerance.", "Importer.Geometry.EllipseTrim.OffRadius");
+            return FailureEllipseTrimAngle($"Unable to project elliptical trim point: curve deviation {deviation:G17} mm exceeds tolerance {tolerance:G17} mm.", "Importer.Geometry.EllipseTrim.OffRadius");
         }
 
-        return KernelResult<double>.Success(double.Atan2(normalizedMinor, normalizedMajor));
+        return KernelResult<double>.Success(angle);
     }
 
     private static double ComputeEllipseTrimTolerance(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint)

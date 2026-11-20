@@ -23,6 +23,14 @@ public sealed record PlanarTextProfileResult(IReadOnlyList<ResolvedProfile2D> Re
 public static class PlanarTextProfiles
 {
     private static readonly Lazy<Typeface> DefaultTypeface = new(LoadInter);
+    private static readonly object GlyphLookupGate = new();
+
+    private static ushort LookupGlyphIndex(Typeface typeface, Rune rune)
+    {
+        // Typography.OpenFont lazily updates its cmap cache during lookup.
+        lock (GlyphLookupGate)
+            return typeface.GetGlyphIndex(rune.Value);
+    }
 
     /// <summary>Presentation text as flattened closed polygons, one per glyph contour, with the
     /// line's advance width. Counters (holes) are separate polygons; fill with even-odd.</summary>
@@ -38,7 +46,7 @@ public static class PlanarTextProfiles
         foreach (var rune in content.EnumerateRunes())
         {
             glyphNumber++;
-            var index = typeface.GetGlyphIndex(rune.Value);
+            var index = LookupGlyphIndex(typeface, rune);
             if (index == 0) throw new InvalidOperationException($"pmi-display-text-unsupported: Missing glyph U+{rune.Value:X4}.");
             var glyph = typeface.GetGlyph(index);
             if (glyph.IsCffGlyph) throw new InvalidOperationException("pmi-display-text-unsupported: CFF glyph.");
@@ -82,7 +90,7 @@ public static class PlanarTextProfiles
         var curves = new List<LineArcProfileCurve2D>();
         foreach (var rune in content.EnumerateRunes())
         {
-            var index = typeface.GetGlyphIndex(rune.Value);
+            var index = LookupGlyphIndex(typeface, rune);
             if (index == 0) throw new InvalidOperationException($"pmi-display-text-unsupported: Missing glyph U+{rune.Value:X4}.");
             var glyph = typeface.GetGlyph(index);
             if (glyph.IsCffGlyph) throw new InvalidOperationException("pmi-display-text-unsupported: CFF glyph.");
@@ -137,7 +145,7 @@ public static class PlanarTextProfiles
         var sourceStart = 0;
         foreach (var rune in content.EnumerateRunes())
         {
-            var glyphIndex = typeface.GetGlyphIndex(rune.Value);
+            var glyphIndex = LookupGlyphIndex(typeface, rune);
             if (glyphIndex == 0)
             {
                 diagnostics.Add($"text-glyph-missing:U+{rune.Value:X4}");

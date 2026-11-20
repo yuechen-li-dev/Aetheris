@@ -62,6 +62,35 @@ public sealed class Step242AssemblyProductStructureTests
     }
 
     [Fact]
+    public void RepeatedProductLabels_KeepDefinitionReferencesAndGeometryDistinct()
+    {
+        var small = BrepPrimitives.CreateBox(2, 2, 2).Value;
+        var large = BrepPrimitives.CreateBox(4, 2, 2).Value;
+        double[] identity = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+        var step = Step242AssemblyExporter.Export(new("Root", "root",
+            [new("def:small", "Body", small), new("def:large", "Body", large)], [
+                new("root", "Root", null, null, identity),
+                new("first", "First", "root", "def:small", identity),
+                new("second", "Second", "root", "def:large", identity)
+            ])).Value;
+        step = step.Replace("PRODUCT('def:small',", "PRODUCT('Body',", StringComparison.Ordinal)
+            .Replace("PRODUCT('def:large',", "PRODUCT('Body',", StringComparison.Ordinal);
+        Assert.Equal(2, Count(step, "PRODUCT('Body',"));
+
+        var imported = Step242AssemblyImporter.Import(step);
+        Assert.True(imported.IsSuccess, string.Join(" | ", imported.Diagnostics.Select(item => item.Message)));
+        var parts = imported.Value.Definitions.Where(item => item.Geometry is not null)
+            .ToDictionary(item => item.StableId, StringComparer.Ordinal);
+        var first = parts[imported.Value.Occurrences.Single(item => item.StableId == "first").DefinitionStableId];
+        var second = parts[imported.Value.Occurrences.Single(item => item.StableId == "second").DefinitionStableId];
+        Assert.Equal(2, parts.Count);
+        Assert.Equal("Body", first.Name);
+        Assert.Equal("Body", second.Name);
+        Assert.NotEqual(first.ProductDefinitionEntityId, second.ProductDefinitionEntityId);
+        Assert.NotEqual(first.GeometrySha256, second.GeometrySha256);
+    }
+
+    [Fact]
     public void MissingOccurrenceTransform_FailsWithIdentifiedOccurrence()
     {
         var body = BrepPrimitives.CreateBox(1, 1, 1).Value;

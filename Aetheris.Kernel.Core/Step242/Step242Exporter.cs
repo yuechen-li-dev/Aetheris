@@ -80,7 +80,7 @@ public static class Step242Exporter
 
         var preflight = options.BrepExportPreflightMode == BrepExportPreflightMode.Disabled
             ? null
-            : BrepExportPreflight.Validate(body, options.ImportedRecoveryToleranceMillimetres,
+            : BrepExportPreflight.Validate(body, options.ImportedBoundaryToleranceMillimetres ?? options.ImportedRecoveryToleranceMillimetres,
                 options.ImportedSourceVertexTolerancesMillimetres);
         if (preflight is { IsValid: false } && options.BrepExportPreflightMode == BrepExportPreflightMode.Enforce)
         {

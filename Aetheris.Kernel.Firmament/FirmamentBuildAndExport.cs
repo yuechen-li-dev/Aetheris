@@ -2624,6 +2624,14 @@ public static partial class FirmamentBuildAndExport
         var targetValidation = ValidateImportedPmiTargets(semanticPmi, import.Value);
         if (!targetValidation.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(targetValidation.Diagnostics);
         if (ImportedHoleTargetErrors(document, solid, import.Value).ToArray() is { Length: > 0 } holeErrors) return KernelResult<FirmamentStepExportResult>.Failure(holeErrors);
+        const double maximumTolerance = .1;
+        var recoveryTolerance = double.Min(maximumTolerance, inlineStep.ImportToleranceMillimetres ?? .001);
+        var sourceAccuracy = import.Value.ImportQualification?.SourceDistanceAccuracyMillimetres;
+        // The source can admit larger existing gaps. Normalization keeps its tighter
+        // budget unless an author explicitly requests a different one.
+        var boundaryTolerance = inlineStep.ImportToleranceMillimetres is null
+            ? double.Clamp(sourceAccuracy ?? recoveryTolerance, recoveryTolerance, maximumTolerance)
+            : recoveryTolerance;
         var export = Step242Exporter.ExportBody(import.Value, semanticPmi, new Step242ExportOptions
         {
             ProductName = solid.Name,
@@ -2631,7 +2639,9 @@ public static partial class FirmamentBuildAndExport
             ImportedPmi = importedPmi,
             BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
             BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
-            ImportedRecoveryToleranceMillimetres = double.Min(.1, inlineStep.ImportToleranceMillimetres ?? .001)
+            ImportedRecoveryToleranceMillimetres = recoveryTolerance,
+            ImportedBoundaryToleranceMillimetres = boundaryTolerance,
+            DistanceAccuracyMillimetres = sourceAccuracy
         });
         if (!export.IsSuccess)
         {

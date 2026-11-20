@@ -60,6 +60,9 @@ public sealed class Step242ExportOptions
     /// <summary>Explicit import-only geometric consistency budget; authored export uses kernel tolerance.</summary>
     public double? ImportedRecoveryToleranceMillimetres { get; init; }
 
+    /// <summary>Boundary consistency budget for retained imported geometry, independent of normalization precision.</summary>
+    public double? ImportedBoundaryToleranceMillimetres { get; init; }
+
     /// <summary>Source-declared vertex tolerances for an imported topology, capped by its binder.</summary>
     public IReadOnlyDictionary<VertexId, double>? ImportedSourceVertexTolerancesMillimetres { get; init; }
 

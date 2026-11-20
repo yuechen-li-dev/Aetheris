@@ -84,13 +84,15 @@ An unchanged `InlineStep` can be annotated and re-exported when strict productio
 output checks pass, even when optional UV recovery is incomplete. Source pins
 prove the identity of the imported data; they do not select a stricter operation.
 Export checks topology bindings, imported shell enclosure, canonical representation
-and 3D boundary consistency. If a trim exceeds the default 0.001 mm budget,
-the refusal reports the measured deviation and the allowed distance. Set
-`importTolerance` on the pinned `InlineStep` when the source accuracy supports
-that deviation and the intended use can accept it. For example,
-`importTolerance: 0.002mm` admits a deviation up to 0.002 mm. The budget is capped
-at 0.1 mm and applies to geometry qualification. Export retains the geometry
-and writes its distance accuracy. Invalid UV traces are omitted
+and 3D boundary consistency. For retained boundaries, the default allowance is
+0.001 mm or the STEP file's declared distance accuracy, whichever is larger,
+capped at 0.1 mm. The importer converts the declaration to millimetres. A refusal
+reports the measured trim deviation and allowed distance where available.
+Set `importTolerance` on a pinned `InlineStep` to choose a different budget.
+For example, `importTolerance: 0.002mm` sets the boundary and normalization
+budget to 0.002 mm. The automatic allowance applies to retained boundaries.
+Normalization keeps its default 0.001 mm budget until you set an explicit value.
+Export carries forward the source distance accuracy. Invalid UV traces are omitted
 with `step-export-recovered-pcurves-omitted`; STEP uses its 3D edge curves and
 vertices to define those boundaries. The source qualification report is retained.
 `Remove`/`Replace` operations that depend on face-local trims keep their own

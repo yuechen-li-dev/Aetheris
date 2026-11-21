@@ -66,10 +66,42 @@ public static class SubdivisionSculptor
 {
     public const string Schema = "aetheris.mesh-sculpt.v1";
     public const int MaximumFaces = 24576;
-    public static string Hash(string value) => System.Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
-    public static string EdgeId(string a, string b) => "e" + Hash(string.CompareOrdinal(a, b) < 0 ? a + "|" + b : b + "|" + a)[..20];
+    public static string Hash(string value) => System.Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 
-    public static IReadOnlyList<CageEdge> Edges(SubdivisionCage cage)
+    /// <summary>The first <paramref name="hexLength"/> characters of <see cref="Hash"/>, without building the rest.</summary>
+    private static string HashPrefix(string value, int hexLength)
+    {
+        Span<byte> digest = stackalloc byte[32];
+        var length = Encoding.UTF8.GetByteCount(value);
+        byte[]? rented = length > 512 ? System.Buffers.ArrayPool<byte>.Shared.Rent(length) : null;
+        Span<byte> bytes = rented is null ? stackalloc byte[length] : rented.AsSpan(0, length);
+        Encoding.UTF8.GetBytes(value, bytes);
+        SHA256.HashData(bytes, digest);
+        if (rented is not null) System.Buffers.ArrayPool<byte>.Shared.Return(rented);
+        return System.Convert.ToHexStringLower(digest[..(hexLength / 2)]);
+    }
+    public static string EdgeId(string a, string b)
+    {
+        // Edge identities are SHA-256 names of their vertex pair. Every refine, limit and evaluation re-derives the
+        // same names, so they are remembered (bounded; the name is a pure function of the pair).
+        var key = string.CompareOrdinal(a, b) < 0 ? (a, b) : (b, a);
+        if (EdgeIds.TryGetValue(key, out var known)) return known;
+        var id = "e" + HashPrefix(key.Item1 + "|" + key.Item2, 20);
+        // ConcurrentDictionary.Count takes every lock; keep an approximate count instead.
+        if (Interlocked.Increment(ref edgeIdCount) > EdgeIdCapacity) { EdgeIds.Clear(); Interlocked.Exchange(ref edgeIdCount, 0); }
+        EdgeIds.TryAdd(key, id);
+        return id;
+    }
+
+    private const int EdgeIdCapacity = 1 << 20;
+    private static int edgeIdCount;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(string, string), string> EdgeIds = new();
+    // A cage's edges depend only on its faces; `with { Vertices = ... }` copies share the face list.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IReadOnlyList<CageFace>, IReadOnlyList<CageEdge>> EdgesByFaces = new();
+
+    public static IReadOnlyList<CageEdge> Edges(SubdivisionCage cage) => EdgesByFaces.GetValue(cage.Faces, _ => ComputeEdges(cage));
+
+    private static IReadOnlyList<CageEdge> ComputeEdges(SubdivisionCage cage)
     {
         var edges = new Dictionary<string, (string A, string B, List<int> Faces)>(StringComparer.Ordinal);
         for (var i = 0; i < cage.Faces.Count; i++)
@@ -304,11 +336,11 @@ public static class SubdivisionSculptor
         // A sharp edge splits at its midpoint; a smooth edge also averages
         // both adjacent face centers. The old edge ID names its new vertex.
         foreach (var edge in edges) output.Add(new(edge.Id, sharp.Contains(edge.Id) ? Average([points[edge.A], points[edge.B]]) : Average([points[edge.A], points[edge.B], facePoints[edge.Faces[0]], facePoints[edge.Faces[1]]]), [edge.A, edge.B]));
-        for (var i = 0; i < cage.Faces.Count; i++) output.Add(new("f" + Hash(cage.Faces[i].Id)[..20], facePoints[i], cage.Faces[i].Vertices.ToArray()));
+        for (var i = 0; i < cage.Faces.Count; i++) output.Add(new("f" + HashPrefix(cage.Faces[i].Id, 20), facePoints[i], cage.Faces[i].Vertices.ToArray()));
         var facesOut = new List<CageFace>();
         for (var i = 0; i < cage.Faces.Count; i++)
         {
-            var face = cage.Faces[i]; var v = face.Vertices; var center = "f" + Hash(face.Id)[..20];
+            var face = cage.Faces[i]; var v = face.Vertices; var center = "f" + HashPrefix(face.Id, 20);
             for (var j = 0; j < 4; j++) facesOut.Add(new(face.Id + "_" + j, [v[j], EdgeId(v[j], v[(j + 1) % 4]), center, EdgeId(v[(j + 3) % 4], v[j])], face.SourceFaceIds));
         }
         var childCreases = edges.Where(e => sharp.Contains(e.Id)).SelectMany(e => new[] { EdgeId(e.A, e.Id), EdgeId(e.Id, e.B) }).Order(StringComparer.Ordinal).ToArray();

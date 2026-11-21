@@ -164,13 +164,23 @@ internal static class StepFaceOrientationResolver
             .Where(component => !component.HasPropagationConflict && shellStates.Single(state => state.ShellId == component.ShellId).IsClosed)
             .Select(component => component.Id)
             .ToHashSet();
-        var (tessellationSucceeded, signedVolumeByComponent) = MeasureComponents(localCandidate, componentByFace, SignOptions, out var area);
-        if (!tessellationSucceeded || decidingComponents.Any(component =>
-                !signedVolumeByComponent.TryGetValue(component, out var volume)
-                || System.Math.Abs(volume) <= 4d * SignOptions.ChordTolerance * area.GetValueOrDefault(component)))
+        // The coarse chord scales with the part: a volume-to-area ratio is at most about half the smallest extent,
+        // so a chord of a fortieth of it can still decide. When that chord is no coarser than the display mesh's,
+        // the display mesh is measured directly instead of twice.
+        var signOptions = SignOptionsFor(localCandidate);
+        var tessellationSucceeded = false;
+        var signedVolumeByComponent = new Dictionary<int, double>();
+        if (signOptions is not null)
         {
-            (tessellationSucceeded, signedVolumeByComponent) = MeasureComponents(localCandidate, componentByFace, null, out _);
+            (tessellationSucceeded, signedVolumeByComponent) = MeasureComponents(localCandidate, componentByFace, signOptions, out var area);
+            var volumes = signedVolumeByComponent;
+            if (tessellationSucceeded && decidingComponents.Any(component =>
+                    !volumes.TryGetValue(component, out var volume)
+                    || System.Math.Abs(volume) <= 4d * signOptions.ChordTolerance * area.GetValueOrDefault(component)))
+                tessellationSucceeded = false;
         }
+        if (!tessellationSucceeded)
+            (tessellationSucceeded, signedVolumeByComponent) = MeasureComponents(localCandidate, componentByFace, null, out _);
 
         var globalFlipByComponent = new Dictionary<int, bool>();
         foreach (var component in components)
@@ -309,13 +319,27 @@ internal static class StepFaceOrientationResolver
         return new BrepBody(body.Topology, body.Geometry, bindings, points, body.SafeBooleanComposition, body.ShellRepresentation, faceOrientationReport);
     }
 
-    /// <summary>A mesh for the volume sign only: coarse in angle and chord, unbounded enough in segments to
-    /// honour its chord.</summary>
-    private static readonly DisplayTessellationOptions SignOptions = new(
-        AngularToleranceRadians: double.Pi / 4d,
-        ChordTolerance: 0.5d,
-        MinimumSegments: 4,
-        MaximumSegments: 256);
+    /// <summary>A mesh for the volume sign only: coarse in angle, a chord of a fortieth of the part's smallest
+    /// vertex extent up to 0.5 mm, and enough segments to honour it; null when that is no coarser than the
+    /// display mesh.</summary>
+    private static DisplayTessellationOptions? SignOptionsFor(BrepBody body)
+    {
+        double minX = double.PositiveInfinity, minY = double.PositiveInfinity, minZ = double.PositiveInfinity;
+        double maxX = double.NegativeInfinity, maxY = double.NegativeInfinity, maxZ = double.NegativeInfinity;
+        foreach (var vertex in body.Topology.Vertices)
+        {
+            if (!body.TryGetVertexPoint(vertex.Id, out var p)) continue;
+            minX = System.Math.Min(minX, p.X); minY = System.Math.Min(minY, p.Y); minZ = System.Math.Min(minZ, p.Z);
+            maxX = System.Math.Max(maxX, p.X); maxY = System.Math.Max(maxY, p.Y); maxZ = System.Math.Max(maxZ, p.Z);
+        }
+        var extent = System.Math.Min(maxX - minX, System.Math.Min(maxY - minY, maxZ - minZ));
+        var chord = double.IsFinite(extent) ? System.Math.Min(0.5d, extent / 40d) : 0d;
+        return chord <= DisplayTessellationOptions.Default.ChordTolerance ? null : new(
+            AngularToleranceRadians: double.Pi / 4d,
+            ChordTolerance: chord,
+            MinimumSegments: 4,
+            MaximumSegments: 256);
+    }
 
     private static (bool Succeeded, Dictionary<int, double> Volumes) MeasureComponents(
         BrepBody candidate, IReadOnlyDictionary<FaceId, int> componentByFace, DisplayTessellationOptions? options,

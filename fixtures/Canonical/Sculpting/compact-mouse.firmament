@@ -50,12 +50,13 @@ Model CompactMouse {
     Profile RimOutline = MouseOutline<Nose:-47.9mm, Tail:47.9mm, Waist:0mm, HalfWidth:30.4mm>
     Profile ShoulderOutline = MouseOutline<Nose:-44mm, Tail:47.3mm, Waist:3mm, HalfWidth:29mm>
     Profile PalmOutline = MouseOutline<Nose:-23mm, Tail:40mm, Waist:9mm, HalfWidth:23mm>
-    Profile CrownOutline = MouseOutline<Nose:10mm, Tail:22mm, Waist:16mm, HalfWidth:6mm>
+    Profile CrownOutline = MouseOutline<Nose:14mm, Tail:18mm, Waist:16mm, HalfWidth:2mm>
 
     SectionChain Blockout {
         continuity: G1
         start: Cap
         end: Cap
+        endContinuity: G2
         Section Sole { frame: SoleFrame; profile: SoleOutline }
         Section Skirt { frame: SkirtFrame; profile: SkirtOutline }
         Section Rim { frame: RimFrame; profile: RimOutline }

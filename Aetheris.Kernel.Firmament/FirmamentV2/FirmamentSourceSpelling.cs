@@ -288,7 +288,7 @@ public static class FirmamentSourceSpelling
         Add("Appearance", "Color Metallic Roughness Opacity Emissive");
         Add("Material", "Identity Appearance");
         Add("Start End Corner RouteSite", "At On Radius");
-        Add("SectionChain", "Continuity Start End");
+        Add("SectionChain", "Continuity Start End EndContinuity");
         Add("Loft", "Sections Solid");
         Add("Continuity", "Order");
         return result;

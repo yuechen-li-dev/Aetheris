@@ -1009,6 +1009,8 @@ public static class CliRunner
             loops = f.LoopIds.Select(l => state.Body.GetCoedgeIds(l).Select(state.Body.Topology.GetCoedge).Select(c => {
                 var edge = state.Body.Topology.GetEdge(c.EdgeId); state.Body.TryGetVertexPoint(edge.StartVertexId, out var start); state.Body.TryGetVertexPoint(edge.EndVertexId, out var end);
                 return new { handle = "Edge" + c.EdgeId.Value, start, end }; }).ToArray()).ToArray() }).ToArray() : null,
+        endCapJoins = state.NativeSectionChain is { } native && ReferenceEquals(state.Body, native.Body)
+            ? native.GeometricJoins.Where(join => join.BoundaryKind == "EndCap").ToArray() : null,
         surfacePatches = state.SurfacePatches, blendJudgment = state.BlendJudgment, hasDelta = state.Delta is not null
     };
 

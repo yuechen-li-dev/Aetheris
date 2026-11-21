@@ -119,6 +119,14 @@ public sealed class SculptingCliTests
         {
             using var inspection = Run("inspect", source);
             Assert.Equal("Sculpting", inspection.RootElement.GetProperty("domain").GetString());
+            var joins = inspection.RootElement.GetProperty("states")[0].GetProperty("state").GetProperty("endCapJoins");
+            Assert.Equal(4, joins.GetArrayLength());
+            Assert.All(joins.EnumerateArray(), join =>
+            {
+                Assert.Equal("G2WithinSampledTolerance", join.GetProperty("status").GetString());
+                Assert.InRange(join.GetProperty("maximumNormalAngleDegrees").GetDouble(), 0, 1e-3);
+                Assert.InRange(join.GetProperty("maximumShapeOperatorResidual").GetDouble(), 0, 1e-6);
+            });
             var states = inspection.RootElement.GetProperty("meshStates");
             var seed = states.GetProperty("Seed");
             var fit = seed.GetProperty("sectionFit");
@@ -130,6 +138,7 @@ public sealed class SculptingCliTests
             var imported = Step242Importer.ImportBody(File.ReadAllText(stepPath));
             Assert.True(imported.IsSuccess);
             Assert.Equal(22, imported.Value.Topology.Faces.Count());
+            Assert.Equal(0, blockout.RootElement.GetProperty("surfaceInventory").GetProperty("rationalNurbs").GetInt32());
             var sourceStateId = blockout.RootElement.GetProperty("state").GetProperty("stateId").GetProperty("value").GetString();
 
             var raised = ExportAndReplay("PalmComfort");
@@ -170,7 +179,8 @@ public sealed class SculptingCliTests
     [Theory]
     [InlineData("maximumRimDeviation: 0.15mm", "maximumRimDeviation: 0.08mm", "mesh-section-rim-deviation-exceeded")]
     [InlineData("output: PalmComfort", "MeshState Uncrease { input: Seed; Crease { edges: [All]; mode: Smooth } }\n    output: Uncrease", "mesh-section-rim-crease-changed")]
-    public void SectionChainCageRejectsAnUnsatisfiedRimContract(string before, string after, string diagnostic)
+    [InlineData("end: Cap", "end: Open", "section-chain-end-continuity-incompatible")]
+    public void SectionChainCageRejectsAnUnsatisfiedContract(string before, string after, string diagnostic)
     {
         var folder = Path.Combine(Root(), "artifacts/local/tests/section-chain-cage", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);

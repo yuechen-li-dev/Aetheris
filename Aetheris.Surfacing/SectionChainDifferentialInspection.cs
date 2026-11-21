@@ -39,6 +39,33 @@ internal static class SectionChainDifferentialInspection
             "Analytic tensor B-spline first/second derivatives; Frobenius residual of second fundamental forms in a shared orthonormal world tangent basis. Curvature status requires G0/G1 first. Sampling is not a global proof.");
     }
 
+    public static SectionChainGeometricJoinEvidence MeasureEndCap(string identity, BSplineSurfaceWithKnots transition, SectionFrame cap)
+    {
+        var position = 0d;
+        var angle = 0d;
+        var curvature = 0d;
+        var regular = true;
+        var normal = cap.Normal.ToVector();
+        var samples = Enumerable.Range(0, 33).Select(i => i / 32d).Concat(transition.KnotValuesU).Distinct().ToArray();
+        foreach (var u in samples)
+        {
+            var jet = Jet(transition, u, 1d);
+            position = Math.Max(position, Math.Abs((jet.P - cap.Origin).Dot(normal)));
+            if (!jet.Du.Cross(jet.Dv).TryNormalize(out var sideNormal) || !jet.Du.TryNormalize(out var tangent) ||
+                !Form(jet, sideNormal, tangent, sideNormal.Cross(tangent), out var form))
+            {
+                regular = false;
+                continue;
+            }
+            angle = Math.Max(angle, Math.Atan2(sideNormal.Cross(normal).Length, sideNormal.Dot(normal)) * 180 / Math.PI);
+            curvature = Math.Max(curvature, Math.Sqrt(form.K11 * form.K11 + 2 * form.K12 * form.K12 + form.K22 * form.K22));
+        }
+        var status = !regular ? "Singular" : position > 1e-7 ? "BelowG0" : angle > 1e-3 ? "G0"
+            : curvature > 1e-6 ? "G1" : "G2WithinSampledTolerance";
+        return new(identity, "EndCap", position, angle, regular ? curvature : null, samples.Length, status,
+            "Analytic spline derivatives at the shared edge; compare cap plane normal and zero second fundamental form.");
+    }
+
     private static bool Form(PatchJet j,Vector3D n,Vector3D e1,Vector3D e2,out (double K11,double K12,double K22) form)
     {
         form=default;var E=j.Du.Dot(j.Du);var F=j.Du.Dot(j.Dv);var G=j.Dv.Dot(j.Dv);var determinant=E*G-F*F;

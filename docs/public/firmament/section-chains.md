@@ -39,11 +39,20 @@ Adjacent sections use one-to-one semantic span correspondence. Matching IDs may 
 
 Continuity intent and transition law are separate. `Continuity: G0` selects the existing `Ruled` law. `Continuity: G1` selects local `SmoothPolynomial` transitions. G0 makes adjacent surfaces meet. G1 also makes their tangent planes agree, so highlights and silhouettes flow smoothly across section boundaries.
 
-For G1, Aetheris transforms corresponding polynomial controls into world space and derives a shared tangent field at every section. Interior tangents use a nonuniform three-section quadratic-derivative stencil; cumulative frame-origin chord length is the station metric, and endpoints use a bounded one-sided chord derivative. Three deterministic magnitude policies are qualified for foldover and overshoot before the Judgment Engine compares bending energy and normal variation. Continuity is a hard eligibility constraint, never an aesthetic score.
+For G1, Aetheris transforms corresponding polynomial controls into world space and derives a shared tangent field at every section. Interior tangents use a nonuniform three-section quadratic-derivative stencil; cumulative frame-origin chord length is the station metric, and endpoints default to a bounded one-sided chord derivative. Three deterministic magnitude policies are qualified for foldover and overshoot before the Judgment Engine compares bending energy and normal variation. Continuity is a hard eligibility constraint, never an aesthetic score.
 
 Each matched span becomes an exact non-rational cubic transition in the longitudinal direction. Lines are exactly degree-elevated to cubic when needed; compatible polynomial B-splines retain their boundary geometry and knot structure. Circular arcs used in G1 now enter the bounded surfacing-only normalization described below. Mixed incompatible existing polynomial knot structures still fail with `section-chain-g1-degree-limit`; Aetheris never introduces rational weights or a faceted fallback. The G0 path still preserves exact plane/cylinder/cone recognition where applicable.
 
 Every internal section edge is allocated once. The preceding and following transition faces use that same edge, curve, vertices, and parameter direction. For G0, editing one section rebuilds its two adjacent transitions. G1 has a bounded dependency neighborhood: editing section `i` recomputes tangent fields `i-1..i+1` and may rebuild transitions `i-2->i-1` through `i+1->i+2`. Distant transitions and terminal conditions remain preserved in `SectionChainEditDelta`; there is no global loft solve.
+
+With `end: Cap`, a G1 chain can request `endContinuity: G2`. Its final
+transition uses a non-rational quartic in the longitudinal direction. The
+transition meets the planar cap with the same surface normal and with zero
+curvature at the seam. This preserves the planar termination and suppresses
+the break in reflections around its outline. Inspection reports the sampled
+tangent and curvature residuals. An open end or ruled chain rejects G2 end
+continuity. The [mouse crown](../../../fixtures/Canonical/Sculpting/compact-mouse.firmament)
+is a buildable example.
 
 Every transition and cap coedge also owns a face-local pcurve. Aetheris builds these through the same bounded Plane/Cylinder/non-rational-B-spline machinery used by trimmed SURF faces, then independently checks reconstruction deviation, surface-domain containment, both oriented endpoints, and UV loop closure. The two faces meeting at an internal section therefore share one authoritative 3D edge while retaining separate local 2D representations.
 
@@ -85,7 +94,7 @@ SectionChain Fairing {
 }
 ```
 
-Equal ordered span identities infer correspondence. When identities differ, author a `Correspond` block with `From`, `To`, and explicit `Source -> Target` rows. Missing, incomplete, reordered, or duplicate mappings fail before BRep construction. Omit `Continuity` for the G1 default, or write `Continuity: G0` and `Transition: Ruled` for intentionally faceted/straight-generator construction. G2 is not claimed. `Cap` and `Open` remain separate termination intent; planar caps meet the transition at G0 unless separately designed.
+Equal ordered span identities infer correspondence. When identities differ, author a `Correspond` block with `From`, `To`, and explicit `Source -> Target` rows. Missing, incomplete, reordered, or duplicate mappings fail before BRep construction. Omit `Continuity` for the G1 default, or write `Continuity: G0` and `Transition: Ruled` for intentionally faceted/straight-generator construction. G1 applies to the internal section joins. `Cap` and `Open` remain separate termination intent. Planar caps default to G0.
 
 ```firmament
 Correspond NoseToFront {

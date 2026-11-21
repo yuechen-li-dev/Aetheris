@@ -55,3 +55,24 @@ The full parallel gate remains red on this host.
 The transition and rim figures are sampled positional evidence. General
 retopology, global mesh self-intersection proof, and STEP export of edited SubD
 remain outside this lane.
+
+## Polynomial crown refinement
+
+The original cap met the loft with a sampled maximum normal mismatch of
+22.99 degrees. The fixture now uses a smaller 4 mm × 4 mm terminal outline and
+`endContinuity: G2`. The final loft transition is quartic longitudinally. Its
+last three Bézier control rows lie in the cap plane, and its start derivative
+continues the preceding transition.
+
+The Release CLI reports G2 at all four crown edges with 33 samples per edge.
+Comparing the exported STEP control nets gave a maximum normal mismatch of
+zero degrees at those samples. STEP reimport qualified the 22-face shell and
+export reported 20 non-rational B-spline surfaces and zero rational surfaces.
+The two SubD variants stayed watertight with the same 0.1235 mm sampled rim
+deviation. Matched renders from both exports show the former circular highlight
+removed. The small planar terminal face remains in the exact topology.
+
+Crown follow-up artifacts are under `artifacts/local/subd-mouse/crown-g2/`.
+The Release build, 26 focused CLI tests and 1,259 fast kernel tests passed.
+The full parallel gate failed on ten Kernel Core display cases and one CLI
+assembly display case. All eleven passed in an isolated rerun of 25 cases.

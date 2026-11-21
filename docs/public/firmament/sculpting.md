@@ -111,8 +111,9 @@ replayed by the engineering compiler.
 
 The [compact mouse study](../../../fixtures/Canonical/Sculpting/compact-mouse.firmament)
 builds an exact exterior from six cross-sections, fits a cage to it, then branches
-into two edits. Both edits reuse the same parting rim. Use `inspect --json` to
-see the cage, its handles and the sampled fit.
+into two edits. Its final transition meets a small planar crown cap with
+[`endContinuity: G2`](section-chains.md). Both edits reuse the same parting rim.
+Use `inspect --json` to see the cap join evidence, cage handles and sampled fit.
 
 ```powershell
 aetheris inspect fixtures/Canonical/Sculpting/compact-mouse.firmament --json

@@ -46,12 +46,13 @@ public sealed class FirmamentSyntaxScope
         fields = new(declaration, errors, bind: bind);
     }
     public FirmamentSyntaxScope AllowModifier(string modifier) { modifiers.Add(modifier); return this; }
-    public IReadOnlyList<FirmamentSyntaxScope> Children(string kind, bool legacyCase = false)
+    public IReadOnlyList<FirmamentSyntaxScope> Children(string kind, bool legacyCase = false, Func<DeclarationSyntax, bool>? filter = null)
     {
         var result = new List<FirmamentSyntaxScope>();
         foreach (var child in Declaration.Body?.Statements.OfType<DeclarationSyntax>() ?? [])
         {
-            if (!string.Equals(child.Type.Name.Text, kind, legacyCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) continue;
+            if (!string.Equals(child.Type.Name.Text, kind, legacyCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)
+                || filter?.Invoke(child) == false) continue;
             consumed.Add(child);
             if (!children.TryGetValue(child, out var scope)) children[child] = scope = new(child, source, sourceFile, bind, origin, scopes);
             result.Add(scope);

@@ -34,6 +34,8 @@ public sealed record AssemblyDisplayMeshDocument(string Schema, string Name, str
     /// bookkeeping only; excluded from the serialized display-mesh contract.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public DisplayTessellationOptions? TessellationOptions { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal string GeometryAuthority { get; init; } = "BRep/STEP; GLB is a presentation asset";
     public IReadOnlyList<Visualization.PmiDisplayAnnotation> Annotations { get; init; } = [];
     /// <summary>Optional B-rep edge polylines in Z-up millimetres, drawn over a translucent PMI presentation.</summary>
     public IReadOnlyList<double[][]> EdgeLines { get; init; } = [];

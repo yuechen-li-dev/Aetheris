@@ -132,11 +132,18 @@ explicit Move/Scale to stay near the original body. A tighter
 sphere budget may require more segments. This is not arbitrary BRep retopology
 or a certificate for the infinite subdivision limit surface.
 
+`cage: SectionChain` fits a quad cage to an exact capped G1 SectionChain with four
+corresponding spans per section. The named `rimSection` and required
+`maximumRimDeviation` preserve a sampled limit-curve fit across edits.
+`previewLevels` controls the export sampling of that limit surface. `Move` and
+`Scale` can select named station or transition `regions` on this cage. See the
+[complete example and limits](../../firmament/sculpting.md#fit-a-subdivision-cage-to-a-sectionchain).
+
 Each successor has exactly one operation:
 
 | Operation | Fields | Meaning |
 | --- | --- | --- |
-| `Subdivide` | `levels: 1` | Finite Catmull-Clark refinement, 1..4 levels per operation |
+| `Subdivide` | `levels: 1` | Finite Catmull-Clark refinement for box and sphere cages, 1..4 levels per operation |
 | `Move` | `vertices: [v0]`, `offset: [0mm, 0mm, 1mm]` | Move selected current cage vertices in world space |
 | `Scale` | `vertices: [All]`, `factor: [1.5, 1, 0.75]`, `origin: [0mm, 0mm, 0mm]` | Explicit positive scale about a required origin; factors are dimensionless |
 | `Crease` | `edges: [All]`, `mode: Sharp` or `Smooth` | Mark or unmark current cage edges as sharp |
@@ -159,6 +166,8 @@ self-intersection is **not certified**; unsupported requirements are errors.
 Export a mesh output with `aetheris mesh part.firmament --format glb` or
 `--format stl`, or `build --out artifacts/local/part.glb`. GLB is binary glTF 2.0.
 Each output has a `.sculpt.json` sidecar with the cage and replayable construction.
+Use `aetheris build part.firmament --state Name --out part.glb` to export a named
+mesh branch, or select an exact state with a `.step` output.
 STL does not embed those semantics, so retain its sidecar. GLB uses the existing
 millimeter/Z-up to meter/Y-up projection and finite, flat-shaded triangles.
 Both formats use 32-bit coordinates; export reports quantization and rejects

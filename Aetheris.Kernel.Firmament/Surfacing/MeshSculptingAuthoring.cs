@@ -28,7 +28,15 @@ public static partial class SculptingAuthoring
                     var segments = Integer(block, "Segments") ?? (kind == "Box" ? 1 : 4);
                     var deviation = Length(block, "MaximumDeviation", diagnostics);
                     if (deviation is null) continue;
-                    result = SubdivisionSculptor.Convert(body, block.Name, kind, segments, deviation.Value);
+                    var preview = Integer(block, "PreviewLevels");
+                    double? rim = null;
+                    if (kind == "SectionChain")
+                    {
+                        rim = Length(block, "MaximumRimDeviation", diagnostics);
+                        if (rim is null) continue;
+                    }
+                    var rimSection = block.Word("RimSection");
+                    result = SubdivisionSculptor.Convert(body, block.Name, kind, segments, deviation.Value, preview, rim, rimSection);
                 }
                 else
                 {
@@ -38,12 +46,12 @@ public static partial class SculptingAuthoring
                     if (subdivide is not null) operation = new SubdivideCage(block.Name, Integer(subdivide, "Levels") ?? 0);
                     else if (move is not null)
                     {
-                        var offset = Vector(move, "Offset", 3, diagnostics); var vertices = List(move, "Vertices"); if (offset is null) continue;
+                        var offset = Vector(move, "Offset", 3, diagnostics); var vertices = ResolveVertexSelection(move, input); if (offset is null) continue;
                         operation = new MoveCageVertices(block.Name, vertices, new(offset[0], offset[1], offset[2]));
                     }
                     else if (scale is not null)
                     {
-                        var factor = NumberVector(scale, "Factor", 3, diagnostics); var origin = Vector(scale, "Origin", 3, diagnostics); var vertices = List(scale, "Vertices");
+                        var factor = NumberVector(scale, "Factor", 3, diagnostics); var origin = Vector(scale, "Origin", 3, diagnostics); var vertices = ResolveVertexSelection(scale, input);
                         if (factor is null || origin is null) continue;
                         operation = new ScaleCageVertices(block.Name, vertices, new(factor[0], factor[1], factor[2]), new(origin[0], origin[1], origin[2]));
                     }
@@ -65,5 +73,19 @@ public static partial class SculptingAuthoring
             }
         }
         return states;
+    }
+
+    private static IReadOnlyList<string> ResolveVertexSelection(Block edit, MeshSculptState input)
+    {
+        var vertices = List(edit, "Vertices");
+        var regions = List(edit, "Regions");
+        if (regions.Count == 0) return vertices;
+        if (vertices.Count != 0 || regions.Distinct(StringComparer.Ordinal).Count() != regions.Count)
+            throw new InvalidOperationException("mesh-region-selection-invalid: Select unique regions or explicit vertices.");
+        var available = input.VertexRegions;
+        foreach (var name in regions)
+            if (available is null || !available.ContainsKey(name))
+                throw new InvalidOperationException($"mesh-region-unresolved: Cage region '{name}' is unavailable on the predecessor.");
+        return regions.SelectMany(name => available![name]).Distinct(StringComparer.Ordinal).ToArray();
     }
 }

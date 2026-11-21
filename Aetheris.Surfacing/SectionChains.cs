@@ -86,7 +86,10 @@ public sealed record SectionTransitionSurfaceEvidence(
     string SourceBoundaryId,
     string TargetBoundaryId,
     SurfaceGeometryKind SurfaceClass,
-    SurfaceMaterializationKind MaterializationKind);
+    SurfaceMaterializationKind MaterializationKind)
+{
+    internal FaceId Face { get; init; }
+}
 
 public sealed record SectionTransitionEvidence(
     string TransitionId,
@@ -127,6 +130,8 @@ public sealed record SectionChainMaterializationResult(
     SectionChainTiming Timing)
 {
     public bool IsSuccess => Body is not null && Diagnostics.Count == 0;
+    internal FaceId? StartCap { get; init; }
+    internal FaceId? EndCap { get; init; }
     public SectionProfileNormalizationResult? ProfileNormalization { get; init; }
     public IReadOnlyList<SectionChainGeometricJoinEvidence> GeometricJoins { get; init; } = [];
     public SectionChainPcurveEvidence? Pcurves { get; init; }
@@ -298,9 +303,10 @@ public static class SectionChainMaterializer
         var stitchStarted = Stopwatch.GetTimestamp();
         BrepBody? body = null;
         IReadOnlyList<SectionTransitionEvidence> evidence = [];
+        FaceId? startCap = null, endCap = null;
         try
         {
-            (body, evidence) = BuildBody(chain, prepared, transitionPatches);
+            (body, evidence, startCap, endCap) = BuildBody(chain, prepared, transitionPatches);
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
         {
@@ -356,7 +362,7 @@ public static class SectionChainMaterializer
         return new(authoredChain, body, Structure(chain), evidence, diagnostics,
             new(profileMs, correspondenceMs, transitionMs, stitchMs, validationMs))
         { GeometricJoins = geometricJoins, ProfileNormalization = normalization, Pcurves = pcurveEvidence, SelfIntersection = selfIntersection.Evidence, ContinuityEvidence = continuityEvidence,
-            SmoothSelection = smoothSelection, PreviewSource = body?.Clone() };
+            SmoothSelection = smoothSelection, PreviewSource = body?.Clone(), StartCap = startCap, EndCap = endCap };
     }
 
     private static IReadOnlyList<SurfacingDiagnostic> Validate(SectionChain chain, IReadOnlyList<PreparedSection> sections)
@@ -445,7 +451,7 @@ public static class SectionChainMaterializer
         return result;
     }
 
-    private static (BrepBody Body, IReadOnlyList<SectionTransitionEvidence> Evidence) BuildBody(
+    private static (BrepBody Body, IReadOnlyList<SectionTransitionEvidence> Evidence, FaceId? StartCap, FaceId? EndCap) BuildBody(
         SectionChain chain,
         IReadOnlyList<PreparedSection> sections,
         IReadOnlyList<(PreparedTransition Transition, ISectionChainTransitionPatch[] Patches)> transitions)
@@ -499,15 +505,17 @@ public static class SectionChainMaterializer
                     BindConstructedPcurves(face, surfaceId, patchSpline);
                 surfaces.Add(new(transition.Source.Section.Profile.Spans[span].SpanId,
                     transition.Source.Boundaries[span].StableId, transition.Target.Boundaries[transition.Map[span]].StableId,
-                    entry.Patches[span].ExactSurface.Kind, entry.Patches[span].MaterializationKind));
+                    entry.Patches[span].ExactSurface.Kind, entry.Patches[span].MaterializationKind) { Face = face });
             }
             transitionEvidence.Add(new(SectionChainEditor.TransitionId(transition.Source.Section.SectionId, transition.Target.Section.SectionId),
                 transition.Source.Section.SectionId, transition.Target.Section.SectionId, surfaces));
         }
 
+        FaceId? startCap = null, endCap = null;
         if (chain.StartTermination == SectionTermination.Cap)
         {
             var face = AddFace(builder, profileEdges[0].Reverse().Select(edge => (edge, true)).ToArray());
+            startCap = face;
             var surfaceId = new SurfaceGeometryId(nextSurface++);
             geometry.AddSurface(surfaceId, SurfaceGeometry.FromPlane(new PlaneSurface(sections[0].Section.Frame.Origin,
                 Direction3D.Create(-sections[0].Section.Frame.Normal.ToVector()), sections[0].Section.Frame.XAxis)));
@@ -517,6 +525,7 @@ public static class SectionChainMaterializer
         {
             var last = sections.Count - 1;
             var face = AddFace(builder, profileEdges[last].Select(edge => (edge, false)).ToArray());
+            endCap = face;
             var surfaceId = new SurfaceGeometryId(nextSurface++);
             geometry.AddSurface(surfaceId, SurfaceGeometry.FromPlane(new PlaneSurface(sections[last].Section.Frame.Origin,
                 sections[last].Section.Frame.Normal, sections[last].Section.Frame.XAxis)));
@@ -529,7 +538,7 @@ public static class SectionChainMaterializer
         if (!pcurves.IsSuccess)
             throw new InvalidOperationException("SectionChain face-local pcurve construction failed: "
                 + string.Join(" | ", pcurves.Diagnostics.Select(item => $"{item.Code}:{item.Entity}:{item.Message}")));
-        return (new BrepBody(builder.Model, geometry, bindings, points), transitionEvidence);
+        return (new BrepBody(builder.Model, geometry, bindings, points), transitionEvidence, startCap, endCap);
 
         // BUILD-PERF-M4: an exact transition face is bounded by four isoparametric curves of its own
         // patch: the source profile (v = start), the target profile (v = end) and the two longitudinal

@@ -18,9 +18,9 @@ Sculpting is a lower-authority escape hatch for geometry that an engineering fea
 
 There are now two explicit representations. `BodyState` / `SculptState` retain
 exact BRep authority and can export STEP within their admitted capabilities.
-`MeshState` converts a qualified box or sphere into a real subdivision control
-cage, then supports finite Catmull-Clark refinement, creases, vertex movement
-and positive scaling. It exports STL or GLB with a replay/provenance sidecar;
+`MeshState` builds a subdivision control cage from a qualified box, sphere, or
+capped SectionChain. Cage edits include creases, vertex movement and positive
+scaling. Box and sphere cages also support explicit finite refinement. It exports STL or GLB with a replay/provenance sidecar;
 it cannot export STEP. The source exact body remains unchanged. See the
 [complete syntax and examples](../reference/language/domains-and-modules.md#exact-face-edits-and-mesh-sculpting).
 
@@ -96,7 +96,7 @@ Mesh sculpting likewise reports `selfIntersectionStatus: NotCertified`.
 Enclosure, directed winding, connected vertex fans and local foldover checks
 are useful checks, not a global collision certificate. Protected cage vertices
 are exact successor contracts. Finite evaluated quads become triangles at
-export; GLB uses flat per-triangle normals so crease boundaries remain visible.
+export; GLB uses flat per-triangle normals for the legacy finite projection and crease-aware smooth normals for the limit preview.
 No source is silently reconstructed as a housing or converted to a mesh.
 
 The direct C# imported-face adapter retains imported topology/provenance and
@@ -106,6 +106,47 @@ that state reject before discarding imported provenance. Its retained-body and
 graft identities include actual geometry. This is distinct from a BodyState
 created from an admitted engineering-source import, whose source recipe can be
 replayed by the engineering compiler.
+
+## Fit a subdivision cage to a SectionChain
+
+The [compact mouse study](../../../fixtures/Canonical/Sculpting/compact-mouse.firmament)
+builds an exact exterior from six cross-sections, fits a cage to it, then branches
+into two edits. Both edits reuse the same parting rim. Use `inspect --json` to
+see the cage, its handles and the sampled fit.
+
+```powershell
+aetheris inspect fixtures/Canonical/Sculpting/compact-mouse.firmament --json
+aetheris build fixtures/Canonical/Sculpting/compact-mouse.firmament --state Exact --out artifacts/local/compact-mouse/exact.step
+aetheris build fixtures/Canonical/Sculpting/compact-mouse.firmament --state PalmComfort --out artifacts/local/compact-mouse/palm.glb
+aetheris build fixtures/Canonical/Sculpting/compact-mouse.firmament --state LowFront --out artifacts/local/compact-mouse/low-front.glb
+```
+
+- `cage: SectionChain` uses a `BodyState` that references a native, capped G1
+  SectionChain. Each section has four corresponding spans and each transition
+  face must have a single non-rational polynomial patch. Section and span names
+  identify the cage vertices on authored stations. Use `regions` in `Move` or
+  `Scale` to select a whole station (including its cap) or a transition such
+  as `Palm_To_Crown`. Use `vertices` for individual handles.
+- `segments` sets the sample intervals per profile span and per transition.
+  Increase it within the shared face budget when the initial fit is too coarse.
+  `maximumDeviation` bounds the sampled initial fit to the exact transition
+  faces and limits export quantization. Successor edits can depart from the
+  blockout while satisfying their rim budget.
+- `rimSection` names the first or an internal station. The first station is the
+  default. The rim is a sharp loop and `maximumRimDeviation` bounds its sampled
+  Catmull–Clark limit curve against the exact section before and after every
+  edit. The start cap also has a sharp boundary.
+- `previewLevels` controls limit-surface sampling for export without increasing
+  the authored cage density. It accepts 1 through 4 for SectionChain and
+  defaults to 2, subject to the evaluated face budget. Box and sphere cages
+  default to 0 and accept 1 through 4 to sample their limit surfaces. Limit
+  previews use smooth GLB normals within each fan and split shading at sharp edges.
+
+The fit reports position deviations at cage vertices and transition cell
+centres. Rim deviations use eight samples per cage edge. These are sampled
+measurements. SectionChain cages reject explicit topology subdivision and
+isolated sharp-edge ends in limit evaluation. Export the source B-rep as STEP
+and the edited SubD as GLB or STL. See the [MeshState reference](../reference/language/domains-and-modules.md#exact-face-edits-and-mesh-sculpting).
 
 ## Bounded region sculpting
 

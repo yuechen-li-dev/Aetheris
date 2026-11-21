@@ -26,7 +26,12 @@ public sealed record SubdivideCage(string Id, int Levels) : MeshSculptOperation(
 public sealed record MoveCageVertices(string Id, IReadOnlyList<string> Vertices, Vector3D Offset) : MeshSculptOperation(Id);
 public sealed record ScaleCageVertices(string Id, IReadOnlyList<string> Vertices, Vector3D Factor, Point3D Origin) : MeshSculptOperation(Id);
 public sealed record CreaseCageEdges(string Id, IReadOnlyList<string> Edges, bool Sharp) : MeshSculptOperation(Id);
-public sealed record MeshConstruction(string Schema, ConstructionState Source, string Cage, int Segments, double MaximumDeviationMm, IReadOnlyList<MeshSculptOperation> Operations);
+public sealed record MeshConstruction(string Schema, ConstructionState Source, string Cage, int Segments, double MaximumDeviationMm, IReadOnlyList<MeshSculptOperation> Operations)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int PreviewLevels { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? MaximumRimDeviationMm { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? RimSection { get; init; }
+}
 public sealed record MeshSculptState(string StateId, string? PredecessorStateId, string Name, string SourceBodyStateId,
     SubdivisionCage Cage, MeshConstruction Construction, double ConversionDeviationMm, string ConversionEvidence)
 {
@@ -34,6 +39,9 @@ public sealed record MeshSculptState(string StateId, string? PredecessorStateId,
     public bool StepExportAvailable => false;
     public string SelfIntersectionStatus => "NotCertified";
     public IReadOnlyList<CageEdge> Edges => SubdivisionSculptor.Edges(Cage);
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public SectionCageFit? SectionFit { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyDictionary<string, string[]>? VertexRegions { get; init; }
+    internal SectionCageRim? SourceRim { get; init; }
 }
 
 /// <summary>Finite Catmull-Clark refinement over a real closed quad cage. No BRep fitting/fallback.</summary>
@@ -60,12 +68,21 @@ public static class SubdivisionSculptor
         return edges.OrderBy(e => e.Key, StringComparer.Ordinal).Select(e => new CageEdge(e.Key, e.Value.A, e.Value.B, e.Value.Faces.ToArray())).ToArray();
     }
 
-    public static MeshSculptState Convert(BodyState source, string name, string kind, int segments = 4, double maximumDeviationMm = 1)
+    public static MeshSculptState Convert(BodyState source, string name, string kind, int segments = 4,
+        double maximumDeviationMm = 1, int? previewLevels = null, double? maximumRimDeviationMm = null, string? rimSection = null)
     {
         if (source.ConstructionAuthority is null) throw Error("mesh-source-not-replayable", "Conversion requires a source construction recipe.");
-        if (kind is not ("Box" or "Sphere")) throw Error("mesh-cage-unsupported", "Explicit cage must be Box or Sphere; arbitrary BRep retopology is not implemented.");
+        if (kind is not ("Box" or "Sphere" or "SectionChain"))
+            throw Error("mesh-cage-unsupported", "Explicit cage must be Box, Sphere or SectionChain.");
         if (segments is < 1 or > 16 || !double.IsFinite(maximumDeviationMm) || maximumDeviationMm <= 0)
             throw Error("mesh-conversion-budget-invalid", "Segments must be 1..16 and maximumDeviation must be positive and finite.");
+        var levels = previewLevels ?? (kind == "SectionChain" ? 2 : 0);
+        if (levels is < 0 or > 4)
+            throw Error("mesh-preview-levels-invalid", "Preview levels must be 0..4 within the face budget.");
+        if (kind == "SectionChain")
+            return SectionChainSubdivision.Convert(source, name, segments, maximumDeviationMm, levels, maximumRimDeviationMm, rimSection);
+        if (maximumRimDeviationMm is not null || rimSection is not null)
+            throw Error("mesh-rim-source-unsupported", "A rim deviation budget requires a SectionChain cage.");
         var body = source.Body;
         var vertices = body.Topology.Vertices.Select(v => body.TryGetVertexPoint(v.Id, out var p) ? p : throw Error("mesh-source-unbound", "Unbound source vertex.")).ToArray();
         var surfaces = body.Topology.Faces.Select(f => body.TryGetFaceSurfaceGeometry(f.Id, out var s) ? s! : throw Error("mesh-source-unbound", "Unbound source face.")).ToArray();
@@ -133,8 +150,9 @@ public static class SubdivisionSculptor
             ? Math.Max(RadialBound(prepared.NativeMesh, center, radius), RadialBound(prepared.EncodedMesh, center, radius))
             : prepared.MaximumFloatQuantizationMm;
         if (deviation > maximumDeviationMm) throw Error("mesh-conversion-deviation-exceeded", $"Finite cage radial deviation {deviation:R}mm exceeds maximumDeviation {maximumDeviationMm:R}mm; increase segments or authorize a larger conversion budget.");
-        var recipe = new MeshConstruction(Schema, source.ConstructionAuthority, kind, segments, maximumDeviationMm, []);
-        return new(Hash(source.StateId.Value + "|" + Schema + "|" + kind + "|" + segments + "|" + maximumDeviationMm.ToString("R", CultureInfo.InvariantCulture) + "|" + Fingerprint(cage)), source.StateId.Value, name, source.StateId.Value, cage, recipe, deviation,
+        var recipe = new MeshConstruction(Schema, source.ConstructionAuthority, kind, segments, maximumDeviationMm, []) { PreviewLevels = levels };
+        var previewIdentity = levels == 0 ? "" : "|preview:" + levels;
+        return new(Hash(source.StateId.Value + "|" + Schema + "|" + kind + "|" + segments + "|" + maximumDeviationMm.ToString("R", CultureInfo.InvariantCulture) + previewIdentity + "|" + Fingerprint(cage)), source.StateId.Value, name, source.StateId.Value, cage, recipe, deviation,
             kind == "Box" ? "Exact native box cage; sharp edges retained, with output quantization inside the declared budget." : "Finite cube-sphere cage; conservative triangle-plane radial bound, including output quantization, relative to the exact source sphere. Not a limit-surface certificate.");
     }
 
@@ -146,6 +164,8 @@ public static class SubdivisionSculptor
         switch (operation)
         {
             case SubdivideCage subdivide:
+                if (input.SourceRim is not null)
+                    throw Error("mesh-section-cage-subdivide-unsupported", "Use previewLevels to sample a SectionChain cage. Its authored ring topology is retained.");
                 if (subdivide.Levels is < 1 or > 4) throw Error("mesh-subdivision-budget-invalid", "Subdivide levels must be 1..4, within the cumulative face budget.");
                 for (var i = 0; i < subdivide.Levels; i++) cage = Refine(cage);
                 break;
@@ -180,11 +200,14 @@ public static class SubdivisionSculptor
             {
                 var a = face.Vertices[0]; var b = face.Vertices[i]; var c = face.Vertices[i + 1];
                 if ((old[b] - old[a]).Cross(old[c] - old[a]).Dot((current[b] - current[a]).Cross(current[c] - current[a])) <= 0)
-                    throw Error("mesh-local-foldover", "The edit reverses a face triangle relative to its predecessor. Global self-intersection remains separately unqualified.");
+                    throw Error("mesh-local-foldover", $"The edit reverses a triangle of cage face '{face.Id}' relative to its predecessor.");
             }
         }
+        var fit = input.SectionFit;
+        if (input.SourceRim is { } rim && fit is not null)
+            fit = fit with { Rim = rim.Qualify(cage) };
         var recipe = input.Construction with { Operations = [.. input.Construction.Operations, operation] };
-        return input with { StateId = Hash(input.StateId + "|" + System.Text.Json.JsonSerializer.Serialize<MeshSculptOperation>(operation) + "|" + Fingerprint(cage)), PredecessorStateId = input.StateId, Name = name, Cage = cage, Construction = recipe };
+        return input with { StateId = Hash(input.StateId + "|" + System.Text.Json.JsonSerializer.Serialize<MeshSculptOperation>(operation) + "|" + Fingerprint(cage)), PredecessorStateId = input.StateId, Name = name, Cage = cage, Construction = recipe, SectionFit = fit };
     }
 
     private static HashSet<string> Selection(SubdivisionCage cage, IReadOnlyList<string> requested)
@@ -196,7 +219,7 @@ public static class SubdivisionSculptor
         return result;
     }
 
-    private static SubdivisionCage Refine(SubdivisionCage cage)
+    internal static SubdivisionCage Refine(SubdivisionCage cage)
     {
         if (cage.Faces.Count > MaximumFaces / 4) throw Error("mesh-subdivision-budget-exceeded", $"Refinement exceeds {MaximumFaces} faces.");
         var edges = Edges(cage); var points = cage.Vertices.ToDictionary(v => v.Id, v => v.Position, StringComparer.Ordinal);
@@ -236,6 +259,45 @@ public static class SubdivisionSculptor
         return new(output.ToArray(), facesOut.ToArray(), childCreases);
     }
 
+    // Exact Catmull-Clark limit stencil at the vertices of a closed quad cage.
+    // Refining before applying it supplies samples between the authored controls.
+    internal static CageVertex[] LimitVertices(SubdivisionCage cage)
+    {
+        var points = cage.Vertices.ToDictionary(v => v.Id, v => v.Position, StringComparer.Ordinal);
+        var edgeNeighbors = cage.Vertices.ToDictionary(v => v.Id, _ => new List<string>(), StringComparer.Ordinal);
+        var diagonalNeighbors = cage.Vertices.ToDictionary(v => v.Id, _ => new List<string>(), StringComparer.Ordinal);
+        var sharpNeighbors = cage.Vertices.ToDictionary(v => v.Id, _ => new List<string>(), StringComparer.Ordinal);
+        var creases = cage.Creases.ToHashSet(StringComparer.Ordinal);
+        foreach (var edge in Edges(cage))
+        {
+            edgeNeighbors[edge.A].Add(edge.B);
+            edgeNeighbors[edge.B].Add(edge.A);
+            if (!creases.Contains(edge.Id)) continue;
+            sharpNeighbors[edge.A].Add(edge.B);
+            sharpNeighbors[edge.B].Add(edge.A);
+        }
+        foreach (var face in cage.Faces)
+            for (var i = 0; i < 4; i++)
+                diagonalNeighbors[face.Vertices[i]].Add(face.Vertices[(i + 2) % 4]);
+
+        return cage.Vertices.Select(vertex =>
+        {
+            var p = vertex.Position;
+            var sharp = sharpNeighbors[vertex.Id];
+            if (sharp.Count == 1)
+                throw Error("mesh-limit-dart-unsupported", "Limit sampling requires closed crease chains or crease corners. An isolated crease end is unsupported.");
+            if (sharp.Count >= 3) return vertex;
+            if (sharp.Count == 2)
+                return vertex with { Position = p + ((points[sharp[0]] - p) + (points[sharp[1]] - p)) / 6 };
+            var neighbors = edgeNeighbors[vertex.Id];
+            var delta = new Vector3D();
+            foreach (var id in neighbors) delta += (points[id] - p) * 4;
+            foreach (var id in diagonalNeighbors[vertex.Id]) delta += points[id] - p;
+            var valence = neighbors.Count;
+            return vertex with { Position = p + delta / (valence * (valence + 5d)) };
+        }).ToArray();
+    }
+
     public static TriangleMesh Evaluate(SubdivisionCage cage)
     {
         if (cage.Faces.Count == 0 || cage.Faces.Count > MaximumFaces || cage.Vertices.Select(v => v.Id).Distinct().Count() != cage.Vertices.Count || cage.Vertices.Any(v => !Finite(new(v.Position.X, v.Position.Y, v.Position.Z)))) throw Error("mesh-cage-invalid", "Invalid cage size, identities or coordinates.");
@@ -271,6 +333,18 @@ public static class SubdivisionSculptor
         for (var i = 0; i < triangles.Length; i += 3) for (var j = 0; j < 3; j++) { var a = triangles[i + j]; var b = triangles[i + (j + 1) % 3]; var key = a < b ? (a, b) : (b, a); uses[key] = uses.GetValueOrDefault(key) + (a < b ? 1 : -1); }
         if (uses.Any(e => e.Value != 0)) throw Error("mesh-winding-invalid", "Adjacent faces must traverse shared edges in opposite directions.");
         return mesh;
+    }
+
+    public static MeshExportPreparation PrepareExport(MeshSculptState state)
+    {
+        var cage = state.Cage;
+        if (state.Construction.PreviewLevels > 0)
+        {
+            for (var level = 0; level < state.Construction.PreviewLevels; level++)
+                cage = Refine(cage);
+            cage = cage with { Vertices = LimitVertices(cage) };
+        }
+        return PrepareExport(cage, state.Construction.MaximumDeviationMm);
     }
 
     /// <summary>Shared compiler/export admission for the current 32-bit GLB/STL boundary.</summary>

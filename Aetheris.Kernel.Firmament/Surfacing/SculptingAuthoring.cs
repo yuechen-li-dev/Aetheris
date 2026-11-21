@@ -12,14 +12,15 @@ public static partial class SculptingAuthoring
 {
     public static bool IsSculptingSource(string source) => (source.Contains("BodyState", StringComparison.Ordinal) || source.Contains("SculptState", StringComparison.Ordinal) || source.Contains("MeshState", StringComparison.Ordinal))
         && FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).Any(d => d.Type.Name.Text is "BodyState" or "SculptState" or "MeshState");
-    public static SculptingCompileResult CompileFile(string path) => Compile(File.ReadAllText(path), Path.GetFullPath(path));
+    public static SculptingCompileResult CompileFile(string path, string? selectedState = null) =>
+        Compile(File.ReadAllText(path), Path.GetFullPath(path), selectedState);
 
     public static IReadOnlyList<Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic> KernelDiagnostics(SculptingCompileResult result) =>
         result.Diagnostics.Select(d=>new Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic(
             Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
             d.Code+": "+d.Message,"Firmament.Sculpting"){OriginalSourceSpan=d.SourceSpan}).ToArray();
 
-    public static SculptingCompileResult Compile(string source, string sourceFile = "memory")
+    public static SculptingCompileResult Compile(string source, string sourceFile = "memory", string? selectedState = null)
     {
         var total = Stopwatch.StartNew(); var diagnostics = new List<SculptDiagnostic>(); var states = new Dictionary<string, BodyState>(StringComparer.Ordinal);
         var patches = new Dictionary<string, BoundedSurfacePatch>(StringComparer.Ordinal);
@@ -64,7 +65,7 @@ public static partial class SculptingAuthoring
                 diagnostics.Add(new("surf-patch-invalid", $"SurfacePatch '{block.Name}' is invalid: {exception.Message}", block.Name));
             }
         }
-        foreach (var block in Blocks(model, "SectionChain"))
+        foreach (var block in model.Children("SectionChain", filter: engineeringInputs ? EngineeringBodyStateConstruction.IsCompactSectionChain : null))
         {
             var chain = ParseSectionChain(block, diagnostics);
             if (chain is null) continue;
@@ -221,25 +222,28 @@ public static partial class SculptingAuthoring
             else if (!states.TryAdd(block.Name, result.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"State '{block.Name}' is declared more than once."));
         }
         var meshStates = BindMeshStates(model, states, diagnostics);
-        var outputName = ScalarText(model, "Output");
+        var authoredOutput = ScalarText(model, "Output");
+        var outputName = selectedState ?? authoredOutput;
         BodyState? output = null;
         MeshSculptState? outputMesh = null;
         if (outputName is not null) meshStates.TryGetValue(outputName, out outputMesh);
         if (outputMesh is not null)
         {
-            try { SubdivisionSculptor.PrepareExport(outputMesh.Cage, outputMesh.Construction.MaximumDeviationMm); }
+            try { SubdivisionSculptor.PrepareExport(outputMesh); }
             catch (InvalidOperationException error)
             {
                 var separator = error.Message.IndexOf(':');
                 diagnostics.Add(new(separator > 0 ? error.Message[..separator] : "mesh-export-preflight-failed", error.Message, outputMesh.Name));
             }
         }
+        if (selectedState is not null && (authoredOutput is null || !states.ContainsKey(authoredOutput) && !meshStates.ContainsKey(authoredOutput)))
+            diagnostics.Add(new("sculpt-output-unresolved", "Output must name an accepted exact or mesh state."));
         if ((outputName is null || !states.TryGetValue(outputName, out output)) && outputMesh is null)
         {
             var failedDeclaration = models[0].Body?.Statements.OfType<DeclarationSyntax>()
                 .Any(d => d.Type.Name.Text is "BodyState" or "SculptState" or "MeshState" && d.Name?.Text == outputName) == true;
             if (outputName is null || !failedDeclaration || diagnostics.Count == 0)
-                diagnostics.Add(new("sculpt-output-unresolved", "Output must name one accepted BodyState or SculptState."));
+                diagnostics.Add(new("sculpt-output-unresolved", $"Output '{outputName}' must name an accepted exact or mesh state."));
         }
         diagnostics.AddRange(model.CompleteTree().Select(Located));
         for (var i = 0; i < diagnostics.Count; i++)

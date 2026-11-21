@@ -174,6 +174,7 @@ public sealed record BodyState(
     string? RealizedStepText = null)
 {
     public string? RealizedStepProductName { get; init; }
+    [JsonIgnore] public SectionChainMaterializationResult? NativeSectionChain { get; init; }
     public bool HasImportedEngineeringSource { get; init; }
     public IReadOnlyList<SurfacePatchMetadata> ExactFacePatches { get; init; } = [];
     public IReadOnlyList<SurfacePatchMetadata> SurfacePatches => Construction?.ReplacementPatch is { } patch

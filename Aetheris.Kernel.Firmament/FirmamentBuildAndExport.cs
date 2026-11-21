@@ -400,7 +400,8 @@ public static partial class FirmamentBuildAndExport
                 return KernelResult<FirmamentStepExportResult>.Failure(materialized.Diagnostics.Select(d => SchemaDiagnostic(d.Code + ":" + d.Message)).ToArray());
             var step = Step242Exporter.ExportBody(materialized.Body, new Step242ExportOptions { ProductName = chain.StableId });
             return step.IsSuccess
-                ? KernelResult<FirmamentStepExportResult>.Success(new(step.Value, chain.StableId, 0, "section-chain", "section-chain") { RuntimeBodySourceName = chain.StableId })
+                ? KernelResult<FirmamentStepExportResult>.Success(new(step.Value, chain.StableId, 0, "section-chain", "section-chain")
+                    { RuntimeBodySourceName = chain.StableId, NativeSectionChain = materialized })
                 : KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
         }
         if (v2Parse.BoundGear is { } gear) return ExportGear(gear);

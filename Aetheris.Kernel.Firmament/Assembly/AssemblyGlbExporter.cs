@@ -247,7 +247,7 @@ public static class AssemblyGlbExporter
         nodes.Add(new { name = "Aetheris mm Z-up to glTF m Y-up", matrix = new double[] {.001,0,0,0, 0,0,-.001,0, 0,.001,0,0, 0,0,0,1}, children = roots });
         var document = new Dictionary<string, object>
         {
-            ["asset"] = new { version = "2.0", generator = "Aetheris PRESENTATION-3D-X0", extras = new { modelName = display.Name, authority = "BRep/STEP; GLB is a presentation asset", sourceProject = "Aetheris", pmiSchema = "aetheris/pmi-display/1", pmiUnits = "mm", pmi = JsonSerializer.SerializeToElement(display.Annotations.Select(Metadata), pmiJsonOptions) } },
+            ["asset"] = new { version = "2.0", generator = "Aetheris PRESENTATION-3D-X0", extras = new { modelName = display.Name, authority = display.GeometryAuthority, sourceProject = "Aetheris", pmiSchema = "aetheris/pmi-display/1", pmiUnits = "mm", pmi = JsonSerializer.SerializeToElement(display.Annotations.Select(Metadata), pmiJsonOptions) } },
             ["scene"] = 0, ["scenes"] = new[] { new { name = display.Name, nodes = new[] { nodes.Count - 1 } } },
             ["nodes"] = nodes, ["meshes"] = meshes, ["materials"] = materials,
             ["accessors"] = accessors, ["bufferViews"] = views, ["buffers"] = new[] { new { byteLength = checked((int)binary.Length) } }

@@ -17,7 +17,7 @@ internal static class MeshSculptCommand
         var sidecar = path + ".sculpt.json";
         if (path.Equals(Path.GetFullPath(source), StringComparison.OrdinalIgnoreCase) || sidecar.Equals(Path.GetFullPath(source), StringComparison.OrdinalIgnoreCase) || !Path.GetExtension(path).Equals("." + format, StringComparison.OrdinalIgnoreCase))
         { diagnostics.Add(new("mesh-export-path-invalid", "Output must differ from source and have the selected .stl or .glb extension.")); return Failure(); }
-        var prepared = SubdivisionSculptor.PrepareExport(state.Cage, state.Construction.MaximumDeviationMm);
+        var prepared = SubdivisionSculptor.PrepareExport(state);
         var mesh = prepared.NativeMesh;
         var topology = prepared.Topology;
         var maximumFloatQuantizationMm = prepared.MaximumFloatQuantizationMm;
@@ -35,13 +35,14 @@ internal static class MeshSculptCommand
             state.SelfIntersectionStatus,
             state.ConversionDeviationMm,
             state.ConversionEvidence,
+            state.SectionFit,
             maximumFloatQuantizationMm,
             cage = state.Cage,
             edges = state.Edges,
             construction = packet.RootElement,
             topology
         }, CliRunner.JsonOptions);
-        byte[]? glb = format == "glb" ? MeshSculptExport.Glb(state) : null;
+        byte[]? glb = format == "glb" ? MeshSculptExport.Glb(state, mesh) : null;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         if (glb is not null) File.WriteAllBytes(path, glb); else BinaryStlExporter.Export(path, mesh);
         File.WriteAllText(sidecar, metadata);
@@ -57,6 +58,7 @@ internal static class MeshSculptCommand
             state.StateId,
             state.SourceBodyStateId,
             state.SelfIntersectionStatus,
+            state.SectionFit,
             maximumFloatQuantizationMm,
             vertices = mesh.Positions.Count,
             triangles = mesh.TriangleIndices.Count / 3,

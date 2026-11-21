@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Aetheris.CLI;
+using Aetheris.Kernel.Core.Step242;
+using Aetheris.Surfacing;
 
 namespace Aetheris.CLI.Tests;
 
@@ -105,6 +107,97 @@ public sealed class SculptingCliTests
             Assert.Equal("PowerM3Degree6", delta.RootElement.GetProperty("delta").GetProperty("blendJudgment").GetProperty("selectedCandidateId").GetString());
         }
         finally { if (File.Exists(output)) File.Delete(output); var delta = Path.ChangeExtension(output, ".delta.json"); if (File.Exists(delta)) File.Delete(delta); }
+    }
+
+    [Fact]
+    public void SectionChainCageFitsTheExactBodyAndReplaysTwoEditsWithTheSameRim()
+    {
+        var source = Path.Combine(Root(), "fixtures/Canonical/Sculpting/compact-mouse.firmament");
+        var folder = Path.Combine(Root(), "artifacts/local/tests/section-chain-cage", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            using var inspection = Run("inspect", source);
+            Assert.Equal("Sculpting", inspection.RootElement.GetProperty("domain").GetString());
+            var states = inspection.RootElement.GetProperty("meshStates");
+            var seed = states.GetProperty("Seed");
+            var fit = seed.GetProperty("sectionFit");
+            Assert.True(fit.GetProperty("maximumSampledTransitionDeviationMm").GetDouble() <
+                fit.GetProperty("initialMaximumSampledTransitionDeviationMm").GetDouble());
+
+            var stepPath = Path.Combine(folder, "blockout.step");
+            using var blockout = Run("build", source, "--state", "Exact", "--out", stepPath);
+            var imported = Step242Importer.ImportBody(File.ReadAllText(stepPath));
+            Assert.True(imported.IsSuccess);
+            Assert.Equal(22, imported.Value.Topology.Faces.Count());
+            var sourceStateId = blockout.RootElement.GetProperty("state").GetProperty("stateId").GetProperty("value").GetString();
+
+            var raised = ExportAndReplay("PalmComfort");
+            var lowered = ExportAndReplay("LowFront");
+            Assert.NotEqual(raised.StateId, lowered.StateId);
+            Assert.Equal(raised.SectionFit!.Rim, lowered.SectionFit!.Rim);
+            Assert.InRange(raised.SectionFit.Rim.MaximumSampledDeviationMm, 0, 0.15);
+            Assert.Equal(raised.Cage.Faces.Select(f => f.Id), lowered.Cage.Faces.Select(f => f.Id));
+
+            var raisedMesh = SubdivisionSculptor.PrepareExport(raised).NativeMesh;
+            var loweredMesh = SubdivisionSculptor.PrepareExport(lowered).NativeMesh;
+            Assert.True(raisedMesh.Positions.Count > raised.Cage.Vertices.Count);
+            Assert.Equal(raisedMesh.Positions.Where(p => p.Z <= 12.000001),
+                loweredMesh.Positions.Where(p => p.Z <= 12.000001));
+            Assert.True(raisedMesh.Positions.Max(p => p.Z) - loweredMesh.Positions.Max(p => p.Z) > 0.5);
+
+            MeshSculptState ExportAndReplay(string name)
+            {
+                var path = Path.Combine(folder, name + ".glb");
+                using var report = Run("build", source, "--state", name, "--out", path);
+                Assert.Equal(sourceStateId, report.RootElement.GetProperty("sourceBodyStateId").GetString());
+                Assert.True(report.RootElement.GetProperty("topology").GetProperty("isWatertight").GetBoolean());
+                Assert.Equal(0x46546C67u, BitConverter.ToUInt32(File.ReadAllBytes(path), 0));
+                using var sidecar = JsonDocument.Parse(File.ReadAllText(path + ".sculpt.json"));
+                var replay = MeshConstructionReplayer.Replay(sidecar.RootElement.GetProperty("construction").GetRawText());
+                Assert.Equal(report.RootElement.GetProperty("stateId").GetString(), replay.StateId);
+                Assert.Equal("Rim", replay.Construction.RimSection);
+                return replay;
+            }
+        }
+        finally
+        {
+            foreach (var path in Directory.GetFiles(folder)) File.Delete(path);
+            Directory.Delete(folder);
+        }
+    }
+
+    [Theory]
+    [InlineData("maximumRimDeviation: 0.15mm", "maximumRimDeviation: 0.08mm", "mesh-section-rim-deviation-exceeded")]
+    [InlineData("output: PalmComfort", "MeshState Uncrease { input: Seed; Crease { edges: [All]; mode: Smooth } }\n    output: Uncrease", "mesh-section-rim-crease-changed")]
+    public void SectionChainCageRejectsAnUnsatisfiedRimContract(string before, string after, string diagnostic)
+    {
+        var folder = Path.Combine(Root(), "artifacts/local/tests/section-chain-cage", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var source = Path.Combine(folder, "invalid.firmament");
+        var output = Path.Combine(folder, "invalid.glb");
+        try
+        {
+            var mouse = File.ReadAllText(Path.Combine(Root(), "fixtures/Canonical/Sculpting/compact-mouse.firmament"));
+            File.WriteAllText(source, mouse.Replace(before, after));
+            var stdout = new StringWriter();
+            Assert.Equal(1, CliRunner.Run(["build", source, "--out", output, "--json"], stdout, new StringWriter()));
+            Assert.Contains(diagnostic, stdout.ToString(), StringComparison.Ordinal);
+            Assert.False(File.Exists(output));
+        }
+        finally
+        {
+            File.Delete(source);
+            Directory.Delete(folder);
+        }
+    }
+
+    private static JsonDocument Run(params string[] args)
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        Assert.True(CliRunner.Run([.. args, "--json"], stdout, stderr) == 0, stdout + stderr.ToString());
+        return JsonDocument.Parse(stdout.ToString());
     }
 
     private static string Root() { var d = new DirectoryInfo(AppContext.BaseDirectory); while (d is not null && !File.Exists(Path.Combine(d.FullName, "Aetheris.slnx"))) d = d.Parent; return d!.FullName; }

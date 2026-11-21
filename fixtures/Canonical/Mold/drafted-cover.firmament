@@ -1,0 +1,20 @@
+// A solid cover drafted 1.5° from its parting face: every wall releases into the cavity half, so the
+// tooling-stage review passes with no findings.
+Model DraftedCover {
+  units: mm
+  RoundedRect2 outline { center: [0mm, 0mm]; size: [80mm, 50mm]; radius: 6mm }
+  Circle2 Bore { center: [20mm, 0mm]; radius: 4mm }
+  Profile pierced {
+    Loop Outer { outline |> TraceLoop }
+    Loop Bore { Bore |> TraceLoop }
+  }
+  Extrude body { profile: pierced; from: 0mm; to: 12mm; draft: 1.5deg }
+}
+
+Mold CoverTool {
+  part: DraftedCover
+  material: ABS
+  stage: Tooling
+  pull: +Z
+  parting: Plane { at: face(-Z) }
+}

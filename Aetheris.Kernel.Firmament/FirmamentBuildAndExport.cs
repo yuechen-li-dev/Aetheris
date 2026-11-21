@@ -408,6 +408,7 @@ public static partial class FirmamentBuildAndExport
         if (v2Parse.BoundPlateau is not null || !v2Parse.OwnsUnifiedAdmission && PlateauAuthoring.IsSource(materializerSource))
         {
             if (!v2Parse.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(v2Parse.Diagnostics.Select(SchemaDiagnostic).ToArray());
+            if (v2Parse.BoundProfile?.Draft is not null) return DraftNotSupported("a Plateau");
             return PlateauAuthoring.Compile(materializerSource, v2Parse.BoundPlateau, v2Parse.BoundProfile, v2Parse.ExtrusionHeight);
         }
         if (v2Parse.BoundCoaxialComposition is { } coaxial)
@@ -585,6 +586,8 @@ public static partial class FirmamentBuildAndExport
                 ? (Profile: (ResolvedProfile2D?)boundProfile, Height: v2Parse.ExtrusionHeight, Diagnostics: (IReadOnlyList<string>)[])
                 : ProfileAuthoringParser.Parse(materializerSource);
             if (parsed.Profile is null) return KernelResult<FirmamentStepExportResult>.Failure(parsed.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.Profile")).ToArray());
+            // Edge finishes plan against vertical walls; a drafted wall would be finished as if it were one.
+            if (parsed.Profile.Draft is not null && materializerSource.Contains("EdgeFinish", StringComparison.Ordinal)) return DraftNotSupported("an EdgeFinish");
             var emitted = ResolvedProfile2DValidator.Extrude(parsed.Profile, parsed.Height);
             if (emitted.Status != LineArcProfileExtrudeStatus.Succeeded || emitted.Body is null) return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.Profile")).ToArray());
             var extrusionName = FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(materializerSource).Document.Statements)
@@ -843,6 +846,10 @@ public static partial class FirmamentBuildAndExport
 
     private static FirmamentV2ParseResult ParseSemanticSource(string source, string? sourceDirectory)
         => FirmamentV2Parser.Parse(source, sourceDirectory);
+
+    private static KernelResult<FirmamentStepExportResult> DraftNotSupported(string feature) => KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
+        Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+        $"profile-extrusion-draft-unsupported: a drafted Extrude cannot carry {feature} yet; remove draft or the feature.", "FirmamentV2.Profile")]);
 
     private static Kernel.Core.Diagnostics.KernelDiagnostic SchemaDiagnostic(string message) => new(
         Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,

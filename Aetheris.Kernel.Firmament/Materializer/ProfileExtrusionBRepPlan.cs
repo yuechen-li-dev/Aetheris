@@ -69,6 +69,22 @@ public static class ProfileExtrusionBRepPlanner
         var start = request.LocalStartDepth ?? -request.Height / 2d;
         var end = request.LocalEndDepth ?? request.Height / 2d;
         var sourceId = sourceProfile?.Name ?? "request:profile";
+        // A drafted extrusion is a ruled sweep from the section at its start depth to the section at its end
+        // depth, each the profile eroded by its draft offset: lines give drafted planes, arcs right cones.
+        var draft = request.Draft is { AngleRadians: not 0d } requested ? requested : null;
+        var bottomLoops = request.Loops; var topLoops = request.Loops;
+        if (draft is not null)
+        {
+            string? offsetError = null;
+            if (!ProfileDraftOffset.TryOffset(request.Loops, draft.ErosionAt(start), out bottomLoops, out offsetError)
+                || !ProfileDraftOffset.TryOffset(request.Loops, draft.ErosionAt(end), out topLoops, out offsetError))
+            {
+                diagnostics.Add(offsetError ?? "draft-offset-collapse");
+                return new(false, null, diagnostics);
+            }
+            diagnostics.Add("ProfileExtrusionDrafted");
+        }
+        var materialOnLeft = request.Loops.Select(ProfileDraftOffset.MaterialOnLeft).ToArray();
         var air = new ProfileExtrusionConstructionAir(
             $"air:profile-extrusion:{sourceId}:{frame.StableId}", sourceId, frame, start, end, request.Loops,
             ["Profile", "ConstructionPlane:" + frame.StableId, "local-coordinate-construction"]);
@@ -111,47 +127,77 @@ public static class ProfileExtrusionBRepPlanner
         }
 
         var startCapLoops = new List<ProfileExtrusionPlanLoop>(); var endCapLoops = new List<ProfileExtrusionPlanLoop>();
-        var sideSpecs = new List<(ProfileExtrusionPlanLoop Loop, SurfaceGeometry Surface, string SegmentSource, string LoopSource, ProfileExtrusionPlanEdge StartCap, ProfileExtrusionPlanEdge EndCap, ProfileExtrusionPlanEdge StartLongitudinal, ProfileExtrusionPlanEdge EndLongitudinal, bool IsHole)>();
+        var sideSpecs = new List<(ProfileExtrusionPlanLoop Loop, SurfaceGeometry Surface, string SegmentSource, string LoopSource, ProfileExtrusionPlanEdge StartCap, ProfileExtrusionPlanEdge EndCap, ProfileExtrusionPlanEdge StartLongitudinal, ProfileExtrusionPlanEdge EndLongitudinal, bool IsHole, bool SameSense)>();
         for (var li = 0; li < request.Loops.Count; li++)
         {
             var loop = request.Loops[li]; var startUses = new List<(ProfileExtrusionPlanEdge, bool)>(); var endUses = new List<(ProfileExtrusionPlanEdge, bool)>();
             for (var si = 0; si < loop.Curves.Count; si++)
             {
-                var curve = loop.Curves[si]; var segmentSource = SegmentSource(li, si); var prefix = $"plan:{segmentSource}";
+                var curve = bottomLoops[li].Curves[si]; var top = topLoops[li].Curves[si]; var segmentSource = SegmentSource(li, si); var prefix = $"plan:{segmentSource}";
+                var sideSameSense = !loop.IsHole;
                 ProfileExtrusionPlanVertex sv0; ProfileExtrusionPlanVertex sv1; ProfileExtrusionPlanVertex ev0; ProfileExtrusionPlanVertex ev1;
                 ProfileExtrusionPlanEdge startEdge; ProfileExtrusionPlanEdge endEdge; ProfileExtrusionPlanEdge startLongitudinal; ProfileExtrusionPlanEdge endLongitudinal; SurfaceGeometry sideSurface;
                 switch (curve)
                 {
                     case LineArcLineSegment2D line:
                     {
-                        sv0 = Vertex(line.Start, false, segmentSource); sv1 = Vertex(line.End, false, segmentSource); ev0 = Vertex(line.Start, true, segmentSource); ev1 = Vertex(line.End, true, segmentSource);
+                        var topLine = (LineArcLineSegment2D)top;
+                        sv0 = Vertex(line.Start, false, segmentSource); sv1 = Vertex(line.End, false, segmentSource); ev0 = Vertex(topLine.Start, true, segmentSource); ev1 = Vertex(topLine.End, true, segmentSource);
                         startEdge = Edge(prefix + ":edge:local-start", sv0, sv1, Curve(prefix + ":curve:local-start", CurveGeometry.FromLine(new Line3Curve(sv0.WorldPoint, Direction3D.Create(sv1.WorldPoint - sv0.WorldPoint))), new(0, (sv1.WorldPoint - sv0.WorldPoint).Length), segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalStartBoundary);
                         endEdge = Edge(prefix + ":edge:local-end", ev0, ev1, Curve(prefix + ":curve:local-end", CurveGeometry.FromLine(new Line3Curve(ev0.WorldPoint, Direction3D.Create(ev1.WorldPoint - ev0.WorldPoint))), new(0, (ev1.WorldPoint - ev0.WorldPoint).Length), segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalEndBoundary);
                         startLongitudinal = Vertical(line.Start, sv0, ev0, segmentSource); endLongitudinal = Vertical(line.End, sv1, ev1, segmentSource);
                         var dx = line.End.X - line.Start.X; var dy = line.End.Y - line.Start.Y; var nx = loop.IsHole ? -dy : dy; var ny = loop.IsHole ? dx : -dx;
-                        sideSurface = SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld(line.Start, start), Direction3D.Create(frame.ToWorldDirection(new Vector3D(nx, ny, 0))), frame.AxisZ));
+                        if (draft is null)
+                            sideSurface = SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld(line.Start, start), Direction3D.Create(frame.ToWorldDirection(new Vector3D(nx, ny, 0))), frame.AxisZ));
+                        else
+                        {
+                            // The wall's normal away from material (the right of travel when material is on the
+                            // left), tilted by the draft toward +local Z for a positive angle; the face keeps it.
+                            var length = Math.Sqrt(dx * dx + dy * dy); var cos = Math.Cos(draft.AngleRadians); var sin = Math.Sin(draft.AngleRadians);
+                            var side = materialOnLeft[li] ? 1d : -1d;
+                            var away = new Vector3D(side * dy / length * cos, -side * dx / length * cos, sin);
+                            sideSurface = SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld(line.Start, start),
+                                Direction3D.Create(frame.ToWorldDirection(away)), Direction3D.Create(frame.ToWorldDirection(new Vector3D(dx, dy, 0)))));
+                            sideSameSense = true;
+                        }
                         break;
                     }
                     case LineArcCircularArc2D arc:
                     {
                         var s = (arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians)); var e = (arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians + arc.SweepAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians + arc.SweepAngleRadians));
-                        sv0 = Vertex(s, false, segmentSource); sv1 = Vertex(e, false, segmentSource); ev0 = Vertex(s, true, segmentSource); ev1 = Vertex(e, true, segmentSource);
+                        var topArc = (LineArcCircularArc2D)top;
+                        var ts = (topArc.Center.X + topArc.Radius * Math.Cos(topArc.StartAngleRadians), topArc.Center.Y + topArc.Radius * Math.Sin(topArc.StartAngleRadians)); var te = (topArc.Center.X + topArc.Radius * Math.Cos(topArc.StartAngleRadians + topArc.SweepAngleRadians), topArc.Center.Y + topArc.Radius * Math.Sin(topArc.StartAngleRadians + topArc.SweepAngleRadians));
+                        sv0 = Vertex(s, false, segmentSource); sv1 = Vertex(e, false, segmentSource); ev0 = Vertex(ts, true, segmentSource); ev1 = Vertex(te, true, segmentSource);
                         var rawEnd = arc.StartAngleRadians + arc.SweepAngleRadians; var trim = new ParameterInterval(Math.Min(arc.StartAngleRadians, rawEnd), Math.Max(arc.StartAngleRadians, rawEnd)); var oriented = arc.SweepAngleRadians > 0d;
+                        var topRawEnd = topArc.StartAngleRadians + topArc.SweepAngleRadians; var topTrim = new ParameterInterval(Math.Min(topArc.StartAngleRadians, topRawEnd), Math.Max(topArc.StartAngleRadians, topRawEnd));
                         startEdge = Edge(prefix + ":edge:local-start", sv0, sv1, Curve(prefix + ":curve:local-start", CurveGeometry.FromCircle(new Circle3Curve(frame.ToWorld(arc.Center, start), frame.AxisZ, arc.Radius, frame.AxisX)), trim, segmentSource, oriented), segmentSource, ProfileExtrusionPlanRole.LocalStartBoundary);
-                        endEdge = Edge(prefix + ":edge:local-end", ev0, ev1, Curve(prefix + ":curve:local-end", CurveGeometry.FromCircle(new Circle3Curve(frame.ToWorld(arc.Center, end), frame.AxisZ, arc.Radius, frame.AxisX)), trim, segmentSource, oriented), segmentSource, ProfileExtrusionPlanRole.LocalEndBoundary);
+                        endEdge = Edge(prefix + ":edge:local-end", ev0, ev1, Curve(prefix + ":curve:local-end", CurveGeometry.FromCircle(new Circle3Curve(frame.ToWorld(topArc.Center, end), frame.AxisZ, topArc.Radius, frame.AxisX)), topTrim, segmentSource, oriented), segmentSource, ProfileExtrusionPlanRole.LocalEndBoundary);
                         startLongitudinal = Vertical(s, sv0, ev0, segmentSource); endLongitudinal = Vertical(e, sv1, ev1, segmentSource);
-                        sideSurface = SurfaceGeometry.FromCylinder(new CylinderSurface(frame.ToWorld(arc.Center, start), frame.AxisZ, arc.Radius, frame.AxisX));
+                        if (draft is null)
+                            sideSurface = SurfaceGeometry.FromCylinder(new CylinderSurface(frame.ToWorld(arc.Center, start), frame.AxisZ, arc.Radius, frame.AxisX));
+                        else
+                        {
+                            sideSurface = DraftCone(frame, arc.Center, start, arc.Radius, topArc.Radius, draft);
+                            // The cone's normal points away from its axis: away from material when the arc's
+                            // centre lies on the material side.
+                            sideSameSense = arc.SweepAngleRadians > 0d == materialOnLeft[li];
+                        }
                         break;
                     }
                     case LineArcFullCircle2D circle:
                     {
-                        var seam = (circle.Center.X + circle.Radius, circle.Center.Y);
-                        sv0 = Vertex(seam, false, segmentSource); sv1 = sv0; ev0 = Vertex(seam, true, segmentSource); ev1 = ev0;
+                        var topCircle = (LineArcFullCircle2D)top;
+                        var seam = (circle.Center.X + circle.Radius, circle.Center.Y); var topSeam = (topCircle.Center.X + topCircle.Radius, topCircle.Center.Y);
+                        sv0 = Vertex(seam, false, segmentSource); sv1 = sv0; ev0 = Vertex(topSeam, true, segmentSource); ev1 = ev0;
                         var trim = new ParameterInterval(0, 2 * Math.PI);
                         startEdge = Edge(prefix + ":edge:local-start", sv0, sv0, Curve(prefix + ":curve:local-start", CurveGeometry.FromCircle(new Circle3Curve(frame.ToWorld(circle.Center, start), frame.AxisZ, circle.Radius, frame.AxisX)), trim, segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalStartBoundary);
-                        endEdge = Edge(prefix + ":edge:local-end", ev0, ev0, Curve(prefix + ":curve:local-end", CurveGeometry.FromCircle(new Circle3Curve(frame.ToWorld(circle.Center, end), frame.AxisZ, circle.Radius, frame.AxisX)), trim, segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalEndBoundary);
+                        endEdge = Edge(prefix + ":edge:local-end", ev0, ev0, Curve(prefix + ":curve:local-end", CurveGeometry.FromCircle(new Circle3Curve(frame.ToWorld(topCircle.Center, end), frame.AxisZ, topCircle.Radius, frame.AxisX)), trim, segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalEndBoundary);
                         startLongitudinal = Vertical(seam, sv0, ev0, segmentSource); endLongitudinal = startLongitudinal;
-                        sideSurface = SurfaceGeometry.FromCylinder(new CylinderSurface(frame.ToWorld(circle.Center, start), frame.AxisZ, circle.Radius, frame.AxisX));
+                        sideSurface = draft is null
+                            ? SurfaceGeometry.FromCylinder(new CylinderSurface(frame.ToWorld(circle.Center, start), frame.AxisZ, circle.Radius, frame.AxisX))
+                            : DraftCone(frame, circle.Center, start, circle.Radius, topCircle.Radius, draft);
+                        // A hole circle's cone faces its axis away from material, so its face is reversed, as a
+                        // cylindrical hole's is.
                         break;
                     }
                     case LineArcFullEllipse2D ellipse:
@@ -194,7 +240,7 @@ public static class ProfileExtrusionBRepPlanner
                 // reversing individual coedges and breaking directed closure.
                 startUses.Add((startEdge, false)); endUses.Add((endEdge, false));
                 var sideLoop = Loop(prefix + ":loop:side", [(startEdge, false), (endLongitudinal, false), (endEdge, true), (startLongitudinal, true)], segmentSource, ProfileExtrusionPlanRole.SideLoop);
-                sideSpecs.Add((sideLoop, sideSurface, segmentSource, LoopSource(li), startEdge, endEdge, startLongitudinal, endLongitudinal, loop.IsHole));
+                sideSpecs.Add((sideLoop, sideSurface, segmentSource, LoopSource(li), startEdge, endEdge, startLongitudinal, endLongitudinal, loop.IsHole, sideSameSense));
             }
             var loopSource = LoopSource(li); var roleStart = ProfileExtrusionPlanRole.LocalStartCapLoop; var roleEnd = ProfileExtrusionPlanRole.LocalEndCapLoop;
             startCapLoops.Add(Loop($"plan:{loopSource}:loop:local-start", startUses, loopSource, roleStart)); endCapLoops.Add(Loop($"plan:{loopSource}:loop:local-end", endUses, loopSource, roleEnd));
@@ -206,12 +252,11 @@ public static class ProfileExtrusionBRepPlanner
         var startFace = new ProfileExtrusionPlanFace("plan:cap:local-start:face", new FaceId(nextFace++), startCapLoops.Select(x => x.Id).ToArray(), startSurface.Id, true, sourceId, ProfileExtrusionPlanRole.LocalStartCapFace);
         var endFace = new ProfileExtrusionPlanFace("plan:cap:local-end:face", new FaceId(nextFace++), endCapLoops.Select(x => x.Id).ToArray(), endSurface.Id, true, sourceId, ProfileExtrusionPlanRole.LocalEndCapFace);
         faces.Add(startFace); faces.Add(endFace);
-        foreach (var (sideLoop, surface, segmentSource, loopSource, startEdge, endEdge, startLongitudinal, endLongitudinal, isHole) in sideSpecs)
+        foreach (var (sideLoop, surface, segmentSource, loopSource, startEdge, endEdge, startLongitudinal, endLongitudinal, isHole, sideSameSense) in sideSpecs)
         {
             // A cylindrical inner loop bounds void material: retain its analytic
             // outward support normal but reverse the face sense, so shell/mass
             // orientation subtracts rather than adds the circular shaft.
-            var sideSameSense = !isHole;
             var plannedSurface = new ProfileExtrusionPlanSurface($"plan:{segmentSource}:surface:side", new SurfaceGeometryId(nextSurface++), surface, sideSameSense, segmentSource, ProfileExtrusionPlanRole.SideFace); surfaces.Add(plannedSurface);
             var sideFace = new ProfileExtrusionPlanFace($"plan:{segmentSource}:face:side", new FaceId(nextFace++), [sideLoop.Id], plannedSurface.Id, sideSameSense, segmentSource, ProfileExtrusionPlanRole.SideFace); faces.Add(sideFace);
             if (sourceProfile is not null)
@@ -223,8 +268,9 @@ public static class ProfileExtrusionBRepPlanner
                 descendants.Add(new(prefix + ":top", "Edge", SemanticTopologyRole.TopBoundary, segmentSource, Edge: endEdge.Id, ParentStableId: segmentSource));
                 descendants.Add(new(prefix + ":vertical-start", "Edge", SemanticTopologyRole.VerticalExtrusionEdge, segmentSource, Edge: startLongitudinal.Id, ParentStableId: segmentSource));
                 descendants.Add(new(prefix + ":vertical-end", "Edge", SemanticTopologyRole.VerticalExtrusionEdge, segmentSource, Edge: endLongitudinal.Id, ParentStableId: segmentSource));
-                descendants.Add(new(prefix + ":side", "Face", isHole && surface.Kind == SurfaceGeometryKind.Cylinder ? SemanticTopologyRole.HoleWallFace : SemanticTopologyRole.ExtrusionSideFace, segmentSource, Face: sideFace.Id, ParentStableId: segmentSource));
-                if (isHole && surface.Kind == SurfaceGeometryKind.Cylinder)
+                var roundWall = surface.Kind is SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone;
+                descendants.Add(new(prefix + ":side", "Face", isHole && roundWall ? SemanticTopologyRole.HoleWallFace : SemanticTopologyRole.ExtrusionSideFace, segmentSource, Face: sideFace.Id, ParentStableId: segmentSource));
+                if (isHole && roundWall)
                     descendants.Add(new($"material:{sourceProfile.Name}:{loopSource}:cylindrical-wall:{sideFace.Id.Value}", "Face", SemanticTopologyRole.HoleWallFace, loopSource, Face: sideFace.Id, ParentStableId: loopSource));
             }
         }
@@ -243,12 +289,21 @@ public static class ProfileExtrusionBRepPlanner
         return new(true, new ProfileExtrusionBRepPlan($"brep-plan:profile-extrusion:{sourceId}:{frame.StableId}", air, vertices, curves, edges, loops, surfaces, faces, shell, body, correspondence, correspondence.ProvenanceChain, diagnostics), diagnostics);
     }
 
+    /// <summary>The right cone through a drafted arc's two sections; its axis points toward the larger one.</summary>
+    private static SurfaceGeometry DraftCone(ConstructionPlane frame, (double X, double Y) center, double startDepth, double startRadius, double endRadius, ProfileExtrusionDraft draft)
+    {
+        var axis = endRadius > startRadius ? frame.AxisZ : Direction3D.Create(-frame.AxisZ.ToVector());
+        return SurfaceGeometry.FromCone(new ConeSurface(frame.ToWorld(center, startDepth), axis, startRadius, Math.Abs(draft.AngleRadians), frame.AxisX));
+    }
+
     private static bool Validate(LineArcProfileExtrudeRequest req, List<string> d)
     {
         var start = req.LocalStartDepth ?? -req.Height / 2d; var end = req.LocalEndDepth ?? req.Height / 2d;
         if (!double.IsFinite(req.Height) || req.Height <= Tol) { d.Add("ProfileExtrusionPlanInvalid: invalid height"); return false; }
         if (!double.IsFinite(start) || !double.IsFinite(end) || end - start <= Tol) { d.Add("ProfileExtrusionPlanInvalid: local depth interval"); return false; }
         if (req.Loops.Count == 0 || req.Loops.Count(l => !l.IsHole) != 1) { d.Add("ProfileExtrusionPlanInvalid: exactly one outer loop"); return false; }
+        if (req.Draft is { } draft && (!double.IsFinite(draft.AngleRadians) || !double.IsFinite(draft.NeutralLocalDepth) || Math.Abs(draft.AngleRadians) >= Math.PI / 4d))
+        { d.Add("draft-angle-invalid: draft must be a finite angle under 45deg in magnitude"); return false; }
         var frame = req.ConstructionPlane ?? ConstructionPlane.WorldXY;
         if (Math.Abs(frame.Determinant - 1d) > 1e-10) { d.Add("ProfileExtrusionFrameInvalid: construction plane must be right handed"); return false; }
         foreach (var loop in req.Loops)

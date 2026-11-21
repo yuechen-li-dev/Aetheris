@@ -28,6 +28,25 @@ public sealed class MoldTests
     }
 
     [Fact]
+    public void DraftedExtrudeReleasesWithExactWallsAndNoFindings()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Canonical", "drafted-cover"));
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        Assert.Empty(result.Diagnostics);
+        var report = result.Report!;
+        // Nine walls (four planes, four corner cones, the bore's cone) and the top cap form the cavity half.
+        var walls = report.Faces.Where(f => f.MinimumDraftDegrees < 90).ToArray();
+        Assert.Equal(9, walls.Length);
+        Assert.All(walls, f => Assert.Equal(1.5, f.MinimumDraftDegrees, 9));
+        Assert.All(walls, f => Assert.Equal(MoldFaceSide.Positive, f.Side));
+        Assert.All(walls, f => Assert.Equal(MoldEvidenceStrength.ExactAnalytic, f.Strength));
+        Assert.Equal(0, report.Summary.DraftFailures);
+        // Along the pull the cover is its bottom outline less the bore at its narrowest, at the parting face.
+        var outline = 80d * 50d - (4d - double.Pi) * 36d - double.Pi * 16d;
+        Assert.InRange(report.Summary.ProjectedArea, outline * (1 - 1e-3), outline * (1 + 1e-3));
+    }
+
+    [Fact]
     public void VerticalWallsAreShortOfDraftButPullClean()
     {
         var result = MoldFirmament.CompileFile(Fixture("Canonical", "tray-concept"));

@@ -1287,6 +1287,11 @@ public static partial class FirmamentV2Parser
                 .Any(d => d.Type.Name.Text != "EdgeFinish") || declarations.Any(IsHollowExtrude)))
         {
             var extrude = declarations.Single(d => d.Type.Name.Text == "Extrude");
+            if (extrude.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Draft")) == true)
+            {
+                diagnostics.Add("profile-extrusion-draft-unsupported: a drafted Extrude cannot carry Modify features or <Hollow> yet; remove draft or the feature.");
+                return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
+            }
             adapterSource = ExtrudeAsCompose(adapterSource, extrude, model.Span.Start - bodySpan.Start, source);
             declarations = MechanicalDeclarations(FirmamentSyntaxParser.Parse(adapterSource).Document.Statements).ToArray();
         }

@@ -44,10 +44,41 @@ holes, slots, patterns and edge finishes. The Extrude builds as
 Cylinder stock; on Extrude and Compose bodies it rejects at its declaration
 (use a `Pattern` of holes for a grid of openings).
 
-Angular mold `Draft` is not currently a V2 `Modify` feature. Its bounded legacy
-operation does not imply support on the modern authoring path. Manual
-`Rib<Rectangular>` accepts its own explicit side `draft` while constructing the
-rib; that is separate from drafting existing body faces.
+Angular mold `Draft` is not a V2 `Modify` feature; draft is declared where a
+wall is made. Manual `Rib<Rectangular>` accepts its own explicit side `draft`,
+and so does `Extrude` (below).
+
+## Drafted Extrude
+
+`draft:` on an `Extrude` tilts every side wall by that angle, for a part that
+must release from a mold:
+
+```firmament
+Model Cover {
+  units: mm
+  Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [80mm, 50mm]; radius: 6mm }
+  Extrude body { profile: outline; from: 0mm; to: 12mm; draft: 2deg }
+}
+```
+
+- A positive angle narrows the solid toward `to`; a negative one widens it.
+- The section at the **neutral plane** is the Profile itself. The neutral plane
+  is the Profile's own plane (height 0) unless `neutral:` gives another height,
+  such as `neutral: 12mm` to keep the top at the Profile's size.
+- The section at any other height is the Profile moved into its material by the
+  height above the neutral plane times tan(draft). Hole walls move with the
+  material, so a hole opens toward the narrow end, and every wall releases the
+  same way.
+- Lines become drafted planes and arcs become right cones, all at exactly the
+  draft angle. Tangent junctions stay tangent; corners stay sharp.
+- An ellipse or a cubic Bézier has no exact drafted wall and is refused. So is a
+  draft that closes an arc, a side or a gap in the Profile within the extrusion,
+  and a draft of 45° or more.
+- A drafted Extrude cannot yet carry `Modify` features, edge finishes or
+  `<Hollow>`; each is refused with a diagnostic.
+
+A [Mold](../../firmament/mold.md) review reads these walls as exact cones and
+planes.
 
 ## Compose
 

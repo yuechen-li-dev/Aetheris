@@ -228,8 +228,11 @@ public static class ProfileAuthoringParser
         if (ProfileBoundaryAuthoring.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out var conceptProfile, values)
             || ConceptProfileDerivation.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out conceptProfile, values))
         {
-            var depths = ResolveExtrude(source, profile.Name, diagnostics, values.NominalExpression);
-            return (conceptProfile is null ? null : conceptProfile with { LocalStartDepth = depths.Start, LocalEndDepth = depths.End }, depths.Height, diagnostics);
+            var before = diagnostics.Count;
+            var depths = ResolveExtrudeWithDraft(source, profile.Name, diagnostics, values.NominalExpression);
+            // A refused draft or interval refuses the extrusion; it is not dropped with the derived profile's notes.
+            if (diagnostics.Skip(before).Any(d => d.StartsWith("profile-extrusion-", StringComparison.Ordinal))) return (null, depths.Height, diagnostics);
+            return (conceptProfile is null ? null : conceptProfile with { LocalStartDepth = depths.Start, LocalEndDepth = depths.End, Draft = depths.Draft }, depths.Height, diagnostics);
         }
 
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
@@ -239,10 +242,10 @@ public static class ProfileAuthoringParser
 
         ConstructionPlane? plane = ResolveConstructionPlane(source, profile.Frame, diagnostics);
         var loops = BindProfileLoops(profile, paths, points, guides, diagnostics);
-        var (start, end, height) = ResolveExtrude(source, profile.Name, diagnostics, values.NominalExpression);
+        var (start, end, height, draft) = ResolveExtrudeWithDraft(source, profile.Name, diagnostics, values.NominalExpression);
         if (diagnostics.Count != 0)
             return (null, height, diagnostics);
-        return (new ResolvedProfile2D(profile.Name, profile.Frame ?? "XY", loops, plane ?? ConstructionPlane.WorldXY, start, end), height, diagnostics);
+        return (new ResolvedProfile2D(profile.Name, profile.Frame ?? "XY", loops, plane ?? ConstructionPlane.WorldXY, start, end, Draft: draft), height, diagnostics);
     }
 
     /// <summary>
@@ -1517,12 +1520,22 @@ public static class ProfileAuthoringParser
 
     internal static (ExpressionSyntax? Profile, ExpressionSyntax? From, ExpressionSyntax? To) ReadExtrudeFields(DeclarationSyntax declaration, List<string> diagnostics)
     {
+        var fields = ReadExtrudeFieldsWithDraft(declaration, diagnostics);
+        return (fields.Profile, fields.From, fields.To);
+    }
+
+    internal static (ExpressionSyntax? Profile, ExpressionSyntax? From, ExpressionSyntax? To, ExpressionSyntax? Draft, ExpressionSyntax? Neutral) ReadExtrudeFieldsWithDraft(DeclarationSyntax declaration, List<string> diagnostics)
+    {
         var fields = new FirmamentSyntaxFields(declaration, diagnostics);
         var profile = fields.Take("Profile");
         var from = fields.Take("From");
         var to = fields.Take("To");
+        var draft = fields.Take("Draft");
+        var neutral = fields.Take("Neutral");
         fields.CheckUnit("From", from, "mm");
         fields.CheckUnit("To", to, "mm");
+        fields.CheckUnit("Draft", draft, "deg");
+        fields.CheckUnit("Neutral", neutral, "mm");
         // Extrude<Hollow> carries its wall; the hollow Compose it lowers to validates the values.
         if (declaration.Type.Arguments.Count == 1 && FirmamentSyntaxValues.Reference(declaration.Type.Arguments[0].Value) == "Hollow")
         {
@@ -1530,14 +1543,24 @@ public static class ProfileAuthoringParser
             fields.Take("Openings");
         }
         fields.Complete();
-        return (profile, from, to);
+        return (profile, from, to, draft, neutral);
     }
 
     private static (double Start, double End, double Height) ResolveExtrude(string source, string profileName, List<string> diagnostics, Func<ExpressionSyntax, ExpressionSyntax>? bind = null)
     {
+        var resolved = ResolveExtrudeWithDraft(source, profileName, diagnostics, bind);
+        return (resolved.Start, resolved.End, resolved.Height);
+    }
+
+    /// <summary>
+    /// The Extrude's interval and its optional side draft. The draft's neutral plane, where the section is the
+    /// Profile itself, is the Profile's own plane (local depth 0) unless <c>neutral:</c> names another depth.
+    /// </summary>
+    private static (double Start, double End, double Height, ProfileExtrusionDraft? Draft) ResolveExtrudeWithDraft(string source, string profileName, List<string> diagnostics, Func<ExpressionSyntax, ExpressionSyntax>? bind = null)
+    {
         foreach (var d in SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Where(d => d.Type.Name.Text == "Extrude"))
         {
-            var fields = ReadExtrudeFields(d, diagnostics);
+            var fields = ReadExtrudeFieldsWithDraft(d, diagnostics);
             if (FirmamentSyntaxValues.Reference(fields.Profile) != profileName) continue;
             if (!FirmamentSyntaxValues.TryMeasure(fields.From is { } from ? bind?.Invoke(from) ?? from : null, "mm", out var start)
                 || !FirmamentSyntaxValues.TryMeasure(fields.To is { } to ? bind?.Invoke(to) ?? to : null, "mm", out var end))
@@ -1546,7 +1569,21 @@ public static class ProfileAuthoringParser
                 continue;
             }
             if (!double.IsFinite(start) || !double.IsFinite(end)) break;
-            return (start, end, Math.Abs(end - start));
+            ProfileExtrusionDraft? draft = null;
+            if (fields.Draft is { } draftExpression)
+            {
+                var neutral = 0d;
+                if (!FirmamentSyntaxValues.TryMeasure(bind?.Invoke(draftExpression) ?? draftExpression, "deg", out var degrees) || !double.IsFinite(degrees))
+                    diagnostics.Add($"profile-extrusion-draft-invalid:{d.Name?.Text}: draft must be an angle, such as 1deg.");
+                else if (fields.Neutral is { } neutralExpression
+                    && (!FirmamentSyntaxValues.TryMeasure(bind?.Invoke(neutralExpression) ?? neutralExpression, "mm", out neutral) || !double.IsFinite(neutral)))
+                    diagnostics.Add($"profile-extrusion-neutral-invalid:{d.Name?.Text}: neutral must be a length along the Extrude, such as 0mm.");
+                else if (degrees != 0d)
+                    draft = new ProfileExtrusionDraft(degrees * Math.PI / 180d, neutral);
+            }
+            else if (fields.Neutral is not null)
+                diagnostics.Add($"profile-extrusion-neutral-without-draft:{d.Name?.Text}: neutral places a draft's neutral plane; add draft or remove neutral.");
+            return (start, end, Math.Abs(end - start), draft);
         }
         diagnostics.Add("profile-extrude-missing-or-mismatched"); return default;
     }

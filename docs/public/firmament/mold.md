@@ -87,6 +87,9 @@ always errors.
 
 ## Not yet
 
-Side actions and lifters, gates, ejectors, wall-thickness, rib and boss rules, flow length, and draft on Extrude and
-Compose walls are later phases. Until draft can be authored, a Compose part reports its vertical walls as short of
+An `Extrude` takes `draft:` ([drafted Extrude](../reference/language/solids-and-features.md#drafted-extrude)); its
+walls are exact drafted planes and cones, and pass the draft check at their angle.
+
+Side actions and lifters, gates, ejectors, wall-thickness, rib and boss rules, flow length, and draft on Compose
+walls and on `<Hollow>` bodies are later phases. Until then a Compose part reports its vertical walls as short of
 draft; the `Concept` stage keeps that a warning. `PlasticShell` remains the bounded route for its frustum enclosures.

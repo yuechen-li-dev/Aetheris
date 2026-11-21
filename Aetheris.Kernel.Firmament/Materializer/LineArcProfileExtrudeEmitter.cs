@@ -26,7 +26,8 @@ public sealed record LineArcProfileExtrudeRequest(
     double Height,
     ConstructionPlane? ConstructionPlane = null,
     double? LocalStartDepth = null,
-    double? LocalEndDepth = null);
+    double? LocalEndDepth = null,
+    ProfileExtrusionDraft? Draft = null);
 
 public enum LineArcProfileExtrudeStatus { Succeeded, Rejected, Deferred, Failed }
 public sealed record ProfileExtrusionTiming(TimeSpan PlanConstruction, TimeSpan BRepMaterialization);
@@ -60,7 +61,8 @@ public static class LineArcProfileExtrudeEmitter
             height,
             profile.EffectiveConstructionPlane,
             profile.LocalStartDepth,
-            profile.LocalEndDepth);
+            profile.LocalEndDepth,
+            profile.Draft);
         return Emit(request, profile);
     }
 

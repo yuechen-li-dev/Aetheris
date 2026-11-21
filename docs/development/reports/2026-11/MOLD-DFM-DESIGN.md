@@ -182,3 +182,6 @@ tray releases with every wall at 0° (24 warnings at `Concept`, errors at `Tooli
 rounded-rectangle outline; a bottle pulled along its axis reports the inside of its shoulder, body and floor as
 undercuts and a parting line from 39.4 to 58 mm, off its rim plane; a grooved pulley reports exactly the groove's two
 faces and floor.
+
+M1 has started: `Extrude` takes `draft:` and `neutral:` with exact drafted planes and cones
+([report](mold-m1-drafted-extrude.md)). Compose `Base`/`Boss`/`Pocket` and `<Hollow>` remain.

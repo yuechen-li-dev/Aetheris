@@ -13,6 +13,8 @@ public static class ProfileSemanticDeclaration { }
 [FirmamentField("Profile", "Profile", FirmamentSchemaValueKind.Profile, Required = true, Description = "Name of the Profile to extrude.")]
 [FirmamentField("From", "From", FirmamentSchemaValueKind.Length, Required = true, Description = "Start height along the layout normal.")]
 [FirmamentField("To", "To", FirmamentSchemaValueKind.Length, Required = true, Description = "End height; greater than From.")]
+[FirmamentField("Draft", "Draft", FirmamentSchemaValueKind.Angle, Unit = FirmamentUnitKind.Angle, Default = "0deg", Description = "Side draft of every wall; positive narrows toward To, negative widens. Lines become drafted planes and arcs right cones.")]
+[FirmamentField("Neutral", "Neutral", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Default = "0mm", Description = "Height where a drafted section is the Profile itself; the Profile's own plane by default.")]
 [FirmamentField("WallThickness", "WallThickness", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Variants = ["Hollow"], Description = "Extrude<Hollow>: the constant wall of the hollow prism.")]
 [FirmamentField("Openings", "Openings", FirmamentSchemaValueKind.String, Variants = ["Hollow"], Description = "Extrude<Hollow>: end caps the cavity runs out through, [Top], [Bottom] or both; omit for a closed vessel.")]
 public static class ExtrudeSemanticDeclaration { }

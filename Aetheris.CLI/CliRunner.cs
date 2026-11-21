@@ -2124,7 +2124,7 @@ Model CanonicalPanel {
         if (parsed.Profile is null) { stderr.WriteLine(string.Join(Environment.NewLine, parsed.Diagnostics)); return 1; }
         var validation = ResolvedProfile2DValidator.Validate(parsed.Profile);
         var plan = validation.IsValid
-            ? ProfileExtrusionBRepPlanner.TryPlan(new LineArcProfileExtrudeRequest(parsed.Profile.Loops.Select(l => new LineArcProfileLoop2D(l.Segments.Select(s => s.Geometry).ToArray(), !l.IsOuter)).ToArray(), parsed.Height, parsed.Profile.EffectiveConstructionPlane, parsed.Profile.LocalStartDepth, parsed.Profile.LocalEndDepth), parsed.Profile)
+            ? ProfileExtrusionBRepPlanner.TryPlan(new LineArcProfileExtrudeRequest(parsed.Profile.Loops.Select(l => new LineArcProfileLoop2D(l.Segments.Select(s => s.Geometry).ToArray(), !l.IsOuter)).ToArray(), parsed.Height, parsed.Profile.EffectiveConstructionPlane, parsed.Profile.LocalStartDepth, parsed.Profile.LocalEndDepth, parsed.Profile.Draft), parsed.Profile)
             : new ProfileExtrusionPlanResult(false, null, validation.Diagnostics);
         var report = new
         {

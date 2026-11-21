@@ -32,6 +32,7 @@ Model CompactMouse {
     units: mm
 
     Concept Struct Stations {
+        Centerline: Plane { Origin: [0mm, 0mm, 0mm]; Normal: [0, 1, 0]; Up: [0, 0, 1] }
         Sole: Plane { Origin: [0mm, 0mm, 0mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
         Skirt: Plane { Origin: [0mm, 0mm, 5mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
         Rim: Plane { Origin: [0mm, 0mm, 12mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
@@ -71,6 +72,8 @@ Model CompactMouse {
         segments: 8
         rimSection: Rim
         SurfaceAnchor Nose { section: Shoulder; span: FrontRight }
+        SurfaceAnchor GripFront { section: Shoulder; span: RearRight }
+        SurfaceAnchor GripRear { section: Palm; span: RearRight }
         maximumDeviation: 1mm
         maximumRimDeviation: 0.15mm
         previewLevels: 2
@@ -114,6 +117,16 @@ Model CompactMouse {
             maximumMovement: 0.3mm
             iterations: 3
         }
+    }
+    MeshState SideGrips {
+        input: WheelFaired
+        preserve: [Rim]
+        Stroke RightGrip {
+            path: [WheelFaired.GripFront, WheelFaired.GripRear]
+            radius: 13.5mm
+            offset: [0mm, 1.8mm, -0.5mm]
+        }
+        Mirrored Stroke LeftGrip from RightGrip { across: Stations.Centerline }
     }
     output: LowFront
 }

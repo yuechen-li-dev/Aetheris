@@ -129,8 +129,8 @@ public sealed class SculptingCliTests
             });
             var states = inspection.RootElement.GetProperty("meshStates");
             var seed = states.GetProperty("Seed");
-            var anchor = Assert.Single(seed.GetProperty("surfaceAnchors").EnumerateArray());
-            Assert.Equal("Nose", anchor.GetProperty("name").GetString());
+            var anchor = Assert.Single(seed.GetProperty("surfaceAnchors").EnumerateArray(),
+                candidate => candidate.GetProperty("name").GetString() == "Nose");
             Assert.Equal("Shoulder", anchor.GetProperty("section").GetString());
             var brush = states.GetProperty("LowFront").GetProperty("brushEffect");
             Assert.Equal("NoseDip", brush.GetProperty("feature").GetString());
@@ -235,6 +235,64 @@ public sealed class SculptingCliTests
                 "--out", rejected, "--json"], stdout, new StringWriter()));
             Assert.Contains("mesh-compare-correspondence-unsupported", stdout.ToString(), StringComparison.Ordinal);
             Assert.False(File.Exists(rejected));
+        }
+        finally
+        {
+            foreach (var path in Directory.GetFiles(folder)) File.Delete(path);
+            Directory.Delete(folder);
+        }
+    }
+
+    [Fact]
+    public void MirroredStrokeReplaysBothGripsAndRejectsAnUnmatchedPlane()
+    {
+        var mouse = Path.Combine(Root(), "fixtures/Canonical/Sculpting/compact-mouse.firmament");
+        var folder = Path.Combine(Root(), "artifacts/local/tests/mirrored-stroke", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var shell = Path.Combine(folder, "grips.glb");
+            using var build = Run("build", mouse, "--state", "SideGrips", "--out", shell);
+            var result = build.RootElement;
+            Assert.True(result.GetProperty("topology").GetProperty("isWatertight").GetBoolean());
+            var stroke = result.GetProperty("strokeEffect");
+            Assert.Equal("RightGrip", stroke.GetProperty("feature").GetString());
+            Assert.True(stroke.GetProperty("pathControls").GetInt32() > 2);
+            var mirror = stroke.GetProperty("mirror");
+            Assert.Equal("LeftGrip", mirror.GetProperty("feature").GetString());
+            Assert.Equal("Stations.Centerline", mirror.GetProperty("across").GetString());
+            Assert.Equal(-1.8, mirror.GetProperty("reflectedOffsetMm").GetProperty("y").GetDouble());
+            Assert.InRange(mirror.GetProperty("maximumSampledSymmetryErrorMm").GetDouble(), 0, 1e-10);
+            var movement = stroke.GetProperty("movement");
+            Assert.Equal(movement.GetProperty("samples").GetInt32(), mirror.GetProperty("matchedSamples").GetInt32());
+            Assert.InRange(movement.GetProperty("maximumMovementMm").GetDouble(), 1.3, 1.5);
+            Assert.Equal(128, movement.GetProperty("rimSamples").GetInt32());
+            Assert.Equal(0, movement.GetProperty("maximumRimMovementMm").GetDouble());
+
+            using var sidecar = JsonDocument.Parse(File.ReadAllText(shell + ".sculpt.json"));
+            var replay = MeshConstructionReplayer.Replay(sidecar.RootElement.GetProperty("construction").GetRawText());
+            Assert.Equal(result.GetProperty("stateId").GetString(), replay.StateId);
+            var replayStroke = Assert.IsType<DisplaceCageStroke>(replay.Construction.Operations[^1]);
+            Assert.Equal(["GripFront", "GripRear"], replayStroke.Path);
+            Assert.Equal("LeftGrip", replayStroke.Mirror!.Feature);
+
+            var source = File.ReadAllText(mouse);
+            var wrongPlane = Path.Combine(folder, "wrong-plane.firmament");
+            File.WriteAllText(wrongPlane, source.Replace("across: Stations.Centerline", "across: Stations.Rim", StringComparison.Ordinal));
+            var rejected = Path.Combine(folder, "rejected.glb");
+            var stdout = new StringWriter();
+            Assert.Equal(1, CliRunner.Run(["build", wrongPlane, "--state", "SideGrips", "--out", rejected, "--json"], stdout, new StringWriter()));
+            Assert.Contains("mesh-stroke-mirror-correspondence", stdout.ToString(), StringComparison.Ordinal);
+            Assert.False(File.Exists(rejected));
+
+            var overlap = Path.Combine(folder, "overlap.firmament");
+            File.WriteAllText(overlap, source
+                .Replace("[WheelFaired.GripFront, WheelFaired.GripRear]", "[WheelFaired.Nose, WheelFaired.GripFront]", StringComparison.Ordinal)
+                .Replace("[0mm, 1.8mm, -0.5mm]", "[0mm, 0mm, -0.2mm]", StringComparison.Ordinal));
+            using var compare = Run("compare", overlap, "--before", "WheelFaired", "--after", "SideGrips");
+            var overlapped = compare.RootElement.GetProperty("strokeEffect");
+            Assert.True(overlapped.GetProperty("mirror").GetProperty("sharedFootprintControls").GetInt32() > 0);
+            Assert.InRange(overlapped.GetProperty("movement").GetProperty("maximumMovementMm").GetDouble(), 0.15, 0.200000001);
         }
         finally
         {

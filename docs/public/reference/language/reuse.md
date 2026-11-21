@@ -195,6 +195,9 @@ Feature largerMount = rightMount with { diameter: 8mm }
 - A mirrored feature that would land exactly on its source is rejected as a
   redundant duplicate. A Profile lying on the mirror plane may remain as a named
   derivation.
+- Inside a subdivision `MeshState`, `Mirrored Stroke leftGrip from rightGrip { across: centerPlane }`
+  reflects a named `Stroke` from the same state. Both passes form one edit
+  on the input cage. See the [mirrored stroke example](../../firmament/sculpting.md#sculpt-both-grips-with-a-mirrored-stroke).
 
 ```firmament
 Radial Pattern boltCircle { source: boltSeed; about: mainAxis; count: 6; angle: full }

@@ -69,7 +69,7 @@ internal static class SculptCompareCommand
             var report = new
             {
                 command = "compare", success, before = beforeName, after = afterName,
-                movement, after.FairEffect, beforeRecess = before.RecessEffect, afterRim = after.SectionFit?.Rim,
+                movement, after.FairEffect, after.StrokeEffect, beforeRecess = before.RecessEffect, afterRim = after.SectionFit?.Rim,
                 sectionYMm = y, wheel, minimumClearanceMm = minimum, clearanceBefore, clearanceAfter,
                 preview = success ? output : null
             };

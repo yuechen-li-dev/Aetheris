@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Kernel.Core.Math;
 using Block = Aetheris.Kernel.Firmament.FirmamentV2.Syntax.FirmamentSyntaxScope;
@@ -6,7 +7,8 @@ namespace Aetheris.Surfacing;
 
 public static partial class SculptingAuthoring
 {
-    private static Dictionary<string, MeshSculptState> BindMeshStates(Block model, IReadOnlyDictionary<string, BodyState> bodies, List<SculptDiagnostic> diagnostics)
+    private static Dictionary<string, MeshSculptState> BindMeshStates(Block model, IReadOnlyDictionary<string, BodyState> bodies, string source,
+        List<SculptDiagnostic> diagnostics)
     {
         var states = new Dictionary<string, MeshSculptState>(StringComparer.Ordinal);
         var blocks = Blocks(model, "MeshState");
@@ -17,13 +19,15 @@ public static partial class SculptingAuthoring
             var subdivide = Single(block, "Subdivide", diagnostics); var move = Single(block, "Move", diagnostics);
             var scale = Single(block, "Scale", diagnostics); var crease = Single(block, "Crease", diagnostics);
             var brush = Single(block, "Brush", diagnostics);
+            var strokes = Blocks(block, "Stroke");
             var fair = Single(block, "Fair", diagnostics);
             var recess = Single(block, "Recess", diagnostics);
             try
             {
                 if (bodies.ContainsKey(block.Name) || states.ContainsKey(block.Name)) throw new InvalidOperationException("mesh-state-duplicate: State names must be unique across exact and mesh states.");
                 MeshSculptState result;
-                var operations = new[] { subdivide, move, scale, crease, brush, fair, recess }.Count(b => b is not null);
+                var operations = new[] { subdivide, move, scale, crease, brush, fair, recess }.Count(b => b is not null)
+                    + (strokes.Count == 0 ? 0 : 1);
                 if (kind is not null)
                 {
                     if (operations != 0) throw new InvalidOperationException("mesh-conversion-operation-mixed: Conversion is one explicit state; put edits in successor states.");
@@ -44,7 +48,7 @@ public static partial class SculptingAuthoring
                 }
                 else
                 {
-                    if (operations != 1) throw new InvalidOperationException("mesh-operation-cardinality: A mesh successor requires exactly one Subdivide, Move, Scale, Crease, Brush, Fair or Recess operation.");
+                    if (operations != 1) throw new InvalidOperationException("mesh-operation-cardinality: A mesh successor requires exactly one Subdivide, Move, Scale, Crease, Brush, Stroke, Fair or Recess operation.");
                     if (inputName is null || !states.TryGetValue(inputName, out var input)) throw new InvalidOperationException("mesh-predecessor-unresolved: Mesh edits require one previously admitted MeshState.");
                     MeshSculptOperation operation;
                     if (subdivide is not null) operation = new SubdivideCage(block.Name, Integer(subdivide, "Levels") ?? 0);
@@ -70,6 +74,12 @@ public static partial class SculptingAuthoring
                             throw new InvalidOperationException("mesh-brush-falloff-unsupported: The supported falloff is Smooth.");
                         if (radius is null || offset is null) continue;
                         operation = new DisplaceCageBrush(brush.Name, center.Member.Text, radius.Value, new(offset[0], offset[1], offset[2]));
+                    }
+                    else if (strokes.Count != 0)
+                    {
+                        var stroke = BindStroke(strokes, inputName, source, diagnostics);
+                        if (stroke is null) continue;
+                        operation = stroke;
                     }
                     else if (fair is not null)
                     {
@@ -108,6 +118,43 @@ public static partial class SculptingAuthoring
             }
         }
         return states;
+    }
+
+    private static DisplaceCageStroke? BindStroke(IReadOnlyList<Block> strokes, string inputName, string source, List<SculptDiagnostic> diagnostics)
+    {
+        var seeds = strokes.Where(s => s.Declaration.Modifiers.Count == 0).ToArray();
+        var mirrors = strokes.Where(s => s.Declaration.Modifiers.Select(m => m.Name.Text).SequenceEqual(["Mirrored"])).ToArray();
+        if (seeds.Length != 1 || mirrors.Length > 1 || seeds.Length + mirrors.Length != strokes.Count
+            || strokes.Any(s => s.Declaration.Name is null))
+            throw new InvalidOperationException("mesh-stroke-declarations-invalid: Use one named Stroke and at most one Mirrored Stroke from that declaration.");
+        var seed = seeds[0];
+        StrokeMirror? reflected = null;
+        if (mirrors.SingleOrDefault() is { } mirror)
+        {
+            mirror.AllowModifier("Mirrored").AdmitPlacement();
+            if (mirror.Name == seed.Name || mirror.Declaration.Clauses is not [{ Kind: ClauseKind.From, Value: ReferenceSyntax from }]
+                || from.Name.Text != seed.Name)
+                throw new InvalidOperationException("mesh-stroke-mirror-source: A Mirrored Stroke must have a distinct name and derive from the Stroke in the same MeshState.");
+            var acrossName = mirror.Word("Across");
+            var planeErrors = new List<string>();
+            if (acrossName is null
+                || !SemanticSymmetryAuthoring.TryResolvePlane(source, acrossName, planeErrors, out var plane, out _)
+                || plane is null || planeErrors.Count != 0)
+                throw new InvalidOperationException("mesh-stroke-mirror-plane-invalid: Across must resolve to a named symmetry plane.");
+            reflected = new(mirror.Name, acrossName, plane.Origin, plane.Normal.ToVector());
+        }
+
+        var path = List(seed, "Path");
+        var prefix = inputName + ".";
+        if (path.Any(name => !name.StartsWith(prefix, StringComparison.Ordinal) || name[prefix.Length..].Contains('.')))
+            throw new InvalidOperationException("mesh-stroke-anchor-unresolved: Path must name surface anchors on the immediate predecessor.");
+        var radius = Length(seed, "Radius", diagnostics);
+        var offset = Vector(seed, "Offset", 3, diagnostics);
+        var falloff = seed.Take("Falloff");
+        if (falloff is not null && FirmamentSyntaxValues.Reference(falloff) != "Smooth")
+            throw new InvalidOperationException("mesh-stroke-falloff-unsupported: The supported falloff is Smooth.");
+        return radius is null || offset is null ? null
+            : new(seed.Name, path.Select(name => name[prefix.Length..]).ToArray(), radius.Value, new(offset[0], offset[1], offset[2]), reflected);
     }
 
     private static MeshSectionAnchor BindSurfaceAnchor(Block anchor)

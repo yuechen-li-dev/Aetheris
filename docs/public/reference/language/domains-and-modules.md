@@ -148,6 +148,7 @@ Each successor has exactly one operation:
 | `Scale` | `vertices: [All]`, `factor: [1.5, 1, 0.75]`, `origin: [0mm, 0mm, 0mm]` | Explicit positive scale about a required origin; factors are dimensionless |
 | `Crease` | `edges: [All]`, `mode: Sharp` or `Smooth` | Mark or unmark current cage edges as sharp |
 | `Brush` | `center: Seed.Nose`, `radius: 18mm`, `offset: [0mm, 0mm, -0.6mm]`, `falloff: Smooth` | Displace a SectionChain cage around a named surface anchor. Functional Features can return a Brush. |
+| `Stroke` | `path: [Input.Start, Input.End]`, `radius: 13.5mm`, `offset: [0mm, 1.8mm, -0.5mm]` | Route a smooth displacement between named surface anchors. A `Mirrored Stroke` can derive the other side of the same edit. |
 | `Recess` | `center: [-28mm, 0mm]`, `size: [24mm, 15mm]`, `floor: 14mm`, `lip: 1.4mm` | Form a closed blind pocket from an upward-facing patch of a SectionChain cage and publish the named lip region. |
 | `Fair` | `regions: [WheelLip]`, `maximumMovement: 0.3mm`, `iterations: 3` | Relax named SectionChain cage regions within a movement budget while pinning the rim, creases, and protected regions. |
 
@@ -156,10 +157,11 @@ derived from their endpoint identities. `[All]` is an explicit whole-cage
 selection. Existing vertex IDs survive refinement; new edge/face points have
 parent-derived IDs. Old edge handles are replaced by their child edges.
 Optional `preserve: [v1]` requires those input vertices to retain their exact
-coordinates and identities in that successor. For `Brush`, `Recess`, and
-`Fair`, `preserve` takes named cage regions. A conflict rejects atomically.
+coordinates and identities in that successor. For `Brush`, `Stroke`,
+`Recess`, and `Fair`, `preserve` takes named cage regions. A conflict rejects atomically.
 See [named brushes](../../firmament/sculpting.md#displace-the-surface-with-a-named-brush)
-and [wheel opening and comparison](../../firmament/sculpting.md#recess-and-fair-a-wheel-opening).
+[wheel opening and comparison](../../firmament/sculpting.md#recess-and-fair-a-wheel-opening),
+and [mirrored strokes](../../firmament/sculpting.md#sculpt-both-grips-with-a-mirrored-stroke).
 There are at most 64 mesh states/operations and 24,576 cage faces.
 
 The [sphere example](../../../../fixtures/Regression/GenericSculpting/sphere-cage.firmament)

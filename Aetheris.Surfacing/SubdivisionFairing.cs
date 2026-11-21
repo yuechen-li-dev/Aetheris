@@ -21,10 +21,16 @@ public static class SubdivisionComparison
 
         var first = SubdivisionSculptor.SamplePreview(before.Cage, levels).Vertices;
         var second = SubdivisionSculptor.SamplePreview(after.Cage, levels).Vertices;
-        if (!first.Select(v => v.Id).SequenceEqual(second.Select(v => v.Id)))
-            throw new InvalidOperationException("mesh-compare-correspondence-unsupported: Limit sample identities do not match.");
         var rim = before.SourceRim is { } source && after.SourceRim is { } target && source.Section == target.Section
             && source.Vertices.SequenceEqual(target.Vertices) ? source.SampleIds(levels).ToHashSet(StringComparer.Ordinal) : null;
+        return MeasureSamples(first, second, rim);
+    }
+
+    internal static MeshComparisonEvidence MeasureSamples(IReadOnlyList<CageVertex> first, IReadOnlyList<CageVertex> second,
+        IReadOnlySet<string>? rim)
+    {
+        if (!first.Select(v => v.Id).SequenceEqual(second.Select(v => v.Id)))
+            throw new InvalidOperationException("mesh-compare-correspondence-unsupported: Limit sample identities do not match.");
         double maximum = 0, squareSum = 0, rimMovement = 0;
         var peak = first[0].Position;
         for (var i = 0; i < first.Count; i++)

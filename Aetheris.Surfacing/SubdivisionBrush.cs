@@ -43,7 +43,7 @@ internal static class SubdivisionBrush
 
     internal static HashSet<string> ProtectedVertices(MeshSculptState state, MeshSculptOperation operation)
     {
-        var kind = operation switch { FairCageRegion => "fair", RecessCageRegion => "recess", _ => "brush" };
+        var kind = operation switch { FairCageRegion => "fair", RecessCageRegion => "recess", DisplaceCageStroke => "stroke", _ => "brush" };
         if (state.SourceRim is not { } rim || state.VertexRegions is not { } regions)
             throw new InvalidOperationException($"mesh-{kind}-source-unsupported: The operation requires a SectionChain cage with a qualified rim.");
         var protectedVertices = rim.Vertices.ToHashSet(StringComparer.Ordinal);
@@ -66,39 +66,11 @@ internal static class SubdivisionBrush
         if (protectedVertices.Contains(center))
             throw new InvalidOperationException($"mesh-brush-anchor-protected: Anchor '{brush.Anchor}' belongs to a protected region.");
 
-        var points = SubdivisionSculptor.LimitVertices(state.Cage).ToDictionary(v => v.Id, v => v.Position, StringComparer.Ordinal);
-        var neighbors = points.Keys.ToDictionary(id => id, _ => new List<string>(), StringComparer.Ordinal);
-        foreach (var edge in state.Edges)
-        {
-            if (protectedVertices.Contains(edge.A) || protectedVertices.Contains(edge.B)) continue;
-            neighbors[edge.A].Add(edge.B);
-            neighbors[edge.B].Add(edge.A);
-        }
-
-        // Chord lengths between corresponding limit samples give a bounded,
-        // edge-following surface metric, independent of display refinement.
-        var distance = new Dictionary<string, double>(StringComparer.Ordinal) { [center] = 0 };
-        var queue = new PriorityQueue<string, double>();
-        queue.Enqueue(center, 0);
-        while (queue.TryDequeue(out var current, out var travel))
-        {
-            if (distance[current] != travel) continue;
-            foreach (var next in neighbors[current])
-            {
-                var candidate = travel + (points[next] - points[current]).Length;
-                if (candidate >= brush.RadiusMm || candidate >= distance.GetValueOrDefault(next, double.PositiveInfinity)) continue;
-                distance[next] = candidate;
-                queue.Enqueue(next, candidate);
-            }
-        }
-
-        var positions = state.Cage.Vertices.Select(vertex =>
-        {
-            if (!distance.TryGetValue(vertex.Id, out var travel)) return vertex;
-            var t = travel / brush.RadiusMm;
-            var influence = (1 - t) * (1 - t) * (1 + 2 * t);
-            return vertex with { Position = vertex.Position + brush.OffsetMm * influence };
-        }).ToArray();
+        var graph = new CageSurfaceGraph(state.Cage, state.Edges, protectedVertices);
+        var weights = graph.Influences([center], brush.RadiusMm);
+        var positions = state.Cage.Vertices.Select(vertex => weights.TryGetValue(vertex.Id, out var influence)
+            ? vertex with { Position = vertex.Position + brush.OffsetMm * influence }
+            : vertex).ToArray();
         return state.Cage with { Vertices = positions };
     }
 

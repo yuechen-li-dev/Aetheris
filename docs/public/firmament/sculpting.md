@@ -268,6 +268,59 @@ aetheris compare fixtures/Canonical/Sculpting/compact-mouse.firmament --before W
   triangles. The clearance applies at that tessellation and the authored
   wheel placement.
 
+## Sculpt both grips with a mirrored stroke
+
+The [compact mouse](../../../fixtures/Canonical/Sculpting/compact-mouse.firmament)
+defines one stroke along the right shoulder and palm. Its reflected stroke
+uses the model's `Stations.Centerline` Concept plane at Y = 0. The example
+adds `SideGrips` after the faired wheel opening.
+
+```firmament
+MeshState SideGrips {
+    input: WheelFaired
+    preserve: [Rim]
+    Stroke RightGrip {
+        path: [WheelFaired.GripFront, WheelFaired.GripRear]
+        radius: 13.5mm
+        offset: [0mm, 1.8mm, -0.5mm]
+    }
+    Mirrored Stroke LeftGrip from RightGrip { across: Stations.Centerline }
+}
+```
+
+```powershell
+New-Item -ItemType Directory -Force artifacts/local/compact-mouse
+aetheris build fixtures/Canonical/Sculpting/compact-mouse.firmament --state SideGrips --out artifacts/local/compact-mouse/grips.glb --json
+aetheris compare fixtures/Canonical/Sculpting/compact-mouse.firmament --before WheelFaired --after SideGrips --out artifacts/local/compact-mouse/grip-motion.svg --json
+```
+
+- `path` takes 2–32 unique named surface anchors on the immediate
+  predecessor. Each consecutive pair is connected by a shortest path along
+  cage edges, measured between limit positions. This follows the surface
+  at cage resolution. The qualified rim and regions in `preserve` block
+  both path routing and the spread of the stroke.
+- `radius` is the edge-following distance out from the path. The smooth
+  falloff reaches zero at that radius. `offset` is the world-space control
+  displacement at full influence. The optional `falloff: Smooth` is the
+  default.
+- The [Mirror form](../reference/language/reuse.md#mirror-and-radial-symmetry)
+  pairs one named `Stroke` with one optional `Mirrored Stroke` in the same
+  state. `across` takes a named plane. Reflection maps the routed controls
+  and reflects the offset vector. Both footprints are evaluated on the same
+  input. Their overlap blends the vectors while capping the total strength
+  at one pass.
+- The mirrored form requires a SectionChain cage with unique reflected
+  partners within 0.000001 mm, matching reflected quad connectivity and
+  creases, and symmetric protected controls. It rejects a cage that fails
+  correspondence. A standalone `Stroke` works without a mirror plane.
+  The source stroke can also come from a functional `Feature` that
+  returns `Stroke`.
+- Build and compare JSON report path size, moved controls, peak and RMS
+  sampled movement, and rim movement. For a mirror, the report also gives
+  the reflected offset, the overlap count, and the worst reflected error
+  over matched limit samples. The export sidecar retains the stroke and
+  mirror derivation for replay.
+
 ## Bounded region sculpting
 
 The current operation is `OffsetRegion`. The canonical controller-cover example is [`fixtures/Canonical/Sculpting/sculpted-housing.firmament`](../../../fixtures/Canonical/Sculpting/sculpted-housing.firmament):

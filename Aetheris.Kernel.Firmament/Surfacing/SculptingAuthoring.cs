@@ -25,7 +25,7 @@ public static partial class SculptingAuthoring
         var total = Stopwatch.StartNew(); var diagnostics = new List<SculptDiagnostic>(); var states = new Dictionary<string, BodyState>(StringComparer.Ordinal);
         var patches = new Dictionary<string, BoundedSurfacePatch>(StringComparer.Ordinal);
         var sectionChains = new Dictionary<string, SectionChain>(StringComparer.Ordinal);
-        var binding = new FirmamentDomainBinding(source, sourceFile, "BodyState", new HashSet<string>(StringComparer.Ordinal) { "Brush", "Fair", "Recess" });
+        var binding = new FirmamentDomainBinding(source, sourceFile, "BodyState", new HashSet<string>(StringComparer.Ordinal) { "Brush", "Stroke", "Fair", "Recess" });
         diagnostics.AddRange(binding.Diagnostics.Select(d => Located(d)));
         if (diagnostics.Count != 0) return new(false, "<unknown>", null, states, diagnostics, new(0,0,0,0,0));
         var models = binding.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Model").ToArray();
@@ -221,7 +221,7 @@ public static partial class SculptingAuthoring
             if (!result.IsSuccess || result.OutputState is null) diagnostics.AddRange(result.Diagnostics);
             else if (!states.TryAdd(block.Name, result.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"State '{block.Name}' is declared more than once."));
         }
-        var meshStates = BindMeshStates(model, states, diagnostics);
+        var meshStates = BindMeshStates(model, states, binding.Source, diagnostics);
         var authoredOutput = ScalarText(model, "Output");
         var outputName = selectedState ?? authoredOutput;
         BodyState? output = null;

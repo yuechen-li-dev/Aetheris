@@ -137,3 +137,32 @@ output. Select a wheel state explicitly on export.
 The reproducible commands are in the public sculpting guide. The build
 JSON, replay sidecars, comparison SVG and JSON, and assembled preview are
 under `artifacts/local/subd-mouse/wheel/`.
+
+## Mirrored grip stroke
+
+The mouse now has a `SideGrips` state after `WheelFaired`. `RightGrip`
+routes across nine cage controls between two shoulder and palm anchors.
+`Mirrored Stroke LeftGrip from RightGrip` uses the same plane resolution
+as the existing Firmament symmetry authoring. The cage must have
+reciprocal reflected vertices, quads and creases. Both passes use one
+predecessor, preserve the rim and compose into one replay operation.
+The mouse's default output still selects `LowFront`.
+
+- The 13.5 mm radius stroke moved 86 cage controls. Peak movement over
+  23,682 matched limit samples was 1.413195 mm, with 0.201376 mm RMS.
+  The worst reflected position error was 2.85 × 10⁻¹⁴ mm.
+- None of the 128 matched rim samples moved. Exported GLB positions
+  at and below the rim match the predecessor. The shell stayed
+  watertight, and exact-wheel clearance against each exported mesh
+  stayed within the same 1.380531–1.405531 mm interval.
+- The functional `Feature` form gives identical displacement when it
+  supplies the source `Stroke`. The CLI regression replays both grips
+  from the GLB sidecar, rejects
+  an unmatched plane, and checks that the centerline overlap of a
+  0.2 mm stroke stays within its single-pass displacement.
+- The Release build, 32 focused CLI tests and 1,259 fast kernel tests
+  passed. The full parallel suite reported 12 display and STEP test
+  failures. All 12 passed in an isolated rerun covering 28 cases.
+
+The build JSON, GLBs and replay sidecars, comparison JSON and SVG, and
+the rendered top-view heatmap are under `artifacts/local/subd-mouse/stroke/`.

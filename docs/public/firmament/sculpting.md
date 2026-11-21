@@ -200,7 +200,7 @@ uses mounts for the lights and side mirrors.
 
 ```firmament
 // Inside the conversion MeshState Seed
-SurfaceMount HeadlampLeft { section: FrontFlare; span: Top; at: 0.89 }
+SurfaceMount HeadlampLeft { section: FrontFlare; span: Top; at: 0.855 }
 ```
 
 - `section` selects an interior section and `span` names a smooth span of
@@ -394,10 +394,10 @@ aetheris compare fixtures/Canonical/Sculpting/sports-coupe-front-clip.firmament 
   poses with a bound on between-pose motion. The result applies to the
   exported shell triangles and that idealized wheel motion.
 
-## Build a sports coupe silhouette
+## Build the Claude-mobile
 
 The [sports coupe example](../../../fixtures/Canonical/Sculpting/sports-coupe/body.firmament)
-extends the wheel-arch workflow to an entire unbranded fastback. One G1
+extends the wheel-arch workflow to a complete fastback with a character livery. One G1
 SectionChain defines the body from nose to tail. A second defines the
 [cabin and roofline](../../../fixtures/Canonical/Sculpting/sports-coupe/cabin.firmament).
 The front and rear cubic arch profiles each drive a mirrored pair.

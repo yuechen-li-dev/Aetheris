@@ -273,3 +273,30 @@ proportions.
 The revised GLB, reference comparison, sidecars, mixed-assembly probe,
 pose reports, and test evidence are under
 `artifacts/local/subd-car/sports-coupe-arcade/`.
+
+## Claude-mobile expression and livery
+
+The character pass enlarges and turns the headlight housings forward.
+The two existing Firmament mounts move slightly inboard, and the artwork
+adds mirrored lashes, teal irises, and baked catchlights. A body atlas
+adds the smiling grille and cheeks, tapered cream hood stripes, and
+the lettered door ribbons. The packer embeds three PNGs and supplies
+per-corner UVs, keeping the UV seams separate from the underlying cage.
+The eyes use glTF's unlit material extension so their expression stays
+legible under different lighting.
+
+The packaged GLB is 1.67 MB with 107,648 triangles across instances.
+The Firmament body geometry and the four wheel pivots are retained.
+The framed preview is rendered from the packed GLB and samples its
+embedded artwork. The GLB passes Khronos validation with zero errors
+and warnings, and re-packaging is byte-stable. The Release build and
+fast kernel lane passed. All eight display and assembly failures from the
+full parallel lane passed in isolated reruns covering nine cases.
+
+Native `MeshState` GLBs still lack authored UVs and decal bindings.
+This example keeps the authored livery in the presentation packer,
+with the geometry and mount frames coming from the Firmament model.
+The known mixed MeshState and STEP assembly limit still applies.
+
+The textured GLB and render are under
+`artifacts/local/subd-car/claude-mobile/`.

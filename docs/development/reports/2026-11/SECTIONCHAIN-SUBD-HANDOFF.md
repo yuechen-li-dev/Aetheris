@@ -107,3 +107,33 @@ dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll mesh fixtures/Canonical/Scu
 
 The footprint uses a cage-edge approximation to surface distance. The maximum
 displacement is reported at the export sampling density.
+
+## Wheel recess, constrained fairing and headless comparison
+
+`WheelOpening` uses `Recess WheelLip` to replace 20 upper cage quads
+with a blind pocket. Its single boundary contains 24 edges. `WheelFaired`
+uses `Fair SoftenLip` with that named region, a 0.3 mm movement budget,
+and three iterations. The compact mouse retains `LowFront` as its default
+output. Select a wheel state explicitly on export.
+
+- The peak displacement over 23,682 corresponding limit samples was
+  0.193258 mm, with 0.021113 mm RMS. The 128 matched rim samples stayed
+  fixed. The absolute sampled rim fit stayed at 0.123499 mm against
+  its 0.15 mm allowance.
+- Fairing moved 48 controls. RMS normal turning across neighboring
+  coarse quads formed from limit positions went from 40.778° to 40.195°.
+- The separate STEP wheel is a placed 15 mm diameter, 7.5 mm wide
+  exact cylinder. For both shell states, the exact wheel and all encoded
+  preview triangles had a separation of 1.380531–1.405531 mm. This
+  clears the 1 mm qualification target. A 2 mm target was rejected.
+- The shell GLB is watertight. Clearance is for that triangulation,
+  with a blind pocket in the closed exterior blockout. The comparison
+  preview includes matched oblique views, the displacement heatmap,
+  and the Y = 0 mm section.
+- The Release build, 31 focused CLI tests and 1,259 fast kernel tests passed.
+  The full parallel suite reported four failures in existing display and
+  STEP tests. All four passed in an isolated rerun covering 17 cases.
+
+The reproducible commands are in the public sculpting guide. The build
+JSON, replay sidecars, comparison SVG and JSON, and assembled preview are
+under `artifacts/local/subd-mouse/wheel/`.

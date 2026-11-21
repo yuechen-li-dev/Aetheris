@@ -96,5 +96,24 @@ Model CompactMouse {
         preserve: [Rim]
         Feature NoseDip = LowerNose(anchor: Seed.Nose, drop: 0.6mm)
     }
+    MeshState WheelOpening {
+        input: LowFront
+        preserve: [Rim]
+        Recess WheelLip {
+            center: [-28mm, 0mm]
+            size: [24mm, 15mm]
+            floor: 14mm
+            lip: 1.4mm
+        }
+    }
+    MeshState WheelFaired {
+        input: WheelOpening
+        preserve: [Rim]
+        Fair SoftenLip {
+            regions: [WheelLip]
+            maximumMovement: 0.3mm
+            iterations: 3
+        }
+    }
     output: LowFront
 }

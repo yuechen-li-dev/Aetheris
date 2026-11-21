@@ -19,6 +19,8 @@ public sealed record SubdivisionCage(IReadOnlyList<CageVertex> Vertices, IReadOn
 [JsonDerivedType(typeof(ScaleCageVertices), "Scale")]
 [JsonDerivedType(typeof(CreaseCageEdges), "Crease")]
 [JsonDerivedType(typeof(DisplaceCageBrush), "Brush")]
+[JsonDerivedType(typeof(FairCageRegion), "Fair")]
+[JsonDerivedType(typeof(RecessCageRegion), "Recess")]
 public abstract record MeshSculptOperation(string Id)
 {
     public IReadOnlyList<string> Preserve { get; init; } = [];
@@ -46,6 +48,8 @@ public sealed record MeshSculptState(string StateId, string? PredecessorStateId,
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<MeshSurfaceAnchor>? SurfaceAnchors => AnchorVertices is null ? null : SubdivisionBrush.DescribeAnchors(this);
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public MeshBrushEvidence? BrushEffect { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public MeshFairEvidence? FairEffect { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public MeshRecessEvidence? RecessEffect { get; init; }
     internal IReadOnlyDictionary<string, string>? AnchorVertices { get; init; }
     internal SectionCageRim? SourceRim { get; init; }
 }
@@ -173,8 +177,11 @@ public static class SubdivisionSculptor
         if (input.Construction.Operations.Count >= 64) throw Error("mesh-operation-budget-exceeded", "At most 64 operations are admitted per mesh recipe.");
         var cage = input.Cage;
         var brush = operation as DisplaceCageBrush;
-        var preserved = brush is not null ? SubdivisionBrush.ProtectedVertices(input, brush)
+        var usesRegions = operation is DisplaceCageBrush or FairCageRegion or RecessCageRegion;
+        var preserved = usesRegions ? SubdivisionBrush.ProtectedVertices(input, operation)
             : operation.Preserve.Count == 0 ? new HashSet<string>() : Selection(cage, operation.Preserve);
+        var regions = input.VertexRegions;
+        MeshRecessEvidence? recessEffect = null;
         switch (operation)
         {
             case SubdivideCage subdivide:
@@ -204,13 +211,19 @@ public static class SubdivisionSculptor
             case DisplaceCageBrush displacement:
                 cage = SubdivisionBrush.Displace(input, displacement, preserved);
                 break;
+            case FairCageRegion fair:
+                cage = SubdivisionFairing.Apply(input, fair, preserved);
+                break;
+            case RecessCageRegion recess:
+                (cage, regions, recessEffect) = SubdivisionRecess.Apply(input, recess, preserved);
+                break;
             default: throw Error("mesh-operation-unsupported", "Unknown mesh operation.");
         }
         Evaluate(cage); // Validate the successor before publishing it.
         var current = cage.Vertices.ToDictionary(v => v.Id, v => v.Position, StringComparer.Ordinal);
         if (input.Cage.Vertices.Any(v => preserved.Contains(v.Id) && (!current.TryGetValue(v.Id, out var p) || p != v.Position)))
             throw Error("mesh-preservation-failed", "An explicitly preserved cage vertex moved or disappeared; no successor was published.");
-        if (operation is MoveCageVertices or ScaleCageVertices or DisplaceCageBrush)
+        if (operation is MoveCageVertices or ScaleCageVertices or DisplaceCageBrush or FairCageRegion)
         {
             var old = input.Cage.Vertices.ToDictionary(v => v.Id, v => v.Position, StringComparer.Ordinal);
             foreach (var face in cage.Faces) for (var i = 1; i < 3; i++)
@@ -224,11 +237,13 @@ public static class SubdivisionSculptor
         if (input.SourceRim is { } rim && fit is not null)
             fit = fit with { Rim = rim.Qualify(cage) };
         var effect = brush is null ? null : SubdivisionBrush.Measure(input, cage, brush);
+        var fairEffect = operation is FairCageRegion fairing ? SubdivisionFairing.Measure(input, cage, fairing) : null;
         var recipe = input.Construction with { Operations = [.. input.Construction.Operations, operation] };
         return input with
         {
             StateId = Hash(input.StateId + "|" + System.Text.Json.JsonSerializer.Serialize<MeshSculptOperation>(operation) + "|" + Fingerprint(cage)),
-            PredecessorStateId = input.StateId, Name = name, Cage = cage, Construction = recipe, SectionFit = fit, BrushEffect = effect
+            PredecessorStateId = input.StateId, Name = name, Cage = cage, Construction = recipe, SectionFit = fit, BrushEffect = effect,
+            VertexRegions = regions, FairEffect = fairEffect, RecessEffect = recessEffect
         };
     }
 

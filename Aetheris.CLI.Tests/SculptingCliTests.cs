@@ -190,6 +190,59 @@ public sealed class SculptingCliTests
         }
     }
 
+    [Fact]
+    public void WheelRecessFairsWithAStableRimAndCertifiedPreviewClearance()
+    {
+        var fixture = Path.Combine(Root(), "fixtures/Canonical/Sculpting");
+        var mouse = Path.Combine(fixture, "compact-mouse.firmament");
+        var wheel = Path.Combine(fixture, "compact-mouse-wheel.firmament");
+        var folder = Path.Combine(Root(), "artifacts/local/tests/wheel-recess", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var step = Path.Combine(folder, "wheel.step");
+            using var wheelBuild = Run("build", wheel, "--out", step);
+            var svg = Path.Combine(folder, "compare.svg");
+            using var comparison = Run("compare", mouse, "--before", "WheelOpening", "--after", "WheelFaired",
+                "--wheel", step, "--minimum-clearance", "1", "--out", svg);
+            var report = comparison.RootElement;
+            var movement = report.GetProperty("movement");
+            Assert.InRange(movement.GetProperty("maximumMovementMm").GetDouble(), 0.15, 0.3);
+            Assert.Equal(128, movement.GetProperty("rimSamples").GetInt32());
+            Assert.Equal(0, movement.GetProperty("maximumRimMovementMm").GetDouble());
+            Assert.True(report.GetProperty("beforeRecess").GetProperty("boundaryEdges").GetInt32() > 0);
+            var fair = report.GetProperty("fairEffect");
+            Assert.True(fair.GetProperty("afterNormalTurnRmsDegrees").GetDouble() <
+                fair.GetProperty("beforeNormalTurnRmsDegrees").GetDouble());
+            var clearance = report.GetProperty("clearanceAfter");
+            Assert.True(clearance.GetProperty("centerOutsideShell").GetBoolean());
+            Assert.InRange(clearance.GetProperty("lowerBoundMm").GetDouble(), 1.3, 1.5);
+            Assert.Equal(0.025, clearance.GetProperty("intervalWidthMm").GetDouble());
+            Assert.Contains("Center section", File.ReadAllText(svg), StringComparison.Ordinal);
+
+            var glb = Path.Combine(folder, "shell.glb");
+            using var exported = Run("build", mouse, "--state", "WheelFaired", "--out", glb);
+            Assert.True(exported.RootElement.GetProperty("topology").GetProperty("isWatertight").GetBoolean());
+            using var sidecar = JsonDocument.Parse(File.ReadAllText(glb + ".sculpt.json"));
+            var replay = MeshConstructionReplayer.Replay(sidecar.RootElement.GetProperty("construction").GetRawText());
+            Assert.Equal(exported.RootElement.GetProperty("stateId").GetString(), replay.StateId);
+            Assert.IsType<RecessCageRegion>(replay.Construction.Operations[^2]);
+            Assert.IsType<FairCageRegion>(replay.Construction.Operations[^1]);
+
+            var rejected = Path.Combine(folder, "rejected.svg");
+            var stdout = new StringWriter();
+            Assert.Equal(1, CliRunner.Run(["compare", mouse, "--before", "LowFront", "--after", "WheelFaired",
+                "--out", rejected, "--json"], stdout, new StringWriter()));
+            Assert.Contains("mesh-compare-correspondence-unsupported", stdout.ToString(), StringComparison.Ordinal);
+            Assert.False(File.Exists(rejected));
+        }
+        finally
+        {
+            foreach (var path in Directory.GetFiles(folder)) File.Delete(path);
+            Directory.Delete(folder);
+        }
+    }
+
     [Theory]
     [InlineData("maximumRimDeviation: 0.15mm", "maximumRimDeviation: 0.08mm", "mesh-section-rim-deviation-exceeded")]
     [InlineData("output: LowFront", "MeshState Uncrease { input: Seed; Crease { edges: [All]; mode: Smooth } }\n    output: Uncrease", "mesh-section-rim-crease-changed")]

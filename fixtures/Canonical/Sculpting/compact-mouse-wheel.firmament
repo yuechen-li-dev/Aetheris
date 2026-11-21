@@ -1,0 +1,13 @@
+schema Mechanical
+
+Model CompactMouseWheel {
+    units: mm
+    Concept Struct Supports {
+        Wheel: Plane { Origin: [-28mm, 0mm, 23mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
+    }
+    Construction Plane WheelMeridian { trace: Supports.Wheel }
+    Axis Axle { origin: [-28mm, 0mm, 23mm]; direction: [0, 1, 0] }
+    Rect2 WheelSection { center: [3.75mm, 0mm]; size: [7.5mm, 7.5mm] }
+    Profile Meridian using WheelMeridian { Loop Outer { WheelSection |> TraceLoop } }
+    Revolve Wheel { profile: Meridian; about: Axle; angle: full }
+}

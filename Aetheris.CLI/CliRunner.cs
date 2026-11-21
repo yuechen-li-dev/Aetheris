@@ -263,6 +263,7 @@ public static class CliRunner
                 "sculpture" => RunSculpture(args.Skip(1).ToArray(), stdout, stderr),
                 "section-chain" => RunSectionChain(args.Skip(1).ToArray(), stdout, stderr),
                 "wireframe" => RunWireframe(args.Skip(1).ToArray(), stdout, stderr),
+                "compare" => SculptCompareCommand.Run(args.Skip(1).ToArray(), stdout, stderr),
                 "reconstruct" => ReconstructionCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 "continuum" => ContinuumToolsCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 _ => UnknownCommand(args[0], stderr)
@@ -5570,6 +5571,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  sculpture  Build bounded non-manufacturing virtual sculpture artifacts.");
         stdout.WriteLine("  section-chain  Build bounded G0/G1 SectionChain qualification artifacts.");
         stdout.WriteLine("  wireframe  Render a deterministic trim-aware SVG preview from a STEP BRep.");
+        stdout.WriteLine("  compare    Measure and render two corresponding SubD mesh states.");
         stdout.WriteLine("  verify     Build/reimport and verify a model.");
         stdout.WriteLine("  reconstruct  Experimentally reconstruct a structured mesh from triangle PLY input.");
         stdout.WriteLine("  continuum    Run bounded point-torus queries or sharp sampled-grid contouring.");

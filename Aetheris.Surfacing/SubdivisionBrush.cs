@@ -41,16 +41,17 @@ internal static class SubdivisionBrush
         return state.Construction.Anchors!.Select(a => new MeshSurfaceAnchor(a.Name, a.Section, a.Span, points[state.AnchorVertices![a.Name]])).ToArray();
     }
 
-    internal static HashSet<string> ProtectedVertices(MeshSculptState state, DisplaceCageBrush brush)
+    internal static HashSet<string> ProtectedVertices(MeshSculptState state, MeshSculptOperation operation)
     {
+        var kind = operation switch { FairCageRegion => "fair", RecessCageRegion => "recess", _ => "brush" };
         if (state.SourceRim is not { } rim || state.VertexRegions is not { } regions)
-            throw new InvalidOperationException("mesh-brush-source-unsupported: A brush requires a SectionChain cage with a qualified rim.");
+            throw new InvalidOperationException($"mesh-{kind}-source-unsupported: The operation requires a SectionChain cage with a qualified rim.");
         var protectedVertices = rim.Vertices.ToHashSet(StringComparer.Ordinal);
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var name in brush.Preserve)
+        foreach (var name in operation.Preserve)
         {
             if (!names.Add(name) || !regions.TryGetValue(name, out var vertices))
-                throw new InvalidOperationException($"mesh-brush-preserve-unresolved: Use unique current cage region names in preserve; '{name}' is invalid.");
+                throw new InvalidOperationException($"mesh-{kind}-preserve-unresolved: Use unique current cage region names in preserve; '{name}' is invalid.");
             protectedVertices.UnionWith(vertices);
         }
         return protectedVertices;
@@ -107,17 +108,7 @@ internal static class SubdivisionBrush
         var after = SubdivisionSculptor.SamplePreview(output, input.Construction.PreviewLevels).Vertices;
         var center = input.AnchorVertices![brush.Anchor];
         var rim = input.SourceRim!;
-        var rimSamples = rim.Vertices;
-        for (var level = 0; level < input.Construction.PreviewLevels; level++)
-        {
-            var refinedRim = new string[2 * rimSamples.Length];
-            for (var i = 0; i < rimSamples.Length; i++)
-            {
-                refinedRim[2 * i] = rimSamples[i];
-                refinedRim[2 * i + 1] = SubdivisionSculptor.EdgeId(rimSamples[i], rimSamples[(i + 1) % rimSamples.Length]);
-            }
-            rimSamples = refinedRim;
-        }
+        var rimSamples = rim.SampleIds(input.Construction.PreviewLevels);
         var rimVertices = rimSamples.ToHashSet(StringComparer.Ordinal);
         var maximum = 0d;
         var rimMovement = 0d;

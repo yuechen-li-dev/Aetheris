@@ -17,11 +17,13 @@ public static partial class SculptingAuthoring
             var subdivide = Single(block, "Subdivide", diagnostics); var move = Single(block, "Move", diagnostics);
             var scale = Single(block, "Scale", diagnostics); var crease = Single(block, "Crease", diagnostics);
             var brush = Single(block, "Brush", diagnostics);
+            var fair = Single(block, "Fair", diagnostics);
+            var recess = Single(block, "Recess", diagnostics);
             try
             {
                 if (bodies.ContainsKey(block.Name) || states.ContainsKey(block.Name)) throw new InvalidOperationException("mesh-state-duplicate: State names must be unique across exact and mesh states.");
                 MeshSculptState result;
-                var operations = new[] { subdivide, move, scale, crease, brush }.Count(b => b is not null);
+                var operations = new[] { subdivide, move, scale, crease, brush, fair, recess }.Count(b => b is not null);
                 if (kind is not null)
                 {
                     if (operations != 0) throw new InvalidOperationException("mesh-conversion-operation-mixed: Conversion is one explicit state; put edits in successor states.");
@@ -42,7 +44,7 @@ public static partial class SculptingAuthoring
                 }
                 else
                 {
-                    if (operations != 1) throw new InvalidOperationException("mesh-operation-cardinality: A mesh successor requires exactly one Subdivide, Move, Scale, Crease or Brush operation.");
+                    if (operations != 1) throw new InvalidOperationException("mesh-operation-cardinality: A mesh successor requires exactly one Subdivide, Move, Scale, Crease, Brush, Fair or Recess operation.");
                     if (inputName is null || !states.TryGetValue(inputName, out var input)) throw new InvalidOperationException("mesh-predecessor-unresolved: Mesh edits require one previously admitted MeshState.");
                     MeshSculptOperation operation;
                     if (subdivide is not null) operation = new SubdivideCage(block.Name, Integer(subdivide, "Levels") ?? 0);
@@ -68,6 +70,25 @@ public static partial class SculptingAuthoring
                             throw new InvalidOperationException("mesh-brush-falloff-unsupported: The supported falloff is Smooth.");
                         if (radius is null || offset is null) continue;
                         operation = new DisplaceCageBrush(brush.Name, center.Member.Text, radius.Value, new(offset[0], offset[1], offset[2]));
+                    }
+                    else if (fair is not null)
+                    {
+                        var regions = List(fair, "Regions");
+                        var maximum = Length(fair, "MaximumMovement", diagnostics);
+                        var iterations = Integer(fair, "Iterations") ?? 3;
+                        if (maximum is null) continue;
+                        operation = new FairCageRegion(fair.Name, regions, maximum.Value, iterations);
+                    }
+                    else if (recess is not null)
+                    {
+                        if (recess.Declaration.Name is null)
+                            throw new InvalidOperationException("mesh-recess-name-required: Name the recess to publish its lip region.");
+                        var center = Vector(recess, "Center", 2, diagnostics);
+                        var size = Vector(recess, "Size", 2, diagnostics);
+                        var floor = Length(recess, "Floor", diagnostics);
+                        var lip = Length(recess, "Lip", diagnostics);
+                        if (center is null || size is null || floor is null || lip is null) continue;
+                        operation = new RecessCageRegion(recess.Name, center[0], center[1], size[0], size[1], floor.Value, lip.Value);
                     }
                     else
                     {

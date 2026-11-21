@@ -191,6 +191,83 @@ the anchor, maximum sampled displacement, and maximum sampled rim movement.
 `sectionFit.rim` gives the separate absolute deviation from the exact B-rep.
 Surface anchors and smooth displacement brushes currently require a SectionChain cage.
 
+## Recess and fair a wheel opening
+
+The [compact mouse](../../../fixtures/Canonical/Sculpting/compact-mouse.firmament)
+uses a named `Recess` to form a wheel pocket and a named `Fair` to relax
+the lip. The [wheel source](../../../fixtures/Canonical/Sculpting/compact-mouse-wheel.firmament)
+builds a separate exact cylindrical STEP solid in the same coordinates.
+
+```firmament
+MeshState WheelOpening {
+    input: LowFront
+    preserve: [Rim]
+    Recess WheelLip {
+        center: [-28mm, 0mm]
+        size: [24mm, 15mm]
+        floor: 14mm
+        lip: 1.4mm
+    }
+}
+MeshState WheelFaired {
+    input: WheelOpening
+    preserve: [Rim]
+    Fair SoftenLip {
+        regions: [WheelLip]
+        maximumMovement: 0.3mm
+        iterations: 3
+    }
+}
+```
+
+To parameterize the movement budget, declare the following functional Feature
+in the model and use `Feature SoftenLip = RelaxWheelLip(limit: 0.3mm)`
+inside `WheelFaired` in place of the inline `Fair`.
+
+```firmament
+Feature RelaxWheelLip(limit: Length) -> Fair {
+    return Fair {
+        regions: [WheelLip]
+        maximumMovement: limit
+        iterations: 3
+    }
+}
+```
+
+From the repository root:
+
+```powershell
+New-Item -ItemType Directory -Force artifacts/local/compact-mouse
+aetheris build fixtures/Canonical/Sculpting/compact-mouse-wheel.firmament --out artifacts/local/compact-mouse/wheel.step
+aetheris build fixtures/Canonical/Sculpting/compact-mouse.firmament --state WheelFaired --out artifacts/local/compact-mouse/shell.glb
+aetheris compare fixtures/Canonical/Sculpting/compact-mouse.firmament --before WheelOpening --after WheelFaired --section-y 0 --wheel artifacts/local/compact-mouse/wheel.step --minimum-clearance 1 --out artifacts/local/compact-mouse/compare.svg --json
+```
+
+- `Recess` uses the XY `center` and `size` to select upward-facing cage
+  faces. The footprint is a selection window. The resulting lip follows the
+  selected patch boundary. The patch must form a single disk above the
+  protected rim. `floor` specifies the pocket floor's absolute Z and
+  `lip` gives the upper lip drop below its boundary controls. The blind
+  pocket includes walls and a floor. The operation publishes its name as
+  a cage region.
+- `Fair` relaxes the controls of the specified `regions` over 1–16
+  `iterations`, defaulting to 3. The qualified rim, crease controls, and
+  regions named in `preserve` stay pinned. `maximumMovement` caps
+  displacement from the input. Build JSON reports sampled limit displacement
+  and the change in RMS normal turning between neighboring quads formed from
+  the cage's limit positions.
+- `compare` pairs samples from two states with a common exact source, the
+  same cage topology, and the same preview level. It reports peak, RMS,
+  and sampled rim movement. Use `--out` for matched oblique views and a
+  Y-plane section. Use a comparison pair after the recess when
+  evaluating fairing, since creating the recess changes topology.
+- `--wheel` accepts a placed STEP solid bounded by a full circular
+  cylinder along Y and two planar caps. With `--minimum-clearance`, the
+  after state must meet the supplied distance in millimetres. The report bounds
+  separation between the exact cylindrical wheel and each exported mesh's
+  triangles. The clearance applies at that tessellation and the authored
+  wheel placement.
+
 ## Bounded region sculpting
 
 The current operation is `OffsetRegion`. The canonical controller-cover example is [`fixtures/Canonical/Sculpting/sculpted-housing.firmament`](../../../fixtures/Canonical/Sculpting/sculpted-housing.firmament):

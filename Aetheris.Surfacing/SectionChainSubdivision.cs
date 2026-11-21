@@ -15,6 +15,22 @@ internal sealed record SectionCageRim(
 {
     private const int SamplesPerEdge = 8;
 
+    internal string[] SampleIds(int levels)
+    {
+        var samples = Vertices;
+        for (var level = 0; level < levels; level++)
+        {
+            var children = new string[2 * samples.Length];
+            for (var i = 0; i < samples.Length; i++)
+            {
+                children[2 * i] = samples[i];
+                children[2 * i + 1] = SubdivisionSculptor.EdgeId(samples[i], samples[(i + 1) % samples.Length]);
+            }
+            samples = children;
+        }
+        return samples;
+    }
+
     internal SectionCageRimEvidence Qualify(SubdivisionCage cage)
     {
         var points = cage.Vertices.ToDictionary(v => v.Id, v => v.Position, StringComparer.Ordinal);

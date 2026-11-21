@@ -136,7 +136,9 @@ or a certificate for the infinite subdivision limit surface.
 corresponding spans per section. The named `rimSection` and required
 `maximumRimDeviation` preserve a sampled limit-curve fit across edits.
 `previewLevels` controls the export sampling of that limit surface. `Move` and
-`Scale` can select named station or transition `regions` on this cage. See the
+`Scale` can select named station or transition `regions` on this cage.
+Use `SurfaceMount` in a conversion to publish a sampled frame on a named
+interior section and span. See [surface mounts](../../firmament/sculpting.md#export-a-surface-mount) and the
 [complete example and limits](../../firmament/sculpting.md#fit-a-subdivision-cage-to-a-sectionchain).
 
 Each successor has exactly one operation:
@@ -149,6 +151,7 @@ Each successor has exactly one operation:
 | `Crease` | `edges: [All]`, `mode: Sharp` or `Smooth` | Mark or unmark current cage edges as sharp |
 | `Brush` | `center: Seed.Nose`, `radius: 18mm`, `offset: [0mm, 0mm, -0.6mm]`, `falloff: Smooth` | Displace a SectionChain cage around a named surface anchor. Functional Features can return a Brush. |
 | `Stroke` | `path: [Input.Start, Input.End]`, `radius: 13.5mm`, `offset: [0mm, 1.8mm, -0.5mm]` | Route a smooth displacement between named surface anchors. A `Mirrored Stroke` can derive the other side of the same edit. |
+| `Cutout` | `profile: FrontArch`, `side: Right`, `outer: 895mm`, `returnDepth: 500mm`, `blendTo: 1010mm` | Shape an underside-open wheel well from an XZ spline and publish its named lip region. |
 | `Recess` | `center: [-28mm, 0mm]`, `size: [24mm, 15mm]`, `floor: 14mm`, `lip: 1.4mm` | Form a closed blind pocket from an upward-facing patch of a SectionChain cage and publish the named lip region. |
 | `Fair` | `regions: [WheelLip]`, `maximumMovement: 0.3mm`, `iterations: 3` | Relax named SectionChain cage regions within a movement budget while pinning the rim, creases, and protected regions. |
 
@@ -158,10 +161,11 @@ selection. Existing vertex IDs survive refinement; new edge/face points have
 parent-derived IDs. Old edge handles are replaced by their child edges.
 Optional `preserve: [v1]` requires those input vertices to retain their exact
 coordinates and identities in that successor. For `Brush`, `Stroke`,
-`Recess`, and `Fair`, `preserve` takes named cage regions. A conflict rejects atomically.
+`Recess`, `Cutout`, and `Fair`, `preserve` takes named cage regions. A conflict rejects atomically.
 See [named brushes](../../firmament/sculpting.md#displace-the-surface-with-a-named-brush)
 [wheel opening and comparison](../../firmament/sculpting.md#recess-and-fair-a-wheel-opening),
-and [mirrored strokes](../../firmament/sculpting.md#sculpt-both-grips-with-a-mirrored-stroke).
+[mirrored strokes](../../firmament/sculpting.md#sculpt-both-grips-with-a-mirrored-stroke),
+and [spline wheel arches](../../firmament/sculpting.md#shape-a-wheel-arch-with-a-spline).
 There are at most 64 mesh states/operations and 24,576 cage faces.
 
 The [sphere example](../../../../fixtures/Regression/GenericSculpting/sphere-cage.firmament)

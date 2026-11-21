@@ -1,0 +1,78 @@
+// The cabin overlaps the body along the beltline for a continuous exterior.
+Template<Belt: Length, RoofHalf: Length, Base: Length, RoofRail: Length> Profile CabinSection {
+    Point2 RightBelt { position: [-Belt, Base] }
+    Point2 LeftBelt { position: [Belt, Base] }
+    Point2 LeftRail { position: [RoofHalf, RoofRail] }
+    Point2 RightRail { position: [-RoofHalf, RoofRail] }
+    Point2 LeftGlassLow { position: [0.97 * Belt, Base + 0.27 * (RoofRail - Base)] }
+    Point2 LeftGlassHigh { position: [1.10 * RoofHalf, Base + 0.78 * (RoofRail - Base)] }
+    Point2 RightGlassLow { position: [-0.97 * Belt, Base + 0.27 * (RoofRail - Base)] }
+    Point2 RightGlassHigh { position: [-1.10 * RoofHalf, Base + 0.78 * (RoofRail - Base)] }
+    Point2 CrownLeft { position: [0.63 * RoofHalf, RoofRail + 0.12 * (RoofRail - Base)] }
+    Point2 CrownRight { position: [-0.63 * RoofHalf, RoofRail + 0.12 * (RoofRail - Base)] }
+    Line2 BeltCurve { from: RightBelt; to: LeftBelt }
+    CubicBezier2 LeftGlass { from: LeftBelt; control1: LeftGlassLow; control2: LeftGlassHigh; to: LeftRail }
+    CubicBezier2 RoofCurve { from: LeftRail; control1: CrownLeft; control2: CrownRight; to: RightRail }
+    CubicBezier2 RightGlass { from: RightRail; control1: RightGlassHigh; control2: RightGlassLow; to: RightBelt }
+    Loop Outer {
+        Segment Belt { trace: BeltCurve; from: RightBelt; to: LeftBelt }
+        Segment Left { trace: LeftGlass; from: LeftBelt; to: LeftRail }
+        Segment Top { trace: RoofCurve; from: LeftRail; to: RightRail }
+        Segment Right { trace: RightGlass; from: RightRail; to: RightBelt }
+    }
+}
+
+Model SportsCoupeCabin {
+    units: mm
+    Concept Struct Layout {
+        Scuttle: Plane { origin: [538mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        Windscreen: Plane { origin: [815mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        Header: Plane { origin: [1110mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        RoofCrown: Plane { origin: [1460mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        RearHeader: Plane { origin: [1785mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        Fastback: Plane { origin: [2200mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        RearGlass: Plane { origin: [2535mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        DeckJoin: Plane { origin: [2810mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+    }
+    Construction Plane ScuttleFrame { trace: Layout.Scuttle }
+    Construction Plane WindscreenFrame { trace: Layout.Windscreen }
+    Construction Plane HeaderFrame { trace: Layout.Header }
+    Construction Plane RoofCrownFrame { trace: Layout.RoofCrown }
+    Construction Plane RearHeaderFrame { trace: Layout.RearHeader }
+    Construction Plane FastbackFrame { trace: Layout.Fastback }
+    Construction Plane RearGlassFrame { trace: Layout.RearGlass }
+    Construction Plane DeckJoinFrame { trace: Layout.DeckJoin }
+    Profile ScuttleSection = CabinSection<Belt: 732mm, RoofHalf: 516mm, Base: 720mm, RoofRail: 815mm>
+    Profile WindscreenSection = CabinSection<Belt: 719mm, RoofHalf: 509mm, Base: 724mm, RoofRail: 1038mm>
+    Profile HeaderSection = CabinSection<Belt: 716mm, RoofHalf: 540mm, Base: 734mm, RoofRail: 1219mm>
+    Profile RoofCrownSection = CabinSection<Belt: 713mm, RoofHalf: 565mm, Base: 738mm, RoofRail: 1262mm>
+    Profile RearHeaderSection = CabinSection<Belt: 717mm, RoofHalf: 553mm, Base: 740mm, RoofRail: 1233mm>
+    Profile FastbackSection = CabinSection<Belt: 711mm, RoofHalf: 502mm, Base: 741mm, RoofRail: 1100mm>
+    Profile RearGlassSection = CabinSection<Belt: 672mm, RoofHalf: 435mm, Base: 728mm, RoofRail: 958mm>
+    Profile DeckJoinSection = CabinSection<Belt: 573mm, RoofHalf: 389mm, Base: 692mm, RoofRail: 815mm>
+
+    SectionChain Greenhouse {
+        continuity: G1
+        start: Cap
+        end: Cap
+        Section Scuttle { frame: ScuttleFrame; profile: ScuttleSection }
+        Section Windscreen { frame: WindscreenFrame; profile: WindscreenSection }
+        Section Header { frame: HeaderFrame; profile: HeaderSection }
+        Section RoofCrown { frame: RoofCrownFrame; profile: RoofCrownSection }
+        Section RearHeader { frame: RearHeaderFrame; profile: RearHeaderSection }
+        Section Fastback { frame: FastbackFrame; profile: FastbackSection }
+        Section RearGlass { frame: RearGlassFrame; profile: RearGlassSection }
+        Section DeckJoin { frame: DeckJoinFrame; profile: DeckJoinSection }
+    }
+    BodyState Exact { input: Greenhouse }
+    MeshState Canopy {
+        input: Exact
+        cage: SectionChain
+        segments: 8
+        rimSection: Scuttle
+        maximumDeviation: 40mm
+        maximumRimDeviation: 20mm
+        previewLevels: 1
+    }
+    output: Canopy
+}

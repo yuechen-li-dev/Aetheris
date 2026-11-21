@@ -191,6 +191,30 @@ the anchor, maximum sampled displacement, and maximum sampled rim movement.
 `sectionFit.rim` gives the separate absolute deviation from the exact B-rep.
 Surface anchors and smooth displacement brushes currently require a SectionChain cage.
 
+## Export a surface mount
+
+Use a named `SurfaceMount` in a SectionChain cage conversion to publish a
+position and orientation for a part that follows the sculpted surface. The
+[sports coupe model](../../../fixtures/Canonical/Sculpting/sports-coupe/body.firmament)
+uses mounts for the lights and side mirrors.
+
+```firmament
+// Inside the conversion MeshState Seed
+SurfaceMount HeadlampLeft { section: FrontFlare; span: Top; at: 0.89 }
+```
+
+- `section` selects an interior section and `span` names a smooth span of
+  that section. `at` is a dimensionless span parameter strictly between
+  0 and 1. Terminals and creased spans reject.
+- The position interpolates between the exported limit samples. Directions
+  are estimated from that span and its neighboring cage rows. The frame
+  is right-handed with X along the section chain, Y across the surface,
+  and Z outward. Coordinates are in the model's authored frame.
+- `inspect --json`, build JSON, and the `.sculpt.json` sidecar expose
+  `surfaceMounts` for the selected state. The mount is re-evaluated
+  on each successor and during sidecar replay. An edit that removes its
+  local support or leaves a degenerate frame rejects.
+
 ## Recess and fair a wheel opening
 
 The [compact mouse](../../../fixtures/Canonical/Sculpting/compact-mouse.firmament)
@@ -320,6 +344,90 @@ aetheris compare fixtures/Canonical/Sculpting/compact-mouse.firmament --before W
   the reflected offset, the overlap count, and the worst reflected error
   over matched limit samples. The export sidecar retains the stroke and
   mirror derivation for replay.
+
+## Shape a wheel arch with a spline
+
+The [sports coupe front clip](../../../fixtures/Canonical/Sculpting/sports-coupe-front-clip.firmament)
+uses one side-view `FrontArch` profile to cut the two front wheel wells.
+The [tire envelope](../../../fixtures/Canonical/Sculpting/sports-coupe-front-tire.firmament)
+is an exact cylinder in the same model coordinates.
+
+```firmament
+MeshState Arches {
+    input: Seed
+    preserve: [Nose]
+    Cutout RightFrontArch {
+        profile: FrontArch
+        side: Right
+        outer: 895mm
+        returnDepth: 500mm
+        blendTo: 1010mm
+    }
+    Mirrored Cutout LeftFrontArch from RightFrontArch { across: Layout.Centerline }
+}
+```
+
+```powershell
+New-Item -ItemType Directory -Force artifacts/local/front-clip
+aetheris build fixtures/Canonical/Sculpting/sports-coupe-front-tire.firmament --out artifacts/local/front-clip/tire.step
+aetheris build fixtures/Canonical/Sculpting/sports-coupe-front-clip.firmament --state Arches --out artifacts/local/front-clip/clip.glb
+aetheris compare fixtures/Canonical/Sculpting/sports-coupe-front-clip.firmament --before Seed --after Arches --wheel artifacts/local/front-clip/tire.step --steering-lock 32 --suspension-bump 65 --minimum-clearance 20 --out artifacts/local/front-clip/compare.svg --json
+```
+
+- The profile is an XZ outer loop with one horizontal sill and up to eight
+  contiguous, X-monotone cubic spans. Model +Z is up. `Right` uses -Y and
+  `Left` uses +Y. The mirrored form derives a second operation from the same
+  profile across a named center plane at Y = 0.
+- `outer` is a lateral reference distance from Y = 0. The return begins at
+  `outer - returnDepth` and blends to full relief over one quarter of the
+  return depth. `blendTo` sets the height above which the cage stays fixed.
+  All profile controls must stay below it. The qualified rim and explicitly
+  preserved controls cannot be moved by the cutout.
+- The cutout lifts existing lower side and underbody cage rows to form an
+  underside-open wheel well. Cage resolution controls how closely the
+  sampled lip follows the guide. Each cutout publishes a named region on its
+  lip. The fixture's `TunedLips` state uses both names in `Fair`.
+- `--steering-lock` moves the exact tire envelope about its Z-aligned center
+  pivot through the range from negative to positive lock.
+  `--suspension-bump` translates the tire upward from nominal through the
+  given travel. The command combines conservative clearance bounds at grid
+  poses with a bound on between-pose motion. The result applies to the
+  exported shell triangles and that idealized wheel motion.
+
+## Build a sports coupe silhouette
+
+The [sports coupe example](../../../fixtures/Canonical/Sculpting/sports-coupe/body.firmament)
+extends the wheel-arch workflow to an entire unbranded fastback. One G1
+SectionChain defines the body from nose to tail. A second defines the
+[cabin and roofline](../../../fixtures/Canonical/Sculpting/sports-coupe/cabin.firmament).
+The front and rear cubic arch profiles each drive a mirrored pair.
+`Skin` fairs all four named arch lips in one state.
+
+From the repository root, build the three SubD parts and the two revolved
+wheel parts, then package the GLBs with Python, NumPy, and Pillow.
+
+```powershell
+$source = 'fixtures/Canonical/Sculpting/sports-coupe'
+$out = 'artifacts/local/sports-coupe'
+New-Item -ItemType Directory -Force $out
+foreach ($part in 'body', 'cabin', 'trim') {
+    aetheris build "$source/$part.firmament" --out "$out/$part.glb"
+}
+foreach ($part in 'tire', 'rim') {
+    aetheris build "$source/$part.firmament" --out "$out/$part.step"
+    aetheris mesh "$out/$part.step" --format glb --output "$out/$part.glb"
+}
+python -B "$source/package.py" $out
+```
+
+The package assigns materials, attaches lamps and mirrors to the published
+[surface mounts](#export-a-surface-mount), and instances the wheels.
+`claude-mobile.glb` includes the painted eyes, lashes, smile, and livery as
+embedded PNG textures. The GLB uses metres, +Y up and -Z forward. It has four named
+wheel pivots with a local +X axle. The cabin uses opaque glazing over the
+closed body. The asset is a single-resolution exterior intended for
+visual evaluation. Keep the native mesh sidecars to replay the Firmament
+body and cabin independently.
 
 ## Bounded region sculpting
 

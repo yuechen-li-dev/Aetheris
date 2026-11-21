@@ -22,6 +22,7 @@ public sealed record SubdivisionCage(IReadOnlyList<CageVertex> Vertices, IReadOn
 [JsonDerivedType(typeof(DisplaceCageStroke), "Stroke")]
 [JsonDerivedType(typeof(FairCageRegion), "Fair")]
 [JsonDerivedType(typeof(RecessCageRegion), "Recess")]
+[JsonDerivedType(typeof(CutoutCageArch), "Cutout")]
 public abstract record MeshSculptOperation(string Id)
 {
     public IReadOnlyList<string> Preserve { get; init; } = [];
@@ -36,6 +37,7 @@ public sealed record MeshConstruction(string Schema, ConstructionState Source, s
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? MaximumRimDeviationMm { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? RimSection { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<MeshSectionAnchor>? Anchors { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<MeshSectionMount>? Mounts { get; init; }
 }
 public sealed record MeshSculptState(string StateId, string? PredecessorStateId, string Name, string SourceBodyStateId,
     SubdivisionCage Cage, MeshConstruction Construction, double ConversionDeviationMm, string ConversionEvidence)
@@ -52,7 +54,10 @@ public sealed record MeshSculptState(string StateId, string? PredecessorStateId,
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public MeshStrokeEvidence? StrokeEffect { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public MeshFairEvidence? FairEffect { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public MeshRecessEvidence? RecessEffect { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public MeshCutoutEvidence? CutoutEffect { get; init; }
     internal IReadOnlyDictionary<string, string>? AnchorVertices { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<MeshSurfaceMount>? SurfaceMounts { get; init; }
+    internal IReadOnlyList<SectionMountBinding> MountBindings { get; init; } = [];
     internal SectionCageRim? SourceRim { get; init; }
 }
 
@@ -85,7 +90,8 @@ public static class SubdivisionSculptor
         Convert(source, name, kind, segments, maximumDeviationMm, previewLevels, maximumRimDeviationMm, rimSection, null);
 
     public static MeshSculptState Convert(BodyState source, string name, string kind, int segments, double maximumDeviationMm,
-        int? previewLevels, double? maximumRimDeviationMm, string? rimSection, IReadOnlyList<MeshSectionAnchor>? anchors)
+        int? previewLevels, double? maximumRimDeviationMm, string? rimSection, IReadOnlyList<MeshSectionAnchor>? anchors,
+        IReadOnlyList<MeshSectionMount>? mounts = null)
     {
         if (source.ConstructionAuthority is null) throw Error("mesh-source-not-replayable", "Conversion requires a source construction recipe.");
         if (kind is not ("Box" or "Sphere" or "SectionChain"))
@@ -96,7 +102,9 @@ public static class SubdivisionSculptor
         if (levels is < 0 or > 4)
             throw Error("mesh-preview-levels-invalid", "Preview levels must be 0..4 within the face budget.");
         if (kind == "SectionChain")
-            return SectionChainSubdivision.Convert(source, name, segments, maximumDeviationMm, levels, maximumRimDeviationMm, rimSection, anchors);
+            return SectionChainSubdivision.Convert(source, name, segments, maximumDeviationMm, levels, maximumRimDeviationMm, rimSection, anchors, mounts);
+        if (mounts is { Count: > 0 })
+            throw Error("mesh-mount-source-unsupported", "Surface mounts require a SectionChain cage.");
         if (anchors is { Count: > 0 })
             throw Error("mesh-anchor-source-unsupported", "Surface anchors require a SectionChain cage.");
         if (maximumRimDeviationMm is not null || rimSection is not null)
@@ -179,12 +187,13 @@ public static class SubdivisionSculptor
         if (input.Construction.Operations.Count >= 64) throw Error("mesh-operation-budget-exceeded", "At most 64 operations are admitted per mesh recipe.");
         var cage = input.Cage;
         var brush = operation as DisplaceCageBrush;
-        var usesRegions = operation is DisplaceCageBrush or DisplaceCageStroke or FairCageRegion or RecessCageRegion;
+        var usesRegions = operation is DisplaceCageBrush or DisplaceCageStroke or FairCageRegion or RecessCageRegion or CutoutCageArch;
         var preserved = usesRegions ? SubdivisionBrush.ProtectedVertices(input, operation)
             : operation.Preserve.Count == 0 ? new HashSet<string>() : Selection(cage, operation.Preserve);
         var regions = input.VertexRegions;
         MeshRecessEvidence? recessEffect = null;
         MeshStrokeEvidence? strokeEffect = null;
+        MeshCutoutEvidence? cutoutEffect = null;
         switch (operation)
         {
             case SubdivideCage subdivide:
@@ -223,6 +232,9 @@ public static class SubdivisionSculptor
             case RecessCageRegion recess:
                 (cage, regions, recessEffect) = SubdivisionRecess.Apply(input, recess, preserved);
                 break;
+            case CutoutCageArch cutout:
+                (cage, regions, cutoutEffect) = SubdivisionCutout.Apply(input, cutout, preserved);
+                break;
             default: throw Error("mesh-operation-unsupported", "Unknown mesh operation.");
         }
         Evaluate(cage); // Validate the successor before publishing it.
@@ -244,12 +256,13 @@ public static class SubdivisionSculptor
             fit = fit with { Rim = rim.Qualify(cage) };
         var effect = brush is null ? null : SubdivisionBrush.Measure(input, cage, brush);
         var fairEffect = operation is FairCageRegion fairing ? SubdivisionFairing.Measure(input, cage, fairing) : null;
+        var mounts = SubdivisionSurfaceMount.Measure(cage, input.Construction.PreviewLevels, input.MountBindings);
         var recipe = input.Construction with { Operations = [.. input.Construction.Operations, operation] };
         return input with
         {
             StateId = Hash(input.StateId + "|" + System.Text.Json.JsonSerializer.Serialize<MeshSculptOperation>(operation) + "|" + Fingerprint(cage)),
             PredecessorStateId = input.StateId, Name = name, Cage = cage, Construction = recipe, SectionFit = fit, BrushEffect = effect,
-            VertexRegions = regions, StrokeEffect = strokeEffect, FairEffect = fairEffect, RecessEffect = recessEffect
+            VertexRegions = regions, StrokeEffect = strokeEffect, FairEffect = fairEffect, RecessEffect = recessEffect, CutoutEffect = cutoutEffect, SurfaceMounts = mounts
         };
     }
 

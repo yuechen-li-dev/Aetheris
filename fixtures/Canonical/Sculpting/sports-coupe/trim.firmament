@@ -1,0 +1,13 @@
+Model SportsCoupeTrimBlank {
+    units: mm
+    Sphere Blank { radius: 10mm }
+    BodyState Exact { input: Blank }
+    MeshState Trim {
+        input: Exact
+        cage: Sphere
+        segments: 5
+        maximumDeviation: 0.5mm
+        previewLevels: 1
+    }
+    output: Trim
+}

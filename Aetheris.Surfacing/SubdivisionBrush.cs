@@ -43,7 +43,7 @@ internal static class SubdivisionBrush
 
     internal static HashSet<string> ProtectedVertices(MeshSculptState state, MeshSculptOperation operation)
     {
-        var kind = operation switch { FairCageRegion => "fair", RecessCageRegion => "recess", DisplaceCageStroke => "stroke", _ => "brush" };
+        var kind = operation switch { FairCageRegion => "fair", RecessCageRegion => "recess", DisplaceCageStroke => "stroke", CutoutCageArch => "cutout", _ => "brush" };
         if (state.SourceRim is not { } rim || state.VertexRegions is not { } regions)
             throw new InvalidOperationException($"mesh-{kind}-source-unsupported: The operation requires a SectionChain cage with a qualified rim.");
         var protectedVertices = rim.Vertices.ToHashSet(StringComparer.Ordinal);

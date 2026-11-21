@@ -9,7 +9,7 @@ namespace Aetheris.CLI;
 
 internal static class SculptCompareCommand
 {
-    private const string Usage = "Usage: aetheris compare <sculpt.firmament> --before <state> --after <state> [--section-y <mm>] [--wheel <file.step> [--minimum-clearance <mm>]] [--out <comparison.svg>] [--json]";
+    private const string Usage = "Usage: aetheris compare <sculpt.firmament> --before <state> --after <state> [--section-y <mm>] [--wheel <file.step> [--minimum-clearance <mm>] [--steering-lock <deg>] [--suspension-bump <mm>]] [--out <comparison.svg>] [--json]";
 
     internal static int Run(string[] args, TextWriter stdout, TextWriter stderr)
     {
@@ -20,7 +20,7 @@ internal static class SculptCompareCommand
         }
         var json = args.Contains("--json");
         string? beforeName = null, afterName = null, output = null, wheelPath = null;
-        double? sectionY = null, minimum = null;
+        double? sectionY = null, minimum = null, steering = null, bump = null;
         for (var i = 1; i < args.Length; i++)
         {
             var option = args[i];
@@ -35,10 +35,12 @@ internal static class SculptCompareCommand
                 case "--wheel": wheelPath = value; break;
                 case "--section-y" when TryNumber(value, out var y): sectionY = y; break;
                 case "--minimum-clearance" when TryNumber(value, out var gap) && gap >= 0: minimum = gap; break;
+                case "--steering-lock" when TryNumber(value, out var degrees) && degrees is >= 0 and <= 65: steering = degrees; break;
+                case "--suspension-bump" when TryNumber(value, out var travel) && travel >= 0: bump = travel; break;
                 default: return Fail($"Unknown option or invalid value for '{option}'.");
             }
         }
-        if (beforeName is null || afterName is null || (minimum.HasValue && wheelPath is null))
+        if (beforeName is null || afterName is null || ((minimum.HasValue || steering.HasValue || bump.HasValue) && wheelPath is null))
             return Fail(Usage);
         if (output is not null && !Path.GetExtension(output).Equals(".svg", StringComparison.OrdinalIgnoreCase))
             return Fail("Comparison preview must have the .svg extension.");
@@ -57,7 +59,11 @@ internal static class SculptCompareCommand
             var y = sectionY ?? wheel?.Center.Y ?? 0;
             var clearanceBefore = wheel is null ? null : SculptCompareGeometry.Clearance(a, wheel);
             var clearanceAfter = wheel is null ? null : SculptCompareGeometry.Clearance(b, wheel);
-            var success = clearanceAfter is null || (clearanceAfter.CenterOutsideShell && clearanceAfter.LowerBoundMm >= (minimum ?? 0));
+            var wheelSweep = wheel is not null && (steering.HasValue || bump.HasValue)
+                ? SculptCompareGeometry.BoundWheelSweep(b, wheel, steering ?? 0, bump ?? 0) : null;
+            var success = (clearanceAfter is null || (clearanceAfter.CenterOutsideShell && clearanceAfter.LowerBoundMm >= (minimum ?? 0)))
+                && (wheelSweep is null || (wheelSweep.LowerBoundMm >= (minimum ?? 0)
+                    && wheelSweep.Poses.All(pose => pose.Clearance.CenterOutsideShell)));
             if (output is not null && success)
             {
                 output = Path.GetFullPath(output);
@@ -69,8 +75,8 @@ internal static class SculptCompareCommand
             var report = new
             {
                 command = "compare", success, before = beforeName, after = afterName,
-                movement, after.FairEffect, after.StrokeEffect, beforeRecess = before.RecessEffect, afterRim = after.SectionFit?.Rim,
-                sectionYMm = y, wheel, minimumClearanceMm = minimum, clearanceBefore, clearanceAfter,
+                movement, after.FairEffect, after.StrokeEffect, after.CutoutEffect, beforeRecess = before.RecessEffect, afterRim = after.SectionFit?.Rim,
+                sectionYMm = y, wheel, minimumClearanceMm = minimum, clearanceBefore, clearanceAfter, wheelSweep,
                 preview = success ? output : null
             };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(report, CliRunner.JsonOptions));
@@ -79,6 +85,8 @@ internal static class SculptCompareCommand
                 stdout.WriteLine(FormattableString.Invariant($"{beforeName} to {afterName}: max movement {movement.MaximumMovementMm:F4} mm; rim {movement.MaximumRimMovementMm:F4} mm."));
                 if (clearanceAfter is not null)
                     stdout.WriteLine(FormattableString.Invariant($"Wheel clearance {clearanceAfter.LowerBoundMm:F3}..{clearanceAfter.SampledUpperBoundMm:F3} mm; center outside shell: {clearanceAfter.CenterOutsideShell}."));
+                if (wheelSweep is not null)
+                    stdout.WriteLine(FormattableString.Invariant($"Wheel sweep lower bound {wheelSweep.LowerBoundMm:F3} mm from {wheelSweep.Poses.Count} poses plus a between-pose allowance."));
                 if (!success) stderr.WriteLine("The comparison did not qualify the required wheel clearance.");
             }
             return success ? 0 : 1;

@@ -24,6 +24,7 @@ internal static class MeshSculptCommand
         // Serialize/validate all payloads before creating any output.
         var recipe = MeshConstructionReplayer.Serialize(state.Construction);
         using var packet = JsonDocument.Parse(recipe);
+        var surfaceMounts = state.SurfaceMounts;
         var metadata = JsonSerializer.Serialize(new
         {
             schema = SubdivisionSculptor.Schema,
@@ -40,6 +41,8 @@ internal static class MeshSculptCommand
             state.StrokeEffect,
             state.FairEffect,
             state.RecessEffect,
+            state.CutoutEffect,
+            surfaceMounts,
             maximumFloatQuantizationMm,
             cage = state.Cage,
             edges = state.Edges,
@@ -67,6 +70,8 @@ internal static class MeshSculptCommand
             state.StrokeEffect,
             state.FairEffect,
             state.RecessEffect,
+            state.CutoutEffect,
+            surfaceMounts,
             maximumFloatQuantizationMm,
             vertices = mesh.Positions.Count,
             triangles = mesh.TriangleIndices.Count / 3,

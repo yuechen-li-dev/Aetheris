@@ -166,3 +166,110 @@ The mouse's default output still selects `LowFront`.
 
 The build JSON, GLBs and replay sidecars, comparison JSON and SVG, and
 the rendered top-view heatmap are under `artifacts/local/subd-mouse/stroke/`.
+
+## Spline-guided front wheel arches
+
+An original sports-coupe front clip uses a longitudinal G1 SectionChain,
+with the lower hood between raised wings as a styling reference from
+[Porsche's 911 design notes](https://newsroom.porsche.com/en/products/porsche-911-design-production-anniversary-13742.html).
+One XZ cubic profile sets both arches. The bounded Cutout remaps existing
+lower side and sole rows into an underside-open well, keeps the quad
+connectivity, and publishes two named lip regions. Its companion exact
+tire envelope is a 664 mm diameter, 245 mm wide cylinder.
+
+- The encoded shell is watertight with 34,496 triangles. All 112 sampled
+  nose-rim positions retained their input coordinates. The absolute
+  nose-rim fit stayed at 8.393 mm against a 12 mm budget.
+- The nominal tire center was inside the seed. The exported arch shell
+  clears the tire with a 32.290 mm lower bound over the continuous
+  ±32° steering and 0–65 mm upward bump domain. The lowest of 27 pose
+  bounds was 61.856 mm at -32° and 65 mm. The maximum distance
+  from the nearest tested pose contributes a 29.566 mm allowance.
+  Repeating the sweep with the placed cylinder on the opposite side
+  produced the same 32.290 mm lower bound.
+- The 3 mm Fair budget on the two lip regions gave 1.900 mm peak sampled
+  displacement. The RMS turn between coarse normals dropped from
+  20.58° to 18.86°. The CLI regression confirms that raising the guide
+  rebuilds both arches, and checks sidecar replay and the wheel sweep.
+- The Release build, 33 focused CLI tests and 1,259 fast kernel tests
+  passed. The full parallel suite reported eight display and assembly
+  test failures. All eight passed in isolated reruns covering 22 cases.
+
+The native GLBs, STEP cylinder, compare SVG and JSON, and the shaded
+render of the exported geometry are under `artifacts/local/subd-car/front-clip/`.
+
+## Full sports coupe silhouette
+
+The [sports coupe sources](../../../../fixtures/Canonical/Sculpting/sports-coupe/body.firmament)
+produce an original 911-inspired exterior. The full lower body carries the
+low hood, raised front wings and broader rear haunches. The separate cabin
+SectionChain carries the raked windscreen, rounded roof and sloping rear
+glass. The packed GLB contains the two SubD shells, four instanced revolved
+wheel assemblies, and lamps and trim made from the shared SubD blank.
+The fixture's NumPy packer places instances, assigns materials, and
+deduplicates matching render vertices. It does not generate the surface
+geometry. Complete reproduction commands are in the public sculpting guide.
+
+- The shell and cabin validated and exported as watertight meshes. The
+  file uses metres, +Y up and -Z forward. Four independently located
+  wheel nodes expose a local +X axle. The 2,470 mm wheelbase and the
+  tire dimensions are styling choices for this example.
+- The packed asset has 99,248 rendered triangles with instances counted.
+  It is about 1.25 MB. Khronos glTF Validator reported zero errors and
+  warnings, and a repeated package produced identical bytes.
+- The exact cylindrical bounds for the four dressed tires all cleared the
+  exported shell at nominal ride height. The front and rear lower bounds
+  were 77.86 mm and 79.09 mm respectively. These clearances use this
+  silhouette's nominal wheel poses.
+- Separate XZ arch sketches initially reused unqualified guide names.
+  Inspect showed the front operation resolving the rear guide coordinates.
+  Unique front and rear guide names in the fixture resolved the issue.
+  Compare reports from the front and rear wheel placements confirm the
+  independent openings in the packaged asset.
+- The Release build and fast kernel lane passed. The full parallel run
+  reported eight existing display and USD test failures. All eight passed
+  in isolated reruns covering 23 cases.
+
+The whole-scene GLB, replayable native parts, exact tire and rim STEP,
+preview and validation evidence are under
+`artifacts/local/subd-car/sports-coupe/`.
+
+## Arcade proportions and native SubD surface mounts
+
+The next styling pass shortens and rounds both ends, pulls the sills in,
+and gives the rear haunches and larger wheels more visual weight. The
+round lens treatment draws from [Porsche's 964 reference photos](https://newsroom.porsche.com/en/history/porsche-history-white-giants-991-turbo-964-turbo-3-6-993-turbo-s-13863.html).
+The original dimensions are a styling starting point for the new arcade
+proportions.
+
+- The previous packer ray-cast GLB triangles to find the headlight
+  attitude. `SurfaceMount` now takes a named interior section, span,
+  and dimensionless parameter. It emits a world-frame position and
+  right-handed orientation from the evaluated limit samples. It follows
+  later cage operations and persists by source incidence in replay.
+  The coupe uses this path for the paired headlights and mirror mounts.
+- Nominal lower clearance bounds are 41.547 mm at both front wheels
+  and 46.17 mm at the rears. Previous bounds were 77.86 and 79.09 mm.
+  The nominal cylinders enclose the dressed tires. The export stays a
+  single-resolution exterior with 111,248 triangles counting instances.
+  Khronos glTF Validator reports zero errors and warnings. Packaging is
+  byte-stable across repeated runs.
+- The native mixed-assembly follow-up has a reduced witness under
+  `artifacts/local/subd-car/sports-coupe-arcade/mixed-probe.firmasm`.
+  A typed Firmament Part referencing the sculpting body beside an exact
+  STEP wheel rejects during definition materialization with
+  `firmament-symmetry-type-unsupported:Cutout`. The mechanical assembly
+  lowerer is receiving the MeshState program. A native visual scene needs
+  explicit MeshState artifact selection, access to its SurfaceMount frames,
+  and named-region appearance bindings. The scoped packer consumes the
+  native outputs and no longer reconstructs the mount frames.
+- The car also exposes the need for a spline on the SubD surface with an
+  authored width or gap. That construction would make door and hood
+  shutlines editable without identifying individual cage edges.
+- Release build, 34 focused CLI tests, and 1,259 fast kernel tests passed.
+  The full parallel suite reported 14 display, STEP, and assembly failures.
+  All 14 passed on isolated reruns covering 27 cases.
+
+The revised GLB, reference comparison, sidecars, mixed-assembly probe,
+pose reports, and test evidence are under
+`artifacts/local/subd-car/sports-coupe-arcade/`.

@@ -198,6 +198,8 @@ Feature largerMount = rightMount with { diameter: 8mm }
 - Inside a subdivision `MeshState`, `Mirrored Stroke leftGrip from rightGrip { across: centerPlane }`
   reflects a named `Stroke` from the same state. Both passes form one edit
   on the input cage. See the [mirrored stroke example](../../firmament/sculpting.md#sculpt-both-grips-with-a-mirrored-stroke).
+- A `Mirrored Cutout` derives the other wheel well across the model center
+  plane. See the [spline wheel arch example](../../firmament/sculpting.md#shape-a-wheel-arch-with-a-spline).
 
 ```firmament
 Radial Pattern boltCircle { source: boltSeed; about: mainAxis; count: 6; angle: full }

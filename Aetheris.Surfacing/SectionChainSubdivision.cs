@@ -78,7 +78,8 @@ internal static class SectionChainSubdivision
     private const int FitIterations = 16;
 
     internal static MeshSculptState Convert(BodyState source, string name, int segments, double maximumDeviationMm,
-        int previewLevels, double? maximumRimDeviationMm, string? rimSection, IReadOnlyList<MeshSectionAnchor>? anchors)
+        int previewLevels, double? maximumRimDeviationMm, string? rimSection, IReadOnlyList<MeshSectionAnchor>? anchors,
+        IReadOnlyList<MeshSectionMount>? mounts)
     {
         var native = source.NativeSectionChain;
         if (native is null || !ReferenceEquals(native.Body, source.Body) ||
@@ -157,6 +158,7 @@ internal static class SectionChainSubdivision
             if (!ringPoints.TryAdd(vertex.Id, vertex.Position))
                 throw new InvalidOperationException($"mesh-section-cage-id-collision: The source names generate duplicate cage handle '{vertex.Id}'.");
         var anchorVertices = SubdivisionBrush.BindAnchors(anchors, sections, rings, segments);
+        var mountBindings = SubdivisionSurfaceMount.Bind(mounts, sections, rings, segments);
         Cap(rings[0], sections[0].SectionId, startCap.Value, reverse: true);
         Cap(rings[^1], sections[^1].SectionId, endCap.Value, reverse: false);
         var rimRing = rings[rimIndex * segments];
@@ -187,11 +189,14 @@ internal static class SectionChainSubdivision
             throw new InvalidOperationException(FormattableString.Invariant(
                 $"mesh-conversion-deviation-exceeded: Sampled transition limit deviation {fit.MaximumSampledTransitionDeviationMm:R}mm exceeds {maximumDeviationMm:R}mm. Increase segments within the preview budget or revise the source."));
         var recipe = new MeshConstruction(SubdivisionSculptor.Schema, source.ConstructionAuthority!, "SectionChain", segments, maximumDeviationMm, [])
-        { PreviewLevels = previewLevels, MaximumRimDeviationMm = rimBudget, RimSection = rim.Section, Anchors = anchors is { Count: > 0 } ? anchors.ToArray() : null };
+        { PreviewLevels = previewLevels, MaximumRimDeviationMm = rimBudget, RimSection = rim.Section, Anchors = anchors is { Count: > 0 } ? anchors.ToArray() : null,
+            Mounts = mounts is { Count: > 0 } ? mounts.ToArray() : null };
         var identity = FormattableString.Invariant(
             $"{source.StateId.Value}|{recipe.Schema}|{recipe.Cage}|{segments}|{maximumDeviationMm:R}|{previewLevels}|{rimBudget:R}|{rim.Section}|{SubdivisionSculptor.Fingerprint(cage)}");
         if (recipe.Anchors is not null)
             identity += "|anchors:" + System.Text.Json.JsonSerializer.Serialize(recipe.Anchors);
+        if (recipe.Mounts is not null)
+            identity += "|mounts:" + System.Text.Json.JsonSerializer.Serialize(recipe.Mounts);
         return new(SubdivisionSculptor.Hash(identity), source.StateId.Value, name, source.StateId.Value, cage, recipe,
             fit.MaximumSampledTransitionDeviationMm, "Sampled Catmull-Clark limit fit to corresponding exact transition surfaces.")
         {
@@ -199,6 +204,8 @@ internal static class SectionChainSubdivision
             VertexRegions = cage.Vertices.GroupBy(v => v.Parents.Count == 3 ? $"{v.Parents[0]}_To_{v.Parents[1]}" : v.Parents[0], StringComparer.Ordinal)
                 .ToDictionary(region => region.Key, region => region.Select(v => v.Id).ToArray(), StringComparer.Ordinal),
             AnchorVertices = anchorVertices,
+            MountBindings = mountBindings,
+            SurfaceMounts = SubdivisionSurfaceMount.Measure(cage, previewLevels, mountBindings),
             SourceRim = rim
         };
 

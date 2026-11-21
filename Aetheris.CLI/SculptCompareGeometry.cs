@@ -8,6 +8,15 @@ internal readonly record struct SculptSectionSegment(Point3D A, Point3D B);
 
 internal sealed record SectionWheel(Point3D Center, double RadiusMm, double WidthMm)
 {
+    private double SteerCos { get; init; } = 1;
+    private double SteerSin { get; init; }
+
+    internal SectionWheel AtPose(double steerDegrees, double bumpMm)
+    {
+        var angle = steerDegrees * Math.PI / 180;
+        return this with { Center = Center + new Vector3D(0, 0, bumpMm), SteerCos = Math.Cos(angle), SteerSin = Math.Sin(angle) };
+    }
+
     internal static SectionWheel Load(string path)
     {
         var imported = Step242Importer.ImportBody(File.ReadAllText(path));
@@ -49,8 +58,29 @@ internal sealed record SectionWheel(Point3D Center, double RadiusMm, double Widt
     // Signed point distance to the exact finite cylinder in its imported pose.
     internal double Distance(Point3D p)
     {
-        var r = Math.Sqrt((p.X - Center.X) * (p.X - Center.X) + (p.Z - Center.Z) * (p.Z - Center.Z)) - RadiusMm;
-        var h = Math.Abs(p.Y - Center.Y) - WidthMm / 2;
+        var offset = ToWheelFrame(p);
+        return SignedCylinderDistance(Math.Abs(offset.X), Math.Abs(offset.Y), Math.Abs(offset.Z));
+    }
+
+    internal double TriangleLowerBound(Point3D a, Point3D b, Point3D c)
+    {
+        var u = ToWheelFrame(a); var v = ToWheelFrame(b); var w = ToWheelFrame(c);
+        return SignedCylinderDistance(Nearest(u.X, v.X, w.X), Nearest(u.Y, v.Y, w.Y), Nearest(u.Z, v.Z, w.Z));
+
+        static double Nearest(double a, double b, double c) =>
+            Math.Max(0, Math.Max(Math.Min(a, Math.Min(b, c)), -Math.Max(a, Math.Max(b, c))));
+    }
+
+    private Vector3D ToWheelFrame(Point3D p)
+    {
+        var offset = p - Center;
+        return new(offset.X * SteerCos + offset.Y * SteerSin, -offset.X * SteerSin + offset.Y * SteerCos, offset.Z);
+    }
+
+    private double SignedCylinderDistance(double x, double y, double z)
+    {
+        var r = Math.Sqrt(x * x + z * z) - RadiusMm;
+        var h = y - WidthMm / 2;
         return Math.Sqrt(Math.Max(0, r) * Math.Max(0, r) + Math.Max(0, h) * Math.Max(0, h)) + Math.Min(0, Math.Max(r, h));
     }
 }
@@ -58,8 +88,33 @@ internal sealed record SectionWheel(Point3D Center, double RadiusMm, double Widt
 internal sealed record WheelClearance(double LowerBoundMm, double SampledUpperBoundMm, double IntervalWidthMm,
     bool CenterOutsideShell, int SubtriangleSamples);
 
+internal sealed record WheelPoseClearance(double SteerDegrees, double BumpMm, WheelClearance Clearance);
+internal sealed record WheelSweepClearance(double SteeringLockDegrees, double SuspensionBumpMm,
+    double MaximumDistanceFromNearestPoseMm, double LowerBoundMm, IReadOnlyList<WheelPoseClearance> Poses);
+
 internal static class SculptCompareGeometry
 {
+    internal static WheelSweepClearance BoundWheelSweep(TriangleMesh mesh, SectionWheel wheel, double steerDegrees, double bumpMm)
+    {
+        const int stepsToLock = 4;
+        var angles = steerDegrees > 0 ? Enumerable.Range(-stepsToLock, 2 * stepsToLock + 1)
+            .Select(step => steerDegrees * step / stepsToLock).ToArray() : [0d];
+        double[] bumps = bumpMm > 0 ? [0, bumpMm / 2, bumpMm] : [0];
+        var poses = (from bump in bumps
+                     from angle in angles
+                     select new WheelPoseClearance(angle, bump, Clearance(mesh, wheel.AtPose(angle, bump), tolerance: 0.25))).ToArray();
+
+        // Every point on the cylinder sits within this horizontal radius of
+        // the steering pivot. Within one grid cell, yaw moves points by at
+        // most the nearest-pose chord and bump moves them vertically.
+        var halfYawStep = steerDegrees * (Math.PI / 180) / (2 * stepsToLock);
+        var yawRadius = Math.Sqrt(wheel.RadiusMm * wheel.RadiusMm + wheel.WidthMm * wheel.WidthMm / 4);
+        var horizontal = 2 * yawRadius * Math.Sin(halfYawStep / 2);
+        var vertical = bumpMm / 4;
+        var allowance = Math.Sqrt(horizontal * horizontal + vertical * vertical);
+        return new(steerDegrees, bumpMm, allowance, poses.Min(pose => pose.Clearance.LowerBoundMm) - allowance, poses);
+    }
+
     internal static IReadOnlyList<SculptSectionSegment> Section(TriangleMesh mesh, double y)
     {
         const double tolerance = 1e-8;
@@ -85,9 +140,8 @@ internal static class SculptCompareGeometry
         return lines;
     }
 
-    internal static WheelClearance Clearance(TriangleMesh mesh, SectionWheel wheel)
+    internal static WheelClearance Clearance(TriangleMesh mesh, SectionWheel wheel, double tolerance = 0.025)
     {
-        const double tolerance = 0.025;
         const int sampleBudget = 1_000_000;
         var upper = mesh.Positions.Min(wheel.Distance);
         var samples = 0;
@@ -113,7 +167,10 @@ internal static class SculptCompareGeometry
                 // Signed distance is 1-Lipschitz. The farthest triangle point
                 // from its centroid is a vertex, giving a valid lower bound.
                 var radius = Math.Max((a - centroid).Length, Math.Max((b - centroid).Length, (c - centroid).Length));
-                if (distance - radius >= upper - tolerance) continue;
+                // The signed distance is also monotone in the radius and the
+                // absolute axial coordinate. The wheel-frame triangle bounds
+                // can exclude a broad face parallel to an end cap at once.
+                if (distance - radius >= upper - tolerance || wheel.TriangleLowerBound(a, b, c) >= upper - tolerance) continue;
                 var ab = a + (b - a) * 0.5;
                 var bc = b + (c - b) * 0.5;
                 var ca = c + (a - c) * 0.5;

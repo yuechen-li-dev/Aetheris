@@ -244,6 +244,97 @@ public sealed class SculptingCliTests
     }
 
     [Fact]
+    public void SurfaceMountMeasuresTheCurrentMeshAndReplaysItsFrame()
+    {
+        var fixture = Path.Combine(Root(), "fixtures/Canonical/Sculpting/compact-mouse.firmament");
+        var folder = Path.Combine(Root(), "artifacts/local/tests/surface-mount", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        const string mount = "SurfaceMount Lens { section: Shoulder; span: FrontRight; at: 0.2 }";
+        var source = Path.Combine(folder, "mount.firmament");
+        var glb = Path.Combine(folder, "mount.glb");
+        try
+        {
+            var authored = File.ReadAllText(fixture).Replace("        SurfaceAnchor Nose", "        " + mount + "\n        SurfaceAnchor Nose", StringComparison.Ordinal);
+            File.WriteAllText(source, authored);
+            using var report = Run("build", source, "--state", "LowFront", "--out", glb);
+            var frame = Assert.Single(report.RootElement.GetProperty("surfaceMounts").EnumerateArray());
+            Assert.Equal("Lens", frame.GetProperty("name").GetString());
+            Assert.Equal(0.2, frame.GetProperty("at").GetDouble());
+            using var inspection = Run("inspect", source);
+            var seed = Assert.Single(inspection.RootElement.GetProperty("meshStates").GetProperty("Seed")
+                .GetProperty("surfaceMounts").EnumerateArray());
+            Assert.True(seed.GetProperty("positionMm").GetProperty("z").GetDouble() -
+                frame.GetProperty("positionMm").GetProperty("z").GetDouble() > 0.01);
+
+            using var sidecar = JsonDocument.Parse(File.ReadAllText(glb + ".sculpt.json"));
+            var replay = MeshConstructionReplayer.Replay(sidecar.RootElement.GetProperty("construction").GetRawText());
+            Assert.Equal(report.RootElement.GetProperty("stateId").GetString(), replay.StateId);
+            var resolved = Assert.Single(replay.SurfaceMounts!);
+            Assert.Equal(frame.GetProperty("positionMm").GetProperty("z").GetDouble(), resolved.PositionMm.Z);
+            Assert.InRange(resolved.Longitudinal.Cross(resolved.Crosswise).Dot(resolved.Normal), 0.999999999, 1.000000001);
+
+            File.WriteAllText(source, authored.Replace(mount, mount.Replace("at: 0.2", "at: 1", StringComparison.Ordinal), StringComparison.Ordinal));
+            var rejected = new StringWriter();
+            Assert.Equal(1, CliRunner.Run(["validate", source, "--json"], rejected, new StringWriter()));
+            Assert.Contains("mesh-mount-parameter-invalid", rejected.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            foreach (var path in Directory.GetFiles(folder)) File.Delete(path);
+            Directory.Delete(folder);
+        }
+    }
+
+    [Fact]
+    public void SplineCutoutRebuildsMirroredArchesAndQualifiesWheelSweep()
+    {
+        var fixture = Path.Combine(Root(), "fixtures/Canonical/Sculpting");
+        var source = Path.Combine(fixture, "sports-coupe-front-clip.firmament");
+        var tire = Path.Combine(fixture, "sports-coupe-front-tire.firmament");
+        var folder = Path.Combine(Root(), "artifacts/local/tests/front-arch", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var step = Path.Combine(folder, "tire.step");
+            using var tireBuild = Run("build", tire, "--out", step);
+            using var compare = Run("compare", source, "--before", "Seed", "--after", "Arches", "--wheel", step,
+                "--steering-lock", "32", "--suspension-bump", "65", "--minimum-clearance", "20");
+            var report = compare.RootElement;
+            Assert.False(report.GetProperty("clearanceBefore").GetProperty("centerOutsideShell").GetBoolean());
+            var sweep = report.GetProperty("wheelSweep");
+            Assert.Equal(27, sweep.GetProperty("poses").GetArrayLength());
+            Assert.True(sweep.GetProperty("lowerBoundMm").GetDouble() > 20);
+            Assert.True(sweep.GetProperty("maximumDistanceFromNearestPoseMm").GetDouble() > 0);
+            var effect = report.GetProperty("cutoutEffect");
+            Assert.Equal("LeftFrontArch", effect.GetProperty("mirroredFeature").GetString());
+            var lips = effect.GetProperty("lipControls");
+            Assert.True(lips.GetProperty("RightFrontArch").GetInt32() > 0);
+            Assert.Equal(lips.GetProperty("RightFrontArch").GetInt32(), lips.GetProperty("LeftFrontArch").GetInt32());
+            var motion = report.GetProperty("movement");
+            Assert.Equal(0, motion.GetProperty("maximumRimMovementMm").GetDouble());
+
+            var shell = Path.Combine(folder, "shell.glb");
+            using var export = Run("build", source, "--state", "Arches", "--out", shell);
+            Assert.True(export.RootElement.GetProperty("topology").GetProperty("isWatertight").GetBoolean());
+            using var sidecar = JsonDocument.Parse(File.ReadAllText(shell + ".sculpt.json"));
+            var replay = MeshConstructionReplayer.Replay(sidecar.RootElement.GetProperty("construction").GetRawText());
+            Assert.Equal(export.RootElement.GetProperty("stateId").GetString(), replay.StateId);
+            Assert.IsType<CutoutCageArch>(replay.Construction.Operations[^1]);
+
+            var edited = Path.Combine(folder, "taller.firmament");
+            File.WriteAllText(edited, File.ReadAllText(source).Replace("820mm", "855mm", StringComparison.Ordinal));
+            using var altered = Run("compare", edited, "--before", "Seed", "--after", "Arches");
+            Assert.True(altered.RootElement.GetProperty("movement").GetProperty("maximumMovementMm").GetDouble()
+                > motion.GetProperty("maximumMovementMm").GetDouble() + 30);
+        }
+        finally
+        {
+            foreach (var path in Directory.GetFiles(folder)) File.Delete(path);
+            Directory.Delete(folder);
+        }
+    }
+
+    [Fact]
     public void MirroredStrokeReplaysBothGripsAndRejectsAnUnmatchedPlane()
     {
         var mouse = Path.Combine(Root(), "fixtures/Canonical/Sculpting/compact-mouse.firmament");

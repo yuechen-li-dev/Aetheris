@@ -1,0 +1,115 @@
+// Original sports-coupe front clip. -X is forward, +Z is up.
+Template<HalfWidth: Length, Shoulder: Length> Profile ClipSection {
+    Point2 RightSole { position: [-0.96 * HalfWidth, 145mm] }
+    Point2 RightWing { position: [-HalfWidth, Shoulder] }
+    Point2 LeftWing { position: [HalfWidth, Shoulder] }
+    Point2 LeftSole { position: [0.96 * HalfWidth, 145mm] }
+    Point2 RightWallLow { position: [-1.01 * HalfWidth, 325mm] }
+    Point2 RightWallHigh { position: [-1.09 * HalfWidth, Shoulder - 105mm] }
+    Point2 HoodRight { position: [-0.73 * HalfWidth, Shoulder - 145mm] }
+    Point2 HoodLeft { position: [0.73 * HalfWidth, Shoulder - 145mm] }
+    Point2 LeftWallHigh { position: [1.09 * HalfWidth, Shoulder - 105mm] }
+    Point2 LeftWallLow { position: [1.01 * HalfWidth, 325mm] }
+
+    Line2 Sole { from: RightSole; to: LeftSole }
+    CubicBezier2 LeftWall { from: LeftSole; control1: LeftWallLow; control2: LeftWallHigh; to: LeftWing }
+    CubicBezier2 Hood { from: LeftWing; control1: HoodLeft; control2: HoodRight; to: RightWing }
+    CubicBezier2 RightWall { from: RightWing; control1: RightWallHigh; control2: RightWallLow; to: RightSole }
+    Loop Outer {
+        Segment Bottom { trace: Sole; from: RightSole; to: LeftSole }
+        Segment Left { trace: LeftWall; from: LeftSole; to: LeftWing }
+        Segment Top { trace: Hood; from: LeftWing; to: RightWing }
+        Segment Right { trace: RightWall; from: RightWing; to: RightSole }
+    }
+}
+
+Model SportsCoupeFrontClip {
+    units: mm
+    Concept Struct Layout {
+        Centerline: Plane { origin: [0mm, 0mm, 0mm]; normal: [0, 1, 0]; up: [0, 0, 1] }
+        Nose: Plane { origin: [-1070mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        Apron: Plane { origin: [-840mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        AheadAxle: Plane { origin: [-540mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        FrontAxle: Plane { origin: [0mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        BehindAxle: Plane { origin: [540mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        Cowl: Plane { origin: [790mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+    }
+    Construction Plane NoseFrame { trace: Layout.Nose }
+    Construction Plane ApronFrame { trace: Layout.Apron }
+    Construction Plane AheadFrame { trace: Layout.AheadAxle }
+    Construction Plane AxleFrame { trace: Layout.FrontAxle }
+    Construction Plane BehindFrame { trace: Layout.BehindAxle }
+    Construction Plane CowlFrame { trace: Layout.Cowl }
+
+    Profile NoseSection = ClipSection<HalfWidth:715mm, Shoulder:495mm>
+    Profile ApronSection = ClipSection<HalfWidth:830mm, Shoulder:690mm>
+    Profile AheadSection = ClipSection<HalfWidth:905mm, Shoulder:865mm>
+    Profile AxleSection = ClipSection<HalfWidth:935mm, Shoulder:950mm>
+    Profile BehindSection = ClipSection<HalfWidth:920mm, Shoulder:907mm>
+    Profile CowlSection = ClipSection<HalfWidth:904mm, Shoulder:890mm>
+
+    Concept Struct ArchSketch on XZ {
+        Point2 FrontFoot { position: [-482mm, 145mm] }
+        Point2 Apex { position: [0mm, 820mm] }
+        Point2 RearFoot { position: [490mm, 145mm] }
+        Point2 FrontWall { position: [-474mm, 659mm] }
+        Point2 ApexFront { position: [-299mm, 820mm] }
+        Point2 ApexRear { position: [291mm, 820mm] }
+        Point2 RearWall { position: [475mm, 663mm] }
+        Line2 Sill { from: FrontFoot; to: RearFoot }
+        CubicBezier2 Rear { from: RearFoot; control1: RearWall; control2: ApexRear; to: Apex }
+        CubicBezier2 Front { from: Apex; control1: ApexFront; control2: FrontWall; to: FrontFoot }
+    }
+    Profile FrontArch using ArchSketch {
+        Loop Outer {
+            Segment Bottom { trace: Sill; from: FrontFoot; to: RearFoot }
+            Segment Rear { trace: Rear; from: RearFoot; to: Apex }
+            Segment Front { trace: Front; from: Apex; to: FrontFoot }
+        }
+    }
+
+    SectionChain FrontClip {
+        continuity: G1
+        start: Cap
+        end: Cap
+        Section Nose { frame: NoseFrame; profile: NoseSection }
+        Section Apron { frame: ApronFrame; profile: ApronSection }
+        Section AheadAxle { frame: AheadFrame; profile: AheadSection }
+        Section FrontAxle { frame: AxleFrame; profile: AxleSection }
+        Section BehindAxle { frame: BehindFrame; profile: BehindSection }
+        Section Cowl { frame: CowlFrame; profile: CowlSection }
+    }
+
+    BodyState Exact { input: FrontClip }
+    MeshState Seed {
+        input: Exact
+        cage: SectionChain
+        segments: 14
+        rimSection: Nose
+        maximumDeviation: 20mm
+        maximumRimDeviation: 12mm
+        previewLevels: 1
+    }
+    MeshState Arches {
+        input: Seed
+        preserve: [Nose]
+        Cutout RightFrontArch {
+            profile: FrontArch
+            side: Right
+            outer: 895mm
+            returnDepth: 500mm
+            blendTo: 1010mm
+        }
+        Mirrored Cutout LeftFrontArch from RightFrontArch { across: Layout.Centerline }
+    }
+    MeshState TunedLips {
+        input: Arches
+        preserve: [Nose]
+        Fair SettleLips {
+            regions: [RightFrontArch, LeftFrontArch]
+            maximumMovement: 3mm
+            iterations: 2
+        }
+    }
+    output: Arches
+}

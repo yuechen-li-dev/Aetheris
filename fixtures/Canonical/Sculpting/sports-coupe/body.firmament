@@ -1,0 +1,171 @@
+// Original fastback sports coupe. Negative X is forward, +Z is up.
+Template<HalfWidth: Length, Shoulder: Length, HoodDip: Length, SillRatio: Float, Floor: Length> Profile BodySection {
+    Point2 RightSill { position: [-SillRatio * HalfWidth, Floor] }
+    Point2 LeftSill { position: [SillRatio * HalfWidth, Floor] }
+    Point2 LeftShoulder { position: [HalfWidth, Shoulder] }
+    Point2 RightShoulder { position: [-HalfWidth, Shoulder] }
+    Point2 LeftRocker { position: [0.94 * HalfWidth, Floor + 0.24 * (Shoulder - Floor)] }
+    Point2 LeftWing { position: [1.075 * HalfWidth, Shoulder - 0.20 * (Shoulder - Floor)] }
+    Point2 RightRocker { position: [-0.94 * HalfWidth, Floor + 0.24 * (Shoulder - Floor)] }
+    Point2 RightWing { position: [-1.075 * HalfWidth, Shoulder - 0.20 * (Shoulder - Floor)] }
+    Point2 DeckLeft { position: [0.66 * HalfWidth, Shoulder - HoodDip] }
+    Point2 DeckRight { position: [-0.66 * HalfWidth, Shoulder - HoodDip] }
+    Line2 BottomCurve { from: RightSill; to: LeftSill }
+    CubicBezier2 LeftCurve { from: LeftSill; control1: LeftRocker; control2: LeftWing; to: LeftShoulder }
+    CubicBezier2 TopCurve { from: LeftShoulder; control1: DeckLeft; control2: DeckRight; to: RightShoulder }
+    CubicBezier2 RightCurve { from: RightShoulder; control1: RightWing; control2: RightRocker; to: RightSill }
+    Loop Outer {
+        Segment Bottom { trace: BottomCurve; from: RightSill; to: LeftSill }
+        Segment Left { trace: LeftCurve; from: LeftSill; to: LeftShoulder }
+        Segment Top { trace: TopCurve; from: LeftShoulder; to: RightShoulder }
+        Segment Right { trace: RightCurve; from: RightShoulder; to: RightSill }
+    }
+}
+
+Model SportsCoupeBody {
+    units: mm
+    Concept Struct Layout {
+        Centerline: Plane { origin: [0mm, 0mm, 0mm]; normal: [0, 1, 0]; up: [0, 0, 1] }
+        Nose: Plane { origin: [-928mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        Apron: Plane { origin: [-815mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        FrontFlare: Plane { origin: [-500mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        FrontAxle: Plane { origin: [0mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        Cowl: Plane { origin: [532mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        Door: Plane { origin: [1140mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        Quarter: Plane { origin: [1670mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        RearLead: Plane { origin: [2030mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        RearAxle: Plane { origin: [2470mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        Deck: Plane { origin: [2930mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+        Tail: Plane { origin: [3210mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+    }
+    Construction Plane NoseFrame { trace: Layout.Nose }
+    Construction Plane ApronFrame { trace: Layout.Apron }
+    Construction Plane FrontFlareFrame { trace: Layout.FrontFlare }
+    Construction Plane FrontAxleFrame { trace: Layout.FrontAxle }
+    Construction Plane CowlFrame { trace: Layout.Cowl }
+    Construction Plane DoorFrame { trace: Layout.Door }
+    Construction Plane QuarterFrame { trace: Layout.Quarter }
+    Construction Plane RearLeadFrame { trace: Layout.RearLead }
+    Construction Plane RearAxleFrame { trace: Layout.RearAxle }
+    Construction Plane DeckFrame { trace: Layout.Deck }
+    Construction Plane TailFrame { trace: Layout.Tail }
+
+    Profile NoseSection = BodySection<HalfWidth: 442mm, Shoulder: 356mm, HoodDip: 28mm, SillRatio: 0.91, Floor: 207mm>
+    Profile ApronSection = BodySection<HalfWidth: 760mm, Shoulder: 570mm, HoodDip: 100mm, SillRatio: 0.85, Floor: 151mm>
+    Profile FrontFlareSection = BodySection<HalfWidth: 927mm, Shoulder: 802mm, HoodDip: 148mm, SillRatio: 0.86, Floor: 145mm>
+    Profile FrontAxleSection = BodySection<HalfWidth: 962mm, Shoulder: 852mm, HoodDip: 170mm, SillRatio: 0.89, Floor: 145mm>
+    Profile CowlSection = BodySection<HalfWidth: 898mm, Shoulder: 850mm, HoodDip: 98mm, SillRatio: 0.82, Floor: 145mm>
+    Profile DoorSection = BodySection<HalfWidth: 885mm, Shoulder: 812mm, HoodDip: 61mm, SillRatio: 0.8, Floor: 153mm>
+    Profile QuarterSection = BodySection<HalfWidth: 922mm, Shoulder: 818mm, HoodDip: 49mm, SillRatio: 0.83, Floor: 151mm>
+    Profile RearLeadSection = BodySection<HalfWidth: 968mm, Shoulder: 880mm, HoodDip: 56mm, SillRatio: 0.88, Floor: 145mm>
+    Profile RearAxleSection = BodySection<HalfWidth: 1002mm, Shoulder: 905mm, HoodDip: 79mm, SillRatio: 0.91, Floor: 145mm>
+    Profile DeckSection = BodySection<HalfWidth: 942mm, Shoulder: 793mm, HoodDip: 26mm, SillRatio: 0.86, Floor: 151mm>
+    Profile TailSection = BodySection<HalfWidth: 622mm, Shoulder: 559mm, HoodDip: 21mm, SillRatio: 0.91, Floor: 215mm>
+
+    Concept Struct FrontArchSketch on XZ {
+        Point2 FrontLeadingFoot { position: [-435mm, 145mm] }
+        Point2 FrontCrown { position: [0mm, 767mm] }
+        Point2 FrontTrailingFoot { position: [435mm, 145mm] }
+        Point2 FrontLeadingWall { position: [-420mm, 621mm] }
+        Point2 FrontLeadingCrown { position: [-280mm, 767mm] }
+        Point2 FrontTrailingCrown { position: [271mm, 767mm] }
+        Point2 FrontTrailingWall { position: [422mm, 630mm] }
+        Line2 FrontSill { from: FrontLeadingFoot; to: FrontTrailingFoot }
+        CubicBezier2 FrontBack { from: FrontTrailingFoot; control1: FrontTrailingWall; control2: FrontTrailingCrown; to: FrontCrown }
+        CubicBezier2 FrontFront { from: FrontCrown; control1: FrontLeadingCrown; control2: FrontLeadingWall; to: FrontLeadingFoot }
+    }
+
+    Profile FrontArch using FrontArchSketch {
+        Loop Outer {
+            Segment FrontSill { trace: FrontSill; from: FrontLeadingFoot; to: FrontTrailingFoot }
+            Segment FrontBack { trace: FrontBack; from: FrontTrailingFoot; to: FrontCrown }
+            Segment FrontFront { trace: FrontFront; from: FrontCrown; to: FrontLeadingFoot }
+        }
+    }
+
+    Concept Struct RearArchSketch on XZ {
+        Point2 RearLeadingFoot { position: [2021mm, 145mm] }
+        Point2 RearCrown { position: [2470mm, 784mm] }
+        Point2 RearTrailingFoot { position: [2928mm, 145mm] }
+        Point2 RearLeadingWall { position: [2031mm, 644mm] }
+        Point2 RearLeadingCrown { position: [2187mm, 784mm] }
+        Point2 RearTrailingCrown { position: [2749mm, 784mm] }
+        Point2 RearTrailingWall { position: [2913mm, 648mm] }
+        Line2 RearSill { from: RearLeadingFoot; to: RearTrailingFoot }
+        CubicBezier2 RearBack { from: RearTrailingFoot; control1: RearTrailingWall; control2: RearTrailingCrown; to: RearCrown }
+        CubicBezier2 RearFront { from: RearCrown; control1: RearLeadingCrown; control2: RearLeadingWall; to: RearLeadingFoot }
+    }
+
+    Profile RearArch using RearArchSketch {
+        Loop Outer {
+            Segment RearSill { trace: RearSill; from: RearLeadingFoot; to: RearTrailingFoot }
+            Segment RearBack { trace: RearBack; from: RearTrailingFoot; to: RearCrown }
+            Segment RearFront { trace: RearFront; from: RearCrown; to: RearLeadingFoot }
+        }
+    }
+
+    SectionChain Envelope {
+        continuity: G1
+        start: Cap
+        end: Cap
+        Section Nose { frame: NoseFrame; profile: NoseSection }
+        Section Apron { frame: ApronFrame; profile: ApronSection }
+        Section FrontFlare { frame: FrontFlareFrame; profile: FrontFlareSection }
+        Section FrontAxle { frame: FrontAxleFrame; profile: FrontAxleSection }
+        Section Cowl { frame: CowlFrame; profile: CowlSection }
+        Section Door { frame: DoorFrame; profile: DoorSection }
+        Section Quarter { frame: QuarterFrame; profile: QuarterSection }
+        Section RearLead { frame: RearLeadFrame; profile: RearLeadSection }
+        Section RearAxle { frame: RearAxleFrame; profile: RearAxleSection }
+        Section Deck { frame: DeckFrame; profile: DeckSection }
+        Section Tail { frame: TailFrame; profile: TailSection }
+    }
+    BodyState Exact { input: Envelope }
+    MeshState Seed {
+        input: Exact
+        cage: SectionChain
+        segments: 11
+        rimSection: Nose
+        maximumDeviation: 42mm
+        maximumRimDeviation: 18mm
+        previewLevels: 1
+        SurfaceMount HeadlampLeft { section: FrontFlare; span: Top; at: 0.855 }
+        SurfaceMount HeadlampRight { section: FrontFlare; span: Top; at: 0.145 }
+        SurfaceMount MirrorLeft { section: Cowl; span: Top; at: 0.845 }
+        SurfaceMount MirrorRight { section: Cowl; span: Top; at: 0.155 }
+    }
+    MeshState FrontWells {
+        input: Seed
+        preserve: [Nose]
+        Cutout RightFrontArch {
+            profile: FrontArch
+            side: Right
+            outer: 919mm
+            returnDepth: 472mm
+            blendTo: 948mm
+        }
+        Mirrored Cutout LeftFrontArch from RightFrontArch { across: Layout.Centerline }
+    }
+    MeshState FourWells {
+        input: FrontWells
+        preserve: [Nose, RightFrontArch, LeftFrontArch]
+        Cutout RightRearArch {
+            profile: RearArch
+            side: Right
+            outer: 952mm
+            returnDepth: 490mm
+            blendTo: 964mm
+        }
+        Mirrored Cutout LeftRearArch from RightRearArch { across: Layout.Centerline }
+    }
+    MeshState Skin {
+        input: FourWells
+        preserve: [Nose]
+        Fair SoftenArches {
+            regions: [RightFrontArch, LeftFrontArch, RightRearArch, LeftRearArch]
+            maximumMovement: 6mm
+            iterations: 2
+        }
+    }
+    output: Skin
+}

@@ -1,0 +1,13 @@
+schema Mechanical
+
+Model FrontTireEnvelope {
+    units: mm
+    Concept Struct Layout {
+        AxleMeridian: Plane { origin: [0mm, 800mm, 335mm]; normal: [0, 0, 1]; up: [0, 1, 0] }
+    }
+    Construction Plane TirePlane { trace: Layout.AxleMeridian }
+    Axis Axle { origin: [0mm, 800mm, 335mm]; direction: [0, 1, 0] }
+    Rect2 TireMeridian { center: [166mm, 0mm]; size: [332mm, 245mm] }
+    Profile Meridian using TirePlane { Loop Outer { TireMeridian |> TraceLoop } }
+    Revolve Tire { profile: Meridian; about: Axle; angle: full }
+}

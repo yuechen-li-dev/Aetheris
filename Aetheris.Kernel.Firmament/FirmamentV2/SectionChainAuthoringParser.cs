@@ -114,6 +114,9 @@ public static class SectionChainAuthoringParser
         if (!Enum.TryParse<SectionTermination>(startText, false, out var start)) diagnostics.Add($"section-chain-termination-invalid:Start:{startText}");
         if (!Enum.TryParse<SectionTermination>(endText, false, out var end)) diagnostics.Add($"section-chain-termination-invalid:End:{endText}");
 
+        var endContinuityText = fields.Reference("EndContinuity") ?? "G0";
+        if (endContinuityText is not ("G0" or "G2")) diagnostics.Add($"section-chain-end-continuity-invalid:{endContinuityText}");
+
         var sections = new List<Section>();
         var derivations = new List<SectionChainProfileDerivation>();
         var boundaryEdits = new List<SectionChainBoundaryEditInspection>();
@@ -178,7 +181,8 @@ public static class SectionChainAuthoringParser
         if (declaration.Type.Arguments.Count > 0 || declaration.Modifiers.Count > 0 || declaration.Name is null)
             diagnostics.Add("section-chain-header-invalid");
         if (diagnostics.Count != 0) return Fail(diagnostics);
-        var chain = new SectionChain(declaration.Name!.Text, sections, correspondence, transition, start, end, continuity, ProfileApproximationTolerance: tolerance);
+        var chain = new SectionChain(declaration.Name!.Text, sections, correspondence, transition, start, end, continuity, ProfileApproximationTolerance: tolerance)
+        { EndContinuity = endContinuityText == "G2" ? SectionChainCapContinuity.G2 : SectionChainCapContinuity.G0 };
         if (!materialize) return new(true, chain, null, [], ProfileDerivations: derivations, BoundaryEdits: boundaryEdits, Patterns: staticSource.Document?.Patterns);
         var result = SectionChainMaterializer.Materialize(chain);
         if (!result.IsSuccess)

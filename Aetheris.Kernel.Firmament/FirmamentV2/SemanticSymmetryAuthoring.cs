@@ -19,7 +19,7 @@ internal static class SemanticSymmetryAuthoring
     private enum MirrorField { Across }
     private enum RadialField { Source, About, Count, Angle }
     internal static IReadOnlyList<string> FieldsFor(DeclarationSyntax d) =>
-        d.Type.Name.Text is "Feature" or "Profile" && d.Modifiers.Any(m => m.Name.Text == "Mirrored") ? Enum.GetNames<MirrorField>() :
+        d.Type.Name.Text is "Feature" or "Profile" or "Stroke" or "Cutout" && d.Modifiers.Any(m => m.Name.Text == "Mirrored") ? Enum.GetNames<MirrorField>() :
         d.Type.Name.Text == "Pattern" && d.Modifiers.Any(m => m.Name.Text == "Radial") ? Enum.GetNames<RadialField>() : [];
     private static DeclarationSyntax[] Declarations(string source) => FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).ToArray();
     private static Change Remove(DeclarationSyntax d) => new(d.Span.Start, d.Span.Length, string.Empty);
@@ -280,7 +280,7 @@ internal static class SemanticSymmetryAuthoring
         _ => curve
     };
 
-    private static bool TryResolvePlane(string source, string reference, List<string> diagnostics, out SemanticSymmetryTransform.Plane? plane, out string? diagnostic)
+    internal static bool TryResolvePlane(string source, string reference, List<string> diagnostics, out SemanticSymmetryTransform.Plane? plane, out string? diagnostic)
     {
         plane = null; diagnostic = null;
         var candidates = Declarations(source).Where(d => d.Type.Name.Text == "Plane" && d.Name?.Text == reference).ToArray();

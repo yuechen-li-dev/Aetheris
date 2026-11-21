@@ -30,7 +30,7 @@ internal sealed record SmoothSectionChainTransitionPatch(BSplineSurfaceWithKnots
     public BSpline3Curve? LongitudinalBoundary(bool atEndU)
     {
         var controls = Spline.ControlPoints[atEndU ? ^1 : 0];
-        return new(3, controls, [4, 4], [0d, 1d], "UNSPECIFIED", false, false, "UNSPECIFIED");
+        return new(Spline.DegreeV, controls, Spline.KnotMultiplicitiesV, Spline.KnotValuesV, "UNSPECIFIED", false, false, "UNSPECIFIED");
     }
 }
 
@@ -70,7 +70,12 @@ internal static class SmoothSectionChainBuilder
             return new([], Evidence(candidates, "<none>"), diagnostics);
         }
         var selected = candidates.Single(item => item.Name == judged.Selection!.Value.Candidate.Name);
-        return new(selected.Patches, Evidence(candidates, selected.Name), []);
+        return new(selected.Patches, Evidence(candidates, selected.Name) with
+        {
+            EndpointPolicy = chain.EndContinuity == SectionChainCapContinuity.G2
+                ? "one-sided start derivative; quartic end flattening into cap plane"
+                : "one-sided first chord derivative"
+        }, []);
     }
 
     private static IEnumerable<SurfacingDiagnostic> ValidateCompatibility(SectionChain chain, IReadOnlyList<RuledBoundary[]> boundaries,
@@ -97,6 +102,8 @@ internal static class SmoothSectionChainBuilder
         for (var transition = 0; transition < chain.Sections.Count - 1; transition++)
         {
             var spanPatches = new ISectionChainTransitionPatch[controls[transition].Length];
+            var matchCap = transition == chain.Sections.Count - 2 && chain.EndContinuity == SectionChainCapContinuity.G2;
+            var degreeV = matchCap ? 4 : 3;
             for (var span = 0; span < spanPatches.Length; span++)
             {
                 var targetSpan = correspondence[transition][span];
@@ -107,11 +114,14 @@ internal static class SmoothSectionChainBuilder
                 {
                     var d0 = Tangent(controls, correspondence, stations, transition, span, point);
                     var d1 = Tangent(controls, correspondence, stations, transition + 1, targetSpan, point);
-                    net[point] = [source.Points[point], source.Points[point] + d0 * (distance * scale / 3d),
-                        target.Points[point] - d1 * (distance * scale / 3d), target.Points[point]];
+                    var start = source.Points[point];
+                    var end = target.Points[point];
+                    net[point] = matchCap
+                        ? MatchCap(start, end, d0 * (distance * scale), d1 * (distance * scale), chain.Sections[^1].Frame.Normal.ToVector())
+                        : [start, start + d0 * (distance * scale / 3d), end - d1 * (distance * scale / 3d), end];
                 }
-                var spline = new BSplineSurfaceWithKnots(source.Degree, 3, net, "UNSPECIFIED", false, false, false,
-                    source.Multiplicities, [4, 4], source.Knots, [0d, 1d], "UNSPECIFIED");
+                var spline = new BSplineSurfaceWithKnots(source.Degree, degreeV, net, "UNSPECIFIED", false, false, false,
+                    source.Multiplicities, [degreeV + 1, degreeV + 1], source.Knots, [0d, 1d], "UNSPECIFIED");
                 spanPatches[span] = new SmoothSectionChainTransitionPatch(spline);
             }
             patches.Add(spanPatches);
@@ -124,6 +134,16 @@ internal static class SmoothSectionChainBuilder
             : maxOvershoot > 0.55d ? $"section-chain-g1-overshoot: normalized envelope deviation {maxOvershoot:R} exceeds 0.55" : null;
         var utility = rejection is null ? 1d / (1d + bending + 0.25d * variation + 0.1d * maxOvershoot) : 0d;
         return new(name, scale, patches, bending, variation, maxOvershoot, rejection, utility);
+    }
+
+    private static Point3D[] MatchCap(Point3D start, Point3D end, Vector3D outgoing, Vector3D incoming, Vector3D normal)
+    {
+        // Keep the start derivative. The last three quartic controls lie in
+        // the cap plane, so the endpoint normal velocity and acceleration vanish.
+        var endTangent = incoming - normal * incoming.Dot(normal);
+        var midpoint = start + ((end - start) + (outgoing - incoming) / 3d) * 0.5;
+        var planarMidpoint = midpoint - normal * (midpoint - end).Dot(normal);
+        return [start, start + outgoing / 4d, planarMidpoint, end - endTangent / 4d, end];
     }
 
     private static Vector3D Tangent(CurveData[][] sections, IReadOnlyList<int[]> maps, IReadOnlyList<double> s,

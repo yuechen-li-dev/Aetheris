@@ -134,7 +134,7 @@ public static class CliRunner
         string? Classification = null,
         int? RigidRootCount = null);
     private const string TopLevelUsage = "Usage: aetheris <command> [options]";
-    private const string BuildUsage = "Usage: aetheris build <file.firmament|file.firmasm> [--output <path>] [--locked] [--json]";
+    private const string BuildUsage = "Usage: aetheris build <file.firmament|file.firmasm> [--output <path>] [--state <sculpt-state>] [--locked] [--json]";
     private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.firmasm|file.step> [--format stl|obj|glb|assembly-json|display-json] [--output <path>] [--step-output <path> (display-json only)] [--debug-ir <path>] [--json] (glb: MeshState sources, or STEP with its AP242 PMI as callouts)";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--locked] [--forge-pack <path>] [--parse-only] [--explain] [--shadow [--ast]] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
@@ -263,6 +263,7 @@ public static class CliRunner
                 "sculpture" => RunSculpture(args.Skip(1).ToArray(), stdout, stderr),
                 "section-chain" => RunSectionChain(args.Skip(1).ToArray(), stdout, stderr),
                 "wireframe" => RunWireframe(args.Skip(1).ToArray(), stdout, stderr),
+                "compare" => SculptCompareCommand.Run(args.Skip(1).ToArray(), stdout, stderr),
                 "reconstruct" => ReconstructionCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 "continuum" => ContinuumToolsCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 _ => UnknownCommand(args[0], stderr)
@@ -354,7 +355,7 @@ public static class CliRunner
             {
                 var sculpt = SculptingAuthoring.Compile(sourceText);
                 if (sculpt.OutputMesh is not null) return MeshSculptCommand.Write(sculpt, stepPath, null, "step", "verify", json, stdout, stderr);
-                var sculptExport = sculpt.OutputState is null ? null : SculptStepExporter.Export(sculpt.OutputState, sculpt.ModelName);
+                var sculptExport = sculpt.OutputState is null ? null : SculptStepExporter.Export(sculpt.OutputState, sculpt.OutputState.RealizedStepProductName ?? sculpt.ModelName);
                 if (!sculpt.IsSuccess || sculptExport?.IsSuccess != true || sculptExport.Step is null)
                 {
                     var messages = sculpt.Diagnostics.Select(x => $"{x.Code}: {x.Message}").Concat(sculptExport?.Diagnostics.Select(x => $"{x.Code}: {x.Message}") ?? []);
@@ -487,6 +488,7 @@ public static class CliRunner
 
         var sourcePath = args[0];
         string? outPath = null;
+        string? selectedState = null;
         var json = false;
         var locked = false;
 
@@ -506,6 +508,12 @@ public static class CliRunner
                 case "--json":
                     json = true;
                     break;
+                case "--state" when selectedState is null && i + 1 < args.Length && !args[i + 1].StartsWith("-", StringComparison.Ordinal):
+                    selectedState = args[++i];
+                    break;
+                case "--state":
+                    stderr.WriteLine("Build option --state requires a single sculpting state name.");
+                    return 1;
                 case "--locked":
                     locked = true;
                     break;
@@ -529,6 +537,11 @@ public static class CliRunner
             if (!frontend.IsSuccess) return WriteFrontendRejection(frontend, source, sourcePath, "build", json, stdout, stderr);
             source = frontend.Source;
             domain = FirmamentCommandRouting.Select(source, sourcePath, frontend.Schema);
+            if (selectedState is not null && domain != FirmamentCommandDomain.Sculpting)
+            {
+                stderr.WriteLine("Build option --state applies to a sculpting source.");
+                return 1;
+            }
             if((domain == FirmamentCommandDomain.Drawing||domain == FirmamentCommandDomain.Analysis) && outPath is not null && Path.GetExtension(outPath).Equals(".step",StringComparison.OrdinalIgnoreCase))
             {
                 var diagnostic=FirmamentBuildAdmissionValidation.Present(new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed,KernelDiagnosticSeverity.Error,
@@ -557,7 +570,7 @@ public static class CliRunner
         if (domain == FirmamentCommandDomain.SheetMetal)
             return RunSheetMetalAuthoredBuild(sourcePath, outPath, json, stdout, stderr);
         if (domain == FirmamentCommandDomain.Sculpting)
-            return RunSculptingBuild(sourcePath, outPath, json, stdout, stderr);
+            return RunSculptingBuild(sourcePath, outPath, selectedState, json, stdout, stderr);
 
         var build = FirmamentBuildAndExport.Run(sourcePath, outPath);
         var diagnosticSource = File.ReadAllText(sourcePath);
@@ -852,12 +865,18 @@ public static class CliRunner
         foreach(var d in diagnostics)writer.WriteLine($"{d.SourceFile}:{d.Line}:{d.Column}: {d.Severity} {d.Code}: {d.Message}");
     }
 
-    private static int RunSculptingBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
+    private static int RunSculptingBuild(string sourcePath, string? outPath, string? selectedState, bool json, TextWriter stdout, TextWriter stderr)
     {
-        var compile = SculptingAuthoring.CompileFile(sourcePath);
+        var compile = SculptingAuthoring.CompileFile(sourcePath, selectedState);
+        if (compile.IsSuccess && selectedState is not null && outPath is null)
+            outPath = Path.Combine("artifacts", "local", "sculpting", Path.GetFileNameWithoutExtension(sourcePath)
+                + "-" + selectedState + (compile.OutputMesh is null ? ".step" : ".glb"));
         if (compile.OutputMesh is not null)
             return MeshSculptCommand.Write(compile, sourcePath, outPath, Path.GetExtension(outPath ?? ".step").TrimStart('.').ToLowerInvariant(), "build", json, stdout, stderr);
         var sourceText=File.ReadAllText(sourcePath);
+        if (compile.IsSuccess && selectedState is not null && outPath is not null
+            && Path.GetExtension(outPath).ToLowerInvariant() is not (".step" or ".stp"))
+            compile = compile with { IsSuccess = false, Diagnostics = [new("sculpt-exact-export-format-unsupported", "An exact sculpting state requires .step or .stp output.")] };
         var presented=SculptingAuthoring.KernelDiagnostics(compile).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,sourceText)).ToArray();
         if (!compile.IsSuccess || compile.OutputState is null)
         {
@@ -865,7 +884,7 @@ public static class CliRunner
             else { stderr.WriteLine("Build failed:"); WriteFrontendDiagnostics(presented,stderr); }
             return 1;
         }
-        var exportClock = Stopwatch.StartNew(); var export = SculptStepExporter.Export(compile.OutputState, compile.ModelName); exportClock.Stop();
+        var exportClock = Stopwatch.StartNew(); var export = SculptStepExporter.Export(compile.OutputState, compile.OutputState.RealizedStepProductName ?? compile.ModelName); exportClock.Stop();
         if (!export.IsSuccess || export.Step is null)
         {
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = false, input = Path.GetFullPath(sourcePath), domain = "Sculpting", diagnostics = SculptingAuthoring.KernelDiagnostics(compile with {Diagnostics=export.Diagnostics}).Select(d=>FirmamentBuildAdmissionValidation.Present(d,sourcePath,sourceText)).ToArray(), surfaceInventory = export.Inventory }, JsonOptions));
@@ -991,6 +1010,8 @@ public static class CliRunner
             loops = f.LoopIds.Select(l => state.Body.GetCoedgeIds(l).Select(state.Body.Topology.GetCoedge).Select(c => {
                 var edge = state.Body.Topology.GetEdge(c.EdgeId); state.Body.TryGetVertexPoint(edge.StartVertexId, out var start); state.Body.TryGetVertexPoint(edge.EndVertexId, out var end);
                 return new { handle = "Edge" + c.EdgeId.Value, start, end }; }).ToArray()).ToArray() }).ToArray() : null,
+        endCapJoins = state.NativeSectionChain is { } native && ReferenceEquals(state.Body, native.Body)
+            ? native.GeometricJoins.Where(join => join.BoundaryKind == "EndCap").ToArray() : null,
         surfacePatches = state.SurfacePatches, blendJudgment = state.BlendJudgment, hasDelta = state.Delta is not null
     };
 
@@ -1463,7 +1484,8 @@ Model CanonicalPanel {
                 if (debugIr is not null) sculpt = sculpt with { IsSuccess = false, Diagnostics = [..sculpt.Diagnostics, new("mesh-sculpt-debug-ir-unsupported", "Use inspect --json for cage identities and provenance; SurfaceMeshIR debug output belongs to BRep tessellation.")] };
                 return MeshSculptCommand.Write(sculpt, input, output, format.ToLowerInvariant(), "mesh", json, stdout, stderr);
             }
-            var exact = SculptStepExporter.Export(sculpt.OutputState!, sculpt.ModelName);
+            var exactState = sculpt.OutputState!;
+            var exact = SculptStepExporter.Export(exactState, exactState.RealizedStepProductName ?? sculpt.ModelName);
             if (!exact.IsSuccess) return WriteMeshFailure(exact.Diagnostics.Select(d => d.Code + ": " + d.Message), json, input, stdout, stderr);
             sculptStep = exact.Step;
         }
@@ -1624,7 +1646,7 @@ Model CanonicalPanel {
         }
 
         var source = File.ReadAllText(fullPath);
-        if (SectionChainAuthoringParser.IsSectionChainSource(source))
+        if (!SculptingAuthoring.IsSculptingSource(source) && SectionChainAuthoringParser.IsSectionChainSource(source))
             return RunSectionChain(["inspect", fullPath, .. args.Skip(1)], stdout, stderr);
         var frontend = FirmamentFrontendSchemas.Select(source);
         if (!frontend.IsSuccess)
@@ -2014,7 +2036,7 @@ Model CanonicalPanel {
             var viewSource = File.ReadAllText(fullInput);
             if (SculptingAuthoring.IsSculptingSource(viewSource))
             {
-                var sculpt = SculptingAuthoring.Compile(viewSource); var export = sculpt.OutputState is null ? null : SculptStepExporter.Export(sculpt.OutputState, sculpt.ModelName);
+                var sculpt = SculptingAuthoring.Compile(viewSource); var export = sculpt.OutputState is null ? null : SculptStepExporter.Export(sculpt.OutputState, sculpt.OutputState.RealizedStepProductName ?? sculpt.ModelName);
                 if (sculpt.OutputMesh is not null) return MeshSculptCommand.Write(sculpt, fullInput, null, "step", "view", json, stdout, stderr);
                 if (!sculpt.IsSuccess || export?.IsSuccess != true || export.Step is null)
                 {
@@ -5549,6 +5571,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  sculpture  Build bounded non-manufacturing virtual sculpture artifacts.");
         stdout.WriteLine("  section-chain  Build bounded G0/G1 SectionChain qualification artifacts.");
         stdout.WriteLine("  wireframe  Render a deterministic trim-aware SVG preview from a STEP BRep.");
+        stdout.WriteLine("  compare    Measure and render two corresponding SubD mesh states.");
         stdout.WriteLine("  verify     Build/reimport and verify a model.");
         stdout.WriteLine("  reconstruct  Experimentally reconstruct a structured mesh from triangle PLY input.");
         stdout.WriteLine("  continuum    Run bounded point-torus queries or sharp sampled-grid contouring.");
@@ -5590,12 +5613,13 @@ Model CanonicalPanel {
 
     private static void WriteBuildHelp(TextWriter stdout)
     {
-        stdout.WriteLine("Build canonical Firmament V2 .firmament input into STEP output.");
+        stdout.WriteLine("Build a Firmament product. Exact geometry exports as STEP, and a sculpting mesh state exports as GLB or STL.");
         stdout.WriteLine("Explicitly versioned Firmament V1 TOON/JSON files remain readable through the historical compatibility route and emit one warning.");
         stdout.WriteLine("Legacy JSON .firmasm is a separate assembly compatibility format; inspect or export it with 'aetheris asm'.");
         stdout.WriteLine();
         stdout.WriteLine(BuildUsage);
         stdout.WriteLine();
+        stdout.WriteLine("  --state <name>  Select a named exact or mesh state from a sculpting model.");
         stdout.WriteLine("Options:");
         stdout.WriteLine("  --output <path> Optional output STEP path; defaults to a .step file beside the source.");
         stdout.WriteLine("  --locked        Require firmament.lock.toml; an existing lock is always checked.");

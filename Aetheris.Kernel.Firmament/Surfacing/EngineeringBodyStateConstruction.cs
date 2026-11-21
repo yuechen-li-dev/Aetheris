@@ -12,7 +12,10 @@ namespace Aetheris.Surfacing;
 internal static class EngineeringBodyStateConstruction
 {
     internal static bool IsStateDeclaration(StatementSyntax statement) => statement is DeclarationSyntax d
-        && d.Type.Name.Text is "BodyState" or "SculptState" or "MeshState" or "SurfacePatch" or "SectionChain";
+        && (d.Type.Name.Text is "BodyState" or "SculptState" or "MeshState" or "SurfacePatch" || IsCompactSectionChain(d));
+
+    internal static bool IsCompactSectionChain(DeclarationSyntax declaration) => declaration.Type.Name.Text == "SectionChain"
+        && declaration.Body?.Statements.OfType<DeclarationSyntax>().Any(child => child.Type.Name.Text == "Station") == true;
 
     internal static SculptResult Realize(EngineeringSourceConstruction recipe)
     {
@@ -61,7 +64,7 @@ internal static class EngineeringBodyStateConstruction
                 $"BodyState '{recipe.BaseId}' input '{recipe.InputName}' does not name an admitted engineering body. Reference the Model's body or final Compose.", recipe.BaseId)]);
         var export = built.Value;
         BrepBody realized;
-        if (export.RuntimeBody is {} runtime) realized = runtime;
+        if ((export.RuntimeBody ?? export.NativeSectionChain?.Body) is {} runtime) realized = runtime;
         else
         {
             var imported = Step242Importer.ImportBody(export.StepText);
@@ -102,7 +105,8 @@ internal static class EngineeringBodyStateConstruction
         var authority = new ConstructionState(ConstructionState.CurrentSchemaId, ConstructionState.CurrentSchemaVersion, recipe, []);
         return new(true, new(id, null, bodyId, recipe.BaseId, realized, null, inventory, null, evidence,
             associations, ConstructionAuthority: authority, RealizedStepText: export.StepText)
-            { RealizedStepProductName = export.DocumentName ?? model.Name?.Text,
+            { RealizedStepProductName = export.NativeSectionChain?.Chain.StableId ?? export.DocumentName ?? model.Name?.Text,
+              NativeSectionChain = export.NativeSectionChain,
               HasImportedEngineeringSource = FirmamentV2Parser.MechanicalDeclarations(model.Body?.Statements ?? []).Any(d => d.Type.Name.Text == "InlineStep") }, null, evidence, []);
     }
 }

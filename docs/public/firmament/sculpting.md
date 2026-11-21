@@ -18,9 +18,9 @@ Sculpting is a lower-authority escape hatch for geometry that an engineering fea
 
 There are now two explicit representations. `BodyState` / `SculptState` retain
 exact BRep authority and can export STEP within their admitted capabilities.
-`MeshState` converts a qualified box or sphere into a real subdivision control
-cage, then supports finite Catmull-Clark refinement, creases, vertex movement
-and positive scaling. It exports STL or GLB with a replay/provenance sidecar;
+`MeshState` builds a subdivision control cage from a qualified box, sphere, or
+capped SectionChain. Cage edits include creases, vertex movement and positive
+scaling. Box and sphere cages also support explicit finite refinement. It exports STL or GLB with a replay/provenance sidecar;
 it cannot export STEP. The source exact body remains unchanged. See the
 [complete syntax and examples](../reference/language/domains-and-modules.md#exact-face-edits-and-mesh-sculpting).
 
@@ -96,7 +96,7 @@ Mesh sculpting likewise reports `selfIntersectionStatus: NotCertified`.
 Enclosure, directed winding, connected vertex fans and local foldover checks
 are useful checks, not a global collision certificate. Protected cage vertices
 are exact successor contracts. Finite evaluated quads become triangles at
-export; GLB uses flat per-triangle normals so crease boundaries remain visible.
+export; GLB uses flat per-triangle normals for the legacy finite projection and crease-aware smooth normals for the limit preview.
 No source is silently reconstructed as a housing or converted to a mesh.
 
 The direct C# imported-face adapter retains imported topology/provenance and
@@ -106,6 +106,328 @@ that state reject before discarding imported provenance. Its retained-body and
 graft identities include actual geometry. This is distinct from a BodyState
 created from an admitted engineering-source import, whose source recipe can be
 replayed by the engineering compiler.
+
+## Fit a subdivision cage to a SectionChain
+
+The [compact mouse study](../../../fixtures/Canonical/Sculpting/compact-mouse.firmament)
+builds an exact exterior from six cross-sections, fits a cage to it, then branches
+into two edits. Its final transition meets a small planar crown cap with
+[`endContinuity: G2`](section-chains.md). Both edits reuse the same parting rim.
+Use `inspect --json` to see the cap join evidence, cage handles and sampled fit.
+
+```powershell
+aetheris inspect fixtures/Canonical/Sculpting/compact-mouse.firmament --json
+aetheris build fixtures/Canonical/Sculpting/compact-mouse.firmament --state Exact --out artifacts/local/compact-mouse/exact.step
+aetheris build fixtures/Canonical/Sculpting/compact-mouse.firmament --state PalmComfort --out artifacts/local/compact-mouse/palm.glb
+aetheris build fixtures/Canonical/Sculpting/compact-mouse.firmament --state LowFront --out artifacts/local/compact-mouse/low-front.glb
+```
+
+- `cage: SectionChain` uses a `BodyState` that references a native, capped G1
+  SectionChain. Each section has four corresponding spans and each transition
+  face must have a single non-rational polynomial patch. Section and span names
+  identify the cage vertices on authored stations. Use `regions` in `Move` or
+  `Scale` to select a whole station (including its cap) or a transition such
+  as `Palm_To_Crown`. Use `vertices` for individual handles.
+- `segments` sets the sample intervals per profile span and per transition.
+  Increase it within the shared face budget when the initial fit is too coarse.
+  `maximumDeviation` bounds the sampled initial fit to the exact transition
+  faces and limits export quantization. Successor edits can depart from the
+  blockout while satisfying their rim budget.
+- `rimSection` names the first or an internal station. The first station is the
+  default. The rim is a sharp loop and `maximumRimDeviation` bounds its sampled
+  Catmull–Clark limit curve against the exact section before and after every
+  edit. The start cap also has a sharp boundary.
+- `previewLevels` controls limit-surface sampling for export without increasing
+  the authored cage density. It accepts 1 through 4 for SectionChain and
+  defaults to 2, subject to the evaluated face budget. Box and sphere cages
+  default to 0 and accept 1 through 4 to sample their limit surfaces. Limit
+  previews use smooth GLB normals within each fan and split shading at sharp edges.
+
+The fit reports position deviations at cage vertices and transition cell
+centres. Rim deviations use eight samples per cage edge. These are sampled
+measurements. SectionChain cages reject explicit topology subdivision and
+isolated sharp-edge ends in limit evaluation. Export the source B-rep as STEP
+and the edited SubD as GLB or STL. See the [MeshState reference](../reference/language/domains-and-modules.md#exact-face-edits-and-mesh-sculpting).
+
+## Displace the surface with a named brush
+
+The [compact mouse source](../../../fixtures/Canonical/Sculpting/compact-mouse.firmament)
+uses a functional `Feature` to lower the nose over a localized area. Publish
+the anchor inside the seed cage. Each anchor resolves to the limit sample at
+the start of its named span on the named section.
+
+```firmament
+// Inside the cage conversion MeshState Seed
+SurfaceAnchor Nose { section: Shoulder; span: FrontRight }
+
+// Inside the Model
+Feature LowerNose(anchor: SurfaceAnchor, drop: Length) -> Brush {
+    return Brush {
+        center: anchor
+        radius: 18mm
+        offset: [0mm, 0mm, -drop]
+        falloff: Smooth
+    }
+}
+MeshState LowFront {
+    input: Seed
+    preserve: [Rim]
+    Feature NoseDip = LowerNose(anchor: Seed.Nose, drop: 0.6mm)
+}
+```
+
+The brush follows cage edges measured between limit samples. This gives an
+approximate surface distance in millimetres that stays independent of the
+export preview density. `offset` is the world-space control displacement at
+the center, falling smoothly to zero at the radius. The cage's qualified
+rim always blocks propagation. Named regions in `preserve` also pin their
+controls and block propagation. An anchor on a pinned region rejects.
+
+Run `inspect --json` to list `surfaceAnchors`. Build with `--state LowFront
+--out artifacts/local/compact-mouse/low-front.glb --json` to get the
+`brushEffect` report. It compares corresponding limit positions before and
+after the edit at the exported sampling density and reports displacement at
+the anchor, maximum sampled displacement, and maximum sampled rim movement.
+`sectionFit.rim` gives the separate absolute deviation from the exact B-rep.
+Surface anchors and smooth displacement brushes currently require a SectionChain cage.
+
+## Export a surface mount
+
+Use a named `SurfaceMount` in a SectionChain cage conversion to publish a
+position and orientation for a part that follows the sculpted surface. The
+[sports coupe model](../../../fixtures/Canonical/Sculpting/sports-coupe/body.firmament)
+uses mounts for the lights and side mirrors.
+
+```firmament
+// Inside the conversion MeshState Seed
+SurfaceMount HeadlampLeft { section: FrontFlare; span: Top; at: 0.855 }
+```
+
+- `section` selects an interior section and `span` names a smooth span of
+  that section. `at` is a dimensionless span parameter strictly between
+  0 and 1. Terminals and creased spans reject.
+- The position interpolates between the exported limit samples. Directions
+  are estimated from that span and its neighboring cage rows. The frame
+  is right-handed with X along the section chain, Y across the surface,
+  and Z outward. Coordinates are in the model's authored frame.
+- `inspect --json`, build JSON, and the `.sculpt.json` sidecar expose
+  `surfaceMounts` for the selected state. The mount is re-evaluated
+  on each successor and during sidecar replay. An edit that removes its
+  local support or leaves a degenerate frame rejects.
+
+## Recess and fair a wheel opening
+
+The [compact mouse](../../../fixtures/Canonical/Sculpting/compact-mouse.firmament)
+uses a named `Recess` to form a wheel pocket and a named `Fair` to relax
+the lip. The [wheel source](../../../fixtures/Canonical/Sculpting/compact-mouse-wheel.firmament)
+builds a separate exact cylindrical STEP solid in the same coordinates.
+
+```firmament
+MeshState WheelOpening {
+    input: LowFront
+    preserve: [Rim]
+    Recess WheelLip {
+        center: [-28mm, 0mm]
+        size: [24mm, 15mm]
+        floor: 14mm
+        lip: 1.4mm
+    }
+}
+MeshState WheelFaired {
+    input: WheelOpening
+    preserve: [Rim]
+    Fair SoftenLip {
+        regions: [WheelLip]
+        maximumMovement: 0.3mm
+        iterations: 3
+    }
+}
+```
+
+To parameterize the movement budget, declare the following functional Feature
+in the model and use `Feature SoftenLip = RelaxWheelLip(limit: 0.3mm)`
+inside `WheelFaired` in place of the inline `Fair`.
+
+```firmament
+Feature RelaxWheelLip(limit: Length) -> Fair {
+    return Fair {
+        regions: [WheelLip]
+        maximumMovement: limit
+        iterations: 3
+    }
+}
+```
+
+From the repository root:
+
+```powershell
+New-Item -ItemType Directory -Force artifacts/local/compact-mouse
+aetheris build fixtures/Canonical/Sculpting/compact-mouse-wheel.firmament --out artifacts/local/compact-mouse/wheel.step
+aetheris build fixtures/Canonical/Sculpting/compact-mouse.firmament --state WheelFaired --out artifacts/local/compact-mouse/shell.glb
+aetheris compare fixtures/Canonical/Sculpting/compact-mouse.firmament --before WheelOpening --after WheelFaired --section-y 0 --wheel artifacts/local/compact-mouse/wheel.step --minimum-clearance 1 --out artifacts/local/compact-mouse/compare.svg --json
+```
+
+- `Recess` uses the XY `center` and `size` to select upward-facing cage
+  faces. The footprint is a selection window. The resulting lip follows the
+  selected patch boundary. The patch must form a single disk above the
+  protected rim. `floor` specifies the pocket floor's absolute Z and
+  `lip` gives the upper lip drop below its boundary controls. The blind
+  pocket includes walls and a floor. The operation publishes its name as
+  a cage region.
+- `Fair` relaxes the controls of the specified `regions` over 1–16
+  `iterations`, defaulting to 3. The qualified rim, crease controls, and
+  regions named in `preserve` stay pinned. `maximumMovement` caps
+  displacement from the input. Build JSON reports sampled limit displacement
+  and the change in RMS normal turning between neighboring quads formed from
+  the cage's limit positions.
+- `compare` pairs samples from two states with a common exact source, the
+  same cage topology, and the same preview level. It reports peak, RMS,
+  and sampled rim movement. Use `--out` for matched oblique views and a
+  Y-plane section. Use a comparison pair after the recess when
+  evaluating fairing, since creating the recess changes topology.
+- `--wheel` accepts a placed STEP solid bounded by a full circular
+  cylinder along Y and two planar caps. With `--minimum-clearance`, the
+  after state must meet the supplied distance in millimetres. The report bounds
+  separation between the exact cylindrical wheel and each exported mesh's
+  triangles. The clearance applies at that tessellation and the authored
+  wheel placement.
+
+## Sculpt both grips with a mirrored stroke
+
+The [compact mouse](../../../fixtures/Canonical/Sculpting/compact-mouse.firmament)
+defines one stroke along the right shoulder and palm. Its reflected stroke
+uses the model's `Stations.Centerline` Concept plane at Y = 0. The example
+adds `SideGrips` after the faired wheel opening.
+
+```firmament
+MeshState SideGrips {
+    input: WheelFaired
+    preserve: [Rim]
+    Stroke RightGrip {
+        path: [WheelFaired.GripFront, WheelFaired.GripRear]
+        radius: 13.5mm
+        offset: [0mm, 1.8mm, -0.5mm]
+    }
+    Mirrored Stroke LeftGrip from RightGrip { across: Stations.Centerline }
+}
+```
+
+```powershell
+New-Item -ItemType Directory -Force artifacts/local/compact-mouse
+aetheris build fixtures/Canonical/Sculpting/compact-mouse.firmament --state SideGrips --out artifacts/local/compact-mouse/grips.glb --json
+aetheris compare fixtures/Canonical/Sculpting/compact-mouse.firmament --before WheelFaired --after SideGrips --out artifacts/local/compact-mouse/grip-motion.svg --json
+```
+
+- `path` takes 2–32 unique named surface anchors on the immediate
+  predecessor. Each consecutive pair is connected by a shortest path along
+  cage edges, measured between limit positions. This follows the surface
+  at cage resolution. The qualified rim and regions in `preserve` block
+  both path routing and the spread of the stroke.
+- `radius` is the edge-following distance out from the path. The smooth
+  falloff reaches zero at that radius. `offset` is the world-space control
+  displacement at full influence. The optional `falloff: Smooth` is the
+  default.
+- The [Mirror form](../reference/language/reuse.md#mirror-and-radial-symmetry)
+  pairs one named `Stroke` with one optional `Mirrored Stroke` in the same
+  state. `across` takes a named plane. Reflection maps the routed controls
+  and reflects the offset vector. Both footprints are evaluated on the same
+  input. Their overlap blends the vectors while capping the total strength
+  at one pass.
+- The mirrored form requires a SectionChain cage with unique reflected
+  partners within 0.000001 mm, matching reflected quad connectivity and
+  creases, and symmetric protected controls. It rejects a cage that fails
+  correspondence. A standalone `Stroke` works without a mirror plane.
+  The source stroke can also come from a functional `Feature` that
+  returns `Stroke`.
+- Build and compare JSON report path size, moved controls, peak and RMS
+  sampled movement, and rim movement. For a mirror, the report also gives
+  the reflected offset, the overlap count, and the worst reflected error
+  over matched limit samples. The export sidecar retains the stroke and
+  mirror derivation for replay.
+
+## Shape a wheel arch with a spline
+
+The [sports coupe front clip](../../../fixtures/Canonical/Sculpting/sports-coupe-front-clip.firmament)
+uses one side-view `FrontArch` profile to cut the two front wheel wells.
+The [tire envelope](../../../fixtures/Canonical/Sculpting/sports-coupe-front-tire.firmament)
+is an exact cylinder in the same model coordinates.
+
+```firmament
+MeshState Arches {
+    input: Seed
+    preserve: [Nose]
+    Cutout RightFrontArch {
+        profile: FrontArch
+        side: Right
+        outer: 895mm
+        returnDepth: 500mm
+        blendTo: 1010mm
+    }
+    Mirrored Cutout LeftFrontArch from RightFrontArch { across: Layout.Centerline }
+}
+```
+
+```powershell
+New-Item -ItemType Directory -Force artifacts/local/front-clip
+aetheris build fixtures/Canonical/Sculpting/sports-coupe-front-tire.firmament --out artifacts/local/front-clip/tire.step
+aetheris build fixtures/Canonical/Sculpting/sports-coupe-front-clip.firmament --state Arches --out artifacts/local/front-clip/clip.glb
+aetheris compare fixtures/Canonical/Sculpting/sports-coupe-front-clip.firmament --before Seed --after Arches --wheel artifacts/local/front-clip/tire.step --steering-lock 32 --suspension-bump 65 --minimum-clearance 20 --out artifacts/local/front-clip/compare.svg --json
+```
+
+- The profile is an XZ outer loop with one horizontal sill and up to eight
+  contiguous, X-monotone cubic spans. Model +Z is up. `Right` uses -Y and
+  `Left` uses +Y. The mirrored form derives a second operation from the same
+  profile across a named center plane at Y = 0.
+- `outer` is a lateral reference distance from Y = 0. The return begins at
+  `outer - returnDepth` and blends to full relief over one quarter of the
+  return depth. `blendTo` sets the height above which the cage stays fixed.
+  All profile controls must stay below it. The qualified rim and explicitly
+  preserved controls cannot be moved by the cutout.
+- The cutout lifts existing lower side and underbody cage rows to form an
+  underside-open wheel well. Cage resolution controls how closely the
+  sampled lip follows the guide. Each cutout publishes a named region on its
+  lip. The fixture's `TunedLips` state uses both names in `Fair`.
+- `--steering-lock` moves the exact tire envelope about its Z-aligned center
+  pivot through the range from negative to positive lock.
+  `--suspension-bump` translates the tire upward from nominal through the
+  given travel. The command combines conservative clearance bounds at grid
+  poses with a bound on between-pose motion. The result applies to the
+  exported shell triangles and that idealized wheel motion.
+
+## Build the Claude-mobile
+
+The [sports coupe example](../../../fixtures/Canonical/Sculpting/sports-coupe/body.firmament)
+extends the wheel-arch workflow to a complete fastback with a character livery. One G1
+SectionChain defines the body from nose to tail. A second defines the
+[cabin and roofline](../../../fixtures/Canonical/Sculpting/sports-coupe/cabin.firmament).
+The front and rear cubic arch profiles each drive a mirrored pair.
+`Skin` fairs all four named arch lips in one state.
+
+From the repository root, build the three SubD parts and the two revolved
+wheel parts, then package the GLBs with Python, NumPy, and Pillow.
+
+```powershell
+$source = 'fixtures/Canonical/Sculpting/sports-coupe'
+$out = 'artifacts/local/sports-coupe'
+New-Item -ItemType Directory -Force $out
+foreach ($part in 'body', 'cabin', 'trim') {
+    aetheris build "$source/$part.firmament" --out "$out/$part.glb"
+}
+foreach ($part in 'tire', 'rim') {
+    aetheris build "$source/$part.firmament" --out "$out/$part.step"
+    aetheris mesh "$out/$part.step" --format glb --output "$out/$part.glb"
+}
+python -B "$source/package.py" $out
+```
+
+The package assigns materials, attaches lamps and mirrors to the published
+[surface mounts](#export-a-surface-mount), and instances the wheels.
+`claude-mobile.glb` includes the painted eyes, lashes, smile, and livery as
+embedded PNG textures. The GLB uses metres, +Y up and -Z forward. It has four named
+wheel pivots with a local +X axle. The cabin uses opaque glazing over the
+closed body. The asset is a single-resolution exterior intended for
+visual evaluation. Keep the native mesh sidecars to replay the Firmament
+body and cabin independently.
 
 ## Bounded region sculpting
 

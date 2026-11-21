@@ -6,13 +6,22 @@ namespace Aetheris.Surfacing;
 /// <summary>Reuse exact construction replay, then execute the typed cage program.</summary>
 public static class MeshConstructionReplayer
 {
-    private sealed record SavedMesh(string Schema, string SourceJson, string Cage, int Segments, double MaximumDeviationMm, IReadOnlyList<MeshSculptOperation> Operations);
+    private sealed record SavedMesh(string Schema, string SourceJson, string Cage, int Segments,
+        double MaximumDeviationMm, IReadOnlyList<MeshSculptOperation> Operations)
+    {
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int PreviewLevels { get; init; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? MaximumRimDeviationMm { get; init; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? RimSection { get; init; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<MeshSectionAnchor>? Anchors { get; init; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<MeshSectionMount>? Mounts { get; init; }
+    }
     private static readonly JsonSerializerOptions Options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
     public static string Serialize(MeshConstruction construction)
     {
         var source = ConstructionStateSerializer.Serialize(construction.Source);
         if (!source.IsSuccess) throw new InvalidOperationException(string.Join(";", source.Diagnostics.Select(d => d.Message)));
-        return JsonSerializer.Serialize(new SavedMesh(construction.Schema, source.Json!, construction.Cage, construction.Segments, construction.MaximumDeviationMm, construction.Operations), Options);
+        return JsonSerializer.Serialize(new SavedMesh(construction.Schema, source.Json!, construction.Cage, construction.Segments, construction.MaximumDeviationMm, construction.Operations)
+        { PreviewLevels = construction.PreviewLevels, MaximumRimDeviationMm = construction.MaximumRimDeviationMm, RimSection = construction.RimSection, Anchors = construction.Anchors, Mounts = construction.Mounts }, Options);
     }
     public static MeshSculptState Replay(string json, string name = "Replayed")
     {
@@ -23,9 +32,9 @@ public static class MeshConstructionReplayer
         if (!source.IsSuccess) throw new InvalidOperationException(string.Join(";", source.Diagnostics.Select(d => d.Message)));
         var replay = ConstructionStateReplayer.Replay(source.ConstructionState!);
         if (!replay.IsSuccess || replay.OutputState is null) throw new InvalidOperationException(string.Join(";", replay.Diagnostics.Select(d => d.Message)));
-        var state = SubdivisionSculptor.Convert(replay.OutputState, name, saved.Cage, saved.Segments, saved.MaximumDeviationMm);
+        var state = SubdivisionSculptor.Convert(replay.OutputState, name, saved.Cage, saved.Segments, saved.MaximumDeviationMm, saved.PreviewLevels, saved.MaximumRimDeviationMm, saved.RimSection, saved.Anchors, saved.Mounts);
         foreach (var operation in saved.Operations) state = SubdivisionSculptor.Apply(state, name, operation);
-        SubdivisionSculptor.PrepareExport(state.Cage, state.Construction.MaximumDeviationMm);
+        SubdivisionSculptor.PrepareExport(state);
         return state;
     }
 }

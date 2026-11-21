@@ -1,0 +1,49 @@
+schema Mechanical
+
+Model SportsCoupeRim {
+    units: mm
+    Concept Struct Blank on XY {
+        Point2 P0 { position: [35mm, -91mm] }
+        Point2 P1 { position: [98mm, -91mm] }
+        Point2 P2 { position: [196mm, -107mm] }
+        Point2 P3 { position: [223mm, -109mm] }
+        Point2 P4 { position: [229mm, -100mm] }
+        Point2 P5 { position: [229mm, 100mm] }
+        Point2 P6 { position: [223mm, 109mm] }
+        Point2 P7 { position: [199mm, 108mm] }
+        Point2 P8 { position: [180mm, 83mm] }
+        Point2 P9 { position: [98mm, 75mm] }
+        Point2 P10 { position: [54mm, 96mm] }
+        Point2 P11 { position: [35mm, 96mm] }
+        Line2 L0 { from: P0; to: P1 }
+        Line2 L1 { from: P1; to: P2 }
+        Line2 L2 { from: P2; to: P3 }
+        Line2 L3 { from: P3; to: P4 }
+        Line2 L4 { from: P4; to: P5 }
+        Line2 L5 { from: P5; to: P6 }
+        Line2 L6 { from: P6; to: P7 }
+        Line2 L7 { from: P7; to: P8 }
+        Line2 L8 { from: P8; to: P9 }
+        Line2 L9 { from: P9; to: P10 }
+        Line2 L10 { from: P10; to: P11 }
+        Line2 L11 { from: P11; to: P0 }
+    }
+    Axis Axle { origin: [0mm, 0mm, 0mm]; direction: [0, 1, 0] }
+    Profile Meridian using Blank {
+        Loop Outer {
+            Segment Edge0 { trace: L0; from: P0; to: P1 }
+            Segment Edge1 { trace: L1; from: P1; to: P2 }
+            Segment Edge2 { trace: L2; from: P2; to: P3 }
+            Segment Edge3 { trace: L3; from: P3; to: P4 }
+            Segment Edge4 { trace: L4; from: P4; to: P5 }
+            Segment Edge5 { trace: L5; from: P5; to: P6 }
+            Segment Edge6 { trace: L6; from: P6; to: P7 }
+            Segment Edge7 { trace: L7; from: P7; to: P8 }
+            Segment Edge8 { trace: L8; from: P8; to: P9 }
+            Segment Edge9 { trace: L9; from: P9; to: P10 }
+            Segment Edge10 { trace: L10; from: P10; to: P11 }
+            Segment Edge11 { trace: L11; from: P11; to: P0 }
+        }
+    }
+    Revolve WheelPart { profile: Meridian; about: Axle; angle: full }
+}

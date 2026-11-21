@@ -1,0 +1,132 @@
+// Four corresponding cubic spans around a mirror-symmetric planform.
+// The nose and tail control lengths vary with their distances to the widest point.
+Template<Nose: Length, Tail: Length, Waist: Length, HalfWidth: Length>
+Profile MouseOutline {
+    Point2 Front { position: [Nose, 0mm] }
+    Point2 Right { position: [Waist, -HalfWidth] }
+    Point2 Rear { position: [Tail, 0mm] }
+    Point2 Left { position: [Waist, HalfWidth] }
+
+    Point2 FrontRightHandle { position: [Nose, -0.62 * HalfWidth] }
+    Point2 RightFront { position: [Waist - 0.78 * (Waist - Nose), -HalfWidth] }
+    Point2 RightRear { position: [Waist + 0.78 * (Tail - Waist), -HalfWidth] }
+    Point2 RearRightHandle { position: [Tail, -0.64 * HalfWidth] }
+    Point2 RearLeftHandle { position: [Tail, 0.64 * HalfWidth] }
+    Point2 LeftRear { position: [Waist + 0.78 * (Tail - Waist), HalfWidth] }
+    Point2 LeftFront { position: [Waist - 0.78 * (Waist - Nose), HalfWidth] }
+    Point2 FrontLeftHandle { position: [Nose, 0.62 * HalfWidth] }
+
+    CubicBezier2 FrontRightCurve { from: Front; control1: FrontRightHandle; control2: RightFront; to: Right }
+    CubicBezier2 RearRightCurve { from: Right; control1: RightRear; control2: RearRightHandle; to: Rear }
+    CubicBezier2 RearLeftCurve { from: Rear; control1: RearLeftHandle; control2: LeftRear; to: Left }
+    CubicBezier2 FrontLeftCurve { from: Left; control1: LeftFront; control2: FrontLeftHandle; to: Front }
+    Loop Outer {
+        Segment FrontRight { trace: FrontRightCurve; from: Front; to: Right }
+        Segment RearRight { trace: RearRightCurve; from: Right; to: Rear }
+        Segment RearLeft { trace: RearLeftCurve; from: Rear; to: Left }
+        Segment FrontLeft { trace: FrontLeftCurve; from: Left; to: Front }
+    }
+}
+
+Model CompactMouse {
+    units: mm
+
+    Concept Struct Stations {
+        Centerline: Plane { Origin: [0mm, 0mm, 0mm]; Normal: [0, 1, 0]; Up: [0, 0, 1] }
+        Sole: Plane { Origin: [0mm, 0mm, 0mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
+        Skirt: Plane { Origin: [0mm, 0mm, 5mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
+        Rim: Plane { Origin: [0mm, 0mm, 12mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
+        Shoulder: Plane { Origin: [0mm, 0mm, 18mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
+        Palm: Plane { Origin: [0mm, 0mm, 27mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
+        Crown: Plane { Origin: [0mm, 0mm, 34mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
+    }
+    Construction Plane SoleFrame { trace: Stations.Sole }
+    Construction Plane SkirtFrame { trace: Stations.Skirt }
+    Construction Plane RimFrame { trace: Stations.Rim }
+    Construction Plane ShoulderFrame { trace: Stations.Shoulder }
+    Construction Plane PalmFrame { trace: Stations.Palm }
+    Construction Plane CrownFrame { trace: Stations.Crown }
+    Profile SoleOutline = MouseOutline<Nose:-41mm, Tail:43mm, Waist:1mm, HalfWidth:25.5mm>
+    Profile SkirtOutline = MouseOutline<Nose:-47.7mm, Tail:48.5mm, Waist:0mm, HalfWidth:30.9mm>
+    Profile RimOutline = MouseOutline<Nose:-47.9mm, Tail:47.9mm, Waist:0mm, HalfWidth:30.4mm>
+    Profile ShoulderOutline = MouseOutline<Nose:-44mm, Tail:47.3mm, Waist:3mm, HalfWidth:29mm>
+    Profile PalmOutline = MouseOutline<Nose:-23mm, Tail:40mm, Waist:9mm, HalfWidth:23mm>
+    Profile CrownOutline = MouseOutline<Nose:14mm, Tail:18mm, Waist:16mm, HalfWidth:2mm>
+
+    SectionChain Blockout {
+        continuity: G1
+        start: Cap
+        end: Cap
+        endContinuity: G2
+        Section Sole { frame: SoleFrame; profile: SoleOutline }
+        Section Skirt { frame: SkirtFrame; profile: SkirtOutline }
+        Section Rim { frame: RimFrame; profile: RimOutline }
+        Section Shoulder { frame: ShoulderFrame; profile: ShoulderOutline }
+        Section Palm { frame: PalmFrame; profile: PalmOutline }
+        Section Crown { frame: CrownFrame; profile: CrownOutline }
+    }
+    BodyState Exact { input: Blockout }
+    MeshState Seed {
+        input: Exact
+        cage: SectionChain
+        segments: 8
+        rimSection: Rim
+        SurfaceAnchor Nose { section: Shoulder; span: FrontRight }
+        SurfaceAnchor GripFront { section: Shoulder; span: RearRight }
+        SurfaceAnchor GripRear { section: Palm; span: RearRight }
+        maximumDeviation: 1mm
+        maximumRimDeviation: 0.15mm
+        previewLevels: 2
+    }
+    MeshState PalmComfort {
+        input: Seed
+        Scale {
+            regions: [Palm_To_Crown, Crown]
+            origin: [0mm, 0mm, 27mm]
+            factor: [1, 1, 1.17]
+        }
+    }
+    Feature LowerNose(anchor: SurfaceAnchor, drop: Length) -> Brush {
+        return Brush {
+            center: anchor
+            radius: 18mm
+            offset: [0mm, 0mm, -drop]
+            falloff: Smooth
+        }
+    }
+    MeshState LowFront {
+        input: Seed
+        preserve: [Rim]
+        Feature NoseDip = LowerNose(anchor: Seed.Nose, drop: 0.6mm)
+    }
+    MeshState WheelOpening {
+        input: LowFront
+        preserve: [Rim]
+        Recess WheelLip {
+            center: [-28mm, 0mm]
+            size: [24mm, 15mm]
+            floor: 14mm
+            lip: 1.4mm
+        }
+    }
+    MeshState WheelFaired {
+        input: WheelOpening
+        preserve: [Rim]
+        Fair SoftenLip {
+            regions: [WheelLip]
+            maximumMovement: 0.3mm
+            iterations: 3
+        }
+    }
+    MeshState SideGrips {
+        input: WheelFaired
+        preserve: [Rim]
+        Stroke RightGrip {
+            path: [WheelFaired.GripFront, WheelFaired.GripRear]
+            radius: 13.5mm
+            offset: [0mm, 1.8mm, -0.5mm]
+        }
+        Mirrored Stroke LeftGrip from RightGrip { across: Stations.Centerline }
+    }
+    output: LowFront
+}

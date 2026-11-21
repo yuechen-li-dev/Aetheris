@@ -17,13 +17,14 @@ internal static class MeshSculptCommand
         var sidecar = path + ".sculpt.json";
         if (path.Equals(Path.GetFullPath(source), StringComparison.OrdinalIgnoreCase) || sidecar.Equals(Path.GetFullPath(source), StringComparison.OrdinalIgnoreCase) || !Path.GetExtension(path).Equals("." + format, StringComparison.OrdinalIgnoreCase))
         { diagnostics.Add(new("mesh-export-path-invalid", "Output must differ from source and have the selected .stl or .glb extension.")); return Failure(); }
-        var prepared = SubdivisionSculptor.PrepareExport(state.Cage, state.Construction.MaximumDeviationMm);
+        var prepared = SubdivisionSculptor.PrepareExport(state);
         var mesh = prepared.NativeMesh;
         var topology = prepared.Topology;
         var maximumFloatQuantizationMm = prepared.MaximumFloatQuantizationMm;
         // Serialize/validate all payloads before creating any output.
         var recipe = MeshConstructionReplayer.Serialize(state.Construction);
         using var packet = JsonDocument.Parse(recipe);
+        var surfaceMounts = state.SurfaceMounts;
         var metadata = JsonSerializer.Serialize(new
         {
             schema = SubdivisionSculptor.Schema,
@@ -35,13 +36,20 @@ internal static class MeshSculptCommand
             state.SelfIntersectionStatus,
             state.ConversionDeviationMm,
             state.ConversionEvidence,
+            state.SectionFit,
+            state.BrushEffect,
+            state.StrokeEffect,
+            state.FairEffect,
+            state.RecessEffect,
+            state.CutoutEffect,
+            surfaceMounts,
             maximumFloatQuantizationMm,
             cage = state.Cage,
             edges = state.Edges,
             construction = packet.RootElement,
             topology
         }, CliRunner.JsonOptions);
-        byte[]? glb = format == "glb" ? MeshSculptExport.Glb(state) : null;
+        byte[]? glb = format == "glb" ? MeshSculptExport.Glb(state, mesh) : null;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         if (glb is not null) File.WriteAllBytes(path, glb); else BinaryStlExporter.Export(path, mesh);
         File.WriteAllText(sidecar, metadata);
@@ -57,6 +65,13 @@ internal static class MeshSculptCommand
             state.StateId,
             state.SourceBodyStateId,
             state.SelfIntersectionStatus,
+            state.SectionFit,
+            state.BrushEffect,
+            state.StrokeEffect,
+            state.FairEffect,
+            state.RecessEffect,
+            state.CutoutEffect,
+            surfaceMounts,
             maximumFloatQuantizationMm,
             vertices = mesh.Positions.Count,
             triangles = mesh.TriangleIndices.Count / 3,

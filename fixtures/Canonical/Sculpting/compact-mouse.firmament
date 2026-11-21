@@ -70,6 +70,7 @@ Model CompactMouse {
         cage: SectionChain
         segments: 8
         rimSection: Rim
+        SurfaceAnchor Nose { section: Shoulder; span: FrontRight }
         maximumDeviation: 1mm
         maximumRimDeviation: 0.15mm
         previewLevels: 2
@@ -82,12 +83,18 @@ Model CompactMouse {
             factor: [1, 1, 1.17]
         }
     }
-    MeshState LowFront {
-        input: Seed
-        Move {
-            vertices: [Shoulder_FrontRight_0, Shoulder_FrontRight_1, Shoulder_FrontRight_2, Shoulder_FrontLeft_6, Shoulder_FrontLeft_7]
-            offset: [0mm, 0mm, -0.6mm]
+    Feature LowerNose(anchor: SurfaceAnchor, drop: Length) -> Brush {
+        return Brush {
+            center: anchor
+            radius: 18mm
+            offset: [0mm, 0mm, -drop]
+            falloff: Smooth
         }
     }
-    output: PalmComfort
+    MeshState LowFront {
+        input: Seed
+        preserve: [Rim]
+        Feature NoseDip = LowerNose(anchor: Seed.Nose, drop: 0.6mm)
+    }
+    output: LowFront
 }

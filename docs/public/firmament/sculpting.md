@@ -149,6 +149,48 @@ measurements. SectionChain cages reject explicit topology subdivision and
 isolated sharp-edge ends in limit evaluation. Export the source B-rep as STEP
 and the edited SubD as GLB or STL. See the [MeshState reference](../reference/language/domains-and-modules.md#exact-face-edits-and-mesh-sculpting).
 
+## Displace the surface with a named brush
+
+The [compact mouse source](../../../fixtures/Canonical/Sculpting/compact-mouse.firmament)
+uses a functional `Feature` to lower the nose over a localized area. Publish
+the anchor inside the seed cage. Each anchor resolves to the limit sample at
+the start of its named span on the named section.
+
+```firmament
+// Inside the cage conversion MeshState Seed
+SurfaceAnchor Nose { section: Shoulder; span: FrontRight }
+
+// Inside the Model
+Feature LowerNose(anchor: SurfaceAnchor, drop: Length) -> Brush {
+    return Brush {
+        center: anchor
+        radius: 18mm
+        offset: [0mm, 0mm, -drop]
+        falloff: Smooth
+    }
+}
+MeshState LowFront {
+    input: Seed
+    preserve: [Rim]
+    Feature NoseDip = LowerNose(anchor: Seed.Nose, drop: 0.6mm)
+}
+```
+
+The brush follows cage edges measured between limit samples. This gives an
+approximate surface distance in millimetres that stays independent of the
+export preview density. `offset` is the world-space control displacement at
+the center, falling smoothly to zero at the radius. The cage's qualified
+rim always blocks propagation. Named regions in `preserve` also pin their
+controls and block propagation. An anchor on a pinned region rejects.
+
+Run `inspect --json` to list `surfaceAnchors`. Build with `--state LowFront
+--out artifacts/local/compact-mouse/low-front.glb --json` to get the
+`brushEffect` report. It compares corresponding limit positions before and
+after the edit at the exported sampling density and reports displacement at
+the anchor, maximum sampled displacement, and maximum sampled rim movement.
+`sectionFit.rim` gives the separate absolute deviation from the exact B-rep.
+Surface anchors and smooth displacement brushes currently require a SectionChain cage.
+
 ## Bounded region sculpting
 
 The current operation is `OffsetRegion`. The canonical controller-cover example is [`fixtures/Canonical/Sculpting/sculpted-housing.firmament`](../../../fixtures/Canonical/Sculpting/sculpted-housing.firmament):

@@ -16,11 +16,12 @@ public static partial class SculptingAuthoring
             var inputName = block.Word("Input"); var kind = block.Word("Cage");
             var subdivide = Single(block, "Subdivide", diagnostics); var move = Single(block, "Move", diagnostics);
             var scale = Single(block, "Scale", diagnostics); var crease = Single(block, "Crease", diagnostics);
+            var brush = Single(block, "Brush", diagnostics);
             try
             {
                 if (bodies.ContainsKey(block.Name) || states.ContainsKey(block.Name)) throw new InvalidOperationException("mesh-state-duplicate: State names must be unique across exact and mesh states.");
                 MeshSculptState result;
-                var operations = new[] { subdivide, move, scale, crease }.Count(b => b is not null);
+                var operations = new[] { subdivide, move, scale, crease, brush }.Count(b => b is not null);
                 if (kind is not null)
                 {
                     if (operations != 0) throw new InvalidOperationException("mesh-conversion-operation-mixed: Conversion is one explicit state; put edits in successor states.");
@@ -36,11 +37,12 @@ public static partial class SculptingAuthoring
                         if (rim is null) continue;
                     }
                     var rimSection = block.Word("RimSection");
-                    result = SubdivisionSculptor.Convert(body, block.Name, kind, segments, deviation.Value, preview, rim, rimSection);
+                    var anchors = block.Children("SurfaceAnchor").Select(BindSurfaceAnchor).ToArray();
+                    result = SubdivisionSculptor.Convert(body, block.Name, kind, segments, deviation.Value, preview, rim, rimSection, anchors);
                 }
                 else
                 {
-                    if (operations != 1) throw new InvalidOperationException("mesh-operation-cardinality: A mesh successor requires exactly one Subdivide, Move, Scale or Crease operation.");
+                    if (operations != 1) throw new InvalidOperationException("mesh-operation-cardinality: A mesh successor requires exactly one Subdivide, Move, Scale, Crease or Brush operation.");
                     if (inputName is null || !states.TryGetValue(inputName, out var input)) throw new InvalidOperationException("mesh-predecessor-unresolved: Mesh edits require one previously admitted MeshState.");
                     MeshSculptOperation operation;
                     if (subdivide is not null) operation = new SubdivideCage(block.Name, Integer(subdivide, "Levels") ?? 0);
@@ -54,6 +56,18 @@ public static partial class SculptingAuthoring
                         var factor = NumberVector(scale, "Factor", 3, diagnostics); var origin = Vector(scale, "Origin", 3, diagnostics); var vertices = ResolveVertexSelection(scale, input);
                         if (factor is null || origin is null) continue;
                         operation = new ScaleCageVertices(block.Name, vertices, new(factor[0], factor[1], factor[2]), new(origin[0], origin[1], origin[2]));
+                    }
+                    else if (brush is not null)
+                    {
+                        if (brush.Take("Center") is not MemberSyntax { Target: ReferenceSyntax owner } center || owner.Name.Text != inputName)
+                            throw new InvalidOperationException("mesh-brush-anchor-unresolved: Center must name a surface anchor on the immediate predecessor, such as Seed.Nose.");
+                        var radius = Length(brush, "Radius", diagnostics);
+                        var offset = Vector(brush, "Offset", 3, diagnostics);
+                        var falloff = brush.Take("Falloff");
+                        if (falloff is not null && FirmamentSyntaxValues.Reference(falloff) != "Smooth")
+                            throw new InvalidOperationException("mesh-brush-falloff-unsupported: The supported falloff is Smooth.");
+                        if (radius is null || offset is null) continue;
+                        operation = new DisplaceCageBrush(brush.Name, center.Member.Text, radius.Value, new(offset[0], offset[1], offset[2]));
                     }
                     else
                     {
@@ -73,6 +87,15 @@ public static partial class SculptingAuthoring
             }
         }
         return states;
+    }
+
+    private static MeshSectionAnchor BindSurfaceAnchor(Block anchor)
+    {
+        var section = anchor.Word("Section");
+        var span = anchor.Word("Span");
+        if (anchor.Declaration.Name is null || section is null || span is null)
+            throw new InvalidOperationException("mesh-anchor-invalid: A named SurfaceAnchor requires section and span.");
+        return new(anchor.Name, section, span);
     }
 
     private static IReadOnlyList<string> ResolveVertexSelection(Block edit, MeshSculptState input)

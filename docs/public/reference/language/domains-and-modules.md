@@ -147,13 +147,15 @@ Each successor has exactly one operation:
 | `Move` | `vertices: [v0]`, `offset: [0mm, 0mm, 1mm]` | Move selected current cage vertices in world space |
 | `Scale` | `vertices: [All]`, `factor: [1.5, 1, 0.75]`, `origin: [0mm, 0mm, 0mm]` | Explicit positive scale about a required origin; factors are dimensionless |
 | `Crease` | `edges: [All]`, `mode: Sharp` or `Smooth` | Mark or unmark current cage edges as sharp |
+| `Brush` | `center: Seed.Nose`, `radius: 18mm`, `offset: [0mm, 0mm, -0.6mm]`, `falloff: Smooth` | Displace a SectionChain cage around a named surface anchor. Functional Features can return a Brush. |
 
 Use `inspect --json` for current vertex/edge identities; edge handles are
 derived from their endpoint identities. `[All]` is an explicit whole-cage
 selection. Existing vertex IDs survive refinement; new edge/face points have
 parent-derived IDs. Old edge handles are replaced by their child edges.
 Optional `preserve: [v1]` requires those input vertices to retain their exact
-coordinates and identities in that successor. A conflict rejects atomically.
+coordinates and identities in that successor. For a brush, `preserve` takes
+named cage regions. A conflict rejects atomically. See [named brushes](../../firmament/sculpting.md#displace-the-surface-with-a-named-brush).
 There are at most 64 mesh states/operations and 24,576 cage faces.
 
 The [sphere example](../../../../fixtures/Regression/GenericSculpting/sphere-cage.firmament)
@@ -168,8 +170,9 @@ Export a mesh output with `aetheris mesh part.firmament --format glb` or
 Each output has a `.sculpt.json` sidecar with the cage and replayable construction.
 Use `aetheris build part.firmament --state Name --out part.glb` to export a named
 mesh branch, or select an exact state with a `.step` output.
-STL does not embed those semantics, so retain its sidecar. GLB uses the existing
-millimeter/Z-up to meter/Y-up projection and finite, flat-shaded triangles.
+STL does not embed those semantics, so retain its sidecar. GLB converts from
+millimetres and Z-up to metres and Y-up. Limit previews use crease-aware smooth
+normals. Finite cage exports use per-triangle normals.
 Both formats use 32-bit coordinates; export reports quantization and rejects
 precision collapse. `validate` reports `MeshBuilt`, `SubdivisionMesh` and
 `stepExportAvailable: false`. A normal STEP build of that output rejects;

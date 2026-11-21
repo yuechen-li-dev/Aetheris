@@ -129,6 +129,17 @@ public sealed class SculptingCliTests
             });
             var states = inspection.RootElement.GetProperty("meshStates");
             var seed = states.GetProperty("Seed");
+            var anchor = Assert.Single(seed.GetProperty("surfaceAnchors").EnumerateArray());
+            Assert.Equal("Nose", anchor.GetProperty("name").GetString());
+            Assert.Equal("Shoulder", anchor.GetProperty("section").GetString());
+            var brush = states.GetProperty("LowFront").GetProperty("brushEffect");
+            Assert.Equal("NoseDip", brush.GetProperty("feature").GetString());
+            Assert.Equal("Nose", brush.GetProperty("anchor").GetString());
+            Assert.Equal(-0.6, brush.GetProperty("requestedOffsetMm").GetProperty("z").GetDouble());
+            Assert.InRange(brush.GetProperty("anchorDisplacementMm").GetProperty("z").GetDouble(), -0.6, -0.5);
+            Assert.InRange(brush.GetProperty("maximumSurfaceDisplacementMm").GetDouble(), 0.5, 0.6);
+            Assert.Equal(128, brush.GetProperty("rimSampleCount").GetInt32());
+            Assert.Equal(0, brush.GetProperty("maximumRimMovementMm").GetDouble());
             var fit = seed.GetProperty("sectionFit");
             Assert.True(fit.GetProperty("maximumSampledTransitionDeviationMm").GetDouble() <
                 fit.GetProperty("initialMaximumSampledTransitionDeviationMm").GetDouble());
@@ -144,6 +155,9 @@ public sealed class SculptingCliTests
             var raised = ExportAndReplay("PalmComfort");
             var lowered = ExportAndReplay("LowFront");
             Assert.NotEqual(raised.StateId, lowered.StateId);
+            var operation = Assert.IsType<DisplaceCageBrush>(Assert.Single(lowered.Construction.Operations));
+            Assert.Equal("Nose", operation.Anchor);
+            Assert.Equal(brush.GetProperty("anchorDisplacementMm").GetProperty("z").GetDouble(), lowered.BrushEffect!.AnchorDisplacementMm.Z);
             Assert.Equal(raised.SectionFit!.Rim, lowered.SectionFit!.Rim);
             Assert.InRange(raised.SectionFit.Rim.MaximumSampledDeviationMm, 0, 0.15);
             Assert.Equal(raised.Cage.Faces.Select(f => f.Id), lowered.Cage.Faces.Select(f => f.Id));
@@ -178,8 +192,12 @@ public sealed class SculptingCliTests
 
     [Theory]
     [InlineData("maximumRimDeviation: 0.15mm", "maximumRimDeviation: 0.08mm", "mesh-section-rim-deviation-exceeded")]
-    [InlineData("output: PalmComfort", "MeshState Uncrease { input: Seed; Crease { edges: [All]; mode: Smooth } }\n    output: Uncrease", "mesh-section-rim-crease-changed")]
+    [InlineData("output: LowFront", "MeshState Uncrease { input: Seed; Crease { edges: [All]; mode: Smooth } }\n    output: Uncrease", "mesh-section-rim-crease-changed")]
     [InlineData("end: Cap", "end: Open", "section-chain-end-continuity-incompatible")]
+    [InlineData("anchor: Seed.Nose", "anchor: PalmComfort.Nose", "mesh-brush-anchor-unresolved")]
+    [InlineData("span: FrontRight }", "span: Unknown }", "mesh-anchor-unresolved")]
+    [InlineData("preserve: [Rim]", "preserve: [Shoulder]", "mesh-brush-anchor-protected")]
+    [InlineData("drop: 0.6mm", "drop: 0.6deg", "firmament-feature-argument-type")]
     public void SectionChainCageRejectsAnUnsatisfiedContract(string before, string after, string diagnostic)
     {
         var folder = Path.Combine(Root(), "artifacts/local/tests/section-chain-cage", Guid.NewGuid().ToString("N"));

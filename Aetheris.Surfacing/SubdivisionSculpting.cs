@@ -18,6 +18,7 @@ public sealed record SubdivisionCage(IReadOnlyList<CageVertex> Vertices, IReadOn
 [JsonDerivedType(typeof(MoveCageVertices), "Move")]
 [JsonDerivedType(typeof(ScaleCageVertices), "Scale")]
 [JsonDerivedType(typeof(CreaseCageEdges), "Crease")]
+[JsonDerivedType(typeof(DisplaceCageBrush), "Brush")]
 public abstract record MeshSculptOperation(string Id)
 {
     public IReadOnlyList<string> Preserve { get; init; } = [];
@@ -31,6 +32,7 @@ public sealed record MeshConstruction(string Schema, ConstructionState Source, s
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int PreviewLevels { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? MaximumRimDeviationMm { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? RimSection { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<MeshSectionAnchor>? Anchors { get; init; }
 }
 public sealed record MeshSculptState(string StateId, string? PredecessorStateId, string Name, string SourceBodyStateId,
     SubdivisionCage Cage, MeshConstruction Construction, double ConversionDeviationMm, string ConversionEvidence)
@@ -41,6 +43,10 @@ public sealed record MeshSculptState(string StateId, string? PredecessorStateId,
     public IReadOnlyList<CageEdge> Edges => SubdivisionSculptor.Edges(Cage);
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public SectionCageFit? SectionFit { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyDictionary<string, string[]>? VertexRegions { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<MeshSurfaceAnchor>? SurfaceAnchors => AnchorVertices is null ? null : SubdivisionBrush.DescribeAnchors(this);
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public MeshBrushEvidence? BrushEffect { get; init; }
+    internal IReadOnlyDictionary<string, string>? AnchorVertices { get; init; }
     internal SectionCageRim? SourceRim { get; init; }
 }
 
@@ -69,7 +75,11 @@ public static class SubdivisionSculptor
     }
 
     public static MeshSculptState Convert(BodyState source, string name, string kind, int segments = 4,
-        double maximumDeviationMm = 1, int? previewLevels = null, double? maximumRimDeviationMm = null, string? rimSection = null)
+        double maximumDeviationMm = 1, int? previewLevels = null, double? maximumRimDeviationMm = null, string? rimSection = null) =>
+        Convert(source, name, kind, segments, maximumDeviationMm, previewLevels, maximumRimDeviationMm, rimSection, null);
+
+    public static MeshSculptState Convert(BodyState source, string name, string kind, int segments, double maximumDeviationMm,
+        int? previewLevels, double? maximumRimDeviationMm, string? rimSection, IReadOnlyList<MeshSectionAnchor>? anchors)
     {
         if (source.ConstructionAuthority is null) throw Error("mesh-source-not-replayable", "Conversion requires a source construction recipe.");
         if (kind is not ("Box" or "Sphere" or "SectionChain"))
@@ -80,7 +90,9 @@ public static class SubdivisionSculptor
         if (levels is < 0 or > 4)
             throw Error("mesh-preview-levels-invalid", "Preview levels must be 0..4 within the face budget.");
         if (kind == "SectionChain")
-            return SectionChainSubdivision.Convert(source, name, segments, maximumDeviationMm, levels, maximumRimDeviationMm, rimSection);
+            return SectionChainSubdivision.Convert(source, name, segments, maximumDeviationMm, levels, maximumRimDeviationMm, rimSection, anchors);
+        if (anchors is { Count: > 0 })
+            throw Error("mesh-anchor-source-unsupported", "Surface anchors require a SectionChain cage.");
         if (maximumRimDeviationMm is not null || rimSection is not null)
             throw Error("mesh-rim-source-unsupported", "A rim deviation budget requires a SectionChain cage.");
         var body = source.Body;
@@ -160,7 +172,9 @@ public static class SubdivisionSculptor
     {
         if (input.Construction.Operations.Count >= 64) throw Error("mesh-operation-budget-exceeded", "At most 64 operations are admitted per mesh recipe.");
         var cage = input.Cage;
-        var preserved = operation.Preserve.Count == 0 ? new HashSet<string>() : Selection(cage, operation.Preserve);
+        var brush = operation as DisplaceCageBrush;
+        var preserved = brush is not null ? SubdivisionBrush.ProtectedVertices(input, brush)
+            : operation.Preserve.Count == 0 ? new HashSet<string>() : Selection(cage, operation.Preserve);
         switch (operation)
         {
             case SubdivideCage subdivide:
@@ -187,13 +201,16 @@ public static class SubdivisionSculptor
                 if (crease.Sharp) creases.UnionWith(selected); else creases.ExceptWith(selected);
                 cage = cage with { Creases = creases.Order(StringComparer.Ordinal).ToArray() };
                 break;
+            case DisplaceCageBrush displacement:
+                cage = SubdivisionBrush.Displace(input, displacement, preserved);
+                break;
             default: throw Error("mesh-operation-unsupported", "Unknown mesh operation.");
         }
         Evaluate(cage); // Validate the successor before publishing it.
         var current = cage.Vertices.ToDictionary(v => v.Id, v => v.Position, StringComparer.Ordinal);
         if (input.Cage.Vertices.Any(v => preserved.Contains(v.Id) && (!current.TryGetValue(v.Id, out var p) || p != v.Position)))
             throw Error("mesh-preservation-failed", "An explicitly preserved cage vertex moved or disappeared; no successor was published.");
-        if (operation is MoveCageVertices or ScaleCageVertices)
+        if (operation is MoveCageVertices or ScaleCageVertices or DisplaceCageBrush)
         {
             var old = input.Cage.Vertices.ToDictionary(v => v.Id, v => v.Position, StringComparer.Ordinal);
             foreach (var face in cage.Faces) for (var i = 1; i < 3; i++)
@@ -206,8 +223,13 @@ public static class SubdivisionSculptor
         var fit = input.SectionFit;
         if (input.SourceRim is { } rim && fit is not null)
             fit = fit with { Rim = rim.Qualify(cage) };
+        var effect = brush is null ? null : SubdivisionBrush.Measure(input, cage, brush);
         var recipe = input.Construction with { Operations = [.. input.Construction.Operations, operation] };
-        return input with { StateId = Hash(input.StateId + "|" + System.Text.Json.JsonSerializer.Serialize<MeshSculptOperation>(operation) + "|" + Fingerprint(cage)), PredecessorStateId = input.StateId, Name = name, Cage = cage, Construction = recipe, SectionFit = fit };
+        return input with
+        {
+            StateId = Hash(input.StateId + "|" + System.Text.Json.JsonSerializer.Serialize<MeshSculptOperation>(operation) + "|" + Fingerprint(cage)),
+            PredecessorStateId = input.StateId, Name = name, Cage = cage, Construction = recipe, SectionFit = fit, BrushEffect = effect
+        };
     }
 
     private static HashSet<string> Selection(SubdivisionCage cage, IReadOnlyList<string> requested)
@@ -335,16 +357,15 @@ public static class SubdivisionSculptor
         return mesh;
     }
 
-    public static MeshExportPreparation PrepareExport(MeshSculptState state)
+    public static MeshExportPreparation PrepareExport(MeshSculptState state) =>
+        PrepareExport(SamplePreview(state.Cage, state.Construction.PreviewLevels), state.Construction.MaximumDeviationMm);
+
+    internal static SubdivisionCage SamplePreview(SubdivisionCage cage, int levels)
     {
-        var cage = state.Cage;
-        if (state.Construction.PreviewLevels > 0)
-        {
-            for (var level = 0; level < state.Construction.PreviewLevels; level++)
-                cage = Refine(cage);
-            cage = cage with { Vertices = LimitVertices(cage) };
-        }
-        return PrepareExport(cage, state.Construction.MaximumDeviationMm);
+        if (levels == 0) return cage;
+        for (var i = 0; i < levels; i++)
+            cage = Refine(cage);
+        return cage with { Vertices = LimitVertices(cage) };
     }
 
     /// <summary>Shared compiler/export admission for the current 32-bit GLB/STL boundary.</summary>

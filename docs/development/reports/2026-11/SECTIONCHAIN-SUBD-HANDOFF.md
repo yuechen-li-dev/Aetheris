@@ -76,3 +76,34 @@ Crown follow-up artifacts are under `artifacts/local/subd-mouse/crown-g2/`.
 The Release build, 26 focused CLI tests and 1,259 fast kernel tests passed.
 The full parallel gate failed on ten Kernel Core display cases and one CLI
 assembly display case. All eleven passed in an isolated rerun of 25 cases.
+
+## Named displacement brush
+
+The mouse's default output now comes from
+`Feature NoseDip = LowerNose(anchor: Seed.Nose, drop: 0.6mm)`. The normal
+Feature expander specializes the brush recipe. The seed publishes `Nose`
+at the start of section `Shoulder` span `FrontRight`. The brush evaluates a
+smooth 18 mm footprint using edge distances between limit samples. The
+qualified rim and preserved regions block propagation. The mesh recipe
+replays the semantic anchor and brush operation.
+
+```powershell
+dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll inspect fixtures/Canonical/Sculpting/compact-mouse.firmament --json
+dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll build fixtures/Canonical/Sculpting/compact-mouse.firmament --state Seed --out artifacts/local/subd-mouse/brush/Seed.glb --json
+dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll mesh fixtures/Canonical/Sculpting/compact-mouse.firmament --format glb --output artifacts/local/subd-mouse/brush/LowFront.glb --json
+```
+
+- The nose anchor moved down 0.530778 mm. The maximum across 22,530 matched
+  limit samples was 0.531223 mm. The brush updated 56 cage controls.
+- The 128 exported rim samples moved 0 mm. The separate fit to the exact
+  rim stayed at 0.123499 mm across 256 samples against a 0.15 mm budget.
+- The two GLBs have identical topology and identical encoded positions at
+  and below the rim. The brush GLB is watertight.
+- The Release build, 30 focused CLI tests and 1,259 fast kernel tests passed.
+  The targeted checks cover named Feature expansion, anchor/region rejection,
+  dimensional arguments, sample movement and sidecar replay.
+- The full parallel lane reported seven display-related failures. All seven
+  passed in a 20-case isolated rerun.
+
+The footprint uses a cage-edge approximation to surface distance. The maximum
+displacement is reported at the export sampling density.

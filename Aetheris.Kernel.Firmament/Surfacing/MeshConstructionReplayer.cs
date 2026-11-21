@@ -12,6 +12,7 @@ public static class MeshConstructionReplayer
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int PreviewLevels { get; init; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? MaximumRimDeviationMm { get; init; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? RimSection { get; init; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<MeshSectionAnchor>? Anchors { get; init; }
     }
     private static readonly JsonSerializerOptions Options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
     public static string Serialize(MeshConstruction construction)
@@ -19,7 +20,7 @@ public static class MeshConstructionReplayer
         var source = ConstructionStateSerializer.Serialize(construction.Source);
         if (!source.IsSuccess) throw new InvalidOperationException(string.Join(";", source.Diagnostics.Select(d => d.Message)));
         return JsonSerializer.Serialize(new SavedMesh(construction.Schema, source.Json!, construction.Cage, construction.Segments, construction.MaximumDeviationMm, construction.Operations)
-        { PreviewLevels = construction.PreviewLevels, MaximumRimDeviationMm = construction.MaximumRimDeviationMm, RimSection = construction.RimSection }, Options);
+        { PreviewLevels = construction.PreviewLevels, MaximumRimDeviationMm = construction.MaximumRimDeviationMm, RimSection = construction.RimSection, Anchors = construction.Anchors }, Options);
     }
     public static MeshSculptState Replay(string json, string name = "Replayed")
     {
@@ -30,7 +31,7 @@ public static class MeshConstructionReplayer
         if (!source.IsSuccess) throw new InvalidOperationException(string.Join(";", source.Diagnostics.Select(d => d.Message)));
         var replay = ConstructionStateReplayer.Replay(source.ConstructionState!);
         if (!replay.IsSuccess || replay.OutputState is null) throw new InvalidOperationException(string.Join(";", replay.Diagnostics.Select(d => d.Message)));
-        var state = SubdivisionSculptor.Convert(replay.OutputState, name, saved.Cage, saved.Segments, saved.MaximumDeviationMm, saved.PreviewLevels, saved.MaximumRimDeviationMm, saved.RimSection);
+        var state = SubdivisionSculptor.Convert(replay.OutputState, name, saved.Cage, saved.Segments, saved.MaximumDeviationMm, saved.PreviewLevels, saved.MaximumRimDeviationMm, saved.RimSection, saved.Anchors);
         foreach (var operation in saved.Operations) state = SubdivisionSculptor.Apply(state, name, operation);
         SubdivisionSculptor.PrepareExport(state);
         return state;

@@ -114,7 +114,7 @@ public static class Step242Exporter
 
         var vertexPointIds = new Dictionary<VertexId, string>();
         var cartesianPointIds = new Dictionary<VertexId, string>();
-        var vertexPoints = new Dictionary<VertexId, Point3D>();
+        var vertexPoints = new VertexPointCache();
 
         var edgeCurveIds = new Dictionary<EdgeId, string>();
         var orientedEdgeIds = new Dictionary<CoedgeId, string>();
@@ -1503,10 +1503,11 @@ public static class Step242Exporter
             return KernelResult<Point3D>.Success(resolved);
         }
 
-        var preferEdgeEndpoint = VertexTouchesNonPlanarFace(body, model, vertexId);
+        var incidence = vertexPoints is VertexPointCache cache ? cache.Incidence(model) : new VertexIncidence(model);
+        var preferEdgeEndpoint = VertexTouchesNonPlanarFace(body, incidence, vertexId);
         if (!preferEdgeEndpoint)
         {
-            var fromPlanes = ResolveVertexFromIncidentPlanes(body, model, vertexId);
+            var fromPlanes = ResolveVertexFromIncidentPlanes(body, incidence, vertexId);
             if (fromPlanes.IsSuccess)
             {
                 vertexPoints[vertexId] = fromPlanes.Value;
@@ -1514,18 +1515,9 @@ public static class Step242Exporter
             }
         }
 
-        foreach (var edge in model.Edges.OrderBy(e => e.Id.Value))
+        foreach (var edge in incidence.EdgesAt(vertexId))
         {
-            var useStart = false;
-            if (edge.StartVertexId == vertexId)
-            {
-                useStart = true;
-            }
-            else if (edge.EndVertexId != vertexId)
-            {
-                continue;
-            }
-
+            var useStart = edge.StartVertexId == vertexId;
             var pointResult = EvaluateEdgeEndpoint(body, edge.Id, useStart);
             if (!pointResult.IsSuccess)
             {
@@ -1539,32 +1531,11 @@ public static class Step242Exporter
         return FailurePoint($"Vertex {vertexId.Value} cannot be resolved to a geometric point for STEP export.", $"Vertex:{vertexId.Value}");
     }
 
-    private static bool VertexTouchesNonPlanarFace(BrepBody body, TopologyModel model, VertexId vertexId)
+    private static bool VertexTouchesNonPlanarFace(BrepBody body, VertexIncidence incidence, VertexId vertexId)
     {
-        foreach (var face in model.Faces.OrderBy(f => f.Id.Value))
+        foreach (var face in incidence.FacesAt(vertexId))
         {
-            var touchesVertex = false;
-            foreach (var loopId in face.LoopIds)
-            {
-                var loop = model.GetLoop(loopId);
-                foreach (var coedgeId in loop.CoedgeIds)
-                {
-                    var coedge = model.GetCoedge(coedgeId);
-                    var edge = model.GetEdge(coedge.EdgeId);
-                    if (edge.StartVertexId == vertexId || edge.EndVertexId == vertexId)
-                    {
-                        touchesVertex = true;
-                        break;
-                    }
-                }
-
-                if (touchesVertex)
-                {
-                    break;
-                }
-            }
-
-            if (!touchesVertex || !body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding))
+            if (!body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding))
             {
                 continue;
             }
@@ -1583,33 +1554,12 @@ public static class Step242Exporter
         return false;
     }
 
-    private static KernelResult<Point3D> ResolveVertexFromIncidentPlanes(BrepBody body, TopologyModel model, VertexId vertexId)
+    private static KernelResult<Point3D> ResolveVertexFromIncidentPlanes(BrepBody body, VertexIncidence incidence, VertexId vertexId)
     {
         var planes = new List<PlaneSurface>();
-        foreach (var face in model.Faces.OrderBy(f => f.Id.Value))
+        foreach (var face in incidence.FacesAt(vertexId))
         {
-            var touchesVertex = false;
-            foreach (var loopId in face.LoopIds)
-            {
-                var loop = model.GetLoop(loopId);
-                foreach (var coedgeId in loop.CoedgeIds)
-                {
-                    var coedge = model.GetCoedge(coedgeId);
-                    var edge = model.GetEdge(coedge.EdgeId);
-                    if (edge.StartVertexId == vertexId || edge.EndVertexId == vertexId)
-                    {
-                        touchesVertex = true;
-                        break;
-                    }
-                }
-
-                if (touchesVertex)
-                {
-                    break;
-                }
-            }
-
-            if (!touchesVertex || !body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding))
+            if (!body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding))
             {
                 continue;
             }
@@ -1637,6 +1587,63 @@ public static class Step242Exporter
         }
 
         return FailurePoint($"Vertex {vertexId.Value} cannot be resolved from incident face planes.", $"Vertex:{vertexId.Value}");
+    }
+
+    /// <summary>One export's resolved vertex points, with the vertex-to-face and vertex-to-edge incidence
+    /// built once for the export instead of a scan of every face and edge per vertex.</summary>
+    private sealed class VertexPointCache : Dictionary<VertexId, Point3D>
+    {
+        private VertexIncidence? incidence;
+
+        public VertexIncidence Incidence(TopologyModel model)
+            => incidence is not null && ReferenceEquals(incidence.Model, model) ? incidence : incidence = new VertexIncidence(model);
+    }
+
+    /// <summary>The faces whose loops use an edge at a vertex, and the edges ending there, each in id order: the
+    /// same faces and edges, in the same order, as a scan of the whole model finds.</summary>
+    private sealed class VertexIncidence
+    {
+        private static readonly IReadOnlyList<Face> NoFaces = [];
+        private static readonly IReadOnlyList<Edge> NoEdges = [];
+        private readonly Dictionary<VertexId, List<Face>> faces = [];
+        private readonly Dictionary<VertexId, List<Edge>> edges = [];
+
+        public VertexIncidence(TopologyModel model)
+        {
+            Model = model;
+            var touched = new HashSet<VertexId>();
+            foreach (var face in model.Faces.OrderBy(f => f.Id.Value))
+            {
+                touched.Clear();
+                foreach (var loopId in face.LoopIds)
+                {
+                    foreach (var coedgeId in model.GetLoop(loopId).CoedgeIds)
+                    {
+                        var edge = model.GetEdge(model.GetCoedge(coedgeId).EdgeId);
+                        touched.Add(edge.StartVertexId);
+                        touched.Add(edge.EndVertexId);
+                    }
+                }
+                foreach (var vertex in touched) Add(faces, vertex, face);
+            }
+            foreach (var edge in model.Edges.OrderBy(e => e.Id.Value))
+            {
+                Add(edges, edge.StartVertexId, edge);
+                if (edge.EndVertexId != edge.StartVertexId) Add(edges, edge.EndVertexId, edge);
+            }
+        }
+
+        public TopologyModel Model { get; }
+
+        public IReadOnlyList<Face> FacesAt(VertexId vertex) => faces.TryGetValue(vertex, out var found) ? found : NoFaces;
+
+        public IReadOnlyList<Edge> EdgesAt(VertexId vertex) => edges.TryGetValue(vertex, out var found) ? found : NoEdges;
+
+        private static void Add<T>(Dictionary<VertexId, List<T>> map, VertexId vertex, T item)
+        {
+            if (!map.TryGetValue(vertex, out var list)) map[vertex] = list = [];
+            list.Add(item);
+        }
     }
 
     private static bool TryIntersectPlanes(PlaneSurface a, PlaneSurface b, PlaneSurface c, out Point3D point)

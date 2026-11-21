@@ -3239,13 +3239,44 @@ public static class Step242Importer
         IReadOnlyList<UvPoint> outer,
         double containmentTolerance)
     {
-        if (CountPolygonIntersections(inner, outer, containmentTolerance) > 0)
+        // No crossing and every vertex inside. Both tests are pure, so the cheap one runs first
+        // and each stops at its first counterexample: most pairs of a face's loops are siblings,
+        // refuted by their first vertex instead of a full crossing count (same answer).
+        for (var i = 0; i < inner.Count - 1; i++)
         {
-            return false;
+            if (!IsPointInPolygon(inner[i], outer, containmentTolerance))
+            {
+                return false;
+            }
         }
 
-        var containment = EvaluateContainment(inner, outer, containmentTolerance);
-        return containment.OutsideCount == 0;
+        return !AnyPolygonIntersection(inner, outer, containmentTolerance);
+    }
+
+    private static bool AnyPolygonIntersection(IReadOnlyList<UvPoint> a, IReadOnlyList<UvPoint> b, double tolerance)
+    {
+        for (var i = 0; i < a.Count - 1; i++)
+        {
+            if (SegmentLengthSquared(a[i], a[i + 1]) <= (tolerance * tolerance))
+            {
+                continue;
+            }
+
+            for (var j = 0; j < b.Count - 1; j++)
+            {
+                if (SegmentLengthSquared(b[j], b[j + 1]) <= (tolerance * tolerance))
+                {
+                    continue;
+                }
+
+                if (SegmentsIntersect(a[i], a[i + 1], b[j], b[j + 1], tolerance))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static double DistancePointToPolygon(UvPoint point, IReadOnlyList<UvPoint> polygon)

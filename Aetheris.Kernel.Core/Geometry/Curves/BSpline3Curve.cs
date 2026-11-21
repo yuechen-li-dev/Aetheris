@@ -99,18 +99,20 @@ public readonly record struct BSpline3Curve
         if (KnotMultiplicities[^1] >= Degree + 1 && double.Abs(u - DomainEnd) <= 1e-12d)
             return ControlPoints[^1];
         var span = FindSpan(u);
-        var d = new Point3D[p + 1];
-        for (var j = 0; j <= p; j++)
-        {
-            d[j] = ControlPoints[span - p + j];
-        }
+        // Flat views of the same data and stack scratch: no interface dispatch or allocation per
+        // evaluation. The arithmetic and its order are unchanged, so results are bit-identical.
+        var controls = ControlPoints as Point3D[] ?? ControlPoints.ToArray();
+        ReadOnlySpan<double> knots = FullKnots is List<double> list
+            ? System.Runtime.InteropServices.CollectionsMarshal.AsSpan(list) : FullKnots.ToArray();
+        Span<Point3D> d = p < 32 ? stackalloc Point3D[p + 1] : new Point3D[p + 1];
+        controls.AsSpan(span - p, p + 1).CopyTo(d);
 
         for (var r = 1; r <= p; r++)
         {
             for (var j = p; j >= r; j--)
             {
-                var leftKnot = FullKnots[span - p + j];
-                var rightKnot = FullKnots[span + 1 + j - r];
+                var leftKnot = knots[span - p + j];
+                var rightKnot = knots[span + 1 + j - r];
                 var denominator = rightKnot - leftKnot;
                 var alpha = double.Abs(denominator) <= 1e-15d ? 0d : (u - leftKnot) / denominator;
                 d[j] = Lerp(d[j - 1], d[j], alpha);
@@ -259,8 +261,10 @@ public readonly record struct BSpline3Curve
 
     private int FindSpan(double u)
     {
+        ReadOnlySpan<double> knots = FullKnots is List<double> list
+            ? System.Runtime.InteropServices.CollectionsMarshal.AsSpan(list) : FullKnots.ToArray();
         var n = ControlPoints.Count - 1;
-        if (u >= FullKnots[n + 1])
+        if (u >= knots[n + 1])
         {
             return n;
         }
@@ -268,9 +272,9 @@ public readonly record struct BSpline3Curve
         var low = Degree;
         var high = n + 1;
         var mid = (low + high) / 2;
-        while (u < FullKnots[mid] || u >= FullKnots[mid + 1])
+        while (u < knots[mid] || u >= knots[mid + 1])
         {
-            if (u < FullKnots[mid])
+            if (u < knots[mid])
             {
                 high = mid;
             }

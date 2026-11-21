@@ -267,17 +267,21 @@ public static class BrepPcurveRecovery
         // the deterministic seed after the first sample. Avoiding a fresh global grid
         // search at every dense qualification point keeps high-accuracy pcurves bounded.
         var best = prior ?? GridSeed(spline, target);
+        var startU = spline.DomainStartU; var endU = spline.DomainEndU;
+        var startV = spline.DomainStartV; var endV = spline.DomainEndV;
+        var hu = double.Max((endU - startU) * 1e-4d, 1e-7d);
+        var hv = double.Max((endV - startV) * 1e-4d, 1e-7d);
+        var point = spline.Evaluate(best.U, best.V);
+        var residual = point - target;
+        var distanceSquared = residual.LengthSquared;
+        var stationary = false;
         for (var iteration = 0; iteration < 32; iteration++)
         {
-            var point = spline.Evaluate(best.U, best.V);
-            var residual = point - target;
-            if (residual.Length <= 1e-8d) return (true, best, residual.Length);
-            var hu = double.Max((spline.DomainEndU - spline.DomainStartU) * 1e-4d, 1e-7d);
-            var hv = double.Max((spline.DomainEndV - spline.DomainStartV) * 1e-4d, 1e-7d);
-            var uLow = double.Max(best.U - hu, spline.DomainStartU);
-            var uHigh = double.Min(best.U + hu, spline.DomainEndU);
-            var vLow = double.Max(best.V - hv, spline.DomainStartV);
-            var vHigh = double.Min(best.V + hv, spline.DomainEndV);
+            if (double.Sqrt(distanceSquared) <= 1e-8d) return (true, best, double.Sqrt(distanceSquared));
+            var uLow = double.Max(best.U - hu, startU);
+            var uHigh = double.Min(best.U + hu, endU);
+            var vLow = double.Max(best.V - hv, startV);
+            var vHigh = double.Min(best.V + hv, endV);
             // These are parameter spans, not model-space distances. Avoid the
             // Vector3D division operator's world-space near-zero threshold.
             if (uHigh - uLow <= 1e-15d || vHigh - vLow <= 1e-15d) break;
@@ -289,38 +293,59 @@ public static class BrepPcurveRecovery
             if (double.Abs(determinant) <= 1e-18d) break;
             var deltaU = ((c * r1) - (b * r2)) / determinant;
             var deltaV = ((a * r2) - (b * r1)) / determinant;
+            // Trimming curves very often run along the domain boundary, where the closest point
+            // is a constrained minimum. A parameter held at its bound by the descent direction
+            // (r1 or r2 is the half-gradient) is fixed there, and the step is solved in the other.
+            var holdU = (best.U <= startU && r1 > 0d) || (best.U >= endU && r1 < 0d);
+            var holdV = (best.V <= startV && r2 > 0d) || (best.V >= endV && r2 < 0d);
+            if (holdU && holdV) { stationary = true; break; }
+            if (holdU) { deltaU = 0d; deltaV = r2 / c; }
+            else if (holdV) { deltaV = 0d; deltaU = r1 / a; }
+            // A target off the surface (a tolerant gap, or any trace between samples) has no
+            // zero-distance foot point; the Gauss-Newton step shrinks to nothing at the closest
+            // point instead. A full step that moves the surface point by under 1e-12 mm, or one
+            // under 1e-9 mm that no longer descends (the finite-difference tangents' floor), is
+            // the foot point: the distance it leaves is second order in that step.
+            var stepLength = ((du * deltaU) + (dv * deltaV)).Length;
+            if (stepLength <= 1e-12d) { stationary = true; break; }
             var accepted = false;
             for (var damping = 1d; damping >= 1d / 64d; damping *= .5d)
             {
                 var candidate = new SurfaceParameterPoint(
-                    System.Math.Clamp(best.U - (deltaU * damping), spline.DomainStartU, spline.DomainEndU),
-                    System.Math.Clamp(best.V - (deltaV * damping), spline.DomainStartV, spline.DomainEndV));
-                if ((spline.Evaluate(candidate.U, candidate.V) - target).LengthSquared >= residual.LengthSquared) continue;
-                best = candidate; accepted = true; break;
+                    System.Math.Clamp(best.U - (deltaU * damping), startU, endU),
+                    System.Math.Clamp(best.V - (deltaV * damping), startV, endV));
+                var candidateResidual = spline.Evaluate(candidate.U, candidate.V) - target;
+                var candidateDistance = candidateResidual.LengthSquared;
+                if (candidateDistance >= distanceSquared) continue;
+                best = candidate; residual = candidateResidual; distanceSquared = candidateDistance; accepted = true; break;
             }
-            if (!accepted) break;
+            if (!accepted) { stationary = stepLength <= 1e-9d; break; }
         }
-        // Deterministic bounded pattern refinement handles domain-boundary minima where
-        // the two-column normal equation can become poorly conditioned.
-        var stepU = (spline.DomainEndU - spline.DomainStartU) / 32d;
-        var stepV = (spline.DomainEndV - spline.DomainStartV) / 32d;
-        var bestDistance = (spline.Evaluate(best.U, best.V) - target).LengthSquared;
-        for (var iteration = 0; iteration < 64 && (stepU > 1e-13d || stepV > 1e-13d); iteration++)
+        // Anything not shown stationary (a degenerate normal equation, descent that stalls far
+        // from a foot point, the iteration bound) gets the deterministic bounded pattern search,
+        // and so does a stationary point that misses the tolerance: a seed carried from the
+        // previous sample can settle in a local minimum the coarse pattern steps escape.
+        if (!stationary || distanceSquared > tolerance * tolerance)
         {
-            var improved = false;
-            foreach (var offsetU in new[] { -stepU, 0d, stepU }) foreach (var offsetV in new[] { -stepV, 0d, stepV })
+            var stepU = (endU - startU) / 32d;
+            var stepV = (endV - startV) / 32d;
+            for (var iteration = 0; iteration < 64 && (stepU > 1e-13d || stepV > 1e-13d); iteration++)
             {
-                if (offsetU == 0d && offsetV == 0d) continue;
-                var candidate = new SurfaceParameterPoint(
-                    System.Math.Clamp(best.U + offsetU, spline.DomainStartU, spline.DomainEndU),
-                    System.Math.Clamp(best.V + offsetV, spline.DomainStartV, spline.DomainEndV));
-                var distance = (spline.Evaluate(candidate.U, candidate.V) - target).LengthSquared;
-                if (distance >= bestDistance) continue;
-                best = candidate; bestDistance = distance; improved = true;
+                var improved = false;
+                for (var offsetU = -1; offsetU <= 1; offsetU++) for (var offsetV = -1; offsetV <= 1; offsetV++)
+                {
+                    if (offsetU == 0 && offsetV == 0) continue;
+                    var candidate = new SurfaceParameterPoint(
+                        System.Math.Clamp(best.U + (offsetU * stepU), startU, endU),
+                        System.Math.Clamp(best.V + (offsetV * stepV), startV, endV));
+                    var distance = (spline.Evaluate(candidate.U, candidate.V) - target).LengthSquared;
+                    if (distance >= distanceSquared) continue;
+                    best = candidate; distanceSquared = distance; improved = true;
+                }
+                if (!improved) { stepU *= .5d; stepV *= .5d; }
             }
-            if (!improved) { stepU *= .5d; stepV *= .5d; }
         }
-        var finalResidual = (spline.Evaluate(best.U, best.V) - target).Length;
+        var finalResidual = double.Sqrt(distanceSquared);
         return (finalResidual <= tolerance, best, finalResidual);
     }
 

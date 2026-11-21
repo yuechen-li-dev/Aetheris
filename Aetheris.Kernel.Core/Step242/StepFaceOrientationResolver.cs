@@ -157,16 +157,19 @@ internal static class StepFaceOrientationResolver
         }
 
         var localCandidate = CloneWithOrientations(unresolvedBody, localOrientation, faceOrientationReport: null);
-        var tessellation = BrepDisplayTessellator.Tessellate(localCandidate);
-        var signedVolumeByComponent = new Dictionary<int, double>();
-        if (tessellation.IsSuccess)
+        // Only the sign of each closed component's volume is used. A coarse mesh decides it when the
+        // volume dwarfs what its chord error can move (the chord times the area, four times over);
+        // anything closer is measured on the display mesh, as before.
+        var decidingComponents = components
+            .Where(component => !component.HasPropagationConflict && shellStates.Single(state => state.ShellId == component.ShellId).IsClosed)
+            .Select(component => component.Id)
+            .ToHashSet();
+        var (tessellationSucceeded, signedVolumeByComponent) = MeasureComponents(localCandidate, componentByFace, SignOptions, out var area);
+        if (!tessellationSucceeded || decidingComponents.Any(component =>
+                !signedVolumeByComponent.TryGetValue(component, out var volume)
+                || System.Math.Abs(volume) <= 4d * SignOptions.ChordTolerance * area.GetValueOrDefault(component)))
         {
-            foreach (var patch in tessellation.Value.FacePatches)
-            {
-                if (!componentByFace.TryGetValue(patch.FaceId, out var component)) continue;
-                var signed = SignedVolume(patch);
-                signedVolumeByComponent[component] = signedVolumeByComponent.GetValueOrDefault(component) + signed;
-            }
+            (tessellationSucceeded, signedVolumeByComponent) = MeasureComponents(localCandidate, componentByFace, null, out _);
         }
 
         var globalFlipByComponent = new Dictionary<int, bool>();
@@ -178,7 +181,7 @@ internal static class StepFaceOrientationResolver
                 globalFlipByComponent[component.Id] = false;
                 continue;
             }
-            if (!tessellation.IsSuccess || !signedVolumeByComponent.TryGetValue(component.Id, out var signed) || System.Math.Abs(signed) <= VolumeTolerance)
+            if (!tessellationSucceeded || !signedVolumeByComponent.TryGetValue(component.Id, out var signed) || System.Math.Abs(signed) <= VolumeTolerance)
             {
                 diagnostics.Add(new KernelDiagnostic(
                     KernelDiagnosticCode.ValidationFailed,
@@ -255,8 +258,8 @@ internal static class StepFaceOrientationResolver
                 qualification,
                 shell.IsClosed,
                 shell.IsInnerVoid,
-                tessellation.IsSuccess ? volume : null,
-                tessellation.IsSuccess
+                tessellationSucceeded ? volume : null,
+                tessellationSucceeded
                     ? shellComponents.Sum(component => globalFlipByComponent.GetValueOrDefault(component.Id)
                         ? -signedVolumeByComponent.GetValueOrDefault(component.Id)
                         : signedVolumeByComponent.GetValueOrDefault(component.Id))
@@ -306,9 +309,36 @@ internal static class StepFaceOrientationResolver
         return new BrepBody(body.Topology, body.Geometry, bindings, points, body.SafeBooleanComposition, body.ShellRepresentation, faceOrientationReport);
     }
 
-    private static double SignedVolume(DisplayFaceMeshPatch patch)
+    /// <summary>A mesh for the volume sign only: coarse in angle and chord, unbounded enough in segments to
+    /// honour its chord.</summary>
+    private static readonly DisplayTessellationOptions SignOptions = new(
+        AngularToleranceRadians: double.Pi / 4d,
+        ChordTolerance: 0.5d,
+        MinimumSegments: 4,
+        MaximumSegments: 256);
+
+    private static (bool Succeeded, Dictionary<int, double> Volumes) MeasureComponents(
+        BrepBody candidate, IReadOnlyDictionary<FaceId, int> componentByFace, DisplayTessellationOptions? options,
+        out Dictionary<int, double> area)
+    {
+        var volumes = new Dictionary<int, double>();
+        area = new Dictionary<int, double>();
+        var tessellation = BrepDisplayTessellator.Tessellate(candidate, options);
+        if (!tessellation.IsSuccess) return (false, volumes);
+        foreach (var patch in tessellation.Value.FacePatches)
+        {
+            if (!componentByFace.TryGetValue(patch.FaceId, out var component)) continue;
+            var (signed, patchArea) = SignedVolumeAndArea(patch);
+            volumes[component] = volumes.GetValueOrDefault(component) + signed;
+            area[component] = area.GetValueOrDefault(component) + patchArea;
+        }
+        return (true, volumes);
+    }
+
+    private static (double SignedVolume, double Area) SignedVolumeAndArea(DisplayFaceMeshPatch patch)
     {
         var result = 0d;
+        var area = 0d;
         for (var i = 0; i < patch.TriangleIndices.Count; i += 3)
         {
             var a = patch.Positions[patch.TriangleIndices[i]];
@@ -317,8 +347,9 @@ internal static class StepFaceOrientationResolver
             result += (a.X * ((b.Y * c.Z) - (b.Z * c.Y))
                 + a.Y * ((b.Z * c.X) - (b.X * c.Z))
                 + a.Z * ((b.X * c.Y) - (b.Y * c.X))) / 6d;
+            area += (b - a).Cross(c - a).Length / 2d;
         }
-        return result;
+        return (result, area);
     }
 
     private sealed record EdgeUse(FaceId FaceId, LoopId LoopId, EdgeId EdgeId, bool IsReversed);

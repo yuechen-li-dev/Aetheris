@@ -1245,6 +1245,9 @@ public static partial class FirmamentV2Parser
         string Fields(IEnumerable<FieldSyntax> items) => string.Join("; ", items.Select(f => $"{f.Name.Text}: {source.Substring(f.Value.Span.Start, f.Value.Span.Length)}"));
         var all = extrude.Body?.Statements.OfType<FieldSyntax>().ToArray() ?? [];
         var fields = Fields(all.Where(f => !hollow || !WallField(f)));
+        // An Extrude's draft is neutral at the Profile's own plane; a Base's at its From.
+        if (all.Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Draft")) && !all.Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Neutral")))
+            fields += "; neutral: 0mm";
         var name = extrude.Name?.Text ?? "Body";
         var text = hollow
             ? $"Compose<Hollow> {name} {{ {Fields(all.Where(WallField))}; Base {name} {{ {fields} }} }}"
@@ -1287,9 +1290,11 @@ public static partial class FirmamentV2Parser
                 .Any(d => d.Type.Name.Text != "EdgeFinish") || declarations.Any(IsHollowExtrude)))
         {
             var extrude = declarations.Single(d => d.Type.Name.Text == "Extrude");
-            if (extrude.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Draft")) == true)
+            // A drafted hollow Extrude is a drafted hollow Compose; Modify features are not drafted yet.
+            if (extrude.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Draft")) == true
+                && declarations.Where(d => d.Type.Name.Text == "Modify").SelectMany(d => d.Body?.Statements.OfType<DeclarationSyntax>() ?? []).Any())
             {
-                diagnostics.Add("profile-extrusion-draft-unsupported: a drafted Extrude cannot carry Modify features or <Hollow> yet; remove draft or the feature.");
+                diagnostics.Add("profile-extrusion-draft-unsupported: a drafted Extrude cannot carry Modify features yet; remove draft or the feature.");
                 return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
             }
             adapterSource = ExtrudeAsCompose(adapterSource, extrude, model.Span.Start - bodySpan.Start, source);
@@ -1311,6 +1316,12 @@ public static partial class FirmamentV2Parser
             if (compositionSelectionDiagnostics.Count > 0)
             {
                 diagnostics.AddRange(compositionSelectionDiagnostics);
+                return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
+            }
+            // Edge finishes assume vertical walls; a drafted wall is not finished as if it were one.
+            if (DraftedSectionStack.IsDrafted(feature) && Regex.IsMatch(body, @"\bEdgeFinish\b"))
+            {
+                diagnostics.Add("compose-draft-unsupported:EdgeFinish: a drafted Compose cannot carry edge finishes yet; remove draft or the finish.");
                 return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
             }
             var compositionSolids = new Dictionary<string, FirmamentV2SolidBinding>(StringComparer.Ordinal)

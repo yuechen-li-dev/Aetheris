@@ -15,7 +15,29 @@ public enum PrismaticProfileIntent { Base, Add, Remove }
 public sealed record PrismaticProfileOperation(
     string Name, PrismaticProfileIntent Intent, string ProfileReference, double From, double To,
     string SemanticRole, string SourceSpan, string? SemanticFeatureId = null, string? SemanticFeatureKind = null,
-    double? Diameter = null);
+    double? Diameter = null)
+{
+    /// <summary>Side draft of the operation's walls. Material operations narrow upward from <see cref="From"/>;
+    /// removals open toward <see cref="To"/> and narrow downward, so every wall releases along +Z.</summary>
+    public double DraftRadians { get; init; }
+
+    /// <summary>Height where the drafted section is the Profile itself; by default the bottom of a material
+    /// operation and the mouth of a removal.</summary>
+    public double? DraftNeutral { get; init; }
+
+    /// <summary>Whether the region narrows upward from the neutral height (material) rather than downward (a
+    /// removal opening toward +Z). A hollow's cavity follows its exterior and so narrows upward.</summary>
+    public bool? DraftNarrowsUpward { get; init; }
+
+    /// <summary>How far the operation's own profile region is eroded at height <paramref name="z"/>.</summary>
+    public double DraftErosionAt(double z)
+    {
+        if (DraftRadians == 0d) return 0d;
+        var upward = DraftNarrowsUpward ?? Intent != PrismaticProfileIntent.Remove;
+        var neutral = DraftNeutral ?? (upward ? From : To);
+        return (upward ? z - neutral : neutral - z) * Math.Tan(DraftRadians);
+    }
+}
 /// <summary>First-class connected material addition lowered through the section-stack Add operation.</summary>
 public sealed record PrismaticBossFeature(
     string Name, string StableId, string Host, string SupportFace, string ProfileReference,
@@ -183,6 +205,11 @@ public sealed record PrismaticSectionSlab(
     IReadOnlyList<PrismaticSectionRegion>? RegionSet = null)
 {
     public IReadOnlyList<PrismaticSectionRegion> MaterialRegions => RegionSet ?? [Region];
+
+    /// <summary>For a drafted slab, the section at <see cref="To"/>, region for region and curve for curve with
+    /// <see cref="MaterialRegions"/> (the section at <see cref="From"/>); null when the walls are vertical.</summary>
+    public IReadOnlyList<PrismaticSectionRegion>? UpperRegionSet { get; init; }
+    public IReadOnlyList<PrismaticSectionRegion> UpperRegions => UpperRegionSet ?? MaterialRegions;
 }
 public sealed record PrismaticSectionTransition(
     double Level, IReadOnlyList<PrismaticSectionRegion> UpwardRegions, IReadOnlyList<PrismaticSectionRegion> DownwardRegions);
@@ -358,10 +385,14 @@ public static class PrismaticProfileCompositionParser
                 diagnostics.Add("firmament-v2-hollow-opening-unsupported: Compose<Hollow> openings are Top and/or Bottom; cut other openings with Modify features.");
             if (openings.Length == 0)
                 diagnostics.Add("firmament-v2-hollow-closed-vessel-unsupported: A closed hollow needs an inner void shell, which the section stack does not build yet; open Top or Bottom.");
-            foreach (var extra in hollowFields.Where(f => f != wallField && f != openingsField))
+            foreach (var extra in hollowFields.Where(f => f != wallField && f != openingsField && !FirmamentSyntaxFields.SameField(f.Name.Text, "Draft")))
                 diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:Compose:{extra.Name.Text}");
             hollow = new(wall, openings.Contains("Top"), openings.Contains("Bottom"), $"offset:{compose.Span.Start}");
         }
+        // draft: on the Compose drafts every Profile operation's walls; an operation's own draft: overrides it.
+        double? composeDraft = null;
+        var composeDraftField = compose.Body.Statements.OfType<FieldSyntax>().FirstOrDefault(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Draft"));
+        if (composeDraftField is not null) composeDraft = ReadDraft(composeDraftField.Value, compose.Name.Text, diagnostics);
         var composeBody = source.Substring(compose.Body.Span.Start + 1, compose.Body.Span.Length - 2);
         composeBody = BindExternalModifyFeatures(source, compose.Name.Text, composeBody, diagnostics);
         var beforeAdmission = diagnostics.Count;
@@ -374,6 +405,7 @@ public static class PrismaticProfileCompositionParser
         {
             if (hollow is not null && statement is FieldSyntax hollowField
                 && (FirmamentSyntaxFields.SameField(hollowField.Name.Text, "WallThickness") || FirmamentSyntaxFields.SameField(hollowField.Name.Text, "Openings"))) continue;
+            if (statement is FieldSyntax draftField && FirmamentSyntaxFields.SameField(draftField.Name.Text, "Draft")) continue;
             if (statement is DeclarationSyntax declared && declared.Type.Name.Text is
                 "Base" or "Add" or "Remove" or "Boss" or "Pocket" or "AddOffset" or "RemoveOffset" or "Hole" or "Slot" or "EdgeFinish" or "Placement" or "Point2" or "Line2" or "Circle2" or "Path" or "Profile" or "Rect2" or "Axis2" or "Plane") continue;
             diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:Compose:{(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}");
@@ -407,11 +439,21 @@ public static class PrismaticProfileCompositionParser
             var profile = fields.Word("Profile") ?? "";
             var from = fields.Number("From", "mm"); var to = fields.Number("To", "mm");
             var role = fields.Word("Role") ?? declaration.Type.Name.Text;
+            var draftExpression = fields.Take("Draft");
+            var neutralExpression = fields.Take("Neutral");
             fields.Complete();
+            var operationDraft = draftExpression is null ? composeDraft : ReadDraft(draftExpression, name, diagnostics);
+            double? neutral = null;
+            if (neutralExpression is not null)
+            {
+                if (operationDraft is null or 0d) diagnostics.Add($"profile-extrusion-neutral-without-draft:{name}: neutral places a draft's neutral plane; add draft or remove neutral.");
+                else if (FirmamentSyntaxValues.TryMeasure(neutralExpression, "mm", out var measuredNeutral) && double.IsFinite(measuredNeutral)) neutral = measuredNeutral;
+                else diagnostics.Add($"compose-draft-invalid:{name}: neutral must be a length, such as 0mm.");
+            }
             if (!names.Add(name)) diagnostics.Add($"compose-duplicate-operation:{name}");
             if (!profiles.ContainsKey(profile)) diagnostics.Add($"ConceptPathProfileNotAdmittedByCompose:{name}:{profile}");
             if (!double.IsFinite(from) || !double.IsFinite(to) || from >= to) diagnostics.Add($"compose-invalid-interval:{name}:{from:R}:{to:R}");
-            operations.Add(new(name, Enum.Parse<PrismaticProfileIntent>(declaration.Type.Name.Text), profile, from, to, role, $"offset:{declaration.Span.Start}"));
+            operations.Add(new(name, Enum.Parse<PrismaticProfileIntent>(declaration.Type.Name.Text), profile, from, to, role, $"offset:{declaration.Span.Start}") { DraftRadians = operationDraft ?? 0d, DraftNeutral = neutral });
         }
         var baseOperations = operations.Where(o => o.Intent == PrismaticProfileIntent.Base).ToArray();
         if (baseOperations.Length != 1)
@@ -441,7 +483,9 @@ public static class PrismaticProfileCompositionParser
                 var name = declaration.Name?.Text ?? "";
                 var fields = new FirmamentSyntaxFields(declaration, diagnostics);
                 var profileName = fields.Word("Profile"); var face = fields.Word("On"); var height = fields.Number("Height", "mm");
+                var bossDraftExpression = fields.Take("Draft");
                 fields.Complete();
+                var bossDraft = bossDraftExpression is null ? composeDraft : ReadDraft(bossDraftExpression, name, diagnostics);
                 if (profileName is null || face is null || !double.IsFinite(height)) { diagnostics.Add($"firmament-boss-missing-required-field:{name}:required=On,Profile,Height"); continue; }
                 if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
                 if (!profiles.TryGetValue(profileName, out var bossProfile)) { diagnostics.Add($"firmament-boss-invalid-profile:{name}:profile={profileName}"); continue; }
@@ -463,7 +507,7 @@ public static class PrismaticProfileCompositionParser
                 var selectedSupport = candidates[0];
                 var stableId = $"boss:{compose.Name.Text}.{name}"; var sourceSpan = $"offset:{declaration.Span.Start}";
                 bosses.Add(new(name, stableId, compose.Name.Text, face, profileName, height, selectedSupport.To, selectedSupport.To + height, sourceSpan, supportSpan?.SpanId, supportSpan?.ParentId));
-                operations.Add(new(name, PrismaticProfileIntent.Add, profileName, selectedSupport.To, selectedSupport.To + height, "Boss", sourceSpan, stableId, "Boss"));
+                operations.Add(new(name, PrismaticProfileIntent.Add, profileName, selectedSupport.To, selectedSupport.To + height, "Boss", sourceSpan, stableId, "Boss") { DraftRadians = bossDraft ?? 0d });
             }
 
             foreach (var declaration in operationsSyntax.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Pocket"))
@@ -477,7 +521,9 @@ public static class PrismaticProfileCompositionParser
                 var through = end == "ThroughAll";
                 if (end is not null && !through || through && (depthExpression is not null || minimumFloorExpression is not null))
                 { diagnostics.Add($"firmament-pocket-termination-conflict:{name}: Use End: ThroughAll alone, or Depth with a remaining floor."); continue; }
+                var pocketDraftExpression = fields.Take("Draft");
                 fields.Complete();
+                var pocketDraft = pocketDraftExpression is null ? composeDraft : ReadDraft(pocketDraftExpression, name, diagnostics);
                 if (profileName is null || face is null || !through && !double.IsFinite(depth)) { diagnostics.Add($"firmament-pocket-missing-required-field:{name}:required=On,Profile,Depth-or-End-ThroughAll"); continue; }
                 var body = composeBody.Substring(declaration.Body!.Span.Start + 1, declaration.Body.Span.Length - 2);
                 if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
@@ -495,7 +541,7 @@ public static class PrismaticProfileCompositionParser
                 var selectedSupport = candidates[0];
                 if (through)
                 {
-                    operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, stock.From, selectedSupport.To, "ThroughCut", $"offset:{declaration.Span.Start}", SemanticFeatureKind: "Pocket"));
+                    operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, stock.From, selectedSupport.To, "ThroughCut", $"offset:{declaration.Span.Start}", SemanticFeatureKind: "Pocket") { DraftRadians = pocketDraft ?? 0d });
                     continue;
                 }
                 var hostThickness = selectedSupport.To - selectedSupport.From; var remaining = hostThickness - depth;
@@ -517,7 +563,7 @@ public static class PrismaticProfileCompositionParser
                 }
                 var stableId = $"pocket:{compose.Name.Text}.{name}"; var sourceSpan = $"offset:{declaration.Span.Start}";
                 pockets.Add(new(name, stableId, compose.Name.Text, face, profileName, depth, hostThickness, remaining, minimumFloor, policySource, selectedSupport.To - depth, selectedSupport.To, sourceSpan, supportSpan?.SpanId, supportSpan?.ParentId));
-                operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, selectedSupport.To - depth, selectedSupport.To, "Pocket", sourceSpan, stableId, "Pocket"));
+                operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, selectedSupport.To - depth, selectedSupport.To, "Pocket", sourceSpan, stableId, "Pocket") { DraftRadians = pocketDraft ?? 0d });
             }
 
             foreach (Match header in OffsetHeader.Matches(composeBody))
@@ -1299,6 +1345,16 @@ public static class PrismaticProfileCompositionParser
         var declaration = Regex.Match(source, $@"\bConstruction\s+Plane\s+{Regex.Escape(name)}\s*\{{\s*Trace\s*:\s*(?<trace>[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         return declaration.Success ? declaration.Groups["trace"].Value : null;
     }
+    /// <summary>A draft angle in radians, refused unless finite and under 45° in magnitude.</summary>
+    private static double? ReadDraft(ExpressionSyntax? expression, string owner, List<string> diagnostics)
+    {
+        if (!FirmamentSyntaxValues.TryMeasure(expression, "deg", out var degrees) || !double.IsFinite(degrees))
+        { diagnostics.Add($"compose-draft-invalid:{owner}: draft must be an angle, such as 1deg."); return null; }
+        if (Math.Abs(degrees) >= 45d)
+        { diagnostics.Add($"draft-angle-invalid:{owner}: draft must be under 45deg in magnitude."); return null; }
+        return degrees * Math.PI / 180d;
+    }
+
     private static string? Block(string text, int open)
     {
         var depth = 0;

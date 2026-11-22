@@ -23,6 +23,7 @@ public static class ExtrudeSemanticDeclaration { }
     Description = "A Profile-based body built from a Base and optional Boss, Pocket and Hole operations. A later Modify takes Hole, Slot, Pattern and qualified Profile rim finishes. A constant native-XY Base with disjoint through round holes supports top or bottom fillets/chamfers, including RoundedRect2 corners; other material histories have narrower admission. Round vertical corners in the Profile (RoundedRect2).")]
 [FirmamentField("WallThickness", "WallThickness", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Variants = ["Hollow"], Description = "Compose<Hollow>: the constant wall; the cavity is derived from the whole exterior, including its Boss and Pocket operations.")]
 [FirmamentField("Openings", "Openings", FirmamentSchemaValueKind.String, Variants = ["Hollow"], Description = "Compose<Hollow>: end caps the cavity runs out through, [Top], [Bottom] or both; omit for a closed vessel.")]
+[FirmamentField("Draft", "Draft", FirmamentSchemaValueKind.Angle, Unit = FirmamentUnitKind.Angle, Default = "0deg", Description = "Side draft of every operation's walls: material narrows upward, pockets open upward. An operation's own draft overrides it.")]
 public static class ComposeSemanticDeclaration { }
 
 [FirmamentConstruct("ComposeBase", "Base", Context = "Compose", Entry = "Base Stock { Profile: Outline; From: 0mm; To: 8mm; Role: Stock }",
@@ -31,6 +32,8 @@ public static class ComposeSemanticDeclaration { }
 [FirmamentField("From", "From", FirmamentSchemaValueKind.Length, Required = true, Description = "Bottom of the stock.")]
 [FirmamentField("To", "To", FirmamentSchemaValueKind.Length, Required = true, Description = "Top of the stock; greater than From.")]
 [FirmamentField("Role", "Role", FirmamentSchemaValueKind.String, Default = "Stock", Choices = ["Stock"], Description = "Stock for starting material.")]
+[FirmamentField("Draft", "Draft", FirmamentSchemaValueKind.Angle, Unit = FirmamentUnitKind.Angle, Description = "Side draft of the stock's walls; overrides the Compose's draft. Positive narrows upward.")]
+[FirmamentField("Neutral", "Neutral", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Description = "Height where the drafted stock is its Profile; From by default.")]
 public static class ComposeBaseSemanticDeclaration { }
 
 [FirmamentConstruct("Rect2", "Rect2", Context = "Model, Profile or layout", Entry = "Rect2 Outline { center: [0mm, 0mm]; size: [50mm, 40mm] }",

@@ -1,0 +1,22 @@
+// A drafted Compose: the Base and the Boss narrow toward the pull, the Pocket opens toward it, so every wall
+// releases along +Z at exactly 2 deg (planes on the straight sides, right cones on the corners).
+Model DraftedBlock {
+  units: mm
+  Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [80mm, 50mm]; radius: 6mm }
+  Profile pad = RoundedRect2 { center: [-15mm, 0mm]; size: [20mm, 20mm]; radius: 4mm }
+  Profile well = RoundedRect2 { center: [18mm, 0mm]; size: [24mm, 18mm]; radius: 3mm }
+  Compose body {
+    draft: 2deg
+    Base stock { profile: outline; from: 0mm; to: 12mm; role: Stock }
+    Boss tower { on: Top; profile: pad; height: 8mm }
+    Pocket recess { on: Top; profile: well; depth: 6mm }
+  }
+}
+
+Mold BlockTool {
+  part: DraftedBlock
+  material: ABS
+  stage: Tooling
+  pull: +Z
+  parting: Plane { at: face(-Z) }
+}

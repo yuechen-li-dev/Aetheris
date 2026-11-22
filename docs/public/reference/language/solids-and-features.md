@@ -74,8 +74,11 @@ Model Cover {
 - An ellipse or a cubic Bézier has no exact drafted wall and is refused. So is a
   draft that closes an arc, a side or a gap in the Profile within the extrusion,
   and a draft of 45° or more.
-- A drafted Extrude cannot yet carry `Modify` features, edge finishes or
-  `<Hollow>`; each is refused with a diagnostic.
+- A sharp corner where an arc meets another curve is refused: its drafted edge
+  is not straight. Make the junction tangent or round it.
+- A drafted `Extrude<Hollow>` is built as the drafted hollow Compose below. A
+  drafted Extrude cannot yet carry `Modify` features or edge finishes; each is
+  refused with a diagnostic.
 
 A [Mold](../../firmament/mold.md) review reads these walls as exact cones and
 planes.
@@ -102,6 +105,52 @@ A Pocket always leaves a floor. Its required floor comes from
 `minimumFloorThickness`, then from an active manufacturing policy, then from a
 default, and the build fails when the floor would be thinner. Do not mix `depth`
 or a floor requirement with `end: ThroughAll`.
+
+### Drafted Compose
+
+`draft:` on a `Compose` drafts the walls of every `Base`, `Add`, `Remove`,
+`Boss` and `Pocket`; `draft:` on one operation overrides it for that operation
+(`draft: 0deg` keeps its walls vertical):
+
+```firmament
+Model DraftedBlock {
+  units: mm
+  Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [80mm, 50mm]; radius: 6mm }
+  Profile pad = RoundedRect2 { center: [-15mm, 0mm]; size: [20mm, 20mm]; radius: 4mm }
+  Profile well = RoundedRect2 { center: [18mm, 0mm]; size: [24mm, 18mm]; radius: 3mm }
+  Compose body {
+    draft: 2deg
+    Base stock { profile: outline; from: 0mm; to: 12mm; role: Stock }
+    Boss tower { on: Top; profile: pad; height: 8mm }
+    Pocket recess { on: Top; profile: well; depth: 6mm }
+  }
+}
+```
+
+- Material operations (`Base`, `Add`, `Boss`) are their Profile at their
+  bottom and narrow upward by height × tan(draft). A `Base` takes `neutral:` to
+  move that height. Removals (`Pocket`, `Remove`) are their Profile at their
+  mouth and narrow downward, so a pocket opens toward +Z. With a positive draft
+  every wall releases along +Z.
+- Walls are exact: lines become drafted planes and arcs right cones. Where the
+  walls of two operations meet (overlapping bosses), both must be straight, so
+  that they meet along a line.
+- Refused, each with a diagnostic:
+  - a meeting between the walls of two operations where one wall is curved
+    (`compose-draft-curved-junction`);
+  - walls that meet or part within the height of a slab, such as a pocket that
+    reaches the outer wall as both tilt (`compose-draft-walls-cross`);
+  - a Boss wider than the drafted top it stands on (`compose-draft-overhang`);
+  - holes, slots, material offsets and edge finishes on a drafted Compose
+    (`compose-draft-unsupported`).
+
+A drafted `Compose<Hollow>` (and `Extrude<Hollow>`) is built from its `Base`
+alone: its cavity is the Base's Profile moved inward by wallThickness ÷
+cos(draft) and drafted with it, so each inner wall is parallel to its outer
+wall and exactly `wallThickness` from it. A sharp inside corner of the Profile
+stays sharp, and the wall there is thicker. Use a negative draft for a part
+that opens at the top (a tray), so that it widens toward its opening. A
+drafted hollow with a Boss or Pocket is refused.
 
 ### Hollow bodies
 

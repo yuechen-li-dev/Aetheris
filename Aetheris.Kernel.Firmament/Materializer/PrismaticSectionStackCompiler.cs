@@ -90,6 +90,16 @@ public static class PrismaticSectionStackCompiler
     {
         var d = parsed.Diagnostics.ToList();
         if (parsed.Feature is null) { diagnostics = d; return null; }
+        if (DraftedSectionStack.IsDrafted(parsed.Feature))
+        {
+            if (parsed.Feature.Hollow is not null)
+            {
+                var hollowed = DraftedSectionStack.DeriveHollow(parsed, d);
+                if (hollowed is null) { diagnostics = d.Distinct().ToArray(); return null; }
+                parsed = hollowed;
+            }
+            return DraftedSectionStack.Normalize(parsed, d, out diagnostics);
+        }
         if (parsed.Feature.Hollow is not null)
         {
             var hollowed = PrismaticHollowCavity.Derive(parsed, out var hollowDiagnostics);
@@ -220,6 +230,7 @@ public static class PrismaticSectionStackEmitter
             d.AddRange(VariableOuterSectionIntervalValidator.Validate(interval).Diagnostics);
         if (d.Any(x => x.StartsWith("VariableOuterSectionInterval", StringComparison.Ordinal)))
             return new(null, d.Distinct().ToArray());
+        var drafted = stack.Slabs.Any(s => s.UpperRegionSet is not null);
         var splitPoints = stack.Slabs.SelectMany(s => s.MaterialRegions.SelectMany(Loops)).Concat(stack.Transitions.SelectMany(t =>
                 t.UpwardRegions.Concat(t.DownwardRegions).SelectMany(Loops)))
             .SelectMany(x => x.Profile.Loops[0].Segments).Concat(variableIntervals.SelectMany(v => v.LowerOuter.Loops.Concat(v.UpperOuter.Loops).Concat(v.InnerLoops.SelectMany(i => i.LowerLoop.Loops))).SelectMany(x => x.Segments))
@@ -246,7 +257,32 @@ public static class PrismaticSectionStackEmitter
             var created = builder.AddEdge(Vertex(from, lower), Vertex(to, upper)); edges[key] = created;
             curves[created] = CurveGeometry.FromLine(new Line3Curve(points[Vertex(from, lower)], Direction3D.Create(points[Vertex(to, upper)] - points[Vertex(from, lower)]))); return (created, false);
         }
-        foreach (var slab in stack.Slabs)
+        // A drafted stack's sections differ at every level, so a point splits curves only at its own level.
+        IReadOnlyList<(double X, double Y)> LevelPoints(double z) => !drafted ? splitPoints
+            : stack.Slabs.Where(s => Math.Abs(s.From - z) <= Tol).SelectMany(s => s.MaterialRegions.SelectMany(Loops))
+                .Concat(stack.Slabs.Where(s => Math.Abs(s.To - z) <= Tol).SelectMany(s => s.UpperRegions.SelectMany(Loops)))
+                .Concat(stack.Transitions.Where(t => Math.Abs(t.Level - z) <= Tol).SelectMany(t => t.UpwardRegions.Concat(t.DownwardRegions).SelectMany(Loops)))
+                .SelectMany(x => x.Profile.Loops[0].Segments).SelectMany(x => Ends(x.Geometry))
+                .DistinctBy(p => $"{Math.Round(p.X / Tol):F0},{Math.Round(p.Y / Tol):F0}").ToArray();
+        foreach (var slab in stack.Slabs.Where(s => s.UpperRegionSet is not null))
+        {
+            var lowerLoops = slab.MaterialRegions.SelectMany(Loops).ToArray(); var upperLoops = slab.UpperRegions.SelectMany(Loops).ToArray();
+            for (var li = 0; li < lowerLoops.Length; li++)
+            {
+                var lowerSegments = lowerLoops[li].Profile.Loops[0].Segments; var upperSegments = upperLoops[li].Profile.Loops[0].Segments;
+                for (var si = 0; si < lowerSegments.Count; si++)
+                {
+                    var lower = lowerSegments[si].Geometry; var upper = upperSegments[si].Geometry;
+                    var source = SourceId(lowerSegments[si].Provenance.StableId);
+                    var a = Ends(lower); var b = Ends(upper); var bottom = Edge(lower, slab.From); var top = Edge(upper, slab.To);
+                    var v0 = Transition(a[0], b[0], slab.From, slab.To); var v1 = Transition(a[1], b[1], slab.From, slab.To);
+                    var loop = AddLoop(builder, [new(bottom.Edge, bottom.Reverse), new(v1.Edge, v1.Reverse), new(top.Edge, !top.Reverse), new(v0.Edge, !v0.Reverse)]);
+                    sideFaces.Add((loop, DraftedWall(lower, upper, slab.From, slab.To, lowerLoops[li].IsHole), !(lowerLoops[li].IsHole && lower is LineArcCircularArc2D), source,
+                        $"slab:{slab.From:R}..{slab.To:R}:{lowerSegments[si].Provenance.Derivation}", slab.From, slab.To));
+                }
+            }
+        }
+        foreach (var slab in stack.Slabs.Where(s => s.UpperRegionSet is null))
             foreach (var item in slab.MaterialRegions.SelectMany(Loops))
                 foreach (var segment in item.Profile.Loops[0].Segments)
                 foreach (var curve in Split(segment.Geometry, splitPoints))
@@ -286,8 +322,9 @@ public static class PrismaticSectionStackEmitter
         }
         foreach (var transition in stack.Transitions)
         {
-            foreach (var region in transition.UpwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, splitPoints, AtStation, capLoopRoles), transition.Level, true));
-            foreach (var region in transition.DownwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, splitPoints, AtStation, capLoopRoles), transition.Level, false));
+            var levelPoints = LevelPoints(transition.Level);
+            foreach (var region in transition.UpwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, levelPoints, AtStation, capLoopRoles), transition.Level, true));
+            foreach (var region in transition.DownwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, levelPoints, AtStation, capLoopRoles), transition.Level, false));
         }
         var faces = new List<FaceId>();
         foreach (var cap in capFaces) faces.Add(cap.Face);
@@ -310,6 +347,7 @@ public static class PrismaticSectionStackEmitter
         {
             var edge = builder.Model.Edges.Single(x => x.Id == incidence.Key);
             var a = points[edge.StartVertexId]; var b = points[edge.EndVertexId];
+            if (drafted) d.Add("compose-draft-coincident-walls: a drafted wall's edge is not shared by exactly two faces; two operations' walls or a feature and a cap coincide where they do not at their other end. Move the features apart.");
             d.Add($"compose-rejected:non-manifold-edge-use:edge={incidence.Key.Value}:uses={incidence.Count()}:curve={curves[incidence.Key].Kind}:from=({a.X:R},{a.Y:R},{a.Z:R}):to=({b.X:R},{b.Y:R},{b.Z:R})");
         }
         // Sections may have many material islands; only the completed shell must
@@ -566,6 +604,32 @@ public static class PrismaticSectionStackEmitter
         _ => throw new NotSupportedException()
     };
     private static CurveGeometry Curve(LineArcProfileCurve2D curve, double z) => curve switch { LineArcLineSegment2D l => CurveGeometry.FromLine(new Line3Curve(new Point3D(l.Start.X, l.Start.Y, z), Direction3D.Create(new Vector3D(l.End.X - l.Start.X, l.End.Y - l.Start.Y, 0)))), LineArcCircularArc2D a => CurveGeometry.FromCircle(new Circle3Curve(new Point3D(a.Center.X, a.Center.Y, z), Direction3D.Create(new Vector3D(0, 0, 1)), a.Radius, Direction3D.Create(new Vector3D(1, 0, 0)))), LineArcCubicBezier2D c => CurveGeometry.FromBSpline(new BSpline3Curve(3, [new(c.Start.X,c.Start.Y,z),new(c.Control1.X,c.Control1.Y,z),new(c.Control2.X,c.Control2.Y,z),new(c.End.X,c.End.Y,z)], [4,4], [0d,1d], "UNSPECIFIED", false, false, "PIECEWISE_BEZIER_KNOTS")), _ => throw new NotSupportedException() };
+    /// <summary>
+    /// The wall between a drafted slab's two sections, oriented as the vertical wall of the same curve would be:
+    /// a line gives the plane through both lines, an arc the right cone through both circles (the cylinder when
+    /// the operation is not drafted).
+    /// </summary>
+    private static SurfaceGeometry DraftedWall(LineArcProfileCurve2D lower, LineArcProfileCurve2D upper, double from, double to, bool hole)
+    {
+        switch (lower, upper)
+        {
+            case (LineArcLineSegment2D l, LineArcLineSegment2D u):
+            {
+                var vertical = SideSurface(l, from, hole).Plane!.Value.Normal.ToVector();
+                var p0 = new Point3D(l.Start.X, l.Start.Y, from); var p1 = new Point3D(l.End.X, l.End.Y, from); var q0 = new Point3D(u.Start.X, u.Start.Y, to);
+                var normal = (p1 - p0).Cross(q0 - p0);
+                if (normal.Dot(vertical) < 0d) normal = -normal;
+                return SurfaceGeometry.FromPlane(new PlaneSurface(p0, Direction3D.Create(normal), Direction3D.Create(p1 - p0)));
+            }
+            case (LineArcCircularArc2D a, LineArcCircularArc2D b) when Math.Abs(a.Radius - b.Radius) <= 1e-12:
+                return SideSurface(a, from, hole);
+            case (LineArcCircularArc2D a, LineArcCircularArc2D b):
+                return SurfaceGeometry.FromCone(new ConeSurface(new Point3D(a.Center.X, a.Center.Y, from),
+                    Direction3D.Create(new Vector3D(0, 0, b.Radius > a.Radius ? 1 : -1)), a.Radius, Math.Atan(Math.Abs(b.Radius - a.Radius) / (to - from)), Direction3D.Create(new Vector3D(1, 0, 0))));
+            default:
+                throw new NotSupportedException($"A drafted wall needs lines and circular arcs, not {lower.GetType().Name}.");
+        }
+    }
     private static SurfaceGeometry SideSurface(LineArcProfileCurve2D curve, double z, bool hole) => curve switch { LineArcLineSegment2D l => SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(l.Start.X, l.Start.Y, z), Direction3D.Create(new Vector3D(hole ? l.Start.Y - l.End.Y : l.End.Y - l.Start.Y, hole ? l.End.X - l.Start.X : l.Start.X - l.End.X, 0)), Direction3D.Create(new Vector3D(0, 0, 1)))), LineArcCircularArc2D a => SurfaceGeometry.FromCylinder(new CylinderSurface(new Point3D(a.Center.X, a.Center.Y, z), Direction3D.Create(new Vector3D(0, 0, 1)), a.Radius, Direction3D.Create(new Vector3D(1, 0, 0)))), LineArcCubicBezier2D => SurfaceGeometry.FromLinearExtrusion(new LinearExtrusionSurface(Curve(curve,z),new Vector3D(0,0,1))), _ => throw new NotSupportedException() };
     private static CurveGeometry Transform(CurveGeometry curve, ConstructionPlane frame) => curve.Kind switch
     {

@@ -183,5 +183,7 @@ rounded-rectangle outline; a bottle pulled along its axis reports the inside of 
 undercuts and a parting line from 39.4 to 58 mm, off its rim plane; a grooved pulley reports exactly the groove's two
 faces and floor.
 
-M1 has started: `Extrude` takes `draft:` and `neutral:` with exact drafted planes and cones
-([report](mold-m1-drafted-extrude.md)). Compose `Base`/`Boss`/`Pocket` and `<Hollow>` remain.
+M1 is in: `Extrude` takes `draft:` and `neutral:` with exact drafted planes and cones
+([report](mold-m1-drafted-extrude.md)); `Compose` and its operations, `Compose<Hollow>` and `Extrude<Hollow>` take it
+too ([report](mold-m1-drafted-compose.md)). Draft on holes, slots and edge finishes, and drafted hollows with Boss or
+Pocket, are left for later.

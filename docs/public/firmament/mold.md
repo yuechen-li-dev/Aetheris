@@ -87,9 +87,13 @@ always errors.
 
 ## Not yet
 
-An `Extrude` takes `draft:` ([drafted Extrude](../reference/language/solids-and-features.md#drafted-extrude)); its
-walls are exact drafted planes and cones, and pass the draft check at their angle.
+An `Extrude` and a `Compose` take `draft:` ([drafted Extrude](../reference/language/solids-and-features.md#drafted-extrude),
+[drafted Compose](../reference/language/solids-and-features.md#drafted-compose)), including hollow ones; their walls
+are exact drafted planes and cones, and pass the draft check at their angle. The
+[drafted hollow cover](../../../fixtures/Canonical/Mold/drafted-hollow-cover.firmament) passes at the `Tooling` stage
+with no findings.
 
-Side actions and lifters, gates, ejectors, wall-thickness, rib and boss rules, flow length, and draft on Compose
-walls and on `<Hollow>` bodies are later phases. Until then a Compose part reports its vertical walls as short of
-draft; the `Concept` stage keeps that a warning. `PlasticShell` remains the bounded route for its frustum enclosures.
+Side actions and lifters, gates, ejectors, wall-thickness, rib and boss rules, flow length, draft on holes, slots
+and edge finishes, and drafted hollows with bosses or pockets are later phases. An undrafted part reports its
+vertical walls as short of draft; the `Concept` stage keeps that a warning. `PlasticShell` remains the bounded route
+for its frustum enclosures.

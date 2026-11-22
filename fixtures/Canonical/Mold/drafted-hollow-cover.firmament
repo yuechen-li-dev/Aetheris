@@ -1,0 +1,20 @@
+// A molded cover: a hollow drafted shell open at the bottom. Every outer wall and its inner wall are
+// parallel at 1.5 deg, exactly 2 mm apart along their normal; the top is 2 mm thick.
+Model HollowCover {
+  units: mm
+  Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [80mm, 50mm]; radius: 6mm }
+  Compose<Hollow> body {
+    wallThickness: 2mm
+    openings: [Bottom]
+    draft: 1.5deg
+    Base stock { profile: outline; from: 0mm; to: 20mm; role: Stock }
+  }
+}
+
+Mold CoverTool {
+  part: HollowCover
+  material: ABS
+  stage: Tooling
+  pull: +Z
+  parting: Plane { at: face(-Z) }
+}

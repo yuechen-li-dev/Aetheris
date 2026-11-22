@@ -47,6 +47,40 @@ public sealed class MoldTests
     }
 
     [Fact]
+    public void DraftedComposeBossAndPocketReleaseWithNoFindings()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Canonical", "drafted-compose-block"));
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        Assert.Empty(result.Diagnostics);
+        var report = result.Report!;
+        // The Base's walls (split where the Pocket's floor starts), the Boss's and the Pocket's: all +pull at 2°.
+        var walls = report.Faces.Where(f => f.MinimumDraftDegrees < 90).ToArray();
+        Assert.Equal(32, walls.Length);
+        Assert.All(walls, f => Assert.Equal(2d, f.MinimumDraftDegrees, 9));
+        Assert.All(walls, f => Assert.Equal(MoldFaceSide.Positive, f.Side));
+        Assert.All(walls, f => Assert.Equal(MoldEvidenceStrength.ExactAnalytic, f.Strength));
+        Assert.Equal(0, report.Summary.DraftFailures);
+        Assert.Equal(0, report.Summary.UndercutFaces);
+    }
+
+    [Fact]
+    public void DraftedHollowCoverReleasesInsideAndOut()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Canonical", "drafted-hollow-cover"));
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        Assert.Empty(result.Diagnostics);
+        var report = result.Report!;
+        var walls = report.Faces.Where(f => f.MinimumDraftDegrees < 90).ToArray();
+        // Outer walls face the cavity half; the inner walls face down into the core.
+        Assert.Equal(24, walls.Length);
+        Assert.All(walls, f => Assert.Equal(1.5, f.MinimumDraftDegrees, 9));
+        Assert.Equal(16, walls.Count(f => f.Side == MoldFaceSide.Positive));
+        Assert.Equal(8, walls.Count(f => f.Side == MoldFaceSide.Negative));
+        Assert.Equal(0, report.Summary.DraftFailures);
+        Assert.Equal(0, report.Summary.UndercutFaces);
+    }
+
+    [Fact]
     public void VerticalWallsAreShortOfDraftButPullClean()
     {
         var result = MoldFirmament.CompileFile(Fixture("Canonical", "tray-concept"));

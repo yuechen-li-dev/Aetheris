@@ -83,6 +83,9 @@ internal static class JunctionFilletRoute
         if (composition.Feature is not { } feature)
             return Refuse(request.Finishes[0], "a junction fillet selects edges between the operations of a Compose body, and this source has none"
                 + (composition.Diagnostics.Count > 0 ? $" ({string.Join("; ", composition.Diagnostics.Take(3))})" : ""));
+        // Its walls are found as vertical prisms; a drafted wall is not rounded as if it were one.
+        if (DraftedSectionStack.IsDrafted(feature))
+            return KernelResult<FirmamentStepExportResult>.Failure([Error("compose-draft-unsupported:EdgeFinish: a drafted Compose cannot carry edge finishes yet; remove draft or the finish.", request.Finishes[0].Span)]);
         // Fillet the body exactly as it was exported: some routes' in-memory body is an intermediate (a drilled
         // body's runtime handle can predate the drills' final topology).
         var imported = Step242Importer.ImportBody(unfinished.Value.StepText);

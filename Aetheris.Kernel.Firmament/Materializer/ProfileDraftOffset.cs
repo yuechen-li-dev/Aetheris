@@ -70,6 +70,13 @@ public static class ProfileDraftOffset
             var tangent = Math.Abs(Cross(ta, tb)) <= 1e-9 && Dot(ta, tb) > 0d;
             tangentAt[i] = tangent;
             if (tangent) { var n = Left(ta); corners[i] = (p.X + n.X * d, p.Y + n.Y * d); continue; }
+            // A sharp corner between two lines moves along the line where their drafted planes meet; a corner on
+            // an arc moves along a conic, which a straight edge between the sections would only approximate.
+            if (a is not LineArcLineSegment2D || b is not LineArcLineSegment2D)
+            {
+                error = $"draft-offset-corner-curved: the sharp corner at ({p.X:0.###}, {p.Y:0.###}) mm joins an arc to another curve, and its drafted edge is not straight; make the junction tangent or round it";
+                return false;
+            }
             if (!TryIntersect(Moved(a, d), Moved(b, d), p, out corners[i]))
             {
                 error = $"draft-offset-corner: the corner at ({p.X:0.###}, {p.Y:0.###}) mm has no offset at this depth";

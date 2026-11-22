@@ -25,7 +25,7 @@ public sealed class Step242ImportSharedUtilitiesTests
     [Fact]
     public void RequireSingleEntityByName_ReturnsMissingDiagnosticWhenAbsent()
     {
-        var parse = Step242SubsetParser.Parse("ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;");
+        var parse = Step242SubsetParser.Parse("ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF'));\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;");
         Assert.True(parse.IsSuccess);
 
         var result = Step242ImportSharedUtilities.RequireSingleEntityByName(

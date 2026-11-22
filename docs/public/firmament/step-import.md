@@ -129,3 +129,52 @@ fails explicitly. Display mesh quality never supplies export evidence.
 Firmament `inlineSTEP` consumes Aetheris-canonical AP242 on the bounded production path. Imported faces are selected by source entity identity, for example `body.face(#170)`, and recognized regions may supply stable semantic aliases. [`inline-step-cantilever.firmament`](../../../fixtures/Canonical/FEA/inline-step-cantilever.firmament) demonstrates FEA on a checked-in canonical STEP resource.
 
 The single-body importer does not promise arbitrary containment, multi-root assemblies, or every AP242 surface family as one native body. `aetheris analyze compound part.step --json` is the exact inspection path for disconnected rigid roots: it reports each root independently and never silently selects or merges one. Multiple geometric roots alone do **not** establish product structure, occurrence transforms, mates, or interfaces. Use assembly import when the STEP product graph carries that semantics, and use Firmament assembly authoring when the intended component relationships must be stated explicitly. Unsupported containment in FEA reports `firmament-analysis-inline-step-containment-unsupported`; missing files and unresolved face identities are fatal diagnostics.
+
+## What the reader accepts and what it refuses
+
+The reader follows the ISO 10303-21 exchange structure. A file must begin with
+`ISO-10303-21;`, hold at least one `DATA` section closed by `ENDSEC;`, and end with
+`END-ISO-10303-21;`. A file that breaks this is refused with the reason: text that
+never shows the start keyword is "not a STEP file"; a missing end or an unclosed
+`DATA` section is reported as incomplete, usually truncated; an IFC building model is
+named as such. Syntax errors name the entity, line and column where reading stopped.
+Lists nested more than 256 levels deep are refused rather than read.
+
+Accepted without change to the geometry, with an informational note where useful:
+CR, LF or CRLF line ends; a UTF-8 byte-order mark; comments anywhere; lower-case
+keywords and entity names; a missing or unknown `FILE_SCHEMA` (read as AP242, with a
+warning); edition 3 `ANCHOR`, `REFERENCE` and `SIGNATURE` sections (skipped) and
+named `DATA` sections; `&SCOPE` blocks; user-defined `!` entities and binary literals
+(kept, not interpreted). Strings decode `\X\`, `\X2\`, `\X4\`, `\S\` and `\\`
+escapes to Unicode.
+
+Equivalent ISO 10303-42 forms are read as the form they are equivalent to:
+
+- `BEZIER_*`, `QUASI_UNIFORM_*` and `UNIFORM_*` curves and surfaces take the knots
+  their type defines.
+- `POLYLINE` edges are the degree-1 B-spline through their points; a
+  `TRIMMED_CURVE` trimmed by points uses the edge's vertices; a single-segment
+  `COMPOSITE_CURVE` is its segment.
+- `SURFACE_CURVE` and `INTERSECTION_CURVE` use their 3D curve; an associated surface
+  in place of a pcurve is skipped and the pcurve is recovered.
+- `RECTANGULAR_TRIMMED_SURFACE` and `CURVE_BOUNDED_SURFACE` under a face are their
+  basis surface; `OFFSET_SURFACE` and `OFFSET_CURVE_3D` at distance 0 are their basis.
+- `SEAM_EDGE` is read as the oriented edge it is; a `SUBEDGE` of an `EDGE_CURVE`
+  uses its parent's curve between its own vertices.
+- `FACE_SURFACE` is read as `ADVANCED_FACE`; `ORIENTED_FACE` is its face, reversed
+  when its orientation is `.F.`.
+- A `SHELL_BASED_SURFACE_MODEL` whose only shell is closed is read as the solid that
+  shell bounds, with a warning.
+
+Length units in metres, centimetres, inches, feet or any `CONVERSION_BASED_UNIT` are
+converted to millimetres. A file that declares no length unit is read as millimetres
+with a warning. A planar face the solid's shell does not list but that closes it is
+adopted and reported as the repair `step-import-unlisted-faces-adopted`.
+
+Refused, with a message naming the entity: curve and surface types the importer
+does not evaluate (for example nonzero offsets, clothoids), composite curves of more
+than one segment as an edge curve, and invalid values (non-finite numbers, zero
+directions, wrong argument types, dangling or duplicate references). A file without a
+`MANIFOLD_SOLID_BREP` or `BREP_WITH_VOIDS` says what it holds instead: open surface
+models, faceted B-reps, constructive (CSG or swept) solids, wireframe, mapped items or
+tessellated geometry.

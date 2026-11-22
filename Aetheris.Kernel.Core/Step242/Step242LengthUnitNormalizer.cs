@@ -66,8 +66,13 @@ internal static class Step242LengthUnitNormalizer
     };
 
     /// <summary>Resolves the millimetres-per-file-unit factor from the first length unit found in a unit-assigned context.</summary>
-    public static double ResolveMillimetresPerUnit(IReadOnlyList<Step242ParsedEntity> entities)
+    public static double ResolveMillimetresPerUnit(IReadOnlyList<Step242ParsedEntity> entities) => ResolveMillimetresPerUnit(entities, out _);
+
+    /// <summary>As <see cref="ResolveMillimetresPerUnit(IReadOnlyList{Step242ParsedEntity})"/>; <paramref name="declared"/>
+    /// is false when no unit-assigned context names a length unit this resolver reads, and millimetres are assumed.</summary>
+    public static double ResolveMillimetresPerUnit(IReadOnlyList<Step242ParsedEntity> entities, out bool declared)
     {
+        declared = true;
         var byId = entities.ToDictionary(e => e.Id);
         foreach (var entity in entities)
         {
@@ -87,6 +92,7 @@ internal static class Step242LengthUnitNormalizer
             }
         }
 
+        declared = false;
         return 1d;
     }
 

@@ -42,8 +42,12 @@ internal static class StepPcurveDecoder
         {
             if (item is not Step242EntityReference pcurveReference)
                 return Failure<IReadOnlyList<ImportedStepPcurve>>("Associated pcurve must be an entity reference.", "Importer.Pcurve.AssociatedGeometry");
-            var pcurveResult = document.TryGetEntity(pcurveReference.TargetId, "PCURVE");
-            if (!pcurveResult.IsSuccess) return KernelResult<IReadOnlyList<ImportedStepPcurve>>.Failure(pcurveResult.Diagnostics);
+            // associated_geometry may name a surface instead of a pcurve on it; that gives no parameter curve,
+            // and the edge's pcurve on that surface is recovered as when none is written.
+            var associatedResult = document.TryGetEntity(pcurveReference.TargetId);
+            if (!associatedResult.IsSuccess) return KernelResult<IReadOnlyList<ImportedStepPcurve>>.Failure(associatedResult.Diagnostics);
+            if (associatedResult.Value.Name != "PCURVE") continue;
+            var pcurveResult = associatedResult;
             var pcurve = pcurveResult.Value;
             if (pcurve.Arguments.ElementAtOrDefault(1) is not Step242EntityReference supportReference
                 || pcurve.Arguments.ElementAtOrDefault(2) is not Step242EntityReference representationReference)

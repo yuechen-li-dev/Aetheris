@@ -16,6 +16,8 @@ internal static class Step242CorpusManifestRunner
 {
     private const string NistFtc08TgPath = "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e1-tg.stp";
     private static readonly Regex PositionInParensRegex = new(@"\(position\s+\d+\)", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    // The parser names where it stopped as "(in entity #N, line L, column C)" with an optional truncation remark.
+    private static readonly Regex LineColumnInParensRegex = new(@" ?\((?:in entity #\d+, )?line \d+, column \d+\)\.?( The file ends here; it was probably truncated\.)?", RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static readonly Regex PositionTokenRegex = new(@"position\s+\d+", RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     public static Step242CorpusManifest LoadManifest(string relativePath)
@@ -277,7 +279,9 @@ internal static class Step242CorpusManifestRunner
     {
         // The audit uses this to name what blocked a file, so it reports the first finding. Informational notes -
         // such as import recording that a spline face was recovered as a primitive - are not blockers and are skipped.
-        var finding = diagnostics.FirstOrDefault(diagnostic => diagnostic.Severity != KernelDiagnosticSeverity.Info);
+        // An error is what blocked the file; a warning ahead of it (for example a header note) is not.
+        var finding = diagnostics.FirstOrDefault(diagnostic => diagnostic.Severity == KernelDiagnosticSeverity.Error)
+            ?? diagnostics.FirstOrDefault(diagnostic => diagnostic.Severity != KernelDiagnosticSeverity.Info);
         if (finding is null)
         {
             return new Step242AuditDiagnostic("Unknown", "Audit.None", "No diagnostics.");
@@ -323,6 +327,7 @@ internal static class Step242CorpusManifestRunner
     private static string NormalizeForSnapshot(string value)
     {
         var normalized = value.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+        normalized = LineColumnInParensRegex.Replace(normalized, " (position *)");
         normalized = PositionInParensRegex.Replace(normalized, "(position *)");
         normalized = PositionTokenRegex.Replace(normalized, "position *");
         return normalized;

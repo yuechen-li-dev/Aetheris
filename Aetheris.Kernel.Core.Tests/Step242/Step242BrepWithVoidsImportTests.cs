@@ -7,7 +7,7 @@ public sealed class Step242BrepWithVoidsImportTests
     [Fact]
     public void Import_BrepWithVoids_MissingVoidShell_FailsClearly()
     {
-        const string missingVoid = "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n#1=BREP_WITH_VOIDS('v',#2,());\n#2=CLOSED_SHELL($,());\nENDSEC;\nEND-ISO-10303-21;";
+        const string missingVoid = "ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF'));\nENDSEC;\nDATA;\n#1=BREP_WITH_VOIDS('v',#2,());\n#2=CLOSED_SHELL($,());\nENDSEC;\nEND-ISO-10303-21;";
         var import = Step242Importer.ImportBody(missingVoid);
         Assert.False(import.IsSuccess);
         var diagnostic = Assert.Single(import.Diagnostics);

@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Core.Tests.Step242;
@@ -29,25 +30,30 @@ public sealed class Step242SubsetParserRobustnessTests
 
         Assert.False(result.IsSuccess);
         Assert.NotEmpty(result.Diagnostics);
-        Assert.DoesNotContain(result.Diagnostics, d => (d.Source ?? string.Empty).StartsWith("Parser", StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Severity == KernelDiagnosticSeverity.Error && (d.Source ?? string.Empty).StartsWith("Parser", StringComparison.Ordinal));
     }
 
     [Fact]
     public void ImportBody_DoesNotFailInParser_ForEnumLogicalDerivedOmittedNestedListsAndEncodedStrings()
     {
         const string text = """
+            ISO-10303-21;
+            HEADER;
+            FILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF'));
+            ENDSEC;
             DATA;
             #1=TEST_ENTITY((#2,#3),($,.T.,*),(),.UNSPECIFIED.,.POSITIVE.,.F.,'O''Brien','\X2\03A9\X0\');
             #2=ITEM();
             #3=ITEM();
             ENDSEC;
+            END-ISO-10303-21;
             """;
 
         var result = Step242Importer.ImportBody(text);
 
         Assert.False(result.IsSuccess);
         Assert.NotEmpty(result.Diagnostics);
-        Assert.DoesNotContain(result.Diagnostics, d => (d.Source ?? string.Empty).StartsWith("Parser", StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Severity == KernelDiagnosticSeverity.Error && (d.Source ?? string.Empty).StartsWith("Parser", StringComparison.Ordinal));
     }
 
     [Theory]

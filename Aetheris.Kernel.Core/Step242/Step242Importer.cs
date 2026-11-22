@@ -32,11 +32,11 @@ public static class Step242Importer
         var classification = Step242RigidRootClassifier.Classify(parsed.Value);
         if (classification.Kind == Step242RigidRootClassificationKind.MissingRigidRoot)
             return Step242ImportSharedUtilities.NotImplementedFailure<IReadOnlyList<Step242RigidRootBody>>(
-                "Missing MANIFOLD_SOLID_BREP or BREP_WITH_VOIDS root entity.",
+                MissingRootMessage(parsed.Value),
                 "Importer.TopologyRoot");
 
         var roots = new List<Step242RigidRootBody>(classification.RigidRoots.Count);
-        var diagnostics = new List<KernelDiagnostic>();
+        var diagnostics = new List<KernelDiagnostic>(parsed.Diagnostics);
         foreach (var root in classification.RigidRoots.OrderBy(entity => entity.Id))
         {
             var imported = ImportExactBrepCore(parsed.Value, root.Id, includeOrphanPlanarFaces: classification.RigidRoots.Count == 1);
@@ -166,13 +166,34 @@ public static class Step242Importer
         return Step242ExactBRepImportLane.ImportExactBrep(document);
     }
 
+    /// <summary>What a file without a solid holds instead, so the refusal says what kind of model it is.</summary>
+    internal static string MissingRootMessage(Step242ParsedDocument document)
+    {
+        static string? Kind(string name) => name switch
+        {
+            "SHELL_BASED_SURFACE_MODEL" or "FACE_BASED_SURFACE_MODEL" => "surface models (open or several shells; not a solid)",
+            "FACETED_BREP" => "faceted B-reps (FACETED_BREP, polygonal faces without surface geometry)",
+            "EXTRUDED_AREA_SOLID" or "REVOLVED_AREA_SOLID" or "SWEPT_DISK_SOLID" or "CSG_SOLID" or "BOOLEAN_RESULT"
+                or "BLOCK" or "RIGHT_CIRCULAR_CYLINDER" or "SPHERE" or "EXTRUDED_FACE_SOLID" => "constructive solids (CSG/swept primitives, not boundary representations)",
+            "GEOMETRIC_CURVE_SET" or "GEOMETRIC_SET" or "EDGE_BASED_WIREFRAME_MODEL" or "SHELL_BASED_WIREFRAME_MODEL" => "wireframe or loose geometry",
+            "MAPPED_ITEM" => "mapped items (instances of shapes defined elsewhere in the file)",
+            "TESSELLATED_SOLID" or "TESSELLATED_SHELL" or "TRIANGULATED_FACE" => "tessellated geometry",
+            _ => null,
+        };
+        var found = document.Entities.Select(e => Kind(e.Name)).Where(k => k is not null).Distinct().ToArray();
+        var holds = found.Length == 0
+            ? "The file holds no shape geometry this importer recognizes."
+            : $"The file holds {string.Join(", ", found)} instead.";
+        return $"Missing MANIFOLD_SOLID_BREP or BREP_WITH_VOIDS root entity: the file has no solid to import. {holds}";
+    }
+
     internal static KernelResult<BrepBody> ImportExactBrepCore(Step242ParsedDocument document)
     {
         var rigidRootClassification = Step242RigidRootClassifier.Classify(document);
         if (rigidRootClassification.Kind == Step242RigidRootClassificationKind.MissingRigidRoot)
         {
             return Step242ImportSharedUtilities.NotImplementedFailure<BrepBody>(
-                "Missing MANIFOLD_SOLID_BREP or BREP_WITH_VOIDS root entity.",
+                MissingRootMessage(document),
                 "Importer.TopologyRoot");
         }
 
@@ -243,7 +264,15 @@ public static class Step242Importer
         }
 
         var faceEntityIds = shellFaceEntityIds.SelectMany(ids => ids).ToList();
-        if (includeOrphanPlanarFaces) AppendSupportedOrphanPlanarFaces(document, faceEntityIds);
+        if (includeOrphanPlanarFaces)
+        {
+            var listed = faceEntityIds.Count;
+            AppendSupportedOrphanPlanarFaces(document, faceEntityIds);
+            // A face the shell does not list is a defect of the file; adopting it is a repair and is disclosed.
+            if (faceEntityIds.Count > listed)
+                importRepairs.Add(new("step-import-unlisted-faces-adopted",
+                    $"{faceEntityIds.Count - listed} planar face(s) the solid's shell does not list ({string.Join(", ", faceEntityIds.Skip(listed).Select(id => $"#{id}"))}) were added to it."));
+        }
 
         var builder = new TopologyBuilder();
         var geometry = new BrepGeometryStore();
@@ -905,6 +934,7 @@ public static class Step242Importer
     private static void AppendSupportedOrphanPlanarFaces(Step242ParsedDocument document, IList<int> faceEntityIds)
     {
         var known = new HashSet<int>(faceEntityIds);
+        known.UnionWith(document.OrientedAwayFaceIds);
         // An auxiliary OPEN_SHELL (often a datum/annotation surface model) owns
         // its faces independently. Such faces are not orphans of the selected
         // solid and must never be appended to its closed material shell.
@@ -1118,6 +1148,21 @@ public static class Step242Importer
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(curve3dResult.Diagnostics);
             curveEntity = curve3dResult.Value;
         }
+        // A composite of one segment is that segment's curve, reversed when the segment runs against the composite.
+        if (curveEntity.Instance is Step242SimpleEntityInstance { Constructor: { Name: "COMPOSITE_CURVE" } composite })
+        {
+            if (composite.Arguments.ElementAtOrDefault(1) is not Step242ListValue { Items.Count: 1 } segments
+                || segments.Items[0] is not Step242EntityReference segmentReference
+                || document.TryGetEntity(segmentReference.TargetId) is not { IsSuccess: true } segmentResult
+                || segmentResult.Value.Arguments.ElementAtOrDefault(1) is not Step242BooleanValue segmentSense
+                || segmentResult.Value.Arguments.ElementAtOrDefault(2) is not Step242EntityReference parentReference
+                || document.TryGetEntity(parentReference.TargetId) is not { IsSuccess: true } parentResult)
+                return FailureCurveBinding($"EDGE_CURVE geometry is a COMPOSITE_CURVE of {(composite.Arguments.ElementAtOrDefault(1) as Step242ListValue)?.Items.Count ?? 0} segments; only a single-segment composite is supported as an edge's curve.",
+                    SourceFor(edgeCurveEntityId, "Importer.Geometry.CompositeCurve"));
+            curveEntity = parentResult.Value;
+            if (!segmentSense.Value) edgeSameSense = !edgeSameSense;
+        }
+
         var trimmedConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "TRIMMED_CURVE");
         if (trimmedConstructor is not null)
         {
@@ -1127,7 +1172,11 @@ public static class Step242Importer
                 return FailureCurveBinding("TRIMMED_CURVE must provide a basis curve and two parameter trims.", SourceFor(edgeCurveEntityId, "Importer.Geometry.TrimmedCurve"));
             }
 
-            var trimResult = ReadParameterTrim(trimmedConstructor.Arguments[2], trimmedConstructor.Arguments[3], trimmedConstructor.Arguments[4], edgeCurveEntityId);
+            // Trims given only as points say no more than the edge's own vertices, which bound the edge on the basis.
+            var pointTrimsOnly = IsPointTrim(trimmedConstructor.Arguments[2]) && IsPointTrim(trimmedConstructor.Arguments[3]);
+            var trimResult = pointTrimsOnly
+                ? KernelResult<ParameterInterval>.Success(default)
+                : ReadParameterTrim(trimmedConstructor.Arguments[2], trimmedConstructor.Arguments[3], trimmedConstructor.Arguments[4], edgeCurveEntityId);
             if (!trimResult.IsSuccess)
             {
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(trimResult.Diagnostics);
@@ -1140,7 +1189,22 @@ public static class Step242Importer
             }
 
             curveEntity = basisResult.Value;
-            explicitTrim = trimResult.Value;
+            explicitTrim = pointTrimsOnly ? null : trimResult.Value;
+        }
+
+        // A polyline is exactly the degree-1 B-spline through its points, at the same parameters (point i at i).
+        if (curveEntity.Instance is Step242SimpleEntityInstance { Constructor: { Name: "POLYLINE" } polyline }
+            && polyline.Arguments.ElementAtOrDefault(1) is Step242ListValue { Items.Count: >= 2 } polylinePoints)
+        {
+            var count = polylinePoints.Items.Count;
+            var multiplicities = Enumerable.Range(0, count).Select(i => (Step242Value)new Step242NumberValue(i == 0 || i == count - 1 ? 2 : 1)).ToArray();
+            var knots = Enumerable.Range(0, count).Select(i => (Step242Value)new Step242NumberValue(i)).ToArray();
+            curveEntity = WithConstructor(curveEntity, new Step242EntityConstructor("B_SPLINE_CURVE_WITH_KNOTS",
+            [
+                polyline.Arguments[0], new Step242NumberValue(1), polylinePoints, new Step242EnumValue("POLYLINE_FORM"),
+                new Step242BooleanValue(false), new Step242BooleanValue(false), new Step242ListValue(multiplicities),
+                new Step242ListValue(knots), new Step242EnumValue("UNSPECIFIED"),
+            ]));
         }
 
         var lineConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "LINE");
@@ -1375,25 +1439,31 @@ public static class Step242Importer
         }
     }
 
+    private static bool IsPointTrim(Step242Value value)
+        => value is Step242ListValue { Items.Count: > 0 } list && list.Items.All(item => item is Step242EntityReference);
+
     private static KernelResult<ParameterInterval> ReadParameterTrim(
         Step242Value startValue,
         Step242Value endValue,
         Step242Value senseValue,
         int edgeCurveEntityId)
     {
+        // A trim_select list may give the trim as a point, a parameter, or both; the parameter is read when given.
         static bool TryReadParameter(Step242Value value, out double parameter)
         {
             parameter = double.NaN;
-            if (value is not Step242ListValue { Items.Count: 1 } list
-                || list.Items[0] is not Step242TypedValue { Name: var typeName, Arguments.Count: 1 } typed
-                || !string.Equals(typeName, "PARAMETER_VALUE", StringComparison.OrdinalIgnoreCase)
-                || typed.Arguments[0] is not Step242NumberValue number
-                || !double.IsFinite(number.Value))
+            if (value is not Step242ListValue list) return false;
+            foreach (var item in list.Items)
             {
-                return false;
+                if (item is Step242TypedValue { Name: var typeName, Arguments.Count: 1 } typed
+                    && string.Equals(typeName, "PARAMETER_VALUE", StringComparison.OrdinalIgnoreCase)
+                    && typed.Arguments[0] is Step242NumberValue number && double.IsFinite(number.Value))
+                {
+                    parameter = number.Value;
+                    return true;
+                }
             }
-            parameter = number.Value;
-            return true;
+            return false;
         }
 
         if (!TryReadParameter(startValue, out var start) || !TryReadParameter(endValue, out var end)

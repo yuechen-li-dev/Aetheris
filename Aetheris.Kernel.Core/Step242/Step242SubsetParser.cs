@@ -15,36 +15,51 @@ internal static class Step242SubsetParser
 
         var parser = new Reader(stepText);
         var entities = new List<Step242ParsedEntity>();
+        var file = new Step242FileStructure();
 
         try
         {
-            while (!parser.End)
-            {
-                parser.SkipWhitespace();
-                if (parser.End)
-                {
-                    break;
-                }
-
-                if (parser.Peek() == '#')
-                {
-                    var entity = parser.ReadEntity();
-                    entities.Add(entity);
-                }
-                else
-                {
-                    parser.ReadToStatementTerminator();
-                }
-            }
+            parser.ReadFile(entities, file);
         }
         catch (Step242ParseException ex)
         {
-            return Failure(ex.Message, ex.SourceTag);
+            // Text that never showed the exchange-structure keyword is not a damaged STEP file but another format.
+            return file.SawStart || file.DataSections > 0 || entities.Count > 0
+                ? Failure(ex.Message, ex.SourceTag)
+                : Failure("This is not a STEP file: an ISO 10303-21 file begins with 'ISO-10303-21;' and holds a DATA section of '#n = ENTITY(...);' instances.", "Parser.Structure");
         }
         catch (Exception ex)
         {
             return Failure($"Unexpected parser failure: {ex.Message}", "Parser.Semantics");
         }
+
+        // ISO 10303-21 structure: the exchange-structure keyword, a HEADER, a DATA section closed by ENDSEC,
+        // and the terminating keyword. A file that breaks it is refused here, with the reason, rather than
+        // failing later on whatever the missing part would have held.
+        if (!file.SawStart)
+            return Failure(entities.Count == 0
+                ? "This is not a STEP file: an ISO 10303-21 file begins with 'ISO-10303-21;' and holds a DATA section of '#n = ENTITY(...);' instances."
+                : "The STEP file does not begin with 'ISO-10303-21;' as ISO 10303-21 requires; its header is missing or damaged.", "Parser.Structure");
+        if (file.DataSections == 0)
+            return Failure("The STEP file has no DATA section, so it holds no geometry.", "Parser.Structure");
+        if (file.ClosedDataSections < file.DataSections || !file.SawEnd)
+            return Failure($"The STEP file is incomplete: {(file.ClosedDataSections < file.DataSections ? "its DATA section is not closed by 'ENDSEC;'" : "it does not end with 'END-ISO-10303-21;'")}. "
+                + "It was probably truncated while it was written, copied or downloaded.", "Parser.Structure");
+        if (file.Schemas.FirstOrDefault(schema => schema.StartsWith("IFC", StringComparison.OrdinalIgnoreCase)) is { } ifc)
+            return Failure($"This is an IFC building-model file (schema {ifc}), not a STEP part or assembly.", "Parser.Structure");
+        var notes = new List<KernelDiagnostic>();
+        if (!file.SawHeader || file.Schemas.Count == 0)
+            notes.Add(new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
+                "The STEP file names no FILE_SCHEMA in its HEADER; it is read as AP242, which also covers AP203 and AP214 geometry.", "Parser.Header.Schema"));
+        else if (file.Schemas.All(schema => !Step242FileStructure.IsKnownSchema(schema)))
+            notes.Add(new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
+                $"The STEP file declares schema {string.Join(", ", file.Schemas.Select(schema => $"'{schema}'"))}, which is not AP203, AP214 or AP242; only the geometry it shares with AP242 is read.", "Parser.Header.Schema"));
+        if (file.Edition3Sections.Count > 0)
+            notes.Add(new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
+                $"The STEP file uses ISO 10303-21 edition 3 {string.Join(", ", file.Edition3Sections.Distinct())} section(s); they are skipped, so references into other files are not followed.", "Parser.Header.Edition3"));
+        if (file.UserDefinedEntities > 0)
+            notes.Add(new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Info,
+                $"The STEP file holds {file.UserDefinedEntities} user-defined ('!') entity instance(s); they are kept but not interpreted.", "Parser.UserDefinedEntity"));
 
         var duplicateId = entities
             .GroupBy(e => e.Id)
@@ -55,10 +70,15 @@ internal static class Step242SubsetParser
             return Failure($"Duplicate entity id #{duplicateId.Key} detected.", "Parser.Semantics");
         }
 
-        var millimetresPerUnit = Step242LengthUnitNormalizer.ResolveMillimetresPerUnit(entities);
-        var normalizedEntities = Step242LengthUnitNormalizer.Normalize(entities, millimetresPerUnit);
+        var explicitEntities = Step242EquivalentForms.Normalize(Step242ImplicitKnots.Normalize(entities), notes, out var orientedAway);
+        var millimetresPerUnit = Step242LengthUnitNormalizer.ResolveMillimetresPerUnit(explicitEntities, out var unitDeclared);
+        // A file whose representation context assigns no length unit; a bare entity fragment has no context to ask.
+        if (!unitDeclared && explicitEntities.Any(e => Step242SubsetDecoder.TryGetConstructor(e.Instance, "GEOMETRIC_REPRESENTATION_CONTEXT") is not null))
+            notes.Add(new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
+                "The STEP file declares no length unit this importer reads (no LENGTH_UNIT in a GLOBAL_UNIT_ASSIGNED_CONTEXT); lengths are read as millimetres.", "Parser.Units.LengthUnitMissing"));
+        var normalizedEntities = Step242LengthUnitNormalizer.Normalize(explicitEntities, millimetresPerUnit);
         var declaredAccuracy = Step242LengthUnitNormalizer.ResolveDistanceAccuracyMillimetres(entities, millimetresPerUnit);
-        return KernelResult<Step242ParsedDocument>.Success(new Step242ParsedDocument(normalizedEntities, millimetresPerUnit, declaredAccuracy));
+        return KernelResult<Step242ParsedDocument>.Success(new Step242ParsedDocument(normalizedEntities, millimetresPerUnit, declaredAccuracy) { Notes = notes, OrientedAwayFaceIds = orientedAway }, notes);
     }
 
     private static KernelResult<Step242ParsedDocument> Failure(string message, string source)
@@ -132,17 +152,147 @@ internal static class Step242SubsetParser
             }
         }
 
+        private const int MaximumNesting = 256;
+        private int _depth;
+        private int? _entityId;
+        private List<Step242ParsedEntity>? _entities;
+        private Step242FileStructure? _file;
+
+        /// <summary>
+        /// Reads the exchange structure by section: HEADER statements (FILE_SCHEMA is kept), DATA instances,
+        /// edition 3 ANCHOR/REFERENCE/SIGNATURE sections (skipped) and the terminating keyword.
+        /// </summary>
+        public void ReadFile(List<Step242ParsedEntity> entities, Step242FileStructure file)
+        {
+            _entities = entities; _file = file;
+            if (!End && Peek() == '\uFEFF') _index++;
+            var inHeader = false; var inData = false;
+            while (!End)
+            {
+                SkipWhitespace();
+                if (End) break;
+                if (Peek() == '#')
+                {
+                    entities.Add(ReadEntity());
+                    continue;
+                }
+                if (!IsKeywordStart(Peek()))
+                {
+                    ReadToStatementTerminator();
+                    continue;
+                }
+                var keyword = ReadKeyword().ToUpperInvariant();
+                switch (keyword)
+                {
+                    case "ISO-10303-21": file.SawStart = true; ExpectStatementEnd(keyword); break;
+                    case "HEADER": file.SawHeader = true; inHeader = true; ExpectStatementEnd(keyword); break;
+                    case "DATA": file.DataSections++; inData = true; inHeader = false; ReadToStatementTerminator(); break;
+                    case "ENDSEC":
+                        if (inData) file.ClosedDataSections++;
+                        inData = false; inHeader = false; ExpectStatementEnd(keyword); break;
+                    case "ANCHOR" or "REFERENCE" or "SIGNATURE":
+                        file.Edition3Sections.Add(keyword); ExpectStatementEnd(keyword); SkipSection(); break;
+                    case "END-ISO-10303-21": file.SawEnd = true; return;
+                    default:
+                        if (inHeader && keyword == "FILE_SCHEMA" && !End)
+                        {
+                            SkipWhitespace();
+                            Expect('(');
+                            foreach (var value in ReadArgumentList())
+                                CollectStrings(value, file.Schemas);
+                            ExpectStatementEnd(keyword);
+                        }
+                        else ReadToStatementTerminator();
+                        break;
+                }
+            }
+        }
+
+        private static void CollectStrings(Step242Value value, List<string> into)
+        {
+            if (value is Step242StringValue text) into.Add(text.Value.Split(' ', 2)[0].Trim());
+            else if (value is Step242ListValue list) foreach (var item in list.Items) CollectStrings(item, into);
+        }
+
+        /// <summary>An edition 3 section's statements up to its ENDSEC; strings and comments may hold anything.</summary>
+        private void SkipSection()
+        {
+            while (!End)
+            {
+                SkipWhitespace();
+                if (End) break;
+                if (IsKeywordStart(Peek()))
+                {
+                    var save = _index;
+                    if (ReadKeyword().Equals("ENDSEC", StringComparison.OrdinalIgnoreCase)) { ExpectStatementEnd("ENDSEC"); return; }
+                    _index = save;
+                }
+                ReadToStatementTerminator();
+            }
+            throw Error("An ANCHOR, REFERENCE or SIGNATURE section is not closed by 'ENDSEC;'.", "Parser.Structure");
+        }
+
+        private void ExpectStatementEnd(string keyword)
+        {
+            SkipWhitespace();
+            if (End || text[_index] != ';') throw Error($"Expected ';' after '{keyword}'.", "Parser.Structure");
+            _index++;
+        }
+
+        private static bool IsKeywordStart(char c) => char.IsLetter(c) || c == '_';
+
+        private string ReadKeyword()
+        {
+            var start = _index;
+            while (!End && (char.IsLetterOrDigit(Peek()) || Peek() == '_' || Peek() == '-')) _index++;
+            return text[start.._index];
+        }
+
         public Step242ParsedEntity ReadEntity()
         {
             Expect('#');
             var id = ReadInteger();
+            _entityId = id;
             SkipWhitespace();
             Expect('=');
             SkipWhitespace();
+            if (!End && Peek() == '&') ReadScope();
             var instance = ReadEntityInstance();
             SkipWhitespace();
-            Expect(';');
+            if (End || text[_index] != ';')
+                throw Error(End ? "The file ends before this entity's closing ';'." : $"Expected ';' after the entity, found '{text[_index]}'.");
+            _index++;
+            _entityId = null;
             return new Step242ParsedEntity(id, instance);
+        }
+
+        /// <summary>
+        /// A SCOPE structure (ISO 10303-21 §10.3): '&SCOPE' instances 'ENDSCOPE' [export list], then the
+        /// owning instance. The scoped instances are read as ordinary instances; their ids stay unique per file.
+        /// </summary>
+        private void ReadScope()
+        {
+            var owner = _entityId;
+            _index++;
+            if (!ReadKeyword().Equals("SCOPE", StringComparison.OrdinalIgnoreCase)) throw Error("Expected 'SCOPE' after '&'.");
+            while (true)
+            {
+                SkipWhitespace();
+                if (End) throw Error("A SCOPE structure is not closed by 'ENDSCOPE'.");
+                if (Peek() == '#') { _entities!.Add(ReadEntity()); continue; }
+                if (!ReadKeyword().Equals("ENDSCOPE", StringComparison.OrdinalIgnoreCase)) throw Error("Expected an instance or 'ENDSCOPE' in a SCOPE structure.");
+                break;
+            }
+            _entityId = owner;
+            SkipWhitespace();
+            if (!End && Peek() == '/')
+            {
+                _index++;
+                while (!End && text[_index] != '/') _index++;
+                if (End) throw Error("A SCOPE export list is not closed by '/'.");
+                _index++;
+                SkipWhitespace();
+            }
         }
 
         private Step242EntityInstance ReadEntityInstance()
@@ -155,6 +305,8 @@ internal static class Step242SubsetParser
 
             if (Peek() != '(')
             {
+                if (!IsIdentifierStart(Peek()) && Peek() != '!')
+                    throw Error($"Expected an entity name after '=', found '{Peek()}'.");
                 return new Step242SimpleEntityInstance(ReadEntityConstructor());
             }
 
@@ -176,7 +328,7 @@ internal static class Step242SubsetParser
                     break;
                 }
 
-                if (!IsIdentifierStart(Peek()))
+                if (!IsIdentifierStart(Peek()) && Peek() != '!')
                 {
                     throw Error("Invalid complex instance element.", complexSource);
                 }
@@ -194,8 +346,11 @@ internal static class Step242SubsetParser
 
         private Step242EntityConstructor ReadEntityConstructor()
         {
+            // A user-defined entity is '!' followed by its keyword; it is kept under that name.
+            var userDefined = !End && Peek() == '!';
+            if (userDefined) { _index++; _file!.UserDefinedEntities++; }
             var name = ReadIdentifier();
-            name = name.ToUpperInvariant();
+            name = (userDefined ? "!" : string.Empty) + name.ToUpperInvariant();
             SkipWhitespace();
             Expect('(');
             var args = ReadArgumentList();
@@ -244,6 +399,7 @@ internal static class Step242SubsetParser
 
         private List<Step242Value> ReadArgumentList(string sourceTag = "Parser.Lexer")
         {
+            using var nesting = Nest();
             var values = new List<Step242Value>();
             SkipWhitespace();
             if (!End && Peek() == ')')
@@ -295,6 +451,7 @@ internal static class Step242SubsetParser
                 '$' => ReadOmitted(),
                 '*' => ReadDerivedOmitted(),
                 '(' => ReadList(),
+                '"' => ReadBinary(),
                 '.' => TryPeekNext(out var next) && char.IsDigit(next) ? ReadNumber() : ReadEnumOrLogical(),
                 '+' or '-' or >= '0' and <= '9' => ReadNumber(),
                 _ when IsIdentifierStart(c) => ReadTypedValue(),
@@ -319,6 +476,31 @@ internal static class Step242SubsetParser
             return new Step242TypedValue(name, args);
         }
 
+        /// <summary>Real files nest lists a few levels deep; a bound keeps a hostile file from exhausting the stack.</summary>
+        private NestingScope Nest()
+        {
+            if (++_depth > MaximumNesting)
+                throw Error($"Lists are nested more than {MaximumNesting} levels deep; no STEP schema nests that far.", "Parser.Structure");
+            return new NestingScope(this);
+        }
+
+        private readonly struct NestingScope(Reader reader) : IDisposable
+        {
+            public void Dispose() => reader._depth--;
+        }
+
+        /// <summary>A binary literal: '"' then a digit giving the unused leading bits and hexadecimal digits.</summary>
+        private Step242Value ReadBinary()
+        {
+            Expect('"');
+            var start = _index;
+            while (!End && Uri.IsHexDigit(Peek())) _index++;
+            if (End || Peek() != '"' || _index == start) throw Error("Malformed binary literal; expected '\"' then hexadecimal digits then '\"'.");
+            var digits = text[start.._index];
+            _index++;
+            return new Step242BinaryValue(digits);
+        }
+
         private Step242Value ReadReference()
         {
             Expect('#');
@@ -341,7 +523,7 @@ internal static class Step242SubsetParser
                         continue;
                     }
 
-                    return new Step242StringValue(new string(chars.ToArray()));
+                    return new Step242StringValue(Step242StringDecoding.Decode(new string(chars.ToArray())));
                 }
 
                 chars.Add(c);
@@ -364,6 +546,7 @@ internal static class Step242SubsetParser
 
         private Step242Value ReadList()
         {
+            using var nesting = Nest();
             Expect('(');
             var items = new List<Step242Value>();
             SkipWhitespace();
@@ -563,7 +746,15 @@ internal static class Step242SubsetParser
             throw Error("Unterminated comment block.");
         }
 
-        private Step242ParseException Error(string message, string sourceTag = "Parser.Lexer") => new($"{message} (position {_index}).", sourceTag);
+        private Step242ParseException Error(string message, string sourceTag = "Parser.Lexer")
+        {
+            var line = 1; var lineStart = 0;
+            for (var i = 0; i < _index && i < text.Length; i++)
+                if (text[i] == '\n') { line++; lineStart = i + 1; }
+            var where = _entityId is { } id ? $"in entity #{id}, " : string.Empty;
+            var truncated = End ? " The file ends here; it was probably truncated." : string.Empty;
+            return new($"{message} ({where}line {line}, column {_index - lineStart + 1}).{truncated}", sourceTag);
+        }
     }
 }
 
@@ -596,6 +787,12 @@ internal sealed class Step242ParsedDocument
     }
 
     public IReadOnlyList<Step242ParsedEntity> Entities { get; }
+
+    /// <summary>Warnings about the file's structure (header, edition 3 sections); every import reports them.</summary>
+    public IReadOnlyList<KernelDiagnostic> Notes { get; init; } = [];
+
+    /// <summary>Faces an ORIENTED_FACE stands in for; the shell lists the oriented face, never these.</summary>
+    public IReadOnlySet<int> OrientedAwayFaceIds { get; init; } = new HashSet<int>();
 
     public double PlaneAngleToRadiansScale { get; }
 
@@ -738,6 +935,78 @@ internal sealed record Step242ComplexEntityInstance(IReadOnlyList<Step242EntityC
 internal sealed record Step242EntityConstructor(string Name, IReadOnlyList<Step242Value> Arguments);
 
 internal sealed record Step242EntityReference(int TargetId) : Step242Value;
+
+/// <summary>A binary literal's hexadecimal digits; the first digit counts the unused leading bits.</summary>
+internal sealed record Step242BinaryValue(string Digits) : Step242Value;
+
+/// <summary>What the file says about its own structure, beyond its entity instances.</summary>
+internal sealed class Step242FileStructure
+{
+    public bool SawStart { get; set; }
+    public bool SawHeader { get; set; }
+    public bool SawEnd { get; set; }
+    public int DataSections { get; set; }
+    public int ClosedDataSections { get; set; }
+    public int UserDefinedEntities { get; set; }
+    public List<string> Schemas { get; } = [];
+    public List<string> Edition3Sections { get; } = [];
+
+    private static readonly string[] KnownSchemaPrefixes =
+    [
+        "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING", "AP203_CONFIGURATION_CONTROLLED_3D_DESIGN", "CONFIG_CONTROL_DESIGN",
+        "AUTOMOTIVE_DESIGN", "AP214", "AP242", "AP203",
+    ];
+
+    public static bool IsKnownSchema(string schema) => KnownSchemaPrefixes.Any(prefix => schema.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+}
+
+/// <summary>
+/// ISO 10303-21 §6.4.3 string control directives: '\\' a backslash, '\S\c' the ISO 8859-1 character above c,
+/// '\X\hh' one ISO 8859-1 character, '\X2\…\X0\' UTF-16 code units, '\X4\…\X0\' code points, '\Px\' a code
+/// page switch (pages other than A are read as A). A malformed directive is kept as written.
+/// </summary>
+internal static class Step242StringDecoding
+{
+    public static string Decode(string raw)
+    {
+        if (raw.IndexOf('\\') < 0) return raw;
+        var output = new System.Text.StringBuilder(raw.Length);
+        var i = 0;
+        while (i < raw.Length)
+        {
+            var c = raw[i];
+            if (c != '\\') { output.Append(c); i++; continue; }
+            if (At(raw, i, "\\\\")) { output.Append('\\'); i += 2; continue; }
+            if (At(raw, i, "\\S\\") && i + 3 < raw.Length) { output.Append((char)(raw[i + 3] + 128)); i += 4; continue; }
+            if (raw.Length > i + 3 && raw[i + 1] == 'P' && raw[i + 3] == '\\' && raw[i + 2] is >= 'A' and <= 'I') { i += 4; continue; }
+            if (At(raw, i, "\\X\\") && i + 5 <= raw.Length && TryHex(raw, i + 3, 2, out var latin)) { output.Append((char)latin); i += 5; continue; }
+            if (At(raw, i, "\\X2\\") || At(raw, i, "\\X4\\"))
+            {
+                var width = raw[i + 2] == '2' ? 4 : 8;
+                var end = raw.IndexOf("\\X0\\", i + 4, StringComparison.Ordinal);
+                var body = end < 0 ? null : raw[(i + 4)..end];
+                if (body is not null && body.Length % width == 0 && body.All(Uri.IsHexDigit))
+                {
+                    for (var k = 0; k < body.Length; k += width)
+                    {
+                        var code = int.Parse(body.AsSpan(k, width), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+                        if (width == 4) output.Append((char)code);
+                        else if (code is >= 0 and <= 0x10FFFF and not (>= 0xD800 and <= 0xDFFF)) output.Append(char.ConvertFromUtf32(code));
+                    }
+                    i = end + 4;
+                    continue;
+                }
+            }
+            output.Append(c); i++;
+        }
+        return output.ToString();
+    }
+
+    private static bool At(string raw, int index, string token) => string.CompareOrdinal(raw, index, token, 0, token.Length) == 0;
+
+    private static bool TryHex(string raw, int index, int count, out int value)
+        => int.TryParse(raw.AsSpan(index, count), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out value);
+}
 
 internal sealed record Step242StringValue(string Value) : Step242Value;
 

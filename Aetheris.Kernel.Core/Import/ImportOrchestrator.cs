@@ -59,7 +59,7 @@ public sealed class ImportOrchestrator
                 new KernelDiagnostic(
                     KernelDiagnosticCode.NotImplemented,
                     KernelDiagnosticSeverity.Error,
-                    "No source connector recognized this import request.",
+                    "The file is not in a format this importer reads: a STEP file is text that begins with 'ISO-10303-21;'.",
                     "Import.Orchestrator.ConnectorSelection")
             ]);
         }
@@ -83,6 +83,14 @@ public sealed class ImportOrchestrator
         }
 
         var bodyResult = lane.Import(parseResult.Value, policy);
+        // Notes about the source file itself (its header, skipped sections) belong to every outcome.
+        if (parseResult.Diagnostics.Count > 0)
+        {
+            var diagnostics = parseResult.Diagnostics.Concat(bodyResult.Diagnostics).ToArray();
+            bodyResult = bodyResult.IsSuccess && bodyResult.Value is not null
+                ? KernelResult<BrepBody>.Success(bodyResult.Value, diagnostics)
+                : KernelResult<BrepBody>.Failure(diagnostics);
+        }
         return new ImportResult(bodyResult, connector.Name, lane.Kind, ResolveRepresentationTruth(lane.Kind), parseResult.Value.SourceFamily);
     }
 

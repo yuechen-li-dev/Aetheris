@@ -154,7 +154,7 @@ public sealed class Step242TessellationRobustnessTests
     [Fact]
     public void Step242_Tessellate_PlanarFace_LinePlusBSplineLoop_SucceedsDeterministically()
     {
-        const string text = "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n"
+        const string text = "ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF'));\nENDSEC;\nDATA;\n"
             + "#1=MANIFOLD_SOLID_BREP('solid',#2);\n"
             + "#2=CLOSED_SHELL($,(#3));\n"
             + "#3=ADVANCED_FACE((#4),#30,.T.);\n"

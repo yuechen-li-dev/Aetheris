@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.Diagnostics;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Surfacing")]
 public sealed class SurfaceFamilyBoxCylinderPressureTestTests
 {
     private static readonly string[] RequiredStages = ["InputValidation","PlanarPatchEmission","CylindricalWallEmission","TokenPairingAnalysis","StitchCandidatePlanning","CombinedBodyRemap","SharedEdgeRewrite","DuplicateEdgeCleanup","VertexMergePlanning","LoopClosureValidation","ShellClosureValidation","BrepBodyValidation","StepExportSmoke"];

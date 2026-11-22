@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.Humanoid;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Experimental")]
 public sealed class HumanoidPoseAuthoringTests
 {
     [Fact]

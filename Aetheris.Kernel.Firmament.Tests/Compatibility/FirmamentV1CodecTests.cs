@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.ParsedModel;
 
 namespace Aetheris.Kernel.Firmament.Tests.Compatibility;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentV1CodecTests
 {
     [Fact]

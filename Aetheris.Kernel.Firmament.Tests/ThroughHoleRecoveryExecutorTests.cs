@@ -6,6 +6,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Holes")]
 public sealed class ThroughHoleRecoveryExecutorTests
 {
     private static readonly ThroughHoleRecoveryPolicy Policy = new();

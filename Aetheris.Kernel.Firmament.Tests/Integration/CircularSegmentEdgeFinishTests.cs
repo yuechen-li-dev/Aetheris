@@ -8,6 +8,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests.Integration;
 
+[Trait("Suite", "EdgeFinish")]
 public sealed class CircularSegmentEdgeFinishTests
 {
     [Theory]

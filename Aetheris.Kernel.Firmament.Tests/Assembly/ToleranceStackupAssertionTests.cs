@@ -2,6 +2,7 @@ using Aetheris.Kernel.Firmament.Assembly;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class ToleranceStackupAssertionTests
 {
     private static string Source() => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Assembly/bearing-module.firmament"));

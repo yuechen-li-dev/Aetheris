@@ -7,10 +7,12 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Holes")]
 public sealed class CombinedCountersinkTests
 {
     private static string Source(string name) => FirmamentCorpusHarness.ReadFixtureText($"fixtures/Regression/CombinedFeatures/{name}.firmament");
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("Fillet", 60d)]
     [InlineData("Fillet", 90d)]

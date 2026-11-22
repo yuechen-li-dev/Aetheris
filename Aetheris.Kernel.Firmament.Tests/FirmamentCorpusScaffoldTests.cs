@@ -2,6 +2,7 @@ using Aetheris.Kernel.Core.Diagnostics;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentCorpusScaffoldTests
 {
     private const string ManifestPath = "fixtures/Compatibility/LegacyV1/Corpus/manifests/firmament.corpus.json";

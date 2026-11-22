@@ -191,6 +191,7 @@ public sealed class LinearElasticM5Tests
         Assert.InRange(Assert.Single(result.NumericalLowering!.BoundaryEnforcements).MaximumViolationMeters,0,2e-6);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void RotatedPressure_UsesExactMaterialOutwardNormal()
     {
@@ -215,6 +216,7 @@ public sealed class LinearElasticM5Tests
         Assert.Equal(first.Fragments.Count,first.Fragments.Select(f=>f.OwnershipKey).Distinct(StringComparer.Ordinal).Count());
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void CompoundTinySupport_UsesAffineAggregationAndRestoresUsableMechanics()
     {

@@ -25,6 +25,7 @@ public sealed class HumanoidLocomotionTests
         }).IsSolved);
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData(AnatomicalSide.Left)]
     [InlineData(AnatomicalSide.Right)]

@@ -21,6 +21,7 @@ public sealed class ConvexStockCliTests
         { "../UniformRounding/rounded-rect-rounded", 26 }, { "../UniformRounding/ell-rounded", 38 }
     };
 
+    [Trait("Category", "Slow")]
     [Theory]
     [MemberData(nameof(Accepted))]
     public void ValidateBuildAndMeshUseTheActualStock(string fixture, int faces)

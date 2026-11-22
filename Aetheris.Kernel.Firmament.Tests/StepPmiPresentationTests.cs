@@ -6,6 +6,7 @@ using Aetheris.Kernel.Firmament.Export;
 namespace Aetheris.Kernel.Firmament.Tests;
 
 /// <summary>A GLB and a PDF drawing made from the semantic PMI an existing AP242 file carries (NIST MBE test cases).</summary>
+[Trait("Suite", "Pmi")]
 public sealed class StepPmiPresentationTests
 {
     private static string Nist(string relative)
@@ -76,6 +77,7 @@ public sealed class StepPmiPresentationTests
         Assert.Contains(rows, r => r[2] == "Ø50.8 ±0.254");
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void AdvancedToleranceParametersAreReadInMillimetres()
     {
@@ -92,6 +94,7 @@ public sealed class StepPmiPresentationTests
             Assert.All(Step242SemanticPmiInspector.Inspect(File.ReadAllText(file)).Items, i => Assert.True(i.PresentationSupported, $"{Path.GetFileName(file)} #{i.EntityId}: {string.Join(", ", i.PresentationGaps)}"));
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("CTC/nist_ctc_04_asme1_ap242-e1.stp")] // composite datum features, projected zone
     [InlineData("CTC/nist_ctc_05_asme1_ap242-e1.stp")] // auxiliary curves outside the part: listed, not located
@@ -135,6 +138,7 @@ public sealed class StepPmiPresentationTests
         Assert.True(result.Artifacts.Drawing.Pages.SelectMany(p => p.Annotations).Single(a => a.EngineeringDisplay == "9").DotAnchor);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void LabelsInTheFirmamentSourcePlaceBalloons()
     {

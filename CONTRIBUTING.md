@@ -28,27 +28,39 @@ dotnet build Aetheris.slnx -c Release -m:1
 dotnet test Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1
 ```
 
-### Two test lanes
+### Test lanes
 
-The command above is the **full corpus** lane and is what has to be green before you commit.
-It imports the whole NIST and OCCT corpus, so it is the lane that actually protects the
+The command above is the **full** lane and is what has to be green before you commit. It runs
+every test, including the NIST and OCCT corpus, so it is the lane that actually protects the
 interchange behaviour.
 
-For the edit-run-edit inner loop there is a **fast lane** that skips the corpus-driven tests:
+For the edit-run-edit inner loop, `scripts/test-lane.py` runs less:
 
 ```powershell
-dotnet test Aetheris.Kernel.Core.Tests -c Release --no-build --filter "Category!=SlowCorpus"
+python3 scripts/test-lane.py affected --dry-run   # what the change reaches, and why
+python3 scripts/test-lane.py affected             # run it, without Slow tests
+python3 scripts/test-lane.py fast                 # every project, without Slow tests
+python3 scripts/test-lane.py fast --project Aetheris.Kernel.Firmament.Tests --suite Drawing
 ```
 
-Use the fast lane while iterating; never use it as the gate. Its test count and
-runtime vary with the source and available corpus witnesses.
+`affected` takes the working tree plus the commits since the merge base with `origin/master`. It
+selects each changed file's project and every test project that references it. In
+`Aetheris.Kernel.Firmament.Tests` it narrows further by suite when the change is under a Firmament
+folder mapped in `scripts/test-suites.json`. Use these lanes while iterating; never use them as the
+gate.
 
-A test belongs in `[Trait("Category", "SlowCorpus")]` when its cost is dominated by importing a
-large corpus file rather than by the behaviour it is checking. Keep at least one cheap test per
-behaviour outside the trait, so the fast lane still fails when something is broken rather than
-merely running fewer tests. `Aetheris.Kernel.Firmament.Tests` has the trait too, but its time is
-spread evenly across real geometry work rather than concentrated in corpus I/O, so the split
-buys much less there.
+Two traits keep tests out of the inner loop:
+
+- `[Trait("Category", "SlowCorpus")]` is for a test whose cost is dominated by importing a large
+  corpus file rather than by the behaviour it checks.
+- `[Trait("Category", "Slow")]` is for any other test that takes over about 5 s.
+
+Keep at least one cheap test per behaviour outside both traits, so the inner loop still fails when
+something is broken rather than merely running fewer tests.
+
+Every test class in `Aetheris.Kernel.Firmament.Tests` names one suite with
+`[Trait("Suite", "...")]` from `scripts/test-suites.json`; `TestSuiteAssignmentTests` fails on a
+class without one.
 
 The NIST audit keeps strict canonical STEP byte snapshots. Three recovered-pcurve specimens
 have qualified Linux hashes in `testdata/step242/manifests/nist.v0.canonical-linux.json`:

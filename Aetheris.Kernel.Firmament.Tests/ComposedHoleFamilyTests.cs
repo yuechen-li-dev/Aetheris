@@ -9,6 +9,7 @@ using Aetheris.Kernel.Firmament.Visualization;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Holes")]
 public sealed class ComposedHoleFamilyTests
 {
     private static string Source => FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/ComposeHoleFamilies/l-bracket-countersink.firmament");

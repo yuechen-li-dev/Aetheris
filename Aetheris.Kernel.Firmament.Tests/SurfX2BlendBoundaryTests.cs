@@ -2,6 +2,7 @@ using Aetheris.Surfacing;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Surfacing")]
 public sealed class SurfX2BlendBoundaryTests
 {
     [Fact]
@@ -43,6 +44,7 @@ public sealed class SurfX2BlendBoundaryTests
         Assert.Equal(SculptStepExporter.Export(first.OutputState, first.ModelName).Step, SculptStepExporter.Export(second.OutputState, second.ModelName).Step);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void BlendPersistsAsBlendIntentAndReplaysWithoutCollapsingToReplaceRegion()
     {

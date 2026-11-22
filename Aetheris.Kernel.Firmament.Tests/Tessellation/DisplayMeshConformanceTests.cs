@@ -5,6 +5,7 @@ using Xunit.Abstractions;
 
 namespace Aetheris.Kernel.Firmament.Tests.Tessellation;
 
+[Trait("Suite", "Language")]
 public sealed class DisplayMeshConformanceTests(ITestOutputHelper output)
 {
     private static string Repo()
@@ -101,6 +102,7 @@ public sealed class DisplayMeshConformanceTests(ITestOutputHelper output)
     /// so neighbours meet vertex for vertex; what remains is where an imported vertex sits off its edge's end, or a
     /// face the edge-bound mesher declines (a sphere whose loop runs against its sense). Counts are ceilings with a
     /// little margin over the measured 0, 0, 0, 3, 0, 3 and 2 (from thousands before the edge-bound mesher).</summary>
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("CTC/nist_ctc_02_asme1_ap242-e2.stp", 6)]
     [InlineData("CTC/nist_ctc_03_asme1_ap242-e2.stp", 0)]

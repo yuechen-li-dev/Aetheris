@@ -19,6 +19,7 @@ public sealed class ConstructedSectionChainTrimTests
         ? SectionChainTemplates.ErgonomicFairingG1()
         : SectionChainTemplates.ErgonomicFairing("g0", smooth: false);
 
+    [Trait("Category", "Slow")]
     [Theory]
     [MemberData(nameof(Chains))]
     public void TransitionTrimsAreConstructedAndExactAtTheOldQualificationDensity(string lane)

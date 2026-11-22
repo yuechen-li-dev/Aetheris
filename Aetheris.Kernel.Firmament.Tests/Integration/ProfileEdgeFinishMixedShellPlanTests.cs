@@ -6,6 +6,7 @@ using Aetheris.Kernel.Core.Brep.Verification;
 
 namespace Aetheris.Kernel.Firmament.Tests.Integration;
 
+[Trait("Suite", "EdgeFinish")]
 public sealed class ProfileEdgeFinishMixedShellPlanTests
 {
     [Fact]

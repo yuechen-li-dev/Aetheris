@@ -8,6 +8,7 @@ using Aetheris.Kernel.Firmament.ParsedModel;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentValidationExecutionTests
 {
     [Fact]

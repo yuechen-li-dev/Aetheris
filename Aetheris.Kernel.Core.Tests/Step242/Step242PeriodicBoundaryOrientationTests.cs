@@ -89,6 +89,7 @@ public sealed class Step242PeriodicBoundaryOrientationTests
         Assert.False(SurfacePeriodicity.EquivalentModuloPeriod(0.125d, 0.25d, double.Tau, 1e-10d));
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void Stc06_ResolvesWithMislabelledOuterBoundsCapsAndNotchedBores()
     {

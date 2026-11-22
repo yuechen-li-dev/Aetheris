@@ -4,6 +4,7 @@ using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class AssemblyM0Tests
 {
     [Fact]

@@ -5,6 +5,7 @@ using Aetheris.Kernel.Core.Brep.Verification;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class EquationCurveTests
 {
     private static string Source(string name) => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/EquationCurves/" + name + ".firmament"));

@@ -3,6 +3,7 @@ using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class WindingAxisMateTests
 {
     [Theory]

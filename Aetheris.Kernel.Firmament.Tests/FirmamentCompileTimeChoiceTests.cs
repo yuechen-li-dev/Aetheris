@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentCompileTimeChoiceTests
 {
     private static string Root => FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Regression/CompileTimeChoicesRfc");

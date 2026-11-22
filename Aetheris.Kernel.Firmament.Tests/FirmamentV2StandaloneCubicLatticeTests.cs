@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Surfacing")]
 public sealed class FirmamentV2StandaloneCubicLatticeTests
 {
     [Fact]

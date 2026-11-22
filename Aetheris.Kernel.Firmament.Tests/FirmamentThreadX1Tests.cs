@@ -10,6 +10,7 @@ using System.Text.Json;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Pmi")]
 public sealed class FirmamentThreadX1Tests
 {
     private static string CylinderThread(double radius = 4, double major = 8, double pitch = 1.25,
@@ -156,6 +157,7 @@ public sealed class FirmamentThreadX1Tests
         Assert.Contains(fields.Fields, field => field.Name == "Pitch");
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void ExistingHexBoltAndOneThreadProduceOneManifoldStepBody()
     {

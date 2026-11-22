@@ -5,6 +5,7 @@ using Xunit;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class PanelAssemblyM0Tests
 {
     [Fact]

@@ -233,6 +233,7 @@ public sealed class BrepHelicalRibTests
         return volume;
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData(1.7d)]
     [InlineData(1.95d)]

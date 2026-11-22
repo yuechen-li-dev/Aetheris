@@ -6,6 +6,7 @@ using Aetheris.Surfacing;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Experimental")]
 public sealed class GarmentSplineAuthoringTests
 {
     [Fact]
@@ -73,6 +74,7 @@ public sealed class GarmentSplineAuthoringTests
             GarmentSplineAuthoring.Lower(edited, new())).Message);
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData(47, .08f)]
     [InlineData(48, float.NaN)]

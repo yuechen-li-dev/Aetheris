@@ -5,10 +5,12 @@ using Aetheris.Kernel.Firmament.Piping;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class PipingX3Tests
 {
     private static readonly string Root=FindRoot();
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("pipe-segment.firmament")]
     [InlineData("elbow90.firmament")]

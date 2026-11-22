@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Brep.Verification;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentV2CanonicalGrammarTests
 {
     [Fact]

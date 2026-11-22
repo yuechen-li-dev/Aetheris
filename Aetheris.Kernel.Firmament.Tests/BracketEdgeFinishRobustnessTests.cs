@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "EdgeFinish")]
 public sealed class BracketEdgeFinishRobustnessTests
 {
     private static string Bracket => FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/OrientedComposeHoles/bracket-foot-hole.firmament");

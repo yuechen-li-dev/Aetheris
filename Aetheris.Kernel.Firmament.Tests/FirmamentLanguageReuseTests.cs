@@ -4,6 +4,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 /// <summary>Parameters and reusable Features for visual editors: the outline shows them, and the edit
 /// operations that make them keep the model's geometry.</summary>
+[Trait("Suite", "Language")]
 public sealed class FirmamentLanguageReuseTests
 {
     private static readonly string Bracket = """

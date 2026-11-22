@@ -7,6 +7,7 @@ using Aetheris.Kernel.Core.Brep;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class WireFormTests
 {
     [Fact]
@@ -157,6 +158,7 @@ public sealed class WireFormTests
         Assert.True(report.Tori > 0);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void Helix_AndAxisCoilShareSemanticIdentityAndGeometry()
     {

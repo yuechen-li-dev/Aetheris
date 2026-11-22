@@ -7,6 +7,7 @@ using Aetheris.Kernel.Firmament.Lowering;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "EdgeFinish")]
 public sealed class AirChamferFirmamentOptInRouteTests
 {
     private const string SupportedFixture = "fixtures/Compatibility/LegacyV1/Corpus/valid/edge-x13-valid-airchamfer-shadow-box-edge.firmament";

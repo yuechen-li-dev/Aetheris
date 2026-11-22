@@ -2,6 +2,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Surfacing")]
 public sealed class FirmamentV2LatticeFillTests
 {
     [Fact]

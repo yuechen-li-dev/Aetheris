@@ -3,8 +3,10 @@ using Aetheris.Kernel.Firmament.Assembly;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class GuitarSurfacingWitnessTests
 {
+    [Trait("Category", "Slow")]
     [Fact]
     public void MultiFileProjectCompilesWithoutFilesystemResolutionAndKeepsPublicNeckPorts()
     {
@@ -29,6 +31,7 @@ public sealed class GuitarSurfacingWitnessTests
         Assert.Contains(result.Ir.SourceDependencies, d => d.Path == "materials.firmament");
         Assert.Contains(result.Ir.SourceDependencies, d => d.Path == "tuners-assembly.firmament");
     }
+    [Trait("Category", "Slow")]
     [Fact]
     public void SingleCutCarveAndBackExportClosedOrientedMeshesThroughOrdinaryAssembly()
     {

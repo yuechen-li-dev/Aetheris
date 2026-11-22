@@ -2,6 +2,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests.Integration;
 
+[Trait("Suite", "Language")]
 public sealed class ConvexStockAuthoringTests
 {
     [Theory]

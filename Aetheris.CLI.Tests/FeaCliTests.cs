@@ -68,6 +68,7 @@ public sealed class FeaCliTests
         finally { if(Directory.Exists(temp))Directory.Delete(temp,true); }
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void FeaCommand_ExperimentalShellIsExplicitAndWritesDiagnosticArtifacts()
     {

@@ -5,6 +5,7 @@ using Aetheris.Kernel.StandardLibrary;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class ExactConstructionIrM1Tests
 {
     [Fact]

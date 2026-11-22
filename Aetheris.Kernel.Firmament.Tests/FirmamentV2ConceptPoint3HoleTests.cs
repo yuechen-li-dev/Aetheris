@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Holes")]
 public sealed class FirmamentV2ConceptPoint3HoleTests
 {
     [Fact]

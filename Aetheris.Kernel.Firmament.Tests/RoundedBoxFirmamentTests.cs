@@ -2,6 +2,7 @@ using Aetheris.Kernel.Firmament;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class RoundedBoxFirmamentTests
 {
     [Fact]

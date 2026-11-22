@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.Assembly;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class FirmasmAssemblyRoundtripExporterTests
 {
     [Fact]

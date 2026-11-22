@@ -5,6 +5,7 @@ using System.Text.Json;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Holes")]
 public sealed class FirmamentPerforationTests
 {
     private const string GridSource = """
@@ -140,6 +141,7 @@ public sealed class FirmamentPerforationTests
             thickerWall.Instances.Select(i => (i.Row, i.Column)));
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void CylindricalPerforation_DiameterAndThicknessEditsRebuildStep()
     {
@@ -153,6 +155,7 @@ public sealed class FirmamentPerforationTests
         Assert.Equal(diameter.Value.Perforation.InstanceIds, thickness.Value.Perforation.InstanceIds);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void CylindricalPerforation_ExportsOneManifoldPatternWithStableWalls()
     {

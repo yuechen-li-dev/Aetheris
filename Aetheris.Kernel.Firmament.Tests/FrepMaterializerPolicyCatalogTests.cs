@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Surfacing")]
 public sealed class FrepMaterializerPolicyCatalogTests
 {
     [Fact]

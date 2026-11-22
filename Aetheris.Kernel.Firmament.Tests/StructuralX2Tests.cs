@@ -7,6 +7,7 @@ using Aetheris.Kernel.Firmament.Structural;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class StructuralX2Tests
 {
     private static readonly string Root = FindRoot();

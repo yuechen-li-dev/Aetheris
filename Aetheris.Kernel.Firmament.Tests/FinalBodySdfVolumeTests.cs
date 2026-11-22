@@ -6,6 +6,7 @@ using Aetheris.Kernel.Firmament.Modules;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Surfacing")]
 public sealed class FinalBodySdfVolumeTests
 {
     private static string Source(string name) => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(

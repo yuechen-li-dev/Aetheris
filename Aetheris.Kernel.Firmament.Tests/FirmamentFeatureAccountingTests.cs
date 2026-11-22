@@ -3,6 +3,7 @@ using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentFeatureAccountingTests
 {
     private static string Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures", relative));

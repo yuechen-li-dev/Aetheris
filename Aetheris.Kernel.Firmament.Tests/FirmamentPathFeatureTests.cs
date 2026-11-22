@@ -7,6 +7,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class FirmamentPathFeatureTests
 {
     private static string Root

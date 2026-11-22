@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.Assembly;
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
 /// <summary>BUILD-PERF-M2: definitions compile from the declarations they depend on.</summary>
+[Trait("Suite", "Assembly")]
 public sealed class AssemblyDeclarationScopeTests
 {
     private const string Catalog = """
@@ -63,6 +64,7 @@ public sealed class AssemblyDeclarationScopeTests
         return data;
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [MemberData(nameof(CanonicalAssemblies))]
     public void ScopedDeclarationsBuildTheSameAssemblyAsTheWholeCatalog(string fixture)

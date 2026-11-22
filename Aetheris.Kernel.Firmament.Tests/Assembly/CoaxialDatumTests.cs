@@ -4,6 +4,7 @@ using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class CoaxialDatumTests
 {
     private const string Fixture = "fixtures/Canonical/AssemblyInterfaces/coaxial-knob.firmasm";
@@ -133,6 +134,7 @@ public sealed class CoaxialDatumTests
         Assert.Contains(result.Diagnostics,d=>d.Code==code);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void GuitarHasFourInstancesOfOneCoaxialKnobDefinition()
     {

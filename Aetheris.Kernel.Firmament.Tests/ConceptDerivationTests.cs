@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class ConceptDerivationTests
 {
     private const string Profiles = """
@@ -119,6 +120,7 @@ public sealed class ConceptDerivationTests
         Assert.Contains(result.Diagnostics, d => d.Code == "assembly-datum-duplicate");
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void SharedGuitarOutlineEditsInvalidateExactlyItsThreeConsumers()
     {

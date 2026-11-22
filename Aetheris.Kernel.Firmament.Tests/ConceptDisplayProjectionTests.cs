@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.Visualization;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class ConceptDisplayProjectionTests
 {
     [Fact]

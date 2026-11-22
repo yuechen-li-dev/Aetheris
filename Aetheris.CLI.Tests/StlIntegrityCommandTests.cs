@@ -5,6 +5,7 @@ namespace Aetheris.CLI.Tests;
 
 public sealed class StlIntegrityCommandTests
 {
+    [Trait("Category", "Slow")]
     [Fact]
     public void Ctc01SerializedStlHasOppositeEdgeUsesAndOriginIndependentVolume()
     {

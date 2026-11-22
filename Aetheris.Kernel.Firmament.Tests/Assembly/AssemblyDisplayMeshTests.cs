@@ -3,6 +3,7 @@ using Aetheris.Kernel.Core.Brep.Tessellation;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class AssemblyDisplayMeshTests
 {
     [Fact]

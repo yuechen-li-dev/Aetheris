@@ -9,6 +9,7 @@ using DocumentFormat.OpenXml.Validation;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Drawing")]
 public sealed class DrawingPptxModel3DTests
 {
     [Fact]

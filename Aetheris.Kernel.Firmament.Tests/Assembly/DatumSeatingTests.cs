@@ -2,6 +2,7 @@ using Aetheris.Kernel.Firmament.Assembly;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class DatumSeatingTests
 {
     private const string Source = """
@@ -87,6 +88,7 @@ public sealed class DatumSeatingTests
         Assert.DoesNotContain("Concept Struct Layout", parsed.Source.DefinitionSource);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void GuitarBridgeAndPickupsHaveMaterialContactWithOneConceptDeck()
     {

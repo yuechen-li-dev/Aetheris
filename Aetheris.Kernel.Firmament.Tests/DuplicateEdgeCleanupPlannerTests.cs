@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.Diagnostics;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "EdgeFinish")]
 public sealed class DuplicateEdgeCleanupPlannerTests
 {
     [Fact]

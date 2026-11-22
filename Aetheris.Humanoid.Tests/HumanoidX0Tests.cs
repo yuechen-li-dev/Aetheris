@@ -101,6 +101,7 @@ public sealed class HumanoidX0Tests
         var h=Fixture.Value;var shaped=HumanoidMorphing.Apply(h,new Dictionary<HumanoidMorphId,double>{{id,value}});Assert.Equal(h.Surface.ConnectivityHash,shaped.Surface.ConnectivityHash);Assert.True(HumanoidValidator.Validate(shaped).IsValid);Assert.Equal(h.Surface.Faces,shaped.Surface.Faces);
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData(HumanoidJointKind.LeftShoulder,35)][InlineData(HumanoidJointKind.LeftShoulder,70)]
     [InlineData(HumanoidJointKind.LeftElbow,45)][InlineData(HumanoidJointKind.LeftElbow,90)]

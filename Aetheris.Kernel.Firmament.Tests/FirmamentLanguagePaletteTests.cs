@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 namespace Aetheris.Kernel.Firmament.Tests;
 
 /// <summary>Every palette item is inserted the way a visual editor inserts it and must build.</summary>
+[Trait("Suite", "Language")]
 public sealed class FirmamentLanguagePaletteTests
 {
     private const string Host = "Model PaletteHost {\n    Units: mm\n    Box Plate { Size: [60mm, 40mm, 10mm] }\n}\n";

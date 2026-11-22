@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentV2VolumeAssertionTests
 {
     [Fact]

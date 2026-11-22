@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class WireLineGuideTests
 {
     private static string Source => FirmamentCorpusHarness.CanonicalMutationSource(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/WireForm/line-guide.firmament"));

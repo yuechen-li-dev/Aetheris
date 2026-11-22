@@ -4,6 +4,7 @@ namespace Aetheris.CLI.Tests;
 
 public sealed class ReleaseAdmissionRegressionTests
 {
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("Learn/06-post-on-plate.firmament", "to: height }", "to: height; zzUnknownField: 1mm }")]
     [InlineData("Learn/06-post-on-plate.firmament", "Semantic Foot {", "Semantic Foot { zzUnknownField: 1mm;")]

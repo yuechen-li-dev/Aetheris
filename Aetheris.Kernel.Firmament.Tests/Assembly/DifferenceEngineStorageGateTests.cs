@@ -9,11 +9,13 @@ using Aetheris.Kernel.Firmament.Assembly;
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
 [CollectionDefinition("StorageGateMeshing", DisableParallelization = true)]
+[Trait("Suite", "Assembly")]
 public sealed class StorageGateMeshingCollection;
 
 // Keep wall-clock-bounded production meshing outside competing xUnit collections.
 // The exporter retains its ordinary five-second budget.
 [Collection("StorageGateMeshing")]
+[Trait("Suite", "Assembly")]
 public sealed class DifferenceEngineStorageGateTests
 {
     [Fact]

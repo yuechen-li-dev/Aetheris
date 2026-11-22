@@ -6,6 +6,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Holes")]
 public sealed class OrientedComposeShaftHoleTests
 {
     private static string Source => FirmamentCorpusHarness.ReadFixtureText("fixtures/Regression/OrientedComposeHoles/simple-bracket-through-hole.firmament");

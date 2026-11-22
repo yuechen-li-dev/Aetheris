@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.Scene;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Assembly")]
 public sealed class FactorySceneTests
 {
     private const string Rows = """
@@ -90,6 +91,7 @@ public sealed class FactorySceneTests
         Assert.Contains(result.Diagnostics,d => d.Code == "scene-length-unit-required");
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void FactoryHasRequiredOperationalLayersAndRetainsDefinitionsAcrossLayoutEdits()
     {

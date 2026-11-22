@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 namespace Aetheris.Kernel.Firmament.Tests;
 
 /// <summary>`|> Round(r)` geometry: the arc is tangent to both trimmed neighbours and joins them continuously.</summary>
+[Trait("Suite", "EdgeFinish")]
 public sealed class ProfileCornerRoundTests
 {
     public static TheoryData<string, LineArcProfileCurve2D, LineArcProfileCurve2D, double> Corners() => new()

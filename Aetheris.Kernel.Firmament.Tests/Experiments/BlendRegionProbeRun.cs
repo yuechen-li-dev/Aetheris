@@ -7,6 +7,7 @@ namespace Aetheris.Kernel.Firmament.Tests.Experiments;
 
 /// <summary>Runs E0 over authored, NIST and community parts. Set AETHERIS_EXPERIMENTS=1.
 /// Output: artifacts/local/blend-probe/*.json (reports with display meshes).</summary>
+[Trait("Suite", "Experimental")]
 public sealed class BlendRegionProbeRun
 {
     private static string Root()

@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.Parsing;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentFormatterTests
 {
     public static TheoryData<string, string> MessyNormalizationCases => new()

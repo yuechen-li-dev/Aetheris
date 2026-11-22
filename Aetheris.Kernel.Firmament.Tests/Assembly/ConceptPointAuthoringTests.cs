@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class ConceptPointAuthoringTests
 {
     private static string Source => FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(
@@ -139,6 +140,7 @@ public sealed class ConceptPointAuthoringTests
         Assert.Contains(excessive.Diagnostics, d => d.Message.Contains("function-call-invalid", StringComparison.Ordinal));
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void GuitarUsesNutLocalCrossingsAndEquationDrivenFrets()
     {

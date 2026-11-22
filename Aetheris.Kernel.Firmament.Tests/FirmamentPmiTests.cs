@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Results;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Pmi")]
 public sealed class FirmamentPmiTests
 {
     [Fact]

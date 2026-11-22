@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class BoxRuntimeCorrespondenceTests
 {
     private const string Source = "Model BoxWitness { Units: mm Box Body { Size: [30mm, 20mm, 10mm] } }";

@@ -613,6 +613,7 @@ public sealed class CliBaselineTests
         Assert.Contains(doc.RootElement.GetProperty("suggestedProbes").EnumerateArray(), p => p.GetProperty("command").GetString()?.Contains("--point", StringComparison.Ordinal) == true);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void Analyze_Map_SixView_Llm_Torus_Discloses_Analytic_Ring_And_No_Fallback()
     {
@@ -1152,6 +1153,7 @@ public sealed class CliBaselineTests
         Assert.Equal("conservative-outside", root.GetProperty("unknownPolicy").GetString());
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void AnalyzeVolume_ApproximateCurvedMixedVolume_ReturnsNumericEstimate()
     {
@@ -1167,6 +1169,7 @@ public sealed class CliBaselineTests
         Assert.Equal("conservative-outside", doc.RootElement.GetProperty("unknownPolicy").GetString());
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void AnalyzeVolume_JsonContractIncludesApproximationMetadata()
     {

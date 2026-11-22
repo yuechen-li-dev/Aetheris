@@ -10,6 +10,7 @@ using Aetheris.Surfacing;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Assembly")]
 public sealed class CodeNativeAssemblyRehearsalTests
 {
     private const string Root = "fixtures/Regression/CodeNativeAssembly/";

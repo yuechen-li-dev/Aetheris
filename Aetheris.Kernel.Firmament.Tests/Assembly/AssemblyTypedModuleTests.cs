@@ -2,6 +2,7 @@ using Aetheris.Kernel.Firmament.Assembly;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class AssemblyTypedModuleTests
 {
     private const string Config = "Record UnitConfig { x: Length } Static standard: UnitConfig = UnitConfig { x: 10mm }";

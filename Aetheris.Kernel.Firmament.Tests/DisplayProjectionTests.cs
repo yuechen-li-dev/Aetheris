@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.Scene;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class DisplayProjectionTests
 {
     private static string PathFor(string relative) => FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/"+relative);

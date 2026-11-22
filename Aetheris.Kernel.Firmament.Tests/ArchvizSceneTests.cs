@@ -6,6 +6,7 @@ using Aetheris.Kernel.Firmament.Scene;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Assembly")]
 public sealed class ArchvizSceneTests
 {
     private const string Finishes = """

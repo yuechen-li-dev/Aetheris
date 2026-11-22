@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Firmament.FirmamentV2;
 namespace Aetheris.Kernel.Firmament.Tests;
+[Trait("Suite", "Language")]
 public sealed class FirmamentV2TemplatePatternTests
 {
     [Fact]

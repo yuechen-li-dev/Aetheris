@@ -6,6 +6,7 @@ using Aetheris.Kernel.Firmament.Lowering;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentPlacementAnchorSemanticsTests
 {
     [Fact]
@@ -22,6 +23,7 @@ public sealed class FirmamentPlacementAnchorSemanticsTests
     }
 }
 
+[Trait("Suite", "Language")]
 internal static class BrepBodyBoundsExtensions
 {
     public static BoundingBox3D? ComputeBounds(this Aetheris.Kernel.Core.Brep.BrepBody body)

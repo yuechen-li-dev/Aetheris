@@ -3,6 +3,7 @@ using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class AssemblyM3Tests
 {
     private static string Fixture => FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Regression/Assembly/bearing-module-family-with-legacy-placement.firmament");

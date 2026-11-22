@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Pmi")]
 public sealed class FirmamentTypedToleranceTests
 {
     private static string Source => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/PMI/typed-tolerance.firmament"));

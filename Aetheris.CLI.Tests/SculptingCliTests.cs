@@ -109,6 +109,7 @@ public sealed class SculptingCliTests
         finally { if (File.Exists(output)) File.Delete(output); var delta = Path.ChangeExtension(output, ".delta.json"); if (File.Exists(delta)) File.Delete(delta); }
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void SectionChainCageFitsTheExactBodyAndReplaysTwoEditsWithTheSameRim()
     {
@@ -190,6 +191,7 @@ public sealed class SculptingCliTests
         }
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void WheelRecessFairsWithAStableRimAndCertifiedPreviewClearance()
     {
@@ -243,6 +245,7 @@ public sealed class SculptingCliTests
         }
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void SurfaceMountMeasuresTheCurrentMeshAndReplaysItsFrame()
     {
@@ -285,6 +288,7 @@ public sealed class SculptingCliTests
         }
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void SplineCutoutRebuildsMirroredArchesAndQualifiesWheelSweep()
     {
@@ -334,6 +338,7 @@ public sealed class SculptingCliTests
         }
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void MirroredStrokeReplaysBothGripsAndRejectsAnUnmatchedPlane()
     {
@@ -392,6 +397,7 @@ public sealed class SculptingCliTests
         }
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("maximumRimDeviation: 0.15mm", "maximumRimDeviation: 0.08mm", "mesh-section-rim-deviation-exceeded")]
     [InlineData("output: LowFront", "MeshState Uncrease { input: Seed; Crease { edges: [All]; mode: Smooth } }\n    output: Uncrease", "mesh-section-rim-crease-changed")]

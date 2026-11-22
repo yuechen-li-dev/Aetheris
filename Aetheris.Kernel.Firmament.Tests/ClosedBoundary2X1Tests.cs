@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class ClosedBoundary2X1Tests
 {
     [Fact]

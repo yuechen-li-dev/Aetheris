@@ -63,6 +63,7 @@ public sealed class SurfX3bConstructionStateTests
         Assert.Null(result.OutputState);
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("surf-x3b-add-section-chain-grip.firmament", "AddSectionChain")]
     [InlineData("surf-x3b-remove-section-chain-duct.firmament", "RemoveSectionChain")]

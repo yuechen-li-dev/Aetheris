@@ -5,8 +5,10 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class BezierSectionStackTests
 {
+    [Trait("Category", "Slow")]
     [Fact]
     public void CodexEngravesOnThreadedHexBoltAndRoundTripsStep()
     {
@@ -71,6 +73,7 @@ public sealed class BezierSectionStackTests
         Qualify(mark,pocket);
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("D", true)]
     [InlineData("OO", true)]

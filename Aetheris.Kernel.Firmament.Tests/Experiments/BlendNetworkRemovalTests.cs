@@ -9,6 +9,7 @@ namespace Aetheris.Kernel.Firmament.Tests.Experiments;
 
 /// <summary>E1: author a part with a finish, remove the probe's strips, compare with the part
 /// authored without the finish.</summary>
+[Trait("Suite", "Experimental")]
 public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
 {
     private static string Root()
@@ -162,6 +163,7 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
 
     /// <summary>Bodies with circular edges rounded whole, then every strip and corner removed: the body again.
     /// The original walls are kept (they are faces the body was built with, not blends).</summary>
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("cylinder-rounded")]
     [InlineData("frustum-rounded")]
@@ -266,6 +268,7 @@ public sealed class BlendNetworkRemovalTests(ITestOutputHelper output)
 }
 
 /// <summary>E1 reach over imported parts, one region at a time. AETHERIS_EXPERIMENTS=1.</summary>
+[Trait("Suite", "Experimental")]
 public sealed class BlendNetworkRemovalReach
 {
     [Fact]

@@ -6,6 +6,7 @@ using Aetheris.Kernel.Firmament.Lowering;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentBooleanCanonicalSuccessTests
 {
     public static TheoryData<string, string, FirmamentLoweredBooleanKind> CanonicalBooleanExamples =>

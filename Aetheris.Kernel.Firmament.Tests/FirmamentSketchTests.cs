@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Brep.Verification;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public class FirmamentSketchTests
 {
     private static string Fixture(string name) => File.ReadAllText(Path.Combine(Root(), "fixtures", "Regression", "Sketcher", name));

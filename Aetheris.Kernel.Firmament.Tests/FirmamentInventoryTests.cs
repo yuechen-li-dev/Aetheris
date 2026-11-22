@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.Scene;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentInventoryTests
 {
     private const string Bracket = "Record Spec { width: Length } Static spec: Spec = Spec { width: 30mm } Model Bracket { units: mm Box stock { size: [spec.width,20mm,6mm] } }";

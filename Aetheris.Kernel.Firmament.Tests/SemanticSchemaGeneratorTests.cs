@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentSchemaGeneratorTests
 {
     private const string Prelude = """

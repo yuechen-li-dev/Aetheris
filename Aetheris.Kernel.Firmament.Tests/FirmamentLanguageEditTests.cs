@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentLanguageEditTests
 {
     // Assertions below deliberately use LF; keep the specimen independent of checkout line endings.
@@ -192,6 +193,7 @@ public sealed class FirmamentLanguageEditTests
 
     /// <summary>Over the canonical corpus: renaming any named declaration and renaming it back gives
     /// the original bytes, and rewriting any field to its own value changes nothing.</summary>
+    [Trait("Category", "Slow")]
     [Fact]
     public void CanonicalCorpus_RenameRoundTripsAndSelfAssignmentAreIdentity()
     {

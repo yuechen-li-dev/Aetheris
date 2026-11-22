@@ -8,6 +8,7 @@ namespace Aetheris.Kernel.Firmament.Tests.Integration;
 /// <c>draft:</c> on an Extrude: every wall is drafted exactly (lines become drafted planes, arcs right cones), the
 /// section at the neutral plane is the Profile, and anything without an exact drafted wall is refused.
 /// </summary>
+[Trait("Suite", "Profile")]
 public sealed class DraftedExtrudeTests
 {
     private const string Bracket = """

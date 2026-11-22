@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.Garment;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Experimental")]
 public sealed class GarmentSettlingTests
 {
     [Theory]

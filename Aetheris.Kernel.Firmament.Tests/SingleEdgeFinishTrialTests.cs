@@ -10,6 +10,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 /// A picked-edge finish is offered only when a trial build of it succeeds, so the editor's offer and the
 /// compiler's build cannot disagree; and an offered finish builds anywhere inside the size range shown.
 /// </summary>
+[Trait("Suite", "EdgeFinish")]
 public sealed class SingleEdgeFinishTrialTests
 {
     private static string Bracket

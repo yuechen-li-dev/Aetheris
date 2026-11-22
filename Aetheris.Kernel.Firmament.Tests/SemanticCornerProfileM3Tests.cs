@@ -4,6 +4,7 @@ using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "EdgeFinish")]
 public sealed class SemanticCornerProfileM3Tests
 {
     [Fact]

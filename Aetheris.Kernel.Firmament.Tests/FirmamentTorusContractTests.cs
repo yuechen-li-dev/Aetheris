@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.Lowering;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class FirmamentTorusContractTests
 {
     [Fact]

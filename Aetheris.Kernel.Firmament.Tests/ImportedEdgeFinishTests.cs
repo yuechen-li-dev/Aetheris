@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Import")]
 public sealed class ImportedEdgeFinishTests
 {
     [Theory]

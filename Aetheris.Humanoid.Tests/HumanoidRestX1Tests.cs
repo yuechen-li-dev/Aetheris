@@ -28,6 +28,7 @@ public sealed class HumanoidRestX1Tests
         Assert.NotEqual(Quaternion.Identity, aSolved.PoseState.LocalRotations.Single().LocalRotation);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void CanonicalNormalizationPreservesIdentityRebuildsBindsAttachmentsAndMorphs()
     {
@@ -88,6 +89,7 @@ public sealed class HumanoidRestX1Tests
         Assert.InRange(Math.Abs(actual.FlexionDegrees - 120), 0, .001);
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData(HumanoidJointKind.LeftHip, -20)]
     [InlineData(HumanoidJointKind.RightHip, -20)]

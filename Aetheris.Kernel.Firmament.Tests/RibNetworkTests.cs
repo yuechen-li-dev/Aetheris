@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class RibNetworkTests
 {
     internal static string Program(double draft=0,double secondHeight=10,string finish="",string hole="")=>$$"""

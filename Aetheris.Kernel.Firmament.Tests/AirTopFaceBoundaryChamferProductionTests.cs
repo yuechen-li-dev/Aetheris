@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "EdgeFinish")]
 public sealed class AirTopFaceBoundaryChamferProductionTests
 {
     [Fact]

@@ -5,6 +5,7 @@ using Aetheris.Kernel.StandardLibrary;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Surfacing")]
 public sealed class SurfaceMeshIrM4HexBoltTests
 {
     [Fact]

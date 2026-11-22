@@ -22,6 +22,7 @@ public sealed class ExperimentalShellX1AuthorityTests
         }
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void NativeSingleBendSolvesWithSharedC0TraceDegreesOfFreedom()
     {
@@ -43,6 +44,7 @@ public sealed class ExperimentalShellX1AuthorityTests
         Assert.Equal(result.Solver.ResidualHistory,repeat.Solver.ResidualHistory);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void NativeFlatPanelMatchesFrozenSyntheticFlatSolution()
     {
@@ -61,6 +63,7 @@ public sealed class ExperimentalShellX1AuthorityTests
         var partialEdge=CompileResult("Invalid","FEA","ExperimentalShell","native-sheetmetal-partial-edge-interface.firmament");Assert.Contains(partialEdge.Diagnostics,x=>x.Code=="thinwall-sheetmetal-interface-mismatch");
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void NativeTwoBendChannelRetainsOpeningsAndConformingInterfaces()
     {

@@ -7,6 +7,7 @@ using Aetheris.Kernel.Firmament.Scene;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Assembly")]
 public sealed class SceneAuthoringTests
 {
     private static string PathFor(string name) => FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Scene/"+name+".firmament");

@@ -3,6 +3,7 @@ using System.Linq;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentCompiledSchemaAttachmentTests
 {
     [Fact]

@@ -3,6 +3,7 @@ using Xunit;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class FirmamentPanelOnlyBuildTests
 {
     [Fact]

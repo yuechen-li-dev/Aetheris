@@ -2,6 +2,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentEditorExperienceTests
 {
     private static string Fixture(string path = "fixtures/Language/Editor/parameterized-plate.firmament") =>

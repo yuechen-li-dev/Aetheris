@@ -11,6 +11,7 @@ namespace Aetheris.Server.Tests;
 
 public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
+    [Trait("Category", "Slow")]
     [Fact]
     public async Task DisplayPrepare_ThreadedShowcase_ShadesEveryRequiredFace()
     {
@@ -310,6 +311,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.NotNull(imported.Data);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public async Task Ftc07ViewMaterialization_FailsWithDiagnosticInsteadOfHang()
     {

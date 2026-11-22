@@ -1,0 +1,23 @@
+{
+  "comment": "Inputs for scripts/test-lane.py. Changed paths select test projects through the ProjectReference graph; inside Aetheris.Kernel.Firmament.Tests they also select suites (the class-level Suite trait). A path that matches nothing here and belongs to no project selects every test project.",
+  "firmamentTestProject": "Aetheris.Kernel.Firmament.Tests",
+  "firmamentSuites": ["Language", "Profile", "Holes", "EdgeFinish", "Surfacing", "Import", "Pmi", "Drawing", "Assembly", "Experimental"],
+  "firmamentSourceSuites": {
+    "Aetheris.Kernel.Firmament/Drawing/": ["Drawing"],
+    "Aetheris.Kernel.Firmament/Assembly/": ["Assembly"],
+    "Aetheris.Kernel.Firmament/Scene/": ["Assembly"],
+    "Aetheris.Kernel.Firmament/Garment/": ["Experimental"],
+    "Aetheris.Kernel.Firmament/Humanoid/": ["Experimental"],
+    "Aetheris.Kernel.Firmament/Surfacing/": ["Surfacing", "Experimental"],
+    "Aetheris.Kernel.Firmament/Diagnostics/": ["Surfacing"],
+    "Aetheris.Kernel.Firmament/Execution/": ["Surfacing", "Profile"],
+    "Aetheris.Kernel.Firmament/Export/": ["Import", "Pmi", "Drawing", "Assembly"],
+    "Aetheris.Kernel.Firmament/Formatting/": ["Language"],
+    "Aetheris.Kernel.Firmament/Validation/": ["Language", "Pmi"]
+  },
+  "ignoredPrefixes": ["docs/development/", "docs/release/", ".github/", "artifacts/", "README.md", "CONTRIBUTING.md", "AGENTS.md"],
+  "pathProjects": {
+    "docs/public/": ["Aetheris.CLI.Tests", "Aetheris.Kernel.Firmament.Tests", "Aetheris.Server.Tests", "Aetheris.SheetMetal.Tests", "Aetheris.FrictionLab.Tests"],
+    "scripts/": []
+  }
+}

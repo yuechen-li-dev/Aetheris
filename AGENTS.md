@@ -54,22 +54,34 @@ Do not report .NET tests as “not run due to missing dotnet” unless installat
 
 ## Test lanes
 
-Iterate with the fast lane and gate on the full one:
+Three lanes, all through `scripts/test-lane.py` (it builds `Aetheris.slnx -c Release` first unless `--no-build`):
 
 ```
-dotnet test Aetheris.Kernel.Core.Tests -c Release --no-build --filter "Category!=SlowCorpus"
-dotnet test Aetheris.slnx -c Release --no-build
+python3 scripts/test-lane.py affected     # inner loop: what the change can reach, without Slow tests
+python3 scripts/test-lane.py fast         # every project, without Slow tests
+python3 scripts/test-lane.py full         # the gate: dotnet test Aetheris.slnx -c Release --no-build
 ```
 
-The full lane runs test projects in parallel; that is the day-to-day gate. Never report a change
-as verified on the fast lane alone - it omits the corpus-driven tests, which are the ones that
-catch interchange regressions.
-
-CI runs the parallel lane on every push and pull request; release qualification runs the serial one.
+- **Iterate on `affected`.** The change is the working tree plus commits since the merge base with
+  `origin/master` (`--base` overrides). A changed file selects its project and every test project that
+  references it. Inside `Aetheris.Kernel.Firmament.Tests` it also selects suites: a change under a
+  Firmament folder mapped in `scripts/test-suites.json` runs only those suites, any other Firmament change
+  runs all of them. `--dry-run` prints the selection and why.
+- **Gate on `full`.** Run it before every commit. Never report a change as verified on `affected` or
+  `fast` alone: they omit `Slow` and `SlowCorpus` tests, which are the corpus and end-to-end checks that
+  catch interchange and integration regressions. CI runs the full lane on every push and pull request;
+  release qualification runs the serial one.
+- **`Slow`** (`[Trait("Category", "Slow")]`) marks a test that takes over about 5 s; `SlowCorpus` marks a
+  corpus-driven one. Tag a new test that crosses 5 s; do not split or weaken a test just to dodge the tag.
+- **Suites.** Every test class in `Aetheris.Kernel.Firmament.Tests` carries one
+  `[Trait("Suite", "...")]` from `scripts/test-suites.json` (`TestSuiteAssignmentTests` enforces it).
+  Run one directly with
+  `python3 scripts/test-lane.py fast --project Aetheris.Kernel.Firmament.Tests --suite Drawing`.
+  When a new Firmament source folder has tests of its own, map it in `firmamentSourceSuites`.
 
 The serial lane is an optional determinism check, not a daily gate. Run it when a change touches
 shared static state (caches, memos, ambient context), test isolation, or ordering, or when a
-parallel-lane failure looks order-dependent:
+full-lane failure looks order-dependent:
 
 ```
 dotnet test Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1

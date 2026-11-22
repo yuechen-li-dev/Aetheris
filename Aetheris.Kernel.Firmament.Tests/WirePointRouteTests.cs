@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class WirePointRouteTests
 {
     private static string Source => FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/WireForm/point-route.firmament")));

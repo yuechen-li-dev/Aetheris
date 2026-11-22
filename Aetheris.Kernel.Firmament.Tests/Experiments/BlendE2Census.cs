@@ -7,6 +7,7 @@ using Aetheris.Kernel.Core.Topology;
 namespace Aetheris.Kernel.Firmament.Tests.Experiments;
 
 /// <summary>E2 census: what the non-planar refusals of E3 are, geometrically. Gated, writes e2-census.txt.</summary>
+[Trait("Suite", "Experimental")]
 public sealed class BlendE2Census
 {
     [Fact]

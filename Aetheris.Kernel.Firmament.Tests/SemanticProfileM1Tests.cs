@@ -4,6 +4,7 @@ using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class SemanticProfileM1Tests
 {
     [Fact]

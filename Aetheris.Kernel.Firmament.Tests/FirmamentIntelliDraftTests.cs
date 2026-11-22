@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public class FirmamentIntelliDraftTests
 {
     [Theory]

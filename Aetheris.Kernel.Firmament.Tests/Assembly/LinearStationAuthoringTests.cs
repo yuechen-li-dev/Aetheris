@@ -2,6 +2,7 @@ using Aetheris.Kernel.Firmament.Assembly;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class LinearStationAuthoringTests
 {
     private static string Source => FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(

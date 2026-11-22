@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.Analysis;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Surfacing")]
 public sealed class CirAnalysisServiceTests
 {
     [Fact]

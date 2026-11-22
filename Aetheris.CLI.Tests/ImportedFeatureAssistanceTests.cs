@@ -68,6 +68,7 @@ public sealed class ImportedFeatureAssistanceTests
         Assert.Contains("firmament-lock-rebind-required",stdout.ToString());
         Assert.Equal(receipt,File.ReadAllText(lockPath));
     }
+    [Trait("Category", "Slow")]
     [Theory] [InlineData(false)] [InlineData(true)]
     public void Ftc09_PrincipalYHole_PlanAndLockedBuildAgree(bool remove)
     {

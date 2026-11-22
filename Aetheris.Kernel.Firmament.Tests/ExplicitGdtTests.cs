@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.Visualization;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Pmi")]
 public sealed class ExplicitGdtTests
 {
     private static string Fixture(string relative)

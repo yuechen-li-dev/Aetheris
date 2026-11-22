@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Geometry;
 
 namespace Aetheris.Kernel.Firmament.Tests.Integration;
 
+[Trait("Suite", "EdgeFinish")]
 public sealed class ProfileBoundaryChamferTests
 {
     [Fact]

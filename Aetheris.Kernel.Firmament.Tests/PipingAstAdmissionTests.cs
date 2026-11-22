@@ -4,8 +4,10 @@ using Aetheris.Kernel.Firmament.Piping;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class PipingAstAdmissionTests
 {
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("pipe-segment")]
     [InlineData("elbow90")]

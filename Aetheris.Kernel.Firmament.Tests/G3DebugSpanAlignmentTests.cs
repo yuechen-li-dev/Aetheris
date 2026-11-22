@@ -12,6 +12,7 @@ using Aetheris.Kernel.Firmament.Validation;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Surfacing")]
 public sealed class G3DebugSpanAlignmentTests
 {
     [Fact]

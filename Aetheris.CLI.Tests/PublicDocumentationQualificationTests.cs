@@ -136,6 +136,7 @@ public sealed class PublicDocumentationQualificationTests
         Assert.True(File.Exists(Path.Combine(temp.Path, "flat.step"))); Assert.True(File.Exists(Path.Combine(temp.Path, "flat.svg")));
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("fixtures/Canonical/Materials/material-catalog-coupon.firmament", "FirmamentNative")]
     [InlineData("fixtures/Canonical/FEA/cantilever.firmament", "FirmamentNative")]

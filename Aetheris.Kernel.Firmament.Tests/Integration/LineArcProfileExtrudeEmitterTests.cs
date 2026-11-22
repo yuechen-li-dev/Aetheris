@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests.Integration;
 
+[Trait("Suite", "Profile")]
 public class LineArcProfileExtrudeEmitterTests
 {
     [Theory]

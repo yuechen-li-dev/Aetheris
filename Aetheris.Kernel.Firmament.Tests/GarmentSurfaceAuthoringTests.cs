@@ -6,6 +6,7 @@ using Aetheris.Kernel.Firmament.Garment;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Experimental")]
 public sealed class GarmentSurfaceAuthoringTests
 {
     [Fact]
@@ -59,6 +60,7 @@ public sealed class GarmentSurfaceAuthoringTests
         Assert.All(contour.Points, point => Assert.Equal(960, point.Z));
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData(0, .02f)]
     [InlineData(.48f, 0)]

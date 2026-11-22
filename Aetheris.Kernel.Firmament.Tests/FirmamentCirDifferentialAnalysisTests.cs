@@ -11,6 +11,7 @@ using System.Text.Json;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Surfacing")]
 public sealed class FirmamentCirDifferentialAnalysisTests
 {
     private const int CirVolumeResolution = 72;

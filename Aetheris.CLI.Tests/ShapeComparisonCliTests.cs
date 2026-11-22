@@ -35,6 +35,7 @@ public sealed class ShapeComparisonCliTests
         Assert.Equal(6d, region.BoundsMax[2], 6);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void SelfComparisonMatchesEveryCarrierAndAllMaterial()
     {
@@ -47,6 +48,7 @@ public sealed class ShapeComparisonCliTests
         Assert.Empty(result.Overlap.Regions);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void Ctc01ReconstructionMatchesTheOriginal()
     {
@@ -75,6 +77,7 @@ public sealed class ShapeComparisonCliTests
         Assert.InRange(f, 113, 117);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void Ctc01LugRootFilletsEndOnTheWaistAlongTheExactCylinderIntersection()
     {

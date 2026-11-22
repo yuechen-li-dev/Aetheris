@@ -4,6 +4,7 @@ namespace Aetheris.CLI.Tests;
 
 public sealed class AssemblyDomainImportsTests
 {
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("network-appliance-product-m6.firmasm")]
     [InlineData("network-appliance-product-m7.firmasm")]

@@ -7,6 +7,7 @@ using Aetheris.Kernel.Firmament.Lowering;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "EdgeFinish")]
 public sealed class AirChamferFirmamentShadowProbeTests
 {
     private const string SupportedFixture = "fixtures/Compatibility/LegacyV1/Corpus/valid/edge-x13-valid-airchamfer-shadow-box-edge.firmament";
@@ -171,6 +172,7 @@ internal sealed record FirmamentAirChamferShadowProbeReport(
     string Recommendation,
     IReadOnlyList<string> Diagnostics);
 
+[Trait("Suite", "EdgeFinish")]
 internal static class FirmamentAirChamferShadowProbe
 {
     private const string CandidatePath = "AirChamferShadowRoute->AirChamferRealBodyPrototype";

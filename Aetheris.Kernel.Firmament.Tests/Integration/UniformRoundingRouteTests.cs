@@ -10,6 +10,7 @@ namespace Aetheris.Kernel.Firmament.Tests.Integration;
 /// <summary><c>EdgeFinish&lt;Fillet&gt; { target: AllEdges }</c> on a body the Box/Polyhedron stock route does not
 /// admit: the body is built without the finish and every edge of the result is rounded, or the finish is refused
 /// with what the rounding found.</summary>
+[Trait("Suite", "Language")]
 public sealed class UniformRoundingRouteTests
 {
     internal static string Prism(double radius, string extra = "") => $$"""
@@ -125,6 +126,7 @@ public sealed class UniformRoundingRouteTests
 
     /// <summary>Bodies with circular edges: every rim a torus, every line edge a cylinder, every three-edge corner a
     /// sphere, read back by the rolling-ball certificate at the radius, exported and imported again.</summary>
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("cylinder-rounded", 2, 2, 1, 2, 0, 0, 2)]
     [InlineData("frustum-rounded", 1.5, 2, 0, 2, 0, 1, 2)]
@@ -206,6 +208,7 @@ public sealed class UniformRoundingRouteTests
     /// <summary>Every fixture across radii from far below to beyond its limit: each result is either a body that
     /// meshes watertight and outward with every strip at the radius, or a named refusal whose reported fit, taken
     /// just under, builds.</summary>
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("cylinder-rounded")]
     [InlineData("frustum-rounded")]

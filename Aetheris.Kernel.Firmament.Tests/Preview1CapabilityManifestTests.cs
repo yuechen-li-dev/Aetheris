@@ -2,6 +2,7 @@ using System.Text.Json;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class Preview1CapabilityManifestTests
 {
     [Fact]

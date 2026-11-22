@@ -9,6 +9,7 @@ namespace Aetheris.Continuum.Tests.Lattice;
 
 public sealed class ContinuumM4CTests
 {
+    [Trait("Category", "Slow")]
     [Fact]
     public void FixedWholePartHexBoltBeatsComparableFineControlAndUsesCurvedSupportMaps()
     {
@@ -47,6 +48,7 @@ public sealed class ContinuumM4CTests
         Assert.Equal(a.Sets.Select(Stable),b.Sets.Select(Stable));
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void BaselineAndRotationsRemainOnTheSameAccuracyScale()
     {

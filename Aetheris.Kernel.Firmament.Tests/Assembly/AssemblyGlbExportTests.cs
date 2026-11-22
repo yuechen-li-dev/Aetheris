@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.Assembly;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class AssemblyGlbExportTests
 {
     [Fact]
@@ -80,6 +81,7 @@ public sealed class AssemblyGlbExportTests
         Assert.Throws<InvalidOperationException>(() => AssemblyGlbExporter.Serialize(mesh, new Dictionary<string, AssemblyGlbAppearance> { ["triangle"] = new(BaseColorTexture: [1,2,3], TextureMimeType: "image/png") }));
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("IndustrialAtlas/atlas-industrial.firmament")]
     [InlineData("GuitarX0/guitar.firmasm")]

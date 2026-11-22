@@ -3,6 +3,7 @@ using Aetheris.Kernel.Core.Step242;
 namespace Aetheris.Kernel.Firmament.Tests;
 
 /// <summary>Every face of a composed body that its construction can name has a stable selector, and PMI reaches it by that name.</summary>
+[Trait("Suite", "Language")]
 public sealed class ComposeFaceNamingTests
 {
     private static string Root()
@@ -33,6 +34,7 @@ public sealed class ComposeFaceNamingTests
             f => correspondence.Descendants.FirstOrDefault(d => d.Face == f.Id && !d.IsTopologyAlias)?.FirmamentSelector);
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("Canonical/Features/Pocket/rectangular-pocket.firmament")]
     [InlineData("Canonical/Features/Boss/boss-pocket-block.firmament")]

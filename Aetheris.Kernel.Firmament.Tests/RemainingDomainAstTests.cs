@@ -5,6 +5,7 @@ using Aetheris.Surfacing;
 using Aetheris.Collaboration;
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class RemainingDomainAstTests
 {
     [Theory]

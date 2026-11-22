@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class FunctionalPickupTests
 {
     private static string Source => FirmamentCorpusHarness.CanonicalMutationSource(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Feature/pickup-functional.firmament")));

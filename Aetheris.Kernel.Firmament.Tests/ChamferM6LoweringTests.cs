@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Geometry;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "EdgeFinish")]
 public sealed class ChamferM6LoweringTests
 {
     [Theory]

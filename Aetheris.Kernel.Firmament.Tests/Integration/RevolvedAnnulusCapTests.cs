@@ -5,6 +5,7 @@ namespace Aetheris.Kernel.Firmament.Tests.Integration;
 
 /// <summary>A full revolution of a profile off the axis has annular caps: the larger circle is their outer boundary
 /// whichever way the profile runs, so a STEP reader keeps each cap facing out of the material.</summary>
+[Trait("Suite", "Profile")]
 public sealed class RevolvedAnnulusCapTests
 {
     [Theory]

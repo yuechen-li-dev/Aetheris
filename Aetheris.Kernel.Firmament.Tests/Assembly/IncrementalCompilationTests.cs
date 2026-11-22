@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.Assembly;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class IncrementalCompilationTests
 {
     private const string Recipe = """
@@ -191,6 +192,7 @@ public sealed class IncrementalCompilationTests
         Assert.Empty(failed.Reuse!.Definitions);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void GuitarFileEditInvalidatesOnlyItsFileBackedDefinition()
     {

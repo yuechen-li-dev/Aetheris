@@ -10,6 +10,7 @@ using Aetheris.Kernel.StandardLibrary;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class HexBoltStandardLibraryM1Tests
 {
     private static HexBoltDefinition Reference()

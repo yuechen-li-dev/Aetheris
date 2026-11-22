@@ -46,3 +46,28 @@ The full lane passes.
   separate cores.
 - **The pcurve recovery seed grid.** `BuildSeedSamples` (one grid per B-spline surface) and the dense lift proofs are
   the largest remaining import costs. Any change there alters qualification evidence.
+
+## Follow-up: inner-loop lanes
+
+- **`Slow` category.** 82 test methods that take over 5 s in either measured run are now tagged
+  `[Trait("Category", "Slow")]`. Another 20 were already `SlowCorpus`.
+- **Firmament suites.** Every test class in `Aetheris.Kernel.Firmament.Tests` (335 classes) carries one
+  `[Trait("Suite", ...)]`, enforced by `TestSuiteAssignmentTests`. The ten suites are Language, Profile, Holes,
+  EdgeFinish, Surfacing, Import, Pmi, Drawing, Assembly and Experimental. They were assigned by topic from the test
+  file names.
+- **`scripts/test-lane.py`.**
+  - **`affected`** takes changed files (working tree plus commits since the merge base). It selects test projects
+    through the ProjectReference graph, then Firmament suites through the folder map in `scripts/test-suites.json`.
+  - **`fast`** runs every project without `Slow`/`SlowCorpus`, optionally narrowed with `--project` and `--suite`.
+  - **`full`** is the gate.
+  - Projects run in parallel, largest first.
+- **Measured on 2 cores, tests only, after the build.**
+  - The full lane takes 538 s and the fast lane 312 s.
+  - On their own: the Drawing suite takes 14 s, Profile 41 s and Language 36 s.
+  - The fast lane's critical path is still Firmament.Tests, at 244 s.
+- **Limits.**
+  - Firmament is a hub: most changes under `Aetheris.Kernel.Firmament` reach 13 test projects, and its core folders
+    (FirmamentV2, Materializer, the build root) select every suite.
+  - Suites narrow the run only for changes in the leaf folders, such as Drawing, Assembly and Surfacing.
+  - The suite map is by topic, not proven dependency. A missed dependency shows up at the full-lane gate, not in
+    the inner loop.

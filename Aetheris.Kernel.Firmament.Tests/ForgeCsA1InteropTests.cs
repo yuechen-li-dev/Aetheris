@@ -6,6 +6,7 @@ using InteropSourceSpan = Aetheris.Forge.Abstractions.FirmamentInterop.Firmament
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class ForgeCsA1InteropTests
 {
     [Fact]

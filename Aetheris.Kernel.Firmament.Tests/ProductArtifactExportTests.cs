@@ -8,6 +8,7 @@ using Aetheris.Kernel.Firmament.Export;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Import")]
 public sealed class ProductArtifactExportTests
 {
     [Fact]

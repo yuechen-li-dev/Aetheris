@@ -44,6 +44,7 @@ public sealed class ExperimentalShellX0Tests
         Assert.Contains(singularResult.Diagnostics,item=>item.Code=="thinwall-map-singular");
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void FlatCantileverPRefinementApproachesBeamReference()
     {
@@ -71,6 +72,7 @@ public sealed class ExperimentalShellX0Tests
         Assert.InRange(first.StrainEnergy!.RelativeResidual,0,1e-8);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void CutIntegrationAndAlphaStudiesRemainSeparated()
     {
@@ -87,6 +89,7 @@ public sealed class ExperimentalShellX0Tests
         Assert.InRange(RelativeDifference(order4.StrainEnergy!.AlgebraicJoule,alphaStudies[^1].StrainEnergy!.AlgebraicJoule),0,.002);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void ThinnessSweepKeepsCellAndDofCountsFixed()
     {

@@ -4,6 +4,7 @@ namespace Aetheris.Sculpture.Tests;
 
 public sealed class Sol1Tests
 {
+    [Trait("Category", "Slow")]
     [Fact]
     public void FlagshipSource_BuildsDeterministicExactVirtualSculptureAssembly()
     {

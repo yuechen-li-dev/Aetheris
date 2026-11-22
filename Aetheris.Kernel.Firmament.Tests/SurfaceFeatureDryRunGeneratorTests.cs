@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.Diagnostics;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Surfacing")]
 public sealed class SurfaceFeatureDryRunGeneratorTests
 {
     [Fact]

@@ -3,6 +3,7 @@ using System.Diagnostics;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentV2StaticTablesWithM1Tests
 {
     [Fact]

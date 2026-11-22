@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Import")]
 public sealed class FirmamentV2InlineStepTests
 {
     private const string FixturePath = "fixtures/Regression/InlineStep/valid/inline-step-v2-canonical-box-reexport-step-verified.valid.firmfixture";

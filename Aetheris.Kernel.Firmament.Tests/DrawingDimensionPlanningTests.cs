@@ -3,6 +3,7 @@ using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Drawing")]
 public sealed class DrawingDimensionPlanningTests
 {
     [Fact]

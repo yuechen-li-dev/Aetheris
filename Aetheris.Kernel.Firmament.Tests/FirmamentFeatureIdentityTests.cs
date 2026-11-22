@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentFeatureIdentityTests
 {
     private static string Fixture(string name) => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(

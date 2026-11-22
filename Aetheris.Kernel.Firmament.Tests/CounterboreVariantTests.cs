@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Holes")]
 public sealed class CounterboreVariantTests
 {
     [Fact]
@@ -82,6 +83,7 @@ public sealed class CounterboreVariantTests
             new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
 }
 
+[Trait("Suite", "Holes")]
 internal static class HoleRecoveryPolicyEvalExtensions
 {
     public static IReadOnlyList<string> EvaluationsFor(this FrepMaterializerPolicyEvaluation eval, string variantName)

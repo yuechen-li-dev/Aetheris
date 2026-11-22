@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class ComposeHollowTests
 {
     private static double RoundedRect(double w, double h, double r) => w * h - (4d - double.Pi) * r * r;

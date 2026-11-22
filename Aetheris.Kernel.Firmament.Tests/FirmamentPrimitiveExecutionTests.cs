@@ -9,6 +9,7 @@ using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentPrimitiveExecutionTests
 {
     [Fact]

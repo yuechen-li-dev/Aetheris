@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Holes")]
 public sealed class HoleRuntimeCorrespondenceTests
 {
     private static string Source(double diameter, double x = 0) => $"Model HoleWitness {{ Units: mm Box Body {{ Size: [40mm, 30mm, 8mm] }} Modify Body {{ Hole<Shaft> H {{ On: +Z Center: Point2({x}mm, 0mm) Diameter: {diameter}mm End: ThroughAll }} }} }}";

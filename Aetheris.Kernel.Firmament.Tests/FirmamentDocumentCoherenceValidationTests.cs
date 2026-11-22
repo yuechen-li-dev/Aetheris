@@ -2,6 +2,7 @@ using Aetheris.Kernel.Firmament.Diagnostics;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentDocumentCoherenceValidationTests
 {
     [Fact]

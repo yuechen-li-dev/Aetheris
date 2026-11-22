@@ -6,6 +6,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Import")]
 public sealed class Ftc09ImportedEditingTests
 {
     static string DirectoryPath
@@ -23,6 +24,7 @@ public sealed class Ftc09ImportedEditingTests
     static FirmamentV2ValidationReport Validate(string source) => FirmamentBuildAdmissionValidation.Admit(
         FirmamentV2ValidationReportBuilder.Build(FirmamentV2Parser.Parse(source, DirectoryPath), "revision.firmament", sourceText: source), source, DirectoryPath);
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -90,6 +92,7 @@ public sealed class Ftc09ImportedEditingTests
         Assert.Contains(unsupported.Candidates, c => c.Diagnostics.Any(d => d.Contains("oblique")));
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("measurement")]
     [InlineData("field")]

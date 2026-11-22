@@ -8,6 +8,7 @@ using Aetheris.Cloth3D;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Experimental")]
 public sealed class GarmentCodeImportTests
 {
     [Fact]
@@ -104,6 +105,7 @@ public sealed class GarmentCodeImportTests
         }
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("dress", 4, 6)]
     [InlineData("shirt", 8, 16)]

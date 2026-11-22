@@ -95,6 +95,7 @@ public sealed class FirmamentMeasureCliTests
         finally { Directory.Delete(scratch, true); }
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void SdfMeasuresTheExportedHolesAndExplainsItsCompleteBoundaryQualification()
     {

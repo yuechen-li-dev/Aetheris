@@ -8,6 +8,7 @@ using System.Text;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Import")]
 public sealed class FirmamentImportedResourceTests
 {
     static readonly string Part = Step242Exporter.ExportBody(BrepPrimitives.CreateBox(4, 6, 8).Value).Value;

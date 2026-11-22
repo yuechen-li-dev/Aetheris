@@ -8,6 +8,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "EdgeFinish")]
 public sealed class EngineeringRimFinishTests
 {
     [Theory]
@@ -112,6 +113,7 @@ public sealed class EngineeringRimFinishTests
         Assert.Contains(built.EngineeringFeatures!, f => f.Kind == "EdgeFinish" && f.Support == face);
     }
 
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData(false, false)] [InlineData(false, true)]
     [InlineData(true, false)] [InlineData(true, true)]

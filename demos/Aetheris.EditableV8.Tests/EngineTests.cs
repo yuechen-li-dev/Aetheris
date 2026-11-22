@@ -33,6 +33,7 @@ public sealed class EngineTests
         }
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void PhysicalEngineUsesInterfacePlacementAndDimensionalFits()
     {
@@ -65,6 +66,7 @@ public sealed class EngineTests
         }
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void ValveStackStageCompilesBothSpringOccurrences()
     {

@@ -2,6 +2,7 @@ using Aetheris.Kernel.Firmament.Diagnostics;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed partial class FirmamentValidationTargetFeatureExistenceTests
 {
     [Theory]
@@ -163,6 +164,7 @@ ops[2]:
     }
 }
 
+[Trait("Suite", "Language")]
 public sealed partial class FirmamentValidationTargetFeatureExistenceTests
 {
     [Theory]

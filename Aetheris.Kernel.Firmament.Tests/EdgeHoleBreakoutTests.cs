@@ -10,6 +10,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 /// kernel finds hard - a thin wall, a 0.1 mm sliver, exact tangency, a hairline breakout and a clean notch - using the
 /// most ordinary edit in mechanical design. Both authoring routes must agree, and must agree with the analytic volume.
 /// </summary>
+[Trait("Suite", "Holes")]
 public sealed class EdgeHoleBreakoutTests
 {
     private const double HoleRadius = 6d;

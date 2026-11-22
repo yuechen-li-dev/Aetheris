@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.Assembly;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class AssemblyPmiTests
 {
     private const string Source = """
@@ -103,6 +104,7 @@ public sealed class AssemblyPmiTests
         Assert.StartsWith("Reviewer's note", inspected.Items.Single(n => n.Name == "Intent").Text);
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void GuitarReleaseExportsAllNotesWithoutChangingProductStructure()
     {

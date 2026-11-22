@@ -11,6 +11,7 @@ using Aetheris.Kernel.StandardLibrary;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class HexBoltTemplateM2Tests
 {
     private static string FixturePath => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Compatibility/LegacyV1/Examples/hexbolt_template_m2.firmament"));

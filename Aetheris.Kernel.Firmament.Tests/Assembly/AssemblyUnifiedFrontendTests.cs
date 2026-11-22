@@ -4,6 +4,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
+[Trait("Suite", "Assembly")]
 public sealed class AssemblyUnifiedFrontendTests
 {
     private static string Read(string relative) => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/" + relative));

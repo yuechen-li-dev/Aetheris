@@ -3,8 +3,10 @@ using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Surfacing")]
 public sealed class PcurveBoundaryQualificationTests
 {
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData("axis-coil.firmament")]
     [InlineData("helix.firmament")]

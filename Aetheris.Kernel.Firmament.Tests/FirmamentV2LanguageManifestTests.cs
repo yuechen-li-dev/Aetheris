@@ -2,6 +2,7 @@ using System.Text.Json;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentV2LanguageManifestTests
 {
     [Fact]

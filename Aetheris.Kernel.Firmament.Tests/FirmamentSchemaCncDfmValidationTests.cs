@@ -3,6 +3,7 @@ using Aetheris.Kernel.Core.Brep.Queries;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentSchemaCncDfmValidationTests
 {
     [Fact]

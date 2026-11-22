@@ -2,6 +2,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentHeliosAuthoringFeedbackTests
 {
     private static string Source(string name) => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(

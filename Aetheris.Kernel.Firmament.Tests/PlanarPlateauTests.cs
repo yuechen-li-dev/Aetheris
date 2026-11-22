@@ -6,6 +6,7 @@ using Aetheris.Surfacing;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class PlanarPlateauTests
 {
     [Fact]
@@ -145,9 +146,11 @@ public sealed class PlanarPlateauTests
 // production budget under concurrent geometry tests. Keep its real-path budget and run this
 // integration case without competing test collections.
 [CollectionDefinition("PlanarPlateauDisplayExport", DisableParallelization = true)]
+[Trait("Suite", "Profile")]
 public sealed class PlanarPlateauDisplayExportCollection;
 
 [Collection("PlanarPlateauDisplayExport")]
+[Trait("Suite", "Profile")]
 public sealed class PlanarPlateauDisplayExportTests
 {
     [Fact]

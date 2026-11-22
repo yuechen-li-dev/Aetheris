@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Language")]
 public sealed class FirmamentCompileTimeValueBindingTests
 {
     private static string Source => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(

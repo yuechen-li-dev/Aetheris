@@ -5,6 +5,7 @@ using Aetheris.Kernel.Firmament.Visualization;
 namespace Aetheris.Kernel.Firmament.Tests;
 
 /// <summary>PMI on a composed machined part, as an engineer would specify it for manufacture.</summary>
+[Trait("Suite", "Pmi")]
 public sealed class PmiShowcaseTests
 {
     private static string Fixture(string relative)

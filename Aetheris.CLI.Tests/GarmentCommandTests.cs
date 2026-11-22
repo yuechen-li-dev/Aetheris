@@ -94,6 +94,7 @@ public sealed class GarmentCommandTests
         Assert.Equal(original, File.ReadAllText(input));
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void PoseCommandExportsWithoutMeshingAndPreservesBodyIdentity()
     {

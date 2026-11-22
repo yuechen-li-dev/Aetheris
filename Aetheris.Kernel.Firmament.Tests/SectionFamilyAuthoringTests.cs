@@ -3,6 +3,7 @@ using Aetheris.Surfacing;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Profile")]
 public sealed class SectionFamilyAuthoringTests
 {
     [Fact]

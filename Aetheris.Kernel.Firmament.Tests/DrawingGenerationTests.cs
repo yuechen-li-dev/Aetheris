@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.Drawing;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Drawing")]
 public sealed class DrawingGenerationTests
 {
     [Fact]

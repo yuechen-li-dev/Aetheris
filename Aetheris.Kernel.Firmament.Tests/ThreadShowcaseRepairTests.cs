@@ -5,6 +5,7 @@ using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Pmi")]
 public sealed class ThreadShowcaseRepairTests
 {
     [Fact]
@@ -73,6 +74,7 @@ public sealed class ThreadShowcaseRepairTests
         Assert.Contains(stock.Diagnostics, d => d.Message.Contains("assembly engraving is not yet supported", StringComparison.Ordinal));
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void CanonicalThreadDisplayAudit()
     {

@@ -3,6 +3,7 @@ using Aetheris.Kernel.Core.Step242;
 namespace Aetheris.Kernel.Firmament.Tests;
 
 /// <summary>PMI on native parts targets faces by the selectors inspection reports for them.</summary>
+[Trait("Suite", "Pmi")]
 public sealed class ConstructionFacePmiTests
 {
     private static string Root()

@@ -5,6 +5,7 @@ using Aetheris.Cloth3D;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
+[Trait("Suite", "Experimental")]
 public sealed class ClothMaterialRegionTests
 {
     [Fact]

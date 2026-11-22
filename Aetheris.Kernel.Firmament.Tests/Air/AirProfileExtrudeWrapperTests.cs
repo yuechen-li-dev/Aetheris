@@ -3,6 +3,7 @@ using Aetheris.Kernel.Firmament.Air;
 
 namespace Aetheris.Kernel.Firmament.Tests.Air;
 
+[Trait("Suite", "Profile")]
 public sealed class AirProfileExtrudeWrapperTests
 {
     [Fact]

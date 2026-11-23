@@ -19,18 +19,25 @@ namespace Aetheris.PlasticShell;
 /// <item>a shut-off face across each opening the two halves meet in;</item>
 /// <item>the rest of the block on its side of the parting plane.</item>
 /// </list>
-/// Block = cavity + core + part, which the evidence states.
+/// A side action's slide carries a pin: the action's faces reversed, closed by a cap across the mouth where the
+/// action's faces meet the rest of the part; the half the mouth opens into gets the same cap, the other way round.
+/// Block = cavity + core + part + pins, which the evidence states.
 /// </summary>
 internal static class MoldInserts
 {
-    public sealed record Result(BrepBody Cavity, BrepBody Core, MoldInsertEvidence Evidence);
+    public sealed record Slide(string Name, Vector3D Pull, IReadOnlyList<int> Faces);
+
+    public sealed record Result(BrepBody Cavity, BrepBody Core, IReadOnlyList<(string Name, BrepBody Body)> Slides, MoldInsertEvidence Evidence);
+
+    private sealed record Mouth(IReadOnlyList<int> Edges, Vector3D Normal);
 
     public static Result? Build(BrepBody part, IReadOnlyDictionary<int, MoldFaceSide> sideOf, IReadOnlyList<MoldPartingLoop> loops, Vector3D pull,
-        double partingHeight, double margin, (Point3D Min, Point3D Max) meshBounds, out string? reason)
+        double partingHeight, double margin, (Point3D Min, Point3D Max) meshBounds, IReadOnlyList<Slide> slides, out string? reason)
     {
         reason = null;
         var faces = part.Topology.Faces.Select(f => f.Id.Value).ToArray();
-        var unassigned = faces.Where(f => sideOf.GetValueOrDefault(f, MoldFaceSide.Vertical) is not (MoldFaceSide.Positive or MoldFaceSide.Negative)).ToArray();
+        var slideOf = slides.SelectMany(s => s.Faces.Select(f => (f, s))).ToDictionary(x => x.f, x => x.s);
+        var unassigned = faces.Where(f => !slideOf.ContainsKey(f) && sideOf.GetValueOrDefault(f, MoldFaceSide.Vertical) is not (MoldFaceSide.Positive or MoldFaceSide.Negative)).ToArray();
         if (unassigned.Length > 0) { reason = $"face(s) {string.Join(", ", unassigned)} are formed by neither half alone (split, parallel to the pull with both ways open, or formed by an action)"; return null; }
         if (loops.Any(l => l.Kind == MoldPartingLoopKind.Stepped)) { reason = "the parting line leaves the parting plane, so the parting face is not flat"; return null; }
         var parting = loops.Where(l => l.Kind == MoldPartingLoopKind.Parting).ToArray();
@@ -56,30 +63,69 @@ internal static class MoldInserts
         foreach (var loop in shutOffs.Where(l => l.Kind == MoldPartingLoopKind.Parting))
             if (!Inside(polygons[outer], polygons[loop][0])) { reason = "the parting plane meets the part in more than one outline"; return null; }
 
-        var cavity = Assemble(part, sideOf, MoldFaceSide.Positive, outer, shutOffs, pull, partingHeight, h1, (u0, u1, v0, v1), At, out reason);
+        // Each slide's mouth: the edges between its faces and the rest of the part, in one flat loop across its pull,
+        // opening into one half.
+        var faceOfLoop = part.Topology.Faces.SelectMany(f => f.LoopIds.Select(l => (l, f.Id.Value))).ToDictionary(x => x.l, x => x.Value);
+        var edgeFaces = part.Topology.Coedges.GroupBy(c => c.EdgeId.Value).ToDictionary(g => g.Key, g => g.Select(c => faceOfLoop[c.LoopId]).ToArray());
+        var mouths = new Dictionary<MoldFaceSide, List<Mouth>> { [MoldFaceSide.Positive] = [], [MoldFaceSide.Negative] = [] };
+        var pinMouths = new Dictionary<Slide, Mouth>();
+        foreach (var slide in slides)
+        {
+            var own = slide.Faces.ToHashSet();
+            var mouthEdges = edgeFaces.Where(e => e.Value.Count(own.Contains) == 1).Select(e => e.Key).Order().ToArray();
+            var owners = mouthEdges.Select(e => sideOf.GetValueOrDefault(edgeFaces[e].First(f => !own.Contains(f)), MoldFaceSide.Vertical)).Distinct().ToArray();
+            if (mouthEdges.Length == 0) { reason = $"action {slide.Name}'s faces meet no other face of the part"; return null; }
+            if (owners.Length != 1 || owners[0] is not (MoldFaceSide.Positive or MoldFaceSide.Negative))
+            { reason = $"action {slide.Name}'s mouth (edges {string.Join(", ", mouthEdges)}) does not open into one half"; return null; }
+            var heights = mouthEdges.SelectMany(e => Samples(part, new EdgeId(e))).Select(p => (p - Point3D.Origin).Dot(slide.Pull)).ToArray();
+            if (heights.Max() - heights.Min() > 1e-6 * double.Max(1d, (meshBounds.Max - meshBounds.Min).Length))
+            { reason = $"action {slide.Name}'s mouth is not flat across its pull, so its pin has no flat cap"; return null; }
+            mouths[owners[0]].Add(new(mouthEdges, -slide.Pull));
+            pinMouths[slide] = new(mouthEdges, slide.Pull);
+        }
+
+        var cavity = Assemble(part, f => !slideOf.ContainsKey(f) && sideOf.GetValueOrDefault(f, MoldFaceSide.Vertical) == MoldFaceSide.Positive, outer, shutOffs, pull, partingHeight, h1, (u0, u1, v0, v1), At, mouths[MoldFaceSide.Positive], null, out var convention, out reason);
         if (cavity is null) return null;
-        var core = Assemble(part, sideOf, MoldFaceSide.Negative, outer, shutOffs, -pull, partingHeight, h0, (u0, u1, v0, v1), At, out reason);
+        var core = Assemble(part, f => !slideOf.ContainsKey(f) && sideOf.GetValueOrDefault(f, MoldFaceSide.Vertical) == MoldFaceSide.Negative, outer, shutOffs, -pull, partingHeight, h0, (u0, u1, v0, v1), At, mouths[MoldFaceSide.Negative], null, out _, out reason);
         if (core is null) return null;
+        var pins = new List<(string, BrepBody)>();
+        foreach (var slide in slides)
+        {
+            var own = slide.Faces.ToHashSet();
+            var pin = Assemble(part, own.Contains, null, [], slide.Pull, 0, 0, default, At, [pinMouths[slide]], convention, out _, out reason);
+            if (pin is null) { reason = $"action {slide.Name}'s pin: {reason}"; return null; }
+            pins.Add((slide.Name, pin));
+        }
 
         var block = (u1 - u0) * (v1 - v0) * (h1 - h0);
         var cavityMass = BrepMassProperties.Evaluate(cavity);
         var coreMass = BrepMassProperties.Evaluate(core);
         if (!cavityMass.IsEnclosed || !cavityMass.IsOrientationConsistent || !coreMass.IsEnclosed || !coreMass.IsOrientationConsistent)
         { reason = "an insert did not close into a consistently oriented solid"; return null; }
-        return new(cavity, core, new(margin, At(u0, v0, h0), At(u1, v1, h1), block, cavityMass.SignedVolume, coreMass.SignedVolume,
-            BrepMassProperties.Evaluate(part).AbsoluteVolume, cavity.Topology.Faces.Count(), core.Topology.Faces.Count(), shutOffs.Length));
+        var slideEvidence = new List<MoldSlideEvidence>();
+        foreach (var (name, pin) in pins)
+        {
+            var mass = BrepMassProperties.Evaluate(pin);
+            if (!mass.IsEnclosed || !mass.IsOrientationConsistent || mass.SignedVolume <= 0) { reason = $"action {name}'s pin did not close into a consistently oriented solid"; return null; }
+            var slide = slides.First(s => s.Name == name);
+            slideEvidence.Add(new(name, Direction3D.Create(slide.Pull), mass.SignedVolume, pin.Topology.Faces.Count(), slide.Faces));
+        }
+        return new(cavity, core, pins, new(margin, At(u0, v0, h0), At(u1, v1, h1), block, cavityMass.SignedVolume, coreMass.SignedVolume,
+            BrepMassProperties.Evaluate(part).AbsoluteVolume, cavity.Topology.Faces.Count(), core.Topology.Faces.Count(), shutOffs.Length, slideEvidence));
     }
 
     /// <summary>
-    /// One insert: the part's faces of <paramref name="half"/> reversed, the parting face at <paramref name="partingHeight"/>,
-    /// shut-off faces, and the block from the parting plane to <paramref name="farHeight"/>. <paramref name="away"/>
-    /// points from the parting plane into this half.
+    /// One insert: the part's faces of a half (<paramref name="member"/>) reversed, the parting face at
+    /// <paramref name="partingHeight"/>, shut-off faces, a cap across each slide's mouth that opens into this half,
+    /// and the block from the parting plane to <paramref name="farHeight"/>. <paramref name="away"/> points from the
+    /// parting plane into this half. Without a parting loop it is a slide's pin: its faces and its mouth's cap, with
+    /// the loop convention (<paramref name="given"/>) read off an insert.
     /// </summary>
-    private static BrepBody? Assemble(BrepBody part, IReadOnlyDictionary<int, MoldFaceSide> sideOf, MoldFaceSide half, MoldPartingLoop outer,
+    private static BrepBody? Assemble(BrepBody part, Func<int, bool> member, MoldPartingLoop? outer,
         IReadOnlyList<MoldPartingLoop> shutOffs, Vector3D away, double partingHeight, double farHeight, (double U0, double U1, double V0, double V1) box,
-        Func<double, double, double, Point3D> at, out string? reason)
+        Func<double, double, double, Point3D> at, IReadOnlyList<Mouth> mouths, int? given, out int convention, out string? reason)
     {
-        reason = null;
+        reason = null; convention = given ?? 0;
         var source = part.Topology;
         var topology = new TopologyModel();
         var geometry = new BrepGeometryStore();
@@ -105,7 +151,7 @@ internal static class MoldInserts
         }
 
         // The part's faces of this half, reversed: each loop runs backwards and the face opposes its surface.
-        foreach (var face in source.Faces.Where(f => sideOf[f.Id.Value] == half).OrderBy(f => f.Id.Value))
+        foreach (var face in source.Faces.Where(f => member(f.Id.Value)).OrderBy(f => f.Id.Value))
         {
             foreach (var loopId in face.LoopIds)
             {
@@ -142,9 +188,9 @@ internal static class MoldInserts
         // Along a parting edge this half's reversed face runs against the other half's original direction, so the
         // parting and shut-off faces take this half's original direction there.
         var faceOfLoop = source.Faces.SelectMany(f => f.LoopIds.Select(l => (l, f.Id.Value))).ToDictionary(x => x.l, x => x.Value);
-        (EdgeId Edge, bool Reversed)[] Chain(MoldPartingLoop loop)
+        (EdgeId Edge, bool Reversed)[] Chain(IReadOnlyList<int> loopEdges)
         {
-            var uses = loop.EdgeIds.Select(e => source.Coedges.Single(c => c.EdgeId.Value == e && sideOf[faceOfLoop[c.LoopId]] == half)).ToList();
+            var uses = loopEdges.Select(e => source.Coedges.Single(c => c.EdgeId.Value == e && member(faceOfLoop[c.LoopId]))).ToList();
             var ordered = new List<(EdgeId, bool)>();
             var current = uses[0]; uses.RemoveAt(0);
             ordered.Add((current.EdgeId, current.IsReversed));
@@ -201,17 +247,39 @@ internal static class MoldInserts
             faceIds.Add(face);
         }
 
+        Vector3D Across(Vector3D normal)
+        {
+            var helper = double.Abs(normal.X) < 0.9 ? new Vector3D(1, 0, 0) : new Vector3D(0, 1, 0);
+            var axis = helper - normal * helper.Dot(normal); return axis / axis.Length;
+        }
+        // A cap across each mouth, in this body's own direction along the mouth's edges.
+        string? Caps(int outerTurn)
+        {
+            foreach (var mouth in mouths)
+            {
+                var chain = Chain(mouth.Edges);
+                if (chain.Length == 0) return $"a slide's mouth (edges {string.Join(", ", mouth.Edges)}) does not close into one loop";
+                var ring = Ring(part, chain);
+                if (double.Sign(Turn(ring, mouth.Normal)) != outerTurn) return $"a slide's mouth (edges {string.Join(", ", mouth.Edges)}) does not face its cap";
+                AddFace(mouth.Normal, ring[0], Across(mouth.Normal), [(chain, true)]);
+            }
+            return null;
+        }
+        if (outer is null)
+        {
+            if ((reason = Caps(convention)) is not null) return null;
+            return Finish();
+        }
+
         // The convention for an outer loop's turn about its face's outward normal is read off the part's own parting
         // line: inside the parting face, it is an inner loop.
-        var outerChain = Chain(outer);
+        var outerChain = Chain(outer.EdgeIds);
         if (outerChain.Length == 0) { reason = "the parting line does not close into one loop"; return null; }
         var partingNormal = -away;
-        var x = Vector3D.Zero;
-        var helper = double.Abs(away.X) < 0.9 ? new Vector3D(1, 0, 0) : new Vector3D(0, 1, 0);
-        x = helper - away * helper.Dot(away); x /= x.Length;
+        var x = Across(away);
         var innerTurn = double.Sign(Turn(Ring(part, outerChain), partingNormal));
-        VertexId Start((EdgeId Edge, bool Reversed) use) { var e = topology.GetEdge(use.Edge); return use.Reversed ? e.EndVertexId : e.StartVertexId; }
         var outerTurn = -innerTurn;
+        convention = outerTurn;
 
         // The block's corners: at the parting plane and at the far end of this half.
         var (u0, u1, v0, v1) = box;
@@ -228,7 +296,7 @@ internal static class MoldInserts
         // Shut-offs: each opening's loop, closed by a face across it.
         foreach (var loop in shutOffs)
         {
-            var chain = Chain(loop);
+            var chain = Chain(loop.EdgeIds);
             if (chain.Length == 0) { reason = $"a shut-off loop (edges {string.Join(", ", loop.EdgeIds)}) does not close"; return null; }
             var ring = Ring(part, chain);
             if (double.Sign(Turn(ring, partingNormal)) != outerTurn) { reason = $"the shut-off at {loop.MinimumHeight:0.###} mm does not face this half"; return null; }
@@ -245,11 +313,16 @@ internal static class MoldInserts
             if (normal.Dot(a - centre) < 0) normal = -normal;
             AddFace(normal, a, (b - a) / (b - a).Length, [(Box(side, normal), true)]);
         }
+        if ((reason = Caps(outerTurn)) is not null) return null;
+        return Finish();
 
-        var shell = new ShellId(next++);
-        topology.AddShell(new Shell(shell, faceIds.ToArray()));
-        topology.AddBody(new Body(new BodyId(next++), [shell]));
-        return new BrepBody(topology, geometry, bindings, points);
+        BrepBody Finish()
+        {
+            var shell = new ShellId(next++);
+            topology.AddShell(new Shell(shell, faceIds.ToArray()));
+            topology.AddBody(new Body(new BodyId(next++), [shell]));
+            return new BrepBody(topology, geometry, bindings, points);
+        }
     }
 
     /// <summary>Points along a chain of edge uses, in traversal order, a few per curved edge.</summary>

@@ -39,6 +39,11 @@ public static class MoldDiagnosticCodes
     public const string ActionInvalid = "mold-action-invalid";
     public const string ActionReleasesNothing = "mold-action-releases-nothing";
     public const string InsertsUnavailable = "mold-inserts-unavailable";
+    public const string WallTooThin = "mold-wall-too-thin";
+    public const string WallTooThick = "mold-wall-too-thick";
+    public const string SharpInsideCorner = "mold-sharp-inside-corner";
+    public const string RequirementFailed = "mold-requirement-failed";
+    public const string RequirementInvalid = "mold-requirement-invalid";
 }
 
 /// <summary>A side action (slide, lifter, side core) declared in the Mold: it forms the undercuts it can withdraw from
@@ -56,7 +61,8 @@ public sealed record MoldingPolicy(
     double MaximumWall,
     double MaximumFlowRatio,
     double Shrinkage,
-    double Density);
+    double Density,
+    double MinimumInsideRadius = 0.5);
 
 public sealed record MoldPartingPlane(Point3D Origin, Direction3D Normal, string Source);
 
@@ -72,7 +78,12 @@ public sealed record MoldIntent(
     IReadOnlyList<string> Cosmetic,
     MoldTexture? Texture,
     IReadOnlyList<MoldActionIntent>? Actions = null,
-    double? InsertMargin = null);
+    double? InsertMargin = null,
+    IReadOnlyList<MoldRequirement>? Requirements = null,
+    string? Source = null);
+
+/// <summary><c>Require name => expression</c> in a Mold: a Concept applied to the review's measurements.</summary>
+public sealed record MoldRequirement(string Name, string Expression);
 
 public sealed record MoldFaceEvidence(
     int FaceId,
@@ -88,7 +99,19 @@ public sealed record MoldFaceEvidence(
     double Area,
     MoldEvidenceStrength Strength,
     string? Action = null,
-    double? SilhouetteHeight = null);
+    double? SilhouetteHeight = null,
+    double? MinimumWall = null,
+    double? MaximumWall = null,
+    MoldEvidenceStrength? WallStrength = null);
+
+/// <summary>An inside edge between two faces that meet at an angle: no radius, a stress raiser and a flow corner.</summary>
+public sealed record MoldCornerEvidence(int EdgeId, IReadOnlyList<int> FaceIds, double AngleDegrees, Point3D Midpoint);
+
+/// <summary>The review's measurements, as the names a Mold <c>Require</c> can use.</summary>
+public sealed record MoldMeasurements(double MinimumDraftDegrees, double MinimumWall, double MaximumWall, double NominalWall,
+    int SharpInsideCorners, double MinimumInsideRadius, int Undercuts, int Actions);
+
+public sealed record MoldRequirementEvidence(string Name, string Expression, bool Passed, string Message);
 
 public sealed record MoldPartingLineEvidence(
     IReadOnlyList<int> EdgeIds,
@@ -118,9 +141,13 @@ public sealed record MoldUndercutGroup(IReadOnlyList<int> FaceIds, Point3D Repre
 
 public sealed record MoldActionEvidence(string Name, Direction3D Pull, IReadOnlyList<int> FaceIds, double MinimumDraftDegrees, double RequiredDraftDegrees, bool DraftSatisfied);
 
-/// <summary>The core and cavity inserts cut from a block around the part: block = cavity + core + part.</summary>
+/// <summary>The core and cavity inserts cut from a block around the part, and each side action's pin:
+/// block = cavity + core + part + pins. <see cref="SplitFaces"/> are the part's faces cut at the parting plane first.</summary>
 public sealed record MoldInsertEvidence(double Margin, Point3D BlockMinimum, Point3D BlockMaximum, double BlockVolume, double CavityVolume, double CoreVolume,
-    double PartVolume, int CavityFaces, int CoreFaces, int ShutOffs);
+    double PartVolume, int CavityFaces, int CoreFaces, int ShutOffs, IReadOnlyList<MoldSlideEvidence>? Slides = null, IReadOnlyList<int>? SplitFaces = null);
+
+/// <summary>A side action's pin: the action's faces closed by a cap across their mouth, withdrawn along <see cref="Pull"/>.</summary>
+public sealed record MoldSlideEvidence(string Name, Direction3D Pull, double Volume, int Faces, IReadOnlyList<int> PartFaces);
 
 public sealed record MoldSummary(
     int Faces,
@@ -143,7 +170,10 @@ public sealed record MoldReport(
     string Method,
     IReadOnlyList<MoldUndercutGroup>? Undercuts = null,
     IReadOnlyList<MoldActionEvidence>? Actions = null,
-    MoldInsertEvidence? Inserts = null);
+    MoldInsertEvidence? Inserts = null,
+    IReadOnlyList<MoldCornerEvidence>? InsideCorners = null,
+    MoldMeasurements? Measurements = null,
+    IReadOnlyList<MoldRequirementEvidence>? Requirements = null);
 
 public sealed record MoldCompileResult(
     bool IsSuccess,
@@ -152,4 +182,5 @@ public sealed record MoldCompileResult(
     string? PartStep,
     IReadOnlyList<MoldDiagnostic> Diagnostics,
     string? CavityStep = null,
-    string? CoreStep = null);
+    string? CoreStep = null,
+    IReadOnlyDictionary<string, string>? SlideSteps = null);

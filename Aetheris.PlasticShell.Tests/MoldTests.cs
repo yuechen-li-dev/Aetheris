@@ -7,12 +7,24 @@ public sealed class MoldTests
 {
     private static string Fixture(string kind, string name) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", kind, "Mold", name + ".firmament"));
 
+    // The only findings are warnings with these codes.
+    private static void OnlyWarnings(MoldCompileResult result, params string[] codes) =>
+        Assert.All(result.Diagnostics, d =>
+        {
+            Assert.Equal(PlasticDiagnosticSeverity.Warning, d.Severity);
+            Assert.Contains(d.Code, codes);
+        });
+
     [Fact]
     public void DraftedCupReleasesAlongItsAxisWithNoFindings()
     {
         var result = MoldFirmament.CompileFile(Fixture("Canonical", "drafted-cup"));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
-        Assert.Empty(result.Diagnostics);
+        // The floor meets the inner wall in a sharp edge: the one finding, a warning.
+        var sharp = Assert.Single(result.Diagnostics);
+        Assert.Equal(MoldDiagnosticCodes.SharpInsideCorner, sharp.Code);
+        Assert.Equal(PlasticDiagnosticSeverity.Warning, sharp.Severity);
+        Assert.Single(result.Report!.InsideCorners!);
         var report = result.Report!;
         // The walls are cones about the pull: their draft is exact, the cone's semi-angle.
         var cones = report.Faces.Where(f => f.Surface == "Cone").ToArray();
@@ -32,7 +44,10 @@ public sealed class MoldTests
     {
         var result = MoldFirmament.CompileFile(Fixture("Canonical", "drafted-cover"));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
-        Assert.Empty(result.Diagnostics);
+        // Solid, 12 mm through: thick at the prototype stage is a warning.
+        OnlyWarnings(result, MoldDiagnosticCodes.WallTooThick);
+        Assert.Single(result.Diagnostics);
+        Assert.Equal(12d, result.Report!.Measurements!.MaximumWall, 6);
         var report = result.Report!;
         // Nine walls (four planes, four corner cones, the bore's cone) and the top cap form the cavity half.
         var walls = report.Faces.Where(f => f.MinimumDraftDegrees < 90).ToArray();
@@ -51,7 +66,9 @@ public sealed class MoldTests
     {
         var result = MoldFirmament.CompileFile(Fixture("Canonical", "drafted-compose-block"));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
-        Assert.Empty(result.Diagnostics);
+        // Solid, with a Boss and a Pocket: thick sections and the Pocket's and Boss's sharp inside edges.
+        OnlyWarnings(result, MoldDiagnosticCodes.WallTooThick, MoldDiagnosticCodes.SharpInsideCorner);
+        Assert.Equal(16, result.Report!.InsideCorners!.Count);
         var report = result.Report!;
         // The Base's walls (split where the Pocket's floor starts), the Boss's and the Pocket's: all +pull at 2°.
         var walls = report.Faces.Where(f => f.MinimumDraftDegrees < 90).ToArray();
@@ -68,8 +85,17 @@ public sealed class MoldTests
     {
         var result = MoldFirmament.CompileFile(Fixture("Canonical", "drafted-hollow-cover"));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
-        Assert.Empty(result.Diagnostics);
+        OnlyWarnings(result, MoldDiagnosticCodes.SharpInsideCorner);
         var report = result.Report!;
+        // The ceiling meets each of the eight inner walls in a sharp edge (angles from the mesh normals on the corner cones).
+        Assert.Equal(8, report.InsideCorners!.Count);
+        Assert.All(report.InsideCorners!, c => Assert.InRange(c.AngleDegrees, 91.49, 91.51));
+        // Each inner wall is parallel to its outer wall, 2 mm away: the wall is exact there.
+        var exact = report.Faces.Where(f => f.WallStrength == MoldEvidenceStrength.ExactAnalytic).ToArray();
+        Assert.True(exact.Length >= 16, $"{exact.Length} exact walls");
+        Assert.All(exact, f => Assert.Equal(2d, f.MinimumWall!.Value, 9));
+        Assert.Equal(2d, report.Measurements!.NominalWall, 6);
+        Assert.Equal(0d, report.Measurements.MinimumInsideRadius);
         var walls = report.Faces.Where(f => f.MinimumDraftDegrees < 90).ToArray();
         // Outer walls face the cavity half; the inner walls face down into the core.
         Assert.Equal(24, walls.Length);
@@ -85,7 +111,8 @@ public sealed class MoldTests
     {
         var result = MoldFirmament.CompileFile(Fixture("Canonical", "drafted-housing"));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
-        Assert.Empty(result.Diagnostics);
+        OnlyWarnings(result, MoldDiagnosticCodes.SharpInsideCorner);
+        Assert.InRange(result.Report!.Measurements!.MinimumWall, 1.99, 2.01);
         var report = result.Report!;
         Assert.All(report.Faces.Where(f => f.MinimumDraftDegrees < 90), f => Assert.Equal(1.5, f.MinimumDraftDegrees, 9));
         Assert.Equal(0, report.Summary.DraftFailures);
@@ -137,6 +164,7 @@ public sealed class MoldTests
     [InlineData("unknown-material", MoldDiagnosticCodes.MaterialUnknown)]
     [InlineData("side-hole-undercut", MoldDiagnosticCodes.Undercut)]
     [InlineData("action-releases-nothing", MoldDiagnosticCodes.ActionReleasesNothing)]
+    [InlineData("requirement-sharp-corners", MoldDiagnosticCodes.RequirementFailed)]
     public void RefusalsNameTheirCause(string fixture, string code)
     {
         var result = MoldFirmament.CompileFile(Fixture("Invalid", fixture));
@@ -221,7 +249,7 @@ public sealed class MoldTests
     {
         var result = MoldFirmament.CompileFile(Fixture("Canonical", "housing-inserts"));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
-        Assert.Empty(result.Diagnostics);
+        OnlyWarnings(result, MoldDiagnosticCodes.SharpInsideCorner);
         var report = result.Report!;
         // The vent's exit inside the shell is a shut-off; the rim is the parting line.
         Assert.Equal(1, report.PartingLine.Loops!.Count(l => l.Kind == MoldPartingLoopKind.ShutOff));
@@ -243,12 +271,139 @@ public sealed class MoldTests
         Assert.Equal(41d, inserts.BlockMaximum.Z, 6);
     }
 
-    [Fact]
-    public void InsertsAreRefusedWhenTheToolNeedsMoreThanTwoPlates()
+    // Block = cavity + core + part + pins: every solid closes, and the volumes add up.
+    private static void AssertInsertsFillTheBlock(MoldCompileResult result)
     {
-        var source = File.ReadAllText(Fixture("Canonical", "side-action-latch")).Replace("  Action pinCore", "  inserts: 10mm\n  Action pinCore", StringComparison.Ordinal);
-        var result = MoldFirmament.Compile(source, Fixture("Canonical", "side-action-latch"));
+        var inserts = result.Report!.Inserts!;
+        var pins = (inserts.Slides ?? []).Sum(x => x.Volume);
+        Assert.Equal(inserts.BlockVolume, inserts.CavityVolume + inserts.CoreVolume + inserts.PartVolume + pins, 1e-6 * inserts.BlockVolume);
+        foreach (var step in new[] { result.CavityStep!, result.CoreStep! }.Concat((result.SlideSteps ?? new Dictionary<string, string>()).Values))
+        {
+            var imported = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(step);
+            Assert.True(imported.IsSuccess, string.Join("\n", imported.Diagnostics.Select(d => d.Message)));
+            var mass = Aetheris.Kernel.Core.Brep.Verification.BrepMassProperties.Evaluate(imported.Value);
+            Assert.True(mass.IsEnclosed && mass.IsOrientationConsistent && mass.SignedVolume > 0);
+        }
+    }
+
+    [Fact]
+    public void ASideActionsPinFillsItsHoleAndIsCappedAcrossItsMouth()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Canonical", "side-action-latch"));
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        var slide = Assert.Single(result.Report!.Inserts!.Slides!);
+        Assert.Equal("pinCore", slide.Name);
+        // The hole's wall and its drill point, and the cap across the mouth in the front face.
+        Assert.Equal(3, slide.Faces);
+        Assert.Equal(result.Report.Actions!.Single().FaceIds, slide.PartFaces);
+        Assert.Equal(-1d, slide.Pull.Y, 12);
+        Assert.Contains("pinCore", result.SlideSteps!.Keys);
+        AssertInsertsFillTheBlock(result);
+    }
+
+    [Fact]
+    public void ARodAcrossThePullIsCutAlongItsSilhouetteIntoTwoHalves()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Canonical", "rod-split"));
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        var inserts = result.Report!.Inserts!;
+        // The cylinder along its silhouette lines, and both end faces across.
+        Assert.Equal(3, inserts.SplitFaces!.Count);
+        AssertInsertsFillTheBlock(result);
+    }
+
+    [Fact]
+    public void WallsCrossingThePartingPlaneAreCutThere()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Canonical", "block-mid-parting"));
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        var inserts = result.Report!.Inserts!;
+        // Four walls, four corner cylinders and the bore; the bore's section at the plane is a shut-off.
+        Assert.Equal(9, inserts.SplitFaces!.Count);
+        Assert.Equal(1, inserts.ShutOffs);
+        AssertInsertsFillTheBlock(result);
+    }
+
+    [Fact]
+    public void ADraftedWallCutBelowItsTopIsAnUndercutForTheOtherHalf()
+    {
+        // Drafted to open upwards, the cover's walls cannot leave the core half below a plane through their middle.
+        var source = File.ReadAllText(Fixture("Canonical", "drafted-cover")).Replace("parting: Plane { at: face(-Z) }", "parting: Plane { origin: [0mm, 0mm, 5mm] }\n  inserts: 10mm", StringComparison.Ordinal);
+        var result = MoldFirmament.Compile(source, Fixture("Canonical", "drafted-cover"));
         Assert.False(result.IsSuccess);
-        Assert.Contains(result.Diagnostics, d => d.Code == MoldDiagnosticCodes.InsertsUnavailable && d.Message.Contains("side actions", StringComparison.Ordinal));
+        var refused = Assert.Single(result.Diagnostics, d => d.Code == MoldDiagnosticCodes.InsertsUnavailable);
+        Assert.Contains("cannot leave the half on its side", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACylinderAcrossThePullCutOffItsAxisIsRefused()
+    {
+        var source = File.ReadAllText(Fixture("Canonical", "rod-split")).Replace("origin: [0mm, 0mm, 0mm] }", "origin: [0mm, 0mm, 3mm] }", StringComparison.Ordinal);
+        var result = MoldFirmament.Compile(source, Fixture("Canonical", "rod-split"));
+        var refused = Assert.Single(result.Diagnostics, d => d.Code == MoldDiagnosticCodes.InsertsUnavailable);
+        Assert.Contains("off its axis", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RequirementsAreConceptsOverTheMeasurements()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Canonical", "cover-requirements"));
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        var requirements = result.Report!.Requirements!;
+        Assert.Equal(new[] { "walls", "release" }, requirements.Select(r => r.Name));
+        Assert.All(requirements, r => Assert.True(r.Passed, r.Message));
+    }
+
+    [Fact]
+    public void AFailingRequirementNamesTheCheckThatFailed()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Invalid", "requirement-sharp-corners"));
+        Assert.False(result.IsSuccess);
+        var failed = Assert.Single(result.Diagnostics, d => d.Code == MoldDiagnosticCodes.RequirementFailed);
+        Assert.Equal(PlasticDiagnosticSeverity.Error, failed.Severity);
+        Assert.Contains("HouseCorners.rounded", failed.Message, StringComparison.Ordinal);
+        Assert.False(Assert.Single(result.Report!.Requirements!).Passed);
+    }
+
+    [Fact]
+    public void ARequirementOnATighterWallFailsAtItsLabel()
+    {
+        var source = File.ReadAllText(Fixture("Canonical", "cover-requirements")).Replace("maximum <= 3mm", "maximum <= 1.8mm", StringComparison.Ordinal);
+        var result = MoldFirmament.Compile(source, Fixture("Canonical", "cover-requirements"));
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.Code == MoldDiagnosticCodes.RequirementFailed && d.Message.Contains("HouseWall.thickEnough", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("HouseWall(wall.minimum, wall.maximum)", "HouseWal(wall.minimum, wall.maximum)")]
+    [InlineData("HouseWall(wall.minimum, wall.maximum)", "HouseWall(wall.thinnest, wall.maximum)")]
+    [InlineData("HouseRelease(draft.minimum, undercuts)", "HouseRelease(wall.minimum, undercuts)")]
+    public void AnUnresolvableRequirementIsInvalid(string from, string to)
+    {
+        var source = File.ReadAllText(Fixture("Canonical", "cover-requirements")).Replace(from, to, StringComparison.Ordinal);
+        var result = MoldFirmament.Compile(source, Fixture("Canonical", "cover-requirements"));
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.Code == MoldDiagnosticCodes.RequirementInvalid);
+    }
+
+    [Fact]
+    public void ASolidSectionIsThickAndAnErrorAtTooling()
+    {
+        var source = File.ReadAllText(Fixture("Canonical", "drafted-cover")).Replace("stage: Prototype", "stage: Tooling", StringComparison.Ordinal);
+        var result = MoldFirmament.Compile(source, Fixture("Canonical", "drafted-cover"));
+        Assert.False(result.IsSuccess);
+        var thick = Assert.Single(result.Diagnostics, d => d.Code == MoldDiagnosticCodes.WallTooThick);
+        Assert.Equal(PlasticDiagnosticSeverity.Error, thick.Severity);
+    }
+
+    [Fact]
+    public void AThinWallIsAFinding()
+    {
+        // The same cover at 0.8 mm is below ABS's minimum wall.
+        var source = File.ReadAllText(Fixture("Canonical", "drafted-hollow-cover")).Replace("wallThickness: 2mm", "wallThickness: 0.8mm", StringComparison.Ordinal);
+        var result = MoldFirmament.Compile(source, Fixture("Canonical", "drafted-hollow-cover"));
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.Code == MoldDiagnosticCodes.WallTooThin && d.Severity == PlasticDiagnosticSeverity.Error);
+        Assert.Equal(0.8, result.Report!.Measurements!.NominalWall, 6);
     }
 }

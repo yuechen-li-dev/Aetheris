@@ -192,3 +192,12 @@ countersinks stay undrafted (machined), and side holes wait for M2's actions.
 M2 is in ([report](mold-m2-actions-and-inserts.md)): undercuts grouped and tried along the directions across the
 pull, `Action` declarations that form the undercuts they release, faces split at their exact silhouette, parting
 loops classified as parting line, shut-off or stepped, and core/cavity inserts cut by assembly rather than Boolean.
+
+M3's wall and corner rules are in ([report](mold-m3-walls-corners-requirements.md)): rolling-ball wall thickness,
+exact on parallel and coaxial walls; sharp inside corners against `MinimumInsideRadius`; and `Require` in the Mold
+block, evaluated by the ordinary Concept checker over the review's measurements, which replaces the planned
+`InjectionMoldingPolicy` Concept. Rib and boss rules remain.
+
+The M2 insert gaps are closed ([report](mold-m2-split-and-slide-inserts.md)): faces crossing the parting plane are
+cut there before the inserts are assembled, and each side action gets a capped pin, with block = cavity + core +
+part + pins.

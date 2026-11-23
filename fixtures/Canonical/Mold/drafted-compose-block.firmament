@@ -1,5 +1,6 @@
 // A drafted Compose: the Base and the Boss narrow toward the pull, the Pocket opens toward it, so every wall
-// releases along +Z at exactly 2 deg (planes on the straight sides, right cones on the corners).
+// releases along +Z at exactly 2 deg (planes on the straight sides, right cones on the corners). It is
+// solid, so a prototype review warns of thick sections and of the Boss's and Pocket's sharp inside edges.
 Model DraftedBlock {
   units: mm
   Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [80mm, 50mm]; radius: 6mm }
@@ -16,7 +17,7 @@ Model DraftedBlock {
 Mold BlockTool {
   part: DraftedBlock
   material: ABS
-  stage: Tooling
+  stage: Prototype
   pull: +Z
   parting: Plane { at: face(-Z) }
 }

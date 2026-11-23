@@ -46,16 +46,47 @@ public static partial class MoldFirmament
             return Fail(diagnostics, MoldDiagnosticCodes.PartBuildFailed, "The part's STEP did not import as one closed body: " + string.Join("; ", body.Diagnostics.Select(d => d.Message)), intent.PartName, intent);
 
         var report = MoldAnalysis.Analyze(body.Value, intent, diagnostics, out var inserts);
+        if (report is not null && intent.Requirements is { Count: > 0 } requires && report.Measurements is { } measured)
+            report = report with { Requirements = CheckRequirements(source, requires, measured, diagnostics, intent.MoldName) };
         string? cavityStep = null, coreStep = null;
+        Dictionary<string, string>? slideSteps = null;
         if (inserts is not null)
         {
             var cavity = Step242Exporter.ExportBody(inserts.Cavity);
             var core = Step242Exporter.ExportBody(inserts.Core);
-            if (cavity.IsSuccess && core.IsSuccess) { cavityStep = cavity.Value; coreStep = core.Value; }
+            var slides = inserts.Slides.Select(s => (s.Name, Step: Step242Exporter.ExportBody(s.Body))).ToArray();
+            if (cavity.IsSuccess && core.IsSuccess && slides.All(s => s.Step.IsSuccess))
+            {
+                cavityStep = cavity.Value; coreStep = core.Value;
+                slideSteps = slides.ToDictionary(s => s.Name, s => s.Step.Value, StringComparer.Ordinal);
+            }
             else diagnostics.Add(new(MoldDiagnosticCodes.InsertsUnavailable, PlasticDiagnosticSeverity.Error,
-                "The inserts were cut but did not export: " + string.Join("; ", cavity.Diagnostics.Concat(core.Diagnostics).Select(d => d.Message)), intent.MoldName));
+                "The inserts were cut but did not export: " + string.Join("; ", cavity.Diagnostics.Concat(core.Diagnostics).Concat(slides.SelectMany(s => s.Step.Diagnostics)).Select(d => d.Message)), intent.MoldName));
         }
-        return new(report is not null && !diagnostics.Any(d => d.Severity == PlasticDiagnosticSeverity.Error), intent, report, built.Value.StepText, diagnostics, cavityStep, coreStep);
+        return new(report is not null && !diagnostics.Any(d => d.Severity == PlasticDiagnosticSeverity.Error), intent, report, built.Value.StepText, diagnostics, cavityStep, coreStep, slideSteps);
+    }
+
+    /// <summary>The measurement names a Mold <c>Require</c> can use, and their values as quantities.</summary>
+    public static IReadOnlyDictionary<string, string> MeasurementValues(MoldMeasurements m)
+    {
+        static string Mm(double v) => $"{v.ToString("0.#########", CultureInfo.InvariantCulture)}mm";
+        return new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["draft.minimum"] = $"{m.MinimumDraftDegrees.ToString("0.#########", CultureInfo.InvariantCulture)}deg",
+            ["wall.minimum"] = Mm(m.MinimumWall), ["wall.maximum"] = Mm(m.MaximumWall), ["wall.nominal"] = Mm(m.NominalWall),
+            ["corner.sharp"] = m.SharpInsideCorners.ToString(CultureInfo.InvariantCulture), ["corner.minimumRadius"] = Mm(m.MinimumInsideRadius),
+            ["undercuts"] = m.Undercuts.ToString(CultureInfo.InvariantCulture), ["actions"] = m.Actions.ToString(CultureInfo.InvariantCulture),
+        };
+    }
+
+    private static IReadOnlyList<MoldRequirementEvidence> CheckRequirements(string source, IReadOnlyList<MoldRequirement> requires, MoldMeasurements measured,
+        List<MoldDiagnostic> diagnostics, string owner)
+    {
+        var results = FirmamentRequirements.Check(source, requires.Select(r => (r.Name, r.Expression)).ToArray(), MeasurementValues(measured));
+        foreach (var r in results.Where(r => !r.Passed))
+            diagnostics.Add(new(r.Valid ? MoldDiagnosticCodes.RequirementFailed : MoldDiagnosticCodes.RequirementInvalid, PlasticDiagnosticSeverity.Error,
+                r.Valid ? $"Require {r.Name} => {r.Expression} fails: {r.Message}" : $"Require {r.Name}: {r.Message}", owner));
+        return results.Where(r => r.Name != "<concepts>").Select(r => new MoldRequirementEvidence(r.Name, r.Expression, r.Passed, r.Message)).ToArray();
     }
 
     private static MoldIntent? ReadIntent(string source, DocumentSyntax document, DeclarationSyntax mold, List<MoldDiagnostic> diagnostics)
@@ -63,10 +94,20 @@ public static partial class MoldFirmament
         var name = mold.Name!.Text;
         var fields = new Dictionary<string, FieldSyntax>(StringComparer.OrdinalIgnoreCase);
         var actionDeclarations = new List<DeclarationSyntax>();
+        var requirements = new List<MoldRequirement>();
         foreach (var statement in mold.Body?.Statements ?? [])
         {
             if (statement is DeclarationSyntax { Type.Name.Text: "Action" } declaration) { actionDeclarations.Add(declaration); continue; }
-            if (statement is not FieldSyntax field) { Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, $"Mold {name} takes fields and Action declarations; Gate and Ejector arrive in later phases.", name); continue; }
+            if (statement is DeclarationSyntax { Type.Name.Text: "Require" } require)
+            {
+                if (require.Name is null || require.Initializer is null || require.Body is not null)
+                    Error(diagnostics, MoldDiagnosticCodes.RequirementInvalid, "A Mold requirement is Require name => Concept(measurement, ...).", name);
+                else if (requirements.Any(r => r.Name == require.Name.Text))
+                    Error(diagnostics, MoldDiagnosticCodes.RequirementInvalid, $"Require {require.Name.Text} is declared twice.", name);
+                else requirements.Add(new(require.Name.Text, source.Substring(require.Initializer.Span.Start, require.Initializer.Span.Length)));
+                continue;
+            }
+            if (statement is not FieldSyntax field) { Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, $"Mold {name} takes fields, Action and Require declarations; Gate and Ejector arrive in later phases.", name); continue; }
             if (!Fields.Contains(field.Name.Text)) { Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, $"Unknown Mold field '{field.Name.Text}'. Known fields: {string.Join(", ", Fields.Order())}.", name); continue; }
             if (!fields.TryAdd(field.Name.Text, field)) Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, $"Mold field '{field.Name.Text}' is declared twice.", name);
         }
@@ -143,7 +184,7 @@ public static partial class MoldFirmament
             if (TryLength(Text(insertsField.Value), out var mm) && mm > 0) margin = mm;
             else Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, "inserts takes the block's margin around the part, a positive length such as 10mm.", name);
         }
-        return pull is null || part is null ? null : new MoldIntent(name, part, policy, stage, pull.Value, parting, cosmetic, texture, actions, margin);
+        return pull is null || part is null ? null : new MoldIntent(name, part, policy, stage, pull.Value, parting, cosmetic, texture, actions, margin, requirements, source);
     }
 
     /// <summary>A typed policy Static overrides the material's defaults field by field.</summary>
@@ -170,6 +211,7 @@ public static partial class MoldFirmament
             MinimumWall = Value("MinimumWall", "mm") ?? policy.MinimumWall,
             MaximumWall = Value("MaximumWall", "mm") ?? policy.MaximumWall,
             MaximumFlowRatio = Value("MaximumFlowRatio", "") ?? policy.MaximumFlowRatio,
+            MinimumInsideRadius = Value("MinimumInsideRadius", "mm") ?? policy.MinimumInsideRadius,
         };
     }
 

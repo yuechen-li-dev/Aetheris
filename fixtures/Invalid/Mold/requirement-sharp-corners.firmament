@@ -1,0 +1,26 @@
+// The hollow cover against a standard that forbids sharp inside edges: the ceiling meets the inner walls
+// in eight of them, so the `rounded` check of HouseCorners fails and the review is an error.
+Concept HouseCorners(sharp: Int, radius: Length) {
+  rounded: sharp == 0
+  generous: radius >= 0.5mm
+}
+
+Model HollowCover {
+  units: mm
+  Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [80mm, 50mm]; radius: 6mm }
+  Compose<Hollow> body {
+    wallThickness: 2mm
+    openings: [Bottom]
+    draft: 1.5deg
+    Base stock { profile: outline; from: 0mm; to: 20mm; role: Stock }
+  }
+}
+
+Mold CoverTool {
+  part: HollowCover
+  material: ABS
+  stage: Prototype
+  pull: +Z
+  parting: Plane { at: face(-Z) }
+  Require corners => HouseCorners(corner.sharp, corner.minimumRadius)
+}

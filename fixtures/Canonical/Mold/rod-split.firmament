@@ -1,4 +1,5 @@
-// A round rod molded across its axis: the parting plane through the axis splits its cylinder along the silhouette.
+// A round rod molded across its axis: the parting plane through the axis splits its cylinder along the silhouette,
+// and cuts its end faces across, so each half's insert forms half the rod.
 Model Rod {
     units: mm
     Axis spindle { origin: [0mm, 0mm, 0mm]; direction: [1, 0, 0] }
@@ -15,4 +16,5 @@ Mold RodTool {
   stage: Concept
   pull: +Z
   parting: Plane { origin: [0mm, 0mm, 0mm] }
+  inserts: 10mm
 }

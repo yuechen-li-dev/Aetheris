@@ -1,5 +1,6 @@
 // A latch block with a blind pin hole drilled from its front face: the hole cannot release along the main pull,
-// and the side action pinCore withdraws along -Y to form it.
+// and the side action pinCore withdraws along -Y to form it. The inserts are the core, the cavity, and the slide's
+// pin, which fills the hole and is capped across its mouth.
 Model Latch {
   units: mm
   Path Outline {
@@ -23,5 +24,6 @@ Mold LatchTool {
   stage: Concept
   pull: +Z
   parting: Plane { at: face(-Z) }
+  inserts: 10mm
   Action pinCore { pull: -Y }
 }

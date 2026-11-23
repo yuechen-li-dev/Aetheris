@@ -1,0 +1,22 @@
+// A straight-walled pierced block parted at mid-height: every wall, the bore and the rounded corners cross the
+// parting plane, so they are cut there and each half forms the part of them on its side. The bore's section at the
+// plane is a shut-off. The walls have no draft, so this is a concept-stage review.
+Model Block {
+  units: mm
+  RoundedRect2 outline { center: [0mm, 0mm]; size: [80mm, 50mm]; radius: 6mm }
+  Circle2 Bore { center: [20mm, 0mm]; radius: 4mm }
+  Profile pierced {
+    Loop Outer { outline |> TraceLoop }
+    Loop Bore { Bore |> TraceLoop }
+  }
+  Extrude body { profile: pierced; from: 0mm; to: 12mm }
+}
+
+Mold BlockTool {
+  part: Block
+  material: ABS
+  stage: Concept
+  pull: +Z
+  parting: Plane { origin: [0mm, 0mm, 5mm] }
+  inserts: 10mm
+}

@@ -39,7 +39,7 @@ Mold TrayTool on RoundedTray (ABS, Concept, pull [0, 0, 1])
 | --- | --- |
 | `part` | The `Model` in the same file. Optional when the file has one Model. |
 | `material` | Default rules: `ABS`, `PC`, `PC_ABS`, `PP`, `HDPE`, `PA66`, `PA66_GF30`, `POM`, `PMMA`. |
-| `policy` | Optional `Static` whose fields override the material: `MinimumDraft`, `MinimumWall`, `MaximumWall`, `MaximumFlowRatio`. |
+| `policy` | Optional `Static` whose fields override the material: `MinimumDraft`, `MinimumWall`, `MaximumWall`, `MinimumInsideRadius`, `MaximumFlowRatio`. |
 | `minimumDraft` | Optional angle overriding the policy's minimum draft. |
 | `stage` | `Concept` (default), `Prototype` or `Tooling`: how hard findings are (below). |
 | `pull` | The direction one half opens: `+Z`, `-X` … or a vector `[0, 0, 1]`. The other half opens the opposite way. |
@@ -47,6 +47,7 @@ Mold TrayTool on RoundedTray (ABS, Concept, pull [0, 0, 1])
 | `cosmetic` | Faces that must not carry a parting line or an undercut. |
 | `texture` | `{ faces: [...]; depth: 0.025mm }`: textured faces need 1° more draft per 0.025 mm of depth. |
 | `inserts` | A margin such as `10mm`: cut the core and cavity inserts from a block that much larger than the part (below). |
+| `Require name => Concept(…)` | A requirement the review's measurements must meet (below). |
 | `Action name { … }` | A side action (slide, side core): `pull: -Y` is the direction it withdraws along; `near: [x, y, z]` picks among undercuts more than one action could release. |
 
 Faces are named by `face(+X)` … `face(-Z)` (the planar faces lying in the part's extreme plane in that direction) or
@@ -85,7 +86,54 @@ Mold CupTool { part: Cup; material: PP; policy: HouseRule; pull: +Z }
   line. A flat loop across the pull, off the plane, around an opening (a hole through a hollow's top) is a shut-off:
   the halves touch across the opening there. Any other loop leaves the plane, and the part needs a stepped parting
   surface or another plane. Where the line runs along a cosmetic face it leaves a witness line.
+- **Wall thickness.** At points across each face, the diameter of the largest ball that touches the face there and
+  fits inside the part. Where that ball touches an opposite plane parallel to the face, or a coaxial cylinder or cone
+  of the same angle, the wall is exact; elsewhere it is the sampled value. A ball held only by a face meeting this one
+  at an edge measures the corner, not a wall, and is not counted. A face backing onto less than the policy's minimum
+  wall is thin; one backing onto more than its maximum is a thick section, which sinks and voids. The nominal wall is
+  the area-weighted median of the faces' thinnest walls.
+- **Inside corners.** An edge where two faces meet at more than 5° with the material outside the turn (the floor of
+  a pocket, a ceiling meeting a wall) is a sharp inside corner: it concentrates stress and stops flow. Round it to
+  at least the policy's `MinimumInsideRadius` (0.5 mm by default), with the outside radius the inside plus the wall.
+  A sharp corner is a warning at every stage; a `Require` makes it binding.
 - **Report.** Projected area along the pull (for clamp tonnage), volume and shot mass from the material's density.
+
+## Requirements
+
+A house standard is a `Concept`, and a `Require` in the Mold block applies it to what the review measured:
+
+```firmament
+Concept HouseWall(minimum: Length, maximum: Length) {
+  thinEnough: minimum >= 1.2mm
+  thickEnough: maximum <= 3mm
+}
+
+Mold CoverTool {
+  part: HollowCover
+  material: ABS
+  pull: +Z
+  parting: Plane { at: face(-Z) }
+  Require walls => HouseWall(wall.minimum, wall.maximum)
+}
+```
+
+A requirement is any Boolean expression the [Concept checker](../reference/language/requirements.md) accepts, over
+these measurements:
+
+| Name | Type | Value |
+| --- | --- | --- |
+| `draft.minimum` | Angle | The least draft of any face either half forms. |
+| `wall.minimum`, `wall.maximum` | Length | The thinnest and thickest wall measured. |
+| `wall.nominal` | Length | The area-weighted median of the faces' thinnest walls. |
+| `corner.sharp` | Int | The number of sharp inside corners. |
+| `corner.minimumRadius` | Length | The smallest inside radius: 0 with a sharp corner. |
+| `undercuts` | Int | Undercuts no action forms. |
+| `actions` | Int | Declared side actions. |
+
+A requirement that fails is an error at every stage, and names the Concept member that failed
+(`HouseCorners.rounded`). One that names an unknown Concept or measurement, or is not Boolean, is an error too. The
+report lists each requirement and whether it held. See the
+[cover requirements](../../../fixtures/Canonical/Mold/cover-requirements.firmament).
 
 ## Side actions
 
@@ -105,26 +153,40 @@ the action, and the report lists the action's faces and their draft along −Y.
 
 ## Core and cavity inserts
 
-`inserts: 10mm` writes the two halves of a two-plate tool beside the part, as `<part>.cavity.step` (the +pull half)
-and `<part>.core.step`:
+`inserts: 10mm` writes the tool's inserts beside the part: `<part>.cavity.step` (the +pull half),
+`<part>.core.step`, and `<part>.slide-<action>.step` for each side action:
 
 - each insert is the part's own faces of its half, on the part's exact surfaces and edges, closed by the parting
   face (the block's section at the parting plane less the part's outline) and the rest of a block 10 mm larger than
   the part on every side;
 - each shut-off becomes a face across its opening in both inserts;
-- the report states the block, both inserts' volumes and the part's: block = cavity + core + part.
+- a side action's pin is the action's faces, capped across the mouth where they meet the rest of the part; the
+  half the mouth opens into carries the same cap, so the pin slides out of it along the action's pull. The mouth
+  must be flat and square to the action's pull;
+- the report states the block, every insert's volume and the part's: block = cavity + core + part + pins.
 
-Inserts are refused, with the reason, when the tool needs more than two plates or a flat parting face: a side
-action, a face that neither half forms alone, or a parting line that leaves the plane. The
+Faces that cross the parting plane are cut there first, and the cut part is reviewed again: planes along their
+trace, a cylinder lying across the pull along its silhouette (the plane must pass through its axis), and cylinders
+and cones about the pull along a circle. The [rod](../../../fixtures/Canonical/Mold/rod-split.firmament) is cut
+into two half-round inserts; the [pierced block](../../../fixtures/Canonical/Mold/block-mid-parting.firmament),
+parted at mid-height, has every wall, corner and its bore cut, and the bore's section at the plane is a shut-off.
+A face cut where it cannot leave its new half (a wall drafted to open upwards, cut below its top) is an undercut,
+and the inserts are refused with it.
+
+Inserts are refused, with the reason, when a face crosses the plane on another surface, a face is formed by
+neither half, the parting line leaves the plane, or an action's mouth is not flat. The
 [housing](../../../fixtures/Canonical/Mold/housing-inserts.firmament), a drafted hollow shell with a vent through its
-top, is cut into inserts with one shut-off.
+top, is cut into inserts with one shut-off; the [latch](../../../fixtures/Canonical/Mold/side-action-latch.firmament)
+into a core, a cavity and its pin.
 
 ## Stages
 
 | Finding | Concept | Prototype | Tooling |
 | --- | --- | --- | --- |
 | Undercut, straddling face | warning | error | error |
-| Draft, parting line off plane, parting line on a cosmetic face | warning | warning | error |
+| Draft, wall too thin or too thick, parting line off plane, parting line on a cosmetic face | warning | warning | error |
+| Sharp inside corner | warning | warning | warning |
+| Failed `Require` | error | error | error |
 
 An error fails the build. Problems in the Mold block itself (an unknown material, a selector that names no face, an
 action that releases nothing, inserts that cannot be cut) are always errors.
@@ -135,12 +197,12 @@ An `Extrude` and a `Compose` take `draft:` ([drafted Extrude](../reference/langu
 [drafted Compose](../reference/language/solids-and-features.md#drafted-compose)), including hollow ones; their walls
 are exact drafted planes and cones, and pass the draft check at their angle. The
 [drafted hollow cover](../../../fixtures/Canonical/Mold/drafted-hollow-cover.firmament) passes at the `Tooling` stage
-with no findings.
-
-The [drafted housing](../../../fixtures/Canonical/Mold/drafted-housing.firmament), a hollow shell with a hollow
+with an exact 2 mm wall; its only findings are the sharp edges where the ceiling meets the inner walls, since a
+drafted Compose does not yet round them. The
+[drafted housing](../../../fixtures/Canonical/Mold/drafted-housing.firmament), a hollow shell with a hollow
 boss and a pocket, passes too.
 
-Lifters and inserts for tools with side actions, stepped and contoured parting surfaces, gates, ejectors,
-wall-thickness, rib and boss rules, flow length, and fillets and chamfers on drafted walls are later phases. An undrafted part reports its
+Lifters, slides for undercuts whose mouth is not flat, stepped and contoured parting surfaces, gates, ejectors, rib and boss rules, flow length, and fillets and
+chamfers on drafted walls are later phases. An undrafted part reports its
 vertical walls as short of draft; the `Concept` stage keeps that a warning. `PlasticShell` remains the bounded route
 for its frustum enclosures.

@@ -1,0 +1,31 @@
+// The hollow cover held to a house molding standard. The standard is a Concept over the review's
+// measurements; each Require in the Mold block applies it, and a failing check names its label.
+Concept HouseWall(minimum: Length, maximum: Length) {
+  thinEnough: minimum >= 1.2mm
+  thickEnough: maximum <= 3mm
+}
+Concept HouseRelease(draft: Angle, undercuts: Int) {
+  drafted: draft >= 1deg
+  straightPull: undercuts == 0
+}
+
+Model HollowCover {
+  units: mm
+  Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [80mm, 50mm]; radius: 6mm }
+  Compose<Hollow> body {
+    wallThickness: 2mm
+    openings: [Bottom]
+    draft: 1.5deg
+    Base stock { profile: outline; from: 0mm; to: 20mm; role: Stock }
+  }
+}
+
+Mold CoverTool {
+  part: HollowCover
+  material: ABS
+  stage: Tooling
+  pull: +Z
+  parting: Plane { at: face(-Z) }
+  Require walls => HouseWall(wall.minimum, wall.maximum)
+  Require release => HouseRelease(draft.minimum, undercuts)
+}

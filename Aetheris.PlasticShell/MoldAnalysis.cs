@@ -25,7 +25,10 @@ public static class MoldAnalysis
 
     public static MoldReport? Analyze(BrepBody body, MoldIntent intent, List<MoldDiagnostic> diagnostics) => Analyze(body, intent, diagnostics, out _);
 
-    internal static MoldReport? Analyze(BrepBody body, MoldIntent intent, List<MoldDiagnostic> diagnostics, out MoldInserts.Result? inserts)
+    /// <param name="formedBy">Faces whose half is fixed (the pieces of faces cut at the parting plane): +1 the +pull half,
+    /// −1 the other. Each is released along its half's pull.</param>
+    internal static MoldReport? Analyze(BrepBody body, MoldIntent intent, List<MoldDiagnostic> diagnostics, out MoldInserts.Result? inserts,
+        IReadOnlyDictionary<int, int>? formedBy = null)
     {
         inserts = null;
         // Rays start a few chord tolerances off the surface: neighbouring faces' meshes may sample a shared curved edge
@@ -83,6 +86,7 @@ public static class MoldAnalysis
         var evidence = new List<MoldFaceEvidence>();
         var sideOf = new Dictionary<int, MoldFaceSide>();
         var samplesOf = new Dictionary<int, (Point3D Start, Vector3D Normal)[]>();
+        var trianglesOf = new Dictionary<int, (Point3D Centroid, Vector3D Normal, double Area)[]>();
         var surfaceOf = new Dictionary<int, (SurfaceGeometry? Surface, bool Aligned)>();
         foreach (var patch in patches)
         {
@@ -92,7 +96,9 @@ public static class MoldAnalysis
             surfaceOf[face] = (surface, aligned);
             var normals = patch.Normals.Select(n => n * orientation).ToArray();
             var (dMin, dMax, strength) = Against(surface, aligned, normals, pull);
-            var side = dMin >= -ParallelTolerance && dMax <= ParallelTolerance ? MoldFaceSide.Vertical
+            var fixedHalf = formedBy is not null && formedBy.TryGetValue(face, out var half) ? half : 0;
+            var side = fixedHalf > 0 ? MoldFaceSide.Positive : fixedHalf < 0 ? MoldFaceSide.Negative
+                : dMin >= -ParallelTolerance && dMax <= ParallelTolerance ? MoldFaceSide.Vertical
                 : dMin >= -ParallelTolerance ? MoldFaceSide.Positive
                 : dMax <= ParallelTolerance ? MoldFaceSide.Negative
                 : MoldFaceSide.Straddling;
@@ -115,7 +121,12 @@ public static class MoldAnalysis
                 var start = centroid + normal * eps;
                 samples.Add((start, normal));
                 var d = normal.Dot(pull);
-                if (double.Abs(d) <= ParallelTolerance)
+                if (fixedHalf != 0)
+                {
+                    // Formed by a fixed half: the steel leaves along that half's pull, and cannot if it faces against it.
+                    if (d * fixedHalf < -ParallelTolerance || rays.Hits(start, pull * fixedHalf, eps)) blocked++;
+                }
+                else if (double.Abs(d) <= ParallelTolerance)
                 {
                     var up = !rays.Hits(start, pull, eps); var down = !rays.Hits(start, -pull, eps);
                     if (up) freePositive++;
@@ -125,6 +136,7 @@ public static class MoldAnalysis
                 else if (rays.Hits(start, pull * double.Sign(d), eps)) blocked++;
             }
             samplesOf[face] = samples.ToArray();
+            trianglesOf[face] = triangles;
             var area = triangles.Sum(x => x.Area);
             var representative = triangles.Length == 0 ? Point3D.Origin : Weighted(triangles);
             if (side == MoldFaceSide.Vertical)
@@ -249,6 +261,12 @@ public static class MoldAnalysis
         var cosmeticTouched = partingEdges.SelectMany(e => edgeFaces[e]).Where(cosmetic.Contains).Distinct().Order().ToArray();
         var partingLine = new MoldPartingLineEvidence(partingEdges.Select(e => e.Value).ToArray(), hMin, hMax, onPlane, cosmeticTouched, loops);
 
+        // Wall thickness: from each sample straight into the material to the far side.
+        // Inside corners: edges where two faces meet at an angle, with the material on the outside of the turn.
+        var (corners, smooth) = InsideCorners(body, mesh.Value.EdgePolylines, edgeFaces, trianglesOf);
+        var walls = WallThickness(body, patches, evidence, samplesOf, surfaceOf, smooth, eps);
+        evidence = evidence.Select(f => walls.TryGetValue(f.FaceId, out var w) ? f with { MinimumWall = w.Min, MaximumWall = w.Max, WallStrength = w.Strength } : f).ToList();
+
         // Findings, scaled by stage.
         foreach (var f in evidence.Where(f => f.Side == MoldFaceSide.Straddling && f.Action is null && !(splits.Contains(f) && OnPlane(f.SilhouetteHeight!.Value))))
             diagnostics.Add(new(MoldDiagnosticCodes.StraddlingFace, Severity(intent.Stage, hard: true),
@@ -283,6 +301,24 @@ public static class MoldAnalysis
             diagnostics.Add(new(MoldDiagnosticCodes.PartingLineOffPlane, Severity(intent.Stage, hard: false),
                 $"The parting line leaves the declared parting plane at {partingHeight:0.###} mm ({string.Join("; ", stepped)}); the part needs a stepped parting surface or a different plane.", intent.MoldName));
         }
+        var thin = evidence.Where(f => f.MinimumWall is { } w && w < intent.Policy.MinimumWall - 1e-9).ToArray();
+        if (thin.Length > 0)
+            diagnostics.Add(new(MoldDiagnosticCodes.WallTooThin, Severity(intent.Stage, hard: false),
+                $"{thin.Length} face(s) are thinner than the {intent.Policy.MinimumWall:0.###} mm wall {intent.Policy.Name} fills: "
+                + string.Join("; ", thin.Select(f => $"{f.FaceId} ({f.Surface} near {Format(f.Representative)}, {f.MinimumWall:0.###} mm{(f.WallStrength == MoldEvidenceStrength.ExactAnalytic ? "" : " sampled")})")) + ".",
+                "faces:" + string.Join(",", thin.Select(f => f.FaceId))));
+        var thick = evidence.Where(f => f.MaximumWall is { } w && w > intent.Policy.MaximumWall + 1e-9).ToArray();
+        if (thick.Length > 0)
+            diagnostics.Add(new(MoldDiagnosticCodes.WallTooThick, Severity(intent.Stage, hard: false),
+                $"{thick.Length} face(s) back onto sections thicker than {intent.Policy.MaximumWall:0.###} mm, which sink and void in {intent.Policy.Name}; core them out to an even wall: "
+                + string.Join("; ", thick.Take(12).Select(f => $"{f.FaceId} ({f.Surface} near {Format(f.Representative)}, up to {f.MaximumWall:0.###} mm)")) + (thick.Length > 12 ? "; …" : "") + ".",
+                "faces:" + string.Join(",", thick.Select(f => f.FaceId))));
+        // Sharp inside corners are a guideline (stress and flow), reported at every stage; a Require makes them binding.
+        if (corners.Count > 0 && intent.Policy.MinimumInsideRadius > 0)
+            diagnostics.Add(new(MoldDiagnosticCodes.SharpInsideCorner, PlasticDiagnosticSeverity.Warning,
+                $"{corners.Count} inside edge(s) are sharp; round them to at least {intent.Policy.MinimumInsideRadius:0.###} mm (about half the wall), with the outside radius the inside plus the wall: "
+                + string.Join("; ", corners.Take(8).Select(c => $"edge {c.EdgeId} between faces {c.FaceIds[0]} and {c.FaceIds[1]} near {Format(c.Midpoint)} ({c.AngleDegrees:0.#}°)")) + (corners.Count > 8 ? "; …" : "") + ".",
+                "edges:" + string.Join(",", corners.Select(c => c.EdgeId))));
         if (cosmeticTouched.Length > 0)
             diagnostics.Add(new(MoldDiagnosticCodes.PartingLineOnCosmetic, Severity(intent.Stage, hard: false),
                 $"The parting line runs along cosmetic face(s) {string.Join(", ", cosmeticTouched)}; it leaves a witness line there.", intent.MoldName));
@@ -301,14 +337,166 @@ public static class MoldAnalysis
         if (intent.InsertMargin is { } margin)
         {
             var plane = partingHeight ?? loops.FirstOrDefault(l => l.Kind == MoldPartingLoopKind.Parting)?.MinimumHeight;
-            string? reason = actions.Count > 0 ? "the part has side actions, and the inserts are cut for a two-plate tool" : plane is null ? "the part has no parting line" : null;
-            if (reason is null) inserts = MoldInserts.Build(body, sideOf, loops, pull, plane!.Value, margin, (min, max), out reason);
+            string? reason = plane is null ? "the part has no parting line" : null;
+            // Faces that cross the parting plane are cut there first; the cut part is reviewed again, so that each of
+            // its faces is formed by one half, and the inserts are cut from it.
+            var faceMesh = new MoldMeshRays(patches);
+            var cut = reason is null ? MoldSplit.AtPlane(body, pull, plane!.Value, 1e-6 * size + 1e-6,
+                (face, p) => faceMesh.Closest(p, f => f != face)?.Distance ?? double.PositiveInfinity, eps, out reason) : null;
+            if (cut is { SplitFaces.Count: > 0 })
+            {
+                var inner = new List<MoldDiagnostic>();
+                Analyze(cut.Body, intent with { Requirements = null }, inner, out inserts, cut.Pieces);
+                var undercut = inner.FirstOrDefault(d => d.Code is MoldDiagnosticCodes.Undercut or MoldDiagnosticCodes.UndercutOnCosmetic);
+                var refused = inner.FirstOrDefault(d => d.Code == MoldDiagnosticCodes.InsertsUnavailable);
+                if (undercut is not null) { inserts = null; reason = $"cut at the parting plane (faces {string.Join(", ", cut.SplitFaces)}), a piece cannot leave the half on its side of the plane (face ids of the cut part follow): {undercut.Message}"; }
+                else if (refused is not null) reason = $"cut at the parting plane (faces {string.Join(", ", cut.SplitFaces)}), {refused.Message.Replace("The core and cavity inserts cannot be cut: ", "", StringComparison.Ordinal).TrimEnd('.')}";
+                else if (inserts is not null) inserts = inserts with { Evidence = inserts.Evidence with { SplitFaces = cut.SplitFaces } };
+            }
+            else if (reason is null)
+            {
+                var slides = actionEvidence.Select(a => new MoldInserts.Slide(a.Name, a.Pull.ToVector(), a.FaceIds)).ToArray();
+                inserts = MoldInserts.Build(body, sideOf, loops, pull, plane!.Value, margin, (min, max), slides, out reason);
+            }
             if (inserts is null)
                 diagnostics.Add(new(MoldDiagnosticCodes.InsertsUnavailable, PlasticDiagnosticSeverity.Error, $"The core and cavity inserts cannot be cut: {reason}.", intent.MoldName));
         }
         return new(intent, evidence, partingLine, summary,
             "Face normals against the pull (exact on planes, and on cylinders and cones about the pull; mesh extremes otherwise); release by casting the display mesh's samples along the pull, and along each action's pull, against the part; parting line from face adjacency, in loops. Undercuts between samples are not proven absent.",
-            groups, actionEvidence, inserts?.Evidence);
+            groups, actionEvidence, inserts?.Evidence, corners,
+            Measure(evidence, corners, groups, actionOf.Count, body, surfaceOf));
+    }
+
+    /// <summary>
+    /// Wall thickness behind each face, as the diameter of the largest ball inside the material that touches the face at
+    /// a sample (the rolling-ball measure: a rim or a rib is as thick as it is wide, not as long). A ball wedged against
+    /// a single neighbouring face across the face's own edge measures the corner, not a wall, and is set aside. Exact
+    /// where the ball rests on a parallel plane, or on a coaxial cone (cylinder) of the same angle.
+    /// </summary>
+    private static Dictionary<int, (double Min, double Max, MoldEvidenceStrength Strength)> WallThickness(BrepBody body, IReadOnlyList<DisplayFaceMeshPatch> patches,
+        IReadOnlyList<MoldFaceEvidence> evidence, IReadOnlyDictionary<int, (Point3D Start, Vector3D Normal)[]> samplesOf,
+        IReadOnlyDictionary<int, (SurfaceGeometry? Surface, bool Aligned)> surfaceOf, IReadOnlySet<(int, int)> smooth, double eps)
+    {
+        var rays = new MoldMeshRays(patches);
+        var faceOfLoop = body.Topology.Faces.SelectMany(f => f.LoopIds.Select(l => (Loop: l, Face: f.Id.Value))).ToDictionary(x => x.Loop, x => x.Face);
+        var adjacent = body.Topology.Coedges.GroupBy(c => c.EdgeId).Select(g => g.Select(c => faceOfLoop[c.LoopId]).Distinct().ToArray()).Where(f => f.Length == 2)
+            .SelectMany(f => new[] { (f[0], f[1]), (f[1], f[0]) }).ToHashSet();
+        var result = new Dictionary<int, (double, double, MoldEvidenceStrength)>();
+        foreach (var f in evidence)
+        {
+            double min = double.PositiveInfinity, max = 0; var exact = true; var any = false;
+            foreach (var (start, normal) in samplesOf[f.FaceId])
+            {
+                var surfacePoint = start - normal * eps;
+                if (rays.Nearest(surfacePoint - normal * eps, -normal, 0) is not { } through) continue;
+                // The ball's radius: the largest r whose centre p − r n is at least r from every other face.
+                double lo = 0, hi = (through.Distance + eps) / 2;
+                // The face's own surface goes on smoothly into its tangent neighbours; neither stops the ball.
+                bool Own(int face) => face == f.FaceId || smooth.Contains((f.FaceId, face));
+                bool Fits(double r) => rays.Closest(surfacePoint - normal * r, Own, r) is null;
+                if (Fits(hi)) lo = hi;
+                else for (var k = 0; k < 24 && hi - lo > 1e-4 * hi; k++) { var mid = (lo + hi) / 2; if (Fits(mid)) lo = mid; else hi = mid; }
+                var radius = lo;
+                var centre = surfacePoint - normal * radius;
+                var contact = rays.Closest(centre, Own);
+                if (contact is null) continue;
+                // A single contact on a neighbour across this face's own edge: the ball is in a corner.
+                var second = rays.Closest(centre, face => Own(face) || face == contact.Value.Face || smooth.Contains((contact.Value.Face, face)), radius * 1.05 + eps);
+                if (second is null && adjacent.Contains((f.FaceId, contact.Value.Face))) continue;
+                any = true;
+                var thickness = 2 * radius;
+                if (Exact(surfaceOf[f.FaceId], surfaceOf.GetValueOrDefault(contact.Value.Face)) is { } exactThickness && double.Abs(exactThickness - thickness) < 0.05 * exactThickness + 2 * eps)
+                    thickness = exactThickness;
+                else exact = false;
+                min = double.Min(min, thickness); max = double.Max(max, thickness);
+            }
+            if (any) result[f.FaceId] = (min, max, exact ? MoldEvidenceStrength.ExactAnalytic : MoldEvidenceStrength.SampledConservative);
+        }
+        return result;
+
+        static double? Exact((SurfaceGeometry? Surface, bool Aligned) a, (SurfaceGeometry? Surface, bool Aligned) b)
+        {
+            switch (a.Surface, b.Surface)
+            {
+                case ({ Plane: { } p }, { Plane: { } q }):
+                    var n = p.Normal.ToVector() * (a.Aligned ? 1 : -1); var m = q.Normal.ToVector() * (b.Aligned ? 1 : -1);
+                    return n.Dot(m) < -1 + 1e-12 ? double.Abs((q.Origin - p.Origin).Dot(n)) : null;
+                case ({ Cylinder: { } c }, { Cylinder: { } d }) when Coaxial(c.Origin, c.Axis.ToVector(), d.Origin, d.Axis.ToVector()):
+                    return double.Abs(c.Radius - d.Radius);
+                case ({ Cone: { } c }, { Cone: { } d }) when double.Abs(c.SemiAngleRadians - d.SemiAngleRadians) < 1e-12 && Coaxial(c.PlacementOrigin, c.Axis.ToVector(), d.PlacementOrigin, d.Axis.ToVector()):
+                    // Radii compared at one station along the shared axis.
+                    var axis = c.Axis.ToVector();
+                    var rc = c.PlacementRadius; var rd = d.PlacementRadius + (c.PlacementOrigin - d.PlacementOrigin).Dot(d.Axis.ToVector()) * double.Tan(d.SemiAngleRadians);
+                    return double.Abs(rc - rd) * double.Cos(c.SemiAngleRadians);
+            }
+            return null;
+        }
+        static bool Coaxial(Point3D o1, Vector3D a1, Point3D o2, Vector3D a2)
+        {
+            if (double.Abs(double.Abs(a1.Dot(a2)) - 1) > 1e-12) return false;
+            var d = o2 - o1; var off = d - a1 * d.Dot(a1);
+            return off.Length < 1e-9;
+        }
+    }
+
+    /// <summary>Edges between two faces whose material meets on the outside of the turn, at more than 5°: no radius.</summary>
+    private static (IReadOnlyList<MoldCornerEvidence> Corners, IReadOnlySet<(int, int)> Smooth) InsideCorners(BrepBody body, IReadOnlyList<DisplayEdgePolyline> polylines,
+        IReadOnlyDictionary<EdgeId, int[]> edgeFaces, IReadOnlyDictionary<int, (Point3D Centroid, Vector3D Normal, double Area)[]> trianglesOf)
+    {
+        var corners = new List<MoldCornerEvidence>();
+        var smooth = new HashSet<(int, int)>();
+        foreach (var line in polylines)
+        {
+            if (!edgeFaces.TryGetValue(line.EdgeId, out var faces) || faces.Length != 2 || line.Points.Count < 2) continue;
+            if (!trianglesOf.TryGetValue(faces[0], out var t1) || !trianglesOf.TryGetValue(faces[1], out var t2) || t1.Length == 0 || t2.Length == 0) continue;
+            var k = line.Points.Count / 2;
+            var m = line.Points.Count % 2 == 1 ? line.Points[k] : Point3D.Origin + ((line.Points[k - 1] - Point3D.Origin) + (line.Points[k] - Point3D.Origin)) * 0.5;
+            var tangent = line.Points[^1] - line.Points[0];
+            if (line.Points.Count > 2) tangent = line.Points[int.Min(k + 1, line.Points.Count - 1)] - line.Points[int.Max(k - 1, 0)];
+            if (tangent.Length < 1e-12) continue;
+            tangent /= tangent.Length;
+            var a = t1.MinBy(t => (t.Centroid - m).Length); var b = t2.MinBy(t => (t.Centroid - m).Length);
+            var cos = a.Normal.Dot(b.Normal);
+            if (cos > double.Cos(5 * double.Pi / 180)) { smooth.Add((faces[0], faces[1])); smooth.Add((faces[1], faces[0])); continue; }
+            // Into face A, across the edge: concave when B's outward normal leans over it.
+            var into = a.Centroid - m; into -= tangent * into.Dot(tangent);
+            if (into.Length < 1e-12) continue;
+            into /= into.Length;
+            if (b.Normal.Dot(into) <= 0.02) continue;
+            corners.Add(new(line.EdgeId.Value, faces.Order().ToArray(), 180 - double.Acos(double.Clamp(cos, -1, 1)) * 180 / double.Pi, m));
+        }
+        return (corners.OrderBy(c => c.EdgeId).ToArray(), smooth);
+    }
+
+    /// <summary>The scalar measurements a Mold Require can name.</summary>
+    private static MoldMeasurements Measure(IReadOnlyList<MoldFaceEvidence> evidence, IReadOnlyList<MoldCornerEvidence> corners,
+        IReadOnlyList<MoldUndercutGroup> groups, int actionFaces, BrepBody body, IReadOnlyDictionary<int, (SurfaceGeometry? Surface, bool Aligned)> surfaceOf)
+    {
+        var halves = evidence.Where(f => f.Action is null && f.Side != MoldFaceSide.Straddling).ToArray();
+        var draft = halves.Length == 0 ? 90d : halves.Min(f => f.MinimumDraftDegrees);
+        var walls = evidence.Where(f => f.MinimumWall is not null).ToArray();
+        // The nominal wall is the area-weighted median of each face's thinnest wall.
+        var ordered = walls.OrderBy(f => f.MinimumWall!.Value).ToArray();
+        var half = ordered.Sum(f => f.Area) / 2; var running = 0d; var nominal = 0d;
+        foreach (var f in ordered) { running += f.Area; if (running >= half) { nominal = f.MinimumWall!.Value; break; } }
+        // Inside radius: none at a sharp corner; otherwise the smallest concave round.
+        var radius = corners.Count > 0 ? 0d : MinimumConcaveRadius(evidence, surfaceOf) ?? 1e6;
+        return new(draft, walls.Length == 0 ? 0 : walls.Min(f => f.MinimumWall!.Value), walls.Length == 0 ? 0 : walls.Max(f => f.MaximumWall!.Value), nominal,
+            corners.Count, radius, groups.Count(g => g.Action is null), groups.Count(g => g.Action is not null));
+    }
+
+    private static double? MinimumConcaveRadius(IReadOnlyList<MoldFaceEvidence> evidence, IReadOnlyDictionary<int, (SurfaceGeometry? Surface, bool Aligned)> surfaceOf)
+    {
+        double? min = null;
+        foreach (var f in evidence)
+        {
+            var (surface, aligned) = surfaceOf[f.FaceId];
+            // A round is concave when its outward normal points toward its axis: the surface's own normal reversed.
+            if (aligned) continue;
+            var r = surface switch { { Torus: { } t } => (double?)t.MinorRadius, _ => null };
+            if (r is { } value) min = min is null ? value : double.Min(min.Value, value);
+        }
+        return min;
     }
 
     /// <summary>The extremes of n·direction over a face: exact on planes, and on cylinders and cones about the direction.</summary>

@@ -1,5 +1,5 @@
-// A solid cover drafted 1.5° from its parting face: every wall releases into the cavity half, so the
-// tooling-stage review passes with no findings.
+// A solid cover drafted 1.5° from its parting face: every wall releases into the cavity half. It is solid,
+// 12 mm through, so a prototype review warns that its faces back onto thick sections.
 Model DraftedCover {
   units: mm
   RoundedRect2 outline { center: [0mm, 0mm]; size: [80mm, 50mm]; radius: 6mm }
@@ -14,7 +14,7 @@ Model DraftedCover {
 Mold CoverTool {
   part: DraftedCover
   material: ABS
-  stage: Tooling
+  stage: Prototype
   pull: +Z
   parting: Plane { at: face(-Z) }
 }

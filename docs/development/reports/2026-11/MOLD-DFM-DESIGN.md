@@ -185,5 +185,6 @@ faces and floor.
 
 M1 is in: `Extrude` takes `draft:` and `neutral:` with exact drafted planes and cones
 ([report](mold-m1-drafted-extrude.md)); `Compose` and its operations, `Compose<Hollow>` and `Extrude<Hollow>` take it
-too ([report](mold-m1-drafted-compose.md)). Draft on holes, slots and edge finishes, and drafted hollows with Boss or
-Pocket, are left for later.
+too, with holes, counterbores, slots and hollow bosses and pockets ([report](mold-m1-drafted-compose.md)). M1 is
+complete. Fillets and chamfers on drafted walls move to M3 with the sharp-inside-corner rule they answer;
+countersinks stay undrafted (machined), and side holes wait for M2's actions.

@@ -18,7 +18,7 @@ public static class DraftedSectionStack
     {
         var feature = parsed.Feature!;
         foreach (var (kind, name) in UnsupportedFeatures(feature))
-            d.Add($"compose-draft-unsupported:{kind}:{name}: a drafted Compose cannot carry {kind} yet; remove draft or the feature.");
+            d.Add($"compose-draft-unsupported:{kind}:{name}: a drafted Compose cannot carry {kind}; remove draft or the feature.");
         if (d.Count != 0) { diagnostics = d.Distinct().ToArray(); return null; }
 
         var slabs = new List<PrismaticSectionSlab>();
@@ -58,25 +58,34 @@ public static class DraftedSectionStack
             // draft has narrowed away from beneath it.
             // (A cavity's ceiling faces down too, and is not one.)
             var starting = feature.Operations.Where(o => Math.Abs(o.From - level) < Tol && o.Intent == PrismaticProfileIntent.Add).ToArray();
-            if (starting.Length > 0 && below.Count > 0 && Section(feature, starting, parsed.Profiles, level, $"overhang={level:R}", d) is { } footprint)
+            // The support is the exterior beneath: a hollow's own cavity under a boss is not a missing support.
+            var supporting = feature.Operations.Where(o => o.Intent != PrismaticProfileIntent.Remove && o.From < level - Tol && o.To >= level - Tol).ToArray();
+            if (starting.Length > 0 && supporting.Length > 0 && Section(feature, starting, parsed.Profiles, level, $"overhang={level:R}", d) is { } footprint
+                && Section(feature, supporting, parsed.Profiles, level, $"support={level:R}", d) is { } support)
             {
-                var overhang = ProfileArrangementBuilder.Difference(feature.Frame, footprint.MaterialRegions, below, $"overhang={level:R}:footprint-minus-below");
+                var overhang = ProfileArrangementBuilder.Difference(feature.Frame, footprint.MaterialRegions, support.MaterialRegions, $"overhang={level:R}:footprint-minus-below");
                 if (overhang.MaterialRegions.Count > 0)
                     d.Add($"compose-draft-overhang: {string.Join(", ", starting.Select(o => o.Name))} at {level:0.###} mm is wider than the drafted material beneath it, which would be an undercut; place it within its support's narrowed top or reduce the draft.");
             }
             if (upward.MaterialRegions.Count > 0 || downward.MaterialRegions.Count > 0) transitions.Add(new(level, upward.MaterialRegions, downward.MaterialRegions));
         }
         var refused = d.Any(x => x.Contains("rejected", StringComparison.Ordinal) || x.StartsWith("draft-", StringComparison.Ordinal) || x.StartsWith("compose-draft-", StringComparison.Ordinal));
-        if (!refused) d.Add("compose-drafted-section-stack");
         diagnostics = d.Distinct().ToArray();
         return refused ? null : new(feature, slabs, transitions, volume, diagnostics);
     }
 
     /// <summary>
-    /// The cavity of a drafted hollow Base: the Base's Profile moved inward by t / cos(draft) and drafted with it, so
-    /// every wall is exactly t thick along its normal (parallel planes, coaxial cones of the same angle). Sharp
-    /// inside corners of the Profile stay sharp, so the wall there is thicker, as at a step. A drafted hollow with
-    /// Boss or Pocket operations is not built yet.
+    /// The cavity of a drafted hollow: every wall of the exterior gets a parallel inner wall exactly the wall
+    /// thickness t inside it. Each Profile moves inward by t / cos(draft) and keeps its operation's draft (parallel
+    /// planes t apart, coaxial cones of one angle), and each closed end moves in by t.
+    /// <list type="bullet">
+    /// <item>The Base's cavity runs between its ends.</item>
+    /// <item>A Boss on the closed top is hollow too: its cavity rises from the Base's cavity, t below its own top.</item>
+    /// <item>A Pocket in the closed top dents the shell: a liner, the Pocket grown by t and drafted with it, stays
+    /// solid from t below the Pocket's floor up to the cap, as a hole in the Base's cavity.</item>
+    /// </list>
+    /// Sharp inside corners stay sharp, so the wall there is thicker, as at a step. A feature too close to a wall
+    /// or to another for an even wall is refused, as is any other operation.
     /// </summary>
     public static PrismaticProfileCompositionParseResult? DeriveHollow(PrismaticProfileCompositionParseResult parsed, List<string> d)
     {
@@ -84,12 +93,21 @@ public static class DraftedSectionStack
         var hollow = feature.Hollow!;
         var t = hollow.WallThickness;
         var exterior = feature.Operations.Where(o => o.SemanticFeatureKind is null or "Boss" or "Pocket").ToArray();
-        if (exterior.Length != 1 || exterior[0].Intent != PrismaticProfileIntent.Base)
+        var stocks = exterior.Where(o => o.Intent == PrismaticProfileIntent.Base).ToArray();
+        if (stocks.Length != 1) { d.Add($"compose-draft-unsupported:Hollow: a drafted Compose<Hollow> is hollowed from one Base, not {stocks.Length}."); return null; }
+        var stock = stocks[0];
+        var bosses = exterior.Where(o => o.SemanticFeatureKind == "Boss").ToArray();
+        var pockets = exterior.Where(o => o.SemanticFeatureKind == "Pocket").ToArray();
+        foreach (var other in exterior.Where(o => o != stock && !bosses.Contains(o) && !pockets.Contains(o)))
+            d.Add($"compose-draft-unsupported:Hollow:{other.Name}: a drafted hollow is built from its Base, Bosses on its top and Pockets in its top; {other.Intent} {other.Name} cannot be hollowed with it.");
+        foreach (var feature_ in bosses.Concat(pockets))
         {
-            d.Add($"compose-draft-unsupported:Hollow: a drafted Compose<Hollow> is built from its Base alone; {string.Join(", ", exterior.Where(o => o.Intent != PrismaticProfileIntent.Base).Select(o => o.Name))} cannot be hollowed with it yet.");
-            return null;
+            var onTop = feature_.SemanticFeatureKind == "Boss" ? Math.Abs(feature_.From - stock.To) <= Tol : Math.Abs(feature_.To - stock.To) <= Tol && feature_.SemanticRole != "ThroughCut";
+            if (!onTop) d.Add($"compose-draft-unsupported:Hollow:{feature_.Name}: a drafted hollow takes Bosses and Pockets on its Base's top only.");
+            else if (hollow.OpenTop) d.Add($"compose-draft-unsupported:Hollow:{feature_.Name}: the hollow is open at the top, where {feature_.Name} would sit.");
         }
-        var stock = exterior[0];
+        if (d.Any(x => x.StartsWith("compose-draft-unsupported", StringComparison.Ordinal))) return null;
+
         var low = hollow.OpenBottom ? stock.From : stock.From + t;
         var high = hollow.OpenTop ? stock.To : stock.To - t;
         if (high - low <= Tol)
@@ -97,46 +115,141 @@ public static class DraftedSectionStack
             d.Add($"hollow-wall-offset-collapse:{feature.Name}: the body is {stock.To - stock.From:R} tall, too short for its wall of {t:R}");
             return null;
         }
-        var profile = parsed.Profiles[stock.ProfileReference];
-        var inset = t / Math.Cos(stock.DraftRadians);
+        var profiles = parsed.Profiles.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+        var stockLaw = new DraftLaw(stock.DraftRadians, stock.DraftNeutral ?? stock.From, true);
+        var stockLoops = Moved(parsed.Profiles[stock.ProfileReference], t / Math.Cos(stock.DraftRadians), d);
+        if (stockLoops is null) return null;
+
+        // Each pocket's liner: its Profile grown by t / cos(its draft), a hole in the cavity that follows the pocket.
+        var liners = new List<(PrismaticProfileOperation Pocket, IReadOnlyList<ResolvedProfileLoop2D> Loops, DraftLaw Law, double Bottom)>();
+        foreach (var pocket in pockets)
+        {
+            var bottom = pocket.From - t;
+            if (bottom <= low + Tol)
+            {
+                d.Add($"hollow-pocket-too-deep:{pocket.Name}: its floor is {pocket.To - pocket.From:0.###} mm deep, which leaves no room for a {t:0.###} mm wall under it inside a cavity that starts at {low:0.###} mm.");
+                continue;
+            }
+            var grown = Moved(parsed.Profiles[pocket.ProfileReference], -t / Math.Cos(pocket.DraftRadians), d);
+            if (grown is null) continue;
+            // As a hole of the cavity, the liner grows as the pocket's void shrinks: the opposite of its erosion.
+            liners.Add((pocket, grown.Select(loop => loop with { Name = $"Liner{pocket.Name}{loop.Name}", IsOuter = false }).ToArray(),
+                new DraftLaw(pocket.DraftRadians, pocket.DraftNeutral ?? pocket.To, false, -1d), bottom));
+        }
+        if (d.Any(x => x.StartsWith("hollow-", StringComparison.Ordinal))) return null;
+
+        var operations = feature.Operations.ToList();
+        var levels = feature.CriticalLevels.Append(low).Append(high).ToList();
+        // The Base's cavity in bands: a pocket's liner starts at its own height.
+        var cuts = liners.Select(l => l.Bottom).Append(low).Append(high).Order().Distinct().ToArray();
+        for (var band = 0; band + 1 < cuts.Length; band++)
+        {
+            var (a, b) = (cuts[band], cuts[band + 1]);
+            var name = $"{feature.Name}Cavity{band}";
+            var active = liners.Where(l => l.Bottom <= a + Tol).ToArray();
+            var loops = stockLoops.Concat(active.SelectMany(l => l.Loops)).ToArray();
+            var laws = stockLoops.Select(_ => stockLaw).Concat(active.SelectMany(l => l.Loops.Select(_ => l.Law))).ToArray();
+            profiles[name] = Renamed(parsed.Profiles[stock.ProfileReference] with { Loops = loops }, name);
+            operations.Add(new(name, PrismaticProfileIntent.Remove, name, a, b, "HollowCavity", hollow.SourceSpan, $"hollow:{feature.Name}", "Hollow")
+                { DraftRadians = stock.DraftRadians, LoopDraft = laws });
+            levels.Add(a); levels.Add(b);
+        }
+        // Each boss's own cavity, from the Base's cavity up to t below the boss's top.
+        foreach (var boss in bosses)
+        {
+            var name = $"{feature.Name}Cavity{boss.Name}";
+            var loops = Moved(parsed.Profiles[boss.ProfileReference], t / Math.Cos(boss.DraftRadians), d);
+            if (loops is null) return null;
+            if (boss.To - t - high <= Tol) { d.Add($"hollow-wall-offset-collapse:{boss.Name}: the boss is {boss.To - boss.From:0.###} mm tall, too short to hollow with a {t:0.###} mm wall."); return null; }
+            profiles[name] = Renamed(parsed.Profiles[boss.ProfileReference] with { Loops = loops }, name);
+            operations.Add(new(name, PrismaticProfileIntent.Remove, name, high, boss.To - t, "HollowCavity", hollow.SourceSpan, $"hollow:{feature.Name}", "Hollow")
+                { DraftRadians = boss.DraftRadians, DraftNeutral = boss.DraftNeutral ?? boss.From, DraftNarrowsUpward = true });
+            levels.Add(boss.To - t);
+        }
+        var merged = levels.Order().Aggregate(new List<double>(), (list, z) => { if (list.Count == 0 || z - list[^1] > Tol) list.Add(z); return list; });
+        var result = feature with { Operations = operations, CriticalLevels = merged, Hollow = null };
+
+        // An even wall needs every inner surface inside the Base's cavity where it starts, and apart from the others.
+        var cavities = operations.Where(o => o.SemanticFeatureKind == "Hollow").ToArray();
+        foreach (var boss in bosses)
+        {
+            var bossCavity = cavities.Single(o => o.Name == $"{feature.Name}Cavity{boss.Name}");
+            var below = cavities.Where(o => o.From < high - Tol && o.To >= high - Tol && o.Name != bossCavity.Name).ToArray();
+            if (Outside(result, [bossCavity], below, profiles, high, d))
+                d.Add($"hollow-feature-too-close:{boss.Name}: its cavity does not fit inside the Base's cavity at {high:0.###} mm, so a wall would be thinner than {t:0.###} mm; move it away from the outer wall or from the pockets.");
+        }
+        foreach (var liner in liners)
+            foreach (var z in new[] { liner.Bottom, high })
+            {
+                var band = cavities.First(o => o.From <= z + Tol && o.To >= z - Tol && o.Name.StartsWith($"{feature.Name}Cavity", StringComparison.Ordinal) && o.LoopDraft is not null);
+                var outerOnly = band with { LoopDraft = band.LoopDraft!.Take(stockLoops.Count).ToArray(), ProfileReference = band.ProfileReference + "#outer" };
+                profiles[outerOnly.ProfileReference] = profiles[band.ProfileReference] with { Loops = profiles[band.ProfileReference].Loops.Take(stockLoops.Count).ToArray() };
+                // As a region of its own the liner erodes as the pocket does (the cavity's hole law, negated).
+                var linerOp = band with
+                {
+                    Intent = PrismaticProfileIntent.Base, ProfileReference = band.ProfileReference + "#" + liner.Pocket.Name,
+                    LoopDraft = liner.Loops.Select(_ => liner.Law with { Sign = 1d }).ToArray(),
+                };
+                profiles[linerOp.ProfileReference] = profiles[band.ProfileReference] with { Loops = liner.Loops.Select(l => l with { IsOuter = true }).ToArray() };
+                if (Outside(result, [linerOp], [outerOnly with { Intent = PrismaticProfileIntent.Base }], profiles, z, d))
+                    d.Add($"hollow-feature-too-close:{liner.Pocket.Name}: the wall under it leaves the Base's cavity at {z:0.###} mm, so a wall would be thinner than {t:0.###} mm; move it away from the outer wall.");
+                foreach (var boss in bosses.Where(_ => Math.Abs(z - high) <= Tol))
+                {
+                    var bossCavity = cavities.Single(o => o.Name == $"{feature.Name}Cavity{boss.Name}") with { Intent = PrismaticProfileIntent.Base };
+                    if (!Outside(result, [bossCavity], [linerOp], profiles, z, d, overlap: true)) continue;
+                    d.Add($"hollow-feature-too-close:{boss.Name}: its cavity meets the wall under {liner.Pocket.Name}, so a wall would be thinner than {t:0.###} mm; move them apart.");
+                }
+            }
+        if (d.Any(x => x.StartsWith("hollow-", StringComparison.Ordinal))) return null;
+        return new(result, profiles, parsed.Diagnostics, parsed.Expansion);
+    }
+
+    /// <summary>Whether the region of <paramref name="inner"/> at <paramref name="z"/> leaves that of
+    /// <paramref name="outer"/> (or, with <paramref name="overlap"/>, meets it).</summary>
+    private static bool Outside(PrismaticProfileCompositionFeature feature, IReadOnlyList<PrismaticProfileOperation> inner, IReadOnlyList<PrismaticProfileOperation> outer,
+        IReadOnlyDictionary<string, ResolvedProfile2D> profiles, double z, List<string> d, bool overlap = false)
+    {
+        var scratch = new List<string>();
+        var a = Section(feature, inner.Select(o => o with { Intent = PrismaticProfileIntent.Base }).ToArray(), profiles, z, $"hollow-check={z:R}:inner", scratch);
+        var b = Section(feature, outer.Select(o => o with { Intent = PrismaticProfileIntent.Base }).ToArray(), profiles, z, $"hollow-check={z:R}:outer", scratch);
+        if (a is null || b is null) return true;
+        var outside = ProfileArrangementBuilder.Difference(feature.Frame, a.MaterialRegions, b.MaterialRegions, $"hollow-check={z:R}:difference");
+        if (!overlap) return outside.MaterialRegions.Count > 0;
+        // Overlap: some of A is not outside B.
+        return Area(outside.MaterialRegions) < Area(a.MaterialRegions) - 1e-9;
+    }
+
+    /// <summary>A Profile's loops moved by <paramref name="distance"/> into its region (outward when negative).</summary>
+    private static IReadOnlyList<ResolvedProfileLoop2D>? Moved(ResolvedProfile2D profile, double distance, List<string> d)
+    {
         var loops = profile.Loops.Select(loop => new LineArcProfileLoop2D(loop.Segments.Select(s => s.Geometry).ToArray(), !loop.IsOuter)).ToArray();
-        if (!ProfileDraftOffset.TryOffset(loops, inset, out var moved, out var error))
+        if (!ProfileDraftOffset.TryOffset(loops, distance, out var moved, out var error))
         {
             d.Add(error?.Replace("draft-offset-collapse", "hollow-wall-offset-collapse", StringComparison.Ordinal) ?? "hollow-wall-offset-collapse");
             return null;
         }
-        var name = $"{feature.Name}Cavity0";
-        var cavityProfile = profile with
-        {
-            Name = name,
-            Loops = profile.Loops.Select((loop, li) => loop with
-            {
-                Segments = loop.Segments.Select((segment, si) => segment with
-                {
-                    Geometry = moved[li].Curves[si],
-                    Provenance = segment.Provenance with { StableId = $"profile:{name}.{loop.Name}.{segment.Name}" },
-                }).ToArray(),
-            }).ToArray(),
-        };
-        var profiles = parsed.Profiles.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
-        profiles[name] = cavityProfile;
-        var cavity = new PrismaticProfileOperation(name, PrismaticProfileIntent.Remove, name, low, high, "HollowCavity", hollow.SourceSpan, $"hollow:{feature.Name}", "Hollow")
-        {
-            DraftRadians = stock.DraftRadians, DraftNeutral = stock.DraftNeutral ?? stock.From, DraftNarrowsUpward = true,
-        };
-        var levels = feature.CriticalLevels.Append(low).Append(high).Order().Aggregate(new List<double>(), (list, z) => { if (list.Count == 0 || z - list[^1] > Tol) list.Add(z); return list; });
-        return new(feature with { Operations = feature.Operations.Append(cavity).ToArray(), CriticalLevels = levels, Hollow = null }, profiles, parsed.Diagnostics, parsed.Expansion);
+        return profile.Loops.Select((loop, li) => loop with { Segments = loop.Segments.Select((segment, si) => segment with { Geometry = moved[li].Curves[si] }).ToArray() }).ToArray();
     }
 
+    /// <summary>The profile under a new name, its segments' provenance renamed with it.</summary>
+    private static ResolvedProfile2D Renamed(ResolvedProfile2D profile, string name) => profile with
+    {
+        Name = name,
+        Loops = profile.Loops.Select(loop => loop with
+        {
+            Segments = loop.Segments.Select(segment => segment with { Provenance = segment.Provenance with { StableId = $"profile:{name}.{loop.Name}.{segment.Name}" } }).ToArray(),
+        }).ToArray(),
+    };
+
+    /// <summary>
+    /// Features a drafted Compose does not draft: a countersink's cone is a machined form, and holes drilled from
+    /// a side face or a construction plane are not along the pull, which takes a side action rather than draft.
+    /// </summary>
     private static IEnumerable<(string Kind, string Name)> UnsupportedFeatures(PrismaticProfileCompositionFeature feature)
     {
-        foreach (var hole in feature.ShaftHoles ?? []) yield return ("Hole<Shaft>", hole.Name);
-        foreach (var hole in feature.CounterboreHoles ?? []) yield return ("Hole<Counterbore>", hole.Name);
         foreach (var hole in feature.CountersinkHoles ?? []) yield return ("Hole<Countersink>", hole.Name);
-        foreach (var hole in feature.ConstructionPlaneBlindDrills ?? []) yield return ("Hole<Shaft>", hole.Name);
-        foreach (var hole in feature.FaceHoles) yield return ("Hole", hole.Name);
-        foreach (var slot in feature.AllSlotProfiles) yield return ("Slot", slot.Name);
-        foreach (var offset in feature.MaterialOffsets ?? []) yield return ($"{offset.OperationKind}Offset", offset.Name);
+        foreach (var hole in feature.ConstructionPlaneBlindDrills ?? []) yield return ("a hole on a construction plane", hole.Name);
+        foreach (var hole in feature.FaceHoles) yield return ("a hole on a side face", hole.Name);
     }
 
     /// <summary>The section at height <paramref name="z"/>: each active operation's region eroded by its own draft.</summary>
@@ -151,7 +264,27 @@ public static class DraftedSectionStack
             var key = $"{operation.ProfileReference}@{operation.Name}";
             var profile = profiles[operation.ProfileReference];
             var erosion = operation.DraftErosionAt(z);
-            if (erosion != 0d)
+            if (operation.LoopDraft is { } laws)
+            {
+                // Loops that follow different operations move by their own laws, each group offset together.
+                var loops = profile.Loops.ToArray();
+                foreach (var group in Enumerable.Range(0, loops.Length).GroupBy(li => laws[li]))
+                {
+                    var indices = group.ToArray();
+                    var distance = group.Key.ErosionAt(z);
+                    if (distance == 0d) continue;
+                    var input = indices.Select(li => new LineArcProfileLoop2D(loops[li].Segments.Select(s => s.Geometry).ToArray(), !loops[li].IsOuter)).ToArray();
+                    if (!ProfileDraftOffset.TryOffset(input, distance, out var moved, out var error))
+                    {
+                        d.Add($"{error ?? "draft-offset-collapse"} (operation {operation.Name}, height {z:0.###} mm)");
+                        return null;
+                    }
+                    for (var k = 0; k < indices.Length; k++)
+                        loops[indices[k]] = loops[indices[k]] with { Segments = loops[indices[k]].Segments.Select((segment, si) => segment with { Geometry = moved[k].Curves[si] }).ToArray() };
+                }
+                profile = profile with { Loops = loops };
+            }
+            else if (erosion != 0d)
             {
                 var loops = profile.Loops.Select(loop => new LineArcProfileLoop2D(loop.Segments.Select(s => s.Geometry).ToArray(), !loop.IsOuter)).ToArray();
                 if (!ProfileDraftOffset.TryOffset(loops, erosion, out var moved, out var error))

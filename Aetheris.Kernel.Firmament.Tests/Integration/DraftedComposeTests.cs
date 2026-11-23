@@ -184,7 +184,7 @@ public sealed class DraftedComposeTests
     }
 
     [Theory]
-    [InlineData("Profile a = Rect2 { center: [0mm, 0mm]; size: [20mm, 20mm] }", "Base stock { profile: outline; from: 0mm; to: 10mm; role: Stock }\n Hole<Shaft> h { on: +Z; center: [0mm, 0mm]; diameter: 6mm; end: ThroughAll }", "compose-draft-unsupported")]
+    [InlineData("Profile a = Rect2 { center: [0mm, 0mm]; size: [20mm, 20mm] }", "Base stock { profile: outline; from: 0mm; to: 10mm; role: Stock }\n Hole<Countersink> h { on: +Z; center: [0mm, 0mm]; diameter: 6mm; countersinkDiameter: 12mm; countersinkAngle: 90deg; end: ThroughAll }", "compose-draft-unsupported")]
     [InlineData("Profile a = Circle2 { center: [-5mm, 0mm]; radius: 8mm }\n Profile b = Circle2 { center: [6mm, 0mm]; radius: 8mm }", "Base stock { profile: outline; from: 0mm; to: 10mm; role: Stock }\n Boss p { on: stock.Top; profile: a; height: 8mm }\n Boss q { on: stock.Top; profile: b; height: 8mm }", "compose-draft-curved-junction")]
     [InlineData("Profile w = Rect2 { center: [0mm, 0mm]; size: [79.5mm, 20mm] }", "Base stock { profile: outline; from: 0mm; to: 10mm; role: Stock }\n Pocket deep { on: Top; profile: w; depth: 8mm }", "compose-draft-walls-cross")]
     [InlineData("Profile a = Rect2 { center: [0mm, 0mm]; size: [20mm, 20mm] }", "Base stock { profile: outline; from: 0mm; to: 10mm; role: Stock }\n Boss p { on: Top; profile: a; height: 8mm }\n Boss q { on: p.Top; profile: a; height: 4mm }", "compose-draft-overhang")]
@@ -234,24 +234,72 @@ public sealed class DraftedComposeTests
     }
 
     [Fact]
-    public void AHollowWithABoss_IsRefusedUntilItCanBeHollowedWithIt()
+    public void HolesCounterboresAndSlots_AreDraftedFromTheirMouths()
     {
-        var built = FirmamentBuildAndExport.CompileSource("""
-            Model T {
+        var result = Build("""
+            Model Holes {
               units: mm
               Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [80mm, 50mm]; radius: 6mm }
-              Profile a = Rect2 { center: [0mm, 0mm]; size: [20mm, 20mm] }
+              Compose body {
+                draft: 1deg
+                Base stock { profile: outline; from: 0mm; to: 10mm; role: Stock }
+                Hole<Shaft> h1 { on: +Z; center: [-25mm, 0mm]; diameter: 6mm; end: ThroughAll }
+                Hole<Counterbore> h2 { on: +Z; center: [0mm, 0mm]; diameter: 5mm; counterboreDiameter: 10mm; counterboreDepth: 4mm; end: ThroughAll }
+                Slot<Capsule> s { center: [25mm, 0mm]; direction: [0, 1]; length: 20mm; width: 6mm; extent: ThroughAll }
+              }
+            }
+            """);
+        Assert.All(SideDrafts(result), d => Assert.Equal(1d, d.DraftDegrees, 9));
+        var t = double.Tan(double.Pi / 180);
+        double Disk(double r) => double.Pi * r * r;
+        // Each removal is its size at its mouth: the shaft at 10, the bore at 10, its shaft at the bore's floor (6),
+        // the slot at 10; eroding a capsule keeps its straight length.
+        double Area(double z)
+        {
+            var e = (10 - z) * t;
+            var counterbore = z >= 6 ? Disk(5 - e) : Disk(2.5 - (6 - z) * t);
+            return RoundedRect(80, 50, 6, z * t) - Disk(3 - e) - counterbore - ((6 - 2 * e) * 14 + Disk(3 - e));
+        }
+        AssertReimports(result, Simpson(Area, 0, 6) + Simpson(Area, 6, 10), 1e-4);
+    }
+
+    [Fact]
+    public void AHollowHousingWithABossAndAPocket_KeepsEveryWallParallel()
+    {
+        var result = Build(Part("drafted-housing"));
+        var a = 1.5 * double.Pi / 180; var t = double.Tan(a); var i = 2 / double.Cos(a);
+        Assert.All(SideDrafts(result), d => Assert.Equal(1.5, d.DraftDegrees, 9));
+        // The exterior, less the Base's cavity (with the pocket's liner left solid under it) and the boss's cavity.
+        var exterior = Simpson(z => RoundedRect(100, 60, 8, z * t), 0, 25) + Simpson(z => RoundedRect(24, 24, 4, (z - 25) * t), 25, 31)
+            - Simpson(z => RoundedRect(30, 20, 4, (25 - z) * t), 20, 25);
+        var cavity = Simpson(z => RoundedRect(100, 60, 8, i + z * t), 0, 23) - Simpson(z => RoundedRect(30, 20, 4, -i + (25 - z) * t), 18, 23)
+            + Simpson(z => RoundedRect(24, 24, 4, i + (z - 25) * t), 23, 29);
+        AssertReimports(result, exterior - cavity, 1e-4);
+    }
+
+    [Theory]
+    [InlineData("Pocket p { on: Top; profile: well; depth: 9mm }", "hollow-pocket-too-deep")]
+    [InlineData("Pocket p { on: Top; profile: edge; depth: 3mm }", "hollow-feature-too-close")]
+    [InlineData("Boss b { on: Top; profile: well; height: 5mm }\n Pocket p { on: Top; profile: edge; depth: 3mm }", "hollow-feature-too-close")]
+    public void HollowFeaturesWithoutAnEvenWall_AreRefused(string feature, string code)
+    {
+        var built = FirmamentBuildAndExport.CompileSource($$"""
+            Model T {
+              units: mm
+              Profile outline = Rect2 { center: [0mm, 0mm]; size: [80mm, 50mm] }
+              Profile well = Rect2 { center: [0mm, 0mm]; size: [20mm, 20mm] }
+              Profile edge = Rect2 { center: [28mm, 0mm]; size: [20mm, 20mm] }
               Compose<Hollow> body {
                 wallThickness: 2mm
                 openings: [Bottom]
                 draft: 1deg
                 Base stock { profile: outline; from: 0mm; to: 10mm; role: Stock }
-                Boss p { on: Top; profile: a; height: 8mm }
+                {{feature}}
               }
             }
             """);
         Assert.False(built.IsSuccess);
-        Assert.Contains(built.Diagnostics, d => d.Message.Contains("compose-draft-unsupported", StringComparison.Ordinal));
+        Assert.Contains(built.Diagnostics, d => d.Message.Contains(code, StringComparison.Ordinal));
     }
 
     [Fact]

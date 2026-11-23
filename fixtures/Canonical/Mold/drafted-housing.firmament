@@ -1,0 +1,25 @@
+// A molded housing: a drafted hollow shell open at the bottom, with a hollow boss on its top and a pocket
+// dented into it. Every inner wall is parallel to its outer wall and 2 mm from it; the wall under the pocket
+// follows the pocket.
+Model Housing {
+  units: mm
+  Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [100mm, 60mm]; radius: 8mm }
+  Profile pad = RoundedRect2 { center: [-25mm, 0mm]; size: [24mm, 24mm]; radius: 4mm }
+  Profile well = RoundedRect2 { center: [22mm, 0mm]; size: [30mm, 20mm]; radius: 4mm }
+  Compose<Hollow> body {
+    wallThickness: 2mm
+    openings: [Bottom]
+    draft: 1.5deg
+    Base stock { profile: outline; from: 0mm; to: 25mm; role: Stock }
+    Boss button { on: Top; profile: pad; height: 6mm }
+    Pocket recess { on: Top; profile: well; depth: 5mm }
+  }
+}
+
+Mold HousingTool {
+  part: Housing
+  material: ABS
+  stage: Tooling
+  pull: +Z
+  parting: Plane { at: face(-Z) }
+}

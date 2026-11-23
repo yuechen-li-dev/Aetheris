@@ -12,6 +12,13 @@ namespace Aetheris.Kernel.Firmament.Materializer;
 /// at declared axial levels.  This is deliberately not a list of Boolean solids.
 /// </summary>
 public enum PrismaticProfileIntent { Base, Add, Remove }
+/// <summary>How a drafted loop moves with height: by <c>Sign · (z − Neutral) · tan(Radians)</c> into its region when it
+/// narrows upward, by <c>Sign · (Neutral − z) · tan(Radians)</c> when it narrows downward.</summary>
+public sealed record DraftLaw(double Radians, double Neutral, bool NarrowsUpward, double Sign = 1d)
+{
+    public double ErosionAt(double z) => Radians == 0d ? 0d : Sign * (NarrowsUpward ? z - Neutral : Neutral - z) * Math.Tan(Radians);
+}
+
 public sealed record PrismaticProfileOperation(
     string Name, PrismaticProfileIntent Intent, string ProfileReference, double From, double To,
     string SemanticRole, string SourceSpan, string? SemanticFeatureId = null, string? SemanticFeatureKind = null,
@@ -28,6 +35,10 @@ public sealed record PrismaticProfileOperation(
     /// <summary>Whether the region narrows upward from the neutral height (material) rather than downward (a
     /// removal opening toward +Z). A hollow's cavity follows its exterior and so narrows upward.</summary>
     public bool? DraftNarrowsUpward { get; init; }
+
+    /// <summary>For an operation whose loops follow different features (a hollow's cavity with a pocket's liner
+    /// as a hole), each loop's own law, in profile loop order; otherwise null.</summary>
+    public IReadOnlyList<DraftLaw>? LoopDraft { get; init; }
 
     /// <summary>How far the operation's own profile region is eroded at height <paramref name="z"/>.</summary>
     public double DraftErosionAt(double z)
@@ -691,7 +702,7 @@ public static class PrismaticProfileCompositionParser
                 materialOffsets.Add(new(name, stableId, intent, "Prism", target, support, profileName, direction,
                     termination, from, to, extent, sourceSpan,
                     [bounds.MinX, bounds.MinY, from, bounds.MaxX, bounds.MaxY, to], supportSpan?.SpanId, supportSpan?.ParentId));
-                operations.Add(new(name, intent, profileName, from, to, "MaterialOffset", sourceSpan, stableId, $"{intentText}<Prism>"));
+                operations.Add(new(name, intent, profileName, from, to, "MaterialOffset", sourceSpan, stableId, $"{intentText}<Prism>") { DraftRadians = composeDraft ?? 0d });
             }
         }
         var shaftHoles = new List<PrismaticShaftHoleFeature>();
@@ -757,7 +768,10 @@ public static class PrismaticProfileCompositionParser
             var from = ReadFeatureField(fields, composeBody, HoleFrom, "From"); var depthEnd = ReadFeatureField(fields, composeBody, HoleDepthEnd, "End"); var termination = ReadFeatureField(fields, composeBody, HoleTermination, "Termination");
             var countersinkDiameter = fields.Number("CountersinkDiameter", "mm");
             var countersinkAngle = fields.Number("CountersinkAngle", "deg");
+            var holeDraftExpression = fields.Take("Draft");
             fields.Complete();
+            // A molded hole is cored by a pin from the side it opens on, so it narrows away from its entry.
+            var holeDraft = holeDraftExpression is null ? composeDraft : ReadDraft(holeDraftExpression, name, diagnostics);
             if (sideSource is not null)
             {
                 if (schemaVariant is not ("Shaft" or "Counterbore" or "Countersink") || from.Success || !center.Success || !diameter.Success
@@ -880,8 +894,11 @@ public static class PrismaticProfileCompositionParser
                 profiles.Add(boreProfile, CircleProfile(boreProfile, counterboreX, counterboreY, boreDiameter / 2d, counterboreStableId, $"offset:{declaration.Span.Start}"));
                 var counterboreSourceSpan = $"offset:{declaration.Span.Start}"; var counterboreSemanticRole = role.Success ? role.Groups["role"].Value : "CounterboreHole";
                 counterboreHoles.Add(new(name, counterboreStableId, shaftProfile, boreProfile, counterboreX, counterboreY, shaftDiameter, boreDiameter, boreDepth, boreFrom, boreTo, counterboreSemanticRole, counterboreSourceSpan, supportSpan?.SpanId, supportSpan?.ParentId, supportMargin));
-                operations.Add(new($"{name}Shaft", PrismaticProfileIntent.Remove, shaftProfile, boreFrom, boreTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", shaftDiameter));
-                operations.Add(new($"{name}Counterbore", PrismaticProfileIntent.Remove, boreProfile, boreTo - boreDepth, boreTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", boreDiameter));
+                // Drafted, the bore is its diameter at its mouth and the shaft its diameter at the bore's floor.
+                operations.Add(new($"{name}Shaft", PrismaticProfileIntent.Remove, shaftProfile, boreFrom, boreTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", shaftDiameter)
+                    { DraftRadians = holeDraft ?? 0d, DraftNeutral = boreTo - boreDepth });
+                operations.Add(new($"{name}Counterbore", PrismaticProfileIntent.Remove, boreProfile, boreTo - boreDepth, boreTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", boreDiameter)
+                    { DraftRadians = holeDraft ?? 0d });
                 continue;
             }
             if (!string.Equals(variant, "Shaft", StringComparison.OrdinalIgnoreCase)
@@ -915,7 +932,7 @@ public static class PrismaticProfileCompositionParser
             var semanticRole = role.Success ? role.Groups["role"].Value : "ShaftHole";
             var sourceSpan = $"offset:{declaration.Span.Start}";
             shaftHoles.Add(new(name, stableId, profileName, x, y, d, materialFrom, materialTo, semanticRole, sourceSpan, shaftSupport?.SpanId, shaftSupport?.ParentId, shaftSupportMargin));
-            operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, materialFrom, materialTo, semanticRole, sourceSpan, stableId, "Hole<Shaft>", d));
+            operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, materialFrom, materialTo, semanticRole, sourceSpan, stableId, "Hole<Shaft>", d) { DraftRadians = holeDraft ?? 0d });
         }
         // Source order must not decide whether an intersecting shaft/counterbore
         // pair is accepted.  Counterbores normally reject immediately against
@@ -938,7 +955,9 @@ public static class PrismaticProfileCompositionParser
             if (body is null) { diagnostics.Add($"SlotProfileDegenerate:{name}:unclosed"); continue; }
             var center = ReadFeatureField(fields, composeBody, SlotCenter, "Center"); var direction = ReadFeatureField(fields, composeBody, SlotDirection, "Direction"); var length = ReadFeatureField(fields, composeBody, SlotLength, "Length"); var width = ReadFeatureField(fields, composeBody, SlotWidth, "Width"); var extent = ReadFeatureField(fields, composeBody, SlotExtent, "Extent"); var role = ReadFeatureField(fields, composeBody, HoleRole, "Role");
             var corner = ReadFeatureField(fields, composeBody, SlotCornerRadius, "CornerRadius");
+            var slotDraftExpression = fields.Take("Draft");
             fields.Complete();
+            var slotDraft = slotDraftExpression is null ? composeDraft : ReadDraft(slotDraftExpression, name, diagnostics);
             var variant=(FirmamentSyntaxValues.Reference(declaration.Type.Arguments.FirstOrDefault()?.Value) ?? "");
             if (!string.Equals(variant,"Capsule",StringComparison.OrdinalIgnoreCase) && !string.Equals(variant,"RoundedRectangle",StringComparison.OrdinalIgnoreCase)) { diagnostics.Add($"UnsupportedSlotHostTopology:{name}:supported variants are Capsule and RoundedRectangle"); continue; }
             if (!center.Success || !direction.Success || !length.Success || !width.Success || !extent.Success) { diagnostics.Add($"SlotProfileDegenerate:{name}:missing Center, Direction, Length, Width, or Extent"); continue; }
@@ -955,14 +974,14 @@ public static class PrismaticProfileCompositionParser
             if (string.Equals(variant,"Capsule",StringComparison.OrdinalIgnoreCase))
             {
                 var profileName=$"{name}CapsuleProfile"; var profile=CapsuleProfile(profileName,x,y,dx,dy,l,w,stableId,sourceSpan); var validation=ResolvedProfile2DValidator.Validate(profile); diagnostics.AddRange(validation.Diagnostics); if (!validation.IsValid) { diagnostics.Add($"SlotProfileDegenerate:{name}"); continue; }
-                profiles.Add(profileName,profile); capsuleSlots.Add(new(name,stableId,profileName,x,y,dx,dy,l,w,from,to,extentText,semanticRole,sourceSpan)); operations.Add(new(name,PrismaticProfileIntent.Remove,profileName,from,to,semanticRole,sourceSpan,stableId,"Slot<Capsule>"));
+                profiles.Add(profileName,profile); capsuleSlots.Add(new(name,stableId,profileName,x,y,dx,dy,l,w,from,to,extentText,semanticRole,sourceSpan)); operations.Add(new(name,PrismaticProfileIntent.Remove,profileName,from,to,semanticRole,sourceSpan,stableId,"Slot<Capsule>") { DraftRadians = slotDraft ?? 0d });
             }
             else
             {
                 if (!corner.Success) { diagnostics.Add($"SlotProfileDegenerate:{name}:RoundedRectangle requires CornerRadius"); continue; }
                 var r=N(corner,"v"); if (!double.IsFinite(r) || r <= 0 || 2*r > Math.Min(l,w)) { diagnostics.Add($"SlotProfileDegenerate:{name}:CornerRadius={r:R} must be positive and no greater than min(Length,Width)/2"); continue; }
                 var profileName=$"{name}RoundedRectangleProfile"; var profile=RoundedRectangleProfile(profileName,x,y,dx,dy,l,w,r,stableId,sourceSpan); var validation=ResolvedProfile2DValidator.Validate(profile); diagnostics.AddRange(validation.Diagnostics); if (!validation.IsValid) { diagnostics.Add($"SlotProfileDegenerate:{name}"); continue; }
-                profiles.Add(profileName,profile); roundedRectangleSlots.Add(new(name,stableId,profileName,x,y,dx,dy,l,w,r,from,to,extentText,semanticRole,sourceSpan)); operations.Add(new(name,PrismaticProfileIntent.Remove,profileName,from,to,semanticRole,sourceSpan,stableId,"Slot<RoundedRectangle>"));
+                profiles.Add(profileName,profile); roundedRectangleSlots.Add(new(name,stableId,profileName,x,y,dx,dy,l,w,r,from,to,extentText,semanticRole,sourceSpan)); operations.Add(new(name,PrismaticProfileIntent.Remove,profileName,from,to,semanticRole,sourceSpan,stableId,"Slot<RoundedRectangle>") { DraftRadians = slotDraft ?? 0d });
             }
         }
         if (placement.TryResolveConstructionPlane(out var compositionFrame, out _))

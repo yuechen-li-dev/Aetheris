@@ -1244,14 +1244,17 @@ public static partial class FirmamentV2Parser
         static bool WallField(FieldSyntax f) => FirmamentSyntaxFields.SameField(f.Name.Text, "WallThickness") || FirmamentSyntaxFields.SameField(f.Name.Text, "Openings");
         string Fields(IEnumerable<FieldSyntax> items) => string.Join("; ", items.Select(f => $"{f.Name.Text}: {source.Substring(f.Value.Span.Start, f.Value.Span.Length)}"));
         var all = extrude.Body?.Statements.OfType<FieldSyntax>().ToArray() ?? [];
-        var fields = Fields(all.Where(f => !hollow || !WallField(f)));
-        // An Extrude's draft is neutral at the Profile's own plane; a Base's at its From.
-        if (all.Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Draft")) && !all.Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Neutral")))
+        // The Extrude's draft is the Compose's, so that its holes and slots are drafted with it; its neutral plane
+        // is the Profile's own (a Base's default is its From).
+        static bool DraftField(FieldSyntax f) => FirmamentSyntaxFields.SameField(f.Name.Text, "Draft");
+        var fields = Fields(all.Where(f => (!hollow || !WallField(f)) && !DraftField(f)));
+        var draft = all.Where(DraftField).Select(f => $"{Fields([f])}; ").FirstOrDefault() ?? "";
+        if (draft.Length > 0 && !all.Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Neutral")))
             fields += "; neutral: 0mm";
         var name = extrude.Name?.Text ?? "Body";
         var text = hollow
-            ? $"Compose<Hollow> {name} {{ {Fields(all.Where(WallField))}; Base {name} {{ {fields} }} }}"
-            : $"Compose {name} {{ Base {name} {{ {fields} }} }}";
+            ? $"Compose<Hollow> {name} {{ {draft}{Fields(all.Where(WallField))}; Base {name} {{ {fields} }} }}"
+            : $"Compose {name} {{ {draft}Base {name} {{ {fields} }} }}";
         if (start < 0 || start + extrude.Span.Length > adapterSource.Length
             || adapterSource.Substring(start, extrude.Span.Length) != source.Substring(extrude.Span.Start, extrude.Span.Length))
             throw new InvalidOperationException("Extrude declaration does not map into the adapter source.");
@@ -1290,13 +1293,7 @@ public static partial class FirmamentV2Parser
                 .Any(d => d.Type.Name.Text != "EdgeFinish") || declarations.Any(IsHollowExtrude)))
         {
             var extrude = declarations.Single(d => d.Type.Name.Text == "Extrude");
-            // A drafted hollow Extrude is a drafted hollow Compose; Modify features are not drafted yet.
-            if (extrude.Body?.Statements.OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Draft")) == true
-                && declarations.Where(d => d.Type.Name.Text == "Modify").SelectMany(d => d.Body?.Statements.OfType<DeclarationSyntax>() ?? []).Any())
-            {
-                diagnostics.Add("profile-extrusion-draft-unsupported: a drafted Extrude cannot carry Modify features yet; remove draft or the feature.");
-                return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
-            }
+            // A drafted Extrude with Modify features or <Hollow> is a drafted Compose: its draft drafts them too.
             adapterSource = ExtrudeAsCompose(adapterSource, extrude, model.Span.Start - bodySpan.Start, source);
             declarations = MechanicalDeclarations(FirmamentSyntaxParser.Parse(adapterSource).Document.Statements).ToArray();
         }

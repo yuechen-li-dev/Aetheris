@@ -143,12 +143,32 @@ public sealed class DraftedExtrudeTests
         Assert.Equal(20 + 5 * t, top.Max(p => p.X), 9);
     }
 
+    [Fact]
+    public void AHoleInADraftedExtrude_IsDraftedWithIt()
+    {
+        var result = Build("""
+            Model Block {
+              units: mm
+              Profile p = Rect2 { center: [0mm, 0mm]; size: [40mm, 30mm] }
+              Extrude b { profile: p; from: 0mm; to: 10mm; draft: 2deg }
+              Modify b { Hole<Shaft> h { on: +Z; center: [0mm, 0mm]; diameter: 6mm; end: ThroughAll } }
+            }
+            """);
+        var drafts = SideDrafts(result);
+        Assert.Equal(4, drafts.Count(d => d.Kind == SurfaceGeometryKind.Plane));
+        Assert.Contains(drafts, d => d.Kind == SurfaceGeometryKind.Cone);
+        Assert.All(drafts, d => Assert.Equal(2d, d.DraftDegrees, 9));
+        // The hole is 6 mm at its mouth and narrows by 2·(10 − z)·tan 2° toward the bottom.
+        var t = double.Tan(2 * double.Pi / 180);
+        double A(double z) => (40 - 2 * z * t) * (30 - 2 * z * t) - double.Pi * (3 - (10 - z) * t) * (3 - (10 - z) * t);
+        AssertReimportsFacingOut(result, 10d / 6 * (A(0) + 4 * A(5) + A(10)), 1e-3);
+    }
+
     [Theory]
     [InlineData("Profile p = Ellipse2 { center: [0mm, 0mm]; axisLengths: [40mm, 20mm] }", "Extrude b { profile: p; from: 0mm; to: 10mm; draft: 1deg }", "", "draft-unsupported-curve")]
     [InlineData("Profile p = RoundedRect2 { center: [0mm, 0mm]; size: [40mm, 30mm]; radius: 1mm }", "Extrude b { profile: p; from: 0mm; to: 20mm; draft: 5deg }", "", "draft-offset-collapse")]
     [InlineData("Profile p = Rect2 { center: [0mm, 0mm]; size: [4mm, 30mm] }", "Extrude b { profile: p; from: 0mm; to: 30mm; draft: 5deg }", "", "draft-offset-collapse")]
-    [InlineData("Profile p = Rect2 { center: [0mm, 0mm]; size: [40mm, 30mm] }", "Extrude b { profile: p; from: 0mm; to: 10mm; draft: 2deg }", "Modify b { Hole<Shaft> h { on: +Z; center: [0mm, 0mm]; diameter: 6mm; end: ThroughAll } }", "profile-extrusion-draft-unsupported")]
-    [InlineData("Profile p = Rect2 { center: [0mm, 0mm]; size: [40mm, 30mm] }", "Extrude b { profile: p; from: 0mm; to: 10mm; draft: 2deg }", "Modify b { EdgeFinish<Chamfer> c { edges: top; distance: 1mm } }", "profile-extrusion-draft-unsupported")]
+    [InlineData("Profile p = Rect2 { center: [0mm, 0mm]; size: [40mm, 30mm] }", "Extrude b { profile: p; from: 0mm; to: 10mm; draft: 2deg }", "Modify b { EdgeFinish<Chamfer> c { edges: top; distance: 1mm } }", "draft-unsupported")]
     [InlineData("Profile p = Rect2 { center: [0mm, 0mm]; size: [40mm, 30mm] }", "Extrude b { profile: p; from: 0mm; to: 10mm; neutral: 5mm }", "", "profile-extrusion-neutral-without-draft")]
     [InlineData("Profile p = Rect2 { center: [0mm, 0mm]; size: [40mm, 30mm] }", "Extrude b { profile: p; from: 0mm; to: 10mm; draft: 50deg }", "", "draft-angle-invalid")]
     public void WallsWithoutAnExactDraft_AreRefused(string profile, string extrude, string modify, string code)

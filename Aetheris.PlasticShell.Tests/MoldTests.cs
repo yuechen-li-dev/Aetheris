@@ -81,6 +81,18 @@ public sealed class MoldTests
     }
 
     [Fact]
+    public void DraftedHousingWithBossAndPocketReleases()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Canonical", "drafted-housing"));
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        Assert.Empty(result.Diagnostics);
+        var report = result.Report!;
+        Assert.All(report.Faces.Where(f => f.MinimumDraftDegrees < 90), f => Assert.Equal(1.5, f.MinimumDraftDegrees, 9));
+        Assert.Equal(0, report.Summary.DraftFailures);
+        Assert.Equal(0, report.Summary.UndercutFaces);
+    }
+
+    [Fact]
     public void VerticalWallsAreShortOfDraftButPullClean()
     {
         var result = MoldFirmament.CompileFile(Fixture("Canonical", "tray-concept"));

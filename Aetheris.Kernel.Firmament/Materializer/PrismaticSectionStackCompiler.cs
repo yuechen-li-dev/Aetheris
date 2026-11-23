@@ -427,6 +427,7 @@ public static class PrismaticSectionStackEmitter
                          .Where(item => item.Side.Source.StartsWith(prefix, StringComparison.Ordinal)))
                 AddFeatureDescendant(new($"material:{feature.StableId}:wall:{item.Face.Value}", "Face", SemanticTopologyRole.ExtrusionSideFace, feature.StableId, Face: item.Face, ParentStableId: feature.StableId, GeometryPreview: feature.Kind));
         }
+        var countersinkIds = countersinks.Select(h => h.StableId).ToHashSet(StringComparer.Ordinal);
         foreach (var hole in (stack.Feature.ShaftHoles ?? []).Concat(countersinks.Select(h => new PrismaticShaftHoleFeature(
             h.Name, h.StableId, h.ShaftProfileReference, h.CenterX, h.CenterY, h.Diameter, h.From, h.To, h.SemanticRole, h.SourceSpan))))
         {
@@ -451,7 +452,8 @@ public static class PrismaticSectionStackEmitter
             foreach (var edge in exitEdges) AddFeatureDescendant(new($"material:{hole.StableId}:exit-edge:{edge.Value}", "Edge", SemanticTopologyRole.BottomBoundary, hole.StableId, Edge: edge, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
             foreach (var side in holeSides)
             {
-                var cone = side.Side.Surface.Kind == SurfaceGeometryKind.Cone;
+                // A countersink's entry is a cone; a drafted shaft's whole wall is one, and is still its wall.
+                var cone = side.Side.Surface.Kind == SurfaceGeometryKind.Cone && countersinkIds.Contains(hole.StableId);
                 AddFeatureDescendant(new($"material:{hole.StableId}:wall:{side.Face.Value}", "Face", cone ? SemanticTopologyRole.HoleCountersinkWallFace : SemanticTopologyRole.HoleWallFace,
                     hole.StableId, Face: side.Face, ParentStableId: hole.StableId, GeometryPreview: cone ? "conical-entry" : $"diameter={hole.Diameter:R}"));
             }

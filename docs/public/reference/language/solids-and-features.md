@@ -76,9 +76,9 @@ Model Cover {
   and a draft of 45° or more.
 - A sharp corner where an arc meets another curve is refused: its drafted edge
   is not straight. Make the junction tangent or round it.
-- A drafted `Extrude<Hollow>` is built as the drafted hollow Compose below. A
-  drafted Extrude cannot yet carry `Modify` features or edge finishes; each is
-  refused with a diagnostic.
+- A drafted Extrude with `Modify` holes or slots, or `<Hollow>`, is built as
+  the drafted Compose below, and its draft drafts those too. Edge finishes on a
+  drafted Extrude are refused.
 
 A [Mold](../../firmament/mold.md) review reads these walls as exact cones and
 planes.
@@ -135,22 +135,33 @@ Model DraftedBlock {
 - Walls are exact: lines become drafted planes and arcs right cones. Where the
   walls of two operations meet (overlapping bosses), both must be straight, so
   that they meet along a line.
+- `Hole<Shaft>`, `Hole<Counterbore>` and `Slot` take the Compose's draft (or
+  their own `draft:`) and are cored from their entry: each is its size at its
+  mouth and narrows into the part. A counterbore's shaft is its diameter at the
+  counterbore's floor.
 - Refused, each with a diagnostic:
   - a meeting between the walls of two operations where one wall is curved
     (`compose-draft-curved-junction`);
   - walls that meet or part within the height of a slab, such as a pocket that
     reaches the outer wall as both tilt (`compose-draft-walls-cross`);
   - a Boss wider than the drafted top it stands on (`compose-draft-overhang`);
-  - holes, slots, material offsets and edge finishes on a drafted Compose
-    (`compose-draft-unsupported`).
+  - countersinks, holes on side faces or construction planes, and edge
+    finishes on a drafted Compose (`compose-draft-unsupported`).
 
-A drafted `Compose<Hollow>` (and `Extrude<Hollow>`) is built from its `Base`
-alone: its cavity is the Base's Profile moved inward by wallThickness ÷
-cos(draft) and drafted with it, so each inner wall is parallel to its outer
-wall and exactly `wallThickness` from it. A sharp inside corner of the Profile
-stays sharp, and the wall there is thicker. Use a negative draft for a part
-that opens at the top (a tray), so that it widens toward its opening. A
-drafted hollow with a Boss or Pocket is refused.
+A drafted `Compose<Hollow>` (and `Extrude<Hollow>`) keeps every inner wall
+parallel to its outer wall and exactly `wallThickness` from it: each Profile
+moves inward by wallThickness ÷ cos(draft) and keeps its draft, and each
+closed end moves in by wallThickness. A Boss on the closed top is hollow too,
+its cavity rising from the body's. A Pocket in the closed top dents the shell:
+the wall under it follows the pocket, `wallThickness` below its floor and
+around its sides. A sharp inside corner of a Profile stays sharp, and the wall
+there is thicker. Use a negative draft for a part that opens at the top (a
+tray), so that it widens toward its opening.
+
+A drafted hollow is refused when a Pocket is too deep to leave a wall under it
+(`hollow-pocket-too-deep`), when the wall around a Pocket or Boss would leave
+the body's cavity or meet another's (`hollow-feature-too-close`), or when it
+has operations other than one `Base` with Bosses and Pockets on its top.
 
 ### Hollow bodies
 

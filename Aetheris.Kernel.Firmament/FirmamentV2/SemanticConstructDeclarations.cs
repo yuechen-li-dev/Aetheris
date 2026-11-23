@@ -83,6 +83,7 @@ public static class PolyhedronSemanticDeclaration { }
 [FirmamentField("CountersinkAngle", "CountersinkAngle", FirmamentSchemaValueKind.Angle, Unit = FirmamentUnitKind.Angle, Variants = ["Countersink"], Description = "Included angle for Hole<Countersink>, strictly between 0deg and 180deg.")]
 [FirmamentField("PatternIdentity", "PatternIdentity", FirmamentSchemaValueKind.String, Description = "Optional pattern identity.")]
 [FirmamentOutput("Wall", "Wall", "Face", SourceAddressable = true, SourceRole = nameof(Materializer.SemanticTopologyRole.HoleWallFace))]
+[FirmamentField("Draft", "Draft", FirmamentSchemaValueKind.Angle, Unit = FirmamentUnitKind.Angle, Variants = ["Shaft", "Counterbore"], Description = "Draft of a molded hole in a Compose, narrowing away from its entry; defaults to the Compose's draft.")]
 public static class HoleSemanticDeclaration
 {
     public static double ProjectDiameter(FirmamentV2SemanticHoleDecl instance) => instance.ShaftDiameter;

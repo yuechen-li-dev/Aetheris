@@ -93,7 +93,10 @@ are exact drafted planes and cones, and pass the draft check at their angle. The
 [drafted hollow cover](../../../fixtures/Canonical/Mold/drafted-hollow-cover.firmament) passes at the `Tooling` stage
 with no findings.
 
-Side actions and lifters, gates, ejectors, wall-thickness, rib and boss rules, flow length, draft on holes, slots
-and edge finishes, and drafted hollows with bosses or pockets are later phases. An undrafted part reports its
+The [drafted housing](../../../fixtures/Canonical/Mold/drafted-housing.firmament), a hollow shell with a hollow
+boss and a pocket, passes too.
+
+Side actions and lifters, shut-offs (a hole through a hollow's wall makes its parting line step), gates, ejectors,
+wall-thickness, rib and boss rules, flow length, and fillets and chamfers on drafted walls are later phases. An undrafted part reports its
 vertical walls as short of draft; the `Concept` stage keeps that a warning. `PlasticShell` remains the bounded route
 for its frustum enclosures.

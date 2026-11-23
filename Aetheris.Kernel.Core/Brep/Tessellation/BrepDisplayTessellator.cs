@@ -3719,7 +3719,7 @@ public static partial class BrepDisplayTessellator
 
                     break;
                 case CurveGeometryKind.BSpline3:
-                    var splinePointsResult = SamplePlanarBSpline(body, coedge, isTraversalSwapped, curve.BSpline3!.Value, segmentStart, segmentEnd);
+                    var splinePointsResult = SamplePlanarBSpline(body, coedge, isTraversalSwapped, curve.BSpline3!.Value, segmentStart, segmentEnd, options);
                     if (!splinePointsResult.IsSuccess)
                     {
                         return KernelResult<IReadOnlyList<Point3D>>.Failure(splinePointsResult.Diagnostics);
@@ -3907,7 +3907,8 @@ public static partial class BrepDisplayTessellator
         bool traversalSwapped,
         BSpline3Curve spline,
         Point3D start,
-        Point3D end)
+        Point3D end,
+        DisplayTessellationOptions options)
     {
         var interval = new ParameterInterval(spline.DomainStart, spline.DomainEnd);
         var reverseSampleOrder = false;
@@ -3922,7 +3923,10 @@ public static partial class BrepDisplayTessellator
             reverseSampleOrder = effectiveIsReversed;
         }
 
-        var sampled = CurveSampler.SampleBSpline(spline, interval).ToArray();
+        // A presentation mesh samples the edge as its drawn polyline does (refined to the mesh's chord and angle
+        // tolerances), so the plane's boundary meets its neighbours vertex for vertex instead of cutting across the
+        // curve on a coarser, fixed count of its own.
+        var sampled = (options.Presentation ? CurveSampler.SampleBSpline(spline, interval, options) : CurveSampler.SampleBSpline(spline, interval)).ToArray();
         if (reverseSampleOrder)
         {
             Array.Reverse(sampled);

@@ -78,11 +78,16 @@ public sealed class DisplayMeshConformanceTests(ITestOutputHelper output)
         return (count, max);
     }
 
-    public static TheoryData<string> Parts => new() { "fixtures/Canonical/Features/Holes/countersink.firmament", "fixtures/Canonical/Learn/03-machined-block.firmament" };
+    public static TheoryData<string> Parts => new()
+    {
+        "fixtures/Canonical/Features/Holes/countersink.firmament", "fixtures/Canonical/Learn/03-machined-block.firmament",
+        // Planar caps bounded by B-spline and elliptical edges: the plane samples each edge as its drawn polyline does.
+        "fixtures/Canonical/ThreeDm/lamp-shade-loft.firmament", "fixtures/Canonical/Boundary2/closed-ellipse-extrusion.firmament",
+    };
 
     [Theory]
     [MemberData(nameof(Parts))]
-    public void ViewportMeshIsClosedAcrossCircularEdges(string fixture)
+    public void ViewportMeshIsClosedAcrossCurvedEdges(string fixture)
     {
         var path = Path.Combine(Repo(), fixture);
         var built = FirmamentBuildAndExport.CompileSource(File.ReadAllText(path), Path.GetDirectoryName(path)!);

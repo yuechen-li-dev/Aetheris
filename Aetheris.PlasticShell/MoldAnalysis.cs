@@ -23,8 +23,11 @@ public static class MoldAnalysis
     private const double ParallelTolerance = 1.75e-4; // sin(0.01°): a face this close to the pull is vertical
     private const int MaximumSamplesPerFace = 64;
 
-    public static MoldReport? Analyze(BrepBody body, MoldIntent intent, List<MoldDiagnostic> diagnostics)
+    public static MoldReport? Analyze(BrepBody body, MoldIntent intent, List<MoldDiagnostic> diagnostics) => Analyze(body, intent, diagnostics, out _);
+
+    internal static MoldReport? Analyze(BrepBody body, MoldIntent intent, List<MoldDiagnostic> diagnostics, out MoldInserts.Result? inserts)
     {
+        inserts = null;
         // Rays start a few chord tolerances off the surface: neighbouring faces' meshes may sample a shared curved edge
         // differently, and their chords overhang each other by up to that much. A step smaller than this offset is
         // below what the check can see.
@@ -79,30 +82,16 @@ public static class MoldAnalysis
 
         var evidence = new List<MoldFaceEvidence>();
         var sideOf = new Dictionary<int, MoldFaceSide>();
+        var samplesOf = new Dictionary<int, (Point3D Start, Vector3D Normal)[]>();
+        var surfaceOf = new Dictionary<int, (SurfaceGeometry? Surface, bool Aligned)>();
         foreach (var patch in patches)
         {
             var face = patch.FaceId.Value;
             body.TryGetFaceSurfaceGeometry(patch.FaceId, out var surface);
             var aligned = body.Bindings.TryGetFaceBinding(patch.FaceId, out var binding) && binding.Orientation.IsAlignedWithSurface;
+            surfaceOf[face] = (surface, aligned);
             var normals = patch.Normals.Select(n => n * orientation).ToArray();
-            var dots = normals.Select(n => n.Dot(pull) / double.Max(n.Length, 1e-300)).ToArray();
-            var (dMin, dMax) = (dots.Min(), dots.Max());
-            var strength = MoldEvidenceStrength.SampledConservative;
-            switch (surface)
-            {
-                case { Plane: { } plane }:
-                    dMin = dMax = plane.Normal.ToVector().Dot(pull) * (aligned ? 1d : -1d);
-                    strength = MoldEvidenceStrength.ExactAnalytic;
-                    break;
-                case { Cylinder: { } cylinder } when double.Abs(double.Abs(cylinder.Axis.ToVector().Dot(pull)) - 1d) < 1e-12:
-                    dMin = dMax = 0d;
-                    strength = MoldEvidenceStrength.ExactAnalytic;
-                    break;
-                case { Cone: { } cone } when double.Abs(double.Abs(cone.Axis.ToVector().Dot(pull)) - 1d) < 1e-12:
-                    dMin = dMax = double.Sign(dots.Average()) * double.Sin(cone.SemiAngleRadians);
-                    strength = MoldEvidenceStrength.ExactAnalytic;
-                    break;
-            }
+            var (dMin, dMax, strength) = Against(surface, aligned, normals, pull);
             var side = dMin >= -ParallelTolerance && dMax <= ParallelTolerance ? MoldFaceSide.Vertical
                 : dMin >= -ParallelTolerance ? MoldFaceSide.Positive
                 : dMax <= ParallelTolerance ? MoldFaceSide.Negative
@@ -118,13 +107,14 @@ public static class MoldAnalysis
             // Release: rays from the face's mesh samples along its half's pull must leave the part.
             var triangles = Triangles(patch, orientation);
             var stride = int.Max(1, triangles.Length / MaximumSamplesPerFace);
-            var samples = 0; var blocked = 0; var freePositive = 0; var freeNegative = 0;
+            var samples = new List<(Point3D, Vector3D)>();
+            var blocked = 0; var freePositive = 0; var freeNegative = 0;
             for (var t = 0; t < triangles.Length; t += stride)
             {
                 var (centroid, normal, _) = triangles[t];
                 var start = centroid + normal * eps;
+                samples.Add((start, normal));
                 var d = normal.Dot(pull);
-                samples++;
                 if (double.Abs(d) <= ParallelTolerance)
                 {
                     var up = !rays.Hits(start, pull, eps); var down = !rays.Hits(start, -pull, eps);
@@ -134,6 +124,7 @@ public static class MoldAnalysis
                 }
                 else if (rays.Hits(start, pull * double.Sign(d), eps)) blocked++;
             }
+            samplesOf[face] = samples.ToArray();
             var area = triangles.Sum(x => x.Area);
             var representative = triangles.Length == 0 ? Point3D.Origin : Weighted(triangles);
             if (side == MoldFaceSide.Vertical)
@@ -149,7 +140,8 @@ public static class MoldAnalysis
             else sideOf[face] = side;
 
             evidence.Add(new(face, surface?.Kind.ToString() ?? "Unknown", side, draft, required, draft + 1e-9 >= required,
-                samples == 0 ? 0d : (double)blocked / samples, samples, cosmetic.Contains(face), representative, area, strength));
+                samples.Count == 0 ? 0d : (double)blocked / samples.Count, samples.Count, cosmetic.Contains(face), representative, area, strength,
+                SilhouetteHeight: side == MoldFaceSide.Straddling ? Silhouette(surface, samplesOf[face], pull) : null));
         }
 
         // side(+pull) and side(-pull) name the faces a half forms, known only now.
@@ -163,30 +155,116 @@ public static class MoldAnalysis
             return f with { RequiredDraftDegrees = required, DraftSatisfied = f.MinimumDraftDegrees + 1e-9 >= required, Cosmetic = cosmetic.Contains(f.FaceId) };
         }).ToList();
 
-        // Parting line: edges between the two halves.
         var faceOfLoop = body.Topology.Faces.SelectMany(f => f.LoopIds.Select(l => (Loop: l, Face: f.Id.Value))).ToDictionary(x => x.Loop, x => x.Face);
         var edgeFaces = body.Topology.Coedges.GroupBy(c => c.EdgeId).ToDictionary(g => g.Key, g => g.Select(c => faceOfLoop[c.LoopId]).Distinct().ToArray());
+
+        // Undercuts, grouped where they touch; each group is formed by a declared action that can withdraw from it, or
+        // reported with the directions across the pull that would release it.
+        var grids = new Dictionary<string, RayGrid> { [Key(pull)] = rays };
+        RayGrid Grid(Vector3D direction) => grids.TryGetValue(Key(direction), out var grid) ? grid : grids[Key(direction)] = new RayGrid(patches, direction);
+        bool Releases(IEnumerable<int> faces, Vector3D direction) => faces.All(face => samplesOf[face].All(sample =>
+            sample.Normal.Dot(direction) >= -ParallelTolerance && !Grid(direction).Hits(sample.Start, direction, eps)));
+        var undercutFaces = evidence.Where(f => f.UndercutFraction > 0).Select(f => f.FaceId).ToHashSet();
+        var neighbours = undercutFaces.ToDictionary(f => f, _ => new HashSet<int>());
+        foreach (var faces in edgeFaces.Values.Where(v => v.Length == 2 && undercutFaces.Contains(v[0]) && undercutFaces.Contains(v[1])))
+        { neighbours[faces[0]].Add(faces[1]); neighbours[faces[1]].Add(faces[0]); }
+        var helper = double.Abs(pull.X) < 0.9 ? new Vector3D(1, 0, 0) : new Vector3D(0, 1, 0);
+        var across = pull.Cross(helper); across /= across.Length;
+        var across2 = pull.Cross(across); across2 /= across2.Length;
+        Vector3D[] candidates = [across, -across, across2, -across2];
+        var actions = intent.Actions ?? [];
+        var groups = new List<MoldUndercutGroup>();
+        var actionOf = new Dictionary<int, string>();
+        var unseen = undercutFaces.Order().ToList();
+        while (unseen.Count > 0)
+        {
+            var group = new List<int>(); var queue = new Queue<int>([unseen[0]]); unseen.RemoveAt(0);
+            while (queue.TryDequeue(out var face)) { group.Add(face); foreach (var next in neighbours[face]) if (unseen.Remove(next)) queue.Enqueue(next); }
+            group.Sort();
+            var members = evidence.Where(f => group.Contains(f.FaceId)).ToArray();
+            var total = members.Sum(f => f.Area);
+            var centre = Point3D.Origin + members.Aggregate(Vector3D.Zero, (acc, f) => acc + (f.Representative - Point3D.Origin) * f.Area) / double.Max(total, 1e-300);
+            var releasing = actions.Where(a => Releases(group, a.Pull.ToVector())).OrderBy(a => a.Near is { } near ? (near - centre).Length : double.PositiveInfinity).ToArray();
+            var action = releasing.FirstOrDefault()?.Name;
+            if (action is not null) foreach (var face in group) actionOf[face] = action;
+            groups.Add(new(group, centre, action, candidates.Where(c => Releases(group, c)).Select(Name).ToArray()));
+        }
+        var actionEvidence = new List<MoldActionEvidence>();
+        foreach (var action in actions)
+        {
+            var faces = actionOf.Where(p => p.Value == action.Name).Select(p => p.Key).Order().ToArray();
+            if (faces.Length == 0)
+            {
+                diagnostics.Add(new(MoldDiagnosticCodes.ActionReleasesNothing, PlasticDiagnosticSeverity.Error,
+                    $"Action {action.Name} along {Name(action.Pull.ToVector())} releases none of the part's undercuts"
+                    + (groups.Count == 0 ? ": the part has none." : ": " + string.Join("; ", groups.Select(g => $"faces {string.Join(", ", g.FaceIds)} near {Format(g.Representative)} release along {(g.ReleasingDirections.Count == 0 ? "no direction across the pull" : string.Join(" or ", g.ReleasingDirections))}")) + "."),
+                    intent.MoldName));
+                continue;
+            }
+            // An action's faces are drafted against its own pull.
+            var direction = action.Pull.ToVector();
+            var minimum = faces.Min(face => Against(surfaceOf[face].Surface, surfaceOf[face].Aligned, samplesOf[face].Select(x => x.Normal).ToArray(), direction).Min);
+            var draft = double.Asin(double.Clamp(minimum, 0d, 1d)) * 180d / double.Pi;
+            actionEvidence.Add(new(action.Name, action.Pull, faces, draft, intent.Policy.MinimumDraftDegrees, draft + 1e-9 >= intent.Policy.MinimumDraftDegrees));
+        }
+        evidence = evidence.Select(f => actionOf.TryGetValue(f.FaceId, out var name) ? f with { Action = name } : f).ToList();
+        foreach (var face in actionOf.Keys) sideOf.Remove(face);
+
+        // A straddling face that releases splits along its silhouette, where the parting line crosses it.
+        var splits = evidence.Where(f => f.Side == MoldFaceSide.Straddling && f.Action is null && f.UndercutFraction == 0 && f.SilhouetteHeight is not null).ToArray();
+        bool OnPlane(double h) => partingHeight is not { } ph || double.Abs(h - ph) <= 1e-6 * size + 1e-6;
+
+        // Parting line: edges between the two halves, in closed loops.
         var polylines = mesh.Value.EdgePolylines.ToDictionary(e => e.EdgeId);
         var partingEdges = edgeFaces.Where(e => e.Value.Length == 2
-                && sideOf.GetValueOrDefault(e.Value[0]) is var a && sideOf.GetValueOrDefault(e.Value[1]) is var b
+                && sideOf.GetValueOrDefault(e.Value[0], MoldFaceSide.Vertical) is var a && sideOf.GetValueOrDefault(e.Value[1], MoldFaceSide.Vertical) is var b
                 && ((a == MoldFaceSide.Positive && b == MoldFaceSide.Negative) || (a == MoldFaceSide.Negative && b == MoldFaceSide.Positive)))
             .Select(e => e.Key).OrderBy(e => e.Value).ToArray();
-        var heights = partingEdges.SelectMany(e => polylines.TryGetValue(e, out var line) ? line.Points : []).Select(p => (p - Point3D.Origin).Dot(pull)).ToArray();
-        var (hMin, hMax) = heights.Length == 0 ? (double.NaN, double.NaN) : (heights.Min(), heights.Max());
-        var onPlane = partingHeight is not { } ph || heights.All(h => double.Abs(h - ph) <= 1e-6 * size + 1e-6);
+        double Height(Point3D p) => (p - Point3D.Origin).Dot(pull);
+        var loops = new List<MoldPartingLoop>();
+        foreach (var chain in Chains(body, partingEdges))
+        {
+            var points = chain.SelectMany(e => polylines.TryGetValue(e, out var line) ? line.Points : []).ToArray();
+            if (points.Length == 0) continue;
+            var (lo, hi) = (points.Min(Height), points.Max(Height));
+            var flat = hi - lo <= 1e-6 * size + 1e-6;
+            var kind = !flat ? MoldPartingLoopKind.Stepped
+                : partingHeight is not null && OnPlane(lo) ? MoldPartingLoopKind.Parting
+                : EnclosesOpening(points, pull, across, across2, rays, eps) ? MoldPartingLoopKind.ShutOff
+                : partingHeight is null ? MoldPartingLoopKind.Parting
+                : MoldPartingLoopKind.Stepped;
+            loops.Add(new(chain.Select(e => e.Value).ToArray(), lo, hi, kind));
+        }
+        // Without a declared plane, one flat loop is the parting line and the others must be shut-offs.
+        if (partingHeight is null && loops.Count(l => l.Kind == MoldPartingLoopKind.Parting) > 1)
+        {
+            var heights = loops.Where(l => l.Kind == MoldPartingLoopKind.Parting).Select(l => l.MinimumHeight).ToArray();
+            if (heights.Max() - heights.Min() > 1e-6 * size + 1e-6)
+                loops = loops.Select(l => l.Kind == MoldPartingLoopKind.Parting && double.Abs(l.MinimumHeight - heights[0]) > 1e-6 * size + 1e-6 ? l with { Kind = MoldPartingLoopKind.Stepped } : l).ToList();
+        }
+        var lineHeights = loops.Where(l => l.Kind != MoldPartingLoopKind.ShutOff).SelectMany(l => new[] { l.MinimumHeight, l.MaximumHeight })
+            .Concat(splits.Select(f => f.SilhouetteHeight!.Value)).ToArray();
+        var (hMin, hMax) = lineHeights.Length == 0 ? (double.NaN, double.NaN) : (lineHeights.Min(), lineHeights.Max());
+        var onPlane = loops.All(l => l.Kind != MoldPartingLoopKind.Stepped) && splits.All(f => OnPlane(f.SilhouetteHeight!.Value));
         var cosmeticTouched = partingEdges.SelectMany(e => edgeFaces[e]).Where(cosmetic.Contains).Distinct().Order().ToArray();
-        var partingLine = new MoldPartingLineEvidence(partingEdges.Select(e => e.Value).ToArray(), hMin, hMax, onPlane, cosmeticTouched);
+        var partingLine = new MoldPartingLineEvidence(partingEdges.Select(e => e.Value).ToArray(), hMin, hMax, onPlane, cosmeticTouched, loops);
 
         // Findings, scaled by stage.
-        foreach (var f in evidence.Where(f => f.Side == MoldFaceSide.Straddling))
+        foreach (var f in evidence.Where(f => f.Side == MoldFaceSide.Straddling && f.Action is null && !(splits.Contains(f) && OnPlane(f.SilhouetteHeight!.Value))))
             diagnostics.Add(new(MoldDiagnosticCodes.StraddlingFace, Severity(intent.Stage, hard: true),
-                $"Face {f.FaceId} ({f.Surface} near {Format(f.Representative)}) faces both ways along the pull; the parting line has to split it.", $"face:{f.FaceId}"));
-        foreach (var f in evidence.Where(f => f.UndercutFraction > 0))
-            diagnostics.Add(new(f.Cosmetic ? MoldDiagnosticCodes.UndercutOnCosmetic : MoldDiagnosticCodes.Undercut, Severity(intent.Stage, hard: true),
-                $"Face {f.FaceId} ({f.Surface} near {Format(f.Representative)}) cannot release along the pull: {f.UndercutFraction:P0} of its samples are blocked by the part. It needs a side action, a lifter, or a different pull.", $"face:{f.FaceId}"));
+                $"Face {f.FaceId} ({f.Surface} near {Format(f.Representative)}) faces both ways along the pull; the parting line has to split it"
+                + (f.SilhouetteHeight is { } h && partingHeight is { } p ? $" along its silhouette at {h:0.###} mm, off the parting plane at {p:0.###} mm. Put the parting plane through it, or form it with an action." : ", and it cannot release whole from either half."), $"face:{f.FaceId}"));
+        foreach (var g in groups.Where(g => g.Action is null))
+        {
+            var members = evidence.Where(f => g.FaceIds.Contains(f.FaceId)).ToArray();
+            diagnostics.Add(new(members.Any(f => f.Cosmetic) ? MoldDiagnosticCodes.UndercutOnCosmetic : MoldDiagnosticCodes.Undercut, Severity(intent.Stage, hard: true),
+                $"Face(s) {string.Join(", ", members.Select(f => $"{f.FaceId} ({f.Surface}, {f.UndercutFraction:P0} blocked)"))} near {Format(g.Representative)} cannot release along the pull. "
+                + (g.ReleasingDirections.Count > 0 ? $"They release along {string.Join(" or ", g.ReleasingDirections)}: declare an Action with that pull." : "No direction across the pull releases them either; they need a lifter, a collapsing core or a different pull."),
+                "faces:" + string.Join(",", g.FaceIds)));
+        }
         // Draft findings come as one line per required angle: a part at its first review typically has every wall
         // vertical, and the report lists the faces individually.
-        foreach (var group in evidence.Where(f => !f.DraftSatisfied && f.Side != MoldFaceSide.Straddling).GroupBy(f => f.RequiredDraftDegrees))
+        foreach (var group in evidence.Where(f => !f.DraftSatisfied && f.Side != MoldFaceSide.Straddling && f.Action is null).GroupBy(f => f.RequiredDraftDegrees))
         {
             var faces = group.ToArray();
             diagnostics.Add(new(MoldDiagnosticCodes.DraftInsufficient, Severity(intent.Stage, hard: false),
@@ -194,23 +272,144 @@ public static class MoldAnalysis
                 + string.Join("; ", faces.Select(f => $"{f.FaceId} ({f.Surface} near {Format(f.Representative)}, {f.MinimumDraftDegrees:0.##}°)")) + ".",
                 "faces:" + string.Join(",", faces.Select(f => f.FaceId))));
         }
+        foreach (var action in actionEvidence.Where(a => !a.DraftSatisfied))
+            diagnostics.Add(new(MoldDiagnosticCodes.DraftInsufficient, Severity(intent.Stage, hard: false),
+                $"Action {action.Name}'s faces {string.Join(", ", action.FaceIds)} have {action.MinimumDraftDegrees:0.##}° of draft along its pull {Name(action.Pull.ToVector())}; {intent.Policy.Name} needs {action.RequiredDraftDegrees:0.##}°.",
+                $"action:{action.Name}"));
         if (!onPlane)
+        {
+            var stepped = loops.Where(l => l.Kind == MoldPartingLoopKind.Stepped).Select(l => $"{l.MinimumHeight:0.###}–{l.MaximumHeight:0.###} mm")
+                .Concat(splits.Where(f => !OnPlane(f.SilhouetteHeight!.Value)).Select(f => $"face {f.FaceId}'s silhouette at {f.SilhouetteHeight:0.###} mm")).ToArray();
             diagnostics.Add(new(MoldDiagnosticCodes.PartingLineOffPlane, Severity(intent.Stage, hard: false),
-                $"The parting line runs from {hMin:0.###} to {hMax:0.###} mm along the pull, off the declared parting plane at {partingHeight:0.###} mm; the part needs a stepped parting surface or a different plane.", intent.MoldName));
+                $"The parting line leaves the declared parting plane at {partingHeight:0.###} mm ({string.Join("; ", stepped)}); the part needs a stepped parting surface or a different plane.", intent.MoldName));
+        }
         if (cosmeticTouched.Length > 0)
             diagnostics.Add(new(MoldDiagnosticCodes.PartingLineOnCosmetic, Severity(intent.Stage, hard: false),
                 $"The parting line runs along cosmetic face(s) {string.Join(", ", cosmeticTouched)}; it leaves a witness line there.", intent.MoldName));
 
-        var projected = patches.Where(p => sideOf.GetValueOrDefault(p.FaceId.Value) == MoldFaceSide.Positive)
-            .SelectMany(p => Triangles(p, orientation)).Sum(t => t.Area * double.Abs(t.Normal.Dot(pull)));
+        // Projected along the pull: the +pull half's faces, and the upward part of each face split at its silhouette.
+        var splitIds = splits.Select(f => f.FaceId).ToHashSet();
+        var projected = patches.Where(p => sideOf.GetValueOrDefault(p.FaceId.Value, MoldFaceSide.Vertical) == MoldFaceSide.Positive || splitIds.Contains(p.FaceId.Value))
+            .SelectMany(p => Triangles(p, orientation)).Sum(t => t.Area * double.Max(0d, t.Normal.Dot(pull)));
         var volume = BrepMassProperties.Evaluate(body).AbsoluteVolume;
         var summary = new MoldSummary(evidence.Count,
-            evidence.Count(f => f.Side == MoldFaceSide.Positive), evidence.Count(f => f.Side == MoldFaceSide.Negative),
-            evidence.Count(f => f.Side == MoldFaceSide.Vertical), evidence.Count(f => f.Side == MoldFaceSide.Straddling),
-            evidence.Count(f => !f.DraftSatisfied), evidence.Count(f => f.UndercutFraction > 0),
-            projected, volume, volume * intent.Policy.Density / 1000d);
+            evidence.Count(f => f.Side == MoldFaceSide.Positive && f.Action is null), evidence.Count(f => f.Side == MoldFaceSide.Negative && f.Action is null),
+            evidence.Count(f => f.Side == MoldFaceSide.Vertical && f.Action is null), evidence.Count(f => f.Side == MoldFaceSide.Straddling && f.Action is null),
+            evidence.Count(f => !f.DraftSatisfied && f.Action is null && f.Side != MoldFaceSide.Straddling), groups.Where(g => g.Action is null).Sum(g => g.FaceIds.Count),
+            projected, volume, volume * intent.Policy.Density / 1000d, actionOf.Count);
+        // The core and cavity inserts, when asked for.
+        if (intent.InsertMargin is { } margin)
+        {
+            var plane = partingHeight ?? loops.FirstOrDefault(l => l.Kind == MoldPartingLoopKind.Parting)?.MinimumHeight;
+            string? reason = actions.Count > 0 ? "the part has side actions, and the inserts are cut for a two-plate tool" : plane is null ? "the part has no parting line" : null;
+            if (reason is null) inserts = MoldInserts.Build(body, sideOf, loops, pull, plane!.Value, margin, (min, max), out reason);
+            if (inserts is null)
+                diagnostics.Add(new(MoldDiagnosticCodes.InsertsUnavailable, PlasticDiagnosticSeverity.Error, $"The core and cavity inserts cannot be cut: {reason}.", intent.MoldName));
+        }
         return new(intent, evidence, partingLine, summary,
-            "Face normals against the pull (exact on planes, and on cylinders and cones about the pull; mesh extremes otherwise); release by casting the display mesh's samples along the pull against the part; parting line from face adjacency. Undercuts between samples are not proven absent.");
+            "Face normals against the pull (exact on planes, and on cylinders and cones about the pull; mesh extremes otherwise); release by casting the display mesh's samples along the pull, and along each action's pull, against the part; parting line from face adjacency, in loops. Undercuts between samples are not proven absent.",
+            groups, actionEvidence, inserts?.Evidence);
+    }
+
+    /// <summary>The extremes of n·direction over a face: exact on planes, and on cylinders and cones about the direction.</summary>
+    private static (double Min, double Max, MoldEvidenceStrength Strength) Against(SurfaceGeometry? surface, bool aligned, IReadOnlyList<Vector3D> normals, Vector3D direction)
+    {
+        var dots = normals.Select(n => n.Dot(direction) / double.Max(n.Length, 1e-300)).ToArray();
+        var (min, max) = dots.Length == 0 ? (0d, 0d) : (dots.Min(), dots.Max());
+        switch (surface)
+        {
+            case { Plane: { } plane }:
+                var d = plane.Normal.ToVector().Dot(direction) * (aligned ? 1d : -1d);
+                return (d, d, MoldEvidenceStrength.ExactAnalytic);
+            case { Cylinder: { } cylinder } when double.Abs(double.Abs(cylinder.Axis.ToVector().Dot(direction)) - 1d) < 1e-12:
+                return (0d, 0d, MoldEvidenceStrength.ExactAnalytic);
+            case { Cone: { } cone } when double.Abs(double.Abs(cone.Axis.ToVector().Dot(direction)) - 1d) < 1e-12:
+                var c = double.Sign(dots.Average()) * double.Sin(cone.SemiAngleRadians);
+                return (c, c, MoldEvidenceStrength.ExactAnalytic);
+        }
+        return (min, max, MoldEvidenceStrength.SampledConservative);
+    }
+
+    /// <summary>
+    /// Where a straddling face turns from one half to the other, along the pull: exact for a cylinder across the pull
+    /// (its axis) and a sphere (its centre); otherwise the mean height of the samples nearest to parallel.
+    /// </summary>
+    private static double? Silhouette(SurfaceGeometry? surface, IReadOnlyList<(Point3D Start, Vector3D Normal)> samples, Vector3D pull)
+    {
+        switch (surface)
+        {
+            case { Cylinder: { } cylinder } when double.Abs(cylinder.Axis.ToVector().Dot(pull)) < 1e-12:
+                return (cylinder.Origin - Point3D.Origin).Dot(pull);
+            case { Sphere: { } sphere }:
+                return (sphere.Center - Point3D.Origin).Dot(pull);
+        }
+        if (samples.Count == 0) return null;
+        var nearest = samples.Min(x => double.Abs(x.Normal.Dot(pull)));
+        var band = samples.Where(x => double.Abs(x.Normal.Dot(pull)) <= nearest + 0.05).ToArray();
+        return band.Average(x => (x.Start - Point3D.Origin).Dot(pull));
+    }
+
+    /// <summary>The parting edges in closed chains, each followed through shared vertices.</summary>
+    private static IReadOnlyList<IReadOnlyList<EdgeId>> Chains(BrepBody body, IReadOnlyList<EdgeId> edges)
+    {
+        var ends = edges.ToDictionary(e => e, e => body.Topology.GetEdge(e));
+        var at = new Dictionary<VertexId, List<EdgeId>>();
+        foreach (var (id, edge) in ends)
+        {
+            (at.TryGetValue(edge.StartVertexId, out var a) ? a : at[edge.StartVertexId] = []).Add(id);
+            (at.TryGetValue(edge.EndVertexId, out var b) ? b : at[edge.EndVertexId] = []).Add(id);
+        }
+        var left = edges.ToHashSet();
+        var chains = new List<IReadOnlyList<EdgeId>>();
+        foreach (var first in edges)
+        {
+            if (!left.Remove(first)) continue;
+            var chain = new List<EdgeId> { first };
+            var vertex = ends[first].EndVertexId;
+            while (at[vertex].FirstOrDefault(left.Contains) is { Value: > 0 } next)
+            {
+                left.Remove(next); chain.Add(next);
+                vertex = ends[next].StartVertexId == vertex ? ends[next].EndVertexId : ends[next].StartVertexId;
+            }
+            chains.Add(chain);
+        }
+        return chains;
+    }
+
+    /// <summary>
+    /// Whether a flat loop across the pull rings an opening: a point inside it, in its plane, lies outside the part
+    /// (an even number of crossings along the pull).
+    /// </summary>
+    private static bool EnclosesOpening(IReadOnlyList<Point3D> points, Vector3D pull, Vector3D u, Vector3D v, RayGrid rays, double eps)
+    {
+        var plane = points.Select(p => ((p - Point3D.Origin).Dot(u), (p - Point3D.Origin).Dot(v))).ToArray();
+        var height = points.Average(p => (p - Point3D.Origin).Dot(pull));
+        var centre = (plane.Average(p => p.Item1), plane.Average(p => p.Item2));
+        if (!Inside(plane, centre)) return false;
+        var origin = Point3D.Origin + u * centre.Item1 + v * centre.Item2 + pull * height;
+        return rays.Count(origin, pull, eps) % 2 == 0;
+    }
+
+    private static bool Inside(IReadOnlyList<(double X, double Y)> polygon, (double X, double Y) p)
+    {
+        var inside = false;
+        for (int i = 0, j = polygon.Count - 1; i < polygon.Count; j = i++)
+            if ((polygon[i].Y > p.Y) != (polygon[j].Y > p.Y)
+                && p.X < (polygon[j].X - polygon[i].X) * (p.Y - polygon[i].Y) / (polygon[j].Y - polygon[i].Y) + polygon[i].X) inside = !inside;
+        return inside;
+    }
+
+    private static string Key(Vector3D v) => $"{v.X:F9},{v.Y:F9},{v.Z:F9}";
+
+    /// <summary>An axis name for an axis-aligned direction, a vector otherwise.</summary>
+    internal static string Name(Vector3D v)
+    {
+        foreach (var (axis, label) in new[] { (new Vector3D(1, 0, 0), "X"), (new Vector3D(0, 1, 0), "Y"), (new Vector3D(0, 0, 1), "Z") })
+        {
+            var d = v.Dot(axis) / v.Length;
+            if (double.Abs(double.Abs(d) - 1) < 1e-9) return (d > 0 ? "+" : "-") + label;
+        }
+        return $"[{v.X:0.###}, {v.Y:0.###}, {v.Z:0.###}]";
     }
 
     private static PlasticDiagnosticSeverity Severity(MoldStage stage, bool hard) => stage switch
@@ -330,11 +529,15 @@ public static class MoldAnalysis
         private (double U, double V) P(Point3D p) => ((p - Point3D.Origin).Dot(u), (p - Point3D.Origin).Dot(v));
         private int Index(double offset) => int.Clamp((int)(offset / cell), 0, n - 1);
 
-        public bool Hits(Point3D origin, Vector3D direction, double eps)
+        public bool Hits(Point3D origin, Vector3D direction, double eps) => Count(origin, direction, eps, stopAtFirst: true) > 0;
+
+        /// <summary>How many triangles the ray crosses beyond <paramref name="eps"/>.</summary>
+        public int Count(Point3D origin, Vector3D direction, double eps, bool stopAtFirst = false)
         {
+            var count = 0;
             var (pu, pv) = P(origin);
             var list = cells[Index(pu - u0) * n + Index(pv - v0)];
-            if (list is null) return false;
+            if (list is null) return 0;
             foreach (var i in list)
             {
                 var (a, b, c) = triangles[i];
@@ -349,9 +552,9 @@ public static class MoldAnalysis
                 var q = s.Cross(e1);
                 var bv = f * direction.Dot(q);
                 if (bv < -1e-9 || bu + bv > 1 + 1e-9) continue;
-                if (f * e2.Dot(q) > eps) return true;
+                if (f * e2.Dot(q) > eps) { count++; if (stopAtFirst) return count; }
             }
-            return false;
+            return count;
         }
     }
 }

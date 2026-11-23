@@ -135,6 +135,8 @@ public sealed class MoldTests
     [InlineData("bottle-shoulder-undercut", MoldDiagnosticCodes.Undercut)]
     [InlineData("pulley-groove-undercut", MoldDiagnosticCodes.Undercut)]
     [InlineData("unknown-material", MoldDiagnosticCodes.MaterialUnknown)]
+    [InlineData("side-hole-undercut", MoldDiagnosticCodes.Undercut)]
+    [InlineData("action-releases-nothing", MoldDiagnosticCodes.ActionReleasesNothing)]
     public void RefusalsNameTheirCause(string fixture, string code)
     {
         var result = MoldFirmament.CompileFile(Fixture("Invalid", fixture));
@@ -152,5 +154,101 @@ public sealed class MoldTests
         Assert.All(undercuts, f => Assert.Equal(1d, f.UndercutFraction));
         Assert.Equal(["Cylinder", "Plane", "Plane"], undercuts.Select(f => f.Surface).Order());
         Assert.All(undercuts, f => Assert.InRange(double.Hypot(f.Representative.X, f.Representative.Y), 13.9, 20.1));
+    }
+
+    [Fact]
+    public void AGrooveAroundTheAxisReleasesAlongNoSideDirection()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Invalid", "pulley-groove-undercut"));
+        var group = Assert.Single(result.Report!.Undercuts!);
+        Assert.Equal(3, group.FaceIds.Count);
+        Assert.Empty(group.ReleasingDirections);
+        Assert.Contains(result.Diagnostics, d => d.Code == MoldDiagnosticCodes.Undercut && d.Message.Contains("lifter", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ASideHoleIsAnUndercutThatNamesTheDirectionThatReleasesIt()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Invalid", "side-hole-undercut"));
+        var group = Assert.Single(result.Report!.Undercuts!);
+        // The hole's wall and its drill point.
+        Assert.Equal(["Cone", "Cylinder"], result.Report.Faces.Where(f => group.FaceIds.Contains(f.FaceId)).Select(f => f.Surface).Order());
+        Assert.Equal(["-Y"], group.ReleasingDirections);
+        Assert.Null(group.Action);
+        var undercut = Assert.Single(result.Diagnostics, d => d.Code == MoldDiagnosticCodes.Undercut);
+        Assert.Contains("declare an Action", undercut.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ADeclaredActionFormsTheUndercutItReleases()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Canonical", "side-action-latch"));
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        var report = result.Report!;
+        Assert.Equal("pinCore", Assert.Single(report.Undercuts!).Action);
+        Assert.Equal(0, report.Summary.UndercutFaces);
+        Assert.Equal(0, report.Summary.StraddlingFaces);
+        Assert.Equal(2, report.Summary.ActionFaces);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Code is MoldDiagnosticCodes.Undercut or MoldDiagnosticCodes.StraddlingFace);
+        // The pin's wall is a cylinder along its pull: exactly 0° of draft against it, which the review reports.
+        var action = Assert.Single(report.Actions!);
+        Assert.Equal(0d, action.MinimumDraftDegrees, 9);
+        Assert.Contains(result.Diagnostics, d => d.Code == MoldDiagnosticCodes.DraftInsufficient && d.Message.StartsWith("Action pinCore", StringComparison.Ordinal));
+        // The action's faces are no part of either half's projected area or parting line.
+        Assert.Equal(40d * 30d, report.Summary.ProjectedArea, 6);
+        Assert.Single(report.PartingLine.Loops!);
+    }
+
+    [Fact]
+    public void AFaceSplitByThePartingPlaneThroughItsSilhouetteIsNotAFinding()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Canonical", "rod-split"));
+        var cylinder = Assert.Single(result.Report!.Faces, f => f.Side == MoldFaceSide.Straddling);
+        Assert.Equal(0d, cylinder.SilhouetteHeight!.Value, 12);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Code is MoldDiagnosticCodes.StraddlingFace or MoldDiagnosticCodes.PartingLineOffPlane);
+        Assert.True(result.Report.PartingLine.OnDeclaredPlane);
+        // Projected along the pull the rod is its 40 × 16 shadow.
+        Assert.InRange(result.Report.Summary.ProjectedArea, 640 * (1 - 1e-3), 640 * (1 + 1e-3));
+
+        var moved = File.ReadAllText(Fixture("Canonical", "rod-split")).Replace("origin: [0mm, 0mm, 0mm] }", "origin: [0mm, 0mm, 3mm] }", StringComparison.Ordinal);
+        var off = MoldFirmament.Compile(moved, Fixture("Canonical", "rod-split"));
+        var straddle = Assert.Single(off.Diagnostics, d => d.Code == MoldDiagnosticCodes.StraddlingFace);
+        Assert.Contains("silhouette at 0 mm, off the parting plane at 3 mm", straddle.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CoreAndCavityInsertsFillTheBlockAroundThePart()
+    {
+        var result = MoldFirmament.CompileFile(Fixture("Canonical", "housing-inserts"));
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        Assert.Empty(result.Diagnostics);
+        var report = result.Report!;
+        // The vent's exit inside the shell is a shut-off; the rim is the parting line.
+        Assert.Equal(1, report.PartingLine.Loops!.Count(l => l.Kind == MoldPartingLoopKind.ShutOff));
+        Assert.Equal(1, report.PartingLine.Loops!.Count(l => l.Kind == MoldPartingLoopKind.Parting));
+        var inserts = report.Inserts!;
+        Assert.Equal(1, inserts.ShutOffs);
+        // Block = cavity + core + part. The inserts' volumes are measured on meshes, as is the part's.
+        Assert.Equal(inserts.BlockVolume, inserts.CavityVolume + inserts.CoreVolume + inserts.PartVolume, 1e-4 * inserts.BlockVolume);
+        foreach (var step in new[] { result.CavityStep!, result.CoreStep! })
+        {
+            var imported = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(step);
+            Assert.True(imported.IsSuccess, string.Join("\n", imported.Diagnostics.Select(d => d.Message)));
+            var mass = Aetheris.Kernel.Core.Brep.Verification.BrepMassProperties.Evaluate(imported.Value);
+            Assert.True(mass.IsEnclosed && mass.IsOrientationConsistent && mass.SignedVolume > 0);
+        }
+        // The block reaches the margin beyond the part on every side.
+        Assert.Equal(-60d, inserts.BlockMinimum.X, 6);
+        Assert.Equal(-10d, inserts.BlockMinimum.Z, 6);
+        Assert.Equal(41d, inserts.BlockMaximum.Z, 6);
+    }
+
+    [Fact]
+    public void InsertsAreRefusedWhenTheToolNeedsMoreThanTwoPlates()
+    {
+        var source = File.ReadAllText(Fixture("Canonical", "side-action-latch")).Replace("  Action pinCore", "  inserts: 10mm\n  Action pinCore", StringComparison.Ordinal);
+        var result = MoldFirmament.Compile(source, Fixture("Canonical", "side-action-latch"));
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.Code == MoldDiagnosticCodes.InsertsUnavailable && d.Message.Contains("side actions", StringComparison.Ordinal));
     }
 }

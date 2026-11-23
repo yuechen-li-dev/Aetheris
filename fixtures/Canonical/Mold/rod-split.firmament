@@ -1,0 +1,18 @@
+// A round rod molded across its axis: the parting plane through the axis splits its cylinder along the silhouette.
+Model Rod {
+    units: mm
+    Axis spindle { origin: [0mm, 0mm, 0mm]; direction: [1, 0, 0] }
+    Concept Struct meridian on XZ {
+        Polygon2 section { points: [[0mm, 0mm], [40mm, 0mm], [40mm, 8mm], [0mm, 8mm]] }
+    }
+    Profile outline using meridian { Loop Outer { section |> TraceLoop } }
+    Revolve body { profile: outline; about: spindle; angle: full }
+}
+
+Mold RodTool {
+  part: Rod
+  material: POM
+  stage: Concept
+  pull: +Z
+  parting: Plane { origin: [0mm, 0mm, 0mm] }
+}

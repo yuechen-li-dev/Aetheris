@@ -188,3 +188,7 @@ M1 is in: `Extrude` takes `draft:` and `neutral:` with exact drafted planes and 
 too, with holes, counterbores, slots and hollow bosses and pockets ([report](mold-m1-drafted-compose.md)). M1 is
 complete. Fillets and chamfers on drafted walls move to M3 with the sharp-inside-corner rule they answer;
 countersinks stay undrafted (machined), and side holes wait for M2's actions.
+
+M2 is in ([report](mold-m2-actions-and-inserts.md)): undercuts grouped and tried along the directions across the
+pull, `Action` declarations that form the undercuts they release, faces split at their exact silhouette, parting
+loops classified as parting line, shut-off or stepped, and core/cavity inserts cut by assembly rather than Boolean.

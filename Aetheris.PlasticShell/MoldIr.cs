@@ -36,7 +36,14 @@ public static class MoldDiagnosticCodes
     public const string PartingLineOffPlane = "mold-parting-line-off-plane";
     public const string PartingLineOnCosmetic = "mold-parting-line-on-cosmetic-face";
     public const string UndercutOnCosmetic = "mold-cosmetic-face-not-pullable";
+    public const string ActionInvalid = "mold-action-invalid";
+    public const string ActionReleasesNothing = "mold-action-releases-nothing";
+    public const string InsertsUnavailable = "mold-inserts-unavailable";
 }
+
+/// <summary>A side action (slide, lifter, side core) declared in the Mold: it forms the undercuts it can withdraw from
+/// along <see cref="Pull"/>; <see cref="Near"/> picks among undercuts that more than one action could release.</summary>
+public sealed record MoldActionIntent(string Name, Direction3D Pull, Point3D? Near);
 
 public sealed record MoldDiagnostic(string Code, PlasticDiagnosticSeverity Severity, string Message, string? Entity = null);
 
@@ -63,7 +70,9 @@ public sealed record MoldIntent(
     Direction3D Pull,
     MoldPartingPlane? Parting,
     IReadOnlyList<string> Cosmetic,
-    MoldTexture? Texture);
+    MoldTexture? Texture,
+    IReadOnlyList<MoldActionIntent>? Actions = null,
+    double? InsertMargin = null);
 
 public sealed record MoldFaceEvidence(
     int FaceId,
@@ -77,14 +86,41 @@ public sealed record MoldFaceEvidence(
     bool Cosmetic,
     Point3D Representative,
     double Area,
-    MoldEvidenceStrength Strength);
+    MoldEvidenceStrength Strength,
+    string? Action = null,
+    double? SilhouetteHeight = null);
 
 public sealed record MoldPartingLineEvidence(
     IReadOnlyList<int> EdgeIds,
     double MinimumHeight,
     double MaximumHeight,
     bool OnDeclaredPlane,
-    IReadOnlyList<int> CosmeticFacesTouched);
+    IReadOnlyList<int> CosmeticFacesTouched,
+    IReadOnlyList<MoldPartingLoop>? Loops = null);
+
+/// <summary>How a closed loop of the parting line meets the tool.</summary>
+public enum MoldPartingLoopKind
+{
+    /// <summary>On the parting plane: the two halves meet across the parting face around it.</summary>
+    Parting,
+    /// <summary>Flat and across the pull, off the parting plane, around an opening: the halves touch across the opening
+    /// (a shut-off), so the parting plane need not reach it.</summary>
+    ShutOff,
+    /// <summary>Anything else: the parting surface would have to step or follow a contour to reach it.</summary>
+    Stepped,
+}
+
+public sealed record MoldPartingLoop(IReadOnlyList<int> EdgeIds, double MinimumHeight, double MaximumHeight, MoldPartingLoopKind Kind);
+
+/// <summary>Connected undercut faces, the action that forms them if one does, and the directions perpendicular to the
+/// pull along which they would release.</summary>
+public sealed record MoldUndercutGroup(IReadOnlyList<int> FaceIds, Point3D Representative, string? Action, IReadOnlyList<string> ReleasingDirections);
+
+public sealed record MoldActionEvidence(string Name, Direction3D Pull, IReadOnlyList<int> FaceIds, double MinimumDraftDegrees, double RequiredDraftDegrees, bool DraftSatisfied);
+
+/// <summary>The core and cavity inserts cut from a block around the part: block = cavity + core + part.</summary>
+public sealed record MoldInsertEvidence(double Margin, Point3D BlockMinimum, Point3D BlockMaximum, double BlockVolume, double CavityVolume, double CoreVolume,
+    double PartVolume, int CavityFaces, int CoreFaces, int ShutOffs);
 
 public sealed record MoldSummary(
     int Faces,
@@ -96,18 +132,24 @@ public sealed record MoldSummary(
     int UndercutFaces,
     double ProjectedArea,
     double Volume,
-    double ShotMass);
+    double ShotMass,
+    int ActionFaces = 0);
 
 public sealed record MoldReport(
     MoldIntent Intent,
     IReadOnlyList<MoldFaceEvidence> Faces,
     MoldPartingLineEvidence PartingLine,
     MoldSummary Summary,
-    string Method);
+    string Method,
+    IReadOnlyList<MoldUndercutGroup>? Undercuts = null,
+    IReadOnlyList<MoldActionEvidence>? Actions = null,
+    MoldInsertEvidence? Inserts = null);
 
 public sealed record MoldCompileResult(
     bool IsSuccess,
     MoldIntent? Intent,
     MoldReport? Report,
     string? PartStep,
-    IReadOnlyList<MoldDiagnostic> Diagnostics);
+    IReadOnlyList<MoldDiagnostic> Diagnostics,
+    string? CavityStep = null,
+    string? CoreStep = null);

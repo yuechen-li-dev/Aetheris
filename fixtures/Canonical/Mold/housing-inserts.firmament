@@ -1,0 +1,26 @@
+// The drafted housing with a vent through its top, cut into core and cavity inserts: the vent is a shut-off where
+// the cavity's pin meets the core inside the part.
+Model Housing {
+  units: mm
+  Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [100mm, 60mm]; radius: 8mm }
+  Profile pad = RoundedRect2 { center: [-25mm, 0mm]; size: [24mm, 24mm]; radius: 4mm }
+  Profile well = RoundedRect2 { center: [22mm, 0mm]; size: [30mm, 20mm]; radius: 4mm }
+  Compose<Hollow> body {
+    wallThickness: 2mm
+    openings: [Bottom]
+    draft: 1.5deg
+    Base stock { profile: outline; from: 0mm; to: 25mm; role: Stock }
+    Boss button { on: Top; profile: pad; height: 6mm }
+    Pocket recess { on: Top; profile: well; depth: 5mm }
+    Hole<Shaft> vent { on: +Z; center: [0mm, 18mm]; diameter: 4mm; end: ThroughAll }
+  }
+}
+
+Mold HousingTool {
+  part: Housing
+  material: ABS
+  stage: Tooling
+  pull: +Z
+  parting: Plane { at: face(-Z) }
+  inserts: 10mm
+}

@@ -933,16 +933,21 @@ public static class CliRunner
     {
         var compile = MoldFirmament.CompileFile(sourcePath);
         var output = compile.PartStep is null ? null : Path.GetFullPath(outPath ?? Path.ChangeExtension(sourcePath, ".step"));
-        string? reportPath = null;
+        string? reportPath = null, cavityPath = null, corePath = null;
         if (output is not null)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(output)!);
             File.WriteAllText(output, compile.PartStep);
             reportPath = Path.ChangeExtension(output, ".mold.json");
             File.WriteAllText(reportPath, JsonSerializer.Serialize(new { compile.Report, diagnostics = compile.Diagnostics }, JsonOptions));
+            if (compile.CavityStep is not null && compile.CoreStep is not null)
+            {
+                cavityPath = Path.ChangeExtension(output, ".cavity.step"); corePath = Path.ChangeExtension(output, ".core.step");
+                File.WriteAllText(cavityPath, compile.CavityStep); File.WriteAllText(corePath, compile.CoreStep);
+            }
         }
         if (json)
-            stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = compile.IsSuccess, input = Path.GetFullPath(sourcePath), output, report = reportPath, domain = "Mold",
+            stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = compile.IsSuccess, input = Path.GetFullPath(sourcePath), output, report = reportPath, cavity = cavityPath, core = corePath, domain = "Mold",
                 mold = compile.Intent?.MoldName, part = compile.Intent?.PartName, stage = compile.Intent?.Stage.ToString(), summary = compile.Report?.Summary, diagnostics = compile.Diagnostics }, JsonOptions));
         else
         {
@@ -953,7 +958,10 @@ public static class CliRunner
                 stdout.WriteLine($"  faces {s.Faces}: {s.PositiveFaces} +pull, {s.NegativeFaces} -pull, {s.VerticalFaces} parallel, {s.StraddlingFaces} straddling; {s.DraftFailures} short of draft, {s.UndercutFaces} undercut");
                 stdout.WriteLine($"  projected area {s.ProjectedArea:0.#} mm², volume {s.Volume:0.#} mm³, shot {s.ShotMass:0.##} g; parting line {report.PartingLine.EdgeIds.Count} edges" + (report.PartingLine.OnDeclaredPlane ? "" : " (off the declared plane)"));
             }
+            if (compile.Report?.Inserts is { } inserts)
+                stdout.WriteLine($"  inserts: cavity {inserts.CavityVolume:0.#} mm³ ({inserts.CavityFaces} faces), core {inserts.CoreVolume:0.#} mm³ ({inserts.CoreFaces} faces), {inserts.ShutOffs} shut-off(s); block {inserts.BlockVolume:0.#} mm³");
             if (output is not null) { stdout.WriteLine($"STEP: {output}"); stdout.WriteLine($"Report: {reportPath}"); }
+            if (cavityPath is not null) { stdout.WriteLine($"Cavity: {cavityPath}"); stdout.WriteLine($"Core: {corePath}"); }
             foreach (var d in compile.Diagnostics) (d.Severity == PlasticDiagnosticSeverity.Error ? stderr : stdout).WriteLine($"{d.Severity.ToString().ToLowerInvariant()} {d.Code}: {d.Message}");
         }
         return compile.IsSuccess ? 0 : 1;

@@ -1,0 +1,25 @@
+// The latch block without its side action: the pin hole is an undercut that releases only along -Y.
+Model Latch {
+  units: mm
+  Path Outline {
+    start: Point2(-20mm, -15mm)
+    heading: 0deg
+    Line Front { length: 40mm }
+    Line Right { turn: 90deg; length: 30mm }
+    Line Back { turn: 90deg; length: 40mm }
+    Close Left
+  }
+  Profile Plate from Outline
+  Compose Body { Base Stock { profile: Plate; from: 0mm; to: 20mm; role: Stock } }
+  Modify Body {
+    Hole<Shaft> Pin { from: Outline.Front; center: Point2(0mm, 10mm); diameter: 6mm; end: Blind 12mm }
+  }
+}
+
+Mold LatchTool {
+  part: Latch
+  material: ABS
+  stage: Tooling
+  pull: +Z
+  parting: Plane { at: face(-Z) }
+}

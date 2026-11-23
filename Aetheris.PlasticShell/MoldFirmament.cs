@@ -15,7 +15,7 @@ namespace Aetheris.PlasticShell;
 public static partial class MoldFirmament
 {
     private static readonly HashSet<string> Fields = new(StringComparer.OrdinalIgnoreCase)
-        { "part", "material", "policy", "stage", "pull", "parting", "cosmetic", "texture", "minimumDraft" };
+        { "part", "material", "policy", "stage", "pull", "parting", "cosmetic", "texture", "minimumDraft", "inserts" };
 
     public static bool LooksLikeMold(string? source) => source is not null && source.Contains("Mold", StringComparison.Ordinal)
         && FirmamentSyntaxParser.Parse(source).Document.Statements.OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text == "Mold");
@@ -45,17 +45,28 @@ public static partial class MoldFirmament
         if (!body.IsSuccess)
             return Fail(diagnostics, MoldDiagnosticCodes.PartBuildFailed, "The part's STEP did not import as one closed body: " + string.Join("; ", body.Diagnostics.Select(d => d.Message)), intent.PartName, intent);
 
-        var report = MoldAnalysis.Analyze(body.Value, intent, diagnostics);
-        return new(report is not null && !diagnostics.Any(d => d.Severity == PlasticDiagnosticSeverity.Error), intent, report, built.Value.StepText, diagnostics);
+        var report = MoldAnalysis.Analyze(body.Value, intent, diagnostics, out var inserts);
+        string? cavityStep = null, coreStep = null;
+        if (inserts is not null)
+        {
+            var cavity = Step242Exporter.ExportBody(inserts.Cavity);
+            var core = Step242Exporter.ExportBody(inserts.Core);
+            if (cavity.IsSuccess && core.IsSuccess) { cavityStep = cavity.Value; coreStep = core.Value; }
+            else diagnostics.Add(new(MoldDiagnosticCodes.InsertsUnavailable, PlasticDiagnosticSeverity.Error,
+                "The inserts were cut but did not export: " + string.Join("; ", cavity.Diagnostics.Concat(core.Diagnostics).Select(d => d.Message)), intent.MoldName));
+        }
+        return new(report is not null && !diagnostics.Any(d => d.Severity == PlasticDiagnosticSeverity.Error), intent, report, built.Value.StepText, diagnostics, cavityStep, coreStep);
     }
 
     private static MoldIntent? ReadIntent(string source, DocumentSyntax document, DeclarationSyntax mold, List<MoldDiagnostic> diagnostics)
     {
         var name = mold.Name!.Text;
         var fields = new Dictionary<string, FieldSyntax>(StringComparer.OrdinalIgnoreCase);
+        var actionDeclarations = new List<DeclarationSyntax>();
         foreach (var statement in mold.Body?.Statements ?? [])
         {
-            if (statement is not FieldSyntax field) { Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, $"Mold {name} takes fields only; declarations such as Gate and Action arrive in later phases.", name); continue; }
+            if (statement is DeclarationSyntax { Type.Name.Text: "Action" } declaration) { actionDeclarations.Add(declaration); continue; }
+            if (statement is not FieldSyntax field) { Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, $"Mold {name} takes fields and Action declarations; Gate and Ejector arrive in later phases.", name); continue; }
             if (!Fields.Contains(field.Name.Text)) { Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, $"Unknown Mold field '{field.Name.Text}'. Known fields: {string.Join(", ", Fields.Order())}.", name); continue; }
             if (!fields.TryAdd(field.Name.Text, field)) Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, $"Mold field '{field.Name.Text}' is declared twice.", name);
         }
@@ -105,7 +116,34 @@ public static partial class MoldFirmament
                 else texture = new(Selectors(source, faces.Value, diagnostics, name), mm);
             }
         }
-        return pull is null || part is null ? null : new MoldIntent(name, part, policy, stage, pull.Value, parting, cosmetic, texture);
+        var actions = new List<MoldActionIntent>();
+        foreach (var declaration in actionDeclarations)
+        {
+            var actionName = declaration.Name?.Text;
+            if (actionName is null) { Error(diagnostics, MoldDiagnosticCodes.ActionInvalid, "An Action needs a name: Action slide { pull: -X }.", name); continue; }
+            var inner = (declaration.Body?.Statements ?? []).OfType<FieldSyntax>().ToDictionary(f => f.Name.Text, StringComparer.OrdinalIgnoreCase);
+            foreach (var key in inner.Keys.Where(k => !k.Equals("pull", StringComparison.OrdinalIgnoreCase) && !k.Equals("near", StringComparison.OrdinalIgnoreCase)))
+                Error(diagnostics, MoldDiagnosticCodes.ActionInvalid, $"Action {actionName}: unknown field '{key}'. An Action takes pull and, optionally, near.", name);
+            if (!inner.TryGetValue("pull", out var actionPull) || !TryDirection(Text(actionPull.Value), out var actionDirection))
+            { Error(diagnostics, MoldDiagnosticCodes.ActionInvalid, $"Action {actionName} needs pull: the direction it withdraws along, such as -X or [1, 0, 0].", name); continue; }
+            if (pull is { } main && double.Abs(actionDirection.ToVector().Dot(main.ToVector())) > 1 - 1e-9)
+            { Error(diagnostics, MoldDiagnosticCodes.ActionInvalid, $"Action {actionName} pulls along the main pull; the halves already move that way.", name); continue; }
+            Point3D? near = null;
+            if (inner.TryGetValue("near", out var nearField))
+            {
+                if (TryPoint(Text(nearField.Value), out var point)) near = point;
+                else { Error(diagnostics, MoldDiagnosticCodes.ActionInvalid, $"Action {actionName}: near is a point [x, y, z] in mm.", name); continue; }
+            }
+            if (actions.Any(a => a.Name == actionName)) { Error(diagnostics, MoldDiagnosticCodes.ActionInvalid, $"Action {actionName} is declared twice.", name); continue; }
+            actions.Add(new(actionName, actionDirection, near));
+        }
+        double? margin = null;
+        if (fields.TryGetValue("inserts", out var insertsField))
+        {
+            if (TryLength(Text(insertsField.Value), out var mm) && mm > 0) margin = mm;
+            else Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, "inserts takes the block's margin around the part, a positive length such as 10mm.", name);
+        }
+        return pull is null || part is null ? null : new MoldIntent(name, part, policy, stage, pull.Value, parting, cosmetic, texture, actions, margin);
     }
 
     /// <summary>A typed policy Static overrides the material's defaults field by field.</summary>

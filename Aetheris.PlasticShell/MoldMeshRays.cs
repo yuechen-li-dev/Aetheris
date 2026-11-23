@@ -99,6 +99,72 @@ internal sealed class MoldMeshRays
         return best;
     }
 
+    /// <summary>The nearest point of the mesh to <paramref name="point"/>: the point, its distance, face, and the triangle's normal
+    /// (by the mesh's winding, outward for the part's own patches).</summary>
+    public (Point3D Point, double Distance, int Face, Vector3D Normal)? Locate(Point3D point, double limit = double.PositiveInfinity)
+    {
+        (Point3D, double, int, Vector3D)? best = null;
+        var stack = new Stack<Node>(); stack.Push(root);
+        while (stack.TryPop(out var node))
+        {
+            if (BoxDistance(node, point) >= limit) continue;
+            if (node.Items is { } items)
+            {
+                foreach (var i in items)
+                {
+                    var t = triangles[i];
+                    var q = ClosestOnTriangle(point, t.A, t.B, t.C);
+                    var d = (q - point).Length;
+                    if (d < limit)
+                    {
+                        var n = (t.B - t.A).Cross(t.C - t.A);
+                        limit = d; best = (q, d, t.Face, n.Length > 0 ? n / n.Length : n);
+                    }
+                }
+                continue;
+            }
+            var (near, far) = BoxDistance(node.Left!, point) <= BoxDistance(node.Right!, point) ? (node.Left!, node.Right!) : (node.Right!, node.Left!);
+            stack.Push(far); stack.Push(near);
+        }
+        return best;
+    }
+
+    /// <summary>Every crossing of the line through <paramref name="origin"/> along <paramref name="direction"/> with the mesh, as
+    /// parameters along it, sorted; crossings closer than <paramref name="merge"/> (a shared triangle edge) count once.</summary>
+    public IReadOnlyList<double> Crossings(Point3D origin, Vector3D direction, double merge)
+    {
+        var found = new List<double>();
+        var stack = new Stack<Node>(); stack.Push(root);
+        while (stack.TryPop(out var node))
+        {
+            if (!Slab(node, origin, direction, double.PositiveInfinity)) continue;
+            if (node.Items is { } items)
+            {
+                foreach (var i in items)
+                {
+                    var (a, b, c, _) = triangles[i];
+                    var e1 = b - a; var e2 = c - a;
+                    var h = direction.Cross(e2);
+                    var det = e1.Dot(h);
+                    if (double.Abs(det) < 1e-14 * e1.Length * e2.Length) continue;
+                    var f = 1d / det; var s = origin - a;
+                    var u = f * s.Dot(h);
+                    if (u < -1e-9 || u > 1 + 1e-9) continue;
+                    var q = s.Cross(e1);
+                    var v = f * direction.Dot(q);
+                    if (v < -1e-9 || u + v > 1 + 1e-9) continue;
+                    found.Add(f * e2.Dot(q));
+                }
+                continue;
+            }
+            stack.Push(node.Left!); stack.Push(node.Right!);
+        }
+        found.Sort();
+        var merged = new List<double>();
+        foreach (var t in found) if (merged.Count == 0 || t - merged[^1] > merge) merged.Add(t);
+        return merged;
+    }
+
     private static double BoxDistance(Node node, Point3D p)
     {
         var dx = double.Max(0, double.Max(node.Min.X - p.X, p.X - node.Max.X));

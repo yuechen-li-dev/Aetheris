@@ -1,0 +1,17 @@
+// An edge gate declared on the top face, 2.5 mm above the parting line at the bottom: an edge gate sits on the parting
+// line, so the declaration contradicts the tool.
+Model Plate {
+  units: mm
+  RoundedRect2 outline { center: [0mm, 0mm]; size: [120mm, 60mm]; radius: 6mm }
+  Profile plate { Loop Outer { outline |> TraceLoop } }
+  Extrude body { profile: plate; from: 0mm; to: 2.5mm; draft: 1deg }
+}
+
+Mold PlateTool {
+  part: Plate
+  material: ABS
+  stage: Concept
+  pull: +Z
+  parting: Plane { at: face(-Z) }
+  Gate main { kind: Edge; at: [0mm, 0mm, 2.5mm] }
+}

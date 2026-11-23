@@ -70,13 +70,19 @@ public static partial class MoldFirmament
     public static IReadOnlyDictionary<string, string> MeasurementValues(MoldMeasurements m)
     {
         static string Mm(double v) => $"{v.ToString("0.#########", CultureInfo.InvariantCulture)}mm";
-        return new Dictionary<string, string>(StringComparer.Ordinal)
+        var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["draft.minimum"] = $"{m.MinimumDraftDegrees.ToString("0.#########", CultureInfo.InvariantCulture)}deg",
             ["wall.minimum"] = Mm(m.MinimumWall), ["wall.maximum"] = Mm(m.MaximumWall), ["wall.nominal"] = Mm(m.NominalWall),
             ["corner.sharp"] = m.SharpInsideCorners.ToString(CultureInfo.InvariantCulture), ["corner.minimumRadius"] = Mm(m.MinimumInsideRadius),
             ["undercuts"] = m.Undercuts.ToString(CultureInfo.InvariantCulture), ["actions"] = m.Actions.ToString(CultureInfo.InvariantCulture),
+            ["gates"] = m.Gates.ToString(CultureInfo.InvariantCulture), ["ejectors"] = m.Ejectors.ToString(CultureInfo.InvariantCulture),
+            ["knit.count"] = m.KnitLines.ToString(CultureInfo.InvariantCulture), ["knit.cosmetic"] = m.KnitLinesOnCosmetic.ToString(CultureInfo.InvariantCulture),
         };
+        // The fill is measured only from declared gates.
+        if (m.FlowRatio is { } ratio) values["flow.ratio"] = ratio.ToString("0.#########", CultureInfo.InvariantCulture);
+        if (m.FlowLength is { } length) values["flow.length"] = Mm(length);
+        return values;
     }
 
     private static IReadOnlyList<MoldRequirementEvidence> CheckRequirements(string source, IReadOnlyList<MoldRequirement> requires, MoldMeasurements measured,
@@ -94,10 +100,14 @@ public static partial class MoldFirmament
         var name = mold.Name!.Text;
         var fields = new Dictionary<string, FieldSyntax>(StringComparer.OrdinalIgnoreCase);
         var actionDeclarations = new List<DeclarationSyntax>();
+        var gateDeclarations = new List<DeclarationSyntax>();
+        var ejectorDeclarations = new List<DeclarationSyntax>();
         var requirements = new List<MoldRequirement>();
         foreach (var statement in mold.Body?.Statements ?? [])
         {
             if (statement is DeclarationSyntax { Type.Name.Text: "Action" } declaration) { actionDeclarations.Add(declaration); continue; }
+            if (statement is DeclarationSyntax { Type.Name.Text: "Gate" } gate) { gateDeclarations.Add(gate); continue; }
+            if (statement is DeclarationSyntax { Type.Name.Text: "Ejector" } ejector) { ejectorDeclarations.Add(ejector); continue; }
             if (statement is DeclarationSyntax { Type.Name.Text: "Require" } require)
             {
                 if (require.Name is null || require.Initializer is null || require.Body is not null)
@@ -107,7 +117,7 @@ public static partial class MoldFirmament
                 else requirements.Add(new(require.Name.Text, source.Substring(require.Initializer.Span.Start, require.Initializer.Span.Length)));
                 continue;
             }
-            if (statement is not FieldSyntax field) { Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, $"Mold {name} takes fields, Action and Require declarations; Gate and Ejector arrive in later phases.", name); continue; }
+            if (statement is not FieldSyntax field) { Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, $"Mold {name} takes fields, and Action, Gate, Ejector and Require declarations.", name); continue; }
             if (!Fields.Contains(field.Name.Text)) { Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, $"Unknown Mold field '{field.Name.Text}'. Known fields: {string.Join(", ", Fields.Order())}.", name); continue; }
             if (!fields.TryAdd(field.Name.Text, field)) Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, $"Mold field '{field.Name.Text}' is declared twice.", name);
         }
@@ -178,13 +188,43 @@ public static partial class MoldFirmament
             if (actions.Any(a => a.Name == actionName)) { Error(diagnostics, MoldDiagnosticCodes.ActionInvalid, $"Action {actionName} is declared twice.", name); continue; }
             actions.Add(new(actionName, actionDirection, near));
         }
+        var gates = new List<MoldGateIntent>();
+        foreach (var declaration in gateDeclarations)
+        {
+            var gateName = declaration.Name?.Text;
+            if (gateName is null) { Error(diagnostics, MoldDiagnosticCodes.GateInvalid, "A Gate needs a name: Gate main { kind: Edge; at: [x, y, z] }.", name); continue; }
+            var inner = (declaration.Body?.Statements ?? []).OfType<FieldSyntax>().ToDictionary(f => f.Name.Text, StringComparer.OrdinalIgnoreCase);
+            foreach (var key in inner.Keys.Where(k => k is not ("kind" or "at")))
+                Error(diagnostics, MoldDiagnosticCodes.GateInvalid, $"Gate {gateName}: unknown field '{key}'. A Gate takes kind and at.", name);
+            if (!inner.TryGetValue("kind", out var kindField) || !Enum.TryParse<MoldGateKind>(Text(kindField.Value), false, out var kind))
+            { Error(diagnostics, MoldDiagnosticCodes.GateInvalid, $"Gate {gateName} needs kind: Edge, Submarine, Pin or Direct.", name); continue; }
+            if (!inner.TryGetValue("at", out var atField) || !TryPoint(Text(atField.Value), out var at))
+            { Error(diagnostics, MoldDiagnosticCodes.GateInvalid, $"Gate {gateName} needs at: a point [x, y, z] in mm on the part.", name); continue; }
+            if (gates.Any(g => g.Name == gateName)) { Error(diagnostics, MoldDiagnosticCodes.GateInvalid, $"Gate {gateName} is declared twice.", name); continue; }
+            gates.Add(new(gateName, kind, at));
+        }
+        var ejectors = new List<MoldEjectorIntent>();
+        foreach (var declaration in ejectorDeclarations)
+        {
+            var pinName = declaration.Name?.Text;
+            if (pinName is null) { Error(diagnostics, MoldDiagnosticCodes.EjectorInvalid, "An Ejector needs a name: Ejector e1 { at: [x, y, z]; diameter: 4mm }.", name); continue; }
+            var inner = (declaration.Body?.Statements ?? []).OfType<FieldSyntax>().ToDictionary(f => f.Name.Text, StringComparer.OrdinalIgnoreCase);
+            foreach (var key in inner.Keys.Where(k => k is not ("at" or "diameter")))
+                Error(diagnostics, MoldDiagnosticCodes.EjectorInvalid, $"Ejector {pinName}: unknown field '{key}'. An Ejector takes at and diameter.", name);
+            if (!inner.TryGetValue("at", out var atField) || !TryPoint(Text(atField.Value), out var at))
+            { Error(diagnostics, MoldDiagnosticCodes.EjectorInvalid, $"Ejector {pinName} needs at: a point [x, y, z] in mm on the part.", name); continue; }
+            if (!inner.TryGetValue("diameter", out var diameterField) || !TryLength(Text(diameterField.Value), out var diameter) || diameter <= 0)
+            { Error(diagnostics, MoldDiagnosticCodes.EjectorInvalid, $"Ejector {pinName} needs diameter: a positive length such as 4mm.", name); continue; }
+            if (ejectors.Any(e => e.Name == pinName)) { Error(diagnostics, MoldDiagnosticCodes.EjectorInvalid, $"Ejector {pinName} is declared twice.", name); continue; }
+            ejectors.Add(new(pinName, at, diameter));
+        }
         double? margin = null;
         if (fields.TryGetValue("inserts", out var insertsField))
         {
             if (TryLength(Text(insertsField.Value), out var mm) && mm > 0) margin = mm;
             else Error(diagnostics, MoldDiagnosticCodes.SourceInvalid, "inserts takes the block's margin around the part, a positive length such as 10mm.", name);
         }
-        return pull is null || part is null ? null : new MoldIntent(name, part, policy, stage, pull.Value, parting, cosmetic, texture, actions, margin, requirements, source);
+        return pull is null || part is null ? null : new MoldIntent(name, part, policy, stage, pull.Value, parting, cosmetic, texture, actions, margin, requirements, source, gates, ejectors);
     }
 
     /// <summary>A typed policy Static overrides the material's defaults field by field.</summary>
@@ -212,6 +252,7 @@ public static partial class MoldFirmament
             MaximumWall = Value("MaximumWall", "mm") ?? policy.MaximumWall,
             MaximumFlowRatio = Value("MaximumFlowRatio", "") ?? policy.MaximumFlowRatio,
             MinimumInsideRadius = Value("MinimumInsideRadius", "mm") ?? policy.MinimumInsideRadius,
+            EjectorClearance = Value("EjectorClearance", "mm") ?? policy.EjectorClearance,
         };
     }
 

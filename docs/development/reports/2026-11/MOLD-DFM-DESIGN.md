@@ -201,3 +201,7 @@ block, evaluated by the ordinary Concept checker over the review's measurements,
 The M2 insert gaps are closed ([report](mold-m2-split-and-slide-inserts.md)): faces crossing the parting plane are
 cut there before the inserts are assembled, and each side action gets a capped pin, with block = cavity + core +
 part + pins.
+
+M4 is in ([report](mold-m4-gates-ejectors-flow.md)): declared gates and ejector pins checked against the halves, the
+parting line and cosmetic faces; a voxel fill from the gates gives flow ratio and length, and knit lines where fronts
+meet behind obstacles or between gates.

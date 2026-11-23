@@ -15,6 +15,10 @@ Each file is an ordinary part `Model` plus one `Mold` block that reads it. Build
   releases, with thick sections and sharp inside edges (warnings).
 - `drafted-hollow-cover.firmament`, `drafted-housing.firmament`: drafted hollow Compose shells that release at the
   `Tooling` stage with an even 2 mm wall; the only findings are sharp inside edges (warnings).
+- `cover-tool-layout.firmament`: the hollow cover with an edge gate, two ejector pins on its ceiling, a cosmetic
+  top, and a house fill standard (flow ratio, knit lines on cosmetic faces) as a `Require`.
+- `gated-plate.firmament`: a plate with a hole gated at one end; the knit line behind the hole runs across the
+  cosmetic top (a warning at the `Prototype` stage).
 - `cover-requirements.firmament`: the hollow cover held to a house standard: two Concepts applied by `Require`
   over the review's wall, draft and undercut measurements.
 - `side-action-latch.firmament`: a pin hole drilled from the side is an undercut formed by the side action
@@ -28,4 +32,4 @@ Each file is an ordinary part `Model` plus one `Mold` block that reads it. Build
 
 The invalid fixtures (`fixtures/Invalid/Mold`) show undercuts (a bottle shoulder, a pulley groove, a side hole
 without its action), an action that releases nothing, an unknown material, and a `Require` that fails at its
-Concept's `rounded` check.
+Concept's `rounded` check, an edge gate off the parting line, and an ejector pin on the +pull half.

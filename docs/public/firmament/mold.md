@@ -39,7 +39,7 @@ Mold TrayTool on RoundedTray (ABS, Concept, pull [0, 0, 1])
 | --- | --- |
 | `part` | The `Model` in the same file. Optional when the file has one Model. |
 | `material` | Default rules: `ABS`, `PC`, `PC_ABS`, `PP`, `HDPE`, `PA66`, `PA66_GF30`, `POM`, `PMMA`. |
-| `policy` | Optional `Static` whose fields override the material: `MinimumDraft`, `MinimumWall`, `MaximumWall`, `MinimumInsideRadius`, `MaximumFlowRatio`. |
+| `policy` | Optional `Static` whose fields override the material: `MinimumDraft`, `MinimumWall`, `MaximumWall`, `MinimumInsideRadius`, `MaximumFlowRatio`, `EjectorClearance`. |
 | `minimumDraft` | Optional angle overriding the policy's minimum draft. |
 | `stage` | `Concept` (default), `Prototype` or `Tooling`: how hard findings are (below). |
 | `pull` | The direction one half opens: `+Z`, `-X` … or a vector `[0, 0, 1]`. The other half opens the opposite way. |
@@ -48,6 +48,8 @@ Mold TrayTool on RoundedTray (ABS, Concept, pull [0, 0, 1])
 | `texture` | `{ faces: [...]; depth: 0.025mm }`: textured faces need 1° more draft per 0.025 mm of depth. |
 | `inserts` | A margin such as `10mm`: cut the core and cavity inserts from a block that much larger than the part (below). |
 | `Require name => Concept(…)` | A requirement the review's measurements must meet (below). |
+| `Gate name { kind; at }` | Where the melt enters (below). |
+| `Ejector name { at; diameter }` | A round ejector pin (below). |
 | `Action name { … }` | A side action (slide, side core): `pull: -Y` is the direction it withdraws along; `near: [x, y, z]` picks among undercuts more than one action could release. |
 
 Faces are named by `face(+X)` … `face(-Z)` (the planar faces lying in the part's extreme plane in that direction) or
@@ -129,6 +131,10 @@ these measurements:
 | `corner.minimumRadius` | Length | The smallest inside radius: 0 with a sharp corner. |
 | `undercuts` | Int | Undercuts no action forms. |
 | `actions` | Int | Declared side actions. |
+| `gates`, `ejectors` | Int | Declared gates and ejector pins. |
+| `flow.ratio` | Float | The largest flow ratio (path over wall) from the gates; only when a gate is declared. |
+| `flow.length` | Length | The longest flow path from the gates; only when a gate is declared. |
+| `knit.count`, `knit.cosmetic` | Int | Knit lines, and those that reach a cosmetic face. |
 
 A requirement that fails is an error at every stage, and names the Concept member that failed
 (`HouseCorners.rounded`). One that names an unknown Concept or measurement, or is not Boolean, is an error too. The
@@ -179,17 +185,69 @@ neither half, the parting line leaves the plane, or an action's mouth is not fla
 top, is cut into inserts with one shut-off; the [latch](../../../fixtures/Canonical/Mold/side-action-latch.firmament)
 into a core, a cavity and its pin.
 
+## Gates and ejectors
+
+[The cover's tool layout](../../../fixtures/Canonical/Mold/cover-tool-layout.firmament):
+
+```firmament
+Mold CoverTool {
+  part: HollowCover
+  material: ABS
+  stage: Tooling
+  pull: +Z
+  parting: Plane { at: face(-Z) }
+  cosmetic: [face(+Z)]
+  Gate main { kind: Edge; at: [40mm, 0mm, 0mm] }
+  Ejector e1 { at: [-20mm, 0mm, 18mm]; diameter: 4mm }
+  Ejector e2 { at: [20mm, 0mm, 18mm]; diameter: 4mm }
+}
+```
+
+A gate's `at` is a point on the part (within 0.1 mm). Its `kind` says where it can be:
+
+| Kind | Where |
+| --- | --- |
+| `Edge` | On the parting line (within 0.5 mm), fed from a runner in the parting plane. |
+| `Submarine` | On a face the −pull half forms; tunnelled through it. |
+| `Pin` | On a face the +pull half forms, fed from a runner plate (a three-plate tool). |
+| `Direct` | On a face the +pull half forms, straight from the sprue. |
+
+No gate may be on a side action's face. A gate on a cosmetic face leaves a vestige there, which is a finding.
+
+An ejector's `at` is a point on the part where the pin pushes. The pin must push on a face the −pull half forms,
+square to the pull (within 1°). Its footprint, and the policy's `EjectorClearance` around it (0.5 mm by default), must
+lie on such faces at its height: clear of walls, holes and edges. The report gives each pin's seat faces and the pins'
+total area. A pin on a cosmetic face leaves a witness mark, which is a finding.
+
+## Fill and knit lines
+
+With a gate declared, the review fills the part from its gates. The interior is sampled in cells a third of the
+thinnest wall across or larger, up to 600,000 cells. Each cell gets the shortest path to it through the material from
+the nearest gate. The **flow ratio** is that path measured in walls (each step divided by the wall behind the nearest
+face, summed): over the material's `MaximumFlowRatio` (ABS 150, PC 100, PP 250), the part may not fill, and the report
+names the last point to fill. Filling the volume, not the surface, keeps both skins of a wall one front.
+
+A **knit line** is where fronts meet head-on: from two gates, or from one front split around a hole or a wall and
+closing behind it. The [gated plate](../../../fixtures/Canonical/Mold/gated-plate.firmament) has one, from its hole to
+its far end. A knit line is weaker than the wall around it and shows on the surface; one that reaches a cosmetic face
+is a finding. Fronts meeting at less than 45° (meld lines) are not reported.
+
+The fill is sampled: it is a geometric proxy (shortest paths, no viscosity, no pressure, no cooling) that catches parts
+that will not fill and knit lines where they will show. It does not replace a flow simulation.
+
 ## Stages
 
 | Finding | Concept | Prototype | Tooling |
 | --- | --- | --- | --- |
 | Undercut, straddling face | warning | error | error |
 | Draft, wall too thin or too thick, parting line off plane, parting line on a cosmetic face | warning | warning | error |
+| Flow ratio over the material's, a part of the interior the gates do not reach, a knit line, gate or ejector pin on a cosmetic face, an ejector pin off square or inside its clearance | warning | warning | error |
 | Sharp inside corner | warning | warning | warning |
 | Failed `Require` | error | error | error |
 
 An error fails the build. Problems in the Mold block itself (an unknown material, a selector that names no face, an
-action that releases nothing, inserts that cannot be cut) are always errors.
+action that releases nothing, inserts that cannot be cut, a gate or ejector pin off the part or on the wrong half, an
+edge gate off the parting line) are always errors.
 
 ## Not yet
 
@@ -202,7 +260,7 @@ drafted Compose does not yet round them. The
 [drafted housing](../../../fixtures/Canonical/Mold/drafted-housing.firmament), a hollow shell with a hollow
 boss and a pocket, passes too.
 
-Lifters, slides for undercuts whose mouth is not flat, stepped and contoured parting surfaces, gates, ejectors, rib and boss rules, flow length, and fillets and
-chamfers on drafted walls are later phases. An undrafted part reports its
+Lifters, slides for undercuts whose mouth is not flat, stepped and contoured parting surfaces, rib and boss rules,
+ejector sleeves and blades, runner and cooling layout, and fillets and chamfers on drafted walls are later phases. An undrafted part reports its
 vertical walls as short of draft; the `Concept` stage keeps that a warning. `PlasticShell` remains the bounded route
 for its frustum enclosures.

@@ -44,7 +44,35 @@ public static class MoldDiagnosticCodes
     public const string SharpInsideCorner = "mold-sharp-inside-corner";
     public const string RequirementFailed = "mold-requirement-failed";
     public const string RequirementInvalid = "mold-requirement-invalid";
+    public const string GateInvalid = "mold-gate-invalid";
+    public const string GateMisplaced = "mold-gate-misplaced";
+    public const string GateOnCosmetic = "mold-gate-on-cosmetic-face";
+    public const string EjectorInvalid = "mold-ejector-invalid";
+    public const string EjectorMisplaced = "mold-ejector-misplaced";
+    public const string EjectorOnCosmetic = "mold-ejector-on-cosmetic-face";
+    public const string FlowTooLong = "mold-flow-too-long";
+    public const string FlowUnfilled = "mold-flow-unfilled";
+    public const string KnitLineOnCosmetic = "mold-knit-line-on-cosmetic-face";
 }
+
+/// <summary>How the melt enters the part.</summary>
+public enum MoldGateKind
+{
+    /// <summary>At the parting line, from a runner in the parting plane.</summary>
+    Edge,
+    /// <summary>Tunnelled through the −pull (core) half below the parting line; sheared off on ejection.</summary>
+    Submarine,
+    /// <summary>A pinpoint gate on the +pull (cavity) half, fed from a runner plate (a three-plate tool).</summary>
+    Pin,
+    /// <summary>The sprue straight onto the +pull half.</summary>
+    Direct,
+}
+
+/// <summary><c>Gate name { kind; at }</c>: where the melt enters.</summary>
+public sealed record MoldGateIntent(string Name, MoldGateKind Kind, Point3D At);
+
+/// <summary><c>Ejector name { at; diameter }</c>: a round ejector pin pushing the part off the −pull half.</summary>
+public sealed record MoldEjectorIntent(string Name, Point3D At, double Diameter);
 
 /// <summary>A side action (slide, lifter, side core) declared in the Mold: it forms the undercuts it can withdraw from
 /// along <see cref="Pull"/>; <see cref="Near"/> picks among undercuts that more than one action could release.</summary>
@@ -62,7 +90,8 @@ public sealed record MoldingPolicy(
     double MaximumFlowRatio,
     double Shrinkage,
     double Density,
-    double MinimumInsideRadius = 0.5);
+    double MinimumInsideRadius = 0.5,
+    double EjectorClearance = 0.5);
 
 public sealed record MoldPartingPlane(Point3D Origin, Direction3D Normal, string Source);
 
@@ -80,7 +109,9 @@ public sealed record MoldIntent(
     IReadOnlyList<MoldActionIntent>? Actions = null,
     double? InsertMargin = null,
     IReadOnlyList<MoldRequirement>? Requirements = null,
-    string? Source = null);
+    string? Source = null,
+    IReadOnlyList<MoldGateIntent>? Gates = null,
+    IReadOnlyList<MoldEjectorIntent>? Ejectors = null);
 
 /// <summary><c>Require name => expression</c> in a Mold: a Concept applied to the review's measurements.</summary>
 public sealed record MoldRequirement(string Name, string Expression);
@@ -109,7 +140,25 @@ public sealed record MoldCornerEvidence(int EdgeId, IReadOnlyList<int> FaceIds, 
 
 /// <summary>The review's measurements, as the names a Mold <c>Require</c> can use.</summary>
 public sealed record MoldMeasurements(double MinimumDraftDegrees, double MinimumWall, double MaximumWall, double NominalWall,
-    int SharpInsideCorners, double MinimumInsideRadius, int Undercuts, int Actions);
+    int SharpInsideCorners, double MinimumInsideRadius, int Undercuts, int Actions,
+    int Gates = 0, int Ejectors = 0, double EjectorArea = 0, double? FlowRatio = null, double? FlowLength = null, int KnitLines = 0, int KnitLinesOnCosmetic = 0);
+
+/// <summary>A gate, snapped to the part: the face it lands on, and the problem with it, if any.</summary>
+public sealed record MoldGateEvidence(string Name, MoldGateKind Kind, Point3D At, int? FaceId, MoldFaceSide? Side, double Offset,
+    double? DistanceToPartingLine, bool Cosmetic, string? Problem);
+
+/// <summary>An ejector pin: the faces its footprint (with the policy's clearance) seats on, and the problem with it, if any.</summary>
+public sealed record MoldEjectorEvidence(string Name, Point3D At, double Diameter, int? FaceId, IReadOnlyList<int> SeatFaces, bool Cosmetic, string? Problem);
+
+/// <summary>Where melt fronts meet: behind an obstacle the front splits around (<see cref="Gates"/> one gate), or
+/// between gates. <see cref="AngleDegrees"/> is the widest angle between the fronts arriving there.</summary>
+public sealed record MoldKnitLineEvidence(IReadOnlyList<string> Gates, Point3D Centroid, Point3D From, Point3D To, double Length,
+    double AngleDegrees, IReadOnlyList<int> Faces, bool Cosmetic);
+
+/// <summary>The fill from the gates over a voxel sampling of the part's interior: path length and the flow ratio
+/// (path length over local wall, summed along the path) to the last point filled.</summary>
+public sealed record MoldFlowEvidence(string Method, double VoxelSize, int Cells, double MaximumFlowRatio, double MaximumFlowLength,
+    Point3D LastToFill, int? LastToFillFace, double UnfilledFraction, IReadOnlyList<MoldKnitLineEvidence> KnitLines);
 
 public sealed record MoldRequirementEvidence(string Name, string Expression, bool Passed, string Message);
 
@@ -173,7 +222,10 @@ public sealed record MoldReport(
     MoldInsertEvidence? Inserts = null,
     IReadOnlyList<MoldCornerEvidence>? InsideCorners = null,
     MoldMeasurements? Measurements = null,
-    IReadOnlyList<MoldRequirementEvidence>? Requirements = null);
+    IReadOnlyList<MoldRequirementEvidence>? Requirements = null,
+    IReadOnlyList<MoldGateEvidence>? Gates = null,
+    IReadOnlyList<MoldEjectorEvidence>? Ejectors = null,
+    MoldFlowEvidence? Flow = null);
 
 public sealed record MoldCompileResult(
     bool IsSuccess,

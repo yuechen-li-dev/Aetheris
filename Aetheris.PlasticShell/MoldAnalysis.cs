@@ -266,8 +266,44 @@ public static class MoldAnalysis
         var (corners, smooth) = InsideCorners(body, mesh.Value.EdgePolylines, edgeFaces, trianglesOf);
         var walls = WallThickness(body, patches, evidence, samplesOf, surfaceOf, smooth, eps);
         evidence = evidence.Select(f => walls.TryGetValue(f.FaceId, out var w) ? f with { MinimumWall = w.Min, MaximumWall = w.Max, WallStrength = w.Strength } : f).ToList();
+        var measurements = Measure(evidence, corners, groups, actionOf.Count, body, surfaceOf);
+
+        // Tool layout: gates and ejector pins against the halves, then the fill from the gates.
+        var faceMesh = new MoldMeshRays(patches);
+        var partingPolylines = partingEdges.Where(polylines.ContainsKey).Select(e => polylines[e].Points.ToArray()).ToArray();
+        var silhouetteOf = splits.ToDictionary(f => f.FaceId, f => f.SilhouetteHeight!.Value);
+        var (gateEvidence, ejectorEvidence, layoutFindings) = MoldLayout.Check(intent, faceMesh, orientation, pull, f => sideOf.GetValueOrDefault(f, MoldFaceSide.Vertical),
+            cosmetic, actionOf, partingPolylines, (face, p) => silhouetteOf.TryGetValue(face, out var h) ? double.Abs(Height(p) - h) : null, chord);
+        var wallOfFace = evidence.ToDictionary(f => f.FaceId, f => f.MinimumWall);
+        var fallbackWall = measurements.NominalWall > 0 ? measurements.NominalWall : size;
+        // The cut part's second review (for the inserts) does not fill again.
+        var flow = formedBy is not null ? null : MoldFlow.Fill(faceMesh, min, max, measurements.MinimumWall > 0 ? double.Min(measurements.MinimumWall, fallbackWall) : fallbackWall,
+            gateEvidence.Where(g => g.Problem is null).Select(g => (g.Name, g.At)).ToArray(),
+            f => wallOfFace.GetValueOrDefault(f) ?? fallbackWall, cosmetic);
+        measurements = measurements with
+        {
+            Gates = gateEvidence.Count, Ejectors = ejectorEvidence.Count, EjectorArea = ejectorEvidence.Sum(e => double.Pi * e.Diameter * e.Diameter / 4),
+            FlowRatio = flow is { Cells: > 0 } ? flow.MaximumFlowRatio : null, FlowLength = flow is { Cells: > 0 } ? flow.MaximumFlowLength : null,
+            KnitLines = flow?.KnitLines.Count ?? 0, KnitLinesOnCosmetic = flow?.KnitLines.Count(k => k.Cosmetic) ?? 0,
+        };
 
         // Findings, scaled by stage.
+        foreach (var finding in layoutFindings)
+            diagnostics.Add(new(finding.Code, finding.Declaration ? PlasticDiagnosticSeverity.Error : Severity(intent.Stage, finding.Hard), finding.Message, finding.Entity));
+        if (flow is { } fill)
+        {
+            if (fill.MaximumFlowRatio > intent.Policy.MaximumFlowRatio)
+                diagnostics.Add(new(MoldDiagnosticCodes.FlowTooLong, Severity(intent.Stage, hard: false),
+                    $"The melt reaches a flow ratio (path over wall) of {fill.MaximumFlowRatio:0.#}, over {intent.Policy.Name}'s {intent.Policy.MaximumFlowRatio:0.#}: it may not fill. "
+                    + $"The last point to fill is near {Format(fill.LastToFill)}" + (fill.LastToFillFace is { } last ? $" (face {last})" : "") + $", {fill.MaximumFlowLength:0.#} mm from its gate. Add a gate nearer it, or thicken the wall.", intent.MoldName));
+            if (fill.UnfilledFraction > 0.01)
+                diagnostics.Add(new(MoldDiagnosticCodes.FlowUnfilled, Severity(intent.Stage, hard: false),
+                    $"{fill.UnfilledFraction:P0} of the part's sampled interior is not reached from the gates: a region the gates do not connect to, or a wall thinner than the {fill.VoxelSize:0.###} mm sampling.", intent.MoldName));
+            foreach (var line in fill.KnitLines.Where(k => k.Cosmetic))
+                diagnostics.Add(new(MoldDiagnosticCodes.KnitLineOnCosmetic, Severity(intent.Stage, hard: false),
+                    $"A knit line {line.Length:0.#} mm long, where " + (line.Gates.Count > 1 ? $"the fronts from gates {string.Join(" and ", line.Gates)} meet" : $"the front from gate {line.Gates[0]} closes around an obstacle")
+                    + $", runs near {Format(line.Centroid)} across cosmetic face(s) {string.Join(", ", line.Faces.Where(cosmetic.Contains))}. It shows there, and is weaker than the wall around it.", intent.MoldName));
+        }
         foreach (var f in evidence.Where(f => f.Side == MoldFaceSide.Straddling && f.Action is null && !(splits.Contains(f) && OnPlane(f.SilhouetteHeight!.Value))))
             diagnostics.Add(new(MoldDiagnosticCodes.StraddlingFace, Severity(intent.Stage, hard: true),
                 $"Face {f.FaceId} ({f.Surface} near {Format(f.Representative)}) faces both ways along the pull; the parting line has to split it"
@@ -340,7 +376,6 @@ public static class MoldAnalysis
             string? reason = plane is null ? "the part has no parting line" : null;
             // Faces that cross the parting plane are cut there first; the cut part is reviewed again, so that each of
             // its faces is formed by one half, and the inserts are cut from it.
-            var faceMesh = new MoldMeshRays(patches);
             var cut = reason is null ? MoldSplit.AtPlane(body, pull, plane!.Value, 1e-6 * size + 1e-6,
                 (face, p) => faceMesh.Closest(p, f => f != face)?.Distance ?? double.PositiveInfinity, eps, out reason) : null;
             if (cut is { SplitFaces.Count: > 0 })
@@ -363,8 +398,7 @@ public static class MoldAnalysis
         }
         return new(intent, evidence, partingLine, summary,
             "Face normals against the pull (exact on planes, and on cylinders and cones about the pull; mesh extremes otherwise); release by casting the display mesh's samples along the pull, and along each action's pull, against the part; parting line from face adjacency, in loops. Undercuts between samples are not proven absent.",
-            groups, actionEvidence, inserts?.Evidence, corners,
-            Measure(evidence, corners, groups, actionOf.Count, body, surfaceOf));
+            groups, actionEvidence, inserts?.Evidence, corners, measurements, null, gateEvidence, ejectorEvidence, flow);
     }
 
     /// <summary>

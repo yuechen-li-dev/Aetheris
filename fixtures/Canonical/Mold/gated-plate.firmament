@@ -1,0 +1,24 @@
+// A flat plate with a hole, gated at one end. The front splits around the hole and closes behind it: a knit line runs
+// from the hole to the far end, across the cosmetic top face, which a prototype review warns of.
+Model GatedPlate {
+  units: mm
+  RoundedRect2 outline { center: [0mm, 0mm]; size: [120mm, 60mm]; radius: 6mm }
+  Circle2 Hole { center: [0mm, 0mm]; radius: 6mm }
+  Profile pierced {
+    Loop Outer { outline |> TraceLoop }
+    Loop Hole { Hole |> TraceLoop }
+  }
+  Extrude body { profile: pierced; from: 0mm; to: 2.5mm; draft: 1deg }
+}
+
+Mold PlateTool {
+  part: GatedPlate
+  material: ABS
+  stage: Prototype
+  pull: +Z
+  parting: Plane { at: face(-Z) }
+  cosmetic: [face(+Z)]
+  Gate main { kind: Edge; at: [60mm, 0mm, 0mm] }
+  Ejector e1 { at: [-40mm, 0mm, 0mm]; diameter: 4mm }
+  Ejector e2 { at: [40mm, 15mm, 0mm]; diameter: 4mm }
+}

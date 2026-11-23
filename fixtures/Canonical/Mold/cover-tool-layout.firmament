@@ -1,0 +1,31 @@
+// The hollow cover's tool layout: an edge gate at the parting line on one end, two ejector pins on the ceiling inside,
+// and the top cosmetic. The fill runs up the end wall and over the top; its fronts meet down each side wall, away from
+// the top, and a house standard holds the flow ratio and the knit lines on cosmetic faces.
+Concept HouseFill(ratio: Float, cosmeticKnits: Int) {
+  fills: ratio <= 120
+  clean: cosmeticKnits == 0
+}
+
+Model HollowCover {
+  units: mm
+  Profile outline = RoundedRect2 { center: [0mm, 0mm]; size: [80mm, 50mm]; radius: 6mm }
+  Compose<Hollow> body {
+    wallThickness: 2mm
+    openings: [Bottom]
+    draft: 1.5deg
+    Base stock { profile: outline; from: 0mm; to: 20mm; role: Stock }
+  }
+}
+
+Mold CoverTool {
+  part: HollowCover
+  material: ABS
+  stage: Tooling
+  pull: +Z
+  parting: Plane { at: face(-Z) }
+  cosmetic: [face(+Z)]
+  Gate main { kind: Edge; at: [40mm, 0mm, 0mm] }
+  Ejector e1 { at: [-20mm, 0mm, 18mm]; diameter: 4mm }
+  Ejector e2 { at: [20mm, 0mm, 18mm]; diameter: 4mm }
+  Require fill => HouseFill(flow.ratio, knit.cosmetic)
+}

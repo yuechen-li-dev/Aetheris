@@ -106,13 +106,14 @@ public sealed class DisplayMeshConformanceTests(ITestOutputHelper output)
     /// <summary>Visible daylight between faces of NIST models. Curved faces are meshed from their edges' own samples,
     /// drawn edges end exactly on their vertices, and boundary vertices a face re-evaluated onto its surface are moved
     /// back onto the edge's samples, so neighbours meet vertex for vertex. What remains: stc_08's three on a circle,
-    /// stc_07's on lines, and ftc_07's, where a helical spline crosses a cylinder's seam in its chart.</summary>
+    /// stc_07's on lines, and ftc_07's, mostly one quarter-turn cylinder strip whose spline edge wobbles 0.03 mm off a
+    /// straight ruling, which the edge-bound chart folds.</summary>
     [Trait("Category", "Slow")]
     [Theory]
     [InlineData("CTC/nist_ctc_02_asme1_ap242-e2.stp", 0)]
     [InlineData("CTC/nist_ctc_03_asme1_ap242-e2.stp", 0)]
     [InlineData("CTC/nist_ctc_04_asme1_ap242-e1.stp", 0)]
-    [InlineData("FTC/nist_ftc_07_asme1_ap242-e2.stp", 42)]
+    [InlineData("FTC/nist_ftc_07_asme1_ap242-e2.stp", 34)]
     [InlineData("FTC/nist_ftc_08_asme1_ap242-e2.stp", 0)]
     [InlineData("FTC/nist_ftc_10_asme1_ap242-e2.stp", 0)]
     [InlineData("STC/nist_stc_07_asme1_ap242-e3.stp", 3)]

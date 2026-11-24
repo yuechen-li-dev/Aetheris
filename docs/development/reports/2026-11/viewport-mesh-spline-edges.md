@@ -61,11 +61,40 @@ New test `NistModelsAreWatertight`: nine NIST models at zero open edges. The day
 measured values.
 
 Not fixed:
-- **ftc_07: a helical spline across a cylinder's seam.** Cylinder face 283 has boundary segments joining samples of
-  spline edge 64 up to 63 apart: the edge winds across the seam, the UV loop jumps by 2π, and the chart mesher
-  connects across the jump. This is a periodic-seam bug in the chart path, not a sampling one.
+- **ftc_07, face 283: a folded chart, not a seam crossing.** (The first diagnosis, a helical spline crossing the seam,
+  was wrong; the measurements are in the third follow-up below.)
 - **Off-edge boundary points from refinement.** A few on ftc_07's sphere and cylinder (edges 119 and 120), up to
   0.048 mm off any sample.
 - **Sphere pcurve resample.** Kept out: keeping the shared samples on spheres measured neutral (ftc_06 better, ftc_07
   worse) once the snap was in.
 
+## Follow-up 2: ftc_07
+
+**Fixed: loose spline trims on small fillets.** The edge-bound mesher declined sphere face 31 and cylinder face 272.
+Their spline edges 119 and 120 sit 0.031–0.035 mm off a sphere of radius 1.524 mm, past the mesher's projection
+allowance of 2% of the radius, so those faces fell back to chart paths that resample. Boundary samples keep their exact
+positions in that mesher, so the projection only places them in the chart; the allowance is now 5% of the radius for
+spheres, cylinders and cones. Result on ftc_07: open edges 60 → 54, daylight 42 → 34. No other model changed.
+
+**Diagnosed, not fixed: face 283, a folded chart.** Face 283 is a quarter-turn cylinder strip (u from −0.785 to
+0.785) running 117 mm along its axis:
+- One long side is a 2-point line.
+- The other is spline edge 64: 129 samples that approximate a straight ruling but wobble ±0.003 rad (about 0.009 mm),
+  because the spline sits about 0.03 mm off the cylinder.
+
+Ear clipping in the chart gives a valid triangulation: every triangle counter-clockwise, area exact. Lifted with the
+boundary's exact off-surface positions, its long thin triangles fold. 56 of 922 triangles face against the surface
+(68.6 mm² of 663.6 mm²). Their edges are the 47 open segments.
+
+The folds are already present before any refinement, flips or relaxation; switching each stage off leaves 52–56
+folds. Making the final check reject any triangle facing against its vertex normals does not catch these (they agree
+with the normals at their vertices), and it made stc_07 worse (6 → 27). Fixing this needs a different triangulation for
+such faces, such as a quality mesh or a chart that absorbs the boundary's off-surface error, not a threshold.
+
+Remaining across the NIST set after these changes:
+- **ftc_07:** 54 open edges, 34 with daylight (face 283 above).
+- **ftc_06:** 15 / 11, on circles and lines.
+- **stc_07:** 6 / 3, on lines.
+- **stc_08:** 3 / 3, on a circle.
+- **ftc_09, ftc_11, stc_06:** 4 each, on lines.
+- **All other models:** zero.

@@ -17,6 +17,8 @@ public static partial class BrepDisplayTessellator
     /// boundary does not fit one chart (pole or apex rings, faces wrapping two ways, folds) decline, and the general
     /// paths mesh them.
     /// </summary>
+    private const double LooseTrimFraction = 0.05d;
+
     private static bool TryTessellateEdgeBound(BrepBody body, FaceId faceId, Func<IReadOnlyList<IReadOnlyList<Point3D>>, EdgeBoundSurface> surfaceFor,
         DisplayTessellationOptions options, DisplayTessellationExecutionBudget? budget, out DisplayFaceMeshPatch patch)
     {
@@ -105,9 +107,10 @@ public static partial class BrepDisplayTessellator
             (u, v) => Evaluate(v, u), (u, v) => Normal(v, u), PeriodV, PeriodU, null, Closed);
 
         // Boundary samples keep their exact positions; the projection only places them in the chart, so edges that
-        // approximate the surface loosely (vendor B-spline trims) are accepted up to a fraction of the radius.
+        // approximate the surface loosely (vendor B-spline trims) are accepted up to a twentieth of the radius: an
+        // imported fillet of 1.5 mm radius has spline edges 0.035 mm off its sphere.
         public static EdgeBoundSurface Of(CylinderSurface s) => new(
-            p => TryProjectPointToCylinderUv(s, p, 0.02 * s.Radius), s.Evaluate, (u, _) => s.Normal(u).ToVector(), 2d * double.Pi, 0d, null, false, 0.25);
+            p => TryProjectPointToCylinderUv(s, p, LooseTrimFraction * s.Radius), s.Evaluate, (u, _) => s.Normal(u).ToVector(), 2d * double.Pi, 0d, null, false, 0.25);
 
         public static EdgeBoundSurface Of(ConeSurface s)
         {
@@ -121,7 +124,7 @@ public static partial class BrepDisplayTessellator
                 var v = d.Dot(axis);
                 if (v < -1e-6) return null;
                 var radial = d - (axis * v);
-                if (double.Abs(radial.Length - (v * double.Tan(s.SemiAngleRadians))) > double.Max(AnalyticProjectionDeviationFloor, v * double.Tan(s.SemiAngleRadians) * 0.02)) return null;
+                if (double.Abs(radial.Length - (v * double.Tan(s.SemiAngleRadians))) > double.Max(AnalyticProjectionDeviationFloor, v * double.Tan(s.SemiAngleRadians) * LooseTrimFraction)) return null;
                 // The apex has no angle: the chart places it by its slant distance alone.
                 return (radial.Length <= 1e-9 ? double.NaN : double.Atan2(radial.Dot(y), radial.Dot(x)), double.Max(v, 0d));
             }, s.Evaluate, (u, _) => s.Normal(u).ToVector(), 2d * double.Pi, 0d, s.SemiAngleRadians);
@@ -149,7 +152,7 @@ public static partial class BrepDisplayTessellator
             return new(p =>
             {
                 var d = p - s.Center;
-                if (double.Abs(d.Length - radius) > double.Max(AnalyticProjectionDeviationFloor, radius * 0.02)) return null;
+                if (double.Abs(d.Length - radius) > double.Max(AnalyticProjectionDeviationFloor, radius * LooseTrimFraction)) return null;
                 var height = d.Dot(z);
                 var planar = d - (z * height);
                 if (planar.Length <= 1e-9 * radius) return null;

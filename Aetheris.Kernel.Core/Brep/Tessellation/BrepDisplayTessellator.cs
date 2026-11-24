@@ -118,7 +118,7 @@ public static partial class BrepDisplayTessellator
             }
         }
 
-        return new DisplayTessellationResult((effectiveOptions.Presentation ? DisplayEdgeConformer.Conform(body, facePatches, edgePolylines, ConformTolerance(effectiveOptions)) : facePatches), edgePolylines, faceDiagnostics);
+        return new DisplayTessellationResult((effectiveOptions.Presentation ? DisplayEdgeConformer.Conform(body, facePatches, edgePolylines, ConformTolerance(effectiveOptions), effectiveOptions.ChordTolerance) : facePatches), edgePolylines, faceDiagnostics);
     }
 
     private static string ExtractPhase(string message)
@@ -194,7 +194,7 @@ public static partial class BrepDisplayTessellator
             edgePhase.Dispose();
 
             return KernelResult<DisplayTessellationResult>.Success(new DisplayTessellationResult(
-                (effectiveOptions.Presentation ? DisplayEdgeConformer.Conform(body, facePatches, edgePolylines, ConformTolerance(effectiveOptions)) : facePatches), edgePolylines), accumulatedDiagnostics);
+                (effectiveOptions.Presentation ? DisplayEdgeConformer.Conform(body, facePatches, edgePolylines, ConformTolerance(effectiveOptions), effectiveOptions.ChordTolerance) : facePatches), edgePolylines), accumulatedDiagnostics);
         }
         catch (DisplayTessellationTimeoutException ex)
         {
@@ -4208,7 +4208,29 @@ public static partial class BrepDisplayTessellator
     private static bool PointsAlmostEqual(Point3D left, Point3D right)
         => (left - right).LengthSquared <= (LoopEndpointTolerance * LoopEndpointTolerance);
 
+    /// <summary>
+    /// The drawn edge, ending exactly on its vertices. The curve evaluated at its trim can sit a few microns off an
+    /// imported vertex; faces pin their boundary ends to the vertex, and every edge meeting at a corner must end on
+    /// that one point for the faces either side to meet there.
+    /// </summary>
     private static KernelResult<DisplayEdgePolyline> TessellateEdge(BrepBody body, EdgeId edgeId, DisplayTessellationOptions options)
+    {
+        var result = TessellateEdgeOnCurve(body, edgeId, options);
+        if (!result.IsSuccess || result.Value.Points.Count < 2) return result;
+        var edge = body.Topology.GetEdge(edgeId);
+        if (!body.TryGetVertexPoint(edge.StartVertexId, out var start) || !body.TryGetVertexPoint(edge.EndVertexId, out var end)) return result;
+        var points = result.Value.Points.ToArray();
+        // The polyline runs from the start vertex, or, if nearer the other way, from the end one.
+        var forward = (points[0] - start).Length + (points[^1] - end).Length <= (points[0] - end).Length + (points[^1] - start).Length;
+        var (first, last) = forward ? (start, end) : (end, start);
+        var reach = double.Max(options.ChordTolerance, 1e-9);
+        if ((points[0] - first).Length > reach || (points[^1] - last).Length > reach) return result;
+        if (points[0] == first && points[^1] == last) return result;
+        points[0] = first; points[^1] = last;
+        return KernelResult<DisplayEdgePolyline>.Success(result.Value with { Points = points }, result.Diagnostics);
+    }
+
+    private static KernelResult<DisplayEdgePolyline> TessellateEdgeOnCurve(BrepBody body, EdgeId edgeId, DisplayTessellationOptions options)
     {
         if (!body.TryGetEdgeCurveGeometry(edgeId, out var curve) || curve is null)
         {

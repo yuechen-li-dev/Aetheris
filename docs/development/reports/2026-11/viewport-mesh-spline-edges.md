@@ -24,27 +24,48 @@ Edge polylines themselves were within tolerance on every model (worst ellipse 0.
 0.25 mm chord), so the jaggy look was the faces, not the edges. Regression test: `lamp-shade-loft` and
 `closed-ellipse-extrusion` join `ViewportMeshIsClosedAcrossCurvedEdges` (zero open edges).
 
-## Not fixed: spline edges on the general UV-chart path
+## Follow-up: watertight across imported spline edges
 
-Remaining open edges on spline edges are in NIST models whose sphere and cylinder faces the edge-bound mesher declines,
-so they mesh through `TrimmedSurfaceTessellator` / `BoundaryConformingTrimTessellator`. Measured on ftc_07 (the only
-one with visible daylight on spline edges, up to 0.226 mm; stc_07, stc_10, ctc_02 and ftc_10 have hairline mismatches):
+Two more causes, both on imported models, fixed:
 
-1. **Sphere pcurve resample.** The sphere's general path replaces a coedge's shared samples with 32 or more of its own
-   along the pcurve (sphere face 31 keeps 2 of spline edge 122's 17 samples, its endpoints).
-2. **Boundary re-evaluation.** The conforming mesher re-evaluates every boundary vertex from its chart coordinates,
-   moving it onto the surface by the edge-to-surface residual (about 1e-4 mm there), off the neighbour's exact sample.
+1. **Drawn edges ended off their vertices.** `TessellateEdge` evaluated the curve at its trim, which on imported
+   models sits up to 3e-5 mm from the B-rep vertex. Faces pin their boundary ends to the vertex, so at a corner the
+   faces either side snapped to different edges' ends and missed each other by microns. Drawn edges now end exactly
+   on their vertices (`TessellateEdge` wraps the curve sampler and pins the ends, within the chord tolerance).
+2. **Chart paths re-evaluate their boundary.** Faces meshed through a surface chart (the sphere's stereographic chart,
+   the cylinder and cone UV paths, the conforming trim mesher) place each boundary sample at `evaluate(u, v)`, on the
+   surface rather than on the edge: off by the edge's distance from the surface (5e-4 mm on stc_10, up to 0.05 mm on
+   ftc_07), beyond the conformer's 1e-3 × tolerance weld. `DisplayEdgeConformer` now first moves each boundary vertex
+   onto the nearest sample of the face's own edges, within a fifth of the chord tolerance and a third of the spacing
+   to the next sample. This does in one place, for every path, what carrying the 3D samples through each chart would
+   have done in seven callers.
 
-Tried and reverted, each kept only on measured gain:
-- **Inserting a neighbour's vertices by position along the edge** in `DisplayEdgeConformer`. Fixed lamp-shade but
-  zigzagged between parallel edges a narrow face apart (stc_10 daylight 0 → 284). The planar sampler fix makes it
-  unnecessary.
-- **Keeping the shared samples on spheres.** Alone it had no gain: the chart's collinear pass straightened them again.
-- **Requiring 3D straightness in `RemoveCollinearVertices`.** Mixed: ftc_06 daylight 11 → 2, but ctc_04 open edges
-  0 → 79.
+Each fix was measured alone and together:
+- **Pinned ends without the snap:** stc_07 has 161 open edges, stc_10 51.
+- **Snap without pinned ends:** ctc_02 has 64 open edges.
+- **The snap's targets:** the first version took the first in-range edge and the second the nearest of all edges.
+  Both broke previously matching pairs (corner asymmetry; a line-edge vertex snapping to a nearby curve's sample,
+  stc_10 daylight 0 → 4).
 
-## Verdict
+| Model | Open edges / daylight before | After |
+| --- | --- | --- |
+| ctc_02 | 197 / 0 | 0 / 0 |
+| ftc_10 | 51 / 3 | 0 / 0 |
+| stc_10 | 52 / 0 | 0 / 0 |
+| stc_07 | 412 / 9 | 6 / 3 (on lines) |
+| ftc_06 | 41 / 11 | 15 / 11 (circles and lines) |
+| ftc_07 | 137 / 50 | 60 / 42 |
+| all others | unchanged (0, or 3–4 on lines and circles) | |
 
-Planar faces with spline edges: fixed, no regressions. The general chart path needs boundary vertices to keep their
-input 3D positions through the chart (`BoundaryConformingTrimTessellator` taking the 3D loops alongside the UV ones);
-that is a change to every caller of that path, not part of this fix.
+New test `NistModelsAreWatertight`: nine NIST models at zero open edges. The daylight ceilings are tightened to the
+measured values.
+
+Not fixed:
+- **ftc_07: a helical spline across a cylinder's seam.** Cylinder face 283 has boundary segments joining samples of
+  spline edge 64 up to 63 apart: the edge winds across the seam, the UV loop jumps by 2π, and the chart mesher
+  connects across the jump. This is a periodic-seam bug in the chart path, not a sampling one.
+- **Off-edge boundary points from refinement.** A few on ftc_07's sphere and cylinder (edges 119 and 120), up to
+  0.048 mm off any sample.
+- **Sphere pcurve resample.** Kept out: keeping the shared samples on spheres measured neutral (ftc_06 better, ftc_07
+  worse) once the snap was in.
+

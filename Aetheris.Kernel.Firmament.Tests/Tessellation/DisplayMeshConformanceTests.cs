@@ -104,18 +104,21 @@ public sealed class DisplayMeshConformanceTests(ITestOutputHelper output)
     }
 
     /// <summary>Visible daylight between faces of NIST models. Curved faces are meshed from their edges' own samples,
-    /// so neighbours meet vertex for vertex; what remains is where an imported vertex sits off its edge's end, or a
-    /// face the edge-bound mesher declines (a sphere whose loop runs against its sense). Counts are ceilings with a
-    /// little margin over the measured 0, 0, 0, 3, 0, 3 and 2 (from thousands before the edge-bound mesher).</summary>
+    /// drawn edges end exactly on their vertices, and boundary vertices a face re-evaluated onto its surface are moved
+    /// back onto the edge's samples, so neighbours meet vertex for vertex. What remains: stc_08's three on a circle,
+    /// stc_07's on lines, and ftc_07's, where a helical spline crosses a cylinder's seam in its chart.</summary>
     [Trait("Category", "Slow")]
     [Theory]
-    [InlineData("CTC/nist_ctc_02_asme1_ap242-e2.stp", 6)]
+    [InlineData("CTC/nist_ctc_02_asme1_ap242-e2.stp", 0)]
     [InlineData("CTC/nist_ctc_03_asme1_ap242-e2.stp", 0)]
-    [InlineData("CTC/nist_ctc_04_asme1_ap242-e1.stp", 4)]
+    [InlineData("CTC/nist_ctc_04_asme1_ap242-e1.stp", 0)]
+    [InlineData("FTC/nist_ftc_07_asme1_ap242-e2.stp", 42)]
     [InlineData("FTC/nist_ftc_08_asme1_ap242-e2.stp", 0)]
-    [InlineData("FTC/nist_ftc_10_asme1_ap242-e2.stp", 8)]
-    [InlineData("STC/nist_stc_08_asme1_ap242-e3.stp", 8)]
+    [InlineData("FTC/nist_ftc_10_asme1_ap242-e2.stp", 0)]
+    [InlineData("STC/nist_stc_07_asme1_ap242-e3.stp", 3)]
+    [InlineData("STC/nist_stc_08_asme1_ap242-e3.stp", 3)]
     [InlineData("STC/nist_stc_09_asme1_ap242-e3.stp", 0)]
+    [InlineData("STC/nist_stc_10_asme1_ap242-e2.stp", 0)]
     public void NistModelsShowNoDaylightBetweenFaces(string model, int ceiling)
     {
         var body = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(File.ReadAllText(Path.Combine(Repo(), "testdata/step242/nist", model))).Value;
@@ -127,6 +130,27 @@ public sealed class DisplayMeshConformanceTests(ITestOutputHelper output)
 
     /// <summary>Refinement stops at the tolerances: a fillet-heavy NIST model stays near 100k viewport triangles
     /// (measured 108k; the general paths it replaced produced 393k).</summary>
+
+    /// <summary>Watertight: every triangle edge used twice once positions weld at a micron, ellipse and spline edges
+    /// included. Imported vertices a few microns off their edges' ends, and spline and sphere faces re-evaluating
+    /// their boundary from a chart, used to leave hundreds of hairline cracks here.</summary>
+    [Trait("Category", "Slow")]
+    [Theory]
+    [InlineData("CTC/nist_ctc_01_asme1_ap242-e1.stp")]
+    [InlineData("CTC/nist_ctc_02_asme1_ap242-e2.stp")]
+    [InlineData("CTC/nist_ctc_03_asme1_ap242-e2.stp")]
+    [InlineData("CTC/nist_ctc_04_asme1_ap242-e1.stp")]
+    [InlineData("CTC/nist_ctc_05_asme1_ap242-e1.stp")]
+    [InlineData("FTC/nist_ftc_08_asme1_ap242-e2.stp")]
+    [InlineData("FTC/nist_ftc_10_asme1_ap242-e2.stp")]
+    [InlineData("STC/nist_stc_09_asme1_ap242-e3.stp")]
+    [InlineData("STC/nist_stc_10_asme1_ap242-e2.stp")]
+    public void NistModelsAreWatertight(string model)
+    {
+        var body = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(File.ReadAllText(Path.Combine(Repo(), "testdata/step242/nist", model))).Value;
+        var mesh = BrepDisplayTessellator.TessellateBoundedPartial(body, DisplayTessellationOptions.ForViewport(body), TimeSpan.FromSeconds(60));
+        Assert.Equal(0, OpenEdges(mesh));
+    }
     [Fact]
     public void CurvedFacesRefineOnlyToTheTolerances()
     {

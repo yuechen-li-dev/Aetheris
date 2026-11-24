@@ -8,12 +8,19 @@ namespace Aetheris.Kernel.Core.Brep.Tessellation;
 /// that sample one edge differently leave slivers of daylight between them. For every edge this gathers the vertices
 /// that any adjacent face (and the drawn edge) put on it, and splits each adjacent face's boundary triangles at the
 /// ones it lacks, so both sides carry the same polyline. Positions are copied, never re-evaluated, so the sides agree
-/// exactly. Faces are never moved; only boundary triangles are subdivided.
+/// exactly. Only boundary triangles are subdivided.
+/// <para>
+/// A face's boundary vertex near one of its edge's samples is first moved onto that sample, up to a fifth of the chord
+/// tolerance and under a third of the spacing to the next sample, so it never lands on the wrong one. Faces meshed
+/// through a surface chart re-evaluate their boundary from the chart, which puts each sample on the surface rather
+/// than on the edge: by the edge's distance from the surface, a few microns to a few hundredths of a millimetre on
+/// imported splines, enough to break the vertex-for-vertex match with the neighbouring face.
+/// </para>
 /// </summary>
 internal static class DisplayEdgeConformer
 {
     public static IReadOnlyList<DisplayFaceMeshPatch> Conform(BrepBody body, IReadOnlyList<DisplayFaceMeshPatch> patches,
-        IReadOnlyList<DisplayEdgePolyline> edges, double tolerance)
+        IReadOnlyList<DisplayEdgePolyline> edges, double tolerance, double chordTolerance)
     {
         var polylines = edges.Where(e => e.Points.Count >= 2).ToDictionary(e => e.EdgeId, e => new Polyline(e.Points, tolerance));
         var faceEdges = new Dictionary<FaceId, EdgeId[]>();
@@ -23,6 +30,18 @@ internal static class DisplayEdgeConformer
 
         // Boundary of each patch: directed triangle edges used once, with the edge each lies along.
         var boundaries = patches.Select(Boundary).ToArray();
+
+        // Boundary vertices onto the nearest sample of the face's own edges, where the face put them on the surface
+        // instead: the nearest, not the first edge's, so two faces meeting at a corner pick the same one.
+        var samples = new SampleIndex(polylines, double.Max(chordTolerance / 5, 1e-9));
+        patches = patches.Select((patch, i) =>
+        {
+            var positions = patch.Positions.ToArray();
+            var moved = false;
+            foreach (var v in boundaries[i].SelectMany(s => new[] { s.A, s.B }).Distinct())
+                if (samples.Snap(positions[v], faceEdges[patch.FaceId]) is { } sample && sample != positions[v]) { positions[v] = sample; moved = true; }
+            return moved ? patch with { Positions = positions } : patch;
+        }).ToArray();
         var onEdge = new Dictionary<EdgeId, PointSet>();
         PointSet Set(EdgeId id) => onEdge.TryGetValue(id, out var set) ? set : onEdge[id] = new PointSet(polylines[id].Points, tolerance);
         for (var i = 0; i < patches.Count; i++)
@@ -161,6 +180,47 @@ internal static class DisplayEdgeConformer
     }
 
     /// <summary>The points known to lie on one edge, deduplicated.</summary>
+    /// <summary>Every edge's samples, hashed by position. A point snaps to the nearest sample of the given edges within
+    /// the radius, and within a third of the spacing from that sample to the next along its edge.</summary>
+    private sealed class SampleIndex
+    {
+        private readonly double radius;
+        private readonly Dictionary<(long, long, long), List<(Point3D P, double Reach, EdgeId Edge)>> cells = [];
+
+        public SampleIndex(IReadOnlyDictionary<EdgeId, Polyline> lines, double radius)
+        {
+            this.radius = radius;
+            foreach (var (edge, line) in lines)
+                for (var i = 0; i < line.Points.Count; i++)
+                {
+                    var spacing = double.MaxValue;
+                    if (i > 0) spacing = double.Min(spacing, (line.Points[i] - line.Points[i - 1]).Length);
+                    if (i + 1 < line.Points.Count) spacing = double.Min(spacing, (line.Points[i + 1] - line.Points[i]).Length);
+                    var reach = double.Min(radius, spacing / 3);
+                    var key = Key(line.Points[i]);
+                    if (!cells.TryGetValue(key, out var list)) cells[key] = list = [];
+                    list.Add((line.Points[i], reach, edge));
+                }
+        }
+
+        private (long, long, long) Key(Point3D p) => ((long)double.Floor(p.X / radius), (long)double.Floor(p.Y / radius), (long)double.Floor(p.Z / radius));
+
+        public Point3D? Snap(Point3D p, IReadOnlyCollection<EdgeId> edges)
+        {
+            var (x, y, z) = Key(p);
+            Point3D? best = null; var distance = double.MaxValue;
+            for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) for (var dz = -1; dz <= 1; dz++)
+                        if (cells.TryGetValue((x + dx, y + dy, z + dz), out var list))
+                            foreach (var (q, reach, edge) in list)
+                            {
+                                if (!edges.Contains(edge)) continue;
+                                var d = (q - p).Length;
+                                if (d <= reach && d < distance) (best, distance) = (q, d);
+                            }
+            return best;
+        }
+    }
+
     private sealed class PointSet
     {
         private readonly List<Point3D> points = [];
